@@ -124,6 +124,13 @@ class RegisterType(Data[Register], TypeAttribute):
 
     name = "riscv.reg"
 
+    @property
+    def register_name(self) -> str:
+        """Returns name if allocated, raises ValueError if not"""
+        if self.data.name is None:
+            raise ValueError("Cannot get name for unallocated register")
+        return self.data.name
+
     @staticmethod
     def parse_parameter(parser: Parser) -> Register:
         name = parser.try_parse_bare_id()
@@ -137,10 +144,6 @@ class RegisterType(Data[Register], TypeAttribute):
         if name is None:
             return
         printer.print_string(name)
-
-    @property
-    def abi_name(self):
-        return self.data.name
 
 
 @irdl_attr_definition
@@ -337,6 +340,21 @@ class RsRsImmOperation(IRDLOperation, RISCVOp, ABC):
         )
 
 
+class RsRsOperation(IRDLOperation, RISCVOp, ABC):
+    """
+    A base class for RISC-V operations that have two source
+    registers.
+    """
+
+    rs1: Annotated[Operand, RegisterType]
+    rs2: Annotated[Operand, RegisterType]
+
+    def __init__(self, rs1: Operation | SSAValue, rs2: Operation | SSAValue):
+        super().__init__(
+            operands=[rs1, rs2],
+        )
+
+
 class NullaryOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
@@ -388,10 +406,10 @@ class CsrReadWriteOperation(IRDLOperation, RISCVOp, ABC):
             return
         if not isinstance(self.rd.typ, RegisterType):
             return
-        if self.rd.typ.abi_name is not None and self.rd.typ.abi_name != "zero":
+        if self.rd.typ.data.name is not None and self.rd.typ.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.typ.abi_name}'"
+                f"not '{self.rd.typ.data.name}'"
             )
 
 
@@ -439,10 +457,10 @@ class CsrBitwiseOperation(IRDLOperation, RISCVOp, ABC):
             return
         if not isinstance(self.rs1.typ, RegisterType):
             return
-        if self.rs1.typ.abi_name is not None and self.rs1.typ.abi_name != "zero":
+        if self.rs1.typ.data.name is not None and self.rs1.typ.data.name != "zero":
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.typ.abi_name}'"
+                f"not '{self.rs1.typ.data.name}'"
             )
 
 
@@ -488,10 +506,10 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVOp, ABC):
             return
         if not isinstance(self.rd.typ, RegisterType):
             return
-        if self.rd.typ.abi_name is not None and self.rd.typ.abi_name != "zero":
+        if self.rd.typ.data.name is not None and self.rd.typ.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.typ.abi_name}'"
+                f"not '{self.rd.typ.data.name}'"
             )
 
 
@@ -1418,7 +1436,7 @@ class WfiOp(NullaryOperation):
 
 # endregion
 
-# RISC-V SSA Helpers
+# region RISC-V SSA Helpers
 
 
 @irdl_op_definition
@@ -1455,6 +1473,25 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
             register_type = RegisterType(register_type)
         super().__init__(result_types=[register_type])
 
+
+# endregion
+
+# region RISC-V Extensions
+
+
+@irdl_op_definition
+class ScfgwOp(RsRsOperation):
+    """
+    Write a the value in rs1 to the Snitch stream configuration
+    location pointed by rs2 in the memory-mapped address space.
+
+    This is an extension of the RISC-V ISA.
+    """
+
+    name = "riscv.scfgw"
+
+
+# endregion
 
 RISCV = Dialect(
     [
@@ -1518,6 +1555,7 @@ RISCV = Dialect(
         EbreakOp,
         WfiOp,
         GetRegisterOp,
+        ScfgwOp,
     ],
     [
         RegisterType,

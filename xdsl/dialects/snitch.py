@@ -10,6 +10,8 @@ that aims at generating.
 
 from abc import ABC
 
+from dataclasses import dataclass
+
 from typing import Annotated
 
 from xdsl.dialects.riscv import RegisterType
@@ -19,6 +21,18 @@ from xdsl.dialects.builtin import AnyIntegerAttr
 from xdsl.ir import Dialect, Operation, SSAValue
 
 from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand, OpAttr
+
+from xdsl.utils.exceptions import VerifyException
+
+
+@dataclass(frozen=True)
+class SnitchResources:
+    """
+    Bounds for resources provided by the Snitch architecture.
+    """
+
+    # Number of dimensions supported by each data mover.
+    dimensions: int = 4
 
 
 class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
@@ -43,6 +57,13 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
                 "dimension": dimension,
             },
         )
+
+    def verify_(self) -> None:
+        if self.dimension.value.data >= SnitchResources.dimensions:
+            raise VerifyException(
+                f"dimension attribute out of range [0..{SnitchResources.dimensions-1}], "
+                f"Snitch supports up to {SnitchResources.dimensions} dimensions per streamer"
+            )
 
 
 class SsrSetStreamConfigOperation(IRDLOperation, ABC):

@@ -5,10 +5,11 @@ import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
+from xdsl.frontend.python_code_check import FunctionMap
 import xdsl.frontend.symref as symref
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List
 from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
 from xdsl.frontend.op_inserter import OpInserter
 from xdsl.frontend.op_resolver import OpResolver
@@ -20,13 +21,16 @@ from xdsl.ir import Attribute, Block, Region, SSAValue
 class CodeGeneration:
     @staticmethod
     def run_with_type_converter(
-        type_converter: TypeConverter, stmts: Sequence[ast.stmt], file: str | None
+        type_converter: TypeConverter,
+        functions_and_blocks: FunctionMap,
+        file: str | None,
     ) -> builtin.ModuleOp:
         """Generates xDSL code and returns it encapsulated into a single module."""
         module = builtin.ModuleOp([])
+
         visitor = CodeGenerationVisitor(type_converter, module, file)
-        for stmt in stmts:
-            visitor.visit(stmt)
+        for function_def, _ in functions_and_blocks.values():
+            visitor.visit(function_def)
         return module
 
 

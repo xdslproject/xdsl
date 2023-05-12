@@ -173,4 +173,8 @@
   "riscv.ebreak"() : () -> ()
   // CHECK-NEXT: "riscv.ebreak"() : () -> ()
 
+  // RISC-V extensions
+  "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()
+  // CHECK-NEXT: "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()
+
 }) : () -> ()

@@ -2,12 +2,13 @@ import ast
 
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import Any, Dict, List
+from typing import Any
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.code_generation import CodeGeneration
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.frontend.passes.desymref import Desymrefier
+from xdsl.frontend.python_code_check import FunctionMap
 from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.printer import Printer
 
@@ -19,10 +20,13 @@ class FrontendProgram:
     program can be compiled and translated to xDSL or MLIR.
     """
 
-    stmts: List[ast.stmt] | None = field(default=None)
-    """AST nodes stored for compilation to xDSL."""
+    stmts: list[ast.stmt] | None = field(default=None)
+    """Input AST nodes."""
 
-    globals: Dict[str, Any] | None = field(default=None)
+    functions_and_blocks: FunctionMap | None = field(default=None)
+    """Processed AST nodes stored for code generation."""
+
+    globals: dict[str, Any] | None = field(default=None)
     """Global information for this program, including all the imports."""
 
     xdsl_program: ModuleOp | None = field(default=None)
@@ -47,11 +51,11 @@ Cannot compile program without the code context. Try to use:
         # `CodeContext`.
         self._check_can_compile()
         assert self.globals is not None
-        assert self.stmts is not None
+        assert self.functions_and_blocks is not None
 
         type_converter = TypeConverter(self.globals)
         self.xdsl_program = CodeGeneration.run_with_type_converter(
-            type_converter, self.stmts, self.file
+            type_converter, self.functions_and_blocks, self.file
         )
         self.xdsl_program.verify()
 

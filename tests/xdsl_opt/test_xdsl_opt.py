@@ -21,6 +21,7 @@ def test_opt():
         "stencil-to-local-2d-horizontal",
         "frontend-desymrefy",
         "dce",
+        "lower-snitch",
         "riscv-allocate-registers",
     ]
 
