@@ -128,9 +128,8 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
     name = "stencil.result"
     elem: ParameterDef[AnyFloat]
 
-    @staticmethod
-    def from_type(float_t: AnyFloat):
-        return ResultType([float_t])
+    def __init__(self, float_t: AnyFloat) -> None:
+        super().__init__([float_t])
 
 
 @dataclass

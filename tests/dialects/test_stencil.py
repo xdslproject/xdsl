@@ -1,10 +1,15 @@
 import pytest
 
 from xdsl.dialects.builtin import (
+    AnyFloat,
     FloatAttr,
     IntegerAttr,
+    bf16,
+    f16,
     f32,
     f64,
+    f80,
+    f128,
     i32,
     i64,
     IntegerType,
@@ -46,16 +51,16 @@ def test_stencil_return_multiple_floats():
 
 
 def test_stencil_return_single_ResultType():
-    result_type_val1 = TestSSAValue(ResultType.from_type(f32))
+    result_type_val1 = TestSSAValue(ResultType(f32))
     return_op = ReturnOp.get([result_type_val1])
 
     assert return_op.arg[0] is result_type_val1
 
 
 def test_stencil_return_multiple_ResultType():
-    result_type_val1 = TestSSAValue(ResultType.from_type(f32))
-    result_type_val2 = TestSSAValue(ResultType.from_type(f32))
-    result_type_val3 = TestSSAValue(ResultType.from_type(f32))
+    result_type_val1 = TestSSAValue(ResultType(f32))
+    result_type_val2 = TestSSAValue(ResultType(f32))
+    result_type_val3 = TestSSAValue(ResultType(f32))
 
     return_op = ReturnOp.get([result_type_val1, result_type_val2, result_type_val3])
 
@@ -176,7 +181,7 @@ def test_cast_op_constructor():
 
 
 def test_stencil_apply():
-    result_type_val1 = TestSSAValue(ResultType.from_type(f32))
+    result_type_val1 = TestSSAValue(ResultType(f32))
 
     stencil_temptype = TempType([-1] * 2, f32)
     apply_op = ApplyOp.get([result_type_val1], Block([]), [stencil_temptype])
@@ -551,3 +556,14 @@ def test_stencil_temptype_printing(attr: IntegerType, dims: list[int]):
     expected_string += "]>"
 
     assert repr(stencil_temptype) == expected_string
+
+
+@pytest.mark.parametrize(
+    "float_type",
+    ((bf16), (f16), (f32), (f64), (f80), (f128)),
+)
+def test_stencil_resulttype(float_type: AnyFloat):
+    stencil_resulttype = ResultType(float_type)
+
+    assert isinstance(stencil_resulttype, ResultType)
+    assert stencil_resulttype.elem == float_type
