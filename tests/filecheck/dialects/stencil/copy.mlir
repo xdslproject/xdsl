@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | filecheck %s
+// RUN: xdsl-opt %s --print-op-generic | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({

@@ -404,10 +404,10 @@ def test_generic_format():
 }) : () -> ()"""
 
     expected = """\
-"builtin.module"() ({
+builtin.module {
   %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
   %1 = test.add %0 + %0 : i32
-}) : () -> ()
+}
 """
 
     ctx = MLContext()
@@ -426,17 +426,17 @@ def test_custom_format():
     Test that we can use custom formats in operations.
     """
     prog = """\
-"builtin.module"() ({
+builtin.module {
   %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
   %1 = test.add %0 + %0 : i32
-}) : () -> ()
+}
 """
 
     expected = """\
-"builtin.module"() ({
+builtin.module {
   %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
   %1 = test.add %0 + %0 : i32
-}) : () -> ()
+}
 """
 
     ctx = MLContext()

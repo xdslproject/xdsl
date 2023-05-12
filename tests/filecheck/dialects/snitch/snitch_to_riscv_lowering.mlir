@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p lower-snitch %s | filecheck %s
+// RUN: xdsl-opt -p lower-snitch %s --print-op-generic | filecheck %s
 "builtin.module"() ({
   %addr = "test.op"() : () -> !riscv.reg<>
   %stream = "riscv.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<>

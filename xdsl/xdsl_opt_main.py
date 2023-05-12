@@ -214,7 +214,7 @@ class xDSLOptMain:
         )
 
         arg_parser.add_argument(
-            "--print-generic-op",
+            "--print-op-generic",
             default=False,
             action="store_true",
             help="Print operations with the generic format",
@@ -292,7 +292,7 @@ class xDSLOptMain:
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(
-                stream=output, print_generic_format=self.args.print_generic_op
+                stream=output, print_generic_format=self.args.print_op_generic
             )
             printer.print_op(prog)
             print("\n", file=output)

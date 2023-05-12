@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p stencil-shape-inference --verify-diagnostic | filecheck %s
+// RUN: xdsl-opt %s -p stencil-shape-inference --verify-diagnostic --print-op-generic | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({

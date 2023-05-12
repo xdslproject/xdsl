@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -split-input-file %s | xdsl-opt -split-input-file | filecheck %s
+// RUN: xdsl-opt -split-input-file %s | xdsl-opt -split-input-file --print-op-generic | filecheck %s
 
 "builtin.module"() ({
 // CHECK: "builtin.module"() ({

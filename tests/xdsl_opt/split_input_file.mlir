@@ -1,17 +1,17 @@
-"builtin.module"() ({
-}) : () -> ()
+builtin.module {
+}
 
 // -----
-"builtin.module"() ({
+builtin.module {
   "test.op"() : () -> ()
-}) : () -> ()
+}
 
 // -----
-"builtin.module"() ({
+builtin.module {
   %x = "test.op"() : () -> i1
-}) : () -> ()
+}
 
 // -----
-"builtin.module"() ({
+builtin.module {
   %x = "test.op"() : () -> i2
-}) : () -> ()
+}
