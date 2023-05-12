@@ -1,7 +1,7 @@
 // RUN: python -m toy %s --emit=ir-toy --opt | filecheck %s
 
 "builtin.module"() ({
-// CHECK:       "builtin.module"() ({
+// CHECK:       builtin.module {
 
   "toy.func"() ({
     %10 = "toy.constant"() {"value" = dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
