@@ -45,13 +45,10 @@ class ToyShapeInferenceTrait(OpTrait, ABC):
     Traits Toy operations should inherit from to infer shape inference based on operands.
     """
 
-    def verify(self, op: Operation) -> None:
-        pass
-
     @classmethod
     @abstractmethod
     def infer_shape(cls, op: Operation) -> None:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -105,9 +102,12 @@ class ConstantOp(IRDLOperation):
 class InferAddOpShapeTrait(ToyShapeInferenceTrait):
     @classmethod
     def infer_shape(cls, op: Operation) -> None:
-        assert isinstance(op, AddOp)
-        assert isinstance(op.lhs.typ, TensorType)
-        assert isinstance(op.rhs.typ, TensorType)
+        if not isinstance(op, AddOp):
+            raise TypeError
+        if not (
+            isinstance(op.lhs.typ, TensorType) and isinstance(op.rhs.typ, TensorType)
+        ):
+            return
         assert op.lhs.typ.get_shape() == op.rhs.typ.get_shape()
         if isinstance(op.res.typ, TensorType):
             assert op.lhs.typ.get_shape() == op.res.typ.get_shape()
@@ -269,9 +269,14 @@ class GenericCallOp(IRDLOperation):
 class InferMulOpShapeTrait(ToyShapeInferenceTrait):
     @classmethod
     def infer_shape(cls, op: Operation) -> None:
-        assert isinstance(op, MulOp)
-        assert isinstance(op.lhs.typ, TensorType)
-        assert isinstance(op.rhs.typ, TensorType)
+        if not isinstance(op, MulOp):
+            raise TypeError
+
+        if not (
+            isinstance(op.lhs.typ, TensorType) and isinstance(op.rhs.typ, TensorType)
+        ):
+            return
+
         assert op.lhs.typ.get_shape() == op.rhs.typ.get_shape()
         if isinstance(op.res.typ, TensorType):
             assert op.lhs.typ.get_shape() == op.res.typ.get_shape()
@@ -374,7 +379,8 @@ class ReshapeOp(IRDLOperation):
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not isa(arg.typ, AnyTensorTypeF64):
             raise ValueError(
-                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}"
+                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected"
+                " {AnyTensorTypeF64}"
             )
         element_type = arg.typ.element_type
         t = TensorTypeF64.from_type_and_list(element_type, shape)
@@ -384,7 +390,8 @@ class ReshapeOp(IRDLOperation):
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
         if not isa(arg.typ, AnyTensorTypeF64):
             raise ValueError(
-                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}"
+                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected"
+                " {AnyTensorTypeF64}"
             )
         return ReshapeOp.create(result_types=[t], operands=[arg])
 
@@ -398,8 +405,11 @@ class ReshapeOp(IRDLOperation):
 class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
     @classmethod
     def infer_shape(cls, op: Operation) -> None:
-        assert isinstance(op, TransposeOp)
-        assert isinstance(op.arg.typ, TensorType)
+        if not isinstance(op, TransposeOp):
+            raise TypeError
+
+        if not isinstance(op.arg.typ, TensorType):
+            return
 
         arg_shape = op.arg.typ.get_shape()
         res_shape = arg_shape[::-1]
@@ -438,8 +448,11 @@ class TransposeOp(IRDLOperation):
 class InferCastOpShapeTrait(ToyShapeInferenceTrait):
     @classmethod
     def infer_shape(cls, op: Operation) -> None:
-        assert isinstance(op, CastOp)
-        assert isinstance(op.arg.typ, TensorType)
+        if not isinstance(op, CastOp):
+            raise TypeError
+
+        if not isinstance(op.arg.typ, TensorType):
+            return
 
         shape = op.arg.typ.get_shape()
 
