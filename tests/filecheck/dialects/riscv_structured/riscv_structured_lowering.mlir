@@ -2,7 +2,7 @@
 
 "builtin.module"() ({
   %file = "riscv.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<s0>
-  %success = "riscv_func.syscall"(%file) {"syscall_num" = 64 : i32}: () -> !riscv.reg<s1>
+  %success = "riscv_func.syscall"(%file) {"syscall_num" = 64 : i32}: (!riscv.reg<s0>) -> !riscv.reg<s1>
 // CHECK:      %file = "riscv.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<s0>
 // CHECK-NEXT: %{{.+}} = "riscv.mv"(%{{.+}}) : (!riscv.reg<s0>) -> !riscv.reg<a0>
 // CHECK-NEXT: %{{.+}} = "riscv.li"() {"immediate" = 64 : i32} : () -> !riscv.reg<a7>
