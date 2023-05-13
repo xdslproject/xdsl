@@ -9,6 +9,7 @@ from .frontend.parser import Parser as ToyParser
 from .compiler import context
 from .rewrites.optimise_toy import OptimiseToy
 from .rewrites.shape_inference import ShapeInferencePass
+from .rewrites.inline_toy import InlineToyPass
 
 from .interpreter import Interpreter, ToyFunctions
 
@@ -17,16 +18,13 @@ parser.add_argument("source", type=Path, help="toy source file")
 parser.add_argument(
     "--emit",
     dest="emit",
-    choices=["ast", "ir-toy", "interpret"],
-    default="ast",
+    choices=["ast", "ir-toy", "ir-toy-opt", "ir-toy-inline", "ir-toy-infer-shapes", "interpret"],
+    default="interpret",
     help="Action to perform on source file (default: interpret)",
 )
-parser.add_argument(
-    "--opt", dest="opt", action="store_true", help="Optimise IR before printing"
-)
 
 
-def main(path: Path, emit: str, opt: bool):
+def main(path: Path, emit: str):
     ctx = context()
 
     path = args.source
@@ -49,15 +47,28 @@ def main(path: Path, emit: str, opt: bool):
                 print(f"Unknown file format {path}")
                 return
 
-    if emit == "ir-toy" and not opt:
+    if emit == "ir-toy":
         printer = Printer()
         printer.print(module_op)
         return
 
     OptimiseToy().apply(ctx, module_op)
+
+    if emit == "ir-toy-opt":
+        printer = Printer()
+        printer.print(module_op)
+        return
+
+    InlineToyPass().apply(ctx, module_op)
+
+    if emit == "ir-toy-inline":
+        printer = Printer()
+        printer.print(module_op)
+        return
+
     ShapeInferencePass().apply(ctx, module_op)
 
-    if emit == "ir-toy" and opt:
+    if emit == "ir-toy-infer-shapes":
         printer = Printer()
         printer.print(module_op)
         return
@@ -73,4 +84,4 @@ def main(path: Path, emit: str, opt: bool):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.source, args.emit, args.opt)
+    main(args.source, args.emit)
