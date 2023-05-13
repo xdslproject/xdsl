@@ -10,15 +10,16 @@ from .compiler import context
 from .rewrites.optimise_toy import OptimiseToy
 from .rewrites.shape_inference import ShapeInferencePass
 
+from .interpreter import Interpreter, ToyFunctions
 
 parser = argparse.ArgumentParser(description="Process Toy file")
 parser.add_argument("source", type=Path, help="toy source file")
 parser.add_argument(
     "--emit",
     dest="emit",
-    choices=["ast", "ir-toy"],
+    choices=["ast", "ir-toy", "interpret"],
     default="ast",
-    help="Action to perform on source file (default: interpret file)",
+    help="Action to perform on source file (default: interpret)",
 )
 parser.add_argument(
     "--opt", dest="opt", action="store_true", help="Optimise IR before printing"
@@ -59,6 +60,12 @@ def main(path: Path, emit: str, opt: bool):
     if emit == "ir-toy" and opt:
         printer = Printer()
         printer.print(module_op)
+        return
+
+    if emit == "interpret":
+        interpreter = Interpreter(module_op)
+        interpreter.register_implementations(ToyFunctions())
+        interpreter.run_module()
         return
 
     print(f"Unknown option {emit}")
