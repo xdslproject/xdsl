@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p stencil-shape-inference,convert-stencil-to-gpu | filecheck %s
+// RUN: xdsl-opt %s -p stencil-shape-inference,convert-stencil-to-gpu --print-op-generic | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({

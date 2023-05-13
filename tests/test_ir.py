@@ -290,18 +290,18 @@ def test_descriptions():
     assert (
         str(m)
         == """\
-"builtin.module"() ({
+builtin.module {
   %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
-}) : () -> ()"""
+}"""
     )
 
     assert (
         f"{m}"
         == """\
 ModuleOp(
-\t"builtin.module"() ({
+\tbuiltin.module {
 \t  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
-\t}) : () -> ()
+\t}
 )"""
     )
 

@@ -82,7 +82,6 @@ with CodeContext(p):
     # CHECK-NEXT:     }) : (index, index, index) -> ()
     # CHECK-NEXT:   "func.return"() : () -> ()
     # CHECK-NEXT:   }) {"sym_name" = "test_for_IV", "function_type" = (index, index, index) -> (), "sym_visibility" = "private"} : () -> ()
-    # CHECK-NEXT: }) : () -> ()
     def test_for_IV(a: index, b: index, c: index):
         for _ in range(a):  # type: ignore
             for _ in range(b):  # type: ignore

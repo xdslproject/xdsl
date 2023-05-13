@@ -213,6 +213,13 @@ class xDSLOptMain:
             " using `// -----`",
         )
 
+        arg_parser.add_argument(
+            "--print-op-generic",
+            default=False,
+            action="store_true",
+            help="Print operations with the generic format",
+        )
+
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
@@ -284,7 +291,9 @@ class xDSLOptMain:
         """
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
-            printer = Printer(stream=output)
+            printer = Printer(
+                stream=output, print_generic_format=self.args.print_op_generic
+            )
             printer.print_op(prog)
             print("\n", file=output)
 

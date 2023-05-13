@@ -1,3 +1,3 @@
-"builtin.module"() ({
+builtin.module {
   "test.op"() : () -> ()
-}) : () -> ()
+}

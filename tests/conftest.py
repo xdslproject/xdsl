@@ -9,7 +9,7 @@ def assert_print_op(
     operation: Operation,
     expected: str,
     diagnostic: Diagnostic | None,
-    print_generic_format: bool = False,
+    print_generic_format: bool = True,
 ):
     """
     Utility function that helps to check the printing of an operation compared to

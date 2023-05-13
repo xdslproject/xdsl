@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import (
     Iterable,
+    Mapping,
     TypeAlias,
     List,
     cast,
@@ -1236,16 +1237,37 @@ class ModuleOp(IRDLOperation):
 
     body: SingleBlockRegion
 
-    def __init__(self, ops: List[Operation] | Region):
+    def __init__(
+        self,
+        ops: List[Operation] | Region,
+        attributes: Mapping[str, Attribute] | None = None,
+    ):
+        if attributes is None:
+            attributes = {}
         if isinstance(ops, Region):
             region = ops
         else:
             region = Region(Block(ops))
-        super().__init__(regions=[region])
+        super().__init__(regions=[region], attributes=attributes)
 
     @property
     def ops(self) -> BlockOps:
         return self.body.ops
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ModuleOp:
+        attributes = parser.parse_optional_attr_dict_with_keyword()
+        if attributes is not None:
+            attributes = attributes.data
+        region = parser.parse_region()
+        return ModuleOp(region, attributes)
+
+    def print(self, printer: Printer) -> None:
+        if len(self.attributes) != 0:
+            printer.print(" attributes {")
+            printer.print_dictionary(self.attributes, printer.print, printer.print)
+            printer.print("}")
+        printer.print(" ", self.body)
 
 
 # FloatXXType shortcuts
