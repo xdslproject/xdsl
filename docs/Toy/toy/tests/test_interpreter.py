@@ -1,11 +1,4 @@
-from io import StringIO
-
-from xdsl.ir import BlockArgument, Operation
-from xdsl.dialects.builtin import f64, ModuleOp
-from xdsl.interpreter import Interpreter
-
-from ..dialects import toy as td
-from ..interpreter import Tensor, ToyFunctions
+from ..interpreter import Tensor
 
 
 def test_tensor_printing():
