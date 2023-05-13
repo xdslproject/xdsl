@@ -80,7 +80,9 @@ class RemoveUnusedPrivateFunctions(RewritePattern):
             assert isinstance(module, ModuleOp)
 
             self._used_funcs = set(
-                op.callee.string_value() for op in module.walk_filter(toy.GenericCallOp)
+                op.callee.string_value()
+                for op in module.walk()
+                if isinstance(op, toy.GenericCallOp)
             )
 
         return not op.sym_name.data in self._used_funcs

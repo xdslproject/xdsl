@@ -775,11 +775,6 @@ class Operation(IRNode):
         for region in self.regions:
             yield from region.walk()
 
-    def walk_filter(self, typ: type[OperationInvT]) -> Iterator[OperationInvT]:
-        for op in self.walk():
-            if isinstance(op, typ):
-                yield op
-
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
