@@ -68,25 +68,22 @@ class InlineFunctions(RewritePattern):
 
 
 class RemoveUnusedPrivateFunctions(RewritePattern):
-    _func_ops_to_remove: set[str] | None = None
+    _used_funcs: set[str] | None = None
 
     def should_remove_op(self, op: toy.FuncOp) -> bool:
-        if self._func_ops_to_remove is None:
+        if op.sym_visibility != StringAttr("private"):
+            return False
+
+        if self._used_funcs is None:
             # Get module
             module = op.parent_op()
             assert isinstance(module, ModuleOp)
 
-            private_func_names = set(
-                op.sym_name.data
-                for op in module.ops
-                if isinstance(op, toy.FuncOp)
-                and op.sym_visibility == StringAttr("private")
-            )
-
-            self._func_ops_to_remove = private_func_names.difference(
+            self._used_funcs = set(
                 op.callee.string_value() for op in module.walk_filter(toy.GenericCallOp)
             )
-        return op.sym_name.data in self._func_ops_to_remove
+
+        return not op.sym_name.data in self._used_funcs
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.FuncOp, rewriter: PatternRewriter):
