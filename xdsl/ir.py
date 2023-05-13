@@ -769,7 +769,7 @@ class Operation(IRNode):
 
     def walk(self) -> Iterator[Operation]:
         """
-        Call a function on all operations contained in the operation (including this one)
+        Iterate all operations contained in the operation (including this one)
         """
         yield self
         for region in self.regions:
