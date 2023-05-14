@@ -54,41 +54,41 @@ class PatternRewriter:
             return True  # Toplevel operation of current_operation is always a ModuleOp
         return self._can_modify_op(region.parent)
 
-    def insert_op_before_matched_op(self, op: (Operation | list[Operation])):
+    def insert_op_before_matched_op(self, op: (Operation | Sequence[Operation])):
         """Insert operations before the matched operation."""
         if self.current_operation.parent is None:
             raise Exception("Cannot insert an operation before a toplevel operation.")
         self.has_done_action = True
         block = self.current_operation.parent
-        op = op if isinstance(op, list) else [op]
+        op = [op] if isinstance(op, Operation) else op
         if len(op) == 0:
             return
         block.insert_ops_before(op, self.current_operation)
-        self.added_operations_before += op
+        self.added_operations_before.extend(op)
 
-    def insert_op_after_matched_op(self, op: (Operation | list[Operation])):
+    def insert_op_after_matched_op(self, op: (Operation | Sequence[Operation])):
         """Insert operations after the matched operation."""
         if self.current_operation.parent is None:
             raise Exception("Cannot insert an operation after a toplevel operation.")
         self.has_done_action = True
         block = self.current_operation.parent
-        op = op if isinstance(op, list) else [op]
+        op = [op] if isinstance(op, Operation) else op
         if len(op) == 0:
             return
         block.insert_ops_after(op, self.current_operation)
-        self.added_operations_after += op
+        self.added_operations_after.extend(op)
 
-    def insert_op_at_end(self, op: Operation | list[Operation], block: Block):
+    def insert_op_at_end(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations in a block contained in the matched operation."""
         if not self._can_modify_block(block):
             raise Exception("Cannot insert operations in block.")
         self.has_done_action = True
-        op = op if isinstance(op, list) else [op]
+        op = [op] if isinstance(op, Operation) else op
         if len(op) == 0:
             return
         block.add_ops(op)
 
-    def insert_op_at_start(self, op: Operation | list[Operation], block: Block):
+    def insert_op_at_start(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations in a block contained in the matched operation."""
         if not self._can_modify_block(block):
             raise Exception("Cannot insert operations in block.")
@@ -98,7 +98,9 @@ class PatternRewriter:
         else:
             self.insert_op_before(op, first_op)
 
-    def insert_op_before(self, op: Operation | list[Operation], target_op: Operation):
+    def insert_op_before(
+        self, op: Operation | Sequence[Operation], target_op: Operation
+    ):
         """Insert operations before an operation contained in the matched operation."""
         if target_op.parent is None:
             raise Exception("Cannot insert operations before toplevel operation.")
@@ -106,12 +108,14 @@ class PatternRewriter:
         if not self._can_modify_block(target_block):
             raise Exception("Cannot insert operations in this block.")
         self.has_done_action = True
-        op = op if isinstance(op, list) else [op]
+        op = [op] if isinstance(op, Operation) else op
         if len(op) == 0:
             return
         target_block.insert_ops_before(op, target_op)
 
-    def insert_op_after(self, op: Operation | list[Operation], target_op: Operation):
+    def insert_op_after(
+        self, op: Operation | Sequence[Operation], target_op: Operation
+    ):
         """Insert operations after an operation contained in the matched operation."""
         if target_op.parent is None:
             raise Exception("Cannot insert operations after toplevel operation.")
@@ -119,7 +123,7 @@ class PatternRewriter:
         if not self._can_modify_block(target_block):
             raise Exception("Cannot insert operations in this block.")
         self.has_done_action = True
-        ops = op if isinstance(op, list) else [op]
+        ops = [op] if isinstance(op, Operation) else op
         if len(ops) == 0:
             return
         target_block.insert_ops_after(ops, target_op)
@@ -152,7 +156,7 @@ class PatternRewriter:
 
     def replace_matched_op(
         self,
-        new_ops: Operation | list[Operation],
+        new_ops: Operation | Sequence[Operation],
         new_results: Sequence[SSAValue | None] | None = None,
         safe_erase: bool = True,
     ):
@@ -163,19 +167,19 @@ class PatternRewriter:
         Otherwise, replace its uses with ErasedSSAValue.
         """
         self.has_done_action = True
-        if not isinstance(new_ops, list):
+        if isinstance(new_ops, Operation):
             new_ops = [new_ops]
         self.has_erased_matched_operation = True
         Rewriter.replace_op(
             self.current_operation, new_ops, new_results, safe_erase=safe_erase
         )
-        self.added_operations_before += new_ops
+        self.added_operations_before.extend(new_ops)
 
     def replace_op(
         self,
         op: Operation,
-        new_ops: Operation | list[Operation],
-        new_results: list[SSAValue | None] | None = None,
+        new_ops: Operation | Sequence[Operation],
+        new_results: Sequence[SSAValue | None] | None = None,
         safe_erase: bool = True,
     ):
         """
@@ -274,7 +278,7 @@ class PatternRewriter:
             raise Exception(
                 "Cannot move blocks that are not contained in the matched operation."
             )
-        self.added_operations_before += list(block.ops)
+        self.added_operations_before.extend(block.ops)
         Rewriter.inline_block_before(block, self.current_operation)
 
     def inline_block_before(self, block: Block, op: Operation):
@@ -309,7 +313,7 @@ class PatternRewriter:
             raise Exception(
                 "Cannot move blocks that are not contained in the matched operation."
             )
-        self.added_operations_after += block.ops
+        self.added_operations_after.extend(block.ops)
         Rewriter.inline_block_after(block, self.current_operation)
 
     def inline_block_after(self, block: Block, op: Operation):

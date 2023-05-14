@@ -21,7 +21,7 @@ class Rewriter:
     @staticmethod
     def replace_op(
         op: Operation,
-        new_ops: Operation | list[Operation],
+        new_ops: Operation | Sequence[Operation],
         new_results: Sequence[SSAValue | None] | None = None,  # noqa
         safe_erase: bool = True,
     ):
@@ -38,7 +38,7 @@ class Rewriter:
             raise ValueError("Cannot replace an operation without a parent")
         block = op.parent
 
-        if not isinstance(new_ops, list):
+        if isinstance(new_ops, Operation):
             new_ops = [new_ops]
         if new_results is None:
             new_results = [] if len(new_ops) == 0 else new_ops[-1].results
