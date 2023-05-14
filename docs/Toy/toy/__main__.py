@@ -18,7 +18,14 @@ parser.add_argument("source", type=Path, help="toy source file")
 parser.add_argument(
     "--emit",
     dest="emit",
-    choices=["ast", "ir-toy", "ir-toy-opt", "ir-toy-inline", "ir-toy-infer-shapes", "interpret"],
+    choices=[
+        "ast",
+        "ir-toy",
+        "ir-toy-opt",
+        "ir-toy-inline",
+        "ir-toy-infer-shapes",
+        "interpret",
+    ],
     default="interpret",
     help="Action to perform on source file (default: interpret)",
 )
