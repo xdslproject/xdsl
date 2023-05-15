@@ -10,6 +10,51 @@ from xdsl.pattern_rewriter import (
 from xdsl.dialects import riscv, riscv_func
 from xdsl.transforms.dead_code_elimination import dce
 
+
+class LowerSyscallOp(RewritePattern):
+    """
+    Lower SSA version of syscall, storing the optional result to a0.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv_func.SyscallOp, rewriter: PatternRewriter):
+        ops: list[Operation] = []
+
+        for i, arg in enumerate(op.args):
+            ops.append(
+                riscv.MVOp(
+                    arg,
+                    rd=riscv.Register(f"a{i}"),
+                )
+            )
+
+        ops.append(riscv.LiOp(immediate=op.syscall_num, rd=riscv.Registers.A7))
+
+        if op.result is None:
+            ops.append(riscv.EcallOp())
+            new_results = []
+        else:
+            # The result will be stored to a0, move to register that will be used
+            ecall = riscv.EcallOp()
+            ops.append(ecall)
+            gr = riscv.GetRegisterOp(riscv.Registers.A0)
+            ops.append(gr)
+            res = gr.res
+
+            mv = riscv.MVOp(res, rd=cast(riscv.RegisterType, op.result.typ))
+            ops.append(mv)
+            new_results = mv.results
+
+        rewriter.replace_matched_op(ops, new_results=new_results)
+
+
+class LowerSectionOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv_func.SectionOp, rewriter: PatternRewriter):
+        rewriter.inline_block_after(op.data.block, op)
+        rewriter.replace_matched_op(riscv.DirectiveOp(op.directive, None))
+
+
 SCALL_EXIT = 93
 """
 93 is the number of the `exit` syscall on RISCV.
@@ -51,7 +96,7 @@ class LowerRISCVFuncReturnOp(RewritePattern):
             assert isinstance(func_op, riscv_func.FuncOp)
             if func_op.func_name.data == "main":
                 # Main does not return, call exit syscall instead
-                rewriter.replace_matched_op(riscv_structured.SyscallOp(SCALL_EXIT))
+                rewriter.replace_matched_op(riscv_func.SyscallOp(SCALL_EXIT))
                 return
 
         if op.value is not None:
