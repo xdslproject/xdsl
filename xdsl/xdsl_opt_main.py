@@ -26,7 +26,6 @@ from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.test import Test
 from xdsl.dialects.stencil import Stencil
-from xdsl.dialects.riscv_structured import RISCV_Structured
 from xdsl.dialects.riscv_func import RISCV_FUNC
 
 from xdsl.dialects.experimental.stencil import StencilExp
@@ -37,7 +36,7 @@ from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_mpi import LowerMPIPass
-from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
+from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
     ConvertStencilToGPUPass,
     ConvertStencilToLLMLIRPass,
@@ -249,7 +248,6 @@ class xDSLOptMain:
         self.ctx.register_dialect(Test)
         self.ctx.register_dialect(RISCV)
         self.ctx.register_dialect(Snitch)
-        self.ctx.register_dialect(RISCV_Structured)
         self.ctx.register_dialect(RISCV_FUNC)
 
     def register_all_frontends(self):
@@ -287,7 +285,6 @@ class xDSLOptMain:
         self.register_pass(DeadCodeElimination)
         self.register_pass(LowerSnitchPass)
         self.register_pass(RISCVRegisterAllocation)
-        self.register_pass(LowerRISCVStructured)
         self.register_pass(LowerRISCVFunc)
 
     def register_all_targets(self):

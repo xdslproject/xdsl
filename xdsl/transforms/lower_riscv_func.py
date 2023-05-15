@@ -7,7 +7,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     PatternRewriter,
 )
-from xdsl.dialects import riscv, riscv_func, riscv_structured
+from xdsl.dialects import riscv, riscv_func
 from xdsl.transforms.dead_code_elimination import dce
 
 SCALL_EXIT = 93

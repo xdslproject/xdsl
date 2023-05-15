@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from xdsl.ir import Operation, SSAValue, Dialect, Attribute, Region
+from xdsl.utils.exceptions import VerifyException
 
 from xdsl.irdl import (
     IRDLOperation,
@@ -14,8 +15,8 @@ from xdsl.irdl import (
     SingleBlockRegion,
     OpAttr,
 )
+from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IntegerType, StringAttr
 from xdsl.dialects import riscv
-from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition

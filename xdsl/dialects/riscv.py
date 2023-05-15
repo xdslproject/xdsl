@@ -1787,6 +1787,7 @@ RISCV = Dialect(
         EcallOp,
         EbreakOp,
         WfiOp,
+        LabelOp,
         CommentOp,
         GetRegisterOp,
         ScfgwOp,
