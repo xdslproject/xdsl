@@ -100,7 +100,7 @@ class CallOp(IRDLOperation):
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     name = "riscv_func.func"
-
+    args: Annotated[VarOperand, riscv.RegisterType]
     func_name: OpAttr[StringAttr]
     func_body: SingleBlockRegion
 
