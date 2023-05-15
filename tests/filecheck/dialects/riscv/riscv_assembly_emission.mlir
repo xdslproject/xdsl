@@ -59,6 +59,31 @@
   "riscv.nop"() : () -> ()
   // CHECK-NEXT: nop
 
+  // RV32I/RV64I: 2.5 Control Transfer Instructions
+
+  // Unconditional Branch Instructions
+  "riscv.jal"() {"immediate" = 1 : i32} : () -> ()
+  // CHECK-NEXT: jal 1
+  "riscv.jal"() {"immediate" = 1 : i32, "rd" = !riscv.reg<s0>} : () -> ()
+  // CHECK-NEXT: jal s0, 1
+  "riscv.jal"() {"immediate" = #riscv.label<"label">} : () -> ()
+  // CHECK-NEXT: jal label
+
+  "riscv.j"() {"immediate" = 1 : i32, "rd" = !riscv.reg<zero>} : () -> ()
+  // CHECK-NEXT: j 1
+  "riscv.j"() {"immediate" = #riscv.label<"label">, "rd" = !riscv.reg<zero>} : () -> ()
+  // CHECK-NEXT: j label
+
+  "riscv.jalr"(%0) {"immediate" = 1 : i32}: (!riscv.reg<zero>) -> ()
+  // CHECK-NEXT: jalr zero, 1
+  "riscv.jalr"(%0) {"immediate" = 1 : i32, "rd" = !riscv.reg<j0>} : (!riscv.reg<zero>) -> ()
+  // CHECK-NEXT: jalr j0, zero, 1
+  "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<zero>) -> ()
+  // CHECK-NEXT: jalr zero, label
+
+  "riscv.ret"() : () -> ()
+  // CHECK-NEXT: ret
+
   // Conditional Branch Instructions
   "riscv.beq"(%2, %1) {"offset" = 1 : i32}: (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
   // CHECK-NEXT: beq j2, j1, 1
