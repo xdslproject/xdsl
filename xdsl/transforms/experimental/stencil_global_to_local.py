@@ -370,7 +370,7 @@ def generate_mpi_calls_for(
         bound = arith.Constant.from_int_and_width(
             0 if ex.neighbor < 0 else strat.comm_count(), builtin.i32
         )
-        comparison = "slt" if ex.neighbor < 0 else "sge"
+        comparison = "slt" if ex.neighbor < 0 else "sgt"
 
         cond_val = arith.Cmpi.get(neighbor_rank, bound, comparison)
         yield from (bound, cond_val)
