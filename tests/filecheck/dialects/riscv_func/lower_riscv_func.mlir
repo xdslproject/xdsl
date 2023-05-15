@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -p lower-riscv-func %s | filecheck %s
 
 "builtin.module"() ({
-// CHECK:      "builtin.module"() ({
+// CHECK:      builtin.module {
 
     "riscv_func.func"() ({
         %0 = "riscv_func.call"() {"func_name" = "get_one"} : () -> !riscv.reg<>
@@ -25,7 +25,7 @@
 // CHECK-NEXT:     %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<a0>) -> !riscv.reg<>
 // CHECK-NEXT:     %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:     %{{.*}} = "riscv.jal"() {"immediate" = #riscv.label<"my_print">} : () -> !riscv.reg<ra>
-// CHECK-NEXT:     "riscv_structured.syscall"() {"syscall_num" = 93 : i32} : () -> ()
+// CHECK-NEXT:     "riscv_func.syscall"() {"syscall_num" = 93 : i32} : () -> ()
 
     "riscv_func.func"() ({
         "riscv_func.return"() : () -> ()
@@ -59,4 +59,4 @@
 
 }) : () -> ()
 
-// CHECK-NEXT: }) : () -> ()
+// CHECK-NEXT: }
