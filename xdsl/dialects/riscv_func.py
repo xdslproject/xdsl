@@ -14,23 +14,8 @@ from xdsl.irdl import (
     SingleBlockRegion,
     OpAttr,
 )
-from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects import riscv
 from xdsl.utils.exceptions import VerifyException
-
-
-def opt_str_attr(attr: str | StringAttr | None) -> StringAttr | None:
-    if attr is None:
-        return None
-    if isinstance(attr, StringAttr):
-        return attr
-    return StringAttr(attr)
-
-
-def str_attr(attr: str | StringAttr) -> StringAttr:
-    if isinstance(attr, StringAttr):
-        return attr
-    return StringAttr(attr)
 
 
 @irdl_op_definition
@@ -84,28 +69,17 @@ class FuncOp(IRDLOperation):
         if not isinstance(last_op, ReturnOp):
             raise VerifyException("Expected last op of FuncOp to be a ReturnOp")
 
-        # Sasha: the following is copy/pasted code from the Toy dialect that checks
-        # whether the type of the function matches the return. But the riscv FuncOp
-        # doesn't have a function type, so I'm not sure whether one needs to be added,
-        # or the ReturnOp needs to lose its operand.
+        if len(self.args) >= 9:
+            raise VerifyException(
+                f"Function op has too many operands ({len(self.args)}), expected fewer than 7"
+            )
 
-        # operand = last_op.value
-        # operand_typ = None if operand is None else operand.typ
-
-        # return_typs = self.function_type.outputs.data
-
-        # if len(return_typs):
-        #     if len(return_typs) == 1:
-        #         return_typ = return_typs[0]
-        #     else:
-        #         raise VerifyException(
-        #             "Expected return type of func to have 0 or 1 values")
-        # else:
-        #     return_typ = None
-
-        # if operand_typ != return_typ:
-        #     raise VerifyException(
-        #         "Expected return value to match return type of function")
+        # TODO check that the return operation in this function also has
+        #      the same number of operands as this function type has results
+        if len(self.results) >= 3:
+            raise VerifyException(
+                f"Function op has too many results ({len(self.results)}), expected fewer than 3"
+            )
 
 
 @irdl_op_definition
