@@ -22,10 +22,6 @@ class SyscallOp(IRDLOperation):
     args: Annotated[VarOperand, riscv.RegisterType]
     syscall_num: OpAttr[IntegerAttr[IntegerType]]
     result: Annotated[OptOpResult, riscv.RegisterType]
-    """
-    Some syscalls return values by putting them into a0. If result is not None, then the
-    contents of a0 will be moved to its register.
-    """
 
     def __init__(
         self,
