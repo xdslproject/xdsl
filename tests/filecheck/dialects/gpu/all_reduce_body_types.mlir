@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics --print-op-generic | filecheck %s
 
 "builtin.module"()({
     "gpu.module"()({

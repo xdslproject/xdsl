@@ -67,3 +67,30 @@ def test_convert_ast():
         toy.FuncOp("main", main_type, main)
 
     assert module_op.is_structurally_equivalent(generated_module_op)
+
+
+def test_convert_scalar():
+    scalar_toy = Path("docs/Toy/examples/scalar.toy")
+
+    with open(scalar_toy, "r") as f:
+        parser = Parser(scalar_toy, f.read())
+
+    module_ast = parser.parseModule()
+
+    ir_gen = IRGen()
+
+    generated_module_op = ir_gen.ir_gen_module(module_ast)
+
+    @ModuleOp
+    @Builder.implicit_region
+    def module_op():
+        @Builder.implicit_region
+        def main() -> None:
+            a_0 = toy.ConstantOp.from_value(5.5).res
+            a = toy.ReshapeOp(a_0, [2, 2]).res
+            toy.PrintOp(a)
+            toy.ReturnOp()
+
+        toy.FuncOp("main", FunctionType.from_lists([], []), main)
+
+    assert module_op.is_structurally_equivalent(generated_module_op)

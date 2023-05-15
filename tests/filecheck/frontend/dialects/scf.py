@@ -17,11 +17,13 @@ with CodeContext(p):
     # CHECK-NEXT:   ^1(%{{.*}} : index):
     # CHECK-NEXT:     "scf.yield"() : () -> ()
     # CHECK-NEXT:   }) : (index, index, index) -> ()
+    # CHECK-NEXT:   "func.return"() : () -> ()
     # CHECK-NEXT: }) {"sym_name" = "test_for_I", "function_type" = (index) -> (), "sym_visibility" = "private"} : () -> ()
 
     def test_for_I(end: index):
         for _ in range(end):  # type: ignore
             pass
+        return
 
     # CHECK:      "func.func"() ({
     # CHECK-NEXT: ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
@@ -32,10 +34,12 @@ with CodeContext(p):
     # CHECK-NEXT:   ^3(%{{.*}} : index):
     # CHECK-NEXT:     "scf.yield"() : () -> ()
     # CHECK-NEXT:   }) : (index, index, index) -> ()
+    # CHECK-NEXT:   "func.return"() : () -> ()
     # CHECK-NEXT: }) {"sym_name" = "test_for_II", "function_type" = (index, index) -> (), "sym_visibility" = "private"} : () -> ()
     def test_for_II(start: index, end: index):
         for _ in range(start, end):  # type: ignore
             pass
+        return
 
     # CHECK:      "func.func"() ({
     # CHECK-NEXT: ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
@@ -46,10 +50,12 @@ with CodeContext(p):
     # CHECK-NEXT:   ^5(%{{.*}} : index):
     # CHECK-NEXT:     "scf.yield"() : () -> ()
     # CHECK-NEXT:   }) : (index, index, index) -> ()
+    # CHECK-NEXT:   "func.return"() : () -> ()
     # CHECK-NEXT: }) {"sym_name" = "test_for_III", "function_type" = (index, index, index) -> (), "sym_visibility" = "private"} : () -> ()
     def test_for_III(start: index, end: index, step: index):
         for _ in range(start, end, step):  # type: ignore
             pass
+        return
 
     # CHECK:        "func.func"() ({
     # CHECK-NEXT:   ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
@@ -74,13 +80,14 @@ with CodeContext(p):
     # CHECK-NEXT:       }) : (index, index, index) -> ()
     # CHECK-NEXT:       "scf.yield"() : () -> ()
     # CHECK-NEXT:     }) : (index, index, index) -> ()
+    # CHECK-NEXT:   "func.return"() : () -> ()
     # CHECK-NEXT:   }) {"sym_name" = "test_for_IV", "function_type" = (index, index, index) -> (), "sym_visibility" = "private"} : () -> ()
-    # CHECK-NEXT: }) : () -> ()
     def test_for_IV(a: index, b: index, c: index):
         for _ in range(a):  # type: ignore
             for _ in range(b):  # type: ignore
                 for _ in range(c):  # type: ignore
                     pass
+        return
 
 
 p.compile(desymref=False)
@@ -93,6 +100,7 @@ try:
         def test_not_supported_loop_I(end: i32):
             for _ in range(end):  # type: ignore
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -105,6 +113,7 @@ try:
         def test_not_supported_loop_II(start: f32, end: index):
             for _ in range(start, end):  # type: ignore
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -117,6 +126,7 @@ try:
         def test_not_supported_loop_III(start: index, end: index, step: f32):
             for _ in range(start, end, step):  # type: ignore
                 pass
+            return
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -145,6 +155,7 @@ with CodeContext(p):
             pass
         else:
             pass
+        return
 
     # CHECK:      %{{.*}} = "symref.fetch"() {"symbol" = @a} : () -> i1
     # CHECK-NEXT: "scf.if"(%{{.*}}) ({
@@ -171,6 +182,7 @@ with CodeContext(p):
             pass
         elif c:
             pass
+        return
 
     # CHECK:      %{{.*}} = "symref.fetch"() {"symbol" = @cond} : () -> i1
     # CHECK-NEXT: "scf.if"(%{{.*}}) ({

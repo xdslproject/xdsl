@@ -56,7 +56,7 @@ a print statement which will print out the generated xDSL.
 
 ```python
 p.compile()
-print(p.xdsl())
+print(p.textual_format())
 ```
 
 Finally, everything is set-up and so we can simply run `python toy.py`, which

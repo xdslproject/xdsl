@@ -34,13 +34,12 @@ class IRDLPrinter:
         print(s, file=self.stream, end=end)
 
     def print_module(self, module: ModuleOp):
-        module.walk(lambda op: self.ensure_op_is_irdl_op(op))
+        for op in module.walk():
+            self.ensure_op_is_irdl_op(op)
         self._print("module {")
-        module.walk(
-            lambda di: IRDLPrinter.print_dialect_definition(self, di)
-            if isinstance(di, DialectOp)
-            else None
-        )
+        for di in module.walk():
+            if isinstance(di, DialectOp):
+                IRDLPrinter.print_dialect_definition(self, di)
         self._print("}")
 
     def ensure_op_is_irdl_op(self, op: Operation):
@@ -55,11 +54,10 @@ class IRDLPrinter:
 
     def print_type_definition(self, type: TypeOp):
         self._print(f"    {TypeOp.name} {type.type_name.data} {{")
-        type.walk(
-            lambda param: self.print_parameters_definition(param)
-            if isinstance(param, ParametersOp)
-            else None
-        )
+        for param in type.walk():
+            if isinstance(param, ParametersOp):
+                self.print_parameters_definition(param)
+
         self._print("    }")
 
     def print_attr_constraint(self, f: AttrConstraint | Attribute):
@@ -111,20 +109,22 @@ class IRDLPrinter:
         self._print(f"    {OperationOp.name} {operation.attributes['name'].data} {{")
 
         # Checking for existence of operands
-        operand_list = []
-        operation.walk(
-            lambda operand_def: operand_list.append(operand_def)
+        operand_list = [
+            operand_def
+            for operand_def in operation.walk()
             if isinstance(operand_def, OperandsOp)
-            else None
-        )
+        ]
+
         if operand_list:
             self.print_operand_definition(operand_list)
 
         # Checking for existence of results
-        result_list = []
-        operation.walk(
-            lambda res: result_list.append(res) if isinstance(res, ResultsOp) else None
-        )
+        result_list = [
+            result_list.append(res)
+            for res in operation.walk()
+            if isinstance(res, ResultsOp)
+        ]
+
         if result_list:
             self.print_result_definition(result_list)
 
@@ -151,15 +151,12 @@ class IRDLPrinter:
     def print_dialect_definition(self, di: DialectOp):
         self._print(f"  {DialectOp.name} {di.dialect_name.data} {{")
 
-        di.walk(
-            lambda type: self.print_type_definition(type)
-            if isinstance(type, TypeOp)
-            else None
-        )
+        for type in di.walk():
+            if isinstance(type, TypeOp):
+                self.print_type_definition(type)
 
-        di.walk(
-            lambda op: self.print_operation_definition(op)
-            if isinstance(op, OperationOp)
-            else None
-        )
+        for op in di.walk():
+            if isinstance(op, OperationOp):
+                self.print_operation_definition(type)
+
         self._print("  }}")

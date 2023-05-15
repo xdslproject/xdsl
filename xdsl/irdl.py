@@ -666,7 +666,7 @@ class OpDef:
         for field_name, value in clsdict.items():
             if field_name in opdict:
                 continue
-            if field_name in ["irdl_options", "traits"]:
+            if field_name in ["irdl_options", "traits", "name"]:
                 continue
             if isinstance(
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
@@ -1528,7 +1528,7 @@ class ParamAttrDef:
         # Check that all fields of the attribute definition are either already
         # in ParametrizedAttribute, or are class functions or methods.
         for field_name, value in clsdict.items():
-            if field_name in attrdict:
+            if field_name in attrdict or field_name == "name":
                 continue
             if isinstance(
                 value, (FunctionType, PropertyType, classmethod, staticmethod)

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, Iterable
 
 from warnings import warn
 
@@ -10,17 +10,17 @@ from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     op_type_rewrite_pattern,
 )
-from xdsl.ir import Block, MLContext, Operation, Region
+from xdsl.ir import Block, MLContext, Region, Operation
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
+from xdsl.dialects.stencil import CastOp
 from xdsl.dialects.experimental.stencil import (
     AccessOp,
     ApplyOp,
-    CastOp,
     FieldType,
     IndexAttr,
     LoadOp,
@@ -29,6 +29,7 @@ from xdsl.dialects.experimental.stencil import (
     TempType,
     ExternalLoadOp,
     ExternalStoreOp,
+    IndexOp,
 )
 from xdsl.passes import ModulePass
 
@@ -151,6 +152,32 @@ def verify_load_bounds(cast: CastOp, load: LoadOp):
             "The stencil computation requires a field with lower bound at least "
             f"{load.lb}, got {cast.lb}, min: {IndexAttr.min(cast.lb, load.lb)}"
         )
+
+
+class IndexOpToLoopSSA(RewritePattern):
+    @staticmethod
+    def discover_enclosing_loops(op: Operation) -> Iterable[scf.For | scf.ParallelOp]:
+        parent_op = op.parent_op()
+        if parent_op is not None:
+            yield from IndexOpToLoopSSA.discover_enclosing_loops(parent_op)
+        if isa(op, scf.For) or isa(op, scf.ParallelOp):
+            yield op
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: IndexOp, rewriter: PatternRewriter, /):
+        # We do not currently support an offset in indexop, therefore check
+        # that this is all set to zero as otherwise it will not be handled
+        for offset in op.offset:
+            assert offset == 0
+        enclosing_loops = list(IndexOpToLoopSSA.discover_enclosing_loops(op))
+        # The first block argument is the loop iterator
+        loop_op = enclosing_loops[op.dim.value.data]
+        assert isa(loop_op, scf.For) or isa(loop_op, scf.ParallelOp)
+        assert len(loop_op.body.blocks) == 1
+        assert len(loop_op.body.block.args) >= 1
+        replacement_ssa = loop_op.body.block.args[0]
+        op.results[0].replace_by(replacement_ssa)
+        rewriter.erase_op(op)
 
 
 class LoadOpToMemref(RewritePattern):
@@ -284,8 +311,7 @@ class StencilTypeConversionFuncOp(RewritePattern):
             inputs, list(op.function_type.outputs.data)
         )
 
-        stores: list[StoreOp] = []
-        op.walk(lambda o: stores.append(o) if isinstance(o, StoreOp) else None)
+        stores = [o for o in op.walk() if isinstance(o, StoreOp)]
 
         for store in stores:
             cast = store.field.owner
@@ -331,9 +357,9 @@ class TrivialExternalStoreOpCleanup(RewritePattern):
 def return_target_analysis(module: builtin.ModuleOp):
     return_targets: dict[ReturnOp, list[CastOp | memref.Subview | None]] = {}
 
-    def map_returns(op: Operation) -> None:
+    for op in module.walk():
         if not isinstance(op, ReturnOp):
-            return
+            continue
 
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
@@ -348,15 +374,13 @@ def return_target_analysis(module: builtin.ModuleOp):
 
             if len(store) > 1:
                 warn("Each stencil result should be stored only once.")
-                return
+                continue
 
             cast = None if len(store) == 0 else store[0].field.owner
 
             assert isinstance(cast, CastOp | None)
 
             return_targets[op].append(cast)
-
-    module.walk(map_returns)
 
     return return_targets
 
@@ -375,6 +399,7 @@ def StencilConversion(
             LoadOpToMemref(),
             AccessOpToMemref(),
             ReturnOpToMemref(return_targets),
+            IndexOpToLoopSSA(),
             StoreOpCleanup(),
             TrivialExternalLoadOpCleanup(),
             TrivialExternalStoreOpCleanup(),

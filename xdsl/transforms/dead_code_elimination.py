@@ -12,7 +12,7 @@ class RemoveUnusedOperations(RewritePattern):
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         # Check that operation is side-effect-free
-        if not op.has_trait(Pure()):
+        if not op.has_trait(Pure):
             return
 
         # Check whether any of the results are used
@@ -25,11 +25,19 @@ class RemoveUnusedOperations(RewritePattern):
         rewriter.erase_op(op)
 
 
+def dce(op: ModuleOp):
+    """
+    Removes operations annotated with the `Pure` trait, where results have no uses.
+    Modifies input module in-place.
+    """
+    walker = PatternRewriteWalker(
+        RemoveUnusedOperations(), apply_recursively=True, walk_reverse=True
+    )
+    walker.rewrite_module(op)
+
+
 class DeadCodeElimination(ModulePass):
     name = "dce"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        walker = PatternRewriteWalker(
-            RemoveUnusedOperations(), apply_recursively=True, walk_reverse=True
-        )
-        walker.rewrite_module(op)
+        dce(op)

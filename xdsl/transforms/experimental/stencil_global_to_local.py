@@ -472,13 +472,13 @@ def generate_memcpy(
     """
     assert ex.dim == 2, "Cannot handle non-2d case of memcpy yet!"
     x0 = arith.Constant.from_int_and_width(ex.offset[0], builtin.IndexType())
-    x0.result.name = "x0"
+    x0.result.name_hint = "x0"
     y0 = arith.Constant.from_int_and_width(ex.offset[1], builtin.IndexType())
-    y0.result.name = "y0"
+    y0.result.name_hint = "y0"
     x_len = arith.Constant.from_int_and_width(ex.size[0], builtin.IndexType())
-    x_len.result.name = "x_len"
+    x_len.result.name_hint = "x_len"
     y_len = arith.Constant.from_int_and_width(ex.size[1], builtin.IndexType())
-    y_len.result.name = "y_len"
+    y_len.result.name_hint = "y_len"
     cst0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
     cst1 = arith.Constant.from_int_and_width(1, builtin.IndexType())
 
@@ -699,7 +699,9 @@ class MpiLoopInvariantCodeMotion:
             | mpi.UnwrapMemrefOp
             | mpi.Init
         ] = list()
-        op.walk(self.get_matcher(worklist))
+        matcher = self.get_matcher(worklist)
+        for o in op.walk():
+            matcher(o)
 
         # rewrite ops
         rewriter = Rewriter()

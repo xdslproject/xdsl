@@ -31,10 +31,7 @@ jobs:
       run: |
         pip install --upgrade pip
     - name: Install the package locally
-      run: pip install -e .
-    - name: Install nbval
-      run: |
-        pip install nbval
+      run: pip install -e ".[extras]"
     - name: Run examples/tutorials
       run: |
         # mlir_interoperation.ipynb is dependent on MLIR, and is tested in the MLIR-enabled workflow.

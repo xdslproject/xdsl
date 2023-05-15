@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | filecheck %s
+// RUN: xdsl-opt %s --print-op-generic | filecheck %s
 "builtin.module"() ({
   "llvm.mlir.global"() ({
   }) {"global_type" = !llvm.array<13 x i8>, "sym_name" = "str0", "linkage" = #llvm.linkage<"internal">, "addr_space" = 0 : i32, "constant", "value" = "Hello world!\n", "unnamed_addr" = 0 : i64} : () -> ()

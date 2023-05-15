@@ -4,6 +4,7 @@ import os
 
 from io import StringIO
 from xdsl.dialects.riscv import RISCV
+from xdsl.dialects.snitch import Snitch
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
@@ -24,13 +25,16 @@ from xdsl.dialects.mpi import MPI
 from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.test import Test
+from xdsl.dialects.stencil import Stencil
 
-from xdsl.dialects.experimental.stencil import Stencil
+from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
+from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.lower_mpi import LowerMPIPass
+from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
     ConvertStencilToGPUPass,
     ConvertStencilToLLMLIRPass,
@@ -43,6 +47,7 @@ from xdsl.transforms.experimental.stencil_global_to_local import (
 from xdsl.utils.exceptions import DiagnosticException
 
 from typing import IO, Dict, Callable, List, Sequence, Type
+from xdsl.riscv_asm_writer import print_riscv_module
 
 
 class xDSLOptMain:
@@ -100,24 +105,27 @@ class xDSLOptMain:
         Executes the different steps.
         """
         if not self.args.parsing_diagnostics:
-            module = self.parse_input()
+            modules = self.parse_input()
         else:
             try:
-                module = self.parse_input()
+                modules = self.parse_input()
             except ParseError as e:
                 print(e)
                 exit(0)
 
-        if not self.args.verify_diagnostics:
-            self.apply_passes(module)
-        else:
-            try:
+        output_list: List[str] = []
+        for module in modules:
+            if not self.args.verify_diagnostics:
                 self.apply_passes(module)
-            except DiagnosticException as e:
-                print(e)
-                exit(0)
+            else:
+                try:
+                    self.apply_passes(module)
+                except DiagnosticException as e:
+                    print(e)
+                    exit(0)
+            output_list.append(self.output_resulting_program(module))
+        contents = "// -----\n".join(output_list)
 
-        contents = self.output_resulting_program(module)
         self.print_to_output_stream(contents)
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
@@ -197,6 +205,20 @@ class xDSLOptMain:
             action="store_true",
             help="Allow the parsing of unregistered dialects.",
         )
+        arg_parser.add_argument(
+            "-split-input-file",
+            default=False,
+            action="store_true",
+            help="Split the input file into pieces and process each chunk independently by "
+            " using `// -----`",
+        )
+
+        arg_parser.add_argument(
+            "--print-op-generic",
+            default=False,
+            action="store_true",
+            help="Print operations with the generic format",
+        )
 
     def register_all_dialects(self):
         """
@@ -217,11 +239,13 @@ class xDSLOptMain:
         self.ctx.register_dialect(Vector)
         self.ctx.register_dialect(MPI)
         self.ctx.register_dialect(GPU)
+        self.ctx.register_dialect(StencilExp)
         self.ctx.register_dialect(Stencil)
         self.ctx.register_dialect(PDL)
         self.ctx.register_dialect(Symref)
         self.ctx.register_dialect(Test)
         self.ctx.register_dialect(RISCV)
+        self.ctx.register_dialect(Snitch)
 
     def register_all_frontends(self):
         """
@@ -256,6 +280,8 @@ class xDSLOptMain:
         self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
         self.register_pass(DesymrefyPass)
         self.register_pass(DeadCodeElimination)
+        self.register_pass(LowerSnitchPass)
+        self.register_pass(RISCVRegisterAllocation)
 
     def register_all_targets(self):
         """
@@ -265,11 +291,18 @@ class xDSLOptMain:
         """
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
-            printer = Printer(stream=output)
+            printer = Printer(
+                stream=output, print_generic_format=self.args.print_op_generic
+            )
             printer.print_op(prog)
             print("\n", file=output)
 
+        def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
+            print_riscv_module(prog, output)
+            print("\n", file=output)
+
         self.available_targets["mlir"] = _output_mlir
+        self.available_targets["riscv-asm"] = _output_riscv_asm
 
     def setup_pipeline(self):
         """
@@ -285,12 +318,17 @@ class xDSLOptMain:
 
         self.pipeline = [self.available_passes[p]() for p in pipeline]
 
-    def parse_input(self) -> ModuleOp:
+    def parse_input(self) -> List[ModuleOp]:
         """
         Parse the input file by invoking the parser specified by the `parser`
         argument. If not set, the parser registered for this file extension
         is used.
         """
+
+        # when using the split input flag, program is split into multiple chunks
+        # it's used for split input file
+
+        chunks: List[IO[str]] = []
         if self.args.input_file is None:
             f = sys.stdin
             file_extension = "mlir"
@@ -299,6 +337,9 @@ class xDSLOptMain:
             _, file_extension = os.path.splitext(self.args.input_file)
             file_extension = file_extension.replace(".", "")
 
+        chunks = [f]
+        if self.args.split_input_file:
+            chunks = [StringIO(chunk) for chunk in f.read().split("// -----")]
         if self.args.frontend:
             file_extension = self.args.frontend
 
@@ -307,7 +348,7 @@ class xDSLOptMain:
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
         try:
-            module = self.available_frontends[file_extension](f)
+            module = [self.available_frontends[file_extension](s) for s in chunks]
         finally:
             f.close()
 

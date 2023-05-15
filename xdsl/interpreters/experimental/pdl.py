@@ -36,11 +36,13 @@ class PDLMatcher:
         if ssa_val in self.matching_context:
             return True
 
-        if pdl_op.valueType is not None:
-            assert isinstance(pdl_op.valueType, OpResult)
-            assert isinstance(pdl_op.valueType.op, pdl.TypeOp)
+        if pdl_op.value_type is not None:
+            assert isinstance(pdl_op.value_type, OpResult)
+            assert isinstance(pdl_op.value_type.op, pdl.TypeOp)
 
-            if not self.match_type(pdl_op.valueType, pdl_op.valueType.op, xdsl_val.typ):
+            if not self.match_type(
+                pdl_op.value_type, pdl_op.value_type.op, xdsl_val.typ
+            ):
                 return False
 
         self.matching_context[ssa_val] = xdsl_val
@@ -98,16 +100,16 @@ class PDLMatcher:
             if pdl_op.value != xdsl_attr:
                 return False
 
-        if pdl_op.valueType is not None:
-            assert isinstance(pdl_op.valueType, OpResult)
-            assert isinstance(pdl_op.valueType.op, pdl.TypeOp)
+        if pdl_op.value_type is not None:
+            assert isinstance(pdl_op.value_type, OpResult)
+            assert isinstance(pdl_op.value_type.op, pdl.TypeOp)
 
             assert isa(
                 xdsl_attr, IntegerAttr[IntegerType]
             ), "Only handle integer types for now"
 
             if not self.match_type(
-                pdl_op.valueType, pdl_op.valueType.op, xdsl_attr.typ
+                pdl_op.value_type, pdl_op.value_type.op, xdsl_attr.typ
             ):
                 return False
 
@@ -127,7 +129,7 @@ class PDLMatcher:
 
         attribute_value_names = [avn.data for avn in pdl_op.attributeValueNames.data]
 
-        for avn, av in zip(attribute_value_names, pdl_op.attributeValues):
+        for avn, av in zip(attribute_value_names, pdl_op.attribute_values):
             assert isinstance(av, OpResult)
             assert isinstance(av.op, pdl.AttributeOp)
             if avn not in xdsl_op.attributes:
@@ -136,7 +138,7 @@ class PDLMatcher:
             if not self.match_attribute(av, av.op, avn, xdsl_op.attributes[avn]):
                 return False
 
-        pdl_operands = pdl_op.operandValues
+        pdl_operands = pdl_op.operand_values
         xdsl_operands = xdsl_op.operands
 
         if len(pdl_operands) != len(xdsl_operands):
@@ -152,7 +154,7 @@ class PDLMatcher:
                 if not self.match_result(pdl_operand, pdl_operand.op, xdsl_operand):
                     return False
 
-        pdl_results = pdl_op.typeValues
+        pdl_results = pdl_op.type_values
         xdsl_results = xdsl_op.results
 
         if len(pdl_results) != len(xdsl_results):
@@ -281,16 +283,16 @@ class PDLFunctions(InterpreterFunctions):
         # How to deal with operand_segment_sizes?
         # operand_values, attribute_values, type_values = args
 
-        operand_values = interpreter.get_values(op.operandValues)
+        operand_values = interpreter.get_values(op.operand_values)
         for operand in operand_values:
             assert isinstance(operand, SSAValue)
 
-        attribute_values = interpreter.get_values(op.attributeValues)
+        attribute_values = interpreter.get_values(op.attribute_values)
 
         for attribute in attribute_values:
             assert isinstance(attribute, Attribute)
 
-        type_values = interpreter.get_values(op.typeValues)
+        type_values = interpreter.get_values(op.type_values)
 
         for type_value in type_values:
             assert isinstance(type_value, TypeAttribute)
@@ -309,13 +311,13 @@ class PDLFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         rewriter = self.rewriter
 
-        (old,) = interpreter.get_values((op.opValue,))
+        (old,) = interpreter.get_values((op.op_value,))
 
-        if op.replOperation is not None:
-            (new_op,) = interpreter.get_values((op.replOperation,))
+        if op.repl_operation is not None:
+            (new_op,) = interpreter.get_values((op.repl_operation,))
             rewriter.replace_op(old, new_op)
-        elif len(op.replValues):
-            new_vals = interpreter.get_values(op.replValues)
+        elif len(op.repl_values):
+            new_vals = interpreter.get_values(op.repl_values)
             rewriter.replace_op(old, new_ops=[], new_results=list(new_vals))
         else:
             assert False, "Unexpected ReplaceOp"

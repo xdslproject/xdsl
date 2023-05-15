@@ -3,10 +3,11 @@ Toy language dialect from MLIR tutorial.
 """
 
 from __future__ import annotations
+from abc import ABC, abstractmethod
 
 from typing import Annotated, TypeAlias, cast
 
-from xdsl.ir import Dialect, SSAValue, Attribute, Block, Region, OpResult
+from xdsl.ir import Dialect, Operation, SSAValue, Attribute, Block, Region, OpResult
 from xdsl.dialects.builtin import (
     Float64Type,
     FunctionType,
@@ -32,11 +33,22 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from xdsl.traits import Pure
+from xdsl.traits import Pure, OpTrait
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
 AnyTensorTypeF64: TypeAlias = TensorTypeF64 | UnrankedTensorTypeF64
+
+
+class ToyShapeInferenceTrait(OpTrait, ABC):
+    """
+    Traits Toy operations should inherit from to infer shape inference based on operands.
+    """
+
+    @classmethod
+    @abstractmethod
+    def infer_shape(cls, op: Operation) -> None:
+        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -51,11 +63,11 @@ class ConstantOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.constant"
+    name = "toy.constant"
     value: OpAttr[DenseIntOrFPElementsAttr]
     res: Annotated[OpResult, TensorTypeF64]
 
-    traits = frozenset([Pure()])
+    traits = frozenset((Pure(),))
 
     def __init__(self, value: DenseIntOrFPElementsAttr):
         super().__init__(result_types=[value.type], attributes={"value": value})
@@ -64,6 +76,10 @@ class ConstantOp(IRDLOperation):
     def from_list(data: list[float], shape: list[int]) -> ConstantOp:
         value = DenseIntOrFPElementsAttr.tensor_from_list(data, f64, shape)
         return ConstantOp(value)
+
+    @staticmethod
+    def from_value(value: float) -> ConstantOp:
+        return ConstantOp(DenseIntOrFPElementsAttr.tensor_from_list([value], f64, []))
 
     def verify_(self) -> None:
         if not self.res.typ == self.value.type:
@@ -83,6 +99,22 @@ class ConstantOp(IRDLOperation):
         return [float(el.value.data) for el in self.value.data.data]
 
 
+class InferAddOpShapeTrait(ToyShapeInferenceTrait):
+    @classmethod
+    def infer_shape(cls, op: Operation) -> None:
+        if not isinstance(op, AddOp):
+            raise TypeError
+        if not (
+            isinstance(op.lhs.typ, TensorType) and isinstance(op.rhs.typ, TensorType)
+        ):
+            return
+        assert op.lhs.typ.get_shape() == op.rhs.typ.get_shape()
+        if isinstance(op.res.typ, TensorType):
+            assert op.lhs.typ.get_shape() == op.res.typ.get_shape()
+        else:
+            op.res.typ = op.lhs.typ
+
+
 @irdl_op_definition
 class AddOp(IRDLOperation):
     """
@@ -90,12 +122,12 @@ class AddOp(IRDLOperation):
     The shapes of the tensor operands are expected to match.
     """
 
-    name: str = "toy.add"
+    name = "toy.add"
     lhs: Annotated[Operand, AnyTensorTypeF64]
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    traits = frozenset([Pure()])
+    traits = frozenset((Pure(), InferAddOpShapeTrait()))
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.typ, TensorTypeF64):
@@ -138,7 +170,7 @@ class FuncOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.func"
+    name = "toy.func"
     body: Region
     sym_name: OpAttr[StringAttr]
     function_type: OpAttr[FunctionType]
@@ -211,7 +243,7 @@ class FuncOp(IRDLOperation):
 
 @irdl_op_definition
 class GenericCallOp(IRDLOperation):
-    name: str = "toy.generic_call"
+    name = "toy.generic_call"
     arguments: Annotated[VarOperand, AnyAttr()]
     callee: OpAttr[SymbolRefAttr]
 
@@ -234,6 +266,24 @@ class GenericCallOp(IRDLOperation):
         )
 
 
+class InferMulOpShapeTrait(ToyShapeInferenceTrait):
+    @classmethod
+    def infer_shape(cls, op: Operation) -> None:
+        if not isinstance(op, MulOp):
+            raise TypeError
+
+        if not (
+            isinstance(op.lhs.typ, TensorType) and isinstance(op.rhs.typ, TensorType)
+        ):
+            return
+
+        assert op.lhs.typ.get_shape() == op.rhs.typ.get_shape()
+        if isinstance(op.res.typ, TensorType):
+            assert op.lhs.typ.get_shape() == op.res.typ.get_shape()
+        else:
+            op.res.typ = op.lhs.typ
+
+
 @irdl_op_definition
 class MulOp(IRDLOperation):
     """
@@ -241,12 +291,12 @@ class MulOp(IRDLOperation):
     tensors. The shapes of the tensor operands are expected to match.
     """
 
-    name: str = "toy.mul"
+    name = "toy.mul"
     lhs: Annotated[Operand, AnyTensorTypeF64]
     rhs: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    traits = frozenset([Pure()])
+    traits = frozenset((Pure(), InferMulOpShapeTrait()))
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.typ, TensorTypeF64):
@@ -278,7 +328,7 @@ class PrintOp(IRDLOperation):
     no results.
     """
 
-    name: str = "toy.print"
+    name = "toy.print"
     input: Annotated[Operand, AnyAttr()]
 
     def __init__(self, input: SSAValue):
@@ -301,7 +351,7 @@ class ReturnOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.return"
+    name = "toy.return"
     input: Annotated[OptOperand, AnyTensorTypeF64]
 
     def __init__(self, input: SSAValue | None = None):
@@ -319,17 +369,18 @@ class ReshapeOp(IRDLOperation):
     ```
     """
 
-    name: str = "toy.reshape"
+    name = "toy.reshape"
     arg: Annotated[Operand, AnyTensorTypeF64]
     # We expect that the reshape operation returns a statically shaped tensor.
     res: Annotated[OpResult, TensorTypeF64]
 
-    traits = frozenset([Pure()])
+    traits = frozenset((Pure(),))
 
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not isa(arg.typ, AnyTensorTypeF64):
             raise ValueError(
-                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}"
+                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected"
+                " {AnyTensorTypeF64}"
             )
         element_type = arg.typ.element_type
         t = TensorTypeF64.from_type_and_list(element_type, shape)
@@ -339,7 +390,8 @@ class ReshapeOp(IRDLOperation):
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
         if not isa(arg.typ, AnyTensorTypeF64):
             raise ValueError(
-                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected {AnyTensorTypeF64}"
+                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected"
+                " {AnyTensorTypeF64}"
             )
         return ReshapeOp.create(result_types=[t], operands=[arg])
 
@@ -350,29 +402,83 @@ class ReshapeOp(IRDLOperation):
             raise VerifyException("Reshape operation result shape should be defined")
 
 
+class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
+    @classmethod
+    def infer_shape(cls, op: Operation) -> None:
+        if not isinstance(op, TransposeOp):
+            raise TypeError
+
+        if not isinstance(op.arg.typ, TensorType):
+            return
+
+        arg_shape = op.arg.typ.get_shape()
+        res_shape = arg_shape[::-1]
+
+        if isinstance(op.res.typ, TensorType):
+            assert res_shape == op.res.typ.get_shape()
+        else:
+            op.res.typ = TensorType.from_type_and_list(f64, res_shape)
+
+
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
-    name: str = "toy.transpose"
-    arguments: Annotated[Operand, AnyTensorTypeF64]
+    name = "toy.transpose"
+    arg: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    traits = frozenset([Pure()])
+    traits = frozenset((Pure(), InferTransposeOpShapeTrait()))
 
-    def __init__(self, input: SSAValue):
+    def __init__(self, arg: SSAValue):
         output_type: TensorTypeF64 | UnrankedTensorTypeF64
-        if isa(input.typ, TensorTypeF64):
-            element_type = input.typ.element_type
+        if isa(arg.typ, TensorTypeF64):
+            element_type = arg.typ.element_type
             output_type = TensorType.from_type_and_list(
-                element_type, list(reversed(input.typ.get_shape()))
+                element_type, list(reversed(arg.typ.get_shape()))
             )
         else:
-            if not isa(input.typ, UnrankedTensorTypeF64):
+            if not isa(arg.typ, UnrankedTensorTypeF64):
                 raise ValueError(
-                    f"Unexpected arg of type {input.typ} passed to TransposeOp, expected {TensorTypeF64 | UnrankedTensorTypeF64}"
+                    f"Unexpected operand of type {arg.typ} passed to TransposeOp, "
+                    "expected {TensorTypeF64 | UnrankedTensorTypeF64}"
                 )
-            output_type = input.typ
+            output_type = arg.typ
 
-        super().__init__(operands=[input], result_types=[output_type])
+        super().__init__(operands=[arg], result_types=[output_type])
+
+
+class InferCastOpShapeTrait(ToyShapeInferenceTrait):
+    @classmethod
+    def infer_shape(cls, op: Operation) -> None:
+        if not isinstance(op, CastOp):
+            raise TypeError
+
+        if not isinstance(op.arg.typ, TensorType):
+            return
+
+        shape = op.arg.typ.get_shape()
+
+        if isinstance(op.res.typ, TensorType):
+            assert shape == op.res.typ.get_shape()
+        else:
+            op.res.typ = TensorType.from_type_and_list(f64, shape)
+
+
+@irdl_op_definition
+class CastOp(IRDLOperation):
+    name = "toy.cast"
+    arg: Annotated[Operand, AnyTensorTypeF64]
+    res: Annotated[OpResult, AnyTensorTypeF64]
+
+    traits = frozenset((InferCastOpShapeTrait(),))
+
+    def __init__(self, arg: SSAValue, res: AnyTensorTypeF64 | None = None):
+        if res is None:
+            res = UnrankedTensorType.from_type(f64)
+
+        return super().__init__(
+            operands=[arg],
+            result_types=[res],
+        )
 
 
 Toy = Dialect(
@@ -386,6 +492,7 @@ Toy = Dialect(
         ReturnOp,
         ReshapeOp,
         TransposeOp,
+        CastOp,
     ],
     [],
 )

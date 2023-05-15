@@ -355,8 +355,8 @@ def test_print_custom_name():
 
 def test_print_custom_block_arg_name():
     block = Block(arg_types=[i32, i32])
-    block.args[0].name = "test"
-    block.args[1].name = "test"
+    block.args[0].name_hint = "test"
+    block.args[1].name_hint = "test"
 
     io = StringIO()
     p = Printer(stream=io)
@@ -404,10 +404,10 @@ def test_generic_format():
 }) : () -> ()"""
 
     expected = """\
-"builtin.module"() ({
+builtin.module {
   %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
   %1 = test.add %0 + %0 : i32
-}) : () -> ()
+}
 """
 
     ctx = MLContext()
@@ -426,17 +426,17 @@ def test_custom_format():
     Test that we can use custom formats in operations.
     """
     prog = """\
-"builtin.module"() ({
+builtin.module {
   %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
   %1 = test.add %0 + %0 : i32
-}) : () -> ()
+}
 """
 
     expected = """\
-"builtin.module"() ({
+builtin.module {
   %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
   %1 = test.add %0 + %0 : i32
-}) : () -> ()
+}
 """
 
     ctx = MLContext()
