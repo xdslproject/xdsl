@@ -1071,10 +1071,6 @@ class JalOp(RdImmJumpOperation):
         rd: RegisterType | Register | None = None,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            # By default place return address in
-            rd = RegisterType(Registers.RA)
-
         super().__init__(immediate, rd=rd)
 
 

@@ -114,9 +114,8 @@ class LowerRISCVCallOp(RewritePattern):
             rewriter.insert_op_before_matched_op(
                 riscv.MVOp(arg, rd=riscv.Register(f"a{i}"))
             )
-
         ops: list[Operation] = [
-            riscv.JalOp(immediate=op.func_name.data),
+            riscv.JalOp(immediate=op.func_name.data, rd=riscv.Registers.RA),
         ]
 
         if op.result is not None:
