@@ -129,8 +129,6 @@ class FuncOp(IRDLOperation):
                 f"Function op has too many operands ({len(self.args)}), expected fewer than 7"
             )
 
-        # TODO check that the return operation in this function also has
-        #      the same number of operands as this function type has results
         if len(self.results) >= 3:
             raise VerifyException(
                 f"Function op has too many results ({len(self.results)}), expected fewer than 3"

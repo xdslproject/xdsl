@@ -26,7 +26,7 @@ from xdsl.dialects.gpu import GPU
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.test import Test
 from xdsl.dialects.stencil import Stencil
-from xdsl.dialects.riscv_func import RISCV_FUNC
+from xdsl.dialects.riscv_func import RISCV_Func
 
 from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
@@ -248,7 +248,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(Test)
         self.ctx.register_dialect(RISCV)
         self.ctx.register_dialect(Snitch)
-        self.ctx.register_dialect(RISCV_FUNC)
+        self.ctx.register_dialect(RISCV_Func)
 
     def register_all_frontends(self):
         """

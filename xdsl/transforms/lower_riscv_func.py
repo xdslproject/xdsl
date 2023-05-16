@@ -70,7 +70,6 @@ class LowerRISCVFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
         body = op.func_body.block
-        # TODO: replace with insert_at_start
         first_op = body.first_op
         assert first_op is not None
         while len(body.args):
