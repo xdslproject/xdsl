@@ -19,9 +19,10 @@ def test_pass_lexer():
         Kind.IDENT, Kind.EQUALS, Kind.NUMBER,  # arg-4=-34.4e-12
         Kind.R_BRACE, Kind.COMMA,  # },
         Kind.IDENT,  # pass-3
+        Kind.EOF,
     ]  # fmt: skip
 
-    assert tokens[-1].span.text == "pass-3"
+    assert tokens[-2].span.text == "pass-3"
     assert tokens[1].span.text == ","
     assert tokens[3].span.text == "{"
     assert tokens[18].span.text == "-34.4e-12"

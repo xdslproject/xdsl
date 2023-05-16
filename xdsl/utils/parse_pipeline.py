@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterator
 from xdsl.utils.lexer import Input, Span
 from enum import Enum, auto
 
@@ -39,7 +39,7 @@ This is a list of lexer rules that should be tried in this specific order to get
 """
 
 
-def tokenize_pass(input_str: str) -> Iterable[Token]:
+def tokenize_pass(input_str: str) -> Iterator[Token]:
     """
     This tokenizes a pass declaration string. Pass syntax is a subset
     of MLIRs pass pipeline syntax:
@@ -70,6 +70,7 @@ def tokenize_pass(input_str: str) -> Iterable[Token]:
             )
         yield token
         if pos >= end:
+            yield Token(Span(pos, pos + 1, input), Kind.EOF)
             return
 
 
