@@ -28,7 +28,9 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
     assert op.name.startswith("riscv.")
     instruction_name = op.name[6:]
 
-    components: list[AnyIntegerAttr | riscv.LabelAttr | SSAValue | str | None]
+    components: list[
+        AnyIntegerAttr | riscv.LabelAttr | SSAValue | RegisterType | str | None
+    ]
     comment: StringAttr | None
 
     match op:
@@ -72,6 +74,16 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
         case riscv.CsrBitwiseOperation():
             components = [op.rd, op.csr, op.rs1]
             comment = op.comment
+        case riscv.JOp():
+            # J op is a special case of JalOp with zero return register
+            components = [op.immediate]
+            comment = op.comment
+        case riscv.RdImmJumpOperation():
+            components = [op.rd, op.immediate]
+            comment = op.comment
+        case riscv.RdRsImmJumpOperation():
+            components = [op.rd, op.rs1, op.immediate]
+            comment = op.comment
         case _:
             raise ValueError(f"Unknown RISCV operation type :{type(op)}")
 
@@ -86,6 +98,8 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
             component_strs.append(component.data)
         elif isinstance(component, str):
             component_strs.append(component)
+        elif isinstance(component, RegisterType):
+            component_strs.append(component.register_name)
         else:
             assert isinstance(component.typ, RegisterType)
             reg = component.typ.register_name
