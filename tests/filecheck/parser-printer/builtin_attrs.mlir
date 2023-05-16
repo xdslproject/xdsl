@@ -31,7 +31,7 @@
   // CHECK: (ui32, ui64, ui1)
 
   "func.func"() ({
-    ^bb0(%arg0: bf16, %arg1: f16, %arg2: f32, %arg3: f64, %arg3: f80, %arg3: f128):
+    ^bb0(%arg0: bf16, %arg1: f16, %arg2: f32, %arg3: f64, %arg4: f80, %arg5: f128):
     "func.return"() : () -> ()
   }) {function_type = (bf16, f16, f32, f64, f80, f128) -> (), sym_name = "float_type"} : () -> ()
 

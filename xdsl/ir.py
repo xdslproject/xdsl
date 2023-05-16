@@ -24,7 +24,6 @@ if TYPE_CHECKING:
     from xdsl.parser import Parser
     from xdsl.printer import Printer
     from xdsl.irdl import ParamAttrDef
-    from xdsl.utils.lexer import Span
 
 OpT = TypeVar("OpT", bound="Operation")
 
@@ -1030,8 +1029,6 @@ class BlockOps:
 class Block(IRNode):
     """A sequence of operations"""
 
-    declared_at: Span | None
-
     _args: tuple[BlockArgument, ...]
     """The basic block arguments."""
 
@@ -1047,10 +1044,8 @@ class Block(IRNode):
         *,
         arg_types: Iterable[Attribute] = (),
         parent: Region | None = None,
-        declared_at: Span | None = None,
     ):
         super().__init__(self)
-        self.declared_at = declared_at
         self._args = tuple(
             BlockArgument(typ, self, index) for index, typ in enumerate(arg_types)
         )
