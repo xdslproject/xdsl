@@ -39,39 +39,57 @@ This is a list of lexer rules that should be tried in this specific order to get
 """
 
 
-def tokenize_pass(input_str: str) -> Iterator[Token]:
+class PipelineLexer:
     """
     This tokenizes a pass declaration string. Pass syntax is a subset
     of MLIRs pass pipeline syntax:
-
     pipeline          ::= pipeline-element (`,` pipeline-element)*
     pipeline-element  ::= pass-name options?
     options           ::= `{` options-element ( ` ` options-element)* `}`
-    options-element   ::= key `=` value
-
+    options-element   ::= key (`=` value (`,` value)* )?
     key       ::= IDENT
     pass-name ::= IDENT
-    value     :== NUMBER / IDENT / STRING_LITERAL
+    value     :== NUMBER / BOOL / IDENT / STRING_LITERAL
     """
-    input = Input(input_str, "pass-pipeline")
-    pos = 0
-    end = len(input_str)
 
-    while True:
-        token: Token | None = None
-        for pattern, kind in _lexer_rules:
-            if (match := pattern.match(input_str, pos)) is not None:
-                token = Token(Span(match.start(), match.end(), input), kind)
-                pos = match.end()
-                break
-        if token is None:
-            raise PassPipelineParseError(
-                Token(Span(pos, pos + 1, input), Kind.IDENT), "Unknown token"
-            )
-        yield token
-        if pos >= end:
-            yield Token(Span(pos, pos + 1, input), Kind.EOF)
-            return
+    _stream: Iterator[Token]
+    _peeked: Token | None
+
+    def __init__(self, input_str: str):
+        self._stream = PipelineLexer._generator(input_str)
+        self._peeked = None
+
+    @staticmethod
+    def _generator(input_str: str) -> Iterator[Token]:
+        input = Input(input_str, "pass-pipeline")
+        pos = 0
+        end = len(input_str)
+
+        while True:
+            token: Token | None = None
+            for pattern, kind in _lexer_rules:
+                if (match := pattern.match(input_str, pos)) is not None:
+                    token = Token(Span(match.start(), match.end(), input), kind)
+                    pos = match.end()
+                    break
+            if token is None:
+                raise PassPipelineParseError(
+                    Token(Span(pos, pos + 1, input), Kind.IDENT), "Unknown token"
+                )
+            yield token
+            if pos >= end:
+                yield Token(Span(pos, pos + 1, input), Kind.EOF)
+                return
+
+    def lex(self) -> Token:
+        token = self.peek()
+        self._peeked = None
+        return token
+
+    def peek(self) -> Token:
+        if self._peeked is None:
+            self._peeked = next(self._stream)
+        return self._peeked
 
 
 class PassPipelineParseError(BaseException):
