@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from typing import Iterator
-from xdsl.utils.lexer import Input, Span
+from xdsl.utils.lexer import Input, Span, StringLiteral
 from enum import Enum, auto
 
 
@@ -39,7 +39,7 @@ This is a list of lexer rules that should be tried in this specific order to get
 """
 
 
-def tokenize_pass(input_str: str) -> Iterator[Token]:
+def tokenize_pipeline(input_str: str) -> Iterator[Token]:
     """
     This tokenizes a pass declaration string. Pass syntax is a subset
     of MLIRs pass pipeline syntax:
@@ -80,3 +80,99 @@ class PassPipelineParseError(BaseException):
             "Error parsing pass pipeline specification:\n"
             + token.span.print_with_context(msg)
         )
+
+
+_PassArgTypes = str | int | float
+
+
+def parse_pipeline(
+    pipeline_spec: str,
+) -> Iterator[tuple[str, dict[str, _PassArgTypes]]]:
+    tokens = tokenize_pipeline(pipeline_spec)
+
+    while True:
+        name = next(tokens)
+        if name.kind is Kind.EOF:
+            return
+        if name.kind is not Kind.IDENT:
+            raise PassPipelineParseError(name, "Expected pass name here")
+
+        delim = next(tokens)
+        if delim.kind is Kind.EOF:
+            yield name.span.text, dict()
+            return
+
+        if delim.kind is Kind.COMMA:
+            yield name.span.text, dict()
+            continue
+
+        if delim.kind is not Kind.L_BRACE:
+            raise PassPipelineParseError(
+                delim, "Expected a comma or pass arguments here"
+            )
+
+        yield name.span.text, _parse_pass_args(tokens)
+
+        delim = next(tokens)
+        if delim.kind is Kind.EOF:
+            return
+        if delim.kind is not Kind.COMMA:
+            raise PassPipelineParseError(
+                delim, "Expected a comma after pass argument dict here"
+            )
+
+
+def _parse_pass_args(tokens: Iterator[Token]):
+    args: dict[str, _PassArgTypes] = dict()
+
+    while True:
+        name = next(tokens)
+
+        # allow for zero-length arg dicts
+        if name.kind is Kind.R_BRACE:
+            return args
+
+        if name.kind is not Kind.IDENT:
+            raise PassPipelineParseError(name, "Expected argument name here")
+
+        # consume the `=` in between
+        _expect(
+            tokens, Kind.EQUALS, "Expected equals as part of the pass argument here"
+        )
+
+        args[name.span.text] = _parse_pass_arg_val(next(tokens))
+
+        delim = next(tokens)
+        if delim.kind is Kind.SPACE:
+            continue
+        if delim.kind is not Kind.R_BRACE:
+            raise PassPipelineParseError(
+                delim, "Malformed pass arguments, expected either a space or `}` here"
+            )
+
+        return args
+
+
+def _expect(tokens: Iterator[Token], kind: Kind, err: str):
+    token = next(tokens)
+    if token.kind is not kind:
+        raise PassPipelineParseError(token, err)
+
+
+def _parse_pass_arg_val(token: Token) -> _PassArgTypes:
+    match token:
+        case Token(kind=Kind.STRING_LIT, span=span):
+            str_token = StringLiteral.from_span(span)
+            assert str_token is not None
+            return str_token.string_contents
+        case Token(kind=Kind.NUMBER, span=span):
+            if "." in span.text:
+                return float(span.text)
+            return int(span.text)
+        case Token(kind=Kind.IDENT, span=span):
+            return span.text
+        case token:
+            raise PassPipelineParseError(
+                token,
+                "Unknown argument value, wrap argument in quotes to pass arbitrary string values",
+            )
