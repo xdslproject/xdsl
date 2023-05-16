@@ -61,7 +61,9 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
         )
     for operand, type in zip(operands, types):
         if operand.typ != type:
-            raise Exception("Mismatched between operands and their types", pos, end_pos)
+            parser.raise_error(
+                "Mismatched between operands and their types", pos, end_pos
+            )
 
     return operands
 
