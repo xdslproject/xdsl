@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-generic-op | filecheck %s
+// RUN: xdsl-opt %s --print-op-generic | filecheck %s
 
 "builtin.module"() ({
     %value1 = "test.op"() : () -> (!pdl.value)
@@ -20,7 +20,7 @@
         // CHECK-NEXT: %i32_type = "pdl.type"() {"constantType" = i32} : () -> !pdl.type
 
         %any_types = pdl.types
-        // CHECK-NEXT: %any_types = "pdl.types"() {"constantTypes" = []} : () -> !pdl.range<!pdl.type>
+        // CHECK-NEXT: %any_types = "pdl.types"() : () -> !pdl.range<!pdl.type>
         %many_types = pdl.types : [i32, i64, i128]
         // CHECK-NEXT: %many_types = "pdl.types"() {"constantTypes" = [i32, i64, i128]} : () -> !pdl.range<!pdl.type>
 

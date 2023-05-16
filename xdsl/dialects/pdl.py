@@ -706,7 +706,7 @@ class ResultsOp(IRDLOperation):
         parent = parser.parse_operand()
         parser.parse_punctuation("->")
         result_type = parser.parse_attribute()
-        return ResultsOp(parent, result_type, index)
+        return ResultsOp(parent, index, result_type)
 
     def print(self, printer: Printer) -> None:
         if self.index is None:
