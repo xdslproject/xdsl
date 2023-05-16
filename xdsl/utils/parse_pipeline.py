@@ -34,11 +34,24 @@ _lexer_rules: list[tuple[re.Pattern[str], Kind]] = [
     (re.compile(r"\s+"), Kind.SPACE),
     (re.compile(r","), Kind.COMMA),
 ]
+"""
+This is a list of lexer rules that should be tried in this specific order to get the next token.
+"""
 
 
 def tokenize_pass(input_str: str) -> Iterable[Token]:
     """
-    This tokenizes a pass declaration string
+    This tokenizes a pass declaration string. Pass syntax is a subset
+    of MLIRs pass pipeline syntax:
+
+    pipeline          ::= pipeline-element (`,` pipeline-element)*
+    pipeline-element  ::= pass-name options?
+    options           ::= `{` options-element ( ` ` options-element)* `}`
+    options-element   ::= key `=` value
+
+    key       ::= IDENT
+    pass-name ::= IDENT
+    value     :== NUMBER / IDENT / STRING_LITERAL
     """
     input = Input(input_str, "pass-pipeline")
     pos = 0
