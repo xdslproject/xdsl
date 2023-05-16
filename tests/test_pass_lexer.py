@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.utils.parse_pipeline import (
-    tokenize_pipeline,
+    PipelineLexer,
     Kind,
     PassPipelineParseError,
     parse_pipeline,
@@ -10,8 +10,8 @@ from xdsl.utils.parse_pipeline import (
 
 def test_pass_lexer():
     tokens = list(
-        tokenize_pipeline(
-            'pass-1,pass-2{arg1=1 arg2=test arg3="test-str" arg-4=-34.4e-12},pass-3'
+        PipelineLexer._generator(  # type: ignore[reportPrivateUsage]
+            'pass-1,pass-2{arg1=1 arg2=test arg3="test-str" arg-4=-34.4e-12 no-val-arg},pass-3'
         )
     )
 
@@ -21,7 +21,8 @@ def test_pass_lexer():
         Kind.IDENT, Kind.EQUALS, Kind.NUMBER, Kind.SPACE,  # arg1=1
         Kind.IDENT, Kind.EQUALS, Kind.IDENT, Kind.SPACE,  # arg2=test
         Kind.IDENT, Kind.EQUALS, Kind.STRING_LIT, Kind.SPACE,  # arg3="test-str"
-        Kind.IDENT, Kind.EQUALS, Kind.NUMBER,  # arg-4=-34.4e-12
+        Kind.IDENT, Kind.EQUALS, Kind.NUMBER, Kind.SPACE,  # arg-4=-34.4e-12
+        Kind.IDENT, # no-val-arg
         Kind.R_BRACE, Kind.COMMA,  # },
         Kind.IDENT,  # pass-3
         Kind.EOF,
@@ -35,16 +36,16 @@ def test_pass_lexer():
 
 def test_pass_lex_errors():
     with pytest.raises(PassPipelineParseError, match="Unknown token"):
-        list(tokenize_pipeline("pass-1["))
+        list(PipelineLexer._generator("pass-1["))  # type: ignore[reportPrivateUsage]
 
     with pytest.raises(PassPipelineParseError, match="Unknown token"):
-        list(tokenize_pipeline("pass-1{thing$=1}"))
+        list(PipelineLexer._generator("pass-1{thing$=1}"))  # type: ignore[reportPrivateUsage]
 
 
 def test_pass_parser():
     passes = list(
         parse_pipeline(
-            'pass-1,pass-2{arg1=1 arg2=test arg3="test-str" arg-4=-34.4e-12},pass-3'
+            'pass-1,pass-2{arg1=1 arg2=test,test2,3 arg3="test-str,2,3" arg-4=-34.4e-12 no-val-arg},pass-3'
         )
     )
 
@@ -53,10 +54,11 @@ def test_pass_parser():
         (
             "pass-2",
             {
-                "arg1": 1,
-                "arg2": "test",
-                "arg3": "test-str",
-                "arg-4": -3.44e-11,
+                "arg1": [1],
+                "arg2": ["test", "test2", 3],
+                "arg3": ["test-str,2,3"],
+                "arg-4": [-3.44e-11],
+                "no-val-arg": [],
             },
         ),
         ("pass-3", {}),
@@ -91,7 +93,7 @@ def test_pass_parse_errors():
         match="Expected equals as part of the pass argument here",
     ):
         # we don't support the case where there is no `=` after the arg name (yet)
-        list(parse_pipeline("pass-1{arg1 1}"))
+        list(parse_pipeline("pass-1{arg1{1}"))
 
     with pytest.raises(
         PassPipelineParseError,
