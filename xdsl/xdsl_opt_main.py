@@ -206,7 +206,7 @@ class xDSLOptMain:
             help="Allow the parsing of unregistered dialects.",
         )
         arg_parser.add_argument(
-            "-split-input-file",
+            "--split-input-file",
             default=False,
             action="store_true",
             help="Split the input file into pieces and process each chunk independently by "
