@@ -65,9 +65,8 @@ def test_pass_parser():
 
 def test_pass_parse_errors():
     """
-    this test tries to trigger all parse errors in the parser.
-
-    In the same order they appear in the source file
+    This test triggers all parse errors in the parser in the same order they appear
+    in the source file.
     """
     with pytest.raises(PassPipelineParseError, match="Expected pass name here"):
         # numbers are not valid pass names!
