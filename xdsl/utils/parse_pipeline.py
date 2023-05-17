@@ -98,9 +98,19 @@ class PipelineLexer:
 _PassArgTypes = list[str | int | bool | float]
 
 
+@dataclass(eq=True, frozen=True)
+class PipelinePassSpec:
+    """
+    Small dataclass that holds the name and args of a specific pass.
+    """
+
+    name: str
+    args: dict[str, _PassArgTypes]
+
+
 def parse_pipeline(
     pipeline_spec: str,
-) -> Iterator[tuple[str, dict[str, _PassArgTypes]]]:
+) -> Iterator[PipelinePassSpec]:
     """
     This takes a pipeline string and gives a representation of
     the specification.
@@ -113,73 +123,97 @@ def parse_pipeline(
     lexer = PipelineLexer(pipeline_spec)
 
     while True:
+        # get the pass name
         name = lexer.lex()
         if name.kind is Token.Kind.EOF:
             return
         if name.kind is not Token.Kind.IDENT:
             raise PassPipelineParseError(name, "Expected pass name here")
 
-        delim = lexer.lex()
-        if delim.kind is Token.Kind.EOF:
-            yield name.span.text, dict()
-            return
+        # valid next tokens are EOF, COMMA or `{`
+        match lexer.lex():
+            case Token(kind=Token.Kind.EOF):
+                # EOF means we have nothing else left to parse, we are done
+                yield PipelinePassSpec(name.span.text, dict())
+                return
+            case Token(kind=Token.Kind.COMMA):
+                # comma means we are done parsing this pass, move on to next pass
+                yield PipelinePassSpec(name.span.text, dict())
+                continue
+            case Token(kind=Token.Kind.L_BRACE):
+                # `{` indicates start of args dict, so we parse that next
+                yield PipelinePassSpec(name.span.text, _parse_pass_args(lexer))
+            case invalid:
+                # every other token is invalid
+                raise PassPipelineParseError(
+                    invalid, "Expected a comma or pass arguments here"
+                )
 
-        if delim.kind is Token.Kind.COMMA:
-            yield name.span.text, dict()
-            continue
-
-        if delim.kind is not Token.Kind.L_BRACE:
-            raise PassPipelineParseError(
-                delim, "Expected a comma or pass arguments here"
-            )
-
-        yield name.span.text, _parse_pass_args(lexer)
-
-        delim = lexer.lex()
-        if delim.kind is Token.Kind.EOF:
-            return
-        if delim.kind is not Token.Kind.COMMA:
-            raise PassPipelineParseError(
-                delim, "Expected a comma after pass argument dict here"
-            )
+        # check for comma or EOF
+        match lexer.lex():
+            case Token(kind=Token.Kind.EOF):
+                # EOF means we are finished parsing
+                return
+            case Token(kind=Token.Kind.COMMA):
+                # comma means we move on to parse the next pass spec
+                continue
+            case invalid:
+                # every other token is invalid
+                raise PassPipelineParseError(
+                    invalid, "Expected a comma after pass argument dict here"
+                )
 
 
-def _parse_pass_args(lexer: PipelineLexer):
+def _parse_pass_args(lexer: PipelineLexer) -> dict[str, _PassArgTypes]:
     args: dict[str, _PassArgTypes] = dict()
 
     while True:
+        # get the name of the argument (or a `}` in case of zero-length dicts)
         name = lexer.lex()
 
         # allow for zero-length arg dicts
         if name.kind is Token.Kind.R_BRACE:
             return args
 
+        # check that it is a valid identifier
         if name.kind is not Token.Kind.IDENT:
             raise PassPipelineParseError(name, "Expected argument name here")
 
-        # handle zero-length args
-        if lexer.peek().kind in (Token.Kind.SPACE, Token.Kind.R_BRACE):
-            args[name.span.text] = []
-            continue
+        # next token should be either a space, `}` or `=`
+        match lexer.lex():
+            case Token(kind=Token.Kind.SPACE):
+                # space means zero-length argument, store empty list
+                args[name.span.text] = []
+                # then continue parsing args list
+                continue
+            case Token(kind=Token.Kind.R_BRACE):
+                # `}` means zero-length argument with no further arg
+                args[name.span.text] = []
+                # stop parsing args
+                return args
+            case Token(kind=Token.Kind.EQUALS):
+                # equals means we have an arg value given, parse it
+                args[name.span.text] = _parse_arg_value(lexer)
+            case invalid:
+                # every other token is invalid
+                raise PassPipelineParseError(
+                    invalid, "Expected equals, space or end of arguments here"
+                )
 
-        # consume the `=` in between
-        equals = lexer.lex()
-        if equals.kind is not Token.Kind.EQUALS:
-            raise PassPipelineParseError(
-                lexer.lex(), "Expected equals as part of the pass argument here"
-            )
-
-        args[name.span.text] = _parse_arg_value(lexer)
-
-        delim = lexer.lex()
-        if delim.kind is Token.Kind.SPACE:
-            continue
-        if delim.kind is not Token.Kind.R_BRACE:
-            raise PassPipelineParseError(
-                delim, "Malformed pass arguments, expected either a space or `}` here"
-            )
-
-        return args
+        # next token must be either space or `}`
+        match lexer.lex():
+            case Token(kind=Token.Kind.SPACE):
+                # space means we get another argument
+                continue
+            case Token(kind=Token.Kind.R_BRACE):
+                # `}` signifies end of args
+                return args
+            case invalid:
+                # every other token is a syntax error
+                raise PassPipelineParseError(
+                    invalid,
+                    "Malformed pass arguments, expected either a space or `}` here",
+                )
 
 
 def _parse_arg_value(lexer: PipelineLexer) -> _PassArgTypes:
@@ -196,24 +230,30 @@ def _parse_arg_value(lexer: PipelineLexer) -> _PassArgTypes:
 def _parse_arg_value_element(lexer: PipelineLexer) -> str | int | bool | float:
     """
     parse a singular value element
-
     """
+    # valid value elements are quoted strings, numbers, true|false, and "ident" type strings
     match lexer.lex():
         case Token(kind=Token.Kind.STRING_LIT, span=span):
+            # string literals are converted to unescaped strings
             str_token = StringLiteral.from_span(span)
             assert str_token is not None
             return str_token.string_contents
         case Token(kind=Token.Kind.NUMBER, span=span):
+            # NUMBER is both float and int
+            # if the token contains a `.` it's a float
             if "." in span.text:
                 return float(span.text)
+            # otherwise an int
             return int(span.text)
         case Token(kind=Token.Kind.IDENT, span=span):
+            # identifiers are either true|false or treated as a string
             if span.text == "true":
                 return True
             elif span.text == "false":
                 return False
             return span.text
         case token:
+            # every other token type is invalid as a value
             raise PassPipelineParseError(
                 token,
                 "Unknown argument value, wrap argument in quotes to pass arbitrary string values",

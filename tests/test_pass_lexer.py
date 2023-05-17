@@ -1,10 +1,11 @@
 import pytest
 
 from xdsl.utils.parse_pipeline import (
-    PipelineLexer,
-    PassPipelineParseError,
-    parse_pipeline,
     Token,
+    PipelineLexer,
+    parse_pipeline,
+    PipelinePassSpec,
+    PassPipelineParseError,
 )
 
 Kind = Token.Kind
@@ -24,7 +25,7 @@ def test_pass_lexer():
         Kind.IDENT, Kind.EQUALS, Kind.IDENT, Kind.SPACE,  # arg2=test
         Kind.IDENT, Kind.EQUALS, Kind.STRING_LIT, Kind.SPACE,  # arg3="test-str"
         Kind.IDENT, Kind.EQUALS, Kind.NUMBER, Kind.SPACE,  # arg-4=-34.4e-12
-        Kind.IDENT, # no-val-arg
+        Kind.IDENT,  # no-val-arg
         Kind.R_BRACE, Kind.COMMA,  # },
         Kind.IDENT,  # pass-3
         Kind.EOF,
@@ -52,8 +53,8 @@ def test_pass_parser():
     )
 
     assert passes == [
-        ("pass-1", {}),
-        (
+        PipelinePassSpec("pass-1", {}),
+        PipelinePassSpec(
             "pass-2",
             {
                 "arg1": [1],
@@ -63,7 +64,7 @@ def test_pass_parser():
                 "no-val-arg": [],
             },
         ),
-        ("pass-3", {}),
+        PipelinePassSpec("pass-3", {}),
     ]
 
 
@@ -92,7 +93,7 @@ def test_pass_parse_errors():
 
     with pytest.raises(
         PassPipelineParseError,
-        match="Expected equals as part of the pass argument here",
+        match="Expected equals, space or end of arguments here",
     ):
         # we don't support the case where there is no `=` after the arg name (yet)
         list(parse_pipeline("pass-1{arg1{1}"))
