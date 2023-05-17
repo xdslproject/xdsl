@@ -26,7 +26,7 @@ def test_branch():
     br0 = Branch.get(block0)
     ops = list(br0.successors[0].ops)
 
-    assert br0.successors[0] is block0
+    assert br0.successor is block0
     assert ops[0] is a
     assert ops[1] is b
     assert ops[2] is c
@@ -47,5 +47,5 @@ def test_condbranch():
     assert branch0.cond is c.results[0]
     assert branch0.then_arguments[0] is d.results[0]
     assert branch0.else_arguments[0] is e.results[0]
-    assert branch0.successors[0] is block0
-    assert branch0.successors[1] is block1
+    assert branch0.then_block is block0
+    assert branch0.then_block is block1
