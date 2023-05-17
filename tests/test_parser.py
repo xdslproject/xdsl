@@ -139,7 +139,7 @@ def test_symref(ref: str, expected: Attribute | None):
     ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, ref)
-    parsed_ref = parser.try_parse_ref_attr()
+    parsed_ref = parser.parse_optional_symref_attr()
 
     assert parsed_ref == expected
 
