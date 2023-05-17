@@ -18,7 +18,9 @@ class LowerSyscallOp(RewritePattern):
     Lower SSA version of syscall, storing the optional result to a0.
 
     Different platforms have different calling conventions. This lowering assumes that
-    the input is stored to a7, and result to a0. This is not the case for some kernels.
+    the inputs are stored in a0-a6, and the opcode is stored to a7. Upon return, the
+    a0 contains the result value. This is not the case for some kernels.
+
     In the future, this pass should take the compilation target as a parameter to guide
     the rewrites.
 
