@@ -10,15 +10,19 @@ from xdsl.dialects.arith import Constant
 from xdsl.ir import Block, OpResult, Region
 from xdsl.irdl import (
     AttrSizedRegionSegments,
+    AttrSizedSuccessorSegments,
     OptOpResult,
     OptOperand,
     OptRegion,
     OptSingleBlockRegion,
     Operand,
+    OptSuccessor,
     SingleBlockRegion,
+    Successor,
     VarOpResult,
     VarRegion,
     VarSingleBlockRegion,
+    VarSuccessor,
     irdl_op_definition,
     AttrSizedResultSegments,
     VarOperand,
@@ -474,6 +478,92 @@ def test_two_var_operand_builder3():
     assert op2.regions == [region1, region2, region3, region4]
     assert op2.attributes[
         AttrSizedRegionSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [1, 3])
+
+
+#  ____
+# / ___| _   _  ___ ___ ___  ___ ___  ___  _ __
+# \___ \| | | |/ __/ __/ _ \/ __/ __|/ _ \| '__|
+#  ___) | |_| | (_| (_|  __/\__ \__ \ (_) | |
+# |____/ \__,_|\___\___\___||___/___/\___/|_|
+#
+
+
+@irdl_op_definition
+class SuccessorOp(IRDLOperation):
+    name = "test.successor_op"
+
+    successor: Successor
+
+
+def test_successor_op_successor():
+    block = Block()
+    op = SuccessorOp.build(successors=[block])
+    op.verify()
+    assert len(op.successors) == 1
+
+
+@irdl_op_definition
+class OptSuccessorOp(IRDLOperation):
+    name = "test.opt_successora_op"
+
+    successor: OptSuccessor
+
+
+def test_opt_successor_builder():
+    block = Block()
+    op1 = OptSuccessorOp.build(successors=[block])
+    op2 = OptSuccessorOp.build(successors=[None])
+    op1.verify()
+    op2.verify()
+
+
+@irdl_op_definition
+class VarSuccessorOp(IRDLOperation):
+    name = "test.var_succesor_op"
+
+    successor: VarSuccessor
+
+
+def test_var_successor_builder():
+    block = Block()
+    op = VarSuccessorOp.build(successors=[[block, block, block]])
+    op.verify()
+    assert len(op.successors) == 3
+
+
+@irdl_op_definition
+class TwoVarSuccessorOp(IRDLOperation):
+    name = "test.two_var_successor_op"
+
+    res1: VarSuccessor
+    res2: VarSuccessor
+    irdl_options = [AttrSizedSuccessorSegments()]
+
+
+def test_two_var_successor_builder():
+    block1 = Block()
+    block2 = Block()
+    block3 = Block()
+    block4 = Block()
+    op2 = TwoVarSuccessorOp.build(successors=[[block1, block2], [block3, block4]])
+    op2.verify()
+    assert op2.successors == [block1, block2, block3, block4]
+    assert op2.attributes[
+        AttrSizedSuccessorSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [2, 2])
+
+
+def test_two_var_successor_builder2():
+    block1 = Block()
+    block2 = Block()
+    block3 = Block()
+    block4 = Block()
+    op2 = TwoVarSuccessorOp.build(successors=[[block1], [block2, block3, block4]])
+    op2.verify()
+    assert op2.successors == [block1, block2, block3, block4]
+    assert op2.attributes[
+        AttrSizedSuccessorSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 

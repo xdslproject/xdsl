@@ -13,6 +13,7 @@ from xdsl.irdl import (
     Operand,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Successor,
 )
 
 
@@ -34,10 +35,11 @@ class Branch(IRDLOperation):
     name = "cf.br"
 
     arguments: Annotated[VarOperand, AnyAttr()]
+    successor: Successor
 
     @staticmethod
-    def get(block: Block, *ops: Union[Operation, SSAValue]) -> Branch:
-        return Branch.build(operands=[[op for op in ops]], successors=[block])
+    def get(dest: Block, *ops: Union[Operation, SSAValue]) -> Branch:
+        return Branch.build(operands=[[op for op in ops]], successors=[dest])
 
 
 @irdl_op_definition
@@ -49,6 +51,9 @@ class ConditionalBranch(IRDLOperation):
     else_arguments: Annotated[VarOperand, AnyAttr()]
 
     irdl_options = [AttrSizedOperandSegments()]
+
+    then_block: Successor
+    else_block: Successor
 
     @staticmethod
     def get(
