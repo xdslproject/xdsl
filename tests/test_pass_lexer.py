@@ -1,10 +1,9 @@
 import pytest
 
-from xdsl.utils.parse_pipeline import (
-    PipelineLexer,
-    Kind,
-)
+from xdsl.utils.parse_pipeline import PipelineLexer, Token
 from xdsl.utils.exceptions import PassPipelineParseError
+
+Kind = Token.Kind
 
 
 def test_pass_lexer():

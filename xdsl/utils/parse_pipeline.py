@@ -1,23 +1,11 @@
+from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Iterator
 
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.lexer import Input, Span
-from enum import Enum, auto
-
-
-class Kind(Enum):
-    EOF = auto()
-
-    IDENT = auto()
-    L_BRACE = auto()
-    R_BRACE = auto()
-    EQUALS = auto()
-    NUMBER = auto()
-    SPACE = auto()
-    STRING_LIT = auto()
-    COMMA = auto()
+from enum import Enum
 
 
 @dataclass
@@ -25,16 +13,28 @@ class Token:
     span: Span
     kind: Kind
 
+    class Kind(Enum):
+        EOF = object()
 
-_lexer_rules: list[tuple[re.Pattern[str], Kind]] = [
-    (re.compile(r"[-+]?[0-9]+(\.[0-9]*([eE][-+]?[0-9]+)?)?"), Kind.NUMBER),
-    (re.compile(r"[A-Za-z0-9_-]+"), Kind.IDENT),
-    (re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"'), Kind.STRING_LIT),
-    (re.compile(r"\{"), Kind.L_BRACE),
-    (re.compile(r"}"), Kind.R_BRACE),
-    (re.compile(r"="), Kind.EQUALS),
-    (re.compile(r"\s+"), Kind.SPACE),
-    (re.compile(r","), Kind.COMMA),
+        IDENT = object()
+        L_BRACE = "{"
+        R_BRACE = "}"
+        EQUALS = "="
+        NUMBER = object()
+        SPACE = object()
+        STRING_LIT = object()
+        COMMA = ","
+
+
+_lexer_rules: list[tuple[re.Pattern[str], Token.Kind]] = [
+    (re.compile(r"[-+]?[0-9]+(\.[0-9]*([eE][-+]?[0-9]+)?)?"), Token.Kind.NUMBER),
+    (re.compile(r"[A-Za-z0-9_-]+"), Token.Kind.IDENT),
+    (re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"'), Token.Kind.STRING_LIT),
+    (re.compile(r"\{"), Token.Kind.L_BRACE),
+    (re.compile(r"}"), Token.Kind.R_BRACE),
+    (re.compile(r"="), Token.Kind.EQUALS),
+    (re.compile(r"\s+"), Token.Kind.SPACE),
+    (re.compile(r","), Token.Kind.COMMA),
 ]
 """
 This is a list of lexer rules that should be tried in this specific order to get the next token.
@@ -76,11 +76,11 @@ class PipelineLexer:
                     break
             if token is None:
                 raise PassPipelineParseError(
-                    Token(Span(pos, pos + 1, input), Kind.IDENT), "Unknown token"
+                    Token(Span(pos, pos + 1, input), Token.Kind.IDENT), "Unknown token"
                 )
             yield token
             if pos >= end:
-                yield Token(Span(pos, pos + 1, input), Kind.EOF)
+                yield Token(Span(pos, pos + 1, input), Token.Kind.EOF)
                 return
 
     def lex(self) -> Token:

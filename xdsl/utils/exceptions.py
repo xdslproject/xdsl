@@ -10,11 +10,10 @@ from dataclasses import dataclass
 from io import StringIO
 from typing import Any, IO
 
-from utils.parse_pipeline import Token
-
 if typing.TYPE_CHECKING:
     from xdsl.parser import Span, BacktrackingHistory
     from xdsl.ir import Attribute
+    from xdsl.utils.parse_pipeline import Token
 
 
 class DiagnosticException(Exception):
