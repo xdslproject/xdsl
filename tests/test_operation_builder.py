@@ -491,7 +491,7 @@ def test_two_var_operand_builder3():
 
 @irdl_op_definition
 class SuccessorOp(IRDLOperation):
-    name: str = "test.successor_op"
+    name = "test.successor_op"
 
     successor: Successor
 
@@ -505,7 +505,7 @@ def test_successor_op_successor():
 
 @irdl_op_definition
 class OptSuccessorOp(IRDLOperation):
-    name: str = "test.opt_successora_op"
+    name = "test.opt_successora_op"
 
     successor: OptSuccessor
 
@@ -520,7 +520,7 @@ def test_opt_successor_builder():
 
 @irdl_op_definition
 class VarSuccessorOp(IRDLOperation):
-    name: str = "test.var_succesor_op"
+    name = "test.var_succesor_op"
 
     successor: VarSuccessor
 
@@ -534,7 +534,7 @@ def test_var_successor_builder():
 
 @irdl_op_definition
 class TwoVarSuccessorOp(IRDLOperation):
-    name: str = "test.two_var_successor_op"
+    name = "test.two_var_successor_op"
 
     res1: VarSuccessor
     res2: VarSuccessor
