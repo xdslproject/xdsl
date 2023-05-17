@@ -165,6 +165,13 @@ def parse_pipeline(
 
 
 def _parse_pass_args(lexer: PipelineLexer) -> dict[str, _PassArgTypes]:
+    """
+    This parses pass arguments. They are a dictionary structure
+    with whitespace separated, multi-value elements:
+
+    options           ::= `{` options-element ( ` ` options-element)* `}`
+    options-element   ::= key (`=` value (`,` value)* )?
+    """
     args: dict[str, _PassArgTypes] = dict()
 
     while True:
