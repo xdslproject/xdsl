@@ -1078,21 +1078,6 @@ class Parser(ABC):
     def try_parse_boolean_literal(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.boolean_literal)
 
-    def try_parse_value_id_and_type(self) -> tuple[Span, Attribute] | None:
-        with self.backtracking("value id and type"):
-            value_id = self.try_parse_value_id()
-
-            if value_id is None:
-                self.raise_error("Invalid value-id format!")
-
-            self.parse_characters(":", "Expected expression (value-id `:` type)")
-
-            type = self.try_parse_type()
-
-            if type is None:
-                self.raise_error("Expected type of value-id here!")
-            return value_id, type
-
     def try_parse_type(self) -> Attribute | None:
         if self.tokenizer.starts_with("!"):
             return self.try_parse_dialect_type()
