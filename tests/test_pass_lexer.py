@@ -68,6 +68,33 @@ def test_pass_parser():
     ]
 
 
+@pytest.mark.parametrize(
+    "input_str, pass_names",
+    (
+        ("pass-1,", ["pass-1"]),
+        ("pass-1{}", ["pass-1"]),
+        ("pass-1{arg1=true arg2}", ["pass-1"]),
+        ("pass-1{arg2 arg1=false}", ["pass-1"]),
+    ),
+)
+def test_pass_parser_cases_no_fail(input_str: str, pass_names: list[str]):
+    passes = parse_pipeline(input_str)
+    assert [p.name for p in passes] == pass_names
+
+
+@pytest.mark.parametrize(
+    "input_str",
+    (
+        ("pass-1{"),
+        ("pass-1{arg1,arg2}"),
+        ("pass-1{arg1=arg2=arg3}"),
+    ),
+)
+def test_pass_parser_cases_fail(input_str: str):
+    with pytest.raises(PassPipelineParseError):
+        list(parse_pipeline(input_str))
+
+
 def test_pass_parse_errors():
     """
     This test triggers all parse errors in the parser in the same order they appear
@@ -88,7 +115,7 @@ def test_pass_parse_errors():
         list(parse_pipeline("pass-1{arg1=1}="))
 
     with pytest.raises(PassPipelineParseError, match="Expected argument name here"):
-        # numbers are not valud argument names
+        # numbers are not valid argument names
         list(parse_pipeline("pass-1{1=1}"))
 
     with pytest.raises(
