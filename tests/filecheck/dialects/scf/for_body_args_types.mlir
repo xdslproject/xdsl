@@ -6,7 +6,7 @@
   %carried = "arith.constant"() {"value" = 36000 : i8} : () -> i8
   "scf.for"(%lb, %ub, %step, %carried) ({
 // CHECK: Block arguments with wrong type, expected i8, got index
-  ^0(%iv : index, %carried : index):
+  ^0(%iv : index, %carried_arg : index):
     "scf.yield"() : () -> ()
   }) : (index, index, index) -> ()
 }) : () -> ()

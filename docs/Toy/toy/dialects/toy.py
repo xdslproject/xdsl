@@ -469,7 +469,7 @@ class CastOp(IRDLOperation):
     arg: Annotated[Operand, AnyTensorTypeF64]
     res: Annotated[OpResult, AnyTensorTypeF64]
 
-    traits = frozenset((InferCastOpShapeTrait(),))
+    traits = frozenset((Pure(), InferCastOpShapeTrait()))
 
     def __init__(self, arg: SSAValue, res: AnyTensorTypeF64 | None = None):
         if res is None:
