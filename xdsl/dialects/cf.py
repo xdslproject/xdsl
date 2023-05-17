@@ -12,7 +12,8 @@ from xdsl.irdl import (
     AnyAttr,
     Operand,
     AttrSizedOperandSegments,
-    IRDLOperation, Successor,
+    IRDLOperation,
+    Successor,
 )
 
 
