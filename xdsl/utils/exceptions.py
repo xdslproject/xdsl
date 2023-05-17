@@ -13,6 +13,7 @@ from typing import Any, IO
 if typing.TYPE_CHECKING:
     from xdsl.parser import Span, BacktrackingHistory
     from xdsl.ir import Attribute
+    from xdsl.utils.parse_pipeline import Token
 
 
 class DiagnosticException(Exception):
@@ -158,3 +159,11 @@ class MultipleSpansParseError(ParseError):
         print(self.ref_text or "With respect to:", file=file)
         for span, msg in self.refs:
             print(span.print_with_context(msg), file=file)
+
+
+class PassPipelineParseError(BaseException):
+    def __init__(self, token: Token, msg: str):
+        super().__init__(
+            "Error parsing pass pipeline specification:\n"
+            + token.span.print_with_context(msg)
+        )
