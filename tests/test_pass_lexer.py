@@ -2,10 +2,12 @@ import pytest
 
 from xdsl.utils.parse_pipeline import (
     PipelineLexer,
-    Kind,
     PassPipelineParseError,
     parse_pipeline,
+    Token,
 )
+
+Kind = Token.Kind
 
 
 def test_pass_lexer():
