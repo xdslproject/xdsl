@@ -157,6 +157,7 @@ def test_symbol_name(text: str, expected: StringAttr | None):
     [
         ("@foo", SymbolRefAttr("foo")),
         ("@foo::@bar", SymbolRefAttr("foo", ["bar"])),
+        ("@foo::@bar:", SymbolRefAttr("foo", ["bar"])),
         ('@foo::@"bar"', SymbolRefAttr("foo", ["bar"])),
         ("@foo::@bar::@baz", SymbolRefAttr("foo", ["bar", "baz"])),
     ],
