@@ -48,13 +48,6 @@ class LowerSyscallOp(RewritePattern):
         rewriter.replace_matched_op(ops, new_results=new_results)
 
 
-class LowerSectionOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv_func.SectionOp, rewriter: PatternRewriter):
-        rewriter.inline_block_after(op.data.block, op)
-        rewriter.replace_matched_op(riscv.DirectiveOp(op.directive, None))
-
-
 SCALL_EXIT = 93
 """
 93 is the number of the `exit` syscall on RISCV.

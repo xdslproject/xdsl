@@ -56,24 +56,6 @@ class SyscallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class SectionOp(IRDLOperation):
-    """
-    This instruction corresponds to a section. Its block can be added to during
-    the lowering process.
-    """
-
-    name = "riscv_func.section"
-
-    directive: OpAttr[StringAttr]
-    data: SingleBlockRegion
-
-    def __init__(self, directive: str | StringAttr, region: Region):
-        if isinstance(directive, str):
-            directive = StringAttr(directive)
-        super().__init__(attributes={"directive": directive}, regions=[region])
-
-
-@irdl_op_definition
 class CallOp(IRDLOperation):
     name = "riscv_func.call"
     args: Annotated[VarOperand, riscv.RegisterType]
