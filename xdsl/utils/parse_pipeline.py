@@ -1,6 +1,8 @@
 import re
 from dataclasses import dataclass
 from typing import Iterator
+
+from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.lexer import Input, Span
 from enum import Enum, auto
 
@@ -49,7 +51,7 @@ class PipelineLexer:
     options-element   ::= key (`=` value (`,` value)* )?
     key       ::= IDENT
     pass-name ::= IDENT
-    value     :== NUMBER / BOOL / IDENT / STRING_LITERAL
+    value     ::= NUMBER | BOOL | IDENT | STRING_LITERAL
     """
 
     _stream: Iterator[Token]
@@ -90,11 +92,3 @@ class PipelineLexer:
         if self._peeked is None:
             self._peeked = next(self._stream)
         return self._peeked
-
-
-class PassPipelineParseError(BaseException):
-    def __init__(self, token: Token, msg: str):
-        super().__init__(
-            "Error parsing pass pipeline specification:\n"
-            + token.span.print_with_context(msg)
-        )

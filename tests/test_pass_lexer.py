@@ -3,8 +3,8 @@ import pytest
 from xdsl.utils.parse_pipeline import (
     PipelineLexer,
     Kind,
-    PassPipelineParseError,
 )
+from xdsl.utils.exceptions import PassPipelineParseError
 
 
 def test_pass_lexer():
