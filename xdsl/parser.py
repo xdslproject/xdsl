@@ -775,6 +775,16 @@ class Parser(ABC):
         if (token := self._parse_optional_token(Token.Kind.AT_IDENT)) is None:
             return None
         self._synchronize_lexer_and_tokenizer()
+
+        assert len(token.text) > 1, "token should be at least 2 characters long"
+
+        # In the case where the symbol name is quoted, remove the quotes and escape
+        # sequences.
+        if token.text[1] == '"':
+            literal_span = StringLiteral(
+                token.span.start + 1, token.span.end, token.span.input
+            )
+            return StringAttr(literal_span.string_contents)
         return StringAttr(token.text[1:])
 
     def parse_symbol_name(self) -> StringAttr:
