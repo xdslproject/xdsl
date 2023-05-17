@@ -249,15 +249,18 @@ class OperationOp(IRDLOperation):
     def __init__(
         self,
         op_name: str | StringAttr | None,
-        attribute_value_names: ArrayAttr[StringAttr] | None = None,
+        attribute_value_names: Iterable[StringAttr] | None = None,
         operand_values: Sequence[SSAValue] | None = None,
         attribute_values: Sequence[SSAValue] | None = None,
         type_values: Sequence[SSAValue] | None = None,
     ):
         if isinstance(op_name, str):
             op_name = StringAttr(op_name)
+        if attribute_value_names is not None:
+            attribute_value_names = ArrayAttr(attribute_value_names)
         if attribute_value_names is None:
             attribute_value_names = ArrayAttr([])
+
         if operand_values is None:
             operand_values = []
         if attribute_values is None:
@@ -339,7 +342,7 @@ class RangeOp(IRDLOperation):
     def __init__(
         self,
         arguments: Sequence[SSAValue],
-        result_type: RangeType[AnyPDLType] | None = None,
+        result_type: Attribute | None = None,
     ) -> None:
         if result_type is None:
             if len(arguments) == 0:
@@ -354,7 +357,7 @@ class RangeOp(IRDLOperation):
                     f"Arguments of {self.name} are expected to be PDL types"
                 )
 
-        super().__init__(operands=arguments, result_types=[result_type])
+        super().__init__(operands=[arguments], result_types=[result_type])
 
 
 @irdl_op_definition
@@ -436,15 +439,15 @@ class ResultsOp(IRDLOperation):
     """
 
     name = "pdl.results"
-    index: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
+    index: OptOpAttr[IntegerAttr[IntegerType]]
     parent_: Annotated[Operand, OperationType]
-    val: Annotated[OpResult, ValueType | ArrayAttr[ValueType]]
+    val: Annotated[OpResult, ValueType | RangeType[ValueType]]
 
     def __init__(
         self,
-        index: int | IntegerAttr[IntegerType],
         parent: SSAValue,
-        result_type: ValueType | ArrayAttr[ValueType],
+        index: int | IntegerAttr[IntegerType] | None = None,
+        result_type: Attribute = RangeType(ValueType()),
     ) -> None:
         if isinstance(index, int):
             index = IntegerAttr(index, 32)
@@ -523,7 +526,7 @@ class TypeOp(IRDLOperation):
     constantType: OptOpAttr[Attribute]
     result: Annotated[OpResult, TypeType]
 
-    def __init__(self, constant_type: TypeType | None = None) -> None:
+    def __init__(self, constant_type: Attribute | None = None) -> None:
         super().__init__(
             attributes={"constantType": constant_type}, result_types=[TypeType()]
         )
@@ -539,9 +542,13 @@ class TypesOp(IRDLOperation):
     constantTypes: OptOpAttr[AnyArrayAttr]
     result: Annotated[OpResult, RangeType[TypeType]]
 
-    def __init__(self, constant_types: Iterable[TypeType] = ()) -> None:
+    def __init__(self, constant_types: Iterable[Attribute] | None = None) -> None:
+        if constant_types is not None:
+            attributes = {"constantTypes": ArrayAttr(constant_types)}
+        else:
+            attributes = {}
         super().__init__(
-            attributes={"constantType": ArrayAttr(constant_types)},
+            attributes=attributes,
             result_types=[RangeType(TypeType())],
         )
 
