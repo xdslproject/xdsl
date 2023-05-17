@@ -18,7 +18,7 @@ from ..dialects import toy
 class InlineFunctions(RewritePattern):
     _func_op_by_name: dict[str, toy.FuncOp] | None = None
 
-    def func_op(self, module: ModuleOp, name: str) -> toy.FuncOp:
+    def lookup_func_op(self, module: ModuleOp, name: str) -> toy.FuncOp:
         if self._func_op_by_name is None:
             self._func_op_by_name = {
                 op.sym_name.data: op for op in module.ops if isinstance(op, toy.FuncOp)
@@ -38,7 +38,7 @@ class InlineFunctions(RewritePattern):
         assert isinstance(module, ModuleOp)
 
         # Clone called function
-        impl = self.func_op(module, op.callee.string_value()).clone()
+        impl = self.lookup_func_op(module, op.callee.string_value()).clone()
         impl_block = impl.body.block
 
         # Cast operands to unranked
@@ -94,7 +94,18 @@ class RemoveUnusedPrivateFunctions(RewritePattern):
 
 
 class InlineToyPass(ModulePass):
-    name = "dce"
+    """
+    A custom pass to inline Toy functions. In MLIR, this is done through an interface, as
+    described in the Toy tutorial. As of time of writing, we don't have dialect interfaces
+    in xDSL, but would like to add them. This pass should be migrated to the built-in pass
+    when they land.
+
+    https://mlir.llvm.org/docs/Tutorials/Toy/Ch-4/
+    https://github.com/xdslproject/xdsl/issues/957
+
+    """
+
+    name = "inline-toy-functions"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(InlineFunctions()).rewrite_module(op)
