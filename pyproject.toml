@@ -15,7 +15,6 @@ typeCheckingMode = "strict"
     "tests/dialects/test_mpi_lowering.py",
 ]
 "ignore" = [
-    "xdsl/irdl_mlir_printer.py",
     "tests/filecheck/frontend/dialects/builtin.py",
     "tests/filecheck/frontend/dialects/invalid.py",
     "tests/filecheck/frontend/programs/invalid.py",

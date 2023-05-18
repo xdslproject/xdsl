@@ -240,6 +240,46 @@ class RdImmOperation(IRDLOperation, RISCVOp, ABC):
         )
 
 
+class RdImmJumpOperation(IRDLOperation, RISCVOp, ABC):
+    """
+    In the RISC-V spec, this is the same as `RdImmOperation`. For jumps, the `rd` register
+    is neither an operand, because the stored value is overwritten, nor a result value,
+    because the value in `rd` is not defined after the jump back. So the `rd` makes the
+    most sense as an attribute.
+    """
+
+    rd: OptOpAttr[RegisterType]
+    """
+    The rd register here is not a register storing the result, rather the register where
+    the program counter is stored before jumping.
+    """
+    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        *,
+        rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr.from_int_and_width(immediate, 32)
+        elif isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+        if isinstance(rd, Register):
+            rd = RegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            attributes={
+                "immediate": immediate,
+                "rd": rd,
+                "comment": comment,
+            }
+        )
+
+
 class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
@@ -277,6 +317,57 @@ class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
             result_types=[rd],
             attributes={
                 "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+
+class RdRsImmJumpOperation(IRDLOperation, RISCVOp, ABC):
+    """
+    A base class for RISC-V operations that have one destination register, one source
+    register and one immediate operand.
+
+    This is called I-Type in the RISC-V specification.
+
+    In the RISC-V spec, this is the same as `RdRsImmOperation`. For jumps, the `rd` register
+    is neither an operand, because the stored value is overwritten, nor a result value,
+    because the value in `rd` is not defined after the jump back. So the `rd` makes the
+    most sense as an attribute.
+    """
+
+    rs1: Annotated[Operand, RegisterType]
+    rd: OptOpAttr[RegisterType]
+    """
+    The rd register here is not a register storing the result, rather the register where
+    the program counter is stored before jumping.
+    """
+    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        *,
+        rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, 32)
+        elif isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+
+        if isinstance(rd, Register):
+            rd = RegisterType(rd)
+
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rs1],
+            attributes={
+                "immediate": immediate,
+                "rd": rd,
                 "comment": comment,
             },
         )
@@ -960,7 +1051,7 @@ class NopOp(NullaryOperation):
 
 
 @irdl_op_definition
-class JalOp(RdImmOperation):
+class JalOp(RdImmJumpOperation):
     """
     Jump to address and place return address in rd.
 
@@ -975,7 +1066,7 @@ class JalOp(RdImmOperation):
 
 
 @irdl_op_definition
-class JOp(RdImmOperation):
+class JOp(RdImmJumpOperation):
     """
     A pseudo-instruction, for unconditional jumps you don't expect to return from.
     Is equivalent to JalOp with `rd` = `x0`.
@@ -984,12 +1075,17 @@ class JOp(RdImmOperation):
 
     name = "riscv.j"
 
-    def __init__(self, immediate: int | AnyIntegerAttr | str | LabelAttr):
-        super().__init__(immediate, rd=Registers.ZERO)
+    def __init__(
+        self,
+        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        super().__init__(immediate, rd=Registers.ZERO, comment=comment)
 
 
 @irdl_op_definition
-class JalrOp(RdRsImmOperation):
+class JalrOp(RdRsImmJumpOperation):
     """
     Jump to address and place return address in rd.
 

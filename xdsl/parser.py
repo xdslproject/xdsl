@@ -22,6 +22,7 @@ from typing import (
     Literal,
     Sequence,
     Callable,
+    overload,
 )
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
@@ -72,7 +73,6 @@ from xdsl.ir import (
     Attribute,
     Operation,
     Region,
-    BlockArgument,
     MLContext,
     ParametrizedAttribute,
     Data,
@@ -473,7 +473,7 @@ class Parser(ABC):
     """xDSL context."""
 
     ssa_values: dict[str, tuple[SSAValue]]
-    blocks: dict[str, Block]
+    blocks: dict[str, tuple[Block, Span | None]]
     forward_block_references: dict[str, list[Span]]
     """
     Blocks we encountered references to before the definition (must be empty after
@@ -669,97 +669,131 @@ class Parser(ABC):
 
         If the block definition was not seen yet, we create a forward declaration.
         """
-        name = block_name.text
+        name = block_name.text[1:]
         if name not in self.blocks:
             self.forward_block_references[name].append(block_name)
-            self.blocks[name] = Block()
-        return self.blocks[name]
+            self.blocks[name] = (Block(), None)
+        return self.blocks[name][0]
 
-    def parse_block(self) -> Block:
-        block_id, args = self._parse_optional_block_label()
+    def _parse_ssa_definition(self) -> str:
+        """
+        Parse an SSA definition, with the format `%ident`. Returns the value name.
+        If a value with the same name is already in scope, return an error.
+        """
+        name_token = self._parse_token(
+            Token.Kind.PERCENT_IDENT, "Expected result SSA value!"
+        )
+        name = name_token.text[1:]
+        if name in self.ssa_values:
+            self.raise_error(
+                f"a value with name '{name}' is already defined", name_token.span
+            )
+        return name
 
-        if block_id is None:
-            block = Block(declared_at=self.tokenizer.last_token)
-        elif self.forward_block_references.pop(block_id.text, None) is not None:
-            block = self.blocks[block_id.text]
-            block.declared_at = block_id
-        else:
-            if block_id.text in self.blocks:
-                block = self.blocks[block_id.text]
-                assert block.declared_at is not None, "Parsed block must have a span"
-                raise MultipleSpansParseError(
-                    block_id,
-                    "Re-declaration of block {}".format(block_id.text),
-                    "Originally declared here:",
-                    [(block.declared_at, None)],
-                    self.tokenizer.history,
-                )
-            block = Block(declared_at=block_id)
-            self.blocks[block_id.text] = block
+    def _parse_optional_block_arg_list(self, block: Block):
+        """
+        Parse a block argument list, if present, and add them to the block.
 
-        block_args: list[BlockArgument] = []
+            value-id-and-type-list ::= value-id-and-type (`,` ssa-id-and-type)*
+            block-arg-list ::= `(` value-id-and-type-list? `)`
+        """
+        if self._current_token.kind != Token.Kind.L_PAREN:
+            return None
 
-        for i, (name, type) in enumerate(args):
-            arg = BlockArgument(type, block, i)
-            self.ssa_values[name.text[1:]] = (arg,)
-            # store ssa val name if valid
-            if SSAValue.is_valid_name(name.text[1:]):
-                arg.name_hint = name.text[1:]
-            block_args.append(arg)
+        def parse_argument() -> None:
+            """Parse a single block argument with its type."""
+            arg_name = self._parse_ssa_definition()
+            self.parse_punctuation(":")
+            self._synchronize_lexer_and_tokenizer()
+            arg_type = self.parse_attribute()
+            self._synchronize_lexer_and_tokenizer()
 
-        block._args = tuple(block_args)  # type: ignore
+            # Insert the block argument in the block, and set its name.
+            block_arg = block.insert_arg(arg_type, len(block.args))
+            if SSAValue.is_valid_name(arg_name):
+                block_arg.name_hint = arg_name
 
-        while (next_op := self.try_parse_operation()) is not None:
-            block.add_op(next_op)
+            # Register the value name in the parser
+            self.ssa_values[arg_name] = (block_arg,)
 
+        self.parse_comma_separated_list(self.Delimiter.PAREN, parse_argument)
         return block
 
-    def _parse_optional_block_label(
-        self,
-    ) -> tuple[Span | None, list[tuple[Span, Attribute]]]:
+    def parse_block_body(self, block: Block):
         """
-        A block label consists of block-id ( `(` block-arg `,` ... `)` )?
+        Parse a block body, which consist of a list of operations.
+        The operations are added at the end of the block.
         """
-        block_id = self.try_parse_block_id()
-        arg_list = list[tuple[Span, Attribute]]()
+        self._synchronize_lexer_and_tokenizer()
+        while (op := self.try_parse_operation()) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            block.add_op(op)
 
-        if block_id is not None:
-            if self.tokenizer.starts_with("("):
-                arg_list = self._parse_block_arg_list()
+    def parse_block(self) -> Block:
+        """
+        Parse a block with the following format:
+          block ::= block-label? operation*
+          block-label    ::= block-id block-arg-list? `:`
+          block-id       ::= caret-id
+          block-arg-list ::= `(` ssa-id-and-type-list? `)`
+        """
+        self._synchronize_lexer_and_tokenizer()
+        name_token = self._parse_optional_token(Token.Kind.CARET_IDENT)
 
-            self.parse_characters(":", "Block label must end in a `:`!")
+        # Case where the block does not have a name (entry block)
+        if name_token is None:
+            block = Block()
+            self.parse_block_body(block)
+            return block
 
-        return block_id, arg_list
+        name = name_token.text[1:]
+        if name not in self.blocks:
+            block = Block()
+            self.blocks[name] = (block, name_token.span)
+        else:
+            block, original_definition = self.blocks[name]
+            if original_definition is not None:
+                raise MultipleSpansParseError(
+                    name_token.span,
+                    f"re-declaration of block '{name}'",
+                    "originally declared here:",
+                    [(original_definition, None)],
+                )
+            self.forward_block_references.pop(name)
 
-    def _parse_block_arg_list(self) -> list[tuple[Span, Attribute]]:
-        self.parse_characters("(", "Block arguments must start with `(`")
+        self._parse_optional_block_arg_list(block)
+        self.parse_punctuation(":")
+        self.parse_block_body(block)
+        self._synchronize_lexer_and_tokenizer()
+        return block
 
-        args = self.parse_list_of(
-            self.try_parse_value_id_and_type, "Expected value-id and type here!"
-        )
+    def parse_optional_symbol_name(self) -> StringAttr | None:
+        """
+        Parse an @-identifier if present, and return its name (without the '@') in a
+        string attribute.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if (token := self._parse_optional_token(Token.Kind.AT_IDENT)) is None:
+            return None
+        self._synchronize_lexer_and_tokenizer()
 
-        self.parse_characters(")", "Expected closing of block arguments!")
+        assert len(token.text) > 1, "token should be at least 2 characters long"
 
-        return args
-
-    def try_parse_single_reference(self) -> Span | None:
-        with self.backtracking("part of a reference"):
-            self.parse_characters("@", "references must start with `@`")
-            if (reference := self.try_parse_string_literal()) is not None:
-                return reference
-            if (reference := self.try_parse_suffix_id()) is not None:
-                return reference
-            self.raise_error(
-                "References must conform to `@` (string-literal | suffix-id)"
+        # In the case where the symbol name is quoted, remove the quotes and escape
+        # sequences.
+        if token.text[1] == '"':
+            literal_span = StringLiteral(
+                token.span.start + 1, token.span.end, token.span.input
             )
+            return StringAttr(literal_span.string_contents)
+        return StringAttr(token.text[1:])
 
-    def parse_reference(self) -> list[Span]:
-        return self.parse_list_of(
-            self.try_parse_single_reference,
-            "Expected reference here in the format of `@` (suffix-id | string-literal)",
-            ParserCommons.double_colon,
-            allow_empty=False,
-        )
+    def parse_symbol_name(self) -> StringAttr:
+        """
+        Parse an @-identifier and return its name (without the '@') in a string
+        attribute.
+        """
+        return self.expect(self.parse_optional_symbol_name, "expect symbol name")
 
     class Delimiter(Enum):
         """
@@ -1053,21 +1087,6 @@ class Parser(ABC):
 
     def try_parse_boolean_literal(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.boolean_literal)
-
-    def try_parse_value_id_and_type(self) -> tuple[Span, Attribute] | None:
-        with self.backtracking("value id and type"):
-            value_id = self.try_parse_value_id()
-
-            if value_id is None:
-                self.raise_error("Invalid value-id format!")
-
-            self.parse_characters(":", "Expected expression (value-id `:` type)")
-
-            type = self.try_parse_type()
-
-            if type is None:
-                self.raise_error("Expected type of value-id here!")
-            return value_id, type
 
     def try_parse_type(self) -> Attribute | None:
         if self.tokenizer.starts_with("!"):
@@ -1495,15 +1514,43 @@ class Parser(ABC):
             self.raise_error(error_message)
         return res
 
-    def raise_error(self, msg: str, at_position: Span | None = None) -> NoReturn:
+    @overload
+    def raise_error(
+        self,
+        msg: str,
+        at_position: Position,
+        end_position: Position,
+    ) -> NoReturn:
+        ...
+
+    @overload
+    def raise_error(
+        self,
+        msg: str,
+        at_position: Position | Span | None = None,
+    ) -> NoReturn:
+        ...
+
+    def raise_error(
+        self,
+        msg: str,
+        at_position: Span | Position | None = None,
+        end_position: Position | None = None,
+    ) -> NoReturn:
         """
         Helper for raising exceptions, provides as much context as possible to them.
 
+        If no position is provided, the error will be displayed at the next token.
         This will, for example, include backtracking errors, if any occurred previously.
         """
         self._synchronize_lexer_and_tokenizer()
+        if end_position is not None:
+            assert isinstance(at_position, Position)
+            at_position = Span(at_position, end_position, self.lexer.input)
         if at_position is None:
-            at_position = self.tokenizer.next_token(peek=True)
+            at_position = self._current_token.span
+        elif isinstance(at_position, Position):
+            at_position = Span(at_position, at_position, self.lexer.input)
 
         raise ParseError(at_position, msg, self.tokenizer.history)
 
@@ -1535,7 +1582,7 @@ class Parser(ABC):
         op_name = self.try_parse_bare_id()
         if op_name is not None:
             op_type = self._get_op_by_name(op_name)
-            return op_type.parse(self)
+            op = op_type.parse(self)
         else:
             # Check for basic op format
             op_name = self.try_parse_string_literal()
@@ -1709,7 +1756,7 @@ class Parser(ABC):
         elif next_token.text == "[":
             return self.try_parse_builtin_arr_attr()
         elif next_token.text == "@":
-            return self.try_parse_ref_attr()
+            return self.parse_optional_symref_attr()
         elif next_token.text == "{":
             return self.parse_builtin_dict_attr()
         elif next_token.text == "(":
@@ -1754,12 +1801,15 @@ class Parser(ABC):
     def parse_optional_keyword(self, keyword: str) -> str | None:
         """Parse a specific identifier if it is present"""
 
+        self._synchronize_lexer_and_tokenizer()
         if (
             self._current_token.kind == Token.Kind.BARE_IDENT
             and self._current_token.text == keyword
         ):
             self._consume_token(Token.Kind.BARE_IDENT)
+            self._synchronize_lexer_and_tokenizer()
             return keyword
+        self._synchronize_lexer_and_tokenizer()
         return None
 
     def parse_strided_layout_attr(self) -> Attribute:
@@ -2145,19 +2195,30 @@ class Parser(ABC):
                 break
         self.parse_characters("]", "")
 
-    def try_parse_ref_attr(self) -> SymbolRefAttr | None:
-        if not self.tokenizer.starts_with("@"):
+    def parse_optional_symref_attr(self) -> SymbolRefAttr | None:
+        """
+        Parse a symbol reference attribute, if present.
+          symbol-attr ::= symbol-ref-id (`::` symbol-ref-id)*
+          symbol-ref-id ::= at-ident
+        """
+        # Parse the root symbol
+        sym_root = self.parse_optional_symbol_name()
+        if sym_root is None:
             return None
 
-        refs = self.parse_reference()
+        # Parse nested symbols
+        refs: list[StringAttr] = []
+        while self._current_token.kind == Token.Kind.COLON:
+            # Parse `::`. As in MLIR, this require to backtrack if a single `:` is given.
+            pos = self._current_token.span.start
+            self._consume_token(Token.Kind.COLON)
+            if self._parse_optional_token(Token.Kind.COLON) is None:
+                self.resume_from(pos)
+                break
 
-        if len(refs) >= 1:
-            return SymbolRefAttr(
-                StringAttr(refs[0].text),
-                ArrayAttr([StringAttr(ref.text) for ref in refs[1:]]),
-            )
-        else:
-            return None
+            refs.append(self.parse_symbol_name())
+
+        return SymbolRefAttr(sym_root, ArrayAttr(refs))
 
     def parse_optional_builtin_int_or_float_attr(
         self,

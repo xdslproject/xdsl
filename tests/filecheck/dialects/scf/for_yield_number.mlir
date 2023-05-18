@@ -6,7 +6,7 @@
   %carried = "arith.constant"() {"value" = 36000 : i8} : () -> i8
   "scf.for"(%lb, %ub, %step, %carried) ({
 // CHECK: Expected 1 args, got 2. The scf.for must yield its carried variables.
-  ^0(%iv : index, %carried : i8):
-    "scf.yield"(%carried, %step) : () -> ()
+  ^0(%iv : index, %carried_arg : i8):
+    "scf.yield"(%carried_arg, %step) : () -> ()
   }) : (index, index, index) -> ()
 }) : () -> ()

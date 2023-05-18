@@ -57,20 +57,24 @@
   // RV32I/RV64I: 2.5 Control Transfer Instructions
 
   // Unconditional Branch Instructions
-  %jal_i = "riscv.jal"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
-  // CHECK-NEXT: %jal_i = "riscv.jal"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
-  %jal_r = "riscv.jal"() {"immediate" = #riscv.label<"label">}: () -> !riscv.reg<>
-  // CHECK-NEXT: %jal_r = "riscv.jal"() {"immediate" = #riscv.label<"label">} : () -> !riscv.reg<>
+  "riscv.jal"() {"immediate" = 1 : i32} : () -> ()
+  // CHECK-NEXT: "riscv.jal"() {"immediate" = 1 : i32} : () -> ()
+  "riscv.jal"() {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : () -> ()
+  // CHECK-NEXT: "riscv.jal"() {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : () -> ()
+  "riscv.jal"() {"immediate" = #riscv.label<"label">} : () -> ()
+  // CHECK-NEXT: "riscv.jal"() {"immediate" = #riscv.label<"label">} : () -> ()
 
-  %j_i = "riscv.j"() {"immediate" = 1 : i32}: () -> !riscv.reg<zero>
-  // CHECK-NEXT: %j_i = "riscv.j"() {"immediate" = 1 : i32} : () -> !riscv.reg<zero>
-  %j_r = "riscv.j"() {"immediate" = #riscv.label<"label">}: () -> !riscv.reg<zero>
-  // CHECK-NEXT: %j_r = "riscv.j"() {"immediate" = #riscv.label<"label">} : () -> !riscv.reg<zero>
+  "riscv.j"() {"immediate" = 1 : i32} : () -> ()
+  // CHECK-NEXT: "riscv.j"() {"immediate" = 1 : i32} : () -> ()
+  "riscv.j"() {"immediate" = #riscv.label<"label">} : () -> ()
+  // CHECK-NEXT: "riscv.j"() {"immediate" = #riscv.label<"label">} : () -> ()
 
-  %jalr_i = "riscv.jalr"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-  // CHECK-NEXT: %jalr_i = "riscv.jalr"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-  %jalr_r = "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">}: (!riscv.reg<>) -> !riscv.reg<>
-  // CHECK-NEXT: %jalr_r = "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> !riscv.reg<>
+  "riscv.jalr"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> ()
+  // CHECK-NEXT: "riscv.jalr"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> ()
+  "riscv.jalr"(%0) {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : (!riscv.reg<>) -> ()
+  // CHECK-NEXT: "riscv.jalr"(%0) {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : (!riscv.reg<>) -> ()
+  "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
+  // CHECK-NEXT: "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
 
   "riscv.ret"() : () -> ()
   // CHECK-NEXT: "riscv.ret"() : () -> ()

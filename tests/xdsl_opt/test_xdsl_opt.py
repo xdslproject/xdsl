@@ -23,6 +23,7 @@ def test_opt():
         "dce",
         "lower-snitch",
         "riscv-allocate-registers",
+        "lower-riscv-func",
     ]
 
 
@@ -128,7 +129,7 @@ def test_operation_deletion():
 def test_split_input():
     filename_in = "tests/xdsl_opt/split_input_file.mlir"
     filename_out = "tests/xdsl_opt/split_input_file.out"
-    flag = "-split-input-file"
+    flag = "--split-input-file"
 
     opt = xDSLOptMain(args=[filename_in, flag, "-o", filename_out])
     opt.run()

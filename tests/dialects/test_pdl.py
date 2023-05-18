@@ -2,8 +2,9 @@ import pytest
 from xdsl.ir import Block
 
 import xdsl.dialects.pdl as pdl
-from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, StringAttr
+from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, StringAttr, i32, i64
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 type_type = pdl.TypeType()
 attribute_type = pdl.AttributeType()
@@ -95,7 +96,71 @@ def test_build_result():
     assert res.parent_ == op_val
 
 
+def test_build_resultS():
+    res = pdl.ResultsOp(op_val)
+
+    assert res.parent_ == op_val
+    assert res.index is None
+    assert res.val.typ == pdl.RangeType(pdl.ValueType())
+
+
+def test_build_results_with_index():
+    res = pdl.ResultsOp(op_val, IntegerAttr.from_int_and_width(1, 32))
+
+    assert res.parent_ == op_val
+    assert res.index == IntegerAttr.from_int_and_width(1, 32)
+    assert res.val.typ == pdl.RangeType(pdl.ValueType())
+
+
+def test_build_results_with_index_and_type():
+    res = pdl.ResultsOp(op_val, IntegerAttr.from_int_and_width(1, 32), pdl.ValueType())
+
+    assert res.parent_ == op_val
+    assert res.index == IntegerAttr.from_int_and_width(1, 32)
+    assert res.val.typ == pdl.ValueType()
+
+
+def test_build_type():
+    typ = pdl.TypeOp()
+    assert typ.constantType is None
+
+    typ = pdl.TypeOp(i32)
+    assert typ.constantType == i32
+
+
+def test_build_types():
+    typ = pdl.TypesOp()
+    assert typ.constantTypes is None
+
+    typ = pdl.TypesOp((i32, i64, i32))
+    assert typ.constantTypes == ArrayAttr((i32, i64, i32))
+
+
 def test_build_operand():
     operand = pdl.OperandOp(val_val)
 
     assert operand.value_type == val_val
+
+
+def test_range():
+    val1 = TestSSAValue(pdl.ValueType())
+    val2 = TestSSAValue(pdl.RangeType(pdl.ValueType()))
+    val3 = TestSSAValue(pdl.ValueType())
+
+    range_op = pdl.RangeOp((val1, val2, val3))
+
+    assert range_op.arguments == (val1, val2, val3)
+    assert range_op.result.typ == pdl.RangeType(pdl.ValueType())
+
+
+def test_empty_range():
+    return_type = pdl.RangeType(pdl.ValueType())
+    empty_range = pdl.RangeOp((), return_type)
+
+    assert len(empty_range.arguments) == 0
+    assert empty_range.result.typ == return_type
+
+
+def test_range_cannot_infer():
+    with pytest.raises(ValueError):
+        pdl.RangeOp(())  # Cannot infer return type
