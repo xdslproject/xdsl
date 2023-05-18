@@ -95,17 +95,18 @@ class PipelineLexer:
         return self._peeked
 
 
-_PassArgTypes = list[str | int | bool | float]
+_PassArgElementType = str | int | bool | float
+_PassArgListType = list[_PassArgElementType]
 
 
 @dataclass(eq=True, frozen=True)
 class PipelinePassSpec:
     """
-    Small dataclass that holds the name and args of a specific pass.
+    A pass name and its arguments.
     """
 
     name: str
-    args: dict[str, _PassArgTypes]
+    args: dict[str, _PassArgListType]
 
 
 def parse_pipeline(
@@ -164,15 +165,17 @@ def parse_pipeline(
                 )
 
 
-def _parse_pass_args(lexer: PipelineLexer) -> dict[str, _PassArgTypes]:
+def _parse_pass_args(lexer: PipelineLexer) -> dict[str, _PassArgListType]:
     """
     This parses pass arguments. They are a dictionary structure
     with whitespace separated, multi-value elements:
 
     options           ::= `{` options-element ( ` ` options-element)* `}`
     options-element   ::= key (`=` value (`,` value)* )?
+
+    This function assumes that the leading `{` has already been consumed.
     """
-    args: dict[str, _PassArgTypes] = dict()
+    args: dict[str, _PassArgListType] = dict()
 
     while True:
         # get the name of the argument (or a `}` in case of zero-length dicts)
@@ -223,7 +226,7 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, _PassArgTypes]:
                 )
 
 
-def _parse_arg_value(lexer: PipelineLexer) -> _PassArgTypes:
+def _parse_arg_value(lexer: PipelineLexer) -> _PassArgListType:
     """
     Parse an argument value of the form: value (`,` value)*
     """
@@ -234,9 +237,9 @@ def _parse_arg_value(lexer: PipelineLexer) -> _PassArgTypes:
     return elms
 
 
-def _parse_arg_value_element(lexer: PipelineLexer) -> str | int | bool | float:
+def _parse_arg_value_element(lexer: PipelineLexer) -> _PassArgElementType:
     """
-    parse a singular value element
+    Parse a singular value element
     """
     # valid value elements are quoted strings, numbers, true|false, and "ident" type strings
     match lexer.lex():
