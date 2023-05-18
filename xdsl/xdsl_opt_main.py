@@ -47,6 +47,7 @@ from xdsl.transforms.experimental.stencil_global_to_local import (
 )
 
 from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.parse_pipeline import parse_pipeline
 
 from typing import IO, Dict, Callable, List, Sequence, Type
 from xdsl.riscv_asm_writer import print_riscv_module
@@ -312,15 +313,17 @@ class xDSLOptMain:
         """
         Creates a pipeline that consists of all the passes specified.
 
-        Failes, if not all passes are registered.
+        Fails, if not all passes are registered.
         """
-        pipeline = [str(item) for item in self.args.passes.split(",") if len(item) > 0]
+        pipeline = list(parse_pipeline(self.args.passes))
 
         for p in pipeline:
-            if p not in self.available_passes:
+            if p.name not in self.available_passes:
                 raise Exception(f"Unrecognized pass: {p}")
 
-        self.pipeline = [self.available_passes[p]() for p in pipeline]
+        self.pipeline = [
+            self.available_passes[p.name].from_pass_spec(p) for p in pipeline
+        ]
 
     def parse_input(self) -> List[ModuleOp]:
         """
