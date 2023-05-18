@@ -491,9 +491,7 @@ class PatternOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> PatternOp:
-        name = parser.try_parse_single_reference()
-        if name is not None:
-            name = name.text
+        name = parser.parse_optional_symbol_name()
         parser.parse_punctuation(":")
         parser.parse_keyword("benefit")
         parser.parse_punctuation("(")
