@@ -299,8 +299,11 @@ class AddHaloExchangeOps(RewritePattern):
         rewriter.insert_op_after_matched_op(swap_op)
 
 
+@dataclass
 class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
     name = "stencil-to-local-2d-horizontal"
+
+    nodes: int
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         strategy = HorizontalSlices2D(2)
