@@ -75,7 +75,6 @@ def test_pass_parser():
         ("pass-1{}", "pass-1", set[str]()),
         ("pass-1{arg1=true arg2}", "pass-1", {"arg1", "arg2"}),
         ("pass-1{arg2 arg1=false}", "pass-1", {"arg1", "arg2"}),
-        ("pass-1{arg2 arg1=false}", "pass-1", {"arg1", "arg2"}),
     ),
 )
 def test_pass_parser_cases_no_fail(
