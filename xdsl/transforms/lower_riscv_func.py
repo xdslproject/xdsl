@@ -124,6 +124,7 @@ class LowerRISCVFunc(ModulePass):
     name = "lower-riscv-func"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        PatternRewriteWalker(LowerSyscallOp()).rewrite_module(op)
         PatternRewriteWalker(LowerRISCVFuncReturnOp()).rewrite_module(op)
         PatternRewriteWalker(LowerRISCVFuncOp()).rewrite_module(op)
         PatternRewriteWalker(LowerRISCVCallOp()).rewrite_module(op)

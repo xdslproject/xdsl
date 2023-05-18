@@ -1064,15 +1064,6 @@ class JalOp(RdImmJumpOperation):
 
     name = "riscv.jal"
 
-    def __init__(
-        self,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
-        *,
-        rd: RegisterType | Register | None = None,
-        comment: str | StringAttr | None = None,
-    ):
-        super().__init__(immediate, rd=rd)
-
 
 @irdl_op_definition
 class JOp(RdImmJumpOperation):
