@@ -11,18 +11,20 @@ class Pure(OpTrait):
 class HasParent(OpTrait):
     """Constraint the operation to have a specific parent operation."""
 
-    parameters: type[Operation]
+    parameters: tuple[type[Operation], ...]
+
+    def __init__(self, parameters: type[Operation] | tuple[type[Operation], ...]):
+        if not isinstance(parameters, tuple):
+            parameters = (parameters,)
+        if len(parameters) == 0:
+            raise ValueError("parameters must not be empty")
+        super().__init__(parameters)
 
     def verify(self, op: Operation) -> None:
         parent = op.parent_op()
-        if parent is None:
-            raise VerifyException(
-                f"Operation expects a parent of type {self.parameters.name}, "
-                "but has no parent."
-            )
-        if not isinstance(parent, self.parameters):
-            raise VerifyException(
-                f"Operation expects a parent of type '{self.parameters.name}', "
-                f"but has a parent of type '{parent.name}'."
-            )
-        return super().verify(op)
+        if isinstance(parent, tuple(self.parameters)):
+            return
+        if len(self.parameters) == 1:
+            raise VerifyException(f"expects parent op '{self.parameters[0].name}'")
+        names = ", ".join([f"'{p.name}'" for p in self.parameters])
+        raise VerifyException(f"expects parent op to be one of {names}")

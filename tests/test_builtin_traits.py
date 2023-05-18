@@ -13,7 +13,14 @@ from xdsl.utils.exceptions import VerifyException
 
 @irdl_op_definition
 class ParentOp(IRDLOperation):
-    name = "test.parent_op"
+    name = "test.parent"
+
+    region: Region
+
+
+@irdl_op_definition
+class Parent2Op(IRDLOperation):
+    name = "test.parent2"
 
     region: Region
 
@@ -24,9 +31,20 @@ class HasParentOp(IRDLOperation):
     An operation expecting a 'test.parent_op' parent.
     """
 
-    name = "test.has_parent_op"
+    name = "test.has_parent"
 
     traits = frozenset([HasParent(ParentOp)])
+
+
+@irdl_op_definition
+class HasMultipleParentOp(IRDLOperation):
+    """
+    An operation expecting one of multiple parent types.
+    """
+
+    name = "test.has_multiple_parent"
+
+    traits = frozenset([HasParent((ParentOp, Parent2Op))])
 
 
 def test_has_parent_no_parent():
@@ -37,7 +55,15 @@ def test_has_parent_no_parent():
     has_parent_op = HasParentOp()
     with pytest.raises(VerifyException) as exc_info:
         has_parent_op.verify()
-    assert "has no parent" in str(exc_info.value)
+    assert str(exc_info.value) == "expects parent op 'test.parent'"
+
+    has_multiple_parent_op = HasMultipleParentOp()
+    with pytest.raises(VerifyException) as exc_info:
+        has_multiple_parent_op.verify()
+    assert (
+        str(exc_info.value)
+        == "expects parent op to be one of 'test.parent', 'test.parent2'"
+    )
 
 
 def test_has_parent_wrong_parent():
@@ -48,17 +74,27 @@ def test_has_parent_wrong_parent():
     module = ModuleOp([HasParentOp()])
     with pytest.raises(VerifyException) as exc_info:
         module.verify()
-    assert "has a parent of type 'builtin.module'" in str(exc_info.value)
+    assert str(exc_info.value) == "expects parent op 'test.parent'"
+
+    module = ModuleOp([HasMultipleParentOp()])
+    with pytest.raises(VerifyException) as exc_info:
+        module.verify()
+    assert (
+        str(exc_info.value)
+        == "expects parent op to be one of 'test.parent', 'test.parent2'"
+    )
 
 
-def test_has_parent_pass():
+def test_has_parent_verify():
     """
     Test that an operation with an HasParentOp trait
     expects a parent operation of the right type.
     """
-    parent_op = HasParentOp()
-    has_parent_op = ParentOp(regions=[[parent_op]])
-    has_parent_op.verify()
+    op = ParentOp(regions=[[HasParentOp()]])
+    op.verify()
 
-    module = ModuleOp([has_parent_op])
-    module.verify()
+    op = ParentOp(regions=[[HasMultipleParentOp()]])
+    op.verify()
+
+    op = Parent2Op(regions=[[HasMultipleParentOp()]])
+    op.verify()
