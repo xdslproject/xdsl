@@ -95,8 +95,8 @@ class PipelineLexer:
         return self._peeked
 
 
-_PassArgElementType = str | int | bool | float
-_PassArgListType = list[_PassArgElementType]
+PassArgElementType = str | int | bool | float
+PassArgListType = list[PassArgElementType]
 
 
 @dataclass(eq=True, frozen=True)
@@ -106,7 +106,7 @@ class PipelinePassSpec:
     """
 
     name: str
-    args: dict[str, _PassArgListType]
+    args: dict[str, PassArgListType]
 
 
 def parse_pipeline(
@@ -165,7 +165,7 @@ def parse_pipeline(
                 )
 
 
-def _parse_pass_args(lexer: PipelineLexer) -> dict[str, _PassArgListType]:
+def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
     """
     This parses pass arguments. They are a dictionary structure
     with whitespace separated, multi-value elements:
@@ -175,7 +175,7 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, _PassArgListType]:
 
     This function assumes that the leading `{` has already been consumed.
     """
-    args: dict[str, _PassArgListType] = dict()
+    args: dict[str, PassArgListType] = dict()
 
     while True:
         # get the name of the argument (or a `}` in case of zero-length dicts)
@@ -226,7 +226,7 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, _PassArgListType]:
                 )
 
 
-def _parse_arg_value(lexer: PipelineLexer) -> _PassArgListType:
+def _parse_arg_value(lexer: PipelineLexer) -> PassArgListType:
     """
     Parse an argument value of the form: value (`,` value)*
     """
@@ -237,7 +237,7 @@ def _parse_arg_value(lexer: PipelineLexer) -> _PassArgListType:
     return elms
 
 
-def _parse_arg_value_element(lexer: PipelineLexer) -> _PassArgElementType:
+def _parse_arg_value_element(lexer: PipelineLexer) -> PassArgElementType:
     """
     Parse a singular value element
     """
