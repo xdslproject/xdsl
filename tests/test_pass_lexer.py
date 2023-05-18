@@ -69,17 +69,22 @@ def test_pass_parser():
 
 
 @pytest.mark.parametrize(
-    "input_str, pass_names",
+    "input_str, pass_name, pass_arg_names",
     (
-        ("pass-1,", ["pass-1"]),
-        ("pass-1{}", ["pass-1"]),
-        ("pass-1{arg1=true arg2}", ["pass-1"]),
-        ("pass-1{arg2 arg1=false}", ["pass-1"]),
+        ("pass-1,", "pass-1", set[str]()),
+        ("pass-1{}", "pass-1", set[str]()),
+        ("pass-1{arg1=true arg2}", "pass-1", {"arg1", "arg2"}),
+        ("pass-1{arg2 arg1=false}", "pass-1", {"arg1", "arg2"}),
+        ("pass-1{arg2 arg1=false}", "pass-1", {"arg1", "arg2"}),
     ),
 )
-def test_pass_parser_cases_no_fail(input_str: str, pass_names: list[str]):
-    passes = parse_pipeline(input_str)
-    assert [p.name for p in passes] == pass_names
+def test_pass_parser_cases_no_fail(
+    input_str: str, pass_name: str, pass_arg_names: set[str]
+):
+    passes = list(parse_pipeline(input_str))
+    assert len(passes) == 1
+    assert passes[0].name == pass_name
+    assert set(passes[0].args.keys()) == pass_arg_names
 
 
 @pytest.mark.parametrize(
