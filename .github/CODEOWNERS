@@ -1,0 +1,22 @@
+# This file contains the list of default owners for the repo.
+# Order is important; the last matching pattern takes the most
+# precedence.
+
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+*                             @math-fehr
+
+
+
+# xDSL core
+xdsl/*                        @math-fehr
+xdsl/utils/**                 @math-fehr
+
+# xdsl-opt tool
+xdsl/tools/**                 @math-fehr
+
+# xDSL documentation
+docs/**                       @math-fehr
+
+# xDSL benchmarks
+bench/**                      @math-fehr
