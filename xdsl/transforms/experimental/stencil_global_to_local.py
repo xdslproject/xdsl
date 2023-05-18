@@ -303,8 +303,6 @@ class AddHaloExchangeOps(RewritePattern):
 class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
     name = "stencil-to-local-2d-horizontal"
 
-    nodes: int
-
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         strategy = HorizontalSlices2D(2)
 
