@@ -52,8 +52,8 @@ def test_pass_instantiation():
             name="custom-pass",
             args={
                 "number": [2],
-                "int_list": [1, 2, 3],
-                "str_thing": ["hello world"],
+                "int-list": [1, 2, 3],
+                "str-thing": ["hello world"],
                 # "optional" was left out here, as it is optional
             },
         )

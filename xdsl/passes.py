@@ -43,6 +43,9 @@ class ModulePass(ABC):
         assert hasattr(cls, "__dataclass_fields__"), f"{cls} must be a dataclass"
         assert spec.name == cls.name, "Wrong pass name provided"
 
+        # normalize spec arg names:
+        spec.normalize_arg_names()
+
         # get all dataclass fields
         fields: dict[str, Field[_T]] = cls.__dataclass_fields__
 
