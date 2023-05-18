@@ -49,7 +49,7 @@ def test_pass_parser():
     passes = list(
         parse_pipeline(
             'pass-1,pass-2{arg1=1 arg2=test,test2,3 arg3="test-str,2,3" '
-            'arg-4=-34.4e-12 no-val-arg},pass-3'
+            "arg-4=-34.4e-12 no-val-arg},pass-3"
         )
     )
 
