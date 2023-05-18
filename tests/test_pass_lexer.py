@@ -77,9 +77,12 @@ def test_pass_parser():
         ("pass-1{arg2 arg1=false}", "pass-1", {"arg1", "arg2"}),
     ),
 )
-def test_pass_parser_cases_no_fail(
+def test_pass_parser_argument_dict_edge_cases(
     input_str: str, pass_name: str, pass_arg_names: set[str]
 ):
+    """
+    This test checks edge-cases in the parsing code.
+    """
     passes = list(parse_pipeline(input_str))
     assert len(passes) == 1
     assert passes[0].name == pass_name
@@ -92,6 +95,7 @@ def test_pass_parser_cases_no_fail(
         ("pass-1{"),
         ("pass-1{arg1,arg2}"),
         ("pass-1{arg1=arg2=arg3}"),
+        ("pass-1{ }"),
     ),
 )
 def test_pass_parser_cases_fail(input_str: str):
