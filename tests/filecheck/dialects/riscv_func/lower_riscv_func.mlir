@@ -12,19 +12,19 @@
     }) {"func_name" = "main"} : () -> ()
 
 // CHECK-NEXT:     "riscv.label"() {"label" = #riscv.label<"main">} : () -> ()
-// CHECK-NEXT:     %{{.*}} = "riscv.jal"() {"immediate" = #riscv.label<"get_one">} : () -> !riscv.reg<ra>
+// CHECK-NEXT:     "riscv.jal"() {"immediate" = #riscv.label<"get_one">, "rd" = !riscv.reg<ra>} : () -> ()
 // CHECK-NEXT:     %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a0>
 // CHECK-NEXT:     %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<a0>) -> !riscv.reg<>
-// CHECK-NEXT:     %{{.*}} = "riscv.jal"() {"immediate" = #riscv.label<"get_one">} : () -> !riscv.reg<ra>
+// CHECK-NEXT:     "riscv.jal"() {"immediate" = #riscv.label<"get_one">, "rd" = !riscv.reg<ra>} : () -> ()
 // CHECK-NEXT:     %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a0>
 // CHECK-NEXT:     %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<a0>) -> !riscv.reg<>
 // CHECK-NEXT:     %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:     %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<a1>
-// CHECK-NEXT:     %{{.*}} = "riscv.jal"() {"immediate" = #riscv.label<"add">} : () -> !riscv.reg<ra>
+// CHECK-NEXT:     "riscv.jal"() {"immediate" = #riscv.label<"add">, "rd" = !riscv.reg<ra>} : () -> ()
 // CHECK-NEXT:     %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a0>
 // CHECK-NEXT:     %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<a0>) -> !riscv.reg<>
 // CHECK-NEXT:     %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<a0>
-// CHECK-NEXT:     %{{.*}} = "riscv.jal"() {"immediate" = #riscv.label<"my_print">} : () -> !riscv.reg<ra>
+// CHECK-NEXT:     "riscv.jal"() {"immediate" = #riscv.label<"my_print">, "rd" = !riscv.reg<ra>} : () -> ()
 // CHECK-NEXT:     "riscv_func.syscall"() {"syscall_num" = 93 : i32} : () -> ()
 
     "riscv_func.func"() ({
