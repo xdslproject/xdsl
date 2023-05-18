@@ -68,6 +68,10 @@ class PipelineLexer:
         pos = 0
         end = len(input_str)
 
+        if len(input_str) == 0:
+            yield Token(Span(pos, pos + 1, input), Token.Kind.EOF)
+            return
+
         while True:
             token: Token | None = None
             for pattern, kind in _lexer_rules:

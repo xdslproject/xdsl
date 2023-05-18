@@ -36,6 +36,10 @@ def test_pass_lexer():
     assert tokens[3].span.text == "{"
     assert tokens[18].span.text == "-34.4e-12"
 
+    assert (
+        len(list(PipelineLexer._generator(""))) == 1  # type: ignore[reportPrivateUsage]
+    )
+
 
 def test_pass_lex_errors():
     with pytest.raises(PassPipelineParseError, match="Unknown token"):
