@@ -55,14 +55,14 @@ def test_has_parent_no_parent():
     has_parent_op = HasParentOp()
     with pytest.raises(VerifyException) as exc_info:
         has_parent_op.verify()
-    assert str(exc_info.value) == "expects parent op 'test.parent'"
+    assert str(exc_info.value) == "'test.has_parent' expects parent op 'test.parent'"
 
     has_multiple_parent_op = HasMultipleParentOp()
     with pytest.raises(VerifyException) as exc_info:
         has_multiple_parent_op.verify()
-    assert (
-        str(exc_info.value)
-        == "expects parent op to be one of 'test.parent', 'test.parent2'"
+    assert str(exc_info.value) == (
+        "'test.has_multiple_parent' expects parent op to "
+        "be one of 'test.parent', 'test.parent2'"
     )
 
 
@@ -74,14 +74,14 @@ def test_has_parent_wrong_parent():
     module = ModuleOp([HasParentOp()])
     with pytest.raises(VerifyException) as exc_info:
         module.verify()
-    assert str(exc_info.value) == "expects parent op 'test.parent'"
+    assert str(exc_info.value) == "'test.has_parent' expects parent op 'test.parent'"
 
     module = ModuleOp([HasMultipleParentOp()])
     with pytest.raises(VerifyException) as exc_info:
         module.verify()
-    assert (
-        str(exc_info.value)
-        == "expects parent op to be one of 'test.parent', 'test.parent2'"
+    assert str(exc_info.value) == (
+        "'test.has_multiple_parent' expects parent op to "
+        "be one of 'test.parent', 'test.parent2'"
     )
 
 

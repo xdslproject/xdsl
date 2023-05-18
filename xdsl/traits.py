@@ -25,6 +25,8 @@ class HasParent(OpTrait):
         if isinstance(parent, tuple(self.parameters)):
             return
         if len(self.parameters) == 1:
-            raise VerifyException(f"expects parent op '{self.parameters[0].name}'")
+            raise VerifyException(
+                f"'{op.name}' expects parent op '{self.parameters[0].name}'"
+            )
         names = ", ".join([f"'{p.name}'" for p in self.parameters])
-        raise VerifyException(f"expects parent op to be one of {names}")
+        raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
