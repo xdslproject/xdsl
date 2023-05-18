@@ -42,6 +42,10 @@ from xdsl.transforms.experimental.stencil_global_to_local import (
     MpiLoopInvariantCodeMotion,
 )
 
+ReferencingOps = ReturnOp | AccessOp
+ReferencedOps = CastOp | memref.Subview | None
+ReferenceMap = dict[ReferencingOps, list[ReferencedOps]]
+
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 # TODO docstrings and comments
@@ -115,7 +119,7 @@ def collectBlockArguments(number: int, block: Block):
 
 @dataclass
 class ReturnOpToMemref(RewritePattern):
-    return_target: dict[ReturnOp, list[CastOp | memref.Subview | None]]
+    return_target: ReferenceMap
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
@@ -294,7 +298,7 @@ class AccessOpToMemref(RewritePattern):
 
 @dataclass
 class StencilTypeConversionFuncOp(RewritePattern):
-    return_targets: dict[ReturnOp, list[CastOp | memref.Subview | None]]
+    reference_mapping: ReferenceMap
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
@@ -331,10 +335,10 @@ class StencilTypeConversionFuncOp(RewritePattern):
             )
             rewriter.replace_op(cast, [new_cast, subview])
 
-            for r, c in self.return_targets.items():
+            for r, c in self.reference_mapping.items():
                 for i in range(len(c)):
                     if c[i] == cast:
-                        self.return_targets[r][i] = subview
+                        self.reference_mapping[r][i] = subview
 
 
 class TrivialExternalLoadOpCleanup(RewritePattern):
@@ -355,8 +359,8 @@ class TrivialExternalStoreOpCleanup(RewritePattern):
 
 
 def return_target_analysis(module: builtin.ModuleOp):
-    return_targets: dict[ReturnOp, list[CastOp | memref.Subview | None]] = {}
-
+    reference_mapping: ReferenceMap = {}
+    module.walk
     for op in module.walk():
         if not isinstance(op, ReturnOp):
             continue
@@ -364,7 +368,7 @@ def return_target_analysis(module: builtin.ModuleOp):
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
 
-        return_targets[op] = []
+        reference_mapping[op] = []
         for res in list(apply.res):
             store = [
                 use.operation
@@ -380,25 +384,23 @@ def return_target_analysis(module: builtin.ModuleOp):
 
             assert isinstance(cast, CastOp | None)
 
-            return_targets[op].append(cast)
+            reference_mapping[op].append(cast)
 
-    return return_targets
+    return reference_mapping
 
 
-def StencilConversion(
-    return_targets: dict[ReturnOp, list[CastOp | memref.Subview | None]], gpu: bool
-):
+def StencilConversion(reference_mapping: ReferenceMap, gpu: bool):
     """
     List of rewrite passes for stencil
     """
     return GreedyRewritePatternApplier(
         [
             ApplyOpToParallel(),
-            StencilTypeConversionFuncOp(return_targets),
+            StencilTypeConversionFuncOp(reference_mapping),
             CastOpToMemref(gpu),
             LoadOpToMemref(),
             AccessOpToMemref(),
-            ReturnOpToMemref(return_targets),
+            ReturnOpToMemref(reference_mapping),
             IndexOpToLoopSSA(),
             StoreOpCleanup(),
             TrivialExternalLoadOpCleanup(),
@@ -411,10 +413,12 @@ class ConvertStencilToGPUPass(ModulePass):
     name = "convert-stencil-to-gpu"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        return_targets = return_target_analysis(op)
+        reference_mapping = return_target_analysis(op)
 
         the_one_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([StencilConversion(return_targets, gpu=True)]),
+            GreedyRewritePatternApplier(
+                [StencilConversion(reference_mapping, gpu=True)]
+            ),
             apply_recursively=False,
             walk_reverse=True,
         )
@@ -425,12 +429,12 @@ class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        return_targets: dict[
-            ReturnOp, list[CastOp | memref.Subview | None]
-        ] = return_target_analysis(op)
+        reference_mapping: ReferenceMap = return_target_analysis(op)
 
         the_one_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([StencilConversion(return_targets, gpu=False)]),
+            GreedyRewritePatternApplier(
+                [StencilConversion(reference_mapping, gpu=False)]
+            ),
             apply_recursively=False,
             walk_reverse=True,
         )
