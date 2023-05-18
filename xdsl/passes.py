@@ -61,7 +61,8 @@ class ModulePass(ABC):
             # convert pass arg to the correct type:
             arg_dict[field.name] = _convert_pass_arg_to_type(
                 # we use default value [] here, this makes handling optionals easier
-                spec.args.pop(field.name, []), field.type
+                spec.args.pop(field.name, []),
+                field.type,
             )
             # we use .pop here to also remove the arg from the dict
 
