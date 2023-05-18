@@ -1631,6 +1631,7 @@ class WfiOp(NullaryOperation):
 # endregion
 
 
+# region RISC-V SSA Helpers
 @irdl_op_definition
 class LabelOp(IRDLOperation, RISCVOp):
     name = "riscv.label"

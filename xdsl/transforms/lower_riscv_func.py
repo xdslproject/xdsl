@@ -1,3 +1,4 @@
+from typing import cast
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext, Operation
 from xdsl.passes import ModulePass
@@ -14,6 +15,16 @@ from xdsl.transforms.dead_code_elimination import dce
 class LowerSyscallOp(RewritePattern):
     """
     Lower SSA version of syscall, storing the optional result to a0.
+
+
+    Different platforms have different calling conventions. This lowering assumes that
+    the inputs are stored in a0-a6, and the opcode is stored to a7. Upon return, the
+    a0 contains the result value. This is not the case for some kernels.
+
+    In the future, this pass should take the compilation target as a parameter to guide
+    the rewrites.
+
+    Issue tracking this: https://github.com/xdslproject/xdsl/issues/952
     """
 
     @op_type_rewrite_pattern
@@ -128,3 +139,4 @@ class LowerRISCVFunc(ModulePass):
         PatternRewriteWalker(LowerRISCVFuncReturnOp()).rewrite_module(op)
         PatternRewriteWalker(LowerRISCVFuncOp()).rewrite_module(op)
         PatternRewriteWalker(LowerRISCVCallOp()).rewrite_module(op)
+        dce(op)
