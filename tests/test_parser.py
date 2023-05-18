@@ -124,10 +124,41 @@ def test_parsing():
 
 
 @pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("@a", StringAttr("a")),
+        ("@_", StringAttr("_")),
+        ("@a1_2", StringAttr("a1_2")),
+        ("@a$_.", StringAttr("a$_.")),
+        ('@"foo"', StringAttr("foo")),
+        ('@"@"', StringAttr("@")),
+        ('@"\\t"', StringAttr("\t")),
+        ("f", None),
+        ('"f"', None),
+    ],
+)
+def test_symbol_name(text: str, expected: StringAttr | None):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    parser = Parser(ctx, text)
+    assert parser.parse_optional_symbol_name() == expected
+
+    parser = Parser(ctx, text)
+    if expected is not None:
+        assert parser.parse_symbol_name() == expected
+    else:
+        with pytest.raises(ParseError):
+            parser.parse_symbol_name()
+
+
+@pytest.mark.parametrize(
     "ref,expected",
     [
         ("@foo", SymbolRefAttr("foo")),
         ("@foo::@bar", SymbolRefAttr("foo", ["bar"])),
+        ("@foo::@bar:", SymbolRefAttr("foo", ["bar"])),
+        ('@foo::@"bar"', SymbolRefAttr("foo", ["bar"])),
         ("@foo::@bar::@baz", SymbolRefAttr("foo", ["bar", "baz"])),
     ],
 )
@@ -139,7 +170,7 @@ def test_symref(ref: str, expected: Attribute | None):
     ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, ref)
-    parsed_ref = parser.try_parse_ref_attr()
+    parsed_ref = parser.parse_optional_symref_attr()
 
     assert parsed_ref == expected
 

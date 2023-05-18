@@ -767,24 +767,33 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return block
 
-    def try_parse_single_reference(self) -> Span | None:
-        with self.backtracking("part of a reference"):
-            self.parse_characters("@", "references must start with `@`")
-            if (reference := self.try_parse_string_literal()) is not None:
-                return reference
-            if (reference := self.try_parse_suffix_id()) is not None:
-                return reference
-            self.raise_error(
-                "References must conform to `@` (string-literal | suffix-id)"
-            )
+    def parse_optional_symbol_name(self) -> StringAttr | None:
+        """
+        Parse an @-identifier if present, and return its name (without the '@') in a
+        string attribute.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if (token := self._parse_optional_token(Token.Kind.AT_IDENT)) is None:
+            return None
+        self._synchronize_lexer_and_tokenizer()
 
-    def parse_reference(self) -> list[Span]:
-        return self.parse_list_of(
-            self.try_parse_single_reference,
-            "Expected reference here in the format of `@` (suffix-id | string-literal)",
-            ParserCommons.double_colon,
-            allow_empty=False,
-        )
+        assert len(token.text) > 1, "token should be at least 2 characters long"
+
+        # In the case where the symbol name is quoted, remove the quotes and escape
+        # sequences.
+        if token.text[1] == '"':
+            literal_span = StringLiteral(
+                token.span.start + 1, token.span.end, token.span.input
+            )
+            return StringAttr(literal_span.string_contents)
+        return StringAttr(token.text[1:])
+
+    def parse_symbol_name(self) -> StringAttr:
+        """
+        Parse an @-identifier and return its name (without the '@') in a string
+        attribute.
+        """
+        return self.expect(self.parse_optional_symbol_name, "expect symbol name")
 
     class Delimiter(Enum):
         """
@@ -1747,7 +1756,7 @@ class Parser(ABC):
         elif next_token.text == "[":
             return self.try_parse_builtin_arr_attr()
         elif next_token.text == "@":
-            return self.try_parse_ref_attr()
+            return self.parse_optional_symref_attr()
         elif next_token.text == "{":
             return self.parse_builtin_dict_attr()
         elif next_token.text == "(":
@@ -2186,19 +2195,30 @@ class Parser(ABC):
                 break
         self.parse_characters("]", "")
 
-    def try_parse_ref_attr(self) -> SymbolRefAttr | None:
-        if not self.tokenizer.starts_with("@"):
+    def parse_optional_symref_attr(self) -> SymbolRefAttr | None:
+        """
+        Parse a symbol reference attribute, if present.
+          symbol-attr ::= symbol-ref-id (`::` symbol-ref-id)*
+          symbol-ref-id ::= at-ident
+        """
+        # Parse the root symbol
+        sym_root = self.parse_optional_symbol_name()
+        if sym_root is None:
             return None
 
-        refs = self.parse_reference()
+        # Parse nested symbols
+        refs: list[StringAttr] = []
+        while self._current_token.kind == Token.Kind.COLON:
+            # Parse `::`. As in MLIR, this require to backtrack if a single `:` is given.
+            pos = self._current_token.span.start
+            self._consume_token(Token.Kind.COLON)
+            if self._parse_optional_token(Token.Kind.COLON) is None:
+                self.resume_from(pos)
+                break
 
-        if len(refs) >= 1:
-            return SymbolRefAttr(
-                StringAttr(refs[0].text),
-                ArrayAttr([StringAttr(ref.text) for ref in refs[1:]]),
-            )
-        else:
-            return None
+            refs.append(self.parse_symbol_name())
+
+        return SymbolRefAttr(sym_root, ArrayAttr(refs))
 
     def parse_optional_builtin_int_or_float_attr(
         self,
