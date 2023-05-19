@@ -28,7 +28,7 @@ class ModulePass(ABC):
     applied.
 
     In order to make a pass accept arguments, it must be a dataclass. Furthermore,
-    only the these types are supported as argument types:
+    only the following types are supported as argument types:
 
     Base types:             int | float | bool | string
     Lists of base types:    list[int], list[int|float], list[int] | list[float]
