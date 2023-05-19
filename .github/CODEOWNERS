@@ -25,10 +25,10 @@ xdsl/dialects/riscv*          @AntonLydike @superlopuh @compor @nazavode
 xdsl/frontend/**              @webmiche
 
 # xDSL documentation
-docs/**                       @math-fehr @webmiche @superlopuh 
+docs/**                       @math-fehr @webmiche @superlopuh
 
 # xDSL benchmarks
-bench/**                      @math-fehr @superlopuh 
+bench/**                      @math-fehr @superlopuh
 
 # xDSL CI
 .github/workflows/**          @webmiche
