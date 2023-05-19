@@ -1,3 +1,4 @@
+import dataclasses
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, Field
 from types import UnionType, NoneType
@@ -12,17 +13,33 @@ from xdsl.utils.parse_pipeline import (
     PassArgElementType,
 )
 
-_T = TypeVar("_T", bound="ModulePass")
+ModulePassT = TypeVar("ModulePassT", bound="ModulePass")
 
 
 @dataclass
 class ModulePass(ABC):
     """
-    A Pass is a named rewrite pass over an IR module.
+    A Pass is a named rewrite pass over an IR module, that can accept arguments.
 
     All passes are expected to leave the IR in a valid state after application.
-    That is, the IR verifies. In turn, all passes can expect the IR they are
-    applied to be in a valid state.
+    That is, the IR verifies. In turn, all passes can expect that the IR they are
+    applied to is in a valid state.
+
+    In order to make a pass accept arguments, it must be a dataclass. Furthermore,
+    only the these types are supported as argument types:
+
+    Base types:             int | float | bool | string
+    Lists of base types:    list[int], list[int|float], list[int] | list[float]
+    Top-level optional:      ... | None
+
+    Pass arguments on the CLI are formatted as follows:
+
+    CLI arg                             Mapped to class field
+    -------------------------           ------------------------------
+    my-pass{arg-1=1}                    arg_1: int = 1
+    my-pass{arg-1}                      arg_1: int | None = None
+    my-pass{arg-1=1,2,3}                arg_1: list[int] = [1, 2, 3]
+    my-pass{arg-1=true}                 arg_1: bool | None = True
     """
 
     name: ClassVar[str]
@@ -32,34 +49,34 @@ class ModulePass(ABC):
         ...
 
     @classmethod
-    def from_pass_spec(cls: type[_T], spec: PipelinePassSpec) -> _T:
+    def from_pass_spec(cls: type[ModulePassT], spec: PipelinePassSpec) -> ModulePassT:
         """
         This method takes a PipelinePassSpec, does type checking on the
         arguments, and then instantiates an instance of the ModulePass
         from the spec.
         """
-        # some sanity checks here
-        assert issubclass(cls, ModulePass), f"{cls} must be subclass of ModulePass"
-        assert hasattr(cls, "__dataclass_fields__"), f"{cls} must be a dataclass"
-        assert spec.name == cls.name, "Wrong pass name provided"
+        if spec.name != cls.name:
+            raise ValueError(
+                f"Cannot create Pass {cls.name} from pass arguments for pass {spec.name}"
+            )
 
         # normalize spec arg names:
         spec.normalize_arg_names()
 
         # get all dataclass fields
-        fields: dict[str, Field[_T]] = cls.__dataclass_fields__
+        fields: tuple[Field, ...] = dataclasses.fields(cls)
 
         # start constructing the argument dict for the dataclass
         arg_dict = dict[str, PassArgListType | PassArgElementType | None]()
 
         # iterate over all fields of the dataclass
-        for field in fields.values():
+        for field in fields:
             # ignore the name field and everything that's not used by __init__
             if field.name == "name" or not field.init:
                 continue
             # check that non-optional fields are present
             if field.name not in spec.args and not _is_optional(field.type):
-                raise Exception(f'Pass {cls.name} requires argument "{field.name}"')
+                raise ValueError(f'Pass {cls.name} requires argument "{field.name}"')
 
             # convert pass arg to the correct type:
             arg_dict[field.name] = _convert_pass_arg_to_type(
@@ -71,7 +88,7 @@ class ModulePass(ABC):
 
         # if not all args were removed we raise an error
         if len(spec.args) != 0:
-            raise Exception(f'Unrecognised pass argument "{list(spec.args)[0]}"')
+            raise ValueError(f'Unrecognised pass arguments "{list(spec.args)}"')
 
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
@@ -86,6 +103,7 @@ def _convert_pass_arg_to_type(
     value,      dest_type,      result
     []          int | None      None
     [1]         int | None      1
+    [1]         list[int]       [1]
     [1,2]       list[int]       [1,2]
     [1,2]       int | None      Error
     []          int             Error
@@ -100,7 +118,7 @@ def _convert_pass_arg_to_type(
             if NoneType in get_args(dest_type):
                 return None
             else:
-                raise Exception("Argument must contain a value")
+                raise ValueError("Argument must contain a value")
 
     # first check if an individual value passes the type check
     if len(value) == 1 and isa(value[0], dest_type):
@@ -111,7 +129,7 @@ def _convert_pass_arg_to_type(
         return value
 
     # at this point we exhausted all possibilities
-    raise Exception(f"Incompatible types: given {value}, expected {dest_type}")
+    raise ValueError(f"Incompatible types: given {value}, expected {dest_type}")
 
 
 def _is_optional(field_type: Any):
