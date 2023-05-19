@@ -9,9 +9,8 @@ from xdsl.dialects import riscv
 
 
 def print_riscv_module(module: ModuleOp, output: IO[str]):
-    for op in module.walk():
-        if isa(op, RISCVOp):
-            print_assembly_instruction(op, output)
+    for op in module.body.walk():
+        print_assembly_instruction(op, output)
 
 
 def append_comment(line: str, comment: StringAttr | None) -> str:
