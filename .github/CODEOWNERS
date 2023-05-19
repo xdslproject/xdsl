@@ -4,19 +4,28 @@
 
 # These owners will be the default owners for everything in
 # the repo. Unless a later match takes precedence,
-*                             @math-fehr
+*                             @math-fehr @webmiche
 
 
 
 # xDSL core
-xdsl/*                        @math-fehr
+xdsl/*                        @math-fehr @webmiche
 xdsl/utils/**                 @math-fehr
 
 # xdsl-opt tool
-xdsl/tools/**                 @math-fehr
+xdsl/tools/**                 @math-fehr @webmiche
+
+# xDSL dialects
+xdsl/dialects/*               @math-fehr @webmiche
+
+# xDSL frontend
+xdsl/frontend/**              @webmiche
 
 # xDSL documentation
-docs/**                       @math-fehr
+docs/**                       @math-fehr @webmiche
 
 # xDSL benchmarks
 bench/**                      @math-fehr
+
+# xDSL CI
+.github/workflows/**          @webmiche
