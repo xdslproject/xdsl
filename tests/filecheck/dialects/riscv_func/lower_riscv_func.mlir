@@ -25,7 +25,8 @@
 // CHECK-NEXT:     %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<a0>) -> !riscv.reg<>
 // CHECK-NEXT:     %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:     "riscv.jal"() {"immediate" = #riscv.label<"my_print">, "rd" = !riscv.reg<ra>} : () -> ()
-// CHECK-NEXT:     "riscv_func.syscall"() {"syscall_num" = 93 : i32} : () -> ()
+// CHECK-NEXT:     "riscv.ret"() : () -> ()
+
 
     "riscv_func.func"() ({
         "riscv_func.return"() : () -> ()
