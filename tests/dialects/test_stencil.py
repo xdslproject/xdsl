@@ -206,7 +206,7 @@ def test_stencil_apply_no_args():
 def test_stencil_apply_no_results():
     # Should error if there are no results expected
     with pytest.raises(AssertionError):
-        ApplyOp.get((), Block(), ())
+        ApplyOp.get([], Block([]), [])
 
 
 @pytest.mark.parametrize(
