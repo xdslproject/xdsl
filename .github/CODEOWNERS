@@ -25,7 +25,7 @@ xdsl/dialects/riscv*          @AntonLydike @superlopuh @compor @nazavode
 xdsl/frontend/**              @webmiche
 
 # xDSL documentation
-docs/**                       @math-fehr @webmiche @superlopuh
+docs/**                       @math-fehr @webmiche @superlopuh @compor
 
 # xDSL benchmarks
 bench/**                      @math-fehr @superlopuh
