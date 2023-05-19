@@ -18,6 +18,9 @@ xdsl/tools/**                 @math-fehr @webmiche
 # xDSL dialects
 xdsl/dialects/*               @math-fehr @webmiche
 
+# xDSL RISCV dialects
+xdsl/dialects/riscv*          @AntonLydike @superlopuh @compor
+
 # xDSL frontend
 xdsl/frontend/**              @webmiche
 
