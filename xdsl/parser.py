@@ -1652,6 +1652,51 @@ class Parser(ABC):
 
         self.raise_error(f"Unknown operation {op_name}!", span)
 
+    @dataclass
+    class Argument:
+        """
+        A block argument parsed from the assembly.
+        Arguments should be parsed by `parse_argument` or `parse_optional_argument`.
+        """
+
+        name: str
+        """The name as displayed in the assembly."""
+
+        type: Attribute | None
+        """The type of the argument, if any."""
+
+    def parse_optional_argument(self, expect_type: bool = True) -> Argument | None:
+        """
+        Parse a block argument, if present, with format:
+          arg ::= percent-id `:` type
+        if `expect_type` is False, the type is not parsed.
+        """
+
+        # The argument name
+        name_token = self._parse_optional_token(Token.Kind.PERCENT_IDENT)
+        if name_token is None:
+            return None
+        name = name_token.text[1:]
+
+        # The argument type
+        type = None
+        if expect_type:
+            self.parse_punctuation(":", " after block argument name!")
+            type = self.expect(self.try_parse_type, "expect argument type after `:`")
+        return self.Argument(name, type)
+
+    def parse_argument(self, expect_type: bool = True) -> Argument | None:
+        """
+        Parse a block argument with format:
+          arg ::= percent-id `:` type
+        if `expect_type` is False, the type is not parsed.
+        """
+
+        arg = self.parse_optional_argument(expect_type)
+        if arg is None:
+            self.raise_error("Expected block argument!")
+        return arg
+
     def parse_region(self) -> Region:
         old_ssa_values = self.ssa_values.copy()
         oldBBNames = self.blocks

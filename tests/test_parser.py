@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     Builtin,
     SymbolRefAttr,
+    i32,
 )
 from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
@@ -173,6 +174,67 @@ def test_symref(ref: str, expected: Attribute | None):
     parsed_ref = parser.parse_optional_symref_attr()
 
     assert parsed_ref == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected,expect_type",
+    [
+        ("%foo", Parser.Argument("foo", None), False),
+        ("%-1foo", Parser.Argument("-1foo", None), False),
+        ("%foo : i32", Parser.Argument("foo", i32), True),
+        ("i32 : %bar", None, False),
+        ("i32 : %bar", None, True),
+        ("i32 %bar", None, False),
+        ("i32 %bar", None, True),
+        ("i32", None, False),
+        ("i32", None, True),
+    ],
+)
+def test_parse_argument(text: str, expected: Parser.Argument | None, expect_type: bool):
+    """
+    arg ::= percent-id              if expect_type is False
+    arg ::= percent-id ':' type     if expect_type is True
+    """
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    # parse_optional_argument
+    parser = Parser(ctx, text)
+    res = parser.parse_optional_argument(expect_type)
+    assert res == expected
+
+    # parse_argument
+    parser = Parser(ctx, text)
+    if expected is not None:
+        res = parser.parse_argument(expect_type)
+        assert res == expected
+    else:
+        with pytest.raises(ParseError):
+            parser.parse_argument(expect_type)
+
+
+@pytest.mark.parametrize(
+    "text,expect_type",
+    [
+        ("%foo : %bar", True),
+        ("%foo : ", True),
+        ("%foo", True),
+        ("%foo %bar", True),
+    ],
+)
+def test_parse_argument_fail(text: str, expect_type: bool):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    # parse_optional_argument
+    parser = Parser(ctx, text)
+    with pytest.raises(ParseError):
+        parser.parse_argument(expect_type)
+
+    # parse_argument
+    parser = Parser(ctx, text)
+    with pytest.raises(ParseError):
+        parser.parse_argument(expect_type)
 
 
 @irdl_op_definition
