@@ -10,10 +10,9 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     Builtin,
     SymbolRefAttr,
-    i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.ir import A, MLContext, Attribute, Region, ParametrizedAttribute
+from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -178,76 +177,6 @@ def test_symref(ref: str, expected: Attribute | None):
 
 
 @pytest.mark.parametrize(
-    "text,expected,expect_type",
-    [
-        ("%foo", ("foo", None), False),
-        ("%-1foo", ("-1foo", None), False),
-        ("%foo : i32", ("foo", i32), True),
-        ("i32 : %bar", None, False),
-        ("i32 : %bar", None, True),
-        ("i32 %bar", None, False),
-        ("i32 %bar", None, True),
-        ("i32", None, False),
-        ("i32", None, True),
-    ],
-)
-def test_parse_argument(
-    text: str, expected: tuple[str, Attribute | None] | None, expect_type: bool
-):
-    """
-    arg ::= percent-id              if expect_type is False
-    arg ::= percent-id ':' type     if expect_type is True
-    """
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-
-    # parse_optional_argument
-    parser = Parser(ctx, text)
-    res = parser.parse_optional_argument(expect_type)
-    if expected is not None:
-        assert res is not None
-        assert res.name.text[1:] == expected[0]
-        assert res.type == expected[1]
-    else:
-        assert res is None
-
-    # parse_argument
-    parser = Parser(ctx, text)
-    if expected is not None:
-        res = parser.parse_argument(expect_type)
-        assert res is not None
-        assert res.name.text[1:] == expected[0]
-        assert res.type == expected[1]
-    else:
-        with pytest.raises(ParseError):
-            parser.parse_argument(expect_type)
-
-
-@pytest.mark.parametrize(
-    "text,expect_type",
-    [
-        ("%foo : %bar", True),
-        ("%foo : ", True),
-        ("%foo", True),
-        ("%foo %bar", True),
-    ],
-)
-def test_parse_argument_fail(text: str, expect_type: bool):
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-
-    # parse_optional_argument
-    parser = Parser(ctx, text)
-    with pytest.raises(ParseError):
-        parser.parse_argument(expect_type)
-
-    # parse_argument
-    parser = Parser(ctx, text)
-    with pytest.raises(ParseError):
-        parser.parse_argument(expect_type)
-
-
-@pytest.mark.parametrize(
     "text,num_ops_and_args",
     [
         # no blocks
@@ -339,55 +268,6 @@ def test_parse_region_fail(text: str):
     parser = Parser(ctx, text)
     with pytest.raises(ParseError):
         parser.parse_optional_region()
-
-
-@pytest.mark.parametrize(
-    "text",
-    [
-        """%x : i32 { "test.op"(%x) : (i32) -> () }""",
-        """%x : i32 { "test.op"(%x) : (i32) -> () ^bb0: }""",
-    ],
-)
-def test_parse_region_with_args(text: str):
-    """Parse a region with args already provided."""
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Test)
-
-    parser = Parser(ctx, text)
-    arg = parser.parse_argument()
-    region = parser.parse_region((arg,))
-    assert len(region.blocks[0].args) == 1
-
-    parser = Parser(ctx, text)
-    arg = parser.parse_argument()
-    parser.parse_optional_region((arg,))
-    assert len(region.blocks[0].args) == 1
-
-
-@pytest.mark.parametrize(
-    "text",
-    [
-        """%x : i32 { ^bb: "test.op"(%x) : (i32) -> () }""",
-        """%x : i32 { ^bb(%y : i32): "test.op"(%x) : (i32) -> () }""",
-        """%x : i32 { %x = "test.op"() : () -> (i32) }""",
-    ],
-)
-def test_parse_region_with_args_fail(text: str):
-    """Parse a region with args already provided."""
-    ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Test)
-
-    parser = Parser(ctx, text)
-    arg = parser.parse_argument()
-    with pytest.raises(ParseError):
-        parser.parse_region((arg,))
-
-    parser = Parser(ctx, text)
-    arg = parser.parse_argument()
-    with pytest.raises(ParseError):
-        parser.parse_optional_region((arg,))
 
 
 @irdl_op_definition

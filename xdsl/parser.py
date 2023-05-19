@@ -1646,53 +1646,7 @@ class Parser(ABC):
 
         self.raise_error(f"Unknown operation {op_name}!", span)
 
-    @dataclass
-    class Argument:
-        """
-        A block argument parsed from the assembly.
-        Arguments should be parsed by `parse_argument` or `parse_optional_argument`.
-        """
-
-        name: Span
-        """The name as displayed in the assembly."""
-
-        type: Attribute | None
-        """The type of the argument, if any."""
-
-    def parse_optional_argument(self, expect_type: bool = True) -> Argument | None:
-        """
-        Parse a block argument, if present, with format:
-          arg ::= percent-id `:` type
-        if `expect_type` is False, the type is not parsed.
-        """
-
-        # The argument name
-        name_token = self._parse_optional_token(Token.Kind.PERCENT_IDENT)
-        if name_token is None:
-            return None
-
-        # The argument type
-        type = None
-        if expect_type:
-            self.parse_punctuation(":", " after block argument name!")
-            type = self.expect(self.try_parse_type, "expect argument type after `:`")
-        return self.Argument(name_token.span, type)
-
-    def parse_argument(self, expect_type: bool = True) -> Argument:
-        """
-        Parse a block argument with format:
-          arg ::= percent-id `:` type
-        if `expect_type` is False, the type is not parsed.
-        """
-
-        arg = self.parse_optional_argument(expect_type)
-        if arg is None:
-            self.raise_error("Expected block argument!")
-        return arg
-
-    def parse_optional_region(
-        self, arguments: Iterable[Argument] | None = None
-    ) -> Region | None:
+    def parse_optional_region(self) -> Region | None:
         """
         Parse a region, if present, with format:
           region ::= `{` entry-block? block* `}`
@@ -1717,38 +1671,8 @@ class Parser(ABC):
         self.blocks = dict()
         self.forward_block_references = defaultdict(list)
 
-        # Parse the entry block without label if arguments are provided.
-        # Since the entry block cannot be jumped to, this is fine.
-        if arguments is not None:
-            # Check that the provided arguments have types.
-            if any(arg.type is None for arg in arguments):
-                raise ValueError("provided entry block arguments must have a type")
-            arg_types = cast(list[Attribute], [arg.type for arg in arguments])
-
-            # Check that the entry block has no label.
-            # Since a multi-block region block must have a terminator, there isn't a
-            # possibility of having an empty entry block, and thus parsing the label directly.
-            if self._current_token.kind == Token.Kind.CARET_IDENT:
-                self.raise_error("invalid block name in region with named arguments")
-
-            # Set the block arguments in the context
-            entry_block = Block(arg_types=arg_types)
-            for block_arg, arg in zip(entry_block.args, arguments):
-                if arg.name.text[1:] in self.ssa_values:
-                    self.raise_error(
-                        f"block argument %{arg.name} is already defined", arg.name
-                    )
-                self.ssa_values[arg.name.text[1:]] = (block_arg,)
-
-            # Parse the entry block body
-            self._parse_block_body(entry_block)
-            region.add_block(entry_block)
-
-        # If no arguments was provided, parse the entry block if present.
-        elif self._current_token.kind not in (
-            Token.Kind.CARET_IDENT,
-            Token.Kind.R_BRACE,
-        ):
+        # Parse the entry block if present.
+        if self._current_token.kind not in (Token.Kind.CARET_IDENT, Token.Kind.R_BRACE):
             block = Block()
             self._parse_block_body(block)
             region.add_block(block)
@@ -1792,15 +1716,12 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return region
 
-    def parse_region(self, arguments: Iterable[Argument] | None = None) -> Region:
+    def parse_region(self) -> Region:
         """
         Parse a region with format:
           region ::= `{` entry-block? block* `}`
-        If `arguments` is provided, the entry block will use these as block arguments,
-        and the entry-block cannot be labeled. It also cannot be empty, unless it is the
-        only block in the region.
         """
-        region = self.parse_optional_region(arguments)
+        region = self.parse_optional_region()
         if region is None:
             self.raise_error("Expected region!")
         return region
