@@ -112,6 +112,14 @@ class PipelinePassSpec:
     name: str
     args: dict[str, PassArgListType]
 
+    def normalize_arg_names(self):
+        """
+        This normalized all arg names by replacing `-` with `_`
+        """
+        for k, v in list(self.args.items()):
+            del self.args[k]
+            self.args[k.replace("-", "_")] = v
+
 
 def parse_pipeline(
     pipeline_spec: str,
