@@ -27,8 +27,10 @@ class AddSections(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
         # bss stands for block starting symbol
-        heap_section = riscv_func.SectionOp(
+        heap_section = riscv.DirectiveOp(
             ".bss",
+            None,
+            
             Region(
                 Block(
                     [
@@ -38,9 +40,9 @@ class AddSections(RewritePattern):
                 )
             ),
         )
-        data_section = riscv_func.SectionOp(".data", Region(Block()))
-        text_section = riscv_func.SectionOp(
-            ".text", rewriter.move_region_contents_to_new_regions(op.regions[0])
+        data_section = riscv.DirectiveOp(".data", None, Region(Block()))
+        text_section = riscv.DirectiveOp(
+            ".text", None, rewriter.move_region_contents_to_new_regions(op.regions[0])
         )
 
         op.body.add_block(Block([heap_section, data_section, text_section]))
@@ -124,30 +126,30 @@ class LowerFMulOp(RewritePattern):
 
 
 @dataclass
-class DataSectionRewritePattern(RewritePattern):
-    _data_section: riscv_func.SectionOp | None = None
+class DataDirectiveRewritePattern(RewritePattern):
+    _data_directive: riscv.DirectiveOp | None = None
     _counter: Counter[str] = field(default_factory=Counter)
 
-    def data_section(self, op: Operation) -> riscv_func.SectionOp:
+    def data_directive(self, op: Operation) -> riscv.DirectiveOp:
         """
-        Relies on the data secition being inserted earlier by AddDataSection
+        Relies on the data directive being inserted earlier 
         """
-        if self._data_section is None:
+        if self._data_directive is None:
             module_op = op.get_toplevel_object()
             assert isinstance(
                 module_op, ModuleOp
             ), f"The top level object of {str(op)} must be a ModuleOp"
 
             for op in module_op.body.blocks[0].ops:
-                if not isinstance(op, riscv_func.SectionOp):
+                if not isinstance(op, riscv.DirectiveOp):
                     continue
                 if op.directive.data != ".data":
                     continue
-                self._data_section = op
+                self._data_directive = op
 
-            assert self._data_section is not None
+            assert self._data_directive is not None
 
-        return self._data_section
+        return self._data_directive
 
     def label(self, func_name: str) -> str:
         key = func_name
@@ -164,12 +166,12 @@ class DataSectionRewritePattern(RewritePattern):
 
     def add_data(self, op: Operation, label: str, data: list[int]):
         encoded_data = ", ".join(hex(el) for el in data)
-        self.data_section(op).regions[0].blocks[0].add_ops(
+        self.data_directive(op).regions[0].blocks[0].add_ops(
             [riscv.LabelOp(label), riscv.DirectiveOp(".word", encoded_data)]
         )
 
 
-class LowerConstantOp(DataSectionRewritePattern):
+class LowerConstantOp(DataDirectiveRewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: llvm.ConstantOp, rewriter: PatternRewriter):
         """

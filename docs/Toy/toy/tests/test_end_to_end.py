@@ -265,7 +265,7 @@ def risc_0():
         riscv.LabelOp("heap")
         riscv.DirectiveOp(".space", "1024")
 
-    riscv_func.SectionOp(".bss", bss_region)
+    riscv.DirectiveOp(".bss", None, bss_region)
 
     @Builder.implicit_region
     def data_region():
@@ -281,7 +281,7 @@ def risc_0():
         riscv.DirectiveOp(".word", "0x6, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6")
         pass
 
-    riscv_func.SectionOp(".data", data_region)
+    riscv.DirectiveOp(".data", None, data_region)
 
     @Builder.implicit_region
     def text_region():
@@ -330,7 +330,7 @@ def risc_0():
 
         riscv_func.FuncOp("main", main)
 
-    riscv_func.SectionOp(".text", text_region)
+    riscv.DirectiveOp(".text", None, text_region)
 
 
 riscv_asm = """.bss

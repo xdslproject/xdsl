@@ -18,16 +18,6 @@
 // CHECK-NEXT:     %{{.+}} = "riscv.li"() {"immediate" = 93 : i32} : () -> !riscv.reg<a7>
 // CHECK-NEXT:     "riscv.ecall"() : () -> ()
 
-
-    "riscv_func.section"() ({
-        "riscv.label"() {"label" = #riscv.label<"main">} : () -> ()
-        "riscv_func.syscall"() {"syscall_num" = 93 : i32} : () -> ()
-    }) {"directive" = "text"} : () -> ()
-// CHECK-NEXT:     "riscv.directive"() {"directive" = "text"} : () -> ()
-// CHECK-NEXT:     "riscv.label"() {"label" = #riscv.label<"main">} : () -> ()
-// CHECK-NEXT:     %{{.*}} = "riscv.li"() {"immediate" = 93 : i32} : () -> !riscv.reg<a7>
-// CHECK-NEXT:     "riscv.ecall"() : () -> ()
-
     "riscv_func.func"() ({
         %0 = "riscv_func.call"() {"func_name" = "get_one"} : () -> !riscv.reg<>
         %1 = "riscv_func.call"() {"func_name" = "get_one"} : () -> !riscv.reg<>

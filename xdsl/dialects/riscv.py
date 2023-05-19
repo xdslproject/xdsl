@@ -7,6 +7,7 @@ from typing import Annotated, Sequence
 from xdsl.ir import (
     Dialect,
     Operation,
+    Region,
     SSAValue,
     Attribute,
     Data,
@@ -16,6 +17,7 @@ from xdsl.ir import (
 
 from xdsl.irdl import (
     IRDLOperation,
+    OptSingleBlockRegion,
     VarOpResult,
     irdl_op_definition,
     irdl_attr_definition,
@@ -1614,18 +1616,22 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     name = "riscv.directive"
     directive: OpAttr[StringAttr]
     value: OptOpAttr[StringAttr]
+    data: OptSingleBlockRegion
 
-    def __init__(self, directive: str | StringAttr, value: str | StringAttr | None):
+    def __init__(self, directive: str | StringAttr, value: str | StringAttr | None, region: OptSingleBlockRegion = None):
         if isinstance(directive, str):
             directive = StringAttr(directive)
         if isinstance(value, str):
             value = StringAttr(value)
+        if region is None:
+            region = Region()
 
         super().__init__(
             attributes={
                 "directive": directive,
                 "value": value,
-            }
+            }, 
+            regions=[region] 
         )
 
 
