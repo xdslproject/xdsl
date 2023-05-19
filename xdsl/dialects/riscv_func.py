@@ -53,6 +53,8 @@ class SyscallOp(IRDLOperation):
 
 @irdl_op_definition
 class CallOp(IRDLOperation):
+    """RISC-V function call operation"""
+
     name = "riscv_func.call"
     args: Annotated[VarOperand, riscv.RegisterType]
     func_name: OpAttr[StringAttr]
@@ -77,6 +79,8 @@ class CallOp(IRDLOperation):
 
 @irdl_op_definition
 class FuncOp(IRDLOperation):
+    """RISC-V function definition operation"""
+
     name = "riscv_func.func"
     args: Annotated[VarOperand, riscv.RegisterType]
     func_name: OpAttr[StringAttr]
@@ -115,6 +119,8 @@ class FuncOp(IRDLOperation):
 
 @irdl_op_definition
 class ReturnOp(IRDLOperation):
+    """RISC-V function return operation"""
+
     name = "riscv_func.return"
     value: Annotated[OptOperand, riscv.RegisterType]
     comment: OptOpAttr[StringAttr]
