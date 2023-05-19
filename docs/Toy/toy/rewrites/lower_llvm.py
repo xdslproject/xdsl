@@ -30,7 +30,6 @@ class AddSections(RewritePattern):
         heap_section = riscv.DirectiveOp(
             ".bss",
             None,
-            
             Region(
                 Block(
                     [
@@ -132,7 +131,7 @@ class DataDirectiveRewritePattern(RewritePattern):
 
     def data_directive(self, op: Operation) -> riscv.DirectiveOp:
         """
-        Relies on the data directive being inserted earlier 
+        Relies on the data directive being inserted earlier
         """
         if self._data_directive is None:
             module_op = op.get_toplevel_object()

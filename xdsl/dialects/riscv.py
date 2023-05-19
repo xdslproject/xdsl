@@ -1618,7 +1618,12 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     value: OptOpAttr[StringAttr]
     data: OptSingleBlockRegion
 
-    def __init__(self, directive: str | StringAttr, value: str | StringAttr | None, region: OptSingleBlockRegion = None):
+    def __init__(
+        self,
+        directive: str | StringAttr,
+        value: str | StringAttr | None,
+        region: OptSingleBlockRegion = None,
+    ):
         if isinstance(directive, str):
             directive = StringAttr(directive)
         if isinstance(value, str):
@@ -1630,8 +1635,8 @@ class DirectiveOp(IRDLOperation, RISCVOp):
             attributes={
                 "directive": directive,
                 "value": value,
-            }, 
-            regions=[region] 
+            },
+            regions=[region],
         )
 
 
