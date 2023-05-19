@@ -19,11 +19,13 @@ ModulePassT = TypeVar("ModulePassT", bound="ModulePass")
 @dataclass
 class ModulePass(ABC):
     """
-    A Pass is a named rewrite pass over an IR module, that can accept arguments.
+    A Pass is a named rewrite pass over an IR module that can accept arguments.
 
-    All passes are expected to leave the IR in a valid state after application.
-    That is, the IR verifies. In turn, all passes can expect that the IR they are
-    applied to is in a valid state.
+    All passes are expected to leave the IR in a valid state *after* application,
+    meaning that a call to .verify() succeeds on the whole module. In turn, all
+    passes can expect that the IR they are applied to is in a valid state. It
+    is not required that the IR verifies at any point while the pass is being
+    applied.
 
     In order to make a pass accept arguments, it must be a dataclass. Furthermore,
     only the these types are supported as argument types:
