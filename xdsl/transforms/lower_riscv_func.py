@@ -97,10 +97,6 @@ class LowerRISCVFuncReturnOp(RewritePattern):
         func_op = op.parent_op()
         if func_op is not None:
             assert isinstance(func_op, riscv_func.FuncOp)
-            if func_op.func_name.data == "main":
-                # Main does not return, call exit syscall instead
-                rewriter.replace_matched_op(riscv_func.SyscallOp(SCALL_EXIT))
-                return
 
         if op.value is not None:
             rewriter.insert_op_before_matched_op(
