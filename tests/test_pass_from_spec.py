@@ -71,11 +71,11 @@ def test_pass_instantiation():
 @pytest.mark.parametrize(
     "spec, error_msg",
     (
-        (PipelinePassSpec("wrong", {"a": [1]}), "Wrong pass name"),
+        (PipelinePassSpec("wrong", {"a": [1]}), "Cannot create Pass simple"),
         (PipelinePassSpec("simple", {}), 'requires argument "a"'),
         (
             PipelinePassSpec("simple", {"a": [1], "no": []}),
-            'Unrecognised pass argument "no"',
+            'Unrecognised pass arguments "no"',
         ),
         (PipelinePassSpec("simple", {"a": []}), "Argument must contain a value"),
         (PipelinePassSpec("simple", {"a": ["test"]}), "Incompatible types"),

@@ -64,7 +64,7 @@ class ModulePass(ABC):
         spec.normalize_arg_names()
 
         # get all dataclass fields
-        fields: tuple[Field, ...] = dataclasses.fields(cls)
+        fields: tuple[Field[Any], ...] = dataclasses.fields(cls)
 
         # start constructing the argument dict for the dataclass
         arg_dict = dict[str, PassArgListType | PassArgElementType | None]()
@@ -88,7 +88,7 @@ class ModulePass(ABC):
 
         # if not all args were removed we raise an error
         if len(spec.args) != 0:
-            raise ValueError(f'Unrecognised pass arguments "{list(spec.args)}"')
+            raise ValueError(f'Unrecognised pass arguments "{", ".join(spec.args)}"')
 
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
