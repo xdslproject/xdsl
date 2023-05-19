@@ -472,6 +472,7 @@ def test_operation_deletion():
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
+^0:
 }) : () -> ()"""
 
     @op_type_rewrite_pattern
@@ -495,6 +496,7 @@ def test_operation_deletion_reversed():
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
+^0:
 }) : () -> ()"""
 
     def match_and_rewrite(op: Operation, rewriter: PatternRewriter):
@@ -546,6 +548,7 @@ def test_delete_inner_op():
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
+^0:
 }) : () -> ()"""
 
     @op_type_rewrite_pattern
@@ -622,13 +625,16 @@ def test_block_argument_erasure():
   "scf.if"(%0) ({
   ^0(%1 : i32):
   }, {
+  ^0:
   }) : (i1) -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() {"value" = true} : () -> i1
   "scf.if"(%0) ({
+  ^0:
   }, {
+  ^1:
   }) : (i1) -> ()
 }) : () -> ()"""
 
@@ -651,7 +657,9 @@ def test_block_argument_insertion():
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() {"value" = true} : () -> i1
   "scf.if"(%0) ({
+  ^0:
   }, {
+  ^1:
   }) : (i1) -> ()
 }) : () -> ()"""
 
@@ -660,6 +668,7 @@ def test_block_argument_insertion():
   "scf.if"(%0) ({
   ^0(%1 : i32):
   }, {
+  ^1:
   }) : (i1) -> ()
 }) : () -> ()"""
 
@@ -684,6 +693,7 @@ def test_inline_block_before_matched_op():
   "scf.if"(%0) ({
     %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   }, {
+  ^1:
   }) : (i1) -> ()
 }) : () -> ()"""
 
@@ -691,7 +701,9 @@ def test_inline_block_before_matched_op():
   %0 = "arith.constant"() {"value" = true} : () -> i1
   %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   "scf.if"(%0) ({
+  ^0:
   }, {
+  ^1:
   }) : (i1) -> ()
 }) : () -> ()"""
 
@@ -717,8 +729,10 @@ def test_inline_block_before():
     "scf.if"(%0) ({
       %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
     }, {
+    ^1:
     }) : (i1) -> ()
   }, {
+  ^2:
   }) : (i1) -> ()
 }) : () -> ()
 """
@@ -728,9 +742,12 @@ def test_inline_block_before():
   "scf.if"(%0) ({
     %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
     "scf.if"(%0) ({
+    ^0:
     }, {
+    ^1:
     }) : (i1) -> ()
   }, {
+  ^2:
   }) : (i1) -> ()
 }) : () -> ()
 """
@@ -759,6 +776,7 @@ def test_inline_block_at_before_when_op_is_matched_op():
   "scf.if"(%0) ({
     %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   }, {
+  ^1:
   }) : (i1) -> ()
 }) : () -> ()
 """
@@ -767,7 +785,9 @@ def test_inline_block_at_before_when_op_is_matched_op():
   %0 = "arith.constant"() {"value" = true} : () -> i1
   %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   "scf.if"(%0) ({
+  ^0:
   }, {
+  ^1:
   }) : (i1) -> ()
 }) : () -> ()
 """
@@ -794,8 +814,10 @@ def test_inline_block_after():
     "scf.if"(%0) ({
       %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
     }, {
+      ^1:
     }) : (i1) -> ()
   }, {
+  ^2:
   }) : (i1) -> ()
 }) : () -> ()
 """
@@ -804,10 +826,13 @@ def test_inline_block_after():
   %0 = "arith.constant"() {"value" = true} : () -> i1
   "scf.if"(%0) ({
     "scf.if"(%0) ({
+    ^0:
     }, {
+    ^1:
     }) : (i1) -> ()
     %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   }, {
+  ^2:
   }) : (i1) -> ()
 }) : () -> ()
 """
@@ -837,8 +862,10 @@ def test_inline_block_after_matched():
     "scf.if"(%0) ({
       %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
     }, {
+    ^0:
     }) : (i1) -> ()
   }, {
+  ^1:
   }) : (i1) -> ()
 }) : () -> ()
 """
@@ -847,9 +874,12 @@ def test_inline_block_after_matched():
   %0 = "arith.constant"() {"value" = true} : () -> i1
   "scf.if"(%0) ({
     "scf.if"(%0) ({
+    ^0:
     }, {
+    ^1:
     }) : (i1) -> ()
   }, {
+  ^2:
   }) : (i1) -> ()
   %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
 }) : () -> ()
@@ -889,6 +919,7 @@ def test_move_region_contents_to_new_regions():
   "scf.if"(%0) ({
     %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   }, {
+  ^0:
   }) : (i1) -> ()
 }) : () -> ()
 """
