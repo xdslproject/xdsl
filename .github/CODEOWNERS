@@ -38,10 +38,13 @@ bench/**                      @math-fehr @superlopuh
 .github/workflows/**          @webmiche
 
 # MPI, Stencil and others
-xdsl/dialects/stencil.py      @PapyChacal @AntonLydike
+xdsl/dialects/stencil.py      @PapyChacal @AntonLydike @meshtag
 xdsl/dialects/mpi.py          @AntonLydike
 xdsl/dialects/gpu.py          @PapyChacal
 xdsl/transforms/lower_mpi.py  @AntonLydike
+
+# Vector dialect
+xdsl/dialects/vector.py       @meshtag
 
 # Pass pipeline parser
 xdsl/utils/parse_pipeline.py  @AntonLydike
