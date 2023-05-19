@@ -1588,6 +1588,10 @@ class EcallOp(NullaryOperation):
 
 @irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
+    """
+    The directive operation is used to emit assembler directives (e.g. .word; .text; .data; etc.)
+    """
+
     name = "riscv.directive"
     directive: OpAttr[StringAttr]
     value: OptOpAttr[StringAttr]
