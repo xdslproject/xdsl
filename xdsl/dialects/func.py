@@ -33,11 +33,12 @@ class FuncOp(IRDLOperation):
     sym_visibility: OptOpAttr[StringAttr]
 
     def verify_(self) -> None:
+        # If this is an empty region (external function), then return
+        if len(self.body.blocks) == 0:
+            return
+
         # TODO: how to verify that there is a terminator?
         entry_block: Block = self.body.blocks[0]
-        # If this is an empty block (external function) then return
-        if len(entry_block.args) == 0 and entry_block.is_empty:
-            return
         block_arg_types = [arg.typ for arg in entry_block.args]
         if self.function_type.inputs.data != tuple(block_arg_types):
             raise VerifyException(
@@ -74,7 +75,7 @@ class FuncOp(IRDLOperation):
             "function_type": type_attr,
             "sym_visibility": StringAttr("private"),
         }
-        op = FuncOp.build(attributes=attributes, regions=[Region([Block()])])
+        op = FuncOp.build(attributes=attributes, regions=[Region()])
         return op
 
     @staticmethod
