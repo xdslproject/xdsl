@@ -32,3 +32,12 @@ bench/**                      @math-fehr @superlopuh
 
 # xDSL CI
 .github/workflows/**          @webmiche
+
+# MPI, Stencil and others
+xdsl/dialects/stencil.py      @PapyChacal @AntonLydike
+xdsl/dialects/mpi.py          @AntonLydike
+xdsl/dialects/gpu.py          @PapyChacal
+xdsl/transforms/lower_mpi.py  @AntonLydike
+
+# Pass pipeline parser
+xdsl/utils/parse_pipeline.py  @AntonLydike
