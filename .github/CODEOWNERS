@@ -21,6 +21,10 @@ xdsl/dialects/*               @math-fehr @webmiche
 # xDSL RISCV dialects
 xdsl/dialects/riscv*          @AntonLydike @superlopuh @compor @nazavode
 
+# xDSL RISCV extension dialects
+xdsl/dialects/snitch.py       @nazavode
+xdsl/transforms/*snitch*      @nazavode
+
 # xDSL frontend
 xdsl/frontend/**              @webmiche
 
