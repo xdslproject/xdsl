@@ -10,7 +10,7 @@
 
 # xDSL core
 xdsl/*                        @math-fehr @webmiche
-xdsl/utils/**                 @math-fehr
+xdsl/utils/**                 @math-fehr @superlopuh
 
 # xdsl-opt tool
 xdsl/tools/**                 @math-fehr @webmiche
