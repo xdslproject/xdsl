@@ -373,12 +373,6 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr(value, IndexType())
 
-    @staticmethod
-    def from_params(
-        value: int | IntAttr, typ: int | IntegerType | IndexType
-    ) -> IntegerAttr[IntegerType | IndexType]:
-        return IntegerAttr(value, typ)
-
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 

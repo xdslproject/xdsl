@@ -128,7 +128,7 @@ class Constant(IRDLOperation):
         if isinstance(typ, int):
             typ = IntegerType(typ)
         return Constant.create(
-            result_types=[typ], attributes={"value": IntegerAttr.from_params(val, typ)}
+            result_types=[typ], attributes={"value": IntegerAttr(val, typ)}
         )
 
     # To add tests for this constructor

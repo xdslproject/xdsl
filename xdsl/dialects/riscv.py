@@ -31,6 +31,7 @@ from xdsl.dialects.builtin import (
     UnitAttr,
     IntegerAttr,
     StringAttr,
+    i32,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -304,7 +305,7 @@ class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, 32)
+            immediate = IntegerAttr(immediate, i32)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -355,7 +356,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVOp, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, 32)
+            immediate = IntegerAttr(immediate, i32)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 

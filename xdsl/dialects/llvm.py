@@ -118,7 +118,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
         parser.parse_characters(",", "llvm.ptr args must be separated by `,`")
         addr_space = parser.parse_integer()
         parser.parse_characters(">", "End of llvm.ptr parameters expected!")
-        return [type, IntegerAttr.from_params(addr_space, IndexType())]
+        return [type, IntegerAttr(addr_space, IndexType())]
 
     @staticmethod
     def opaque():
