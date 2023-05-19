@@ -719,7 +719,7 @@ class Parser(ABC):
         self.parse_comma_separated_list(self.Delimiter.PAREN, parse_argument)
         return block
 
-    def parse_block_body(self, block: Block):
+    def _parse_block_body(self, block: Block):
         """
         Parse a block body, which consist of a list of operations.
         The operations are added at the end of the block.
@@ -729,7 +729,7 @@ class Parser(ABC):
             self._synchronize_lexer_and_tokenizer()
             block.add_op(op)
 
-    def parse_block(self) -> Block:
+    def _parse_block(self) -> Block:
         """
         Parse a block with the following format:
           block ::= block-label operation*
@@ -757,7 +757,7 @@ class Parser(ABC):
 
         self._parse_optional_block_arg_list(block)
         self.parse_punctuation(":")
-        self.parse_block_body(block)
+        self._parse_block_body(block)
         self._synchronize_lexer_and_tokenizer()
         return block
 
@@ -1653,7 +1653,7 @@ class Parser(ABC):
         Arguments should be parsed by `parse_argument` or `parse_optional_argument`.
         """
 
-        name: str
+        name: Span
         """The name as displayed in the assembly."""
 
         type: Attribute | None
@@ -1670,16 +1670,15 @@ class Parser(ABC):
         name_token = self._parse_optional_token(Token.Kind.PERCENT_IDENT)
         if name_token is None:
             return None
-        name = name_token.text[1:]
 
         # The argument type
         type = None
         if expect_type:
             self.parse_punctuation(":", " after block argument name!")
             type = self.expect(self.try_parse_type, "expect argument type after `:`")
-        return self.Argument(name, type)
+        return self.Argument(name_token.span, type)
 
-    def parse_argument(self, expect_type: bool = True) -> Argument | None:
+    def parse_argument(self, expect_type: bool = True) -> Argument:
         """
         Parse a block argument with format:
           arg ::= percent-id `:` type
@@ -1722,7 +1721,7 @@ class Parser(ABC):
         # Since the entry block cannot be jumped to, this is fine.
         if arguments is not None:
             # Check that the provided arguments have types.
-            if not any(arg.type is None for arg in arguments):
+            if any(arg.type is None for arg in arguments):
                 raise ValueError("provided entry block arguments must have a type")
             arg_types = cast(list[Attribute], [arg.type for arg in arguments])
 
@@ -1735,10 +1734,14 @@ class Parser(ABC):
             # Set the block arguments in the context
             entry_block = Block(arg_types=arg_types)
             for block_arg, arg in zip(entry_block.args, arguments):
-                self.ssa_values[arg.name] = (block_arg,)
+                if arg.name.text[1:] in self.ssa_values:
+                    self.raise_error(
+                        f"block argument %{arg.name} is already defined", arg.name
+                    )
+                self.ssa_values[arg.name.text[1:]] = (block_arg,)
 
             # Parse the entry block body
-            self.parse_block_body(entry_block)
+            self._parse_block_body(entry_block)
             region.add_block(entry_block)
 
         # If no arguments was provided, parse the entry block if present.
@@ -1747,7 +1750,7 @@ class Parser(ABC):
             Token.Kind.R_BRACE,
         ):
             block = Block()
-            self.parse_block_body(block)
+            self._parse_block_body(block)
             region.add_block(block)
 
         # Parse the region blocks.
@@ -1757,7 +1760,7 @@ class Parser(ABC):
         # In the case where no arguments areprovided, the entry block can either have a
         # label or not.
         while self.parse_optional_punctuation("}") is None:
-            block = self.parse_block()
+            block = self._parse_block()
             region.add_block(block)
 
         # Finally, check that all forward block references have been resolved.
@@ -1789,7 +1792,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return region
 
-    def parse_region(self) -> Region:
+    def parse_region(self, arguments: Iterable[Argument] | None = None) -> Region:
         """
         Parse a region with format:
           region ::= `{` entry-block? block* `}`
@@ -1797,7 +1800,7 @@ class Parser(ABC):
         and the entry-block cannot be labeled. It also cannot be empty, unless it is the
         only block in the region.
         """
-        region = self.parse_optional_region()
+        region = self.parse_optional_region(arguments)
         if region is None:
             self.raise_error("Expected region!")
         return region
