@@ -153,4 +153,12 @@
   // CHECK-NEXT: ebreak
   "riscv.ret"() : () -> ()
   // CHECK-NEXT: ret
+  "riscv.directive"() ({ }) {"directive" = ".space", "value" = "1024"} : () -> ()
+  // CHECK-NEXT: .space 1024
+  "riscv.directive"() ({
+    "riscv.directive"() ({
+    }) {"directive" = ".space", "value" = "1024"} : () -> ()
+  }) {"directive" = ".bss"} : () -> ()
+  // CHECK-NEXT: .bss
+  // CHECK-NEXT: .space 1024
 }) : () -> ()

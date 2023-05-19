@@ -7,6 +7,7 @@ from typing import Annotated
 from xdsl.ir import (
     Dialect,
     Operation,
+    Region,
     SSAValue,
     Data,
     OpResult,
@@ -15,6 +16,7 @@ from xdsl.ir import (
 
 from xdsl.irdl import (
     IRDLOperation,
+    OptSingleBlockRegion,
     irdl_op_definition,
     irdl_attr_definition,
     Operand,
@@ -1585,6 +1587,35 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
+class DirectiveOp(IRDLOperation, RISCVOp):
+    name = "riscv.directive"
+    directive: OpAttr[StringAttr]
+    value: OptOpAttr[StringAttr]
+    data: OptSingleBlockRegion
+
+    def __init__(
+        self,
+        directive: str | StringAttr,
+        value: str | StringAttr | None,
+        region: OptSingleBlockRegion = None,
+    ):
+        if isinstance(directive, str):
+            directive = StringAttr(directive)
+        if isinstance(value, str):
+            value = StringAttr(value)
+        if region is None:
+            region = Region()
+
+        super().__init__(
+            attributes={
+                "directive": directive,
+                "value": value,
+            },
+            regions=[region],
+        )
+
+
+@irdl_op_definition
 class CommentOp(IRDLOperation, RISCVOp):
     name = "riscv.comment"
     comment: OpAttr[StringAttr]
@@ -1746,6 +1777,7 @@ RISCV = Dialect(
         RemuOp,
         LiOp,
         EcallOp,
+        DirectiveOp,
         EbreakOp,
         WfiOp,
         CommentOp,

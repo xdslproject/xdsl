@@ -176,6 +176,17 @@
   // CHECK-NEXT: "riscv.ecall"() : () -> ()
   "riscv.ebreak"() : () -> ()
   // CHECK-NEXT: "riscv.ebreak"() : () -> ()
+  "riscv.directive"() ({ }) {"directive" = ".space", "value" = "1024"} : () -> ()
+  // CHECK-NEXT: "riscv.directive"() ({
+  // CHECK-NEXT: }) {"directive" = ".space", "value" = "1024"} : () -> ()
+  "riscv.directive"() ({
+    "riscv.directive"() ({
+    }) {"directive" = ".space", "value" = "1024"} : () -> ()
+  }) {"directive" = ".bss"} : () -> ()
+  // CHECK-NEXT: "riscv.directive"() ({
+  // CHECK-NEXT:   "riscv.directive"() ({
+  // CHECK-NEXT:   }) {"directive" = ".space", "value" = "1024"} : () -> ()
+  // CHECK-NEXT: }) {"directive" = ".bss"} : () -> ()
 
   // RISC-V extensions
   "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()
