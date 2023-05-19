@@ -13,7 +13,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.ir import A, MLContext, Attribute, Region, ParametrizedAttribute
+from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
 from xdsl.parser import Parser
 from xdsl.printer import Printer
