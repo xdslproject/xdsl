@@ -732,19 +732,13 @@ class Parser(ABC):
     def parse_block(self) -> Block:
         """
         Parse a block with the following format:
-          block ::= block-label? operation*
+          block ::= block-label operation*
           block-label    ::= block-id block-arg-list? `:`
           block-id       ::= caret-id
           block-arg-list ::= `(` ssa-id-and-type-list? `)`
         """
         self._synchronize_lexer_and_tokenizer()
-        name_token = self._parse_optional_token(Token.Kind.CARET_IDENT)
-
-        # Case where the block does not have a name (entry block)
-        if name_token is None:
-            block = Block()
-            self.parse_block_body(block)
-            return block
+        name_token = self._parse_token(Token.Kind.CARET_IDENT, " in block definition")
 
         name = name_token.text[1:]
         if name not in self.blocks:
@@ -1697,55 +1691,116 @@ class Parser(ABC):
             self.raise_error("Expected block argument!")
         return arg
 
-    def parse_region(self) -> Region:
-        old_ssa_values = self.ssa_values.copy()
-        oldBBNames = self.blocks
-        oldForwardRefs = self.forward_block_references
-        self.blocks = dict()
-        self.forward_block_references = defaultdict(list)
+    def parse_optional_region(
+        self, arguments: Iterable[Argument] | None = None
+    ) -> Region | None:
+        """
+        Parse a region, if present, with format:
+          region ::= `{` entry-block? block* `}`
+        If `arguments` is provided, the entry block will use these as block arguments,
+        and the entry-block cannot be labeled. It also cannot be empty, unless it is the
+        only block in the region.
+        """
+        self._synchronize_lexer_and_tokenizer()
+        # Check if a region is present.
+        if self.parse_optional_punctuation("{") is None:
+            return None
 
         region = Region()
 
-        try:
-            self.parse_characters("{", "Regions begin with `{`")
-            if self.tokenizer.starts_with("}"):
-                region.add_block(Block())
-            else:
-                # Parse first block
-                block = self.parse_block()
-                region.add_block(block)
+        # Create a new scope for values and blocks.
+        # Outside blocks cannot be referenced from inside the region, and vice versa.
+        # Outside values can be referenced from inside the region, but the region
+        # values cannot be referred to from outside the region.
+        old_ssa_values = self.ssa_values.copy()
+        old_blocks = self.blocks
+        old_forward_blocks = self.forward_block_references
+        self.blocks = dict()
+        self.forward_block_references = defaultdict(list)
 
-                while self.tokenizer.starts_with("^"):
-                    region.add_block(self.parse_block())
+        # Parse the entry block without label if arguments are provided.
+        # Since the entry block cannot be jumped to, this is fine.
+        if arguments is not None:
+            # Check that the provided arguments have types.
+            if not any(arg.type is None for arg in arguments):
+                raise ValueError("provided entry block arguments must have a type")
+            arg_types = cast(list[Attribute], [arg.type for arg in arguments])
 
-            end = self.parse_characters("}", "Reached end of region, expected `}`!")
+            # Check that the entry block has no label.
+            # Since a multi-block region block must have a terminator, there isn't a
+            # possibility of having an empty entry block, and thus parsing the label directly.
+            if self._current_token.kind == Token.Kind.CARET_IDENT:
+                self.raise_error("invalid block name in region with named arguments")
 
-            if len(self.forward_block_references) > 0:
-                raise MultipleSpansParseError(
-                    end,
-                    "Region ends with missing block declarations for block(s) {}!".format(
-                        ", ".join(self.forward_block_references.keys())
-                    ),
-                    "The following block references are dangling:",
-                    [
-                        (
-                            span,
-                            'Reference to block "{}" without implementation!'.format(
-                                span.text
-                            ),
-                        )
-                        for span in itertools.chain(
-                            *self.forward_block_references.values()
-                        )
-                    ],
-                    self.tokenizer.history,
-                )
+            # Set the block arguments in the context
+            entry_block = Block(arg_types=arg_types)
+            for block_arg, arg in zip(entry_block.args, arguments):
+                self.ssa_values[arg.name] = (block_arg,)
 
-            return region
-        finally:
-            self.ssa_values = old_ssa_values
-            self.blocks = oldBBNames
-            self.forward_block_references = oldForwardRefs
+            # Parse the entry block body
+            self.parse_block_body(entry_block)
+            region.add_block(entry_block)
+
+        # If no arguments was provided, parse the entry block if present.
+        elif self._current_token.kind not in (
+            Token.Kind.CARET_IDENT,
+            Token.Kind.R_BRACE,
+        ):
+            block = Block()
+            self.parse_block_body(block)
+            region.add_block(block)
+
+        # Parse the region blocks.
+        # In the case where arguments are provided, the entry block is already parsed,
+        # and the following blocks will have a label (since the entry block will parse
+        # greedily all operations).
+        # In the case where no arguments areprovided, the entry block can either have a
+        # label or not.
+        while self.parse_optional_punctuation("}") is None:
+            block = self.parse_block()
+            region.add_block(block)
+
+        # Finally, check that all forward block references have been resolved.
+        if len(self.forward_block_references) > 0:
+            pos = self.lexer.pos
+            raise MultipleSpansParseError(
+                Span(pos, pos + 1, self.lexer.input),
+                "region ends with missing block declarations for block(s) {}".format(
+                    ", ".join(self.forward_block_references.keys())
+                ),
+                "dangling block references:",
+                [
+                    (
+                        span,
+                        'reference to block "{}" without implementation'.format(
+                            span.text
+                        ),
+                    )
+                    for span in itertools.chain(*self.forward_block_references.values())
+                ],
+                self.tokenizer.history,
+            )
+
+        # Close the value and block scope.
+        self.ssa_values = old_ssa_values
+        self.blocks = old_blocks
+        self.forward_block_references = old_forward_blocks
+
+        self._synchronize_lexer_and_tokenizer()
+        return region
+
+    def parse_region(self) -> Region:
+        """
+        Parse a region with format:
+          region ::= `{` entry-block? block* `}`
+        If `arguments` is provided, the entry block will use these as block arguments,
+        and the entry-block cannot be labeled. It also cannot be empty, unless it is the
+        only block in the region.
+        """
+        region = self.parse_optional_region()
+        if region is None:
+            self.raise_error("Expected region!")
+        return region
 
     def _try_parse_op_name(self) -> Span | None:
         if (str_lit := self.try_parse_string_literal()) is not None:
