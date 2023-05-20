@@ -452,6 +452,20 @@ def test_print_region_empty_block():
     assert io.getvalue() == """{\n}"""
 
 
+def test_print_region_empty_block_with_args():
+    """
+    Print a region with an empty block and arguments, and specify that
+    empty entry blocks shouldn't be printed.
+    """
+    block = Block(arg_types=[i32, i32])
+    region = Region(block)
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_region(region, print_empty_block=False)
+    assert io.getvalue() == """{\n^0(%0 : i32, %1 : i32):\n}"""
+
+
 #   ____          _                  _____                          _
 #  / ___|   _ ___| |_ ___  _ __ ___ |  ___|__  _ __ _ __ ___   __ _| |_
 # | |  | | | / __| __/ _ \| '_ ` _ \| |_ / _ \| '__| '_ ` _ \ / _` | __|
