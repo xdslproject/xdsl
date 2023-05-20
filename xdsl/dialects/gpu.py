@@ -29,6 +29,7 @@ from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr
 from xdsl.dialects import memref
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.traits import HasParent
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -520,22 +521,19 @@ class SubgroupSizeOp(IRDLOperation):
 class TerminatorOp(IRDLOperation):
     name = "gpu.terminator"
 
+    traits = frozenset([HasParent(LaunchOp)])
+
     @staticmethod
     def get() -> TerminatorOp:
         return TerminatorOp.build()
 
     def verify_(self) -> None:
         block = self.parent_block()
-        op = self.parent_op()
         if block is not None:
             if self is not block.last_op:
                 raise VerifyException(
                     "A gpu.terminator must terminate its parent block"
                 )
-        if op is not None and not isinstance(op, LaunchOp):
-            raise VerifyException(
-                "gpu.terminator is only meant to terminate gpu.launch"
-            )
 
 
 @irdl_op_definition

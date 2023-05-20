@@ -1,3 +1,7 @@
+"""
+Test the definition and usage of traits and interfaces.
+"""
+
 from __future__ import annotations
 
 import pytest
