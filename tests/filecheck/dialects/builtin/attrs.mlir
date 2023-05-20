@@ -33,7 +33,5 @@
     %x14 = "arith.constant"() {"value" = 0 : i64, "test" = @foo::@bar::@baz} : () -> i64
     "func.return"() : () -> ()
   }) {"function_type" = () -> (), "sym_name" = "builtin"} : () -> ()
-  "func.func"() ({
-  // CHECK: "one"=1 : i64, "two"=2 : i64, "three"="three"
-  }) {"sym_name" = "abc", "function_type" = () -> (), "value" = {"one"=1 : i64, "two"=2 : i64, "three"="three"}} : () -> ()
+  "test.op"() {"value"= {"one"=1 : i64, "two"=2 : i64, "three"="three"}} : () -> ()
 }) : () -> ()
