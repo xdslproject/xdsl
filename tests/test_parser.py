@@ -361,7 +361,7 @@ def test_parse_region_with_args(text: str):
 
     parser = Parser(ctx, text)
     arg = parser.parse_argument()
-    parser.parse_optional_region((arg,))
+    region = parser.parse_optional_region((arg,))
     assert len(region.blocks[0].args) == 1
 
 
