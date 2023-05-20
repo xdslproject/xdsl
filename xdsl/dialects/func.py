@@ -20,6 +20,7 @@ from xdsl.irdl import (
     OptOpAttr,
     IRDLOperation,
 )
+from xdsl.traits import HasParent
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -194,6 +195,8 @@ class Call(IRDLOperation):
 class Return(IRDLOperation):
     name = "func.return"
     arguments: Annotated[VarOperand, AnyAttr()]
+
+    traits = frozenset([HasParent(FuncOp)])
 
     def verify_(self) -> None:
         func_op = self.parent_op()

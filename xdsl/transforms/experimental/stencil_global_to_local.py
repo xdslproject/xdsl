@@ -299,6 +299,7 @@ class AddHaloExchangeOps(RewritePattern):
         rewriter.insert_op_after_matched_op(swap_op)
 
 
+@dataclass
 class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
     name = "stencil-to-local-2d-horizontal"
 
