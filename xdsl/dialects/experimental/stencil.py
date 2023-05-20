@@ -34,6 +34,8 @@ from xdsl.irdl import (
     Block,
     IRDLOperation,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
 
@@ -132,6 +134,17 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     name = "stencil.index"
 
     array: ParameterDef[ArrayAttr[IntAttr]]
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        """Parse the attribute parameters."""
+        ints = parser.parse_comma_separated_list(
+            parser.Delimiter.ANGLE, lambda: parser.parse_integer(allow_boolean=False)
+        )
+        return [ArrayAttr((IntAttr(i) for i in ints))]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print(f'<{", ".join((str(e.data) for e in self.array.data))}>')
 
     def verify(self) -> None:
         if len(self.array.data) < 1 or len(self.array.data) > 3:
