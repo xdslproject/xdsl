@@ -8,12 +8,13 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntAttr,
     IntegerAttr,
+    NoneAttr,
     ParametrizedAttribute,
     ArrayAttr,
     IntegerType,
     AnyFloat,
 )
-from xdsl.ir import Operation, Dialect, TypeAttribute
+from xdsl.ir import Attribute, Operation, Dialect, TypeAttribute
 from xdsl.ir import SSAValue
 
 from xdsl.irdl import (
@@ -61,6 +62,31 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute
                 f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
             )
 
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_char("<")
+        attribute = parser.parse_memref_attrs()
+        if not isa(attribute, memref.MemRefType[Attribute]):
+            parser.raise_error(f"stencil.field must be ranked.")
+        if not isinstance(attribute.layout, NoneAttr) or not isinstance(
+            attribute.memory_space, NoneAttr
+        ):
+            parser.raise_error("Expected '>' here!")
+
+        parser.parse_char(">")
+        return [attribute.shape, attribute.element_type]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print("<")
+        printer.print_list(
+            (e.value.data for e in self.shape.data),
+            lambda i: printer.print(i) if i != -1 else printer.print("?"),
+            "x",
+        )
+        printer.print("x")
+        printer.print_attribute(self.element_type)
+        printer.print(">")
+
     def __init__(
         self,
         shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
@@ -95,6 +121,31 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute)
             raise VerifyException(
                 f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
             )
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_char("<")
+        attribute = parser.parse_memref_attrs()
+        if not isa(attribute, memref.MemRefType[Attribute]):
+            parser.raise_error(f"stencil.field must be ranked.")
+        if not isinstance(attribute.layout, NoneAttr) or not isinstance(
+            attribute.memory_space, NoneAttr
+        ):
+            parser.raise_error("Expected '>' here!")
+
+        parser.parse_char(">")
+        return [attribute.shape, attribute.element_type]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print("<")
+        printer.print_list(
+            (e.value.data for e in self.shape.data),
+            lambda i: printer.print(i) if i != -1 else printer.print("?"),
+            "x",
+        )
+        printer.print("x")
+        printer.print_attribute(self.element_type)
+        printer.print(">")
 
     def __init__(
         self,
