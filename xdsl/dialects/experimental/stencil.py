@@ -6,6 +6,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    IntAttr,
     IntegerAttr,
     ParametrizedAttribute,
     ArrayAttr,
@@ -130,7 +131,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     # TODO: can you have an attr and an op with the same name?
     name = "stencil.index"
 
-    array: ParameterDef[ArrayAttr[IntegerAttr[IntegerType]]]
+    array: ParameterDef[ArrayAttr[IntAttr]]
 
     def verify(self) -> None:
         if len(self.array.data) < 1 or len(self.array.data) > 3:
@@ -139,43 +140,28 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
             )
 
     @staticmethod
-    def get(*indices: int | IntegerAttr[IntegerType]):
+    def get(*indices: int | IntAttr):
         return IndexAttr(
             [
                 ArrayAttr(
-                    [
-                        (
-                            IntegerAttr[IntegerType](idx, 64)
-                            if isinstance(idx, int)
-                            else idx
-                        )
-                        for idx in indices
-                    ]
+                    [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
                 )
             ]
         )
 
     @staticmethod
     def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
-        return [
-            ub.value.data - lb.value.data
-            for lb, ub in zip(lb.array.data, ub.array.data)
-        ]
+        return [ub.data - lb.data for lb, ub in zip(lb.array.data, ub.array.data)]
 
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
     def __neg__(self) -> IndexAttr:
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(-e.value.data, IntegerType(64)) for e in self.array.data
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
+        return IndexAttr.get(*(-e.data for e in self.array.data))
 
     def __add__(self, o: IndexAttr) -> IndexAttr:
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(se.value.data + oe.value.data, IntegerType(64))
-            for se, oe in zip(self.array.data, o.array.data)
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
+        return IndexAttr.get(
+            *(se.data + oe.data for se, oe in zip(self.array.data, o.array.data))
+        )
 
     def __sub__(self, o: IndexAttr) -> IndexAttr:
         return self + -o
@@ -184,30 +170,26 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     def min(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(min(ae.value.data, be.value.data), IntegerType(64))
-            for ae, be in zip(a.array.data, b.array.data)
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
+        return IndexAttr.get(
+            *(min(ae.data, be.data) for ae, be in zip(a.array.data, b.array.data))
+        )
 
     @staticmethod
     def max(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(max(ae.value.data, be.value.data), IntegerType(64))
-            for ae, be in zip(a.array.data, b.array.data)
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
+        return IndexAttr.get(
+            *(max(ae.data, be.data) for ae, be in zip(a.array.data, b.array.data))
+        )
 
     def as_tuple(self) -> tuple[int, ...]:
-        return tuple(e.value.data for e in self.array.data)
+        return tuple(e.data for e in self.array.data)
 
     def __len__(self):
         return len(self.array)
 
     def __iter__(self) -> Iterator[int]:
-        return (e.value.data for e in self.array.data)
+        return (e.data for e in self.array.data)
 
 
 # Operations

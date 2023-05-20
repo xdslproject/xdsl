@@ -145,8 +145,8 @@ class ReturnOpToMemref(RewritePattern):
 
 
 def verify_load_bounds(cast: CastOp, load: LoadOp):
-    if [i.value.data for i in IndexAttr.min(cast.lb, load.lb).array.data] != [
-        i.value.data for i in cast.lb.array.data
+    if [i.data for i in IndexAttr.min(cast.lb, load.lb).array.data] != [
+        i.data for i in cast.lb.array.data
     ]:  # noqa
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
@@ -194,8 +194,8 @@ class LoadOpToMemref(RewritePattern):
         element_type = cast.result.typ.element_type
         shape = [i.value.data for i in cast.result.typ.shape.data]
 
-        offsets = [i.value.data for i in (op.lb - cast.lb).array.data]
-        sizes = [i.value.data for i in (op.ub - op.lb).array.data]
+        offsets = [i.data for i in (op.lb - cast.lb).array.data]
+        sizes = [i.data for i in (op.ub - op.lb).array.data]
         strides = [1] * len(sizes)
 
         subview = memref.Subview.from_static_parameters(
@@ -279,7 +279,7 @@ class AccessOpToMemref(RewritePattern):
 
         memref_offset = (op.offset - load.lb).array.data
         off_const_ops = [
-            arith.Constant.from_int_and_width(x.value.data, builtin.IndexType())
+            arith.Constant.from_int_and_width(x.data, builtin.IndexType())
             for x in memref_offset
         ]
 
@@ -319,8 +319,8 @@ class StencilTypeConversionFuncOp(RewritePattern):
             assert isa(cast.result.typ, FieldType[Attribute])
             new_cast = cast.clone()
             source_shape = [i.value.data for i in cast.result.typ.shape.data]
-            offsets = [i.value.data for i in (store.lb - cast.lb).array.data]
-            sizes = [i.value.data for i in (store.ub - store.lb).array.data]
+            offsets = [i.data for i in (store.lb - cast.lb).array.data]
+            sizes = [i.data for i in (store.ub - store.lb).array.data]
             subview = memref.Subview.from_static_parameters(
                 new_cast.result,
                 cast.result.typ.element_type,
