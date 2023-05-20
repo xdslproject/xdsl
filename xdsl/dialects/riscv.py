@@ -1590,6 +1590,9 @@ class EcallOp(NullaryOperation):
 class DirectiveOp(IRDLOperation, RISCVOp):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .text; .data; etc.)
+    A more complete list of directives can be found here:
+
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops
     """
 
     name = "riscv.directive"
