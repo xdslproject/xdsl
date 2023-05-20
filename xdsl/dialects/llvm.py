@@ -222,7 +222,6 @@ class LinkageAttr(ParametrizedAttribute):
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
 
 
-
 _ALLOWED_CCONV_RE = re.compile(
     "|".join(
         [
