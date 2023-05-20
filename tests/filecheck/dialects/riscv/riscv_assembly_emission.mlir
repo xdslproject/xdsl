@@ -153,11 +153,11 @@
   // CHECK-NEXT: ebreak
   "riscv.ret"() : () -> ()
   // CHECK-NEXT: ret
-  "riscv.directive"() {"directive" = ".space", "value" = "1024"} : () -> ()
-  // CHECK-NEXT: .space 1024
+  "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
+  // CHECK-NEXT: .align 2
   "riscv.directive"() ({
-    "riscv.directive"() {"directive" = ".space", "value" = "1024"} : () -> ()
-  }) {"directive" = ".bss"} : () -> ()
-  // CHECK-NEXT: .bss
-  // CHECK-NEXT: .space 1024
+    %nested_addi = "riscv.addi"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j1>
+  }) {"directive" = ".text"} : () -> ()
+  // CHECK-NEXT:  .text
+  // CHECK-NEXT:  addi j1, j1, 1
 }) : () -> ()

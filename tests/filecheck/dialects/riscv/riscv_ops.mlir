@@ -176,14 +176,14 @@
   // CHECK-NEXT: "riscv.ecall"() : () -> ()
   "riscv.ebreak"() : () -> ()
   // CHECK-NEXT: "riscv.ebreak"() : () -> ()
-  "riscv.directive"() {"directive" = ".space", "value" = "1024"} : () -> ()
-  // CHECK-NEXT: "riscv.directive"() {"directive" = ".space", "value" = "1024"} : () -> ()
+  "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
+  // CHECK-NEXT: "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
   "riscv.directive"() ({
-    "riscv.directive"() {"directive" = ".space", "value" = "1024"} : () -> ()
-  }) {"directive" = ".bss"} : () -> ()
-  // CHECK-NEXT: "riscv.directive"() ({
-  // CHECK-NEXT:  "riscv.directive"() {"directive" = ".space", "value" = "1024"} : () -> ()
-  // CHECK-NEXT: }) {"directive" = ".bss"} : () -> ()
+    %nested_li = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+  }) {"directive" = ".text"} : () -> ()
+  // CHECK-NEXT:  "riscv.directive"() ({
+  // CHECK-NEXT:    %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+  // CHECK-NEXT:  }) {"directive" = ".text"} : () -> ()
 
   // RISC-V extensions
   "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()
