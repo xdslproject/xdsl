@@ -154,6 +154,18 @@ def test_linkage_attr_unknown_str():
         llvm.LinkageAttr("unknown")
 
 
+def test_cconv_attr():
+    cconv = llvm.CConvAttr("c 999")
+
+    assert isinstance(cconv.cconv, builtin.StringAttr)
+    assert cconv.cconv.data == "c 999"
+
+
+def test_cconv_attr_unknown_str():
+    with pytest.raises(VerifyException):
+        llvm.CConvAttr("unknown")
+
+
 def test_global_op():
     global_op = llvm.GlobalOp.get(
         builtin.i32,

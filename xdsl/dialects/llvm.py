@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated, Sequence
+import re
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -219,6 +220,68 @@ class LinkageAttr(ParametrizedAttribute):
         ]
         if self.linkage.data not in allowed_linkage:
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
+
+
+
+_ALLOWED_CCONV_RE = re.compile(
+    "|".join(
+        [
+            "ccc",  # The C calling convention
+            "fastcc",  # The fast calling convention
+            "coldcc",  # The cold calling convention
+            "webkit_jscc",  # WebKit’s JavaScript calling convention
+            "anyregcc",  # Dynamic calling convention for code patching
+            "preserve_mostcc",  # The PreserveMost calling convention
+            "preserve_allcc",  # The PreserveAll calling convention
+            "cxx_fast_tlscc",  # The CXX_FAST_TLS calling convention for access functions
+            "tailcc",  # Tail callable calling convention
+            "swift(tail)?cc",  # These calling conventions are used for Swift language.
+            "cfguard_checkcc",  # Windows Control Flow Guard (Check mechanism)
+            "c \\d+",  # Numbered convention; both GHC ('c 10') and HiPE ('c 11') are also covered by this
+        ]
+    )
+)
+
+
+@irdl_attr_definition
+class CConvAttr(ParametrizedAttribute):
+    """
+    Calling convention for functions, calls and invokes.
+
+    https://llvm.org/docs/LangRef.html#calling-conventions
+    """
+
+    name = "llvm.cconv"
+
+    cconv: ParameterDef[StringAttr]
+
+    def __init__(self, cconv: str | StringAttr) -> None:
+        if isinstance(cconv, str):
+            cconv = StringAttr(cconv)
+        super().__init__([cconv])
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<")
+        printer.print_attribute(self.cconv)
+        printer.print_string(">")
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_characters("<", "llvm.cconv parameter expected")
+        cconv_str = parser.try_parse_string_literal()
+        if cconv_str is not None:
+            cconv_str = cconv_str.string_contents
+        else:
+            cconv_str = parser.tokenizer.next_token().text
+        cconv = StringAttr(cconv_str)
+        parser.parse_characters(">", "End of llvm.cconv parameter expected!")
+        return [cconv]
+
+    def verify(self):
+        if re.fullmatch(_ALLOWED_CCONV_RE, self.cconv.data) is None:
+            raise VerifyException(
+                f"Specified calling convention '{self.cconv.data}' is unknown"
+            )
 
 
 @irdl_op_definition
