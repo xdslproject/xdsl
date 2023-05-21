@@ -918,12 +918,12 @@ class Operation(IRNode):
         if self.parent and other.parent and context.get(self.parent) != other.parent:
             return False
         if not all(
-            context.get(operand) == other_operand
+            context.get(operand, operand) == other_operand
             for operand, other_operand in zip(self.operands, other.operands)
         ):
             return False
         if not all(
-            context.get(successor) == other_successor
+            context.get(successor, successor) == other_successor
             for successor, other_successor in zip(self.successors, other.successors)
         ):
             return False

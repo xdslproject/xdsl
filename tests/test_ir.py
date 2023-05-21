@@ -7,10 +7,12 @@ from xdsl.dialects.builtin import Builtin, IntegerType, i32, i64, IntegerAttr, M
 from xdsl.dialects.func import Func
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.scf import If
+from xdsl.dialects.test import TestOp
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import Parser
 from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_ops_accessor():
@@ -236,6 +238,22 @@ def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     rhs: Operation = parser.parse_op()
 
     assert lhs.is_structurally_equivalent(rhs) == expected_result
+
+
+def test_is_structurally_equivalent_free_operands():
+    val1 = TestSSAValue(i32)
+    val2 = TestSSAValue(i64)
+    op1 = TestOp.create(operands=[val1, val2])
+    op2 = TestOp.create(operands=[val1, val2])
+    assert op1.is_structurally_equivalent(op2)
+
+
+def test_is_structurally_equivalent_free_operands_fail():
+    val1 = TestSSAValue(i32)
+    val2 = TestSSAValue(i32)
+    op1 = TestOp.create(operands=[val1])
+    op2 = TestOp.create(operands=[val2])
+    assert not op1.is_structurally_equivalent(op2)
 
 
 def test_is_structurally_equivalent_incompatible_ir_nodes():
