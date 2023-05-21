@@ -16,6 +16,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     OpAttr,
+    SingleBlockRegion,
     VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
@@ -43,7 +44,7 @@ class DialectOp(IRDLOperation):
     name = "irdl.dialect"
 
     sym_name: OpAttr[StringAttr]
-    body: Region
+    body: SingleBlockRegion
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -71,7 +72,7 @@ class TypeOp(IRDLOperation):
     name = "irdl.type"
 
     sym_name: OpAttr[StringAttr]
-    body: Region
+    body: SingleBlockRegion
 
     traits = frozenset([HasParent(DialectOp)])
 
@@ -101,7 +102,7 @@ class AttributeOp(IRDLOperation):
     name = "irdl.attribute"
 
     sym_name: OpAttr[StringAttr]
-    body: Region
+    body: SingleBlockRegion
 
     traits = frozenset([HasParent(DialectOp)])
 
@@ -157,7 +158,7 @@ class OperationOp(IRDLOperation):
     name = "irdl.operation"
 
     sym_name: OpAttr[StringAttr]
-    body: Region
+    body: SingleBlockRegion
 
     traits = frozenset([HasParent(DialectOp)])
 
