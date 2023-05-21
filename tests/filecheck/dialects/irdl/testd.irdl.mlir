@@ -12,6 +12,15 @@ builtin.module {
       irdl.parameters(%0)
     }
 
+    // CHECK: irdl.attribute @parametric_attr {
+    // CHECK:   %{{.*}} = irdl.any
+    // CHECK:   irdl.parameters(%{{.*}})
+    // CHECK: }
+    irdl.attribute @parametric_attr {
+      %0 = irdl.any
+      irdl.parameters(%0)
+    }
+
     // CHECK: irdl.type @attr_in_type_out {
     // CHECK:   %{{.*}} = irdl.any
     // CHECK:   irdl.parameters(%{{.*}})
