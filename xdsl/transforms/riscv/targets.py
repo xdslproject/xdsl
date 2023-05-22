@@ -88,7 +88,7 @@ class ABISpec:
     file_format: str = "elf"
     """
     The output file format (for example of object files).
-    
+
     "elf" is the default, and I don't know of any others.
     """
 
@@ -110,7 +110,7 @@ class MachineArchSpec:
 
     extensions: list[str]
     """
-    A list of extensions, fully expanded. 
+    A list of extensions, fully expanded.
     
     RV32G would be: ["I", "M", "A", "F", "D", "Zifencei", "Zicsr", "Zam"]
     """
@@ -173,11 +173,11 @@ class TargetDefinition:
     Code model (usually handled by -mcmodel=med<model>):
     https://github.com/riscv-non-isa/riscv-toolchain-conventions#specifying-the-target-code-model-with--mcmodel
     
-    low: The program and its statically defined symbols must lie within a single 2GiB 
-    address range, between the absolute addresses -2GiB and +2GiB. lui and addi pairs 
+    low: The program and its statically defined symbols must lie within a single 2GiB
+    address range, between the absolute addresses -2GiB and +2GiB. lui and addi pairs
     are used to generate addresses.
     
-    any: The program and its statically defined symbols must lie within a single 4GiB 
+    any: The program and its statically defined symbols must lie within a single 4GiB
     address range. auipc and addi pairs are used to generate addresses.
     """
 
