@@ -1063,7 +1063,7 @@ class Parser(ABC):
 
     def try_parse_type(self) -> Attribute | None:
         """
-        Parse an xDSL type.
+        Parse an xDSL type, if present.
         An xDSL type is either a builtin type, which can have various format,
         or a dialect type, with the following format:
             dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
