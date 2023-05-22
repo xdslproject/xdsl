@@ -8,6 +8,7 @@ And the RISC-V specification
 
 import re
 from dataclasses import dataclass
+from enum import Enum
 from typing import Literal
 
 _ISA_ORDER = "IEMAFDGQLCBJTPVN"
@@ -167,7 +168,7 @@ class TargetDefinition:
     Machine architecture (handled by -march=RV...)
     """
 
-    code_model: Literal["any", "low"]
+    code_model: Literal["any", "low"] = 'any'
     """
     Code model (usually handled by -mcmodel=med<model>):
     https://github.com/riscv-non-isa/riscv-toolchain-conventions#specifying-the-target-code-model-with--mcmodel
@@ -193,3 +194,8 @@ class MAbi:
     LP32 = ABISpec(32, 64, 64, stack_alignment=64, call_with_floats=None)
     LP32F = ABISpec(32, 64, 64, stack_alignment=64, call_with_floats=32)
     LP32D = ABISpec(32, 64, 64, stack_alignment=64, call_with_floats=64)
+
+
+class RecognizedTargets(Enum):
+    riscv32_riscemu = TargetDefinition(MAbi.ILP32, MachineArchSpec('RV32IMAZto'))
+    riscv64_linux = TargetDefinition(MAbi.ILP32D, MachineArchSpec('RV64G'))
