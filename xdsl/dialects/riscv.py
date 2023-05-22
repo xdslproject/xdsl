@@ -26,13 +26,7 @@ from xdsl.irdl import (
 
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
-    UnitAttr,
-    IntegerAttr,
-    StringAttr,
-    i32,
-)
+from xdsl.dialects.builtin import AnyIntegerAttr, UnitAttr, IntegerAttr, StringAttr
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -305,7 +299,7 @@ class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, i32)
+            immediate = IntegerAttr(immediate, 32)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -356,7 +350,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVOp, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, i32)
+            immediate = IntegerAttr(immediate, 32)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
