@@ -9,7 +9,7 @@ from xdsl.dialects import riscv
 
 
 def print_riscv_module(module: ModuleOp, output: IO[str]):
-    for op in module.ops:
+    for op in module.body.walk():
         print_assembly_instruction(op, output)
 
 
@@ -84,6 +84,13 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
         case riscv.RdRsImmJumpOperation():
             components = [op.rd, op.rs1, op.immediate]
             comment = op.comment
+        case riscv.DirectiveOp():
+            if op.value is not None and op.value.data:
+                desc = f"{op.directive.data} {op.value.data}"
+            else:
+                desc = f"{op.directive.data}"
+            print(desc, file=output)
+            return
         case _:
             raise ValueError(f"Unknown RISCV operation type :{type(op)}")
 
