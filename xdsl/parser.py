@@ -1062,6 +1062,18 @@ class Parser(ABC):
         return self.expect(self.try_parse_type, "type expected")
 
     def try_parse_type(self) -> Attribute | None:
+        """
+        Parse an xDSL type.
+        An xDSL type is either a builtin type, which can have various format,
+        or a dialect type, with the following format:
+            dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
+            type-name     ::= bare-id
+            dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
+                            | `(` dialect-attribute-contents+ `)`
+                            | `[` dialect-attribute-contents+ `]`
+                            | `{` dialect-attribute-contents+ `}`
+                            | [^[]<>(){}\0]+
+        """
         if self.tokenizer.starts_with("!"):
             return self.try_parse_dialect_type()
         else:
