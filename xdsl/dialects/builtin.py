@@ -358,7 +358,7 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
 
     # These overloads are required to make pyright infer the correct result type.
     def __new__(cls, *args: Any, **kwargs: Any) -> IntegerAttr[Any]:
-        return super().__new__(cls, *args, **kwargs)
+        return super().__new__(cls)
 
     @overload
     def __init__(
