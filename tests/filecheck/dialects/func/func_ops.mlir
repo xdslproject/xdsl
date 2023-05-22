@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s | xdsl-opt --print-op-generic | filecheck %s
 
-"builtin.module"() ({
+builtin.module {
   "func.func"() ({
     "func.return"() : () -> ()
   }) {"sym_name" = "noarg_void", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
@@ -37,4 +37,9 @@
    // CHECK:      "func.func"() ({
    // CHECK-NEXT: }) {"sym_name" = "external_fn", "function_type" = (i32) -> i32, "sym_visibility" = "private"} : () -> ()
 
-}) : () -> ()
+  func.func public @public_noarg_int(i32, i32) -> !test.type<"int">
+  // CHECK-NEXT: "func.func"() ({
+  // CHECK-NEXT: }) {"sym_name" = "public_noarg_int", "function_type" = (i32, i32) -> !test.type<"int">, "sym_visibility" = "public"} : () -> ()
+
+  func.func public @public_noarg_int(%a : i32, %b : i32) -> !test.type<"int"> {}
+}

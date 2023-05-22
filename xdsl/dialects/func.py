@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 from typing import Annotated, Union, Sequence
 
 from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
@@ -20,8 +21,12 @@ from xdsl.irdl import (
     OptOpAttr,
     IRDLOperation,
 )
+from xdsl.parser import Parser, ParserCommons
+from xdsl.printer import Printer
 from xdsl.traits import HasParent
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.utils.hints import isa
+from xdsl.utils.lexer import Span
 
 
 @irdl_op_definition
@@ -47,6 +52,57 @@ class FuncOp(IRDLOperation):
                 "input types"
             )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> FuncOp:
+        # Parse visibility keyword if present
+        visibility = parser.tokenizer.next_token_of_pattern(
+            re.compile("public|nested|private")
+        )
+        if isinstance(visibility, Span):
+            visibility = visibility.text
+        else:
+            visibility = "private"
+
+        # Parse function name
+        name = parser.parse_symbol_name().data
+
+        # Parse function arguments
+        parser.parse_char("(")
+        args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN,
+            lambda: parser.parse_optional_argument() or parser.parse_type(),
+        )
+
+        # Check consistency (They should be either all named or none)
+        if isa(args, list[parser.Argument]):
+            entry_args = args
+            input_types = [a.type for a in args]
+        elif isa(args, list[Attribute]):
+            entry_args = None
+            input_types = args
+        else:
+            parser.raise_error(
+                "Expected all arguments to be named or all arguments to be unnamed."
+            )
+
+        # This is for the args is list[parser.Argument] case
+        # Then input_types = [a.type for a in args]
+        # and Argument.type is Attribute | None
+        # But here we use parse_optional_argument(True), so those should never be None
+        # -> Should we have a different method for typing reasons?
+        if not isa(input_types, list[Attribute]):
+            parser.raise_error(
+                "Expected all arguments to be named or all arguments to be unnamed."
+            )
+
+        # Parse return type
+        parser.parse_char("->")
+        # TODO multiple return types
+        return_types = [parser.parse_attribute()]
+        # Parse body
+        region = parser.parse_optional_region(entry_args) or Region()
+        return FuncOp.from_region(name, input_types, return_types, region, visibility)
+
     @staticmethod
     def from_callable(
         name: str,
@@ -68,11 +124,15 @@ class FuncOp(IRDLOperation):
 
     @staticmethod
     def external(
-        name: str, input_types: Sequence[Attribute], return_types: Sequence[Attribute]
+        name: StringAttr | str,
+        input_types: Sequence[Attribute],
+        return_types: Sequence[Attribute],
     ) -> FuncOp:
+        if isinstance(name, str):
+            name = StringAttr(name)
         type_attr = FunctionType.from_lists(input_types, return_types)
         attributes: dict[str, Attribute] = {
-            "sym_name": StringAttr(name),
+            "sym_name": name,
             "function_type": type_attr,
             "sym_visibility": StringAttr("private"),
         }
@@ -85,12 +145,13 @@ class FuncOp(IRDLOperation):
         input_types: Sequence[Attribute],
         return_types: Sequence[Attribute],
         region: Region,
+        visibility: str = "private",
     ) -> FuncOp:
         type_attr = FunctionType.from_lists(input_types, return_types)
         attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(name),
             "function_type": type_attr,
-            "sym_visibility": StringAttr("private"),
+            "sym_visibility": StringAttr(visibility),
         }
         op = FuncOp.build(attributes=attributes, regions=[region])
         return op
