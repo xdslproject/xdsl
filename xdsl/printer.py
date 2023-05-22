@@ -265,6 +265,10 @@ class Printer:
         if not isinstance(block, Block):
             raise TypeError("Expected a Block; got %s" % type(block).__name__)
 
+        # Print block name if it is empty
+        if block.is_empty:
+            print_block_name = True
+
         print_block_args = len(block.args) > 0
         if print_block_args or print_block_name:
             self._print_new_line()
@@ -297,11 +301,9 @@ class Printer:
         if not isinstance(region, Region):
             raise TypeError("Expected a Region; got %s" % type(region).__name__)
 
-        print_block_name = len(region.blocks) != 1
-
         self.print("{")
-        for block in region.blocks:
-            self.print_block(block, print_block_name=print_block_name)
+        for idx, block in enumerate(region.blocks):
+            self.print_block(block, print_block_name=(idx != 0))
         self._print_new_line()
         self.print("}")
 

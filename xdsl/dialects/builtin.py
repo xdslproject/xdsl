@@ -1260,6 +1260,11 @@ class ModuleOp(IRDLOperation):
         if attributes is not None:
             attributes = attributes.data
         region = parser.parse_region()
+
+        # Add a block if the region is empty
+        if len(region.blocks) == 0:
+            region.add_block(Block())
+
         return ModuleOp(region, attributes)
 
     def print(self, printer: Printer) -> None:
@@ -1267,7 +1272,13 @@ class ModuleOp(IRDLOperation):
             printer.print(" attributes {")
             printer.print_dictionary(self.attributes, printer.print, printer.print)
             printer.print("}")
-        printer.print(" ", self.body)
+
+        if self.body.block.is_empty:
+            # Do not print the entry block if the region has an empty block
+            printer.print(" {\n")
+            printer.print("}")
+        else:
+            printer.print(" ", self.body)
 
 
 # FloatXXType shortcuts

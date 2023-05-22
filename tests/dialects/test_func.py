@@ -260,5 +260,5 @@ def test_external_func_def():
     ext = FuncOp.external("testname", [i32, i32], [i64])
 
     assert len(ext.regions) == 1
-    assert ext.regions[0].block.is_empty
+    assert len(ext.regions[0].blocks) == 0
     assert ext.sym_name.data == "testname"

@@ -13,13 +13,11 @@
   // CHECK-NEXT: }) {"sym_name" = "assert", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
 
   "func.func"() ({
-  ^0:
     "cf.br"() [^1] : () -> ()
   ^1:
     "cf.br"() [^1] : () -> ()
   }) {"sym_name" = "unconditional_br", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
   // CHECK: "func.func"() ({
-  // CHECK-NEXT:  ^{{.*}}:
   // CHECK-NEXT:    "cf.br"() [^{{.*}}] : () -> ()
   // CHECK-NEXT:  ^{{.*}}:
   // CHECK-NEXT:    "cf.br"() [^{{.*}}] : () -> ()

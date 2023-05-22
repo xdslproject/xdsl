@@ -3,6 +3,7 @@ import pytest
 from xdsl.dialects.builtin import (
     AnyFloat,
     FloatAttr,
+    IntAttr,
     IntegerAttr,
     bf16,
     f16,
@@ -216,9 +217,9 @@ def test_stencil_apply_no_results():
         ([1, 2, 3]),
         (
             [
-                IntegerAttr[IntegerType](1, 64),
-                IntegerAttr[IntegerType](2, 64),
-                IntegerAttr[IntegerType](3, 64),
+                IntAttr(1),
+                IntAttr(2),
+                IntAttr(3),
             ]
         ),
     ),
@@ -226,10 +227,7 @@ def test_stencil_apply_no_results():
 def test_create_index_attr_from_int_list(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
     expected_array_attr = ArrayAttr(
-        [
-            (IntegerAttr[IntegerType](idx, 64) if isinstance(idx, int) else idx)
-            for idx in indices
-        ]
+        [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
     )
 
     assert stencil_index_attr.array == expected_array_attr
@@ -270,9 +268,7 @@ def test_index_attr_size_from_bounds(indices1: list[int], indices2: list[int]):
 def test_index_attr_neg(indices: list[int]):
     stencil_index_attr = IndexAttr.get(*indices)
     stencil_index_attr_neg = -stencil_index_attr
-    expected_array_attr = ArrayAttr(
-        [(IntegerAttr[IntegerType](-idx, 64)) for idx in indices]
-    )
+    expected_array_attr = ArrayAttr([(IntAttr(-idx)) for idx in indices])
 
     assert stencil_index_attr_neg.array == expected_array_attr
 
@@ -287,10 +283,7 @@ def test_index_attr_add(indices1: list[int], indices2: list[int]):
 
     stencil_index_attr_add = stencil_index_attr1 + stencil_index_attr2
     expected_array_attr = ArrayAttr(
-        [
-            (IntegerAttr[IntegerType](idx1 + idx2, 64))
-            for idx1, idx2 in zip(indices1, indices2)
-        ]
+        [(IntAttr(idx1 + idx2)) for idx1, idx2 in zip(indices1, indices2)]
     )
 
     assert stencil_index_attr_add.array == expected_array_attr
@@ -306,10 +299,7 @@ def test_index_attr_sub(indices1: list[int], indices2: list[int]):
 
     stencil_index_attr_sub = stencil_index_attr1 - stencil_index_attr2
     expected_array_attr = ArrayAttr(
-        [
-            (IntegerAttr[IntegerType](idx1 - idx2, 64))
-            for idx1, idx2 in zip(indices1, indices2)
-        ]
+        [(IntAttr(idx1 - idx2)) for idx1, idx2 in zip(indices1, indices2)]
     )
 
     assert stencil_index_attr_sub.array == expected_array_attr
@@ -325,10 +315,7 @@ def test_index_attr_min(indices1: list[int], indices2: list[int]):
 
     stencil_index_attr_min = IndexAttr.min(stencil_index_attr1, stencil_index_attr2)
     expected_array_attr = ArrayAttr(
-        [
-            (IntegerAttr[IntegerType](min(idx1, idx2), 64))
-            for idx1, idx2 in zip(indices1, indices2)
-        ]
+        [(IntAttr(min(idx1, idx2))) for idx1, idx2 in zip(indices1, indices2)]
     )
 
     assert stencil_index_attr_min.array == expected_array_attr
@@ -344,10 +331,7 @@ def test_index_attr_max(indices1: list[int], indices2: list[int]):
 
     stencil_index_attr_max = IndexAttr.max(stencil_index_attr1, stencil_index_attr2)
     expected_array_attr = ArrayAttr(
-        [
-            (IntegerAttr[IntegerType](max(idx1, idx2), 64))
-            for idx1, idx2 in zip(indices1, indices2)
-        ]
+        [(IntAttr(max(idx1, idx2))) for idx1, idx2 in zip(indices1, indices2)]
     )
 
     assert stencil_index_attr_max.array == expected_array_attr
@@ -465,11 +449,11 @@ def test_stencil_load_bounds():
     assert isinstance(load.lb, IndexAttr)
     assert len(load.lb.array) == 2
     for my_val, load_val in zip(lb.array.data, load.lb.array):
-        assert my_val.value.data == load_val.value.data
+        assert my_val.data == load_val.data
     assert isinstance(load.ub, IndexAttr)
     assert len(load.ub.array) == 2
     for my_val, load_val in zip(ub.array.data, load.ub.array):
-        assert my_val.value.data == load_val.value.data
+        assert my_val.data == load_val.data
 
 
 @pytest.mark.parametrize(

@@ -16,7 +16,8 @@
     "symref.declare"() {"sym_name" = "a"} : () -> ()
   }) : () -> ()
 
-  // CHECK-NEXT:   "builtin.module"() ({
+  // CHECK-NEXT: "builtin.module"() ({
+  // CHECK-NEXT: ^{{.*}}:
   // CHECK-NEXT: }) : () -> ()
 
 
@@ -114,6 +115,7 @@
   }) : () -> ()
 
   // CHECK-NEXT: "builtin.module"() ({
+  // CHECK-NEXT: ^{{.*}}:
   // CHECK-NEXT: }) : () -> ()
 
 
