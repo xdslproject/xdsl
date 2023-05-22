@@ -13,7 +13,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     AnyFloat,
 )
-from xdsl.ir import Operation, Dialect, TypeAttribute
+from xdsl.ir import Attribute, Operation, Dialect, TypeAttribute
 from xdsl.ir import SSAValue
 
 from xdsl.irdl import (
@@ -61,6 +61,24 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute
                 f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
             )
 
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_char("<")
+        dims, element_type = parser.parse_ranked_shape()
+        parser.parse_char(">")
+        return [ArrayAttr([IntegerAttr(d, 64) for d in dims]), element_type]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print("<")
+        printer.print_list(
+            (e.value.data for e in self.shape.data),
+            lambda i: printer.print(i) if i != -1 else printer.print("?"),
+            "x",
+        )
+        printer.print("x")
+        printer.print_attribute(self.element_type)
+        printer.print(">")
+
     def __init__(
         self,
         shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
@@ -95,6 +113,24 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute)
             raise VerifyException(
                 f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
             )
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_char("<")
+        dims, element_type = parser.parse_ranked_shape()
+        parser.parse_char(">")
+        return [ArrayAttr([IntegerAttr(d, 64) for d in dims]), element_type]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print("<")
+        printer.print_list(
+            (e.value.data for e in self.shape.data),
+            lambda i: printer.print(i) if i != -1 else printer.print("?"),
+            "x",
+        )
+        printer.print("x")
+        printer.print_attribute(self.element_type)
+        printer.print(">")
 
     def __init__(
         self,

@@ -2,9 +2,9 @@
 
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%0 : !stencil.field<[-1 : i32, -1 : i32, -1 : i32], f64>, %1 : !stencil.field<[-1 : i32, -1 : i32, -1 : i32], f64>):
+  ^0(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>):
     "func.return"() : () -> ()
-  }) {"sym_name" = "test_funcop_lowering", "function_type" = (!stencil.field<[-1 : i32, -1 : i32, -1 : i32], f64>, !stencil.field<[-1 : i32, -1 : i32, -1 : i32], f64>) -> (), "sym_visibility" = "private"} : () -> ()
+  }) {"sym_name" = "test_funcop_lowering", "function_type" = (!stencil.field<?x?x?xf64>, !stencil.field<?x?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
 
 // CHECK-NEXT: "builtin.module"() ({

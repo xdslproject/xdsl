@@ -20,28 +20,28 @@
       %t1 = "arith.remsi"(%5, %1) : (i64, i64) -> i64
       %t0_w_size = "arith.index_cast"(%t0) : (i64) -> index
       %t0_w_size_1 = "memref.load"(%data, %t0_w_size) : (memref<2xmemref<?x?x?xf32>>, index) -> memref<?x?x?xf32>
-      %t0_w_size_2 = "stencil.external_load"(%t0_w_size_1) : (memref<?x?x?xf32>) -> !stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>
-      %t0_w_size_3 = "stencil.cast"(%t0_w_size_2) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<54, 84, 44>} : (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>) -> !stencil.field<[58 : i64, 88 : i64, 48 : i64], f32>
+      %t0_w_size_2 = "stencil.external_load"(%t0_w_size_1) : (memref<?x?x?xf32>) -> !stencil.field<?x?x?xf32>
+      %t0_w_size_3 = "stencil.cast"(%t0_w_size_2) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<54, 84, 44>} : (!stencil.field<?x?x?xf32>) -> !stencil.field<58x88x48xf32>
       %t1_w_size = "arith.index_cast"(%t1) : (i64) -> index
       %t1_w_size_1 = "memref.load"(%data, %t1_w_size) : (memref<2xmemref<?x?x?xf32>>, index) -> memref<?x?x?xf32>
-      %t1_w_size_2 = "stencil.external_load"(%t1_w_size_1) : (memref<?x?x?xf32>) -> !stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>
-      %t1_w_size_3 = "stencil.cast"(%t1_w_size_2) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<54, 84, 44>} : (!stencil.field<[-1 : i64, -1 : i64, -1 : i64], f32>) -> !stencil.field<[58 : i64, 88 : i64, 48 : i64], f32>
-      %6 = "stencil.load"(%t0_w_size_3) : (!stencil.field<[50 : i64, 80 : i64, 40 : i64], f32>) -> !stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>
+      %t1_w_size_2 = "stencil.external_load"(%t1_w_size_1) : (memref<?x?x?xf32>) -> !stencil.field<?x?x?xf32>
+      %t1_w_size_3 = "stencil.cast"(%t1_w_size_2) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<54, 84, 44>} : (!stencil.field<?x?x?xf32>) -> !stencil.field<58x88x48xf32>
+      %6 = "stencil.load"(%t0_w_size_3) : (!stencil.field<50x80x40xf32>) -> !stencil.temp<?x?x?xf32>
       %7 = "stencil.apply"(%6) ({
-      ^2(%t0_buff : !stencil.temp<[-1 : i64], f32>):
-        %8 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %9 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<-1, 0, 0>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %10 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<1, 0, 0>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %11 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<-2, 0, 0>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %12 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<2, 0, 0>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %13 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, -1, 0>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %14 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 1, 0>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %15 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, -2, 0>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %16 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 2, 0>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %17 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, -1>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %18 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, 1>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %19 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, -2>} : (!stencil.temp<[-1 : i64], f32>) -> f32
-        %20 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, 2>} : (!stencil.temp<[-1 : i64], f32>) -> f32
+      ^2(%t0_buff : !stencil.temp<?xf32>):
+        %8 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<?xf32>) -> f32
+        %9 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<-1, 0, 0>} : (!stencil.temp<?xf32>) -> f32
+        %10 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<1, 0, 0>} : (!stencil.temp<?xf32>) -> f32
+        %11 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<-2, 0, 0>} : (!stencil.temp<?xf32>) -> f32
+        %12 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<2, 0, 0>} : (!stencil.temp<?xf32>) -> f32
+        %13 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, -1, 0>} : (!stencil.temp<?xf32>) -> f32
+        %14 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 1, 0>} : (!stencil.temp<?xf32>) -> f32
+        %15 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, -2, 0>} : (!stencil.temp<?xf32>) -> f32
+        %16 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 2, 0>} : (!stencil.temp<?xf32>) -> f32
+        %17 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, -1>} : (!stencil.temp<?xf32>) -> f32
+        %18 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, 1>} : (!stencil.temp<?xf32>) -> f32
+        %19 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, -2>} : (!stencil.temp<?xf32>) -> f32
+        %20 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, 2>} : (!stencil.temp<?xf32>) -> f32
         %dt = "arith.constant"() {"value" = 4.122440608513459e-06 : f32} : () -> f32
         %21 = "arith.constant"() {"value" = -1 : i64} : () -> i64
         %22 = "math.fpowi"(%dt, %21) : (f32, i64) -> f32
@@ -156,8 +156,8 @@
         %dt_1 = "arith.constant"() {"value" = 4.122440608513459e-06 : f32} : () -> f32
         %115 = "arith.mulf"(%114, %dt_1) : (f32, f32) -> f32
         "stencil.return"(%115) : (f32) -> ()
-      }) : (!stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>) -> !stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>
-      "stencil.store"(%7, %t1_w_size_3) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<50, 80, 40>} : (!stencil.temp<[-1 : i64, -1 : i64, -1 : i64], f32>, !stencil.field<[58 : i64, 88 : i64, 48: i64], f32>) -> ()
+      }) : (!stencil.temp<?x?x?xf32>) -> !stencil.temp<?x?x?xf32>
+      "stencil.store"(%7, %t1_w_size_3) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<50, 80, 40>} : (!stencil.temp<?x?x?xf32>, !stencil.field<58x88x48xf32>) -> ()
       "scf.yield"() : () -> ()
     }) : (index, index, index) -> ()
     "func.return"() : () -> ()
