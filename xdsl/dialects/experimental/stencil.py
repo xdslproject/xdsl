@@ -8,7 +8,6 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntAttr,
     IntegerAttr,
-    NoneAttr,
     ParametrizedAttribute,
     ArrayAttr,
     IntegerType,
