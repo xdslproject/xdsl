@@ -1,9 +1,12 @@
 from __future__ import annotations
+from typing import Annotated, Generic, TypeVar
 
 import pytest
 
 from xdsl.dialects.builtin import IntAttr, StringAttr, i32
+from xdsl.dialects.test import TestType
 
+from xdsl.utils.test_value import TestSSAValue
 from xdsl.ir import Attribute, OpResult, Region
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -27,7 +30,11 @@ from xdsl.irdl import (
     OpAttr,
     IRDLOperation,
 )
-from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
+from xdsl.utils.exceptions import (
+    DiagnosticException,
+    PyRDLOpDefinitionError,
+    VerifyException,
+)
 
 ################################################################################
 #                              IRDL definition                                 #
@@ -232,3 +239,68 @@ def test_attribute_setters():
 
     op.opt_attr = None
     assert op.opt_attr is None
+
+
+################################################################################
+#                             Generic operation                                #
+################################################################################
+
+FooType = Annotated[TestType, TestType("foo")]
+BarType = Annotated[TestType, TestType("bar")]
+
+
+_Attr = TypeVar("_Attr", bound=StringAttr | IntAttr)
+_Operand = TypeVar("_Operand", bound=FooType | BarType)
+_Result = TypeVar("_Result", bound=FooType | BarType)
+
+
+class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
+    name = "test.string_or_int_generic"
+
+    attr: OpAttr[_Attr]
+    operand: Annotated[Operand, _Operand]
+    result: Annotated[OpResult, _Result]
+
+
+@irdl_op_definition
+class StringFooOp(GenericOp[StringAttr, FooType, FooType]):
+    name = "test.string_specialized"
+
+
+def test_generic_op():
+    """Test generic operation."""
+    FooOperand = TestSSAValue(TestType("foo"))
+    BarOperand = TestSSAValue(TestType("bar"))
+    FooResultType = TestType("foo")
+    BarResultType = TestType("bar")
+
+    op = StringFooOp(
+        attributes={"attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    op.verify()
+
+    op_attr_fail = StringFooOp(
+        attributes={"attr": IntAttr(1)},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_attr_fail.verify()
+
+    op_operand_fail = StringFooOp(
+        attributes={"attr": StringAttr("test")},
+        operands=[BarOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_operand_fail.verify()
+
+    op_result_fail = StringFooOp(
+        attributes={"attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[BarResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_result_fail.verify()

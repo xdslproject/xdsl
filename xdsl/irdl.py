@@ -670,6 +670,11 @@ class OpDef:
         # Get all fields of the class, including the parent classes
         clsdict: dict[str, Any] = dict()
         for parent_cls in pyrdl_def.mro()[::-1]:
+            # Do not collect fields from Generic, as Generic will not contain
+            # IRDL definitions, and contains ClassVar fields that are not
+            # allowed in IRDL definitions.
+            if parent_cls == Generic:
+                continue
             clsdict = {**clsdict, **parent_cls.__dict__}
 
         type_hints = get_type_hints(pyrdl_def, include_extras=True)
@@ -697,6 +702,8 @@ class OpDef:
                 continue
             if field_name in ["irdl_options", "traits", "name"]:
                 continue
+            if field_name[:2] == "__" and field_name[-2:] == "__":
+                continue
             if isinstance(
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
             ):
@@ -709,6 +716,50 @@ class OpDef:
                 "define the operation name. The operation name is defined by "
                 "adding a 'name' field."
             )
+
+        allow_type_var = False
+        type_var_mapping: dict[TypeVar, AttrConstraint] | None = None
+        if Generic in pyrdl_def.mro():
+            allow_type_var = True
+
+            # Get the generic parents
+            orig_bases: Sequence[Any] = pyrdl_def.__orig_bases__  # type: ignore
+
+            # Do not handle more than one generic parent in the mro.
+            # It is possible to handle more than one generic parent, but
+            # the mapping of type variables will be more complex, especially for
+            # generic parents inheriting from other generic parents.
+            if len(orig_bases) != 1:
+                raise PyRDLOpDefinitionError(
+                    "Operation definition class cannot have more than one generic "
+                    "class in its the mro. This restriction may be lifted in the "
+                    "future."
+                )
+
+            orig_base = orig_bases[0]
+            origin = get_origin(orig_base)
+            assert origin is not None, "Fatal error in usage of __orig_bases__"
+            args = get_args(orig_base)
+
+            generic_args = ()
+            parent_bases = cast(Sequence[Any], origin.__orig_bases__)  # type: ignore
+            for parent in parent_bases:
+                if get_origin(parent) == Generic:
+                    generic_args = get_args(parent)
+                    break
+            else:
+                raise PyRDLOpDefinitionError(
+                    f"Cannot parametrize non-generic {origin.name} attribute."
+                )
+
+            if len(generic_args) != len(args):
+                raise PyRDLOpDefinitionError(
+                    f"Generic {origin.name} operation has {len(generic_args)} parameters, "
+                    f"but {len(args)} parameters were provided."
+                )
+
+            constraint_args = [irdl_to_attr_constraint(arg) for arg in args]
+            type_var_mapping = dict(zip(generic_args, constraint_args))
 
         op_def = OpDef(clsdict["name"])
         for field_name, field_type in type_hints.items():
@@ -732,7 +783,11 @@ class OpDef:
             # Get attribute constraints from a list of pyrdl constraints
             def get_constraint(pyrdl_constrs: tuple[Any, ...]) -> AttrConstraint:
                 constraints = [
-                    irdl_to_attr_constraint(pyrdl_constr)
+                    irdl_to_attr_constraint(
+                        pyrdl_constr,
+                        allow_type_var=allow_type_var,
+                        type_var_mapping=type_var_mapping,
+                    )
                     for pyrdl_constr in pyrdl_constrs
                     if not isinstance(pyrdl_constr, IRDLAnnotations)
                 ]
