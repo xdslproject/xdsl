@@ -1,6 +1,18 @@
 from inspect import isclass
 from types import UnionType
-from typing import Annotated, Any, TypeGuard, TypeVar, Union, cast, get_args, get_origin
+from typing import (
+    Annotated,
+    Any,
+    Generic,
+    Iterable,
+    Sequence,
+    TypeGuard,
+    TypeVar,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+)
 from xdsl.ir import ParametrizedAttribute
 
 from xdsl.utils.exceptions import VerifyException
@@ -94,3 +106,51 @@ class _Class:
 
 PropertyType = type(_Class.property)
 """The type of a property method."""
+
+
+def get_type_var_from_generic_class(cls: type[Any]) -> tuple[TypeVar, ...]:
+    """Return the `TypeVar` used in the class `Generic` parent."""
+    cls_orig_bases = cast(Iterable[Any], cls.__orig_bases__)  # type: ignore
+    for orig_base in cls_orig_bases:
+        if get_origin(orig_base) == Generic:
+            return get_args(orig_base)
+    raise ValueError(f"{cls} class does not have a `Generic` parent.")
+
+
+def get_type_var_mapping(
+    cls: type[Any],
+) -> dict[type[Any], dict[TypeVar, Any]]:
+    """
+    Given a class that specializes a generic class, return the generic class and
+    the mapping from the generic class type variables to the specialized arguments.
+    """
+
+    if not issubclass(cls, Generic):
+        raise ValueError(f"{cls} does not specialize a generic class.")
+
+    # Get the generic parent
+    orig_bases: Sequence[Any] = cls.__orig_bases__  # type: ignore
+    orig_bases = [
+        orig_base for orig_base in orig_bases if get_origin(orig_base) is not Generic
+    ]
+
+    res: dict[type[Any], dict[TypeVar, Any]] = {}
+    for orig_base in orig_bases:
+        # Get the generic operation, and its specialized type parameters.
+        generic_parent: type[Any] | None = get_origin(orig_base)
+        if generic_parent is None:
+            continue
+        specialized_args = get_args(orig_base)
+
+        # Get the `TypeVar` used in the generic parent
+        generic_args = get_type_var_from_generic_class(generic_parent)
+
+        if len(generic_args) != len(specialized_args):
+            raise ValueError(
+                f"Generic class {generic_parent} class has {len(generic_args)} "
+                f"parameters, but {cls} specialize {len(specialized_args)} of them."
+            )
+
+        type_var_mapping = dict(zip(generic_args, specialized_args))
+        res[generic_parent] = type_var_mapping
+    return res
