@@ -23,18 +23,6 @@ from xdsl.utils.lexer import Token
 
 
 @pytest.mark.parametrize(
-    "input,expected",
-    [("0, 1, 1", [0, 1, 1]), ("1, 0, 1", [1, 0, 1]), ("1, 1, 0", [1, 1, 0])],
-)
-def test_int_list_parser(input: str, expected: list[int]):
-    ctx = MLContext()
-    parser = Parser(ctx, input)
-
-    int_list = parser.parse_list_of(parser.try_parse_integer_literal, "")
-    assert [int(span.text) for span in int_list] == expected
-
-
-@pytest.mark.parametrize(
     "data",
     [
         dict(a=IntAttr(1), b=IntAttr(2), c=IntAttr(3)),
