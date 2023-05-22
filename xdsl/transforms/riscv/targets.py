@@ -168,7 +168,7 @@ class TargetDefinition:
     Machine architecture (handled by -march=RV...)
     """
 
-    code_model: Literal["any", "low"] = 'any'
+    code_model: Literal["any", "low"] = "any"
     """
     Code model (usually handled by -mcmodel=med<model>):
     https://github.com/riscv-non-isa/riscv-toolchain-conventions#specifying-the-target-code-model-with--mcmodel
@@ -197,5 +197,5 @@ class MAbi:
 
 
 class RecognizedTargets(Enum):
-    riscv32_riscemu = TargetDefinition(MAbi.ILP32, MachineArchSpec('RV32IMAZto'))
-    riscv64_linux = TargetDefinition(MAbi.ILP32D, MachineArchSpec('RV64G'))
+    riscv32_riscemu = TargetDefinition(MAbi.ILP32, MachineArchSpec("RV32IMAZto"))
+    riscv64_linux = TargetDefinition(MAbi.ILP32D, MachineArchSpec("RV64G"))
