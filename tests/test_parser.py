@@ -239,7 +239,7 @@ def test_parse_argument_fail(text: str, expect_type: bool):
     # parse_optional_argument
     parser = Parser(ctx, text)
     with pytest.raises(ParseError):
-        parser.parse_argument(expect_type)
+        parser.parse_optional_argument(expect_type)
 
     # parse_argument
     parser = Parser(ctx, text)
