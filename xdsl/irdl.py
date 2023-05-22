@@ -719,8 +719,7 @@ class OpDef:
         if issubclass(pyrdl_def, Generic):
             type_var_mapping = {
                 k: irdl_to_attr_constraint(v)
-                for var_mapping in get_type_var_mapping(pyrdl_def).values()
-                for k, v in var_mapping.items()
+                for k, v in get_type_var_mapping(pyrdl_def)[1].items()
             }
 
         op_def = OpDef(clsdict["name"])
