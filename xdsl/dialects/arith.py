@@ -82,9 +82,17 @@ class FastMathFlagsAttr(Data[FastMathFlags]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> FastMathFlags:
-        flags = parser.parse_list_of(
-            lambda: FastMathFlags.try_parse(parser), "Expected fast math flags"
-        )
+        flag = FastMathFlags.try_parse(parser)
+        if flag is None:
+            return FastMathFlags(set())
+
+        flags = [flag]
+        while parser.parse_optional_punctuation(",") is not None:
+            flag = parser.expect(
+                lambda: FastMathFlags.try_parse(parser), "fastmath flag expected"
+            )
+            flags.append(flag)
+
         result = functools.reduce(FastMathFlags.__or__, flags, FastMathFlags(set()))
         return result
 

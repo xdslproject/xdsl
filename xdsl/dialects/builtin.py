@@ -96,9 +96,9 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 
     @staticmethod
     def parse_parameter(parser: Parser) -> tuple[AttributeCovT]:
-        parser.parse_char("[")
-        data = parser.parse_list_of(parser.try_parse_attribute, "Expected attribute")
-        parser.parse_char("]")
+        data = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_attribute
+        )
         # the type system can't ensure that the elements are of type _ArrayAttrT
         result = cast(tuple[AttributeCovT], tuple(data))
         return result
