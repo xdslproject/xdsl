@@ -65,16 +65,9 @@ class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_char("<")
-        attribute = parser.parse_memref_attrs()
-        if not isa(attribute, memref.MemRefType[Attribute]):
-            parser.raise_error(f"stencil.field must be ranked.")
-        if not isinstance(attribute.layout, NoneAttr) or not isinstance(
-            attribute.memory_space, NoneAttr
-        ):
-            parser.raise_error("Expected '>' here!")
-
+        dims, element_type = parser.parse_ranked_shape()
         parser.parse_char(">")
-        return [attribute.shape, attribute.element_type]
+        return [ArrayAttr([IntegerAttr(d, 64) for d in dims]), element_type]
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
@@ -125,16 +118,9 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute)
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_char("<")
-        attribute = parser.parse_memref_attrs()
-        if not isa(attribute, memref.MemRefType[Attribute]):
-            parser.raise_error(f"stencil.field must be ranked.")
-        if not isinstance(attribute.layout, NoneAttr) or not isinstance(
-            attribute.memory_space, NoneAttr
-        ):
-            parser.raise_error("Expected '>' here!")
-
+        dims, element_type = parser.parse_ranked_shape()
         parser.parse_char(">")
-        return [attribute.shape, attribute.element_type]
+        return [ArrayAttr([IntegerAttr(d, 64) for d in dims]), element_type]
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")

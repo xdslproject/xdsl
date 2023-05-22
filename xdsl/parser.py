@@ -1306,7 +1306,7 @@ class Parser(ABC):
         # Move the lexer to the position after 'x'.
         self.resume_from(self._current_token.span.start + 1)
 
-    def _parse_ranked_shape(self) -> tuple[list[int], Attribute]:
+    def parse_ranked_shape(self) -> tuple[list[int], Attribute]:
         """
         Parse a ranked shape with the following format:
           ranked-shape ::= (dimension `x`)* type
@@ -1324,7 +1324,7 @@ class Parser(ABC):
         type = self.expect(self.try_parse_type, "Expected shape type.")
         return dims, type
 
-    def _parse_shape(self) -> tuple[list[int] | None, Attribute]:
+    def parse_shape(self) -> tuple[list[int] | None, Attribute]:
         """
         Parse a ranked or unranked shape with the following format:
 
@@ -1341,7 +1341,7 @@ class Parser(ABC):
             type = self.expect(self.try_parse_type, "Expected shape type.")
             self._synchronize_lexer_and_tokenizer()
             return None, type
-        res = self._parse_ranked_shape()
+        res = self.parse_ranked_shape()
         self._synchronize_lexer_and_tokenizer()
         return res
 
@@ -1356,7 +1356,7 @@ class Parser(ABC):
     def parse_memref_attrs(
         self,
     ) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
-        shape, type = self._parse_shape()
+        shape, type = self.parse_shape()
 
         # Unranked case
         if shape is None:
@@ -1451,7 +1451,7 @@ class Parser(ABC):
         return VectorType.from_element_type_and_shape(type, dims, num_scalable_dims)
 
     def parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
-        shape, type = self._parse_shape()
+        shape, type = self.parse_shape()
 
         if shape is None:
             if self.parse_optional_punctuation(",") is not None:
