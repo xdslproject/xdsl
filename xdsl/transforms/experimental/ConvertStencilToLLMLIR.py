@@ -315,7 +315,6 @@ class StencilTypeConversionFuncOp(RewritePattern):
             assert isinstance(cast, CastOp)
             assert isa(cast.result.typ, FieldType[Attribute])
             new_cast = cast.clone()
-            source_shape = [i.value.data for i in cast.result.typ.shape.data]
             offsets = [i.data for i in (store.lb - cast.lb).array.data]
             sizes = [i.data for i in (store.ub - store.lb).array.data]
             subview = memref.Subview.from_static_parameters(
