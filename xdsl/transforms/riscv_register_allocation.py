@@ -30,7 +30,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocatorStrategy):
         self.idx = 0
 
         self.available_registers = set(Register.ABI_INDEX_BY_NAME.keys())
-        reserved_registers = set(["zero", "sp", "gp", "tp", "fp"])
+        reserved_registers = set(["zero", "sp", "gp", "tp", "fp", "s0"])
         caller_saved_registers = set(
             [
                 "ra",

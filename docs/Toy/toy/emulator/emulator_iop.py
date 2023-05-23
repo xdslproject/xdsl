@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import IO, ClassVar
+from typing import IO, ClassVar, Optional
 
 # pyright: reportMissingTypeStubs=false
 
@@ -32,7 +32,7 @@ def run_riscv(
     extensions: list[type[InstructionSet]] = [],
     unlimited_regs: bool = False,
     verbosity: int = 5,
-):
+) -> Optional[int]:
     cfg = RunConfig(
         debug_instruction=False,
         verbosity=verbosity,
@@ -50,6 +50,9 @@ def run_riscv(
 
     mmu: MMU = getattr(cpu, "mmu")
     try:
+        cpu.setup_stack(cfg.stack_size)
         cpu.launch(mmu.programs[-1], verbosity > 1)
+        return cpu.exit_code
     except Exception as ex:
         print(ex)
+        return None

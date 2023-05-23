@@ -57,7 +57,7 @@ def compile(
     LowerLLVM().apply(ctx, op)
     LowerRISCVFunc().apply(ctx, op)
 
-    RISCVRegisterAllocation().apply(ctx, op)
+    RISCVRegisterAllocation(reg_alloc).apply(ctx, op)
     code = riscv_code(op)
 
     return code
