@@ -37,12 +37,23 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
         case riscv.GetRegisterOp():
             # Don't print assembly for creating a SSA value representing register
             return
+        case riscv.LabelOp():
+            desc = f"{op.label.data}:"
+            print(desc, file=output)
+            return
         case riscv.CommentOp():
             desc = f"    # {op.comment.data}"
             print(desc, file=output)
             return
         case riscv.NullaryOperation():
             components = []
+            comment = op.comment
+        case riscv.CustomEmulatorInstructionOp():
+            instruction_name = op.instruction_name.data
+            components = [*op.results, *op.operands]
+            comment = op.comment
+        case riscv.RdRsOperation():
+            components = [op.rd, op.rs]
             comment = op.comment
         case riscv.RdRsRsOperation():
             components = [op.rd, op.rs1, op.rs2]

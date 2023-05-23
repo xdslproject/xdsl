@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Annotated
+from typing import Annotated, Sequence
 
 from xdsl.ir import (
+    Attribute,
     Dialect,
     Operation,
     Region,
@@ -17,6 +18,8 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     OptSingleBlockRegion,
+    VarOpResult,
+    VarOperand,
     irdl_op_definition,
     irdl_attr_definition,
     Operand,
@@ -1587,6 +1590,31 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
+class LabelOp(IRDLOperation, RISCVOp):
+    name = "riscv.label"
+    label: OpAttr[LabelAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        label: str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = LabelAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            }
+        )
+
+
+@irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .text; .data; etc.)
@@ -1619,6 +1647,37 @@ class DirectiveOp(IRDLOperation, RISCVOp):
                 "value": value,
             },
             regions=[region],
+        )
+
+
+@irdl_op_definition
+class CustomEmulatorInstructionOp(IRDLOperation, RISCVOp):
+    name = "riscv.custom_emulator_instruction"
+    inputs: VarOperand
+    outputs: VarOpResult
+    instruction_name: OpAttr[StringAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        instruction_name: str | StringAttr,
+        inputs: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(instruction_name, str):
+            instruction_name = StringAttr(instruction_name)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[inputs],
+            result_types=[result_types],
+            attributes={
+                "instruction_name": instruction_name,
+                "comment": comment,
+            },
         )
 
 
@@ -1784,6 +1843,7 @@ RISCV = Dialect(
         RemuOp,
         LiOp,
         EcallOp,
+        LabelOp,
         DirectiveOp,
         EbreakOp,
         WfiOp,
