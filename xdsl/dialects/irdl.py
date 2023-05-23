@@ -1,7 +1,7 @@
 """Definition of the IRDL dialect."""
 
 from __future__ import annotations
-from typing import Annotated, Iterable, Sequence
+from typing import Annotated, Sequence
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import (
     Attribute,
