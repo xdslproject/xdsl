@@ -129,7 +129,8 @@ def get_type_var_mapping(
         raise ValueError(f"{cls} does not specialize a generic class.")
 
     # Get the generic parent
-    orig_bases: Sequence[Any] = cls.__orig_bases__  # type: ignore
+    orig_bases = cls.__orig_bases__  # type: ignore
+    orig_bases = cast(Sequence[Any], orig_bases)
     orig_bases = [
         orig_base for orig_base in orig_bases if get_origin(orig_base) is not Generic
     ]
