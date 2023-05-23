@@ -141,7 +141,7 @@ class Constant(IRDLOperation):
         return Constant.create(result_types=[typ], attributes={"value": val})
 
 
-_T = TypeVar("_T")
+_T = TypeVar("_T", bound=Attribute)
 
 
 class BinaryOperation(IRDLOperation, Generic[_T]):
