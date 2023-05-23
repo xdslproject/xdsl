@@ -431,12 +431,13 @@ class Subview(IRDLOperation):
                 source_offset = source_type.layout.offset.data
             if isa(source_type.layout.strides, ArrayAttr[IntAttr]):
                 source_strides = [s.data for s in source_type.layout.strides]
-        
-        layout_strides = [a*b for (a,b) in zip(strides, source_strides)]
-        
-        layout_offset = sum(
-            stride * offset for stride, offset in zip(source_strides, offsets)
-        ) + source_offset
+
+        layout_strides = [a * b for (a, b) in zip(strides, source_strides)]
+
+        layout_offset = (
+            sum(stride * offset for stride, offset in zip(source_strides, offsets))
+            + source_offset
+        )
 
         layout = StridedLayoutAttr(layout_strides, layout_offset)
 
