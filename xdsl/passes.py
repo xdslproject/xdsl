@@ -77,13 +77,15 @@ class ModulePass(ABC):
             if field.name == "name" or not field.init:
                 continue
             # check that non-optional fields are present
-            if field.name not in spec.args and not _is_optional(field.type):
+            if field.name not in spec.args:
+                if _is_optional(field):
+                    arg_dict[field.name] = _get_default(field)
+                    continue
                 raise ValueError(f'Pass {cls.name} requires argument "{field.name}"')
 
             # convert pass arg to the correct type:
             arg_dict[field.name] = _convert_pass_arg_to_type(
-                # we use default value [] here, this makes handling optionals easier
-                spec.args.pop(field.name, []),
+                spec.args.pop(field.name),
                 field.type,
             )
             # we use .pop here to also remove the arg from the dict
@@ -134,10 +136,22 @@ def _convert_pass_arg_to_type(
     raise ValueError(f"Incompatible types: given {value}, expected {dest_type}")
 
 
-def _is_optional(field_type: Any):
+def _is_optional(field: Field[Any]):
     """
     Shorthand to check if the given type allows "None" as a value.
     """
-    return get_origin(field_type) in [Union, UnionType] and NoneType in get_args(
-        field_type
+    can_be_none = get_origin(field.type) in [Union, UnionType] and NoneType in get_args(
+        field.type
     )
+    has_default_val = field.default is not dataclasses.MISSING
+    has_default_factory = field.default_factory is not dataclasses.MISSING
+
+    return can_be_none or has_default_val or has_default_factory
+
+
+def _get_default(field: Field[Any]) -> Any:
+    if field.default is not dataclasses.MISSING:
+        return field.default
+    if field.default_factory is not dataclasses.MISSING:
+        return field.default_factory()
+    return None
