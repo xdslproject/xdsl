@@ -149,8 +149,6 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
 
     They all have two operands and one result of a same type."""
 
-    traits = frozenset([Pure()])
-
     lhs: Annotated[Operand, _T]
     rhs: Annotated[Operand, _T]
     result: Annotated[OpResult, _T]
@@ -179,6 +177,8 @@ IntegerBinaryOp = BinaryOperation[IntegerType]
 @irdl_op_definition
 class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self,
