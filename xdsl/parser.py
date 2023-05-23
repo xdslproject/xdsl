@@ -1059,9 +1059,9 @@ class Parser(ABC):
                             | `{` dialect-attribute-contents+ `}`
                             | [^[]<>(){}\0]+
         """
-        return self.expect(self.try_parse_type, "type expected")
+        return self.expect(self.parse_optional_type, "type expected")
 
-    def try_parse_type(self) -> Attribute | None:
+    def parse_optional_type(self) -> Attribute | None:
         """
         Parse an xDSL type, if present.
         An xDSL type is either a builtin type, which can have various format,
@@ -1074,10 +1074,69 @@ class Parser(ABC):
                             | `{` dialect-attribute-contents+ `}`
                             | [^[]<>(){}\0]+
         """
+        self._synchronize_lexer_and_tokenizer()
         if self.tokenizer.starts_with("!"):
             return self.try_parse_dialect_type()
         else:
             return self.try_parse_builtin_type()
+
+    def parse_optional_attribute(self) -> Attribute | None:
+        """
+        Parse an xDSL attribute, if present.
+        An attribute is either a builtin attribute, which can have various format,
+        or a dialect attribute, with the following format:
+            dialect-attr  ::= `!` attr-name (`<` dialect-attr-contents+ `>`)?
+            attr-name     ::= bare-id
+            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
+                            | `(` dialect-attribute-contents+ `)`
+                            | `[` dialect-attribute-contents+ `]`
+                            | `{` dialect-attribute-contents+ `}`
+                            | [^[]<>(){}\0]+
+        """
+        with self.backtracking("attribute"):
+            return self.parse_attribute()
+
+    def parse_attribute(self) -> Attribute:
+        """
+        Parse an xDSL attribute.
+        An attribute is either a builtin attribute, which can have various format,
+        or a dialect attribute, with the following format:
+            dialect-attr  ::= `!` attr-name (`<` dialect-attr-contents+ `>`)?
+            attr-name     ::= bare-id
+            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
+                            | `(` dialect-attribute-contents+ `)`
+                            | `[` dialect-attribute-contents+ `]`
+                            | `{` dialect-attribute-contents+ `}`
+                            | [^[]<>(){}\0]+
+        """
+        # All dialect attrs must start with '#', so we check for that first
+        # (as it's easier)
+        if self.tokenizer.starts_with("#"):
+            value = self.try_parse_dialect_attr()
+
+            # No value => error
+            if value is None:
+                self.raise_error(
+                    "`#` must be followed by a valid dialect attribute or type!"
+                )
+
+            return value
+
+        # In MLIR, a type can be parsed at any attribute location.
+        # While MLIR wraps the type in a `TypeAttr`, we do not require this
+        # in xDSL.
+        if (type := self.parse_optional_type()) is not None:
+            return type
+
+        # If it isn't a dialect attr, parse builtin
+        builtin_val = self.try_parse_builtin_attr()
+
+        if builtin_val is None:
+            self.raise_error(
+                "Unknown attribute (neither builtin nor dialect could be parsed)!"
+            )
+
+        return builtin_val
 
     def try_parse_dialect_type(self):
         """
@@ -1296,7 +1355,7 @@ class Parser(ABC):
             self._parse_shape_delimiter()
 
         self._synchronize_lexer_and_tokenizer()
-        type = self.expect(self.try_parse_type, "Expected shape type.")
+        type = self.expect(self.parse_optional_type, "Expected shape type.")
         return dims, type
 
     def parse_shape(self) -> tuple[list[int] | None, Attribute]:
@@ -1313,7 +1372,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         if self.parse_optional_punctuation("*") is not None:
             self._parse_shape_delimiter()
-            type = self.expect(self.try_parse_type, "Expected shape type.")
+            type = self.expect(self.parse_optional_type, "Expected shape type.")
             self._synchronize_lexer_and_tokenizer()
             return None, type
         res = self.parse_ranked_shape()
@@ -1408,7 +1467,7 @@ class Parser(ABC):
             self._parse_shape_delimiter()
 
         self._synchronize_lexer_and_tokenizer()
-        type = self.try_parse_type()
+        type = self.parse_optional_type()
         if type is None:
             self.raise_error("Expected the vector element types!")
 
@@ -1762,10 +1821,6 @@ class Parser(ABC):
 
         return name, self.parse_attribute()
 
-    def try_parse_attribute(self) -> Attribute | None:
-        with self.backtracking("attribute"):
-            return self.parse_attribute()
-
     def _parse_attribute_type(self) -> Attribute:
         """
         Parses `:` type and returns the type
@@ -1774,7 +1829,8 @@ class Parser(ABC):
             ":", "Expected attribute type definition here ( `:` type )"
         )
         return self.expect(
-            self.try_parse_type, "Expected attribute type definition here ( `:` type )"
+            self.parse_optional_type,
+            "Expected attribute type definition here ( `:` type )",
         )
 
     def try_parse_builtin_attr(self) -> Attribute | None:
@@ -1917,7 +1973,7 @@ class Parser(ABC):
         # Parse the dense type.
         self.parse_punctuation(":", " in dense attribute")
         self._synchronize_lexer_and_tokenizer()
-        type = self.expect(self.try_parse_type, "Dense attribute must be typed!")
+        type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         self._synchronize_lexer_and_tokenizer()
 
         # Check that the type is correct.
@@ -1968,7 +2024,9 @@ class Parser(ABC):
         type = NoneAttr()
         if self.tokenizer.starts_with(":"):
             self.parse_characters(":", "opaque attribute must be typed!")
-            type = self.expect(self.try_parse_type, "opaque attribute must be typed!")
+            type = self.expect(
+                self.parse_optional_type, "opaque attribute must be typed!"
+            )
 
         return OpaqueAttr.from_strings(*str_lit_list, type=type)
 
@@ -1982,7 +2040,7 @@ class Parser(ABC):
         self.parse_characters(">", err_msg)
         self.parse_characters(":", err_msg)
         type = self.expect(
-            self.try_parse_type, "Dense resource attribute must be typed!"
+            self.parse_optional_type, "Dense resource attribute must be typed!"
         )
         return DenseResourceAttr.from_params(resource_handle.text, type)
 
@@ -2488,39 +2546,6 @@ class Parser(ABC):
                 self.raise_error("Expected builtin name!")
 
             return self._parse_builtin_type_with_name(name)
-
-    def parse_attribute(self) -> Attribute:
-        """
-        Parse attribute (either builtin or dialect)
-        """
-        # All dialect attrs must start with '#', so we check for that first
-        # (as it's easier)
-        if self.tokenizer.starts_with("#"):
-            value = self.try_parse_dialect_attr()
-
-            # No value => error
-            if value is None:
-                self.raise_error(
-                    "`#` must be followed by a valid dialect attribute or type!"
-                )
-
-            return value
-
-        # In MLIR, a type can be parsed at any attribute location.
-        # While MLIR wraps the type in a `TypeAttr`, we do not require this
-        # in xDSL.
-        if (type := self.try_parse_type()) is not None:
-            return type
-
-        # If it isn't a dialect attr, parse builtin
-        builtin_val = self.try_parse_builtin_attr()
-
-        if builtin_val is None:
-            self.raise_error(
-                "Unknown attribute (neither builtin nor dialect could be parsed)!"
-            )
-
-        return builtin_val
 
     def _parse_op_result(self) -> tuple[Span, int, Attribute | None]:
         value_token = self._parse_token(
