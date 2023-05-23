@@ -153,10 +153,15 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
     rhs: Annotated[Operand, _T]
     result: Annotated[OpResult, _T]
 
-    @classmethod
-    def get(cls, operand1: Operation | SSAValue, operand2: Operation | SSAValue):
-        operand1 = SSAValue.get(operand1)
-        return cls.build(operands=[operand1, operand2], result_types=[operand1.typ])
+    def __init__(
+        self,
+        operand1: Union[Operation, SSAValue],
+        operand2: Union[Operation, SSAValue],
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).typ
+        super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -177,16 +182,6 @@ class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
 
     traits = frozenset([Pure()])
-
-    def __init__(
-        self,
-        operand1: Union[Operation, SSAValue],
-        operand2: Union[Operation, SSAValue],
-        result_type: Attribute | None = None,
-    ):
-        if result_type is None:
-            result_type = SSAValue.get(operand1).typ
-        super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
 
 @irdl_op_definition

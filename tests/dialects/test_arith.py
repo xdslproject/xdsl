@@ -49,7 +49,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 
-_BinOpT = TypeVar("_BinOpT", bound=BinaryOperation)
+_BinOpT = TypeVar("_BinOpT", bound=Attribute)
 
 
 class Test_integer_arith_construction:
@@ -80,8 +80,8 @@ class Test_integer_arith_construction:
             ShRSI,
         ],
     )
-    def test_arith_ops_get(self, OpClass: type[_BinOpT]):
-        op = OpClass.get(self.a, self.b)
+    def test_arith_ops_get(self, OpClass: type[BinaryOperation[_BinOpT]]):
+        op = OpClass(self.a, self.b)
 
         assert isinstance(op, OpClass)
         assert op.lhs.op is self.a
@@ -121,7 +121,7 @@ class Test_float_arith_construction:
         [Addf, Subf, Mulf, Divf, Maxf, Minf],
     )
     def test_arith_ops(self, func):
-        op = func.get(self.a, self.b)
+        op = func(self.a, self.b)
         assert op.operands[0].op is self.a
         assert op.operands[1].op is self.b
 

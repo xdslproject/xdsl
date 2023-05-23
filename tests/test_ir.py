@@ -29,7 +29,7 @@ def test_ops_accessor():
     assert len(region.blocks[0].ops) == 3
 
     # Operation to subtract b from a
-    d = Subi.get(a, b)
+    d = Subi(a, b)
 
     assert d.results[0] != c.results[0]
 
@@ -53,7 +53,7 @@ def test_ops_accessor_II():
     assert len(region.blocks[0].ops) == 3
 
     # Operation to subtract b from a
-    d = Subi.get(a, b)
+    d = Subi(a, b)
 
     assert d.results[0] != c.results[0]
 
