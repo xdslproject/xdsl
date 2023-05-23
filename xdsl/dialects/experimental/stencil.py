@@ -320,9 +320,7 @@ class AccessOp(IRDLOperation):
             attributes={
                 "offset": IndexAttr(
                     [
-                        ArrayAttr(
-                            IntegerAttr[IntegerType](value, 64) for value in offset
-                        ),
+                        ArrayAttr(IntAttr(value) for value in offset),
                     ]
                 ),
             },
@@ -506,7 +504,7 @@ class ReturnOp(IRDLOperation):
 class HaloSwapOp(IRDLOperation):
     name = "stencil.halo_swap"
 
-    input_stencil: Annotated[Operand, TempType]
+    input_stencil: Annotated[Operand, TempType | memref.MemRefType]
 
     buff_lb: OptOpAttr[IndexAttr]
     buff_ub: OptOpAttr[IndexAttr]

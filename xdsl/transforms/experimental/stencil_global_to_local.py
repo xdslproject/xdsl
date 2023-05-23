@@ -300,22 +300,9 @@ class AddHaloExchangeOps(RewritePattern):
 
 
 @dataclass
-class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
-    name = "stencil-to-local-2d-horizontal"
-
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        strategy = HorizontalSlices2D(2)
-
-        gpra = GreedyRewritePatternApplier(
-            [ChangeStoreOpSizes(strategy), AddHaloExchangeOps(strategy)]
-        )
-
-        PatternRewriteWalker(gpra, apply_recursively=False).rewrite_module(op)
-
-
-@dataclass
 class LowerHaloExchangeToMpi(RewritePattern):
     strategy: DomainDecompositionStrategy
+    init: bool
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.HaloSwapOp, rewriter: PatternRewriter, /):
@@ -328,6 +315,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
                     exchanges,
                     op.input_stencil.typ.element_type,
                     self.strategy,
+                    emit_init=self.init,
                 )
             ),
             [],
@@ -339,9 +327,11 @@ def generate_mpi_calls_for(
     exchanges: list[HaloExchangeDef],
     dtype: Attribute,
     strat: DomainDecompositionStrategy,
+    emit_init: bool = True,
 ) -> Iterable[Operation]:
     # call mpi init (this will be hoisted to function level)
-    init = mpi.Init()
+    if emit_init:
+        yield mpi.Init()
     # allocate request array
     # we need two request objects per exchange
     # one for the send, one for the recv
@@ -353,7 +343,7 @@ def generate_mpi_calls_for(
     # TODO: what is tag?
     tag = arith.Constant.from_int_and_width(0, builtin.i32)
 
-    yield from (init, req_cnt, reqs, rank, tag)
+    yield from (req_cnt, reqs, rank, tag)
 
     recv_buffers: list[tuple[HaloExchangeDef, memref.Alloc, SSAValue]] = []
 
@@ -742,3 +732,47 @@ def collect_args_recursive(op: Operation) -> Iterable[Operation]:
         assert isinstance(arg, OpResult)
         yield from collect_args_recursive(arg.owner)
     yield op
+
+
+@dataclass
+class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
+    name = "dmp-decompose-2d"
+
+    slices: int
+    """
+    Number of slices to decompose the input into
+    """
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        strategy = HorizontalSlices2D(self.slices)
+
+        gpra = GreedyRewritePatternApplier(
+            [
+                ChangeStoreOpSizes(strategy),
+                AddHaloExchangeOps(strategy),
+            ]
+        )
+
+        PatternRewriteWalker(gpra, apply_recursively=False).rewrite_module(op)
+
+
+@dataclass
+class LowerHaloToMPI(ModulePass):
+    name = "dmp-to-mpi"
+
+    slices: int
+
+    mpi_init: bool = True
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    LowerHaloExchangeToMpi(
+                        HorizontalSlices2D(self.slices),
+                        self.mpi_init,
+                    ),
+                ]
+            )
+        ).rewrite_module(op)
+        MpiLoopInvariantCodeMotion().rewrite_module(op)

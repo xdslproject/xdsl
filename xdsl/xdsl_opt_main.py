@@ -44,6 +44,7 @@ from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
 from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
 from xdsl.transforms.experimental.stencil_global_to_local import (
     GlobalStencilToLocalStencil2DHorizontal,
+    LowerHaloToMPI,
 )
 
 from xdsl.utils.exceptions import DiagnosticException
@@ -287,6 +288,7 @@ class xDSLOptMain:
         self.register_pass(LowerSnitchPass)
         self.register_pass(RISCVRegisterAllocation)
         self.register_pass(LowerRISCVFunc)
+        self.register_pass(LowerHaloToMPI)
 
     def register_all_targets(self):
         """
