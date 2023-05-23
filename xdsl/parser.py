@@ -1667,7 +1667,7 @@ class Parser(ABC):
         type = None
         if expect_type:
             self.parse_punctuation(":", " after block argument name!")
-            type = self.expect(self.try_parse_type, "expect argument type after `:`")
+            type = self.parse_type()
         return self.Argument(name_token.span, type)
 
     def parse_argument(self, expect_type: bool = True) -> Argument:
