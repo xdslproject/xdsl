@@ -145,7 +145,9 @@ _T = TypeVar("_T", bound=Attribute)
 
 
 class BinaryOperation(IRDLOperation, Generic[_T]):
-    """A generic operation. Operation definitions inherit this class."""
+    """A generic base class for arith's binary operation.
+
+    They all have two operands and one result of a same type."""
 
     traits = frozenset([Pure()])
 
