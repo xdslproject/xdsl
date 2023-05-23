@@ -67,7 +67,6 @@ class FuncOp(IRDLOperation):
         name = parser.parse_symbol_name().data
 
         # Parse function arguments
-        parser.parse_char("(")
         args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN,
             lambda: parser.parse_optional_argument() or parser.parse_type(),
@@ -96,9 +95,17 @@ class FuncOp(IRDLOperation):
             )
 
         # Parse return type
-        parser.parse_char("->")
-        # TODO multiple return types
-        return_types = [parser.parse_attribute()]
+        if parser.parse_optional_punctuation("->"):
+            return_types = parser.try_parse_attribute()
+            if return_types:
+                return_types = [return_types]
+            else:
+                return_types = parser.parse_comma_separated_list(
+                    parser.Delimiter.PAREN, parser.parse_type
+                )
+        else:
+            return_types = []
+
         # Parse body
         region = parser.parse_optional_region(entry_args) or Region()
         return FuncOp.from_region(name, input_types, return_types, region, visibility)
