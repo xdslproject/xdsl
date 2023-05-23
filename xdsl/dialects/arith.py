@@ -173,7 +173,9 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
         return cls(lhs, rhs, result_type)
 
     def print(self, printer: Printer):
-        printer.print(f" %{self.lhs.name}, %{self.rhs.name} : {self.result.typ}")
+        printer.print(
+            f" %{self.lhs.name_hint}, %{self.rhs.name_hint} : {self.result.typ}"
+        )
 
     # TODO replace with trait
     def verify_(self) -> None:
