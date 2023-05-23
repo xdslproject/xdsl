@@ -2258,7 +2258,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         if (value := self.parse_optional_boolean()) is not None:
             self._synchronize_lexer_and_tokenizer()
-            return IntegerAttr.from_params(1 if value else 0, IntegerType(1))
+            return IntegerAttr(1 if value else 0, IntegerType(1))
         return None
 
     def try_parse_builtin_str_attr(self):

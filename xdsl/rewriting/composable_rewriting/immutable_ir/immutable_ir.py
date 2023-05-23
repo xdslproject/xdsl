@@ -242,7 +242,7 @@ class IBlock:
 
         if is_type_seq(args):
             block_args: Sequence[IBlockArg] = [
-                IBlockArg(type, IList([]), self, idx) for idx, type in enumerate(args)
+                IBlockArg(type, IList(()), self, idx) for idx, type in enumerate(args)
             ]
         elif is_iblock_arg_seq(args):
             block_args: Sequence[IBlockArg] = args
@@ -364,7 +364,7 @@ class IOperation:
             "results",
             IList(
                 [
-                    IOpResult(type, IList([]), self, idx)
+                    IOpResult(type, IList(()), self, idx)
                     for idx, type in enumerate(result_types)
                 ]
             ),

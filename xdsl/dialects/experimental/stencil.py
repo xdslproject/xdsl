@@ -39,7 +39,7 @@ from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
 
-_FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute)
+_FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
 
 
 @irdl_attr_definition
@@ -444,7 +444,7 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block,
-        result_types: Sequence[TempType[_FieldTypeElement]],
+        result_types: Sequence[TempType[Attribute]],
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
     ):
