@@ -261,23 +261,21 @@ class Printer:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def print_block(self, block: Block, print_block_name: bool = True) -> None:
+    def print_block(self, block: Block, print_block_args: bool = True) -> None:
+        """
+        Print a block with syntax `(<caret-ident>`(` <block-args> `)`)? ops* )`
+        * If `print_block_args` is False, the label and arguments are not printed.
+        """
         if not isinstance(block, Block):
             raise TypeError("Expected a Block; got %s" % type(block).__name__)
 
-        # Print block name if it is empty
-        if block.is_empty:
-            print_block_name = True
-
-        print_block_args = len(block.args) > 0
-        if print_block_args or print_block_name:
+        if print_block_args:
             self._print_new_line()
             self.print_block_name(block)
-        if print_block_args:
-            self.print("(")
-            self.print_list(block.args, self._print_block_arg)
-            self.print(")")
-        if print_block_args or print_block_name:
+            if len(block.args) != 0:
+                self.print("(")
+                self.print_list(block.args, self.print_block_argument)
+                self.print(")")
             self.print(":")
 
         self._indent += 1
@@ -286,24 +284,52 @@ class Printer:
             self.print_op(op)
         self._indent -= 1
 
-    def _print_block_arg(self, arg: BlockArgument) -> None:
-        self.print("%")
+    def print_block_argument(self, arg: BlockArgument, print_type: bool = True) -> None:
+        """
+        Print a block argument with its type, e.g. `%arg : i32`
+        Optionally, do not print the type.
+        """
+
         if arg.name_hint and arg.name_hint not in self._ssa_values.values():
             name = arg.name_hint
             self._ssa_names[arg.name_hint] = self._ssa_names.get(arg.name_hint, 0) + 1
         else:
             name = self._get_new_valid_name_id()
         self._ssa_values[arg] = name
-        self.print("%s : " % name)
-        self.print_attribute(arg.typ)
 
-    def print_region(self, region: Region) -> None:
+        self.print(f"%{name}")
+        if print_type:
+            self.print(" : ", arg.typ)
+
+    def print_region(
+        self,
+        region: Region,
+        print_entry_block_args: bool = True,
+        print_empty_block: bool = True,
+    ) -> None:
+        """
+        Print a region with syntax `{ <block>* }`
+        * If `print_entry_block_args` is False, the arguments of the entry block
+          are not printed.
+        * If `print_empty_block` is False, empty entry blocks are not printed.
+        """
         if not isinstance(region, Region):
             raise TypeError("Expected a Region; got %s" % type(region).__name__)
 
+        # Empty region
         self.print("{")
-        for idx, block in enumerate(region.blocks):
-            self.print_block(block, print_block_name=(idx != 0))
+        if len(region.blocks) == 0:
+            self._print_new_line()
+            self.print("}")
+            return
+
+        entry_block = region.blocks[0]
+        print_entry_block_args = (
+            len(entry_block.args) != 0 and print_entry_block_args
+        ) or (entry_block.is_empty and print_empty_block)
+        self.print_block(entry_block, print_block_args=print_entry_block_args)
+        for block in region.blocks[1:]:
+            self.print_block(block)
         self._print_new_line()
         self.print("}")
 
