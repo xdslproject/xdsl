@@ -693,12 +693,19 @@ class OpDef:
         # Check that all fields of the operation definition are either already
         # in Operation, or are class functions or methods.
         for field_name, value in clsdict.items():
+            # Fields that are already in Operation (i.e. operands, results, ...)
             if field_name in opdict:
                 continue
+            # IRDLOperation ClassVar fields are allowed
             if field_name in ["irdl_options", "traits", "name"]:
                 continue
+            # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
+            # They are used by Python to store information about the class, so they
+            # should not be considered as part of the operation definition.
+            # Also, they can provide a possiblea escape hatch.
             if field_name[:2] == "__" and field_name[-2:] == "__":
                 continue
+            # Methods, properties, and functions are allowed
             if isinstance(
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
             ):
