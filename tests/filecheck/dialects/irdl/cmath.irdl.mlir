@@ -1,15 +1,15 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
 builtin.module {
-  // CHECK-LABEL: irdl.dialect @cmath {
+  // CHECK: irdl.dialect @cmath {
   irdl.dialect @cmath {
 
     // CHECK: irdl.type @complex {
-    // CHECK:   %{{.*}} = irdl.is f32
-    // CHECK:   %{{.*}} = irdl.is f64
-    // CHECK:   %{{.*}} = irdl.any_of(%{{.*}}, %{{.*}})
-    // CHECK:   irdl.parameters(%{{.*}})
-    // CHECK: }
+    // CHECK-NEXT:   %{{.*}} = irdl.is f32
+    // CHECK-NEXT:   %{{.*}} = irdl.is f64
+    // CHECK-NEXT:   %{{.*}} = irdl.any_of(%{{.*}}, %{{.*}})
+    // CHECK-NEXT:   irdl.parameters(%{{.*}})
+    // CHECK-NEXT: }
     irdl.type @complex {
       %0 = irdl.is f32
       %1 = irdl.is f64
@@ -18,11 +18,11 @@ builtin.module {
     }
 
     // CHECK: irdl.operation @norm {
-    // CHECK:   %{{.*}} = irdl.any
-    // CHECK:   %{{.*}} = irdl.parametric @complex<%{{.*}}>
-    // CHECK:   irdl.operands(%{{.*}})
-    // CHECK:   irdl.results(%{{.*}})
-    // CHECK: }
+    // CHECK-NEXT:   %{{.*}} = irdl.any
+    // CHECK-NEXT:   %{{.*}} = irdl.parametric @complex<%{{.*}}>
+    // CHECK-NEXT:   irdl.operands(%{{.*}})
+    // CHECK-NEXT:   irdl.results(%{{.*}})
+    // CHECK-NEXT: }
     irdl.operation @norm {
       %0 = irdl.any
       %1 = irdl.parametric @complex<%0>
@@ -31,13 +31,13 @@ builtin.module {
     }
 
     // CHECK: irdl.operation @mul {
-    // CHECK:   %{{.*}} = irdl.is f32
-    // CHECK:   %{{.*}} = irdl.is f64
-    // CHECK:   %{{.*}} = irdl.any_of(%{{.*}}, %{{.*}})
-    // CHECK:   %{{.*}} = irdl.parametric @complex<%{{.*}}>
-    // CHECK:   irdl.operands(%{{.*}}, %{{.*}})
-    // CHECK:   irdl.results(%{{.*}})
-    // CHECK: }
+    // CHECK-NEXT:   %{{.*}} = irdl.is f32
+    // CHECK-NEXT:   %{{.*}} = irdl.is f64
+    // CHECK-NEXT:   %{{.*}} = irdl.any_of(%{{.*}}, %{{.*}})
+    // CHECK-NEXT:   %{{.*}} = irdl.parametric @complex<%{{.*}}>
+    // CHECK-NEXT:   irdl.operands(%{{.*}}, %{{.*}})
+    // CHECK-NEXT:   irdl.results(%{{.*}})
+    // CHECK-NEXT: }
     irdl.operation @mul {
       %0 = irdl.is f32
       %1 = irdl.is f64

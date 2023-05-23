@@ -1,18 +1,18 @@
 // RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 
 builtin.module {
-  // CHECK-LABEL: irdl.dialect @testd {
+  // CHECK: irdl.dialect @testd {
   irdl.dialect @testd {
     // CHECK: irdl.type @singleton
     irdl.type @singleton
 
-    // CHECK: irdl.type @parametrized {
-    // CHECK:   %{{.*}} = irdl.any
-    // CHECK:   %{{.*}} = irdl.is i32
-    // CHECK:   %{{.*}} = irdl.is i64
-    // CHECK:   %{{.*}} = irdl.any_of(%{{.*}}, %{{.*}})
-    // CHECK:   irdl.parameters(%{{.*}}, %{{.*}})
-    // CHECK: }
+    // CHECK:      irdl.type @parametrized {
+    // CHECK-NEXT:   %{{.*}} = irdl.any
+    // CHECK-NEXT:   %{{.*}} = irdl.is i32
+    // CHECK-NEXT:   %{{.*}} = irdl.is i64
+    // CHECK-NEXT:   %{{.*}} = irdl.any_of(%{{.*}}, %{{.*}})
+    // CHECK-NEXT:   irdl.parameters(%{{.*}}, %{{.*}})
+    // CHECK-NEXT: }
     irdl.type @parametrized {
       %0 = irdl.any
       %1 = irdl.is i32
@@ -21,10 +21,10 @@ builtin.module {
       irdl.parameters(%0, %3)
     }
 
-    // CHECK: irdl.operation @any {
-    // CHECK:   %{{.*}} = irdl.any
-    // CHECK:   irdl.results(%{{.*}})
-    // CHECK: }
+    // CHECK:      irdl.operation @any {
+    // CHECK-NEXT:   %{{.*}} = irdl.any
+    // CHECK-NEXT:   irdl.results(%{{.*}})
+    // CHECK-NEXT: }
     irdl.operation @any {
       %0 = irdl.any
       irdl.results(%0)
