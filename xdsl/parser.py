@@ -859,54 +859,6 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return elems
 
-    def parse_list_of(
-        self,
-        try_parse: Callable[[], T_ | None],
-        error_msg: str,
-        separator_pattern: re.Pattern[str] = ParserCommons.comma,
-        allow_empty: bool = True,
-    ) -> list[T_]:
-        """
-        This is a greedy list-parser. It accepts input only in these cases:
-
-         - If the separator isn't encountered, which signals the end of the list
-         - If an empty list is allowed, it accepts when the first try_parse fails
-         - If an empty separator is given, it instead sees a failed try_parse as the
-           end of the list.
-
-        This means, that the setup will not accept the input and instead raise an error:
-
-            try_parse = parse_integer_literal
-            separator = 'x'
-            input = 3x4x4xi32
-
-        as it will read [3,4,4], then see another separator, and expects the next
-        `try_parse` call to succeed (which won't as i32 is not a valid integer literal)
-        """
-        first_item = try_parse()
-        if first_item is None:
-            if allow_empty:
-                return []
-            self.raise_error(error_msg)
-
-        items = [first_item]
-
-        while (
-            match := self.tokenizer.next_token_of_pattern(separator_pattern)
-        ) is not None:
-            next_item = try_parse()
-            if next_item is None:
-                # If the separator is emtpy, we are good here
-                if separator_pattern.pattern == "":
-                    return items
-                self.raise_error(
-                    error_msg
-                    + " because was able to match next separator {}".format(match.text)
-                )
-            items.append(next_item)
-
-        return items
-
     def parse_optional_boolean(self) -> bool | None:
         """
         Parse a boolean, if present, with the format `true` or `false`.
@@ -1024,6 +976,18 @@ class Parser(ABC):
             self.tokenizer.next_token_of_pattern(ParserCommons.string_literal)
         )
 
+    def parse_string_literal(self) -> str:
+        """
+        Parse a string literal with the format `"..."`.
+
+        Returns the string contents without the quotes and with escape sequences
+        resolved.
+        """
+        return self.expect(
+            self.try_parse_string_literal,
+            "string literal expected",
+        ).string_contents
+
     def try_parse_float_literal(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.float_literal)
 
@@ -1082,7 +1046,34 @@ class Parser(ABC):
     def try_parse_boolean_literal(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.boolean_literal)
 
+    def parse_type(self) -> Attribute:
+        """
+        Parse an xDSL type.
+        An xDSL type is either a builtin type, which can have various format,
+        or a dialect type, with the following format:
+            dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
+            type-name     ::= bare-id
+            dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
+                            | `(` dialect-attribute-contents+ `)`
+                            | `[` dialect-attribute-contents+ `]`
+                            | `{` dialect-attribute-contents+ `}`
+                            | [^[]<>(){}\0]+
+        """
+        return self.expect(self.try_parse_type, "type expected")
+
     def try_parse_type(self) -> Attribute | None:
+        """
+        Parse an xDSL type, if present.
+        An xDSL type is either a builtin type, which can have various format,
+        or a dialect type, with the following format:
+            dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
+            type-name     ::= bare-id
+            dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
+                            | `(` dialect-attribute-contents+ `)`
+                            | `[` dialect-attribute-contents+ `]`
+                            | `{` dialect-attribute-contents+ `}`
+                            | [^[]<>(){}\0]+
+        """
         if self.tokenizer.starts_with("!"):
             return self.try_parse_dialect_type()
         else:
@@ -1489,14 +1480,7 @@ class Parser(ABC):
         return None
 
     def _parse_type_params(self) -> list[Attribute]:
-        # Consume opening bracket
-        self.parse_characters("<", "Type must be parameterized!")
-
-        params = self.parse_list_of(self.try_parse_type, "Expected a type here!")
-
-        self.parse_characters(">", "Expected end of type parameterization here!")
-
-        return params
+        return self.parse_comma_separated_list(self.Delimiter.ANGLE, self.parse_type)
 
     def expect(self, try_parse: Callable[[], T_ | None], error_message: str) -> T_:
         """
@@ -2030,26 +2014,19 @@ class Parser(ABC):
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_opaque_attr(self, _name: Span):
-        self.parse_characters("<", "Opaque attribute must be parametrized")
-        str_lit_list = self.parse_list_of(
-            self.try_parse_string_literal, "Expected opaque attr here!"
+        str_lit_list = self.parse_comma_separated_list(
+            self.Delimiter.ANGLE, self.parse_string_literal
         )
 
         if len(str_lit_list) != 2:
             self.raise_error("Opaque expects 2 string literal parameters!")
-
-        self.parse_characters(
-            ">", "Unexpected parameters for opaque attr, expected `>`!"
-        )
 
         type = NoneAttr()
         if self.tokenizer.starts_with(":"):
             self.parse_characters(":", "opaque attribute must be typed!")
             type = self.expect(self.try_parse_type, "opaque attribute must be typed!")
 
-        return OpaqueAttr.from_strings(
-            *(span.string_contents for span in str_lit_list), type=type
-        )
+        return OpaqueAttr.from_strings(*str_lit_list, type=type)
 
     def _parse_builtin_dense_resource_attr(self, _name: Span) -> DenseResourceAttr:
         err_msg = (
@@ -2085,15 +2062,15 @@ class Parser(ABC):
 
         self.parse_characters(":", err_msg)
 
-        def try_parse_dense_array_value() -> int | float | None:
+        def parse_dense_array_value() -> int | float:
             if (v := self.try_parse_float_literal()) is not None:
                 return float(v.text)
             if (v := self.try_parse_integer_literal()) is not None:
                 return int(v.text)
-            return None
+            self.raise_error("integer or float literal expected")
 
-        values = self.parse_list_of(
-            try_parse_dense_array_value, "Expected tensor literal here!"
+        values = self.parse_comma_separated_list(
+            self.Delimiter.NONE, parse_dense_array_value
         )
         self.parse_characters(">", err_msg)
 
@@ -2379,34 +2356,17 @@ class Parser(ABC):
     def try_parse_builtin_arr_attr(self) -> AnyArrayAttr | None:
         if not self.tokenizer.starts_with("["):
             return None
-        with self.backtracking("array literal"):
-            self.parse_characters("[", "Array literals must start with `[`")
-            attrs = self.parse_list_of(
-                self.try_parse_attribute, "Expected array entry!"
-            )
-            self.parse_characters(
-                "]", "Malformed array contents (expected end of array here!"
-            )
-            return ArrayAttr(attrs)
+        attrs = self.parse_comma_separated_list(
+            self.Delimiter.SQUARE, self.parse_attribute
+        )
+        return ArrayAttr(attrs)
 
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
         if not self.tokenizer.starts_with("{"):
             return dict()
-
-        self.parse_characters(
-            "{", "Attribute dictionary must be enclosed in curly brackets"
+        attrs = self.parse_comma_separated_list(
+            self.Delimiter.BRACES, self._parse_attribute_entry
         )
-
-        attrs = []
-        if not self.tokenizer.starts_with("}"):
-            attrs = self.parse_list_of(
-                self._parse_attribute_entry, "Expected attribute entry"
-            )
-
-        self.parse_characters(
-            "}", "Attribute dictionary must be enclosed in curly brackets"
-        )
-
         return self._attr_dict_from_tuple_list(attrs)
 
     def _attr_dict_from_tuple_list(
@@ -2439,15 +2399,7 @@ class Parser(ABC):
 
         Uses type-or-type-list-parens internally
         """
-        self.parse_characters("(", "First group of function args must start with a `(`")
-
-        args: list[Attribute] = self.parse_list_of(
-            self.try_parse_type, "Expected type here!"
-        )
-
-        self.parse_characters(
-            ")", "Malformed function type, expected closing brackets of argument types!"
-        )
+        args = self.parse_comma_separated_list(self.Delimiter.PAREN, self.parse_type)
 
         self.parse_characters("->", "Malformed function type, expected `->`!")
 
@@ -2461,15 +2413,13 @@ class Parser(ABC):
         type-list-parens         ::= `(` `)` | `(` type-list-no-parens `)`
         type-list-no-parens      ::=  type (`,` type)*
         """
-        if self.tokenizer.next_token_of_pattern("(") is not None:
-            args = self.parse_list_of(self.try_parse_type, "Expected type here!")
-            self.parse_characters(")", "Unclosed function type argument list!")
-        else:
-            arg = self.expect(
-                self.try_parse_type,
-                "Function type must either be single type or list of types in parentheses",
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind == Token.Kind.L_PAREN:
+            args = self.parse_comma_separated_list(
+                self.Delimiter.PAREN, self.parse_type
             )
-            args = [arg]
+        else:
+            args = [self.parse_type()]
         return args
 
     def try_parse_function_type(self) -> FunctionType | None:
@@ -2513,19 +2463,12 @@ class Parser(ABC):
     def parse_paramattr_parameters(
         self, skip_white_space: bool = True
     ) -> list[Attribute]:
-        opening_brackets = self.tokenizer.next_token_of_pattern("<")
-        if opening_brackets is None:
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.LESS:
             return []
-
-        res = self.parse_list_of(
-            self.try_parse_attribute, "Expected another attribute here!"
+        res = self.parse_comma_separated_list(
+            self.Delimiter.ANGLE, self.parse_attribute
         )
-
-        if self.tokenizer.next_token_of_pattern(">") is None:
-            self.raise_error(
-                "Malformed parameter list, expected either another parameter or `>`!"
-            )
-
         return res
 
     def parse_char(self, text: str):
@@ -2723,13 +2666,13 @@ class Parser(ABC):
         return args, succ, attrs, regions, func_type
 
     def _parse_optional_successor_list(self) -> list[Span]:
-        if not self.tokenizer.starts_with("["):
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.L_SQUARE:
             return []
-        self.parse_characters("[", "Successor list is enclosed in square brackets")
-        successors = self.parse_list_of(
-            self.try_parse_block_id, "Expected a block-id", allow_empty=False
+        successors = self.parse_comma_separated_list(
+            self.Delimiter.SQUARE,
+            lambda: self.expect(self.try_parse_block_id, "block-id expected"),
         )
-        self.parse_characters("]", "Successor list is enclosed in square brackets")
         return successors
 
     def _parse_op_args_list(self) -> list[SSAValue]:
