@@ -304,7 +304,6 @@ class xDSLOptMain:
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
             print_riscv_module(prog, output)
-            print("\n", file=output)
 
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
