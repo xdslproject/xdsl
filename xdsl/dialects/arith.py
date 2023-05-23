@@ -154,9 +154,7 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
     result: Annotated[OpResult, _T]
 
     @classmethod
-    def get(
-        cls, operand1: Operation | SSAValue, operand2: Operation | SSAValue
-    ):
+    def get(cls, operand1: Operation | SSAValue, operand2: Operation | SSAValue):
         operand1 = SSAValue.get(operand1)
         return cls.build(operands=[operand1, operand2], result_types=[operand1.typ])
 
