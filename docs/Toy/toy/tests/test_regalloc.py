@@ -4,7 +4,10 @@ from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.riscv_asm_writer import riscv_code
 
-from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation, RegisterAllocationType
+from xdsl.transforms.riscv_register_allocation import (
+    RISCVRegisterAllocation,
+    RegisterAllocationType,
+)
 
 from ..compiler import (
     compile,
@@ -39,6 +42,7 @@ def main() {
 }
 """
 
+
 def test_compile_infinite_registers():
     code = compile(toy_program, RegisterAllocationType.BlockNaiveSSA)
     print(code)
@@ -50,12 +54,13 @@ def test_compile_infinite_registers():
 
 # Handwritten riscv dialect code to test register allocation
 
+
 @ModuleOp
 @Builder.implicit_region
-def risc_1():
+def simple_branching_riscv():
     """
     The following riscv dialect IR is generated from the following C code:
-    
+
 
     int main() {
         int a = 5;
@@ -78,39 +83,39 @@ def risc_1():
     def text_region():
         riscv.LabelOp("main")
         sp = riscv.GetRegisterOp(riscv.Registers.SP).res
-        a = riscv.AddiOp(sp, -32, rd=riscv.Registers.SP).rd
+        riscv.AddiOp(sp, -32, rd=riscv.Registers.SP).rd
         ra = riscv.GetRegisterOp(riscv.Registers.RA).res
-        riscv.SwOp(ra, a, 28)
-        b = riscv.GetRegisterOp(riscv.Registers.S0).res
-        riscv.SwOp(b, a, 24)
-        b = riscv.AddiOp(sp, 32, rd=riscv.Registers.S0).rd
-        c = riscv.LiOp(5).rd
-        riscv.SwOp(c, b, -12)
-        d = riscv.LuiOp(19).rd
-        z = riscv.AddiOp(d, -47).rd
-        riscv.SwOp(z, b, -16)
-        y = riscv.LiOp(6).rd
-        riscv.SwOp(y, b, -20)
-        x = riscv.LwOp(b, -12).rd
-        a1 = riscv.LwOp(b, -16).rd
-        riscv.BneOp(x, a1, riscv.LabelAttr("LBB0_2"))
+        riscv.SwOp(ra, sp, 28)
+        a = riscv.GetRegisterOp(riscv.Registers.S0).res
+        riscv.SwOp(a, sp, 24)
+        a = riscv.AddiOp(sp, 32).rd
+        b = riscv.LiOp(5).rd
+        riscv.SwOp(b, a, -12)
+        c = riscv.LuiOp(19).rd
+        d = riscv.AddiOp(c, -47).rd
+        riscv.SwOp(d, a, -16)
+        e = riscv.LiOp(6).rd
+        riscv.SwOp(e, a, -20)
+        f = riscv.LwOp(a, -12).rd
+        g = riscv.LwOp(a, -16).rd
+        riscv.BneOp(f, g, riscv.LabelAttr("LBB0_2"))
         riscv.JOp(riscv.LabelAttr("LBB0_1"))
         riscv.LabelOp("LBB0_1")
-        x = riscv.LwOp(b, -12).rd
-        x = riscv.MulOp(x, x).rd
-        riscv.SwOp(x, b, -20)
+        f = riscv.LwOp(a, -12).rd
+        f = riscv.MulOp(f, f).rd
+        riscv.SwOp(f, a, -20)
         riscv.JOp(riscv.LabelAttr("LBB0_3"))
         riscv.LabelOp("LBB0_2")
-        x = riscv.LwOp(b, -16).rd
-        x = riscv.AddOp(x, x).rd
-        riscv.SwOp(x, b, -20)
+        f = riscv.LwOp(a, -16).rd
+        f = riscv.AddOp(f, f).rd
+        riscv.SwOp(f, a, -20)
         riscv.JOp(riscv.LabelAttr("LBB0_3"))
         riscv.LabelOp("LBB0_3")
-        x = riscv.LwOp(b, -20).rd
-        ra = riscv.LwOp(sp, 28, rd=riscv.Registers.RA).rd
-        b = riscv.LwOp(sp, 24, rd=riscv.Registers.S0).rd
-        sp = riscv.AddiOp(sp, 32, rd=riscv.Registers.SP).rd
-        riscv.MVOp(x, rd=riscv.Registers.A0)
+        f = riscv.LwOp(a, -20).rd
+        riscv.LwOp(sp, 28, rd=riscv.Registers.RA).rd
+        riscv.LwOp(sp, 24, rd=riscv.Registers.S0).rd
+        riscv.AddiOp(sp, 32, rd=riscv.Registers.SP).rd
+        riscv.MVOp(f, rd=riscv.Registers.A0)
         zero = riscv.GetRegisterOp(riscv.Registers.ZERO).res
         riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
         riscv.CustomEmulatorInstructionOp("scall", (), ())
@@ -118,9 +123,9 @@ def risc_1():
     riscv.DirectiveOp(".text", None, text_region)
 
 
-def test_riscv1():
-    RISCVRegisterAllocation(RegisterAllocationType.BlockNaiveSSA).apply(ctx, risc_1)
-    code = riscv_code(risc_1)
+def test_allocate_simple_branching():
+    RISCVRegisterAllocation(RegisterAllocationType.BlockNaiveSSA).apply(
+        ctx, simple_branching_riscv
+    )
+    code = riscv_code(simple_branching_riscv)
     assert run_riscv(code, unlimited_regs=True, verbosity=1) == 155554
-
-
