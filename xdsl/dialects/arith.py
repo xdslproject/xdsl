@@ -163,6 +163,15 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
             result_type = SSAValue.get(operand1).typ
         super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
+    @classmethod
+    def parse(cls, parser: Parser):
+        lhs = parser.parse_operand()
+        parser.parse_punctuation(",")
+        rhs = parser.parse_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        return cls(lhs, rhs, result_type)
+
     # TODO replace with trait
     def verify_(self) -> None:
         if not (self.operands[0].typ == self.operands[1].typ == self.results[0].typ):
