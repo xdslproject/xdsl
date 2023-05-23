@@ -60,6 +60,7 @@ class Test_integer_arith_construction:
     @pytest.mark.parametrize(
         "OpClass",
         [
+            Addi,
             Subi,
             DivUI,
             DivSI,
@@ -79,18 +80,6 @@ class Test_integer_arith_construction:
             ShRUI,
             ShRSI,
         ],
-    )
-    def test_arith_ops_get(self, OpClass: type[BinaryOperation[_BinOpT]]):
-        op = OpClass(self.a, self.b)
-
-        assert isinstance(op, OpClass)
-        assert op.lhs.op is self.a
-        assert op.rhs.op is self.b
-        assert op.result.typ == self.operand_typ
-
-    @pytest.mark.parametrize(
-        "OpClass",
-        [Addi],
     )
     @pytest.mark.parametrize("return_typ", [None, operand_typ])
     def test_arith_ops_init(self, OpClass: type[_BinOpT], return_typ: Attribute):
