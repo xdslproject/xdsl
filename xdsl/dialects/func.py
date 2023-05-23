@@ -21,10 +21,9 @@ from xdsl.irdl import (
     OptOpAttr,
     IRDLOperation,
 )
-from xdsl.parser import Parser, ParserCommons
-from xdsl.printer import Printer
+from xdsl.parser import Parser
 from xdsl.traits import HasParent
-from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Span
 
