@@ -140,7 +140,10 @@ class Constant(IRDLOperation):
             val = FloatAttr(val, typ)
         return Constant.create(result_types=[typ], attributes={"value": val})
 
+
 _T = TypeVar("_T")
+
+
 class BinaryOperation(IRDLOperation, Generic[_T]):
     """A generic operation. Operation definitions inherit this class."""
 
@@ -152,8 +155,7 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
 
     @classmethod
     def get(
-        cls,
-        operand1: Union[Operation, SSAValue], operand2: Union[Operation, SSAValue]
+        cls, operand1: Union[Operation, SSAValue], operand2: Union[Operation, SSAValue]
     ):
         operand1 = SSAValue.get(operand1)
         return cls.build(operands=[operand1, operand2], result_types=[operand1.typ])
@@ -165,6 +167,7 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
 
     def __hash__(self) -> int:
         return id(self)
+
 
 SignlessIntegerBinaryOp = BinaryOperation[Annotated[Attribute, signlessIntegerLike]]
 FloatingPointLikeBinaryOp = BinaryOperation[Annotated[Attribute, floatingPointLike]]
@@ -287,6 +290,7 @@ class ShLI(IntegerBinaryOp):
     The `shli` operation shifts an integer value to the left by a variable
     amount. The low order bits are filled with zeros.
     """
+
     name = "arith.shli"
 
 
