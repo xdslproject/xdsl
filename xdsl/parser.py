@@ -1079,22 +1079,6 @@ class Parser(ABC):
         else:
             return self.try_parse_builtin_type()
 
-    def try_parse_dialect_type_or_attribute(self) -> Attribute | None:
-        """
-        Parse a type or an attribute.
-        """
-        kind = self.tokenizer.next_token_of_pattern(re.compile("[!#]"), peek=True)
-
-        if kind is None:
-            return None
-
-        with self.backtracking("dialect attribute or type"):
-            self.tokenizer.consume_peeked(kind)
-            if kind.text == "!":
-                return self._parse_dialect_type_or_attribute_inner("type")
-            else:
-                return self._parse_dialect_type_or_attribute_inner("attribute")
-
     def try_parse_dialect_type(self):
         """
         Parse a dialect type (something prefixed by `!`, defined by a dialect)
@@ -1399,16 +1383,6 @@ class Parser(ABC):
             "Cannot decide if the given attribute " "is a layout or a memory space!"
         )
 
-    def try_parse_numerical_dims(
-        self, accept_closing_bracket: bool = False, lower_bound: int = 1
-    ) -> Iterable[int]:
-        while (shape_arg := self._try_parse_shape_element(lower_bound)) is not None:
-            yield shape_arg
-            # Look out for the closing bracket for scalable vector dims
-            if accept_closing_bracket and self.tokenizer.starts_with("]"):
-                break
-            self.parse_characters("x", "Unexpected end of dimension parameters!")
-
     def parse_vector_attrs(self) -> AnyVectorType:
         self._synchronize_lexer_and_tokenizer()
 
@@ -1456,31 +1430,6 @@ class Parser(ABC):
             return TensorType.from_type_and_list(type, shape, encoding)
 
         return TensorType.from_type_and_list(type, shape)
-
-    def _try_parse_shape_element(self, lower_bound: int = 1) -> int | None:
-        """
-        Parse a shape element, either a decimal integer immediate or a `?`,
-        which evaluates to -1 immediate cannot be smaller than lower_bound
-        (defaults to 1, is 0 for tensors and memrefs)
-        """
-        int_lit = self.try_parse_decimal_literal()
-
-        if int_lit is not None:
-            value = int(int_lit.text)
-            if value < lower_bound:
-                # TODO: this is ugly, it's a raise inside a try_ type function, which
-                # should instead just give up
-                raise ParseError(
-                    int_lit, "Shape element literal cannot be negative or zero!"
-                )
-            return value
-
-        if self.tokenizer.next_token_of_pattern("?") is not None:
-            return -1
-        return None
-
-    def _parse_type_params(self) -> list[Attribute]:
-        return self.parse_comma_separated_list(self.Delimiter.ANGLE, self.parse_type)
 
     def expect(self, try_parse: Callable[[], T_ | None], error_message: str) -> T_:
         """
@@ -1788,11 +1737,6 @@ class Parser(ABC):
         if region is None:
             self.raise_error("Expected region!")
         return region
-
-    def _try_parse_op_name(self) -> Span | None:
-        if (str_lit := self.try_parse_string_literal()) is not None:
-            return str_lit
-        return self.try_parse_bare_id()
 
     def _parse_attribute_entry(self) -> tuple[Span, Attribute]:
         """
@@ -2248,32 +2192,6 @@ class Parser(ABC):
         else:
             element = self._parse_tensor_literal_element()
             return [element], []
-
-    def _parse_builtin_dense_attr_args(self) -> Iterable[int | float]:
-        """
-        Dense attribute params must be:
-
-        dense-attr-params           := float-literal | int-literal | list-of-dense-attrs-params
-        list-of-dense-attrs-params  := `[` dense-attr-params (`,` dense-attr-params)* `]`
-        """
-
-        def try_parse_int_or_float():
-            if (literal := self.try_parse_float_literal()) is not None:
-                return float(literal.text)
-            if (literal := self.try_parse_integer_literal()) is not None:
-                return int(literal.text)
-            self.raise_error("Expected int or float literal here!")
-
-        if not self.tokenizer.starts_with("["):
-            yield try_parse_int_or_float()
-            return
-
-        self.parse_characters("[", "")
-        while not self.tokenizer.starts_with("]"):
-            yield from self._parse_builtin_dense_attr_args()
-            if self.tokenizer.next_token_of_pattern(",") is None:
-                break
-        self.parse_characters("]", "")
 
     def parse_optional_symref_attr(self) -> SymbolRefAttr | None:
         """
