@@ -6,14 +6,13 @@ from xdsl.riscv_asm_writer import riscv_code
 
 from xdsl.transforms.riscv_register_allocation import (
     RISCVRegisterAllocation,
-    RegisterAllocationAlgorithm,
 )
 
 from ..emulator.emulator_iop import run_riscv
 
 ALLOCATION_STRATEGIES = [
-    RegisterAllocationAlgorithm.GlobalJRegs,
-    RegisterAllocationAlgorithm.BlockNaive,
+    "GlobalJRegs",
+    "BlockNaive",
 ]
 
 

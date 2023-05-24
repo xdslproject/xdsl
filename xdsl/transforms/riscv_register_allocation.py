@@ -1,4 +1,6 @@
 from enum import Enum
+from typing import Union
+from dataclasses import dataclass
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import Register, RegisterType, RISCVOp
 from xdsl.ir import MLContext
@@ -32,9 +34,11 @@ class RegisterAllocatorBlockNaive(RegisterAllocatorStrategy):
         let's just assume that we have all the registers available for our use except the one explicitly reserved by the default riscv ABI.
         """
 
-        self.available_registers = set(Register.ABI_INDEX_BY_NAME.keys())
-        reserved_registers = set(["zero", "sp", "gp", "tp", "fp", "s0"])
-        self.available_registers -= reserved_registers
+        self.available_registers = list(Register.ABI_INDEX_BY_NAME.keys())
+        reserved_registers = ["zero", "sp", "gp", "tp", "fp", "s0", "ra"]
+        self.available_registers = [
+            reg for reg in self.available_registers if reg not in reserved_registers
+        ]
 
     def allocate_registers(self, module: ModuleOp) -> None:
         """
@@ -55,12 +59,12 @@ class RegisterAllocatorBlockNaive(RegisterAllocatorStrategy):
                         assert isinstance(result.typ, RegisterType)
                         if result.typ.data.name is None:
                             # If we run out of real registers, allocate a j register
-                            if block_registers == set():
+                            if block_registers == list():
                                 result.typ = RegisterType(Register(f"j{self.idx}"))
                                 self.idx += 1
                             else:
                                 result.typ = RegisterType(
-                                    Register(block_registers.pop())
+                                    Register(block_registers.pop(0))
                                 )
 
 
@@ -95,6 +99,7 @@ class RegisterAllocationAlgorithm(Enum):
     BlockNaive = 1
 
 
+@dataclass
 class RISCVRegisterAllocation(ModulePass):
     """
     Allocates unallocated registers in the module.
@@ -102,14 +107,18 @@ class RISCVRegisterAllocation(ModulePass):
 
     name = "riscv-allocate-registers"
 
-    def __init__(
-        self,
-        allocation_type: RegisterAllocationAlgorithm = RegisterAllocationAlgorithm.GlobalJRegs,
-    ) -> None:
+    allocation_type: Union[str, None] = None
+
+    def __init__(self, allocation_type: Union[str, None] = None) -> None:
         self.allocation_type = allocation_type
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        match self.allocation_type:
+        allocator_strategy = RegisterAllocationAlgorithm.GlobalJRegs
+
+        if self.allocation_type is not None:
+            allocator_strategy = RegisterAllocationAlgorithm[self.allocation_type]
+
+        match allocator_strategy:
             case RegisterAllocationAlgorithm.GlobalJRegs:
                 allocator = RegisterAllocatorJRegs()
             case RegisterAllocationAlgorithm.BlockNaive:
