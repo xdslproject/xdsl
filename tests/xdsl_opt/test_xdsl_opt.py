@@ -18,12 +18,13 @@ def test_opt():
         "convert-stencil-to-ll-mlir",
         "convert-stencil-to-gpu",
         "stencil-shape-inference",
-        "stencil-to-local-2d-horizontal",
+        "dmp-decompose-2d",
         "frontend-desymrefy",
         "dce",
         "lower-snitch",
         "riscv-allocate-registers",
         "lower-riscv-func",
+        "dmp-to-mpi",
     ]
 
 
