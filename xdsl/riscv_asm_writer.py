@@ -91,6 +91,12 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
                 desc = f"{op.directive.data}"
             print(desc, file=output)
             return
+        case riscv.LabelOp():
+            desc = f"{op.label.data}:"
+            if op.comment is not None and op.comment.data:
+                desc += f"    # {op.comment.data}"
+            print(desc, file=output)
+            return
         case _:
             raise ValueError(f"Unknown RISCV operation type :{type(op)}")
 
