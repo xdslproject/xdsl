@@ -1075,26 +1075,11 @@ class Parser(ABC):
                             | [^[]<>(){}\0]+
         """
         self._synchronize_lexer_and_tokenizer()
-        if self.tokenizer.starts_with("!"):
-            return self.try_parse_dialect_type()
-        else:
-            return self.try_parse_builtin_type()
-
-    def parse_optional_attribute(self) -> Attribute | None:
-        """
-        Parse an xDSL attribute, if present.
-        An attribute is either a builtin attribute, which can have various format,
-        or a dialect attribute, with the following format:
-            dialect-attr  ::= `!` attr-name (`<` dialect-attr-contents+ `>`)?
-            attr-name     ::= bare-id
-            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
-                            | `(` dialect-attribute-contents+ `)`
-                            | `[` dialect-attribute-contents+ `]`
-                            | `{` dialect-attribute-contents+ `}`
-                            | [^[]<>(){}\0]+
-        """
-        with self.backtracking("attribute"):
-            return self.parse_attribute()
+        if (
+            token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
+        ) is not None:
+            return self._parse_dialect_type_or_attribute_inner(token.text[1:], True)
+        return self.try_parse_builtin_type()
 
     def parse_attribute(self) -> Attribute:
         """
@@ -1109,89 +1094,64 @@ class Parser(ABC):
                             | `{` dialect-attribute-contents+ `}`
                             | [^[]<>(){}\0]+
         """
-        # All dialect attrs must start with '#', so we check for that first
-        # (as it's easier)
-        if self.tokenizer.starts_with("#"):
-            value = self.try_parse_dialect_attr()
+        return self.expect(self.parse_optional_attribute, "attribute expected")
 
-            # No value => error
-            if value is None:
-                self.raise_error(
-                    "`#` must be followed by a valid dialect attribute or type!"
-                )
-
-            return value
-
-        # In MLIR, a type can be parsed at any attribute location.
-        # While MLIR wraps the type in a `TypeAttr`, we do not require this
-        # in xDSL.
-        if (type := self.parse_optional_type()) is not None:
-            return type
-
-        # If it isn't a dialect attr, parse builtin
-        builtin_val = self.try_parse_builtin_attr()
-
-        if builtin_val is None:
-            self.raise_error(
-                "Unknown attribute (neither builtin nor dialect could be parsed)!"
-            )
-
-        return builtin_val
-
-    def try_parse_dialect_type(self):
+    def parse_optional_attribute(self) -> Attribute | None:
         """
-        Parse a dialect type (something prefixed by `!`, defined by a dialect)
+        Parse an xDSL attribute, if present.
+        An attribute is either a builtin attribute, which can have various format,
+        or a dialect attribute, with the following format:
+            dialect-attr  ::= `!` attr-name (`<` dialect-attr-contents+ `>`)?
+            attr-name     ::= bare-id
+            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
+                            | `(` dialect-attribute-contents+ `)`
+                            | `[` dialect-attribute-contents+ `]`
+                            | `{` dialect-attribute-contents+ `}`
+                            | [^[]<>(){}\0]+
         """
-        if not self.tokenizer.starts_with("!"):
-            return None
-        with self.backtracking("dialect type"):
-            self.parse_characters("!", "Dialect type must start with a `!`")
-            return self._parse_dialect_type_or_attribute_inner("type")
-
-    def try_parse_dialect_attr(self):
-        """
-        Parse a dialect attribute (something prefixed by `#`, defined by a dialect)
-        """
-        if not self.tokenizer.starts_with("#"):
-            return None
-        with self.backtracking("dialect attribute"):
-            self.parse_characters("#", "Dialect attribute must start with a `#`")
-            return self._parse_dialect_type_or_attribute_inner("attribute")
+        self._synchronize_lexer_and_tokenizer()
+        if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
+            return self._parse_dialect_type_or_attribute_inner(token.text[1:], False)
+        return self.try_parse_builtin_attr()
 
     def _parse_dialect_type_or_attribute_inner(
-        self, kind: Literal["attribute"] | Literal["type"]
+        self, attr_name: str, is_type: bool = True
     ) -> Attribute:
-        is_type = kind == "type"
-        type_name = self.tokenizer.next_token_of_pattern(ParserCommons.bare_id)
-
-        if type_name is None:
-            self.raise_error("Expected dialect {} name here!".format(kind))
-
-        type_def = self.ctx.get_optional_attr(
-            type_name.text,
+        """
+        Parse the contents of a dialect type or attribute, with format:
+            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
+                                    | `(` dialect-attribute-contents+ `)`
+                                    | `[` dialect-attribute-contents+ `]`
+                                    | `{` dialect-attribute-contents+ `}`
+                                    | [^[]<>(){}\0]+
+        The contents will be parsed by a user-defined parser, or by a generic parser
+        if the dialect attribute/type is not registered.
+        """
+        attr_def = self.ctx.get_optional_attr(
+            attr_name,
             self.allow_unregistered_dialect,
             create_unregistered_as_type=is_type,
         )
-        if type_def is None:
-            self.raise_error(
-                "'{}' is not a known attribute!".format(type_name.text), type_name
-            )
+        if attr_def is None:
+            self.raise_error(f"'{attr_name}' is not registered")
 
         # Pass the task of parsing parameters on to the attribute/type definition
-        if issubclass(type_def, UnregisteredAttr):
+        if issubclass(attr_def, UnregisteredAttr):
             body = self._parse_unregistered_attr_body()
             self._synchronize_lexer_and_tokenizer()
-            return type_def(type_name.text, is_type, body)
-        if issubclass(type_def, ParametrizedAttribute):
-            param_list = type_def.parse_parameters(self)
-            return type_def.new(param_list)
-        if issubclass(type_def, Data):
-            self.parse_characters("<", "This attribute must be parametrized!")
-            param: Any = type_def.parse_parameter(self)
-            self.parse_characters(
-                ">", "Invalid attribute parametrization, expected `>`!"
-            )
-            return cast(Data[Any], type_def(param))
+            return attr_def(attr_name, is_type, body)
+        if issubclass(attr_def, ParametrizedAttribute):
+            self._synchronize_lexer_and_tokenizer()
+            param_list = attr_def.parse_parameters(self)
+            self._synchronize_lexer_and_tokenizer()
+            return attr_def.new(param_list)
+        if issubclass(attr_def, Data):
+            self.parse_punctuation("<")
+            self._synchronize_lexer_and_tokenizer()
+            param: Any = attr_def.parse_parameter(self)
+            self.parse_punctuation(">")
+            self._synchronize_lexer_and_tokenizer()
+            return cast(Data[Any], attr_def(param))
         assert False, "Attributes are either ParametrizedAttribute or Data."
 
     def _parse_unregistered_attr_body(self) -> str:
@@ -1199,7 +1159,6 @@ class Parser(ABC):
         Parse the body of an unregistered attribute, which is a balanced
         string for `<`, `(`, `[`, `{`, and may contain string literals.
         """
-        self._synchronize_lexer_and_tokenizer()
         start_token = self._parse_optional_token(Token.Kind.LESS)
         if start_token is None:
             return ""
@@ -1255,7 +1214,6 @@ class Parser(ABC):
 
         body = self.lexer.input.slice(start_pos, end_pos)
         assert body is not None
-        self._synchronize_lexer_and_tokenizer()
         return body
 
     def _parse_builtin_parametrized_type(self, name: Span) -> ParametrizedAttribute:
@@ -1853,7 +1811,7 @@ class Parser(ABC):
 
         attrs = (
             self.parse_optional_builtin_int_or_float_attr,
-            self.try_parse_builtin_type,
+            self.parse_optional_type,
         )
 
         for attr_parser in attrs:
