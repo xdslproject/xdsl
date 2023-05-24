@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from enum import Enum
-from typing import Annotated, Generic, TypeVar, Union, Set, Optional
+from typing import Annotated, Generic, TypeVar, Set, Optional
 
 from xdsl.dialects.builtin import (
     ContainerOf,
@@ -155,8 +155,8 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
 
     def __init__(
         self,
-        operand1: Union[Operation, SSAValue],
-        operand2: Union[Operation, SSAValue],
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
         result_type: Attribute | None = None,
     ):
         if result_type is None:
@@ -387,8 +387,8 @@ class Cmpi(IRDLOperation, ComparisonOperation):
 
     @staticmethod
     def get(
-        operand1: Union[Operation, SSAValue],
-        operand2: Union[Operation, SSAValue],
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
         arg: int | str,
     ) -> Cmpi:
         operand1 = SSAValue.get(operand1)
@@ -510,9 +510,9 @@ class Select(IRDLOperation):
 
     @staticmethod
     def get(
-        operand1: Union[Operation, SSAValue],
-        operand2: Union[Operation, SSAValue],
-        operand3: Union[Operation, SSAValue],
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        operand3: Operation | SSAValue,
     ) -> Select:
         operand2 = SSAValue.get(operand2)
         return Select.build(
@@ -549,7 +549,7 @@ class Negf(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> Negf:
         operand = SSAValue.get(operand)
         return Negf.build(
