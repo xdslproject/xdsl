@@ -96,22 +96,25 @@ def test_comment_op():
     assert code == "    # my comment\n"
 
 
-def test_label_op():
-    # test label without comment
-    label_op0 = riscv.LabelOp("mylabel0")
+def test_label_op_without_comment():
+    label_str = "mylabel"
+    label_op = riscv.LabelOp(label_str)
 
-    assert label_op0.label.data == "mylabel0"
+    assert label_op.label.data == f"{label_str}"
 
-    code = riscv_code(ModuleOp([label_op0]))
-    assert code == "mylabel0:\n"
+    code = riscv_code(ModuleOp([label_op]))
+    assert code == f"{label_str}:\n"
 
-    # test label with comment
-    label_op1 = riscv.LabelOp("mylabel1", comment="my label too")
 
-    assert label_op1.label.data == "mylabel1"
+def test_label_op_with_comment():
+    label_str = "mylabel"
+    label_op = riscv.LabelOp(f"{label_str}", comment="my label")
 
-    code = riscv_code(ModuleOp([label_op1]))
-    assert code == "mylabel1:    # my label too\n"
+    assert label_op.label.data == "mylabel"
+    assert label_op.label.data == f"{label_str}"
+
+    code = riscv_code(ModuleOp([label_op]))
+    assert code == f"{label_str}:    # my label\n"
 
 
 def test_label_op_with_region():
@@ -121,13 +124,13 @@ def test_label_op_with_region():
         a2_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
         riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
 
-    # test label without comment
-    label_op0 = riscv.LabelOp("mylabel0", region=label_region)
+    label_str = "mylabel"
+    label_op = riscv.LabelOp(f"{label_str}", region=label_region)
 
-    assert label_op0.label.data == "mylabel0"
+    assert label_op.label.data == f"{label_str}"
 
-    code = riscv_code(ModuleOp([label_op0]))
-    assert code == "mylabel0:\n    add a0, a1, a2\n"
+    code = riscv_code(ModuleOp([label_op]))
+    assert code == f"{label_str}:\n    add a0, a1, a2\n"
 
 
 def test_return_op():
