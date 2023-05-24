@@ -191,15 +191,12 @@ class LoadOpToMemref(RewritePattern):
 
         assert op.lb and op.ub
 
-        element_type = cast.result.typ.element_type
-        shape = [i.value.data for i in cast.result.typ.shape.data]
-
         offsets = [i.data for i in (op.lb - cast.lb).array.data]
         sizes = [i.data for i in (op.ub - op.lb).array.data]
         strides = [1] * len(sizes)
 
         subview = memref.Subview.from_static_parameters(
-            cast.result, element_type, shape, offsets, sizes, strides
+            cast.result, GetMemRefFromField(cast.result.typ), offsets, sizes, strides
         )
 
         rewriter.replace_matched_op(subview)
@@ -318,13 +315,11 @@ class StencilTypeConversionFuncOp(RewritePattern):
             assert isinstance(cast, CastOp)
             assert isa(cast.result.typ, FieldType[Attribute])
             new_cast = cast.clone()
-            source_shape = [i.value.data for i in cast.result.typ.shape.data]
             offsets = [i.data for i in (store.lb - cast.lb).array.data]
             sizes = [i.data for i in (store.ub - store.lb).array.data]
             subview = memref.Subview.from_static_parameters(
                 new_cast.result,
-                cast.result.typ.element_type,
-                source_shape,
+                GetMemRefFromField(cast.result.typ),
                 offsets,
                 sizes,
                 [1] * len(sizes),

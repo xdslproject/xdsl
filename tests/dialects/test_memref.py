@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.utils.exceptions import VerifyException
-from xdsl.ir import OpResult, Block
+from xdsl.ir import Attribute, Block, OpResult
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
     StridedLayoutAttr,
@@ -193,9 +193,9 @@ def test_memref_matmul_verify():
                             # inner loop, loop_var = k
                             elem_a_i_k := memref.Load.get(a, [i, k]),
                             elem_b_k_j := memref.Load.get(b, [k, j]),
-                            mul := arith.Mulf.get(elem_a_i_k, elem_b_k_j),
+                            mul := arith.Mulf(elem_a_i_k, elem_b_k_j),
                             out_i_j := memref.Load.get(out, [i, j]),
-                            new_out_val := arith.Addf.get(out_i_j, mul),
+                            new_out_val := arith.Addf(out_i_j, mul),
                             memref.Store.get(new_out_val, out, [i, j]),
                             scf.Yield.get()
                         ])),
@@ -261,12 +261,11 @@ def test_memref_subview():
 
 
 def test_memref_subview_constant_parameters():
-    element_type = i32
-    shape: list[int] = [10, 10, 10]
-    alloc = Alloc.get(element_type, 8, list(shape))
+    alloc = Alloc.get(i32, 8, [10, 10, 10])
+    assert isa(alloc.memref.typ, MemRefType[Attribute])
 
     subview = Subview.from_static_parameters(
-        alloc, element_type, shape, [2, 2, 2], [2, 2, 2], [3, 3, 3]
+        alloc, alloc.memref.typ, [2, 2, 2], [2, 2, 2], [3, 3, 3]
     )
 
     assert isinstance(subview, Subview)

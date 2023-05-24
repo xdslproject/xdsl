@@ -40,7 +40,11 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
-from xdsl.utils.hints import PropertyType
+from xdsl.utils.hints import (
+    PropertyType,
+    get_type_var_from_generic_class,
+    get_type_var_mapping,
+)
 
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
 
@@ -290,16 +294,7 @@ def irdl_to_attr_constraint(
             )
             for arg in get_args(irdl)
         ]
-        generic_args = ()
-
-        # Get the Generic parent class to get the TypeVar parameters
-        bases = cast(Sequence[Any], origin.__orig_bases__)  # type: ignore
-        for parent in bases:
-            if get_origin(parent) == Generic:
-                generic_args = get_args(parent)
-                break
-        else:
-            raise Exception(f"Cannot parametrized non-generic {origin.name} attribute.")
+        generic_args = get_type_var_from_generic_class(origin)
 
         # Check that we have the right number of parameters
         if len(args) != len(generic_args):
@@ -670,6 +665,11 @@ class OpDef:
         # Get all fields of the class, including the parent classes
         clsdict: dict[str, Any] = dict()
         for parent_cls in pyrdl_def.mro()[::-1]:
+            # Do not collect fields from Generic, as Generic will not contain
+            # IRDL definitions, and contains ClassVar fields that are not
+            # allowed in IRDL definitions.
+            if parent_cls == Generic:
+                continue
             clsdict = {**clsdict, **parent_cls.__dict__}
 
         type_hints = get_type_hints(pyrdl_def, include_extras=True)
@@ -693,10 +693,19 @@ class OpDef:
         # Check that all fields of the operation definition are either already
         # in Operation, or are class functions or methods.
         for field_name, value in clsdict.items():
+            # Fields that are already in Operation (i.e. operands, results, ...)
             if field_name in opdict:
                 continue
+            # IRDLOperation ClassVar fields are allowed
             if field_name in ["irdl_options", "traits", "name"]:
                 continue
+            # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
+            # They are used by Python to store information about the class, so they
+            # should not be considered as part of the operation definition.
+            # Also, they can provide a possiblea escape hatch.
+            if field_name[:2] == "__" and field_name[-2:] == "__":
+                continue
+            # Methods, properties, and functions are allowed
             if isinstance(
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
             ):
@@ -709,6 +718,16 @@ class OpDef:
                 "define the operation name. The operation name is defined by "
                 "adding a 'name' field."
             )
+
+        type_var_mapping: dict[TypeVar, AttrConstraint] | None = None
+
+        # If the operation inherit from `Generic`, this means that it specializes a
+        # generic operation. Retrieve the mapping from `TypeVar` to pyrdl constraints.
+        if issubclass(pyrdl_def, Generic):
+            type_var_mapping = {
+                k: irdl_to_attr_constraint(v)
+                for k, v in get_type_var_mapping(pyrdl_def)[1].items()
+            }
 
         op_def = OpDef(clsdict["name"])
         for field_name, field_type in type_hints.items():
@@ -732,7 +751,11 @@ class OpDef:
             # Get attribute constraints from a list of pyrdl constraints
             def get_constraint(pyrdl_constrs: tuple[Any, ...]) -> AttrConstraint:
                 constraints = [
-                    irdl_to_attr_constraint(pyrdl_constr)
+                    irdl_to_attr_constraint(
+                        pyrdl_constr,
+                        allow_type_var=True,
+                        type_var_mapping=type_var_mapping,
+                    )
                     for pyrdl_constr in pyrdl_constrs
                     if not isinstance(pyrdl_constr, IRDLAnnotations)
                 ]
