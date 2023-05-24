@@ -77,20 +77,11 @@ class FuncOp(IRDLOperation):
         if isa(args, list[parser.Argument]):
             entry_args = args
             input_types = [a.type for a in args]
+            assert isa(input_types, list[Attribute])
         elif isa(args, list[Attribute]):
             entry_args = None
             input_types = args
         else:
-            parser.raise_error(
-                "Expected all arguments to be named or all arguments to be unnamed."
-            )
-
-        # This is for the args is list[parser.Argument] case
-        # Then input_types = [a.type for a in args]
-        # and Argument.type is Attribute | None
-        # But here we use parse_optional_argument(True), so those should never be None
-        # -> Should we have a different method for typing reasons?
-        if not isa(input_types, list[Attribute]):
             parser.raise_error(
                 "Expected all arguments to be named or all arguments to be unnamed."
             )
