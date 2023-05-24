@@ -245,7 +245,7 @@ def test_union_constraint_fail():
 
 
 class PositiveIntConstr(AttrConstraint):
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(
                 f"Expected {IntData.name} attribute, but got {attr.name}."
@@ -462,10 +462,10 @@ class DataListAttr(AttrConstraint):
 
     elem_constr: AttrConstraint
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         attr = cast(ListData[Any], attr)
         for e in attr.data:
-            self.elem_constr.verify(e)
+            self.elem_constr.verify(e, constraint_vars)
 
 
 @irdl_attr_definition
