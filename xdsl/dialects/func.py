@@ -68,7 +68,9 @@ class FuncOp(IRDLOperation):
         # Parse function arguments
         args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN,
-            lambda: parser.parse_optional_argument() or parser.parse_type(),
+            lambda: parser.parse_optional_argument()
+            or parser.try_parse_type()
+            or parser.raise_error("Expected argument or type"),
         )
 
         # Check consistency (They should be either all named or none)
