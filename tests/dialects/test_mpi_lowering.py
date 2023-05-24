@@ -399,6 +399,34 @@ def test_lower_mpi_vec_get():
     assert len(ops) > 0
 
 
+def test_lower_mpi_gather():
+    ptr, count, dtype, root = CreateTestValsOp.get(
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32
+    ).results
+
+    ops, result = lower_mpi.LowerMpiGatherOp(info).lower(
+        mpi.GatherOp(ptr, count, dtype, ptr, count, dtype, root)
+    )
+
+    # bcast has no results
+    assert len(result) == 0
+
+    check_emitted_function_signature(
+        ops,
+        "MPI_Gather",
+        (
+            llvm.LLVMPointerType,
+            type(i32),
+            None,
+            llvm.LLVMPointerType,
+            type(i32),
+            None,
+            type(i32),
+            None,
+        ),
+    )
+
+
 def test_mpi_type_conversion():
     """
     Test that each builtin datatype is correctly mapped to an MPI datatype
