@@ -297,6 +297,8 @@ def _irdl_list_to_attr_constraint(
                 type_var_mapping=type_var_mapping,
             )
         )
+    if len(constraints) == 0:
+        return AnyAttr()
     if len(constraints) > 1:
         return AllOf(constraints)
     return constraints[0]
@@ -789,6 +791,7 @@ class OpDef:
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
             ):
                 continue
+            # Constraint variables are allowed
             if get_origin(value) is Annotated:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
                     continue
@@ -832,20 +835,11 @@ class OpDef:
 
             # Get attribute constraints from a list of pyrdl constraints
             def get_constraint(pyrdl_constrs: tuple[Any, ...]) -> AttrConstraint:
-                constraints = [
-                    irdl_to_attr_constraint(
-                        pyrdl_constr,
-                        allow_type_var=True,
-                        type_var_mapping=type_var_mapping,
-                    )
-                    for pyrdl_constr in pyrdl_constrs
-                    if not isinstance(pyrdl_constr, IRDLAnnotations)
-                ]
-                if len(constraints) == 0:
-                    return AnyAttr()
-                if len(constraints) == 1:
-                    return constraints[0]
-                return AllOf(constraints)
+                return _irdl_list_to_attr_constraint(
+                    pyrdl_constrs,
+                    allow_type_var=True,
+                    type_var_mapping=type_var_mapping,
+                )
 
             # Get the operand, result, attribute, or region definition, from
             # the pyrdl description.
@@ -1735,6 +1729,10 @@ class ParamAttrDef:
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
             ):
                 continue
+            # Constraint variables are allowed
+            if get_origin(value) is Annotated:
+                if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
+                    continue
             raise PyRDLAttrDefinitionError(
                 f"{field_name} is not a parameter definition."
             )

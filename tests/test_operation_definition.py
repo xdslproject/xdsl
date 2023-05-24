@@ -3,7 +3,7 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from xdsl.dialects.builtin import IntAttr, StringAttr, i32
+from xdsl.dialects.builtin import IndexType, IntAttr, IntegerType, StringAttr, i32
 from xdsl.dialects.test import TestType
 
 from xdsl.utils.test_value import TestSSAValue
@@ -12,6 +12,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    ConstraintVar,
     Operand,
     OptOpAttr,
     OptOpResult,
@@ -113,6 +114,76 @@ def test_attr_verify():
     assert e.value.args[0] == "#int<1> should be of base attribute string"
 
 
+@irdl_op_definition
+class ConstraintVarOp(IRDLOperation):
+    name = "test.constraint_var_op"
+
+    T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
+
+    operand: Annotated[Operand, T]
+    result: Annotated[OpResult, T]
+    attribute: OpAttr[T]
+
+
+def test_constraint_var():
+    i32_operand = TestSSAValue(i32)
+    index_operand = TestSSAValue(IndexType())
+    op = ConstraintVarOp.create(
+        operands=[i32_operand], result_types=[i32], attributes={"attribute": i32}
+    )
+    op.verify()
+
+    op2 = ConstraintVarOp.create(
+        operands=[index_operand],
+        result_types=[IndexType()],
+        attributes={"attribute": IndexType()},
+    )
+    op2.verify()
+
+
+def test_constraint_var_fail_non_equal():
+    """Check that all uses of a constraint variable are of the same attribute."""
+    i32_operand = TestSSAValue(i32)
+    index_operand = TestSSAValue(IndexType())
+
+    # Fail because of operand
+    op = ConstraintVarOp.create(
+        operands=[index_operand], result_types=[i32], attributes={"attribute": i32}
+    )
+    with pytest.raises(DiagnosticException):
+        op.verify()
+
+    # Fail because of result
+    op2 = ConstraintVarOp.create(
+        operands=[i32_operand],
+        result_types=[IndexType()],
+        attributes={"attribute": i32},
+    )
+    with pytest.raises(DiagnosticException):
+        op2.verify()
+
+    # Fail because of attribute
+    op3 = ConstraintVarOp.create(
+        operands=[i32_operand],
+        result_types=[i32],
+        attributes={"attribute": IndexType()},
+    )
+    with pytest.raises(DiagnosticException):
+        op3.verify()
+
+
+def test_constraint_var_fail_not_satisfy_constraint():
+    """Check that all uses of a constraint variable are satisfying the constraint."""
+    test_operand = TestSSAValue(TestType("foo"))
+    op = ConstraintVarOp.create(
+        operands=[test_operand],
+        result_types=[TestType("foo")],
+        attributes={"attribute": TestType("foo")},
+    )
+    with pytest.raises(DiagnosticException):
+        op.verify()
+
+
 ################################################################################
 #                                Accessors                                     #
 ################################################################################
@@ -152,7 +223,7 @@ def test_region_accessors():
 
 @irdl_op_definition
 class OperandOp(IRDLOperation):
-    name = "test.operand_op"
+    name = "test.o  perand_op"
 
     irdl_options = [AttrSizedOperandSegments()]
 

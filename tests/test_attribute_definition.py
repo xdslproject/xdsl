@@ -8,10 +8,12 @@ from io import StringIO
 from typing import Any, TypeVar, cast, Annotated, Generic, TypeAlias
 
 import pytest
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AttrConstraint,
+    ConstraintVar,
     GenericData,
     ParameterDef,
     irdl_attr_definition,
@@ -674,3 +676,40 @@ def test_custom_constructor():
 
     assert OveriddenInitAttr.new([IntData(42)]) == OveriddenInitAttr(42)
     assert OveriddenInitAttr.new([StringData("17")]) == OveriddenInitAttr("17")
+
+
+################################################################################
+# ConstraintVar
+################################################################################
+
+
+@irdl_attr_definition
+class ConstraintVarAttr(ParametrizedAttribute):
+    name = "test.constraint_var"
+
+    T = Annotated[IntegerType, ConstraintVar("T")]
+
+    param1: ParameterDef[IntegerAttr[T]]
+    param2: ParameterDef[IntegerAttr[T]]
+
+
+def test_constraint_var():
+    """Test that ConstraintVar can be used in attributes."""
+    ConstraintVarAttr.new([IntegerAttr(42, 32), IntegerAttr(17, 32)])
+    ConstraintVarAttr.new([IntegerAttr(42, 64), IntegerAttr(17, 64)])
+
+
+def test_constraint_var_fail_non_equal():
+    """Test that constraint variables must be equal."""
+    with pytest.raises(VerifyException):
+        ConstraintVarAttr.new([IntegerAttr(42, 32), IntegerAttr(42, 64)])
+    with pytest.raises(VerifyException):
+        ConstraintVarAttr.new([IntegerAttr(42, 64), IntegerAttr(42, 32)])
+
+
+def test_constraint_var_fail_not_satisfy_constraint():
+    """Test that constraint variables must satisfy the underlying constraint."""
+    with pytest.raises(VerifyException):
+        ConstraintVarAttr.new(
+            [IntegerAttr(42, IndexType()), IntegerAttr(17, IndexType())]
+        )
