@@ -109,9 +109,6 @@ class RISCVRegisterAllocation(ModulePass):
 
     allocation_type: Union[str, None] = None
 
-    def __init__(self, allocation_type: Union[str, None] = None) -> None:
-        self.allocation_type = allocation_type
-
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         allocator_strategy = RegisterAllocationAlgorithm.GlobalJRegs
 
