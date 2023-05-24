@@ -89,6 +89,24 @@ def test_comment_op():
     assert code == "    # my comment\n"
 
 
+def test_label_op():
+    # test label without comment
+    label_op0 = riscv.LabelOp("mylabel0")
+
+    assert label_op0.label.data == "mylabel0"
+
+    code = riscv_code(ModuleOp([label_op0]))
+    assert code == "mylabel0:\n"
+
+    # test label with comment
+    label_op1 = riscv.LabelOp("mylabel1", comment="my label too")
+
+    assert label_op1.label.data == "mylabel1"
+
+    code = riscv_code(ModuleOp([label_op1]))
+    assert code == "mylabel1:    # my label too\n"
+
+
 def test_return_op():
     return_op = riscv.EbreakOp(comment="my comment")
 
