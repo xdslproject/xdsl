@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult, Data
 from xdsl.irdl import (
     AnyOf,
+    ConstraintVar,
     irdl_op_definition,
     OpAttr,
     AnyAttr,
@@ -149,9 +150,11 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
 
     They all have two operands and one result of a same type."""
 
-    lhs: Annotated[Operand, _T]
-    rhs: Annotated[Operand, _T]
-    result: Annotated[OpResult, _T]
+    T = Annotated[Attribute, ConstraintVar("T"), _T]
+
+    lhs: Annotated[Operand, T]
+    rhs: Annotated[Operand, T]
+    result: Annotated[OpResult, T]
 
     def __init__(
         self,

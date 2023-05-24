@@ -104,7 +104,7 @@ class VarConstraint(AttrConstraint):
             if attr != constraint_vars[self.name]:
                 raise VerifyException(
                     f"attribute {constraint_vars[self.name]} expected from variable "
-                    f"'{self.name}' but got {attr}"
+                    f"'{self.name}', but got {attr}"
                 )
         else:
             self.constraint.verify(attr, constraint_vars)
@@ -783,6 +783,9 @@ class OpDef:
             # should not be considered as part of the operation definition.
             # Also, they can provide a possiblea escape hatch.
             if field_name[:2] == "__" and field_name[-2:] == "__":
+                continue
+            # Constraint variables
+            if True:
                 continue
             # Methods, properties, and functions are allowed
             if isinstance(
