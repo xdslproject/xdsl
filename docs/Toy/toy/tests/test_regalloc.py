@@ -16,11 +16,14 @@ ALLOCATION_STRATEGIES = [
     RegisterAllocationAlgorithm.BlockNaive,
 ]
 
+
 def context() -> MLContext:
     ctx = MLContext()
     return ctx
 
+
 # Handwritten riscv dialect code to test register allocation
+
 
 @ModuleOp
 @Builder.implicit_region
@@ -74,6 +77,7 @@ def simple_branching_riscv():
                 f = riscv.MulOp(f, f).rd
                 riscv.SwOp(f, a, -20)
                 riscv.JOp(riscv.LabelAttr("LBB0_3"))
+
             riscv.LabelOp("LBB0_1", true_branch)
 
             @Builder.implicit_region
@@ -82,6 +86,7 @@ def simple_branching_riscv():
                 f = riscv.AddOp(f, f).rd
                 riscv.SwOp(f, a, -20)
                 riscv.JOp(riscv.LabelAttr("LBB0_3"))
+
             riscv.LabelOp("LBB0_2", false_branch)
 
             @Builder.implicit_region
@@ -94,9 +99,11 @@ def simple_branching_riscv():
                 zero = riscv.GetRegisterOp(riscv.Registers.ZERO).res
                 riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
                 riscv.EcallOp()
+
             riscv.LabelOp("LBB0_3", merge_if)
 
         riscv.LabelOp("main", main_region)
+
     riscv.DirectiveOp(".text", None, text_region)
 
 
@@ -146,12 +153,17 @@ def simple_linear_riscv():
             riscv.MVOp(v16, rd=riscv.Registers.A0)
             riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
             riscv.EcallOp()
+
         riscv.LabelOp("main", main_region)
+
     riscv.DirectiveOp(".text", None, text_region)
+
 
 def test_allocate_simple_branching():
     for allocation_strategy in ALLOCATION_STRATEGIES:
-        RISCVRegisterAllocation(allocation_strategy).apply(context(), simple_branching_riscv)
+        RISCVRegisterAllocation(allocation_strategy).apply(
+            context(), simple_branching_riscv
+        )
         code = riscv_code(simple_branching_riscv)
         assert (
             run_riscv(code, unlimited_regs=True, setup_stack=True, verbosity=1)
@@ -161,6 +173,8 @@ def test_allocate_simple_branching():
 
 def test_allocate_simple_linear():
     for allocation_strategy in ALLOCATION_STRATEGIES:
-        RISCVRegisterAllocation(allocation_strategy).apply(context(), simple_linear_riscv)
+        RISCVRegisterAllocation(allocation_strategy).apply(
+            context(), simple_linear_riscv
+        )
         code = riscv_code(simple_linear_riscv)
         assert run_riscv(code, unlimited_regs=True, setup_stack=True, verbosity=1) == 12

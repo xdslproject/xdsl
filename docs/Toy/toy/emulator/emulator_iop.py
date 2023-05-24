@@ -8,6 +8,7 @@ from riscemu.instructions import InstructionSet
 
 from io import StringIO
 
+
 def run_riscv(
     code: str,
     extensions: list[type[InstructionSet]] = [],
