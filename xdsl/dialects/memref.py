@@ -16,6 +16,7 @@ from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     DenseIntOrFPElementsAttr,
+    IntAttr,
     IntegerAttr,
     DenseArrayBase,
     IndexType,
@@ -66,7 +67,7 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, TypeAttribu
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[Attribute]
+    layout: ParameterDef[StridedLayoutAttr | NoneAttr]
     memory_space: ParameterDef[Attribute]
 
     def get_num_dims(self) -> int:
@@ -413,29 +414,35 @@ class Subview(IRDLOperation):
     @staticmethod
     def from_static_parameters(
         source: SSAValue | Operation,
-        source_element_type: Attribute,
-        source_shape: Sequence[int],
+        source_type: MemRefType[Attribute],
         offsets: Sequence[int],
         sizes: Sequence[int],
         strides: Sequence[int],
     ) -> Subview:
         source = SSAValue.get(source)
 
-        layout_strides = [1]
+        source_shape = [e.value.data for e in source_type.shape.data]
+        source_offset = 0
+        source_strides = [1]
         for input_size in reversed(source_shape[1:]):
-            layout_strides.insert(0, layout_strides[0] * input_size)
+            source_strides.insert(0, source_strides[0] * input_size)
+        if isinstance(source_type.layout, StridedLayoutAttr):
+            if isinstance(source_type.layout.offset, IntAttr):
+                source_offset = source_type.layout.offset.data
+            if isa(source_type.layout.strides, ArrayAttr[IntAttr]):
+                source_strides = [s.data for s in source_type.layout.strides]
 
-        layout_offset = sum(
-            stride * offset for stride, offset in zip(layout_strides, offsets)
+        layout_strides = [a * b for (a, b) in zip(strides, source_strides)]
+
+        layout_offset = (
+            sum(stride * offset for stride, offset in zip(source_strides, offsets))
+            + source_offset
         )
-
-        for i in range(len(layout_strides)):
-            layout_strides[i] *= strides[i]
 
         layout = StridedLayoutAttr(layout_strides, layout_offset)
 
         return_typ = MemRefType.from_element_type_and_shape(
-            source_element_type,
+            source_type.element_type,
             sizes,
             layout,
         )

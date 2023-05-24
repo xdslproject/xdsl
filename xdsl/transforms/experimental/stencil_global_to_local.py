@@ -498,7 +498,7 @@ def generate_memcpy(
         """
         Generates last loop unrolled (not using scf.for)
         """
-        dest_idx = arith.Muli.get(i, x_len)
+        dest_idx = arith.Muli(i, x_len)
         y = arith.Addi(i, y0)
         yield from (dest_idx, y)
 
@@ -517,7 +517,7 @@ def generate_memcpy(
         """
         Generates last loop as scf.for
         """
-        dest_idx = arith.Muli.get(i, x_len)
+        dest_idx = arith.Muli(i, x_len)
         y = arith.Addi(i, y0)
         yield from (dest_idx, y)
 
