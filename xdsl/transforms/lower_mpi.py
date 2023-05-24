@@ -795,14 +795,13 @@ class LowerNullRequestOp(_MPIToLLVMRewriteBase):
             llvm.StoreOp.get(val, op.request),
         ], []
 
+
 class LowerMpiGatherOp(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.GatherOp, rewriter: PatternRewriter, /):
         rewriter.replace_matched_op(*self.lower(op))
 
-    def lower(
-        self, op: mpi.GatherOp
-    ) -> tuple[list[Operation], list[SSAValue | None]]:
+    def lower(self, op: mpi.GatherOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
         This method lowers mpi.gather operation.
 
@@ -813,14 +812,23 @@ class LowerMpiGatherOp(_MPIToLLVMRewriteBase):
                        MPI_Comm comm)
         """
         return [
-           comm_global := arith.Constant.from_int_and_width(
-               self.info.MPI_COMM_WORLD, i32
-           ),
-           func.Call.get(
-               self._mpi_name(op),
-               [op.sendbuf, op.sendcount, op.sendtype, op.recvbuf, op.recvcount, op.recvtype, op.root, comm_global],
-               [i32],
-           ),
+            comm_global := arith.Constant.from_int_and_width(
+                self.info.MPI_COMM_WORLD, i32
+            ),
+            func.Call.get(
+                self._mpi_name(op),
+                [
+                    op.sendbuf,
+                    op.sendcount,
+                    op.sendtype,
+                    op.recvbuf,
+                    op.recvcount,
+                    op.recvtype,
+                    op.root,
+                    comm_global,
+                ],
+                [i32],
+            ),
         ], []
 
 
