@@ -1586,10 +1586,12 @@ class LabelOp(IRDLOperation, RISCVOp):
     name = "riscv.label"
     label: OpAttr[LabelAttr]
     comment: OptOpAttr[StringAttr]
+    data: OptSingleBlockRegion
 
     def __init__(
         self,
         label: str | LabelAttr,
+        region: OptSingleBlockRegion = None,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -1597,12 +1599,15 @@ class LabelOp(IRDLOperation, RISCVOp):
             label = LabelAttr(label)
         if isinstance(comment, str):
             comment = StringAttr(comment)
+        if region is None:
+            region = Region()
 
         super().__init__(
             attributes={
                 "label": label,
                 "comment": comment,
-            }
+            },
+            regions=[region],
         )
 
 
