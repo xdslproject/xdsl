@@ -21,9 +21,9 @@ class CustomPass(ModulePass):
 
     str_thing: str
 
-    optional: str | None
+    nullable_str: str | None
 
-    optional_2: bool = False
+    optional_bool: bool = False
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         pass
@@ -64,8 +64,8 @@ def test_pass_instantiation():
     assert p.number == 2
     assert p.int_list == [1, 2, 3]
     assert p.str_thing == "hello world"
-    assert p.optional is None
-    assert p.optional_2 is False
+    assert p.nullable_str is None
+    assert p.optional_bool is False
 
     # this should just work
     EmptyPass.from_pass_spec(PipelinePassSpec("empty", dict()))
