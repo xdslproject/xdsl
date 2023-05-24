@@ -1,4 +1,5 @@
 from io import StringIO
+from xdsl.builder import Builder
 from xdsl.utils.test_value import TestSSAValue
 from xdsl.dialects import riscv
 
@@ -111,6 +112,22 @@ def test_label_op():
 
     code = riscv_code(ModuleOp([label_op1]))
     assert code == "mylabel1:    # my label too\n"
+
+
+def test_label_op_with_region():
+    @Builder.implicit_region
+    def label_region():
+        a1_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+        a2_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
+        riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
+
+    # test label without comment
+    label_op0 = riscv.LabelOp("mylabel0", region=label_region)
+
+    assert label_op0.label.data == "mylabel0"
+
+    code = riscv_code(ModuleOp([label_op0]))
+    assert code == "mylabel0:\n    add a0, a1, a2\n"
 
 
 def test_return_op():

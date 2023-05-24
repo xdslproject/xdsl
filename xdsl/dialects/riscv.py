@@ -1749,6 +1749,13 @@ class LabelOp(IRDLOperation, RISCVOp):
             regions=[region],
         )
 
+    def assembly_line(self) -> str | None:
+        comment = ""
+        if self.comment is not None and self.comment.data:
+            comment = f"    # {self.comment.data}"
+
+        return f"{self.label.data}:{comment}"
+
 
 @irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
