@@ -72,7 +72,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
 
         # Comparison for top and bottom ranks
         compare_top_op = arith.Cmpi.get(comm_rank_op, zero, "sgt")
-        size_minus_one = arith.Subi.get(comm_size_op, one)
+        size_minus_one = arith.Subi(comm_size_op, one)
         compare_bottom_op = arith.Cmpi.get(comm_rank_op, size_minus_one, "slt")
         mpi_operations += [compare_top_op, size_minus_one, compare_bottom_op]
 
@@ -91,9 +91,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
         ]
 
         # Send and recv my first row of data to rank -1
-        rank_m1_op = arith.Subi.get(comm_rank_op, one)
+        rank_m1_op = arith.Subi(comm_rank_op, one)
 
-        add_offset = arith.Muli.get(dim_zero_i64_op, eight_i64)
+        add_offset = arith.Muli(dim_zero_i64_op, eight_i64)
         added_ptr = arith.Addi(index_memref_i64, add_offset)
         send_ptr = llvm.IntToPtrOp.get(added_ptr)
 
@@ -147,9 +147,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
         rank_p1_op = arith.Addi(comm_rank_op, one)
 
         # Need to multiple row by column -2 (for data row)
-        col_row_b_send = arith.Subi.get(dim_zero_i64_op, two_i64)
-        element_b_send = arith.Muli.get(col_row_b_send, dim_zero_i64_op)
-        add_offset_b_send = arith.Muli.get(element_b_send, eight_i64)
+        col_row_b_send = arith.Subi(dim_zero_i64_op, two_i64)
+        element_b_send = arith.Muli(col_row_b_send, dim_zero_i64_op)
+        add_offset_b_send = arith.Muli(element_b_send, eight_i64)
         added_ptr_b_send = arith.Addi(index_memref_i64, add_offset_b_send)
         ptr_b_send = llvm.IntToPtrOp.get(added_ptr_b_send)
 
@@ -164,9 +164,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
 
         # Now do the recv
 
-        col_row_b_recv = arith.Subi.get(dim_zero_i64_op, one_i64)
-        element_b_recv = arith.Muli.get(col_row_b_recv, dim_zero_i64_op)
-        add_offset_b_recv = arith.Muli.get(element_b_recv, eight_i64)
+        col_row_b_recv = arith.Subi(dim_zero_i64_op, one_i64)
+        element_b_recv = arith.Muli(col_row_b_recv, dim_zero_i64_op)
+        add_offset_b_recv = arith.Muli(element_b_recv, eight_i64)
         added_ptr_b_recv = arith.Addi(index_memref_i64, add_offset_b_recv)
         ptr_b_recv = llvm.IntToPtrOp.get(added_ptr_b_recv)
 

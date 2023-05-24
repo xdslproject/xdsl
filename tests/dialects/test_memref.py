@@ -193,9 +193,9 @@ def test_memref_matmul_verify():
                             # inner loop, loop_var = k
                             elem_a_i_k := memref.Load.get(a, [i, k]),
                             elem_b_k_j := memref.Load.get(b, [k, j]),
-                            mul := arith.Mulf.get(elem_a_i_k, elem_b_k_j),
+                            mul := arith.Mulf(elem_a_i_k, elem_b_k_j),
                             out_i_j := memref.Load.get(out, [i, j]),
-                            new_out_val := arith.Addf.get(out_i_j, mul),
+                            new_out_val := arith.Addf(out_i_j, mul),
                             memref.Store.get(new_out_val, out, [i, j]),
                             scf.Yield.get()
                         ])),
