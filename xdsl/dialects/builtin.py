@@ -345,6 +345,22 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     typ: ParameterDef[_IntegerAttrTyp]
 
     @overload
+    def __new__(
+        cls,
+        value: int | IntAttr,
+        typ: _IntegerAttrTyp,
+    ) -> IntegerAttr[_IntegerAttrTyp]:
+        ...
+
+    @overload
+    def __new__(cls, value: int | IntAttr, typ: int) -> IntegerAttr[IntegerType]:
+        ...
+
+    # These overloads are required to make pyright infer the correct result type.
+    def __new__(cls, *args: Any, **kwargs: Any) -> IntegerAttr[Any]:
+        return super().__new__(cls)
+
+    @overload
     def __init__(
         self: IntegerAttr[_IntegerAttrTyp], value: int | IntAttr, typ: _IntegerAttrTyp
     ) -> None:
@@ -372,12 +388,6 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     @staticmethod
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr(value, IndexType())
-
-    @staticmethod
-    def from_params(
-        value: int | IntAttr, typ: int | IntegerType | IndexType
-    ) -> IntegerAttr[IntegerType | IndexType]:
-        return IntegerAttr(value, typ)
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]

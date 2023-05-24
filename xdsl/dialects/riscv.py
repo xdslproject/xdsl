@@ -26,12 +26,7 @@ from xdsl.irdl import (
 
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
-    UnitAttr,
-    IntegerAttr,
-    StringAttr,
-)
+from xdsl.dialects.builtin import AnyIntegerAttr, UnitAttr, IntegerAttr, StringAttr
 from xdsl.utils.exceptions import VerifyException
 
 
