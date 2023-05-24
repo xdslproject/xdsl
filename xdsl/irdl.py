@@ -784,14 +784,14 @@ class OpDef:
             # Also, they can provide a possiblea escape hatch.
             if field_name[:2] == "__" and field_name[-2:] == "__":
                 continue
-            # Constraint variables
-            if True:
-                continue
             # Methods, properties, and functions are allowed
             if isinstance(
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
             ):
                 continue
+            if get_origin(value) is Annotated:
+                if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
+                    continue
             raise wrong_field_exception(field_name)
 
         if "name" not in clsdict:
