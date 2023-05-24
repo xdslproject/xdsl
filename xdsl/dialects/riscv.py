@@ -1582,6 +1582,31 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
+class LabelOp(IRDLOperation, RISCVOp):
+    name = "riscv.label"
+    label: OpAttr[LabelAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        label: str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = LabelAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            }
+        )
+
+
+@irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .text; .data; etc.)
@@ -1779,6 +1804,7 @@ RISCV = Dialect(
         RemuOp,
         LiOp,
         EcallOp,
+        LabelOp,
         DirectiveOp,
         EbreakOp,
         WfiOp,
