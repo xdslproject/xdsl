@@ -1722,6 +1722,13 @@ class EcallOp(NullaryOperation):
 
 @irdl_op_definition
 class LabelOp(IRDLOperation, RISCVOp):
+    """
+    The label operation is used to emit text labels (e.g. loop:) that are used
+    as branch, unconditional jump targets and symbol offsets.
+
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels
+    """
+
     name = "riscv.label"
     label: OpAttr[LabelAttr]
     comment: OptOpAttr[StringAttr]
