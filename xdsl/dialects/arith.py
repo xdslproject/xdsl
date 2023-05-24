@@ -183,11 +183,6 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
         printer.print(" : ")
         printer.print_attribute(self.result.typ)
 
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if not (self.operands[0].typ == self.operands[1].typ == self.results[0].typ):
-            raise VerifyException("expect all input and result types to be equal")
-
     def __hash__(self) -> int:
         return id(self)
 
