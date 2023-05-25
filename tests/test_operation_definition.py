@@ -223,7 +223,7 @@ def test_region_accessors():
 
 @irdl_op_definition
 class OperandOp(IRDLOperation):
-    name = "test.o  perand_op"
+    name = "test.operand_op"
 
     irdl_options = [AttrSizedOperandSegments()]
 
