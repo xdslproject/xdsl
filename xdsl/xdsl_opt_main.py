@@ -45,6 +45,7 @@ from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
 from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
 from xdsl.transforms.experimental.stencil_global_to_local import (
     GlobalStencilToLocalStencil2DHorizontal,
+    LowerHaloToMPI,
 )
 
 from xdsl.utils.exceptions import DiagnosticException
@@ -289,6 +290,7 @@ class xDSLOptMain:
         self.register_pass(LowerSnitchPass)
         self.register_pass(RISCVRegisterAllocation)
         self.register_pass(LowerRISCVFunc)
+        self.register_pass(LowerHaloToMPI)
 
     def register_all_targets(self):
         """
@@ -306,7 +308,6 @@ class xDSLOptMain:
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
             print_riscv_module(prog, output)
-            print("\n", file=output)
 
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm

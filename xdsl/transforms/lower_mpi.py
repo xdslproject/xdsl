@@ -799,8 +799,6 @@ class LowerNullRequestOp(_MPIToLLVMRewriteBase):
 class LowerMPIPass(ModulePass):
     name = "lower-mpi"
 
-    # lower to func.call
-
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         # TODO: how to get the lib info in here?
         lib_info = MpiLibraryInfo()

@@ -36,12 +36,6 @@ from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from xdsl.transforms.experimental.stencil_global_to_local import (
-    LowerHaloExchangeToMpi,
-    HorizontalSlices2D,
-    MpiLoopInvariantCodeMotion,
-)
-
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 # TODO docstrings and comments
@@ -430,11 +424,3 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             walk_reverse=True,
         )
         the_one_pass.rewrite_module(op)
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    LowerHaloExchangeToMpi(HorizontalSlices2D(2)),
-                ]
-            )
-        ).rewrite_module(op)
-        MpiLoopInvariantCodeMotion().rewrite_module(op)
