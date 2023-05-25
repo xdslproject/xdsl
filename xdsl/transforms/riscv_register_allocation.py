@@ -1,5 +1,3 @@
-from enum import Enum
-from typing import Union
 from dataclasses import dataclass
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import Register, RegisterType, RISCVOp
@@ -90,15 +88,6 @@ class RegisterAllocatorJRegs(RegisterAllocatorStrategy):
                     self.idx += 1
 
 
-class RegisterAllocationAlgorithm(Enum):
-    """
-    The register allocation algorithm to use.
-    """
-
-    GlobalJRegs = 0
-    BlockNaive = 1
-
-
 @dataclass
 class RISCVRegisterAllocation(ModulePass):
     """
@@ -107,18 +96,19 @@ class RISCVRegisterAllocation(ModulePass):
 
     name = "riscv-allocate-registers"
 
-    allocation_type: Union[str, None] = None
+    allocation_type: str = "GlobalJRegs"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        allocator_strategy = RegisterAllocationAlgorithm.GlobalJRegs
+        allocator_strategies = {
+            "GlobalJRegs": RegisterAllocatorJRegs,
+            "BlockNaive": RegisterAllocatorBlockNaive,
+        }
 
-        if self.allocation_type is not None:
-            allocator_strategy = RegisterAllocationAlgorithm[self.allocation_type]
+        if self.allocation_type not in allocator_strategies:
+            raise ValueError(
+                f"Unknown register allocation type {self.allocation_type}. "
+                f"Available allocation types: {allocator_strategies.keys()}"
+            )
 
-        match allocator_strategy:
-            case RegisterAllocationAlgorithm.GlobalJRegs:
-                allocator = RegisterAllocatorJRegs()
-            case RegisterAllocationAlgorithm.BlockNaive:
-                allocator = RegisterAllocatorBlockNaive()
-
+        allocator = allocator_strategies[self.allocation_type]()
         allocator.allocate_registers(op)
