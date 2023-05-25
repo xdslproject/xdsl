@@ -4,7 +4,6 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     FloatAttr,
     IntAttr,
-    IntegerAttr,
     bf16,
     f16,
     f32,

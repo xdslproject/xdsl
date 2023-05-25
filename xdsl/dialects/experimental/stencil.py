@@ -7,7 +7,6 @@ from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntAttr,
-    IntegerAttr,
     ParametrizedAttribute,
     ArrayAttr,
     AnyFloat,
