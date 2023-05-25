@@ -15,7 +15,6 @@ from xdsl.dialects.builtin import (
     i64,
     IntegerType,
     ArrayAttr,
-    AnyIntegerAttr,
 )
 from xdsl.dialects.experimental.stencil import (
     ReturnOp,
@@ -362,33 +361,26 @@ def test_index_attr_indices_length(indices: list[int]):
 @pytest.mark.parametrize(
     "attr, dims",
     (
-        (
-            i32,
-            ArrayAttr(
-                [IntegerAttr[IntegerType](1, 64), IntegerAttr[IntegerType](2, 64)]
-            ),
-        ),
+        (i32, [64, 64]),
         (
             i64,
-            ArrayAttr(
-                [
-                    IntegerAttr[IntegerType](1, 32),
-                    IntegerAttr[IntegerType](2, 32),
-                    IntegerAttr[IntegerType](3, 32),
-                ]
-            ),
+            [
+                32,
+                32,
+                32,
+            ],
         ),
     ),
 )
 def test_stencil_fieldtype_constructor_with_ArrayAttr(
-    attr: IntegerType, dims: ArrayAttr[AnyIntegerAttr]
+    attr: IntegerType, dims: list[int]
 ):
     stencil_fieldtype = FieldType(dims, attr)
 
     assert stencil_fieldtype.element_type == attr
     assert stencil_fieldtype.get_num_dims() == len(dims)
     assert stencil_fieldtype.get_shape() == [
-        list(dims.data)[dim].value.data for dim in range(len(dims))
+        list(dims)[dim] for dim in range(len(dims))
     ]
 
 
@@ -418,10 +410,7 @@ def test_stencil_fieldtype_constructor(attr: IntegerType, dims: list[int]):
 def test_stencil_fieldtype_constructor_empty_list(attr: IntegerType, dims: list[int]):
     with pytest.raises(VerifyException) as exc_info:
         FieldType(dims, attr)
-    assert (
-        exc_info.value.args[0]
-        == "Number of field dimensions must be greater than zero, got 0."
-    )
+    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 def test_stencil_load():
@@ -459,35 +448,26 @@ def test_stencil_load_bounds():
 @pytest.mark.parametrize(
     "attr, dims",
     (
-        (
-            i32,
-            ArrayAttr(
-                [IntegerAttr[IntegerType](1, 64), IntegerAttr[IntegerType](2, 64)]
-            ),
-        ),
+        (i32, [64, 64]),
         (
             i64,
-            ArrayAttr(
-                [
-                    IntegerAttr[IntegerType](1, 32),
-                    IntegerAttr[IntegerType](2, 32),
-                    IntegerAttr[IntegerType](3, 32),
-                ]
-            ),
+            [
+                32,
+                32,
+                32,
+            ],
         ),
     ),
 )
 def test_stencil_temptype_constructor_with_ArrayAttr(
-    attr: IntegerType, dims: ArrayAttr[AnyIntegerAttr]
+    attr: IntegerType, dims: list[int]
 ):
     stencil_temptype = TempType(dims, attr)
 
     assert isinstance(stencil_temptype, TempType)
     assert stencil_temptype.element_type == attr
     assert stencil_temptype.get_num_dims() == len(dims)
-    assert stencil_temptype.get_shape() == [
-        list(dims.data)[dim].value.data for dim in range(len(dims))
-    ]
+    assert stencil_temptype.get_shape() == [list(dims)[dim] for dim in range(len(dims))]
 
 
 @pytest.mark.parametrize(
@@ -517,10 +497,7 @@ def test_stencil_temptype_constructor(attr: IntegerType, dims: list[int]):
 def test_stencil_temptype_constructor_empty_list(attr: IntegerType, dims: list[int]):
     with pytest.raises(VerifyException) as exc_info:
         TempType(dims, attr)
-    assert (
-        exc_info.value.args[0]
-        == "Number of field dimensions must be greater than zero, got 0."
-    )
+    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 @pytest.mark.parametrize(
