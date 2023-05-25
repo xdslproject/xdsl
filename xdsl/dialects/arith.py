@@ -172,6 +172,14 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
         result_type = parser.parse_type()
         return cls(lhs, rhs, result_type)
 
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print(", ")
+        printer.print_ssa_value(self.rhs)
+        printer.print(" : ")
+        printer.print_attribute(self.result.typ)
+
     # TODO replace with trait
     def verify_(self) -> None:
         if not (self.operands[0].typ == self.operands[1].typ == self.results[0].typ):
