@@ -42,63 +42,7 @@ from xdsl.utils.hints import isa
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
 
 
-@irdl_attr_definition
-class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute):
-    name = "stencil.field"
-
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[_FieldTypeElement]
-
-    def get_num_dims(self) -> int:
-        return len(self.shape.data)
-
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
-
-    def verify(self):
-        if self.get_num_dims() <= 0:
-            raise VerifyException(
-                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
-            )
-
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_char("<")
-        dims, element_type = parser.parse_ranked_shape()
-        parser.parse_char(">")
-        return [ArrayAttr([IntegerAttr(d, 64) for d in dims]), element_type]
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_list(
-            (e.value.data for e in self.shape.data),
-            lambda i: printer.print(i) if i != -1 else printer.print("?"),
-            "x",
-        )
-        printer.print("x")
-        printer.print_attribute(self.element_type)
-        printer.print(">")
-
-    def __init__(
-        self,
-        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
-        typ: _FieldTypeElement,
-    ) -> None:
-        if isinstance(shape, ArrayAttr):
-            super().__init__([shape, typ])
-            return
-
-        # cast to list
-        shape = cast(list[int], shape)
-        super().__init__(
-            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
-        )
-
-
-@irdl_attr_definition
-class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute):
-    name = "stencil.temp"
-
+class StencilType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute):
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_FieldTypeElement]
 
@@ -148,11 +92,37 @@ class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute)
         )
 
     def __repr__(self):
-        repr: str = "stencil.Temp<["
+        repr: str = f"{self.name}<["
         for size in self.shape.data:
             repr += f"{size.value.data} "
         repr += "]>"
         return repr
+
+
+@irdl_attr_definition
+class FieldType(
+    Generic[_FieldTypeElement],
+    StencilType[_FieldTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+):
+    name = "stencil.field"
+
+    def __repr__(self):
+        return super().__repr__()
+
+
+@irdl_attr_definition
+class TempType(
+    Generic[_FieldTypeElement],
+    StencilType[_FieldTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+):
+    name = "stencil.temp"
+
+    def __repr__(self):
+        return super().__repr__()
 
 
 @irdl_attr_definition

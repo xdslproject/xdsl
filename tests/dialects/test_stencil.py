@@ -534,7 +534,26 @@ def test_stencil_temptype_constructor_empty_list(attr: IntegerType, dims: list[i
 def test_stencil_temptype_printing(attr: IntegerType, dims: list[int]):
     stencil_temptype = TempType(dims, attr)
 
-    expected_string: str = "stencil.Temp<["
+    expected_string: str = "stencil.temp<["
+    for dim in dims:
+        expected_string += f"{dim} "
+    expected_string += "]>"
+
+    assert repr(stencil_temptype) == expected_string
+
+
+@pytest.mark.parametrize(
+    "attr, dims",
+    (
+        (i32, [1, 2]),
+        (i32, [1, 1, 3]),
+        (i64, [1, 1, 3]),
+    ),
+)
+def test_stencil_fieldtype_printing(attr: IntegerType, dims: list[int]):
+    stencil_temptype = FieldType(dims, attr)
+
+    expected_string: str = "stencil.field<["
     for dim in dims:
         expected_string += f"{dim} "
     expected_string += "]>"
