@@ -90,25 +90,25 @@ class HaloExchangeDecl(ParametrizedAttribute):
     @property
     def offset(self) -> tuple[int, ...]:
         data = self.offset_.as_tuple()
-        assert isa(data, tuple[int])
+        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def size(self) -> tuple[int, ...]:
         data = self.size_.as_tuple()
-        assert isa(data, tuple[int])
+        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def source_offset(self) -> tuple[int, ...]:
         data = self.source_offset_.as_tuple()
-        assert isa(data, tuple[int])
+        assert isa(data, tuple[int, ...])
         return data
 
     @property
     def neighbor(self) -> tuple[int, ...]:
         data = self.neighbor_.as_tuple()
-        assert isa(data, tuple[int])
+        assert isa(data, tuple[int, ...])
         return data
 
     @property
@@ -374,7 +374,7 @@ class HaloSwapOp(IRDLOperation):
 
     input_stencil: Annotated[Operand, stencil.TempType | memref.MemRefType]
 
-    shape: OptOpAttr[HaloShapeInformation]
+    # shape: OptOpAttr[HaloShapeInformation]
     swaps: OptOpAttr[builtin.ArrayAttr[HaloExchangeDecl]]
     nodes: OptOpAttr[NodeGrid]
 

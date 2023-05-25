@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TypeVar, Iterable, Callable
 from abc import ABC, abstractmethod
 
@@ -17,6 +17,8 @@ from xdsl.ir import MLContext, Operation, SSAValue, Block, Region, OpResult
 from xdsl.irdl import Attribute
 from xdsl.dialects import builtin, mpi, memref, arith, scf, func
 from xdsl.dialects.experimental import stencil, dmp
+
+from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
 
 _T = TypeVar("_T", bound=Attribute)
 
@@ -113,20 +115,20 @@ class ChangeStoreOpSizes(RewritePattern):
 @dataclass
 class AddHaloExchangeOps(RewritePattern):
     """
-    This rewrite adds a `stencil.halo_exchange` before each `stencil.load` op
+    This rewrite adds a `stencil.halo_exchange` after each `stencil.load` op
     """
 
     strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
-        swap_op = stencil.HaloSwapOp.get(op.res)
+        swap_op = dmp.HaloSwapOp.get(op.res)
+        swap_op.nodes = self.strategy.comm_layout()
         rewriter.insert_op_after_matched_op(swap_op)
 
 
 @dataclass
 class LowerHaloExchangeToMpi(RewritePattern):
-    strategy: DomainDecompositionStrategy
     init: bool
 
     @op_type_rewrite_pattern
@@ -566,7 +568,68 @@ def collect_args_recursive(op: Operation) -> Iterable[Operation]:
 
 
 @dataclass
+class DmpSwapShapeInference:
+    """
+    Not a rewrite pattern, as it's a bit more involved.
+
+    This is applied after stencil shape inference has run. It will find the
+    HaloSwapOps again, and use the results of the shape inference pass
+    to attach the swap declarations.
+    """
+
+    strategy: DomainDecompositionStrategy
+    rewriter: Rewriter = field(default_factory=Rewriter)
+
+    def match_and_rewrite(self, op: dmp.HaloSwapOp):
+        core_lb: stencil.IndexAttr | None = None
+        core_ub: stencil.IndexAttr | None = None
+
+        for use in op.input_stencil.uses:
+            if not isinstance(use.operation, stencil.ApplyOp):
+                continue
+            core_lb = use.operation.lb
+            core_ub = use.operation.ub
+            break
+
+        # this shouldn't have changed since the op was created!
+        load = op.input_stencil.owner
+        assert isinstance(load, stencil.LoadOp)
+        buff_lb = load.lb
+        buff_ub = load.ub
+
+        # fun fact: pyright does not understand this:
+        # assert None not in (core_lb, core_ub, buff_lb, buff_ub)
+        assert core_lb is not None
+        assert core_ub is not None
+        assert buff_lb is not None
+        assert buff_ub is not None
+
+        op.swaps = builtin.ArrayAttr(
+            self.strategy.halo_exchange_defs(
+                dmp.HaloShapeInformation.from_index_attrs(
+                    buff_lb=buff_lb,
+                    core_lb=core_lb,
+                    buff_ub=buff_ub,
+                    core_ub=core_ub,
+                )
+            )
+        )
+
+    def apply(self, module: builtin.ModuleOp):
+        for op in module.walk():
+            if isinstance(op, dmp.HaloSwapOp):
+                self.match_and_rewrite(op)
+
+
+@dataclass
 class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
+    """
+    Decompose a stencil to apply to a local domain.
+
+    This pass *replaces* stencil shape inference in a
+    pass pipeline!
+    """
+
     name = "dmp-decompose-2d"
 
     slices: int
@@ -577,21 +640,25 @@ class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         strategy = HorizontalSlices2D(self.slices)
 
-        gpra = GreedyRewritePatternApplier(
-            [
-                ChangeStoreOpSizes(strategy),
-                AddHaloExchangeOps(strategy),
-            ]
-        )
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    ChangeStoreOpSizes(strategy),
+                    AddHaloExchangeOps(strategy),
+                ]
+            ),
+            apply_recursively=False,
+        ).rewrite_module(op)
 
-        PatternRewriteWalker(gpra, apply_recursively=False).rewrite_module(op)
+        # run the shape inference pass
+        StencilShapeInferencePass().apply(ctx, op)
+
+        DmpSwapShapeInference(strategy).apply(op)
 
 
 @dataclass
 class LowerHaloToMPI(ModulePass):
     name = "dmp-to-mpi"
-
-    slices: int
 
     mpi_init: bool = True
 
@@ -600,7 +667,6 @@ class LowerHaloToMPI(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     LowerHaloExchangeToMpi(
-                        HorizontalSlices2D(self.slices),
                         self.mpi_init,
                     ),
                 ]
