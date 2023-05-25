@@ -87,7 +87,7 @@ class AttrConstraint(ABC):
 @dataclass
 class VarConstraint(AttrConstraint):
     """
-    Constraint variable. If the variable is already set, this will constraint
+    Constraint variable. If the variable is already set, this will constrain
     the attribute to be equal to the variable. Otherwise, it will first check that the
     variable satisfies the variable constraint, then set the variable with the
     attribute.
