@@ -92,11 +92,7 @@ class StencilType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribu
         )
 
     def __repr__(self):
-        repr: str = f"{self.name}<["
-        for size in self.shape.data:
-            repr += f"{size.value.data} "
-        repr += "]>"
-        return repr
+        return f"{self.name}<[{' '.join(str(d.value.data) for d in self.shape)}]>"
 
 
 @irdl_attr_definition

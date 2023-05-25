@@ -534,10 +534,7 @@ def test_stencil_temptype_constructor_empty_list(attr: IntegerType, dims: list[i
 def test_stencil_temptype_printing(attr: IntegerType, dims: list[int]):
     stencil_temptype = TempType(dims, attr)
 
-    expected_string: str = "stencil.temp<["
-    for dim in dims:
-        expected_string += f"{dim} "
-    expected_string += "]>"
+    expected_string: str = f"stencil.temp<[{' '.join(str(d) for d in dims)}]>"
 
     assert repr(stencil_temptype) == expected_string
 
@@ -553,10 +550,7 @@ def test_stencil_temptype_printing(attr: IntegerType, dims: list[int]):
 def test_stencil_fieldtype_printing(attr: IntegerType, dims: list[int]):
     stencil_temptype = FieldType(dims, attr)
 
-    expected_string: str = "stencil.field<["
-    for dim in dims:
-        expected_string += f"{dim} "
-    expected_string += "]>"
+    expected_string: str = f"stencil.field<[{' '.join(str(d) for d in dims)}]>"
 
     assert repr(stencil_temptype) == expected_string
 
