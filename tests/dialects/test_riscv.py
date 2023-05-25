@@ -94,7 +94,7 @@ def test_label_op_without_comment():
     label_str = "mylabel"
     label_op = riscv.LabelOp(label_str)
 
-    assert label_op.label.data == f"{label_str}"
+    assert label_op.label.data == label_str
 
     code = riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:\n"
@@ -104,8 +104,7 @@ def test_label_op_with_comment():
     label_str = "mylabel"
     label_op = riscv.LabelOp(f"{label_str}", comment="my label")
 
-    assert label_op.label.data == "mylabel"
-    assert label_op.label.data == f"{label_str}"
+    assert label_op.label.data == label_str
 
     code = riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:    # my label\n"
@@ -121,7 +120,7 @@ def test_label_op_with_region():
     label_str = "mylabel"
     label_op = riscv.LabelOp(f"{label_str}", region=label_region)
 
-    assert label_op.label.data == f"{label_str}"
+    assert label_op.label.data == label_str
 
     code = riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:\n    add a0, a1, a2\n"
