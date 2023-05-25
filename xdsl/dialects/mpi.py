@@ -775,6 +775,63 @@ class NullRequestOp(MPIBaseOp):
         return NullRequestOp.build(operands=[req])
 
 
+@irdl_op_definition
+class GatherOp(MPIBaseOp):
+    """
+    This is used to gather data into one big buffer.
+
+    int MPI_Gather(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                    void *recvbuf, int recvcount, MPI_Datatype recvtype,
+                    int root,
+                    MPI_Comm comm)
+
+     - sendbuf, sendcount, sendtype: info on the buffer to be sent
+     - recvbuf, recvcount, recvtype: info on the gather buffer
+     - root: the rank that receives all the data
+     - comm: the communicator to use
+
+    Note: recvcount * sizeof(recvtype) == sendcount * sizeof(sendtype) * N
+    where N is the number of nodes participating in the gather.
+
+    Note that the data in the recvbuff will not be a nice grid, instead it will contain
+    the sent buffers in order of rank.
+    """
+
+    name = "mpi.gather"
+
+    sendbuf: Annotated[Operand, llvm.LLVMPointerType]
+    sendcount: Annotated[Operand, i32]
+    sendtype: Annotated[Operand, DataType]
+
+    recvbuf: Annotated[Operand, llvm.LLVMPointerType]
+    recvcount: Annotated[Operand, i32]
+    recvtype: Annotated[Operand, DataType]
+
+    root: Annotated[Operand, i32]
+
+    def __init__(
+        self,
+        sendbuf: SSAValue | Operation,
+        sendcount: SSAValue | Operation,
+        sendtype: SSAValue | Operation,
+        recvbuf: SSAValue | Operation,
+        recvcount: SSAValue | Operation,
+        recvtype: SSAValue | Operation,
+        root: SSAValue | Operation,
+    ):
+        super().__init__(
+            operands=[
+                sendbuf,
+                sendcount,
+                sendtype,
+                recvbuf,
+                recvcount,
+                recvtype,
+                root,
+            ]
+        )
+
+
 MPI = Dialect(
     [
         Isend,
