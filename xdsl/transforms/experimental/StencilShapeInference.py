@@ -5,6 +5,7 @@ from xdsl.dialects.experimental.stencil import (
     ApplyOp,
     IndexAttr,
     LoadOp,
+    StencilBoundsAttr,
     StoreOp,
     TempType,
 )
@@ -65,7 +66,7 @@ class LoadOpShapeInference(RewritePattern):
         # TODO: We need to think about that. Do we want an API for this?
         # Do we just want to recreate the whole operation?
         op.res.typ = TempType(
-            IndexAttr.size_from_bounds(op.lb, op.ub),
+            StencilBoundsAttr(tuple(zip(op.lb, op.ub))),
             op.res.typ.element_type,
         )
 
@@ -105,7 +106,7 @@ class ApplyOpShapeInference(RewritePattern):
         for result in op.results:
             assert isa(result.typ, TempType[Attribute])
             result.typ = TempType(
-                IndexAttr.size_from_bounds(op.lb, op.ub), result.typ.element_type
+                StencilBoundsAttr(tuple(zip(op.lb, op.ub))), result.typ.element_type
             )
 
 

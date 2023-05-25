@@ -59,7 +59,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
         printer.print(f'<{", ".join((str(e.data) for e in self.array.data))}>')
 
     def verify(self) -> None:
-        if len(self.array.data) < 1 or len(self.array.data) > 3:
+        if len(self.array) < 1 or len(self.array) > 3:
             raise VerifyException(
                 f"Expected 1 to 3 indexes for stencil.index, got {len(self.array.data)}."
             )
@@ -114,42 +114,112 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
         return (e.data for e in self.array.data)
 
 
+@irdl_attr_definition
+class StencilBoundsAttr(ParametrizedAttribute, TypeAttribute):
+    name = "stencil.bounds"
+    lb: ParameterDef[IndexAttr]
+    ub: ParameterDef[IndexAttr]
+
+    def _verify(self):
+        if len(self.lb) != len(self.ub):
+            raise VerifyException(
+                "Incoherent stencil bounds: lower and upper bounds must have the same dimensionality."
+            )
+        for d in self.ub - self.lb:
+            if d <= 0:
+                raise VerifyException(
+                    "Incoherent stencil bounds: upper bound must be strictly greater than lower bound."
+                )
+
+    def __init__(self, bounds: Sequence[tuple[int | IntAttr, int | IntAttr]]):
+        lb = tuple(b[0] for b in bounds)
+        ub = tuple(b[1] for b in bounds)
+        super().__init__(
+            [
+                IndexAttr.get(*lb),
+                IndexAttr.get(*ub),
+            ]
+        )
+
+
 class StencilType(
     Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute, builtin.ShapeType
 ):
-    shape: ParameterDef[IndexAttr]
+    bounds: ParameterDef[StencilBoundsAttr | IntAttr]
     element_type: ParameterDef[_FieldTypeElement]
 
     def get_num_dims(self) -> int:
-        return len(self.shape)
+        if isinstance(self.bounds, IntAttr):
+            return self.bounds.data
+        else:
+            return len(self.bounds.ub.array.data)
 
     def get_shape(self) -> tuple[int]:
-        return tuple(self.shape)
+        if isinstance(self.bounds, IntAttr):
+            return (-1,) * self.bounds.data
+        else:
+            return tuple(self.bounds.ub - self.bounds.lb)
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
+        def parse_interval() -> tuple[int, int] | int:
+            if parser.parse_optional_punctuation("?"):
+                return -1
+            parser.parse_punctuation("[")
+            l = parser.parse_integer(False)
+            parser.parse_punctuation(",")
+            u = parser.parse_integer(False)
+            parser.parse_punctuation("]")
+            return (l, u)
+
         parser.parse_char("<")
-        dims, element_type = parser.parse_ranked_shape()
+        bounds = [parse_interval()]
+        parser.parse_char("x")
+        typ = parser.parse_optional_type()
+        while typ is None:
+            bounds.append(parse_interval())
+            parser.parse_char("x")
+            typ = parser.parse_optional_type()
         parser.parse_char(">")
-        return [IndexAttr.get(*dims), element_type]
+        if isa(bounds, list[tuple[int, int]]):
+            bounds = StencilBoundsAttr(bounds)
+        elif isa(bounds, list[int]):
+            bounds = IntAttr(len(bounds))
+        else:
+            parser.raise_error("stencil types can only be fully dynamic or sized.")
+
+        return [bounds, typ]
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
-        printer.print_list(
-            self.shape,
-            lambda i: printer.print(i) if i != -1 else printer.print("?"),
-            "x",
-        )
-        printer.print("x")
+        if isinstance(self.bounds, StencilBoundsAttr):
+            printer.print_list(
+                zip(self.bounds.lb, self.bounds.ub),
+                lambda b: printer.print(f"[{b[0]},{b[1]}]"),
+                "x",
+            )
+            printer.print("x")
+        else:
+            for _ in range(self.bounds.data):
+                printer.print("?x")
         printer.print_attribute(self.element_type)
         printer.print(">")
 
     def __init__(
         self,
-        shape: Sequence[IntAttr | int],
+        bounds: Sequence[tuple[int | IntAttr, int | IntAttr]]
+        | int
+        | IntAttr
+        | StencilBoundsAttr,
         typ: _FieldTypeElement,
     ) -> None:
-        super().__init__([IndexAttr.get(*shape), typ])
+        if isinstance(bounds, Sequence):
+            nbounds = StencilBoundsAttr(bounds)
+        elif isinstance(bounds, int):
+            nbounds = IntAttr(bounds)
+        else:
+            nbounds = bounds
+        return super().__init__([nbounds, typ])
 
 
 @irdl_attr_definition
@@ -300,7 +370,7 @@ class LoadOp(IRDLOperation):
                 "ub": ub,
             },
             result_types=[
-                TempType[Attribute]([-1] * len(field_t.shape), field_t.element_type)
+                TempType[Attribute](len(field_t.get_shape()), field_t.element_type)
             ],
         )
 

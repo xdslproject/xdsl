@@ -25,6 +25,7 @@ from xdsl.dialects.experimental.stencil import (
     IndexAttr,
     LoadOp,
     ReturnOp,
+    StencilBoundsAttr,
     StoreOp,
     TempType,
     ExternalLoadOp,
@@ -45,7 +46,7 @@ def GetMemRefFromField(
     input_type: FieldType[_TypeElement] | TempType[_TypeElement],
 ) -> MemRefType[_TypeElement]:
     return MemRefType.from_element_type_and_shape(
-        input_type.element_type, input_type.shape
+        input_type.element_type, input_type.get_shape()
     )
 
 
@@ -65,10 +66,11 @@ class CastOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
-        assert isa(op.field.typ, FieldType[Attribute] | memref.MemRefType[Attribute])
+        assert isa(op.result.typ, FieldType[Attribute])
+        assert isinstance(op.result.typ.bounds, StencilBoundsAttr)
 
         result_typ = GetMemRefFromFieldWithLBAndUB(
-            op.field.typ.element_type, op.lb, op.ub
+            op.result.typ.element_type, op.result.typ.bounds.lb, op.result.typ.bounds.ub
         )
 
         cast = memref.Cast.get(op.field, result_typ)
@@ -76,7 +78,7 @@ class CastOpToMemref(RewritePattern):
         if self.gpu:
             unranked = memref.Cast.get(
                 cast.dest,
-                memref.UnrankedMemrefType.from_type(op.field.typ.element_type),
+                memref.UnrankedMemrefType.from_type(op.result.typ.element_type),
             )
             register = gpu.HostRegisterOp.from_memref(unranked.dest)
             rewriter.insert_op_after_matched_op([unranked, register])
@@ -139,12 +141,16 @@ class ReturnOpToMemref(RewritePattern):
 
 
 def verify_load_bounds(cast: CastOp, load: LoadOp):
-    if [i.data for i in IndexAttr.min(cast.lb, load.lb).array.data] != [
-        i.data for i in cast.lb.array.data
+    assert isa(cast.result.typ, FieldType[Attribute])
+    assert isinstance(cast.result.typ.bounds, StencilBoundsAttr)
+    if [
+        i.data for i in IndexAttr.min(cast.result.typ.bounds.lb, load.lb).array.data
+    ] != [
+        i for i in cast.result.typ.bounds.lb
     ]:  # noqa
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
-            f"{load.lb}, got {cast.lb}, min: {IndexAttr.min(cast.lb, load.lb)}"
+            f"{load.lb}, got {cast.result.typ.bounds.lb}, min: {IndexAttr.min(cast.result.typ.bounds.lb, load.lb)}"
         )
 
 
@@ -180,12 +186,13 @@ class LoadOpToMemref(RewritePattern):
         cast = op.field.owner
         assert isinstance(cast, CastOp)
         assert isa(cast.result.typ, FieldType[Attribute])
+        assert isa(cast.result.typ.bounds, StencilBoundsAttr)
 
         verify_load_bounds(cast, op)
 
         assert op.lb and op.ub
 
-        offsets = [i.data for i in (op.lb - cast.lb).array.data]
+        offsets = [i.data for i in (op.lb - cast.result.typ.bounds.lb).array.data]
         sizes = [i.data for i in (op.ub - op.lb).array.data]
         strides = [1] * len(sizes)
 
@@ -308,8 +315,11 @@ class StencilTypeConversionFuncOp(RewritePattern):
             cast = store.field.owner
             assert isinstance(cast, CastOp)
             assert isa(cast.result.typ, FieldType[Attribute])
+            assert isa(cast.result.typ.bounds, StencilBoundsAttr)
             new_cast = cast.clone()
-            offsets = [i.data for i in (store.lb - cast.lb).array.data]
+            offsets = [
+                i.data for i in (store.lb - cast.result.typ.bounds.lb).array.data
+            ]
             sizes = [i.data for i in (store.ub - store.lb).array.data]
             subview = memref.Subview.from_static_parameters(
                 new_cast.result,

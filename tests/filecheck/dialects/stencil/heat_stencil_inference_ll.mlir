@@ -21,12 +21,12 @@
       %t0_w_size = "arith.index_cast"(%t0) : (i64) -> index
       %t0_w_size_1 = "memref.load"(%data, %t0_w_size) : (memref<2xmemref<?x?x?xf32>>, index) -> memref<?x?x?xf32>
       %t0_w_size_2 = "stencil.external_load"(%t0_w_size_1) : (memref<?x?x?xf32>) -> !stencil.field<?x?x?xf32>
-      %t0_w_size_3 = "stencil.cast"(%t0_w_size_2) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<54, 84, 44>} : (!stencil.field<?x?x?xf32>) -> !stencil.field<58x88x48xf32>
+      %t0_w_size_3 = "stencil.cast"(%t0_w_size_2) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<54, 84, 44>} : (!stencil.field<?x?x?xf32>) -> !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>
       %t1_w_size = "arith.index_cast"(%t1) : (i64) -> index
       %t1_w_size_1 = "memref.load"(%data, %t1_w_size) : (memref<2xmemref<?x?x?xf32>>, index) -> memref<?x?x?xf32>
       %t1_w_size_2 = "stencil.external_load"(%t1_w_size_1) : (memref<?x?x?xf32>) -> !stencil.field<?x?x?xf32>
-      %t1_w_size_3 = "stencil.cast"(%t1_w_size_2) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<54, 84, 44>} : (!stencil.field<?x?x?xf32>) -> !stencil.field<58x88x48xf32>
-      %6 = "stencil.load"(%t0_w_size_3) : (!stencil.field<50x80x40xf32>) -> !stencil.temp<?x?x?xf32>
+      %t1_w_size_3 = "stencil.cast"(%t1_w_size_2) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<54, 84, 44>} : (!stencil.field<?x?x?xf32>) -> !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>
+      %6 = "stencil.load"(%t0_w_size_3) : (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> !stencil.temp<?x?x?xf32>
       %7 = "stencil.apply"(%6) ({
       ^2(%t0_buff : !stencil.temp<?xf32>):
         %8 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<?xf32>) -> f32
@@ -157,7 +157,7 @@
         %115 = "arith.mulf"(%114, %dt_1) : (f32, f32) -> f32
         "stencil.return"(%115) : (f32) -> ()
       }) : (!stencil.temp<?x?x?xf32>) -> !stencil.temp<?x?x?xf32>
-      "stencil.store"(%7, %t1_w_size_3) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<50, 80, 40>} : (!stencil.temp<?x?x?xf32>, !stencil.field<58x88x48xf32>) -> ()
+      "stencil.store"(%7, %t1_w_size_3) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<50, 80, 40>} : (!stencil.temp<?x?x?xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> ()
       "scf.yield"() : () -> ()
     }) : (index, index, index) -> ()
     "func.return"() : () -> ()

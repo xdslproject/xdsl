@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from typing import Annotated, TypeVar
+from xdsl.dialects.builtin import IntAttr
 
-from xdsl.dialects.experimental.stencil import FieldType, IndexAttr
+from xdsl.dialects.experimental.stencil import FieldType, StencilBoundsAttr
 from xdsl.ir import OpResult, SSAValue, Operation, Attribute, Dialect
-from xdsl.irdl import irdl_op_definition, IRDLOperation, Operand, OpAttr
+from xdsl.irdl import irdl_op_definition, IRDLOperation, Operand
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -23,15 +24,12 @@ class CastOp(IRDLOperation):
 
     name = "stencil.cast"
     field: Annotated[Operand, FieldType]
-    lb: OpAttr[IndexAttr]
-    ub: OpAttr[IndexAttr]
     result: Annotated[OpResult, FieldType]
 
     @staticmethod
     def get(
         field: SSAValue | Operation,
-        lb: IndexAttr,
-        ub: IndexAttr,
+        bounds: StencilBoundsAttr,
         res_type: FieldType[_FieldTypeVar] | FieldType[Attribute] | None = None,
     ) -> CastOp:
         """ """
@@ -39,12 +37,11 @@ class CastOp(IRDLOperation):
         assert isa(field_ssa.typ, FieldType[Attribute])
         if res_type is None:
             res_type = FieldType(
-                tuple(ub_elm - lb_elm for lb_elm, ub_elm in zip(lb, ub)),
+                bounds,
                 field_ssa.typ.element_type,
             )
         return CastOp.build(
             operands=[field],
-            attributes={"lb": lb, "ub": ub},
             result_types=[res_type],
         )
 
@@ -53,41 +50,24 @@ class CastOp(IRDLOperation):
         assert isa(self.field.typ, FieldType[Attribute])
         assert isa(self.result.typ, FieldType[Attribute])
 
+        if isinstance(self.result.typ.bounds, IntAttr):
+            raise VerifyException("Output type's size must be explicit")
+
         if self.field.typ.element_type != self.result.typ.element_type:
             raise VerifyException(
-                "Input and output fields have different element types"
+                "Input and output fields must have the same element types"
             )
 
-        if not len(self.lb) == len(self.ub):
-            raise VerifyException("lb and ub must have the same dimensions")
+        if self.field.typ.get_num_dims() != self.result.typ.get_num_dims():
+            raise VerifyException("Input and output types must have the same rank")
 
-        if not len(self.field.typ.shape) == len(self.lb):
-            raise VerifyException("Input type and bounds must have the same dimensions")
-
-        if not len(self.result.typ.shape) == len(self.ub):
-            raise VerifyException(
-                "Result type and bounds must have the same dimensions"
-            )
-
-        for i, (in_attr, lb, ub, out_attr) in enumerate(
-            zip(
-                self.field.typ.shape,
-                self.lb,
-                self.ub,
-                self.result.typ.shape,
-            )
+        if (
+            isinstance(self.field.typ.bounds, StencilBoundsAttr)
+            and self.field.typ.bounds != self.result.typ.bounds
         ):
-            if ub - lb != out_attr:
-                raise VerifyException(
-                    "Bound math doesn't check out in dimensions {}! {} - {} != {}".format(
-                        i, ub, lb, out_attr
-                    )
-                )
-
-            if in_attr != -1 and in_attr != out_attr:
-                raise VerifyException(
-                    "If input shape is not dynamic, it must be the same as output"
-                )
+            raise VerifyException(
+                "If input shape is not dynamic, it must be the same as output"
+            )
 
 
 Stencil = Dialect([CastOp], [])
