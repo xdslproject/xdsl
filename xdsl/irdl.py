@@ -19,7 +19,8 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
-    overload, ClassVar,
+    overload,
+    ClassVar,
 )
 from types import UnionType, GenericAlias, FunctionType
 
