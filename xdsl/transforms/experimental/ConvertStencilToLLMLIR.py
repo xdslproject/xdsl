@@ -44,7 +44,7 @@ _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 def GetMemRefFromField(
     input_type: FieldType[_TypeElement] | TempType[_TypeElement],
 ) -> MemRefType[_TypeElement]:
-    dims = [i.value.data for i in input_type.shape.data]
+    dims = [i for i in input_type.shape]
 
     return MemRefType.from_element_type_and_shape(input_type.element_type, dims)
 
