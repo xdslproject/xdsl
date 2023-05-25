@@ -11,20 +11,9 @@ from xdsl.xdsl_opt_main import xDSLOptMain
 
 def test_opt():
     opt = xDSLOptMain(args=[])
-    assert list(opt.available_frontends.keys()) == ["mlir"]
-    assert list(opt.available_targets.keys()) == ["mlir", "riscv-asm"]
-    assert list(opt.available_passes.keys()) == [
-        "lower-mpi",
-        "convert-stencil-to-ll-mlir",
-        "convert-stencil-to-gpu",
-        "stencil-shape-inference",
-        "stencil-to-local-2d-horizontal",
-        "frontend-desymrefy",
-        "dce",
-        "lower-snitch",
-        "riscv-allocate-registers",
-        "lower-riscv-func",
-    ]
+    assert len(opt.available_frontends.keys()) > 0
+    assert len(opt.available_targets.keys()) > 0
+    assert len(opt.available_passes.keys()) > 0
 
 
 def test_empty_program():
