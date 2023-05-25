@@ -1656,7 +1656,7 @@ class ParamAttrDef:
             if type_hints is None:
                 type_hints = get_type_hints(pyrdl_def)
             # allow class vars
-            if get_origin(type_hints[field_name]) is ClassVar:
+            if get_origin(type_hints.get(field_name, None)) is ClassVar:
                 continue
 
             raise PyRDLAttrDefinitionError(
