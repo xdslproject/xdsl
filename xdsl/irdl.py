@@ -19,7 +19,7 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
-    overload,
+    overload, ClassVar,
 )
 from types import UnionType, GenericAlias, FunctionType
 
@@ -1605,6 +1605,10 @@ def irdl_param_attr_get_param_type_hints(cls: type[_PAttrT]) -> list[tuple[str, 
             continue
 
         origin: Any | None = cast(Any | None, get_origin(field_type))
+
+        if origin is ClassVar:
+            continue
+
         args = get_args(field_type)
         if origin != Annotated or IRDLAnnotations.ParamDefAnnot not in args:
             raise PyRDLAttrDefinitionError(
@@ -1639,7 +1643,8 @@ class ParamAttrDef:
         attrdict = {**attrdict, **Generic.__dict__, **GenericData.__dict__}
 
         # Check that all fields of the attribute definition are either already
-        # in ParametrizedAttribute, or are class functions or methods.
+        # in ParametrizedAttribute, or are class functions, methods or variables.
+        type_hints: Any | None = None
         for field_name, value in clsdict.items():
             if field_name in attrdict or field_name == "name":
                 continue
@@ -1647,6 +1652,13 @@ class ParamAttrDef:
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
             ):
                 continue
+            # fetch type hints if not already present
+            if type_hints is None:
+                type_hints = get_type_hints(pyrdl_def)
+            # allow class vars
+            if get_origin(type_hints[field_name]) is ClassVar:
+                continue
+
             raise PyRDLAttrDefinitionError(
                 f"{field_name} is not a parameter definition."
             )
