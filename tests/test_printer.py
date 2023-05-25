@@ -487,7 +487,7 @@ class PlusCustomFormatOp(IRDLOperation):
         parser.parse_characters("+", "Malformed operation format, expected `+`!")
         rhs = parser.parse_operand("Expected SSA Value name here!")
         parser.parse_punctuation(":")
-        type = parser.expect(parser.try_parse_type, "Expect type here!")
+        type = parser.parse_type()
 
         return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=[type])
 

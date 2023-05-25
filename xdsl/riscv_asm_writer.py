@@ -93,8 +93,7 @@ def print_assembly_instruction(op: Operation, output: IO[str]) -> None:
             return
         case riscv.LabelOp():
             desc = f"{op.label.data}:"
-            if op.comment is not None and op.comment.data:
-                desc += f"    # {op.comment.data}"
+            desc = append_comment(desc, op.comment)
             print(desc, file=output)
             return
         case _:

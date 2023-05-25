@@ -37,8 +37,8 @@ def test_condbranch():
     b = Constant.from_int_and_width(2, i32)
     # Operation to add these constants
     c = Addi(a, b)
-    d = Subi.get(a, b)
-    e = Muli.get(a, b)
+    d = Subi(a, b)
+    e = Muli(a, b)
 
     block0 = Block(arg_types=[i32])
     block1 = Block(arg_types=[i32])

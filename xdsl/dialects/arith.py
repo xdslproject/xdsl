@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 from dataclasses import dataclass
 from enum import Enum
-from typing import Annotated, Generic, TypeVar, Union, Set, Optional
+from typing import Annotated, Generic, TypeVar, Set, Optional
 
 from xdsl.dialects.builtin import (
     ContainerOf,
@@ -153,10 +153,32 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
     rhs: Annotated[Operand, _T]
     result: Annotated[OpResult, _T]
 
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).typ
+        super().__init__(operands=[operand1, operand2], result_types=[result_type])
+
     @classmethod
-    def get(cls, operand1: Operation | SSAValue, operand2: Operation | SSAValue):
-        operand1 = SSAValue.get(operand1)
-        return cls.build(operands=[operand1, operand2], result_types=[operand1.typ])
+    def parse(cls, parser: Parser):
+        lhs = parser.parse_operand()
+        parser.parse_punctuation(",")
+        rhs = parser.parse_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        return cls(lhs, rhs, result_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print(", ")
+        printer.print_ssa_value(self.rhs)
+        printer.print(" : ")
+        printer.print_attribute(self.result.typ)
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -177,16 +199,6 @@ class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
 
     traits = frozenset([Pure()])
-
-    def __init__(
-        self,
-        operand1: Union[Operation, SSAValue],
-        operand2: Union[Operation, SSAValue],
-        result_type: Attribute | None = None,
-    ):
-        if result_type is None:
-            result_type = SSAValue.get(operand1).typ
-        super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
 
 @irdl_op_definition
@@ -392,8 +404,8 @@ class Cmpi(IRDLOperation, ComparisonOperation):
 
     @staticmethod
     def get(
-        operand1: Union[Operation, SSAValue],
-        operand2: Union[Operation, SSAValue],
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
         arg: int | str,
     ) -> Cmpi:
         operand1 = SSAValue.get(operand1)
@@ -515,9 +527,9 @@ class Select(IRDLOperation):
 
     @staticmethod
     def get(
-        operand1: Union[Operation, SSAValue],
-        operand2: Union[Operation, SSAValue],
-        operand3: Union[Operation, SSAValue],
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        operand3: Operation | SSAValue,
     ) -> Select:
         operand2 = SSAValue.get(operand2)
         return Select.build(
@@ -554,7 +566,7 @@ class Negf(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> Negf:
         operand = SSAValue.get(operand)
         return Negf.build(
