@@ -127,6 +127,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         "mpi.reduce": "MPI_Reduce",
         "mpi.allreduce": "MPI_Allreduce",
         "mpi.bcast": "MPI_Bcast",
+        "mpi.gather": "MPI_Gather",
     }
     """
     Translation table for mpi operation names to their MPI library function names
@@ -795,6 +796,42 @@ class LowerNullRequestOp(_MPIToLLVMRewriteBase):
         ], []
 
 
+class LowerMpiGatherOp(_MPIToLLVMRewriteBase):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: mpi.GatherOp, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(self, op: mpi.GatherOp) -> tuple[list[Operation], list[SSAValue | None]]:
+        """
+        This method lowers mpi.gather operation.
+
+
+        int MPI_Gather(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                       void *recvbuf, int recvcount, MPI_Datatype recvtype,
+                       int root,
+                       MPI_Comm comm)
+        """
+        return [
+            comm_global := arith.Constant.from_int_and_width(
+                self.info.MPI_COMM_WORLD, i32
+            ),
+            func.Call.get(
+                self._mpi_name(op),
+                [
+                    op.sendbuf,
+                    op.sendcount,
+                    op.sendtype,
+                    op.recvbuf,
+                    op.recvcount,
+                    op.recvtype,
+                    op.root,
+                    comm_global,
+                ],
+                [i32],
+            ),
+        ], []
+
+
 @dataclass
 class LowerMPIPass(ModulePass):
     name = "lower-mpi"
@@ -823,6 +860,7 @@ class LowerMPIPass(ModulePass):
                     LowerMpiAllocateType(lib_info),
                     LowerNullRequestOp(lib_info),
                     LowerMpiVectorGet(lib_info),
+                    LowerMpiGatherOp(lib_info),
                 ]
             ),
             apply_recursively=True,
