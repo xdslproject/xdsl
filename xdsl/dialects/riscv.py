@@ -164,6 +164,10 @@ class LabelAttr(Data[str]):
 
 
 class RISCVOp(Operation, ABC):
+    """
+    Base class for operations that can be a part of RISC-V assembly printing.
+    """
+
     @abstractmethod
     def assembly_line(self) -> str | None:
         raise NotImplementedError()
@@ -175,10 +179,26 @@ _AssemblyInstructionArg: TypeAlias = (
 
 
 class RISCVInstruction(RISCVOp):
+    """
+    Base class for operations that can be a part of RISC-V assembly printing. Must
+    represent an instruction in the RISC-V instruction set, and have the following format:
+
+    name arg0, arg1, arg2           # comment
+
+    The name of the operation will be used as the RISC-V assembly instruction name.
+    """
+
     comment: OptOpAttr[StringAttr]
+    """
+    An optional comment that will be printed along with the instruction.
+    """
 
     @abstractmethod
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        """
+        The arguments to the instruction, in the order they should be printed in the
+        assembly.
+        """
         raise NotImplementedError()
 
     def assembly_line(self) -> str | None:
