@@ -4,7 +4,16 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import UnionType
-from typing import Callable, TypeVar, Union, get_args, get_origin, Iterable, Sequence
+from typing import (
+    Callable,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+    Iterable,
+    Sequence,
+    overload,
+)
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, Region, Block, BlockArgument, Attribute, SSAValue
@@ -414,10 +423,27 @@ _RewritePatternT = TypeVar("_RewritePatternT", bound=RewritePattern)
 _OperationT = TypeVar("_OperationT", bound=Operation)
 
 
+@overload
+def op_type_rewrite_pattern(
+    func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
+) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
+    ...
+
+
+@overload
+def op_type_rewrite_pattern(
+    func: Callable[[_OperationT, PatternRewriter], None]
+) -> Callable[[RewritePattern, Operation, PatternRewriter], None]:
+    ...
+
+
 def op_type_rewrite_pattern(
     func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
     | Callable[[_OperationT, PatternRewriter], None]
-) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
+) -> (
+    Callable[[_RewritePatternT, Operation, PatternRewriter], None]
+    | Callable[[RewritePattern, Operation, PatternRewriter], None]
+):
     """
     This function is intended to be used as a decorator on a RewritePatter method.
     It uses type hints to match on a specific operation type before calling the decorated
