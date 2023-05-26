@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Annotated
+from typing import IO, Annotated, Iterable, TypeAlias
 
 from xdsl.ir import (
     Dialect,
@@ -26,8 +26,15 @@ from xdsl.irdl import (
 
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import AnyIntegerAttr, UnitAttr, IntegerAttr, StringAttr
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    ModuleOp,
+    UnitAttr,
+    IntegerAttr,
+    StringAttr,
+)
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @dataclass(frozen=True)
@@ -157,13 +164,87 @@ class LabelAttr(Data[str]):
 
 
 class RISCVOp(Operation, ABC):
-    pass
+    @abstractmethod
+    def assembly_line(self) -> str | None:
+        raise NotImplementedError()
 
+
+_AssemblyInstructionArg: TypeAlias = (
+    AnyIntegerAttr | LabelAttr | SSAValue | RegisterType | str | None
+)
+
+
+class RISCVInstruction(RISCVOp):
+    comment: OptOpAttr[StringAttr]
+
+    @abstractmethod
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        raise NotImplementedError()
+
+    def assembly_line(self) -> str | None:
+        # default assembly code generator
+        assert self.name.startswith("riscv.")
+        instruction_name = self.name[6:]
+        return _assembly_line(instruction_name, self.assembly_line_args(), self.comment)
+
+
+# region Assembly printing
+
+
+def _assembly_line(
+    name: str,
+    args: Iterable[_AssemblyInstructionArg],
+    comment: StringAttr | None = None,
+    is_indented: bool = True,
+) -> str:
+    arg_strs: list[str] = []
+
+    for arg in args:
+        if arg is None:
+            continue
+        elif isa(arg, AnyIntegerAttr):
+            arg_strs.append(f"{arg.value.data}")
+        elif isinstance(arg, LabelAttr):
+            arg_strs.append(arg.data)
+        elif isinstance(arg, str):
+            arg_strs.append(arg)
+        elif isinstance(arg, RegisterType):
+            arg_strs.append(arg.register_name)
+        else:
+            assert isinstance(arg.typ, RegisterType)
+            reg = arg.typ.register_name
+            arg_strs.append(reg)
+
+    def _append_comment(line: str, comment: StringAttr | None) -> str:
+        if comment is None:
+            return line
+
+        padding = " " * max(0, 48 - len(line))
+
+        return f"{line}{padding} # {comment.data}"
+
+    code = "    " if is_indented else ""
+    code += name
+    if arg_strs:
+        code += f" {', '.join(arg_strs)}"
+    code = _append_comment(code, comment)
+    return code
+
+
+def print_assembly(module: ModuleOp, output: IO[str]) -> None:
+    for op in module.body.walk():
+        assert isinstance(op, RISCVOp)
+        asm = op.assembly_line()
+        if asm is not None:
+            print(asm, file=output)
+
+
+# endregion
 
 # region Base Operation classes
 
 
-class RdRsRsOperation(IRDLOperation, RISCVOp, ABC):
+class RdRsRsOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, and two source
     registers.
@@ -174,7 +255,6 @@ class RdRsRsOperation(IRDLOperation, RISCVOp, ABC):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -199,8 +279,11 @@ class RdRsRsOperation(IRDLOperation, RISCVOp, ABC):
             result_types=[rd],
         )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.rs2
 
-class RdImmOperation(IRDLOperation, RISCVOp, ABC):
+
+class RdImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, and one
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
@@ -208,7 +291,6 @@ class RdImmOperation(IRDLOperation, RISCVOp, ABC):
 
     rd: Annotated[OpResult, RegisterType]
     immediate: OpAttr[AnyIntegerAttr | LabelAttr]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -236,8 +318,11 @@ class RdImmOperation(IRDLOperation, RISCVOp, ABC):
             },
         )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rd, self.immediate
 
-class RdImmJumpOperation(IRDLOperation, RISCVOp, ABC):
+
+class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     In the RISC-V spec, this is the same as `RdImmOperation`. For jumps, the `rd` register
     is neither an operand, because the stored value is overwritten, nor a result value,
@@ -251,7 +336,6 @@ class RdImmJumpOperation(IRDLOperation, RISCVOp, ABC):
     the program counter is stored before jumping.
     """
     immediate: OpAttr[AnyIntegerAttr | LabelAttr]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -276,8 +360,11 @@ class RdImmJumpOperation(IRDLOperation, RISCVOp, ABC):
             }
         )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rd, self.immediate
 
-class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
+
+class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -288,7 +375,6 @@ class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
     rd: Annotated[OpResult, RegisterType]
     rs1: Annotated[Operand, RegisterType]
     immediate: OpAttr[AnyIntegerAttr | LabelAttr]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -318,8 +404,11 @@ class RdRsImmOperation(IRDLOperation, RISCVOp, ABC):
             },
         )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.immediate
 
-class RdRsImmJumpOperation(IRDLOperation, RISCVOp, ABC):
+
+class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -339,7 +428,6 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVOp, ABC):
     the program counter is stored before jumping.
     """
     immediate: OpAttr[AnyIntegerAttr | LabelAttr]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -369,8 +457,11 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVOp, ABC):
             },
         )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.immediate
 
-class RdRsOperation(IRDLOperation, RISCVOp, ABC):
+
+class RdRsOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V pseudo-instructions that have one destination register and one
     source register.
@@ -378,7 +469,6 @@ class RdRsOperation(IRDLOperation, RISCVOp, ABC):
 
     rd: Annotated[OpResult, RegisterType]
     rs: Annotated[Operand, RegisterType]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -399,8 +489,11 @@ class RdRsOperation(IRDLOperation, RISCVOp, ABC):
             attributes={"comment": comment},
         )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rd, self.rs
 
-class RsRsOffOperation(IRDLOperation, RISCVOp, ABC):
+
+class RsRsOffOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one source register and a destination
     register, and an offset.
@@ -411,7 +504,6 @@ class RsRsOffOperation(IRDLOperation, RISCVOp, ABC):
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
     offset: OpAttr[AnyIntegerAttr | LabelAttr]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -436,8 +528,11 @@ class RsRsOffOperation(IRDLOperation, RISCVOp, ABC):
             },
         )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rs1, self.rs2, self.offset
 
-class RsRsImmOperation(IRDLOperation, RISCVOp, ABC):
+
+class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source registers and an
     immediate.
@@ -448,7 +543,6 @@ class RsRsImmOperation(IRDLOperation, RISCVOp, ABC):
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
     immediate: OpAttr[AnyIntegerAttr]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -473,8 +567,11 @@ class RsRsImmOperation(IRDLOperation, RISCVOp, ABC):
             },
         )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rs1, self.rs2, self.immediate
 
-class RsRsOperation(IRDLOperation, RISCVOp, ABC):
+
+class RsRsOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source
     registers.
@@ -488,13 +585,14 @@ class RsRsOperation(IRDLOperation, RISCVOp, ABC):
             operands=[rs1, rs2],
         )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rs1, self.rs2
 
-class NullaryOperation(IRDLOperation, RISCVOp, ABC):
+
+class NullaryOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have neither sources nor destinations.
     """
-
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -510,8 +608,11 @@ class NullaryOperation(IRDLOperation, RISCVOp, ABC):
             },
         )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return ()
 
-class CsrReadWriteOperation(IRDLOperation, RISCVOp, ABC):
+
+class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a swap to/from a CSR.
 
@@ -526,7 +627,6 @@ class CsrReadWriteOperation(IRDLOperation, RISCVOp, ABC):
     rs1: Annotated[Operand, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     writeonly: OptOpAttr[UnitAttr]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -564,8 +664,11 @@ class CsrReadWriteOperation(IRDLOperation, RISCVOp, ABC):
                 f"not '{self.rd.typ.data.name}'"
             )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rd, self.csr, self.rs1
 
-class CsrBitwiseOperation(IRDLOperation, RISCVOp, ABC):
+
+class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value.
@@ -582,7 +685,6 @@ class CsrBitwiseOperation(IRDLOperation, RISCVOp, ABC):
     rs1: Annotated[Operand, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     readonly: OptOpAttr[UnitAttr]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -620,8 +722,11 @@ class CsrBitwiseOperation(IRDLOperation, RISCVOp, ABC):
                 f"not '{self.rs1.typ.data.name}'"
             )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rd, self.csr, self.rs1
 
-class CsrReadWriteImmOperation(IRDLOperation, RISCVOp, ABC):
+
+class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a write immediate to/read from a CSR.
 
@@ -636,7 +741,6 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVOp, ABC):
     csr: OpAttr[AnyIntegerAttr]
     writeonly: OptOpAttr[UnitAttr]
     immediate: OptOpAttr[AnyIntegerAttr]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -674,8 +778,11 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVOp, ABC):
                 f"not '{self.rd.typ.data.name}'"
             )
 
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rd, self.csr, self.immediate
 
-class CsrBitwiseImmOperation(IRDLOperation, RISCVOp, ABC):
+
+class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations performing a masked bitwise operation on the
     CSR while returning the original value. The bitmask is specified in the 'immediate'
@@ -691,7 +798,6 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVOp, ABC):
     rd: Annotated[OpResult, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     immediate: OpAttr[AnyIntegerAttr]
-    comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
@@ -715,6 +821,9 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVOp, ABC):
             },
             result_types=[rd],
         )
+
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return self.rd, self.csr, self.immediate
 
 
 # endregion
@@ -1079,6 +1188,10 @@ class JOp(RdImmJumpOperation):
         comment: str | StringAttr | None = None,
     ):
         super().__init__(immediate, rd=Registers.ZERO, comment=comment)
+
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        # J op is a special case of JalOp with zero return register
+        return (self.immediate,)
 
 
 @irdl_op_definition
@@ -1616,6 +1729,14 @@ class DirectiveOp(IRDLOperation, RISCVOp):
             regions=[region],
         )
 
+    def assembly_line(self) -> str | None:
+        if self.value is not None and self.value.data:
+            value = self.value.data
+        else:
+            value = None
+
+        return _assembly_line(self.directive.data, (value,), is_indented=False)
+
 
 @irdl_op_definition
 class CommentOp(IRDLOperation, RISCVOp):
@@ -1632,7 +1753,7 @@ class CommentOp(IRDLOperation, RISCVOp):
             },
         )
 
-    def assembly_instruction(self) -> str | None:
+    def assembly_line(self) -> str | None:
         return f"    # {self.comment.data}"
 
 
@@ -1699,6 +1820,10 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
         if isinstance(register_type, Register):
             register_type = RegisterType(register_type)
         super().__init__(result_types=[register_type])
+
+    def assembly_line(self) -> str | None:
+        # Don't print assembly for creating a SSA value representing register
+        return None
 
 
 # endregion

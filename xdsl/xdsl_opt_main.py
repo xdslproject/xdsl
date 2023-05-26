@@ -3,8 +3,6 @@ import sys
 import os
 
 from io import StringIO
-from xdsl.dialects.riscv import RISCV
-from xdsl.dialects.snitch import Snitch
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
@@ -28,6 +26,8 @@ from xdsl.dialects.test import Test
 from xdsl.dialects.stencil import Stencil
 from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.irdl import IRDL
+from xdsl.dialects.riscv import RISCV, print_assembly
+from xdsl.dialects.snitch import Snitch
 
 from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
@@ -52,7 +52,6 @@ from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 from typing import IO, Dict, Callable, List, Sequence, Type
-from xdsl.riscv_asm_writer import print_riscv_module
 
 
 class xDSLOptMain:
@@ -307,7 +306,7 @@ class xDSLOptMain:
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
-            print_riscv_module(prog, output)
+            print_assembly(prog, output)
 
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm

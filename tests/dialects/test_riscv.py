@@ -1,4 +1,4 @@
-from xdsl.riscv_asm_writer import riscv_code
+from io import StringIO
 from xdsl.utils.test_value import TestSSAValue
 from xdsl.dialects import riscv
 
@@ -78,6 +78,12 @@ def test_csr_op():
     riscv.CsrrsiOp(
         csr=csr, immediate=IntegerAttr(1, i32), rd=riscv.Registers.A2
     ).verify()
+
+
+def riscv_code(module: ModuleOp) -> str:
+    stream = StringIO()
+    riscv.print_assembly(module, stream)
+    return stream.getvalue()
 
 
 def test_comment_op():
