@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence, TypeVar, cast, Iterable, Iterator, List
+from typing import Sequence, TypeVar, cast, Iterable, Iterator
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
@@ -42,15 +42,17 @@ from xdsl.utils.hints import isa
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
 
 
-class StencilType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute):
+class StencilType(
+    Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute, memref.ShapeType
+):
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_FieldTypeElement]
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
+    def get_shape(self) -> tuple[int]:
+        return tuple(i.value.data for i in self.shape.data)
 
     def verify(self):
         if self.get_num_dims() <= 0:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import ABC
 
 from typing import (
     TYPE_CHECKING,
@@ -61,8 +62,18 @@ if TYPE_CHECKING:
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
 
+class ShapeType(ABC):
+    def get_num_dims(self) -> int:
+        ...
+
+    def get_shape(self) -> tuple[int]:
+        ...
+
+
 @irdl_attr_definition
-class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, TypeAttribute):
+class MemRefType(
+    Generic[_MemRefTypeElement], ParametrizedAttribute, TypeAttribute, ShapeType
+):
     name = "memref"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -73,8 +84,8 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, TypeAttribu
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
+    def get_shape(self) -> tuple[int]:
+        return tuple(i.value.data for i in self.shape.data)
 
     @staticmethod
     def from_element_type_and_shape(

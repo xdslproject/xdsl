@@ -387,20 +387,18 @@ def test_stencil_fieldtype_constructor_with_ArrayAttr(
 
     assert stencil_fieldtype.element_type == attr
     assert stencil_fieldtype.get_num_dims() == len(dims)
-    assert stencil_fieldtype.get_shape() == [
-        list(dims.data)[dim].value.data for dim in range(len(dims))
-    ]
+    assert stencil_fieldtype.get_shape() == tuple(d.value.data for d in dims)
 
 
 @pytest.mark.parametrize(
     "attr, dims",
     (
-        (i32, [1, 2]),
-        (i32, [1, 1, 3]),
-        (i64, [1, 1, 3]),
+        (i32, (1, 2)),
+        (i32, (1, 1, 3)),
+        (i64, (1, 1, 3)),
     ),
 )
-def test_stencil_fieldtype_constructor(attr: IntegerType, dims: list[int]):
+def test_stencil_fieldtype_constructor(attr: IntegerType, dims: tuple[int]):
     stencil_fieldtype = FieldType(dims, attr)
 
     assert stencil_fieldtype.element_type == attr
@@ -485,20 +483,18 @@ def test_stencil_temptype_constructor_with_ArrayAttr(
     assert isinstance(stencil_temptype, TempType)
     assert stencil_temptype.element_type == attr
     assert stencil_temptype.get_num_dims() == len(dims)
-    assert stencil_temptype.get_shape() == [
-        list(dims.data)[dim].value.data for dim in range(len(dims))
-    ]
+    assert stencil_temptype.get_shape() == tuple(d.value.data for d in dims)
 
 
 @pytest.mark.parametrize(
     "attr, dims",
     (
-        (i32, [1, 2]),
-        (i32, [1, 1, 3]),
-        (i64, [1, 1, 3]),
+        (i32, (1, 2)),
+        (i32, (1, 1, 3)),
+        (i64, (1, 1, 3)),
     ),
 )
-def test_stencil_temptype_constructor(attr: IntegerType, dims: list[int]):
+def test_stencil_temptype_constructor(attr: IntegerType, dims: tuple[int]):
     stencil_temptype = TempType(dims, attr)
 
     assert isinstance(stencil_temptype, TempType)

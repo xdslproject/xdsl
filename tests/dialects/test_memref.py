@@ -37,20 +37,20 @@ def test_memreftype():
     mem1 = MemRefType.from_element_type_and_shape(i32, [1])
 
     assert mem1.get_num_dims() == 1
-    assert mem1.get_shape() == [1]
+    assert mem1.get_shape() == (1,)
     assert mem1.element_type is i32
 
     mem2 = MemRefType.from_element_type_and_shape(i32, [3, 3, 3])
 
     assert mem2.get_num_dims() == 3
-    assert mem2.get_shape() == [3, 3, 3]
+    assert mem2.get_shape() == (3, 3, 3)
     assert mem2.element_type is i32
 
     my_i32 = IntegerType(32)
     mem3 = MemRefType.from_params(my_i32)
 
     assert mem3.get_num_dims() == 1
-    assert mem3.get_shape() == [1]
+    assert mem3.get_shape() == (1,)
     assert mem3.element_type is my_i32
 
 
@@ -109,11 +109,11 @@ def test_memref_alloc():
 
     assert alloc0.dynamic_sizes == ()
     assert type(alloc0.results[0]) is OpResult
-    assert alloc0.results[0].typ.get_shape() == [3, 1, 2]
     assert type(alloc0.results[0].typ) is MemRefType
+    assert alloc0.results[0].typ.get_shape() == (3, 1, 2)
     assert type(alloc1.results[0]) is OpResult
-    assert alloc1.results[0].typ.get_shape() == [1]
     assert type(alloc1.results[0].typ) is MemRefType
+    assert alloc1.results[0].typ.get_shape() == (1,)
 
 
 def test_memref_alloca():
@@ -122,11 +122,11 @@ def test_memref_alloca():
     alloc1 = Alloca.get(my_i32, 64)
 
     assert type(alloc0.results[0]) is OpResult
-    assert alloc0.results[0].typ.get_shape() == [3, 1, 2]
     assert type(alloc0.results[0].typ) is MemRefType
+    assert alloc0.results[0].typ.get_shape() == (3, 1, 2)
     assert type(alloc1.results[0]) is OpResult
-    assert alloc1.results[0].typ.get_shape() == [1]
     assert type(alloc1.results[0].typ) is MemRefType
+    assert alloc1.results[0].typ.get_shape() == (1,)
 
 
 def test_memref_dealloc():
