@@ -56,6 +56,10 @@ should be used for this index.
 
 @irdl_attr_definition
 class LLVMStructType(ParametrizedAttribute, TypeAttribute):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#structure-types
+    """
+
     name = "llvm.struct"
 
     # An empty string refers to a struct without a name.
@@ -70,19 +74,29 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         return LLVMStructType([StringAttr(""), ArrayAttr(types)])
 
     def print_parameters(self, printer: Printer) -> None:
-        assert self.struct_name.data == ""
-        printer.print("<(")
+        printer.print("<")
+        if self.struct_name.data:
+            printer.print_string_literal(self.struct_name.data)
+            printer.print_string(", ")
+        printer.print("(")
         printer.print_list(self.types.data, printer.print_attribute)
         printer.print(")>")
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_punctuation("<")
+        parser.parse_characters("<", "LLVM Struct must start with `<`")
+        parsed_struct_name = parser.try_parse_string_literal()
+        if parsed_struct_name is None:
+            struct_name = ""
+        else:
+            struct_name = parsed_struct_name.string_contents
+            parser.parse_characters(", ", "comma after type")
+
         params = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parser.parse_type
         )
-        parser.parse_punctuation(">")
-        return [StringAttr(""), ArrayAttr(params)]
+        parser.parse_characters(">", "LLVM Struct must start with `>`")
+        return [StringAttr(struct_name), ArrayAttr(params)]
 
 
 @irdl_attr_definition
