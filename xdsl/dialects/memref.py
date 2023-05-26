@@ -1,5 +1,4 @@
 from __future__ import annotations
-from abc import ABC
 
 from typing import (
     TYPE_CHECKING,
@@ -8,7 +7,6 @@ from typing import (
     Sequence,
     TypeVar,
     Optional,
-    List,
     TypeAlias,
     cast,
 )
@@ -21,6 +19,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     DenseArrayBase,
     IndexType,
+    ShapeType,
     StridedLayoutAttr,
     ArrayAttr,
     NoneAttr,
@@ -60,14 +59,6 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
-
-
-class ShapeType(ABC):
-    def get_num_dims(self) -> int:
-        ...
-
-    def get_shape(self) -> tuple[int]:
-        ...
 
 
 @irdl_attr_definition

@@ -43,7 +43,7 @@ _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True
 
 
 class StencilType(
-    Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute, memref.ShapeType
+    Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute, builtin.ShapeType
 ):
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
     element_type: ParameterDef[_FieldTypeElement]
