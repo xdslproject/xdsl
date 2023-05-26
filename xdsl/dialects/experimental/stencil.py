@@ -466,22 +466,6 @@ class ReturnOp(IRDLOperation):
         return ReturnOp.build(operands=[list(res)])
 
 
-@irdl_op_definition
-class HaloSwapOp(IRDLOperation):
-    name = "stencil.halo_swap"
-
-    input_stencil: Annotated[Operand, TempType | memref.MemRefType]
-
-    buff_lb: OptOpAttr[IndexAttr]
-    buff_ub: OptOpAttr[IndexAttr]
-    core_lb: OptOpAttr[IndexAttr]
-    core_ub: OptOpAttr[IndexAttr]
-
-    @staticmethod
-    def get(input_stencil: SSAValue | Operation):
-        return HaloSwapOp.build(operands=[input_stencil])
-
-
 StencilExp = Dialect(
     [
         ExternalLoadOp,
@@ -494,7 +478,6 @@ StencilExp = Dialect(
         ApplyOp,
         StoreResultOp,
         ReturnOp,
-        HaloSwapOp,
     ],
     [
         FieldType,

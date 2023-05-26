@@ -3,7 +3,6 @@ from xdsl.dialects import builtin
 from xdsl.dialects.experimental.stencil import (
     AccessOp,
     ApplyOp,
-    HaloSwapOp,
     IndexAttr,
     LoadOp,
     StoreOp,
@@ -110,26 +109,11 @@ class ApplyOpShapeInference(RewritePattern):
             )
 
 
-class HaloOpShapeInference(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: HaloSwapOp, rewriter: PatternRewriter, /):
-        assert isinstance(op.input_stencil.owner, LoadOp)
-        load = op.input_stencil.owner
-        halo_lb, halo_ub = infer_core_size(load)
-        op.attributes["core_lb"] = halo_lb
-        op.attributes["core_ub"] = halo_ub
-        assert load.lb is not None
-        assert load.ub is not None
-        op.attributes["buff_lb"] = load.lb
-        op.attributes["buff_ub"] = load.ub
-
-
 ShapeInference = GreedyRewritePatternApplier(
     [
         ApplyOpShapeInference(),
         LoadOpShapeInference(),
         StoreOpShapeInference(),
-        HaloOpShapeInference(),
     ]
 )
 
