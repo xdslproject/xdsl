@@ -1,9 +1,9 @@
 """
-A dialect for handling distributed memory parallelism.
+A dialect for handling distributed memory parallelism (DMP).
 
 This is xDSL only for now.
 
-This dialects aims to provide the tools necessary to facilitate the creation
+This dialect aims to provide the tools necessary to facilitate the creation
 and lowering of stencil (and other) computations in a manner that
 makes them run on node clusters.
 """
