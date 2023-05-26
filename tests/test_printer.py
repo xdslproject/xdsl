@@ -61,7 +61,7 @@ def test_simple_forgotten_op():
 
 def test_simple_forgotten_op_error_option():
     """
-    Test that the parsing of an undefined operand does raises an exception if
+    Test that the parsing of an undefined operand does not raises an exception if
     `print_unknown_value_error` is set to False.
     """
     ctx = MLContext()
