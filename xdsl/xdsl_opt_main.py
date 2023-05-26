@@ -111,17 +111,21 @@ class xDSLOptMain:
         """
         chunks, file_extension = self.prepare_input()
         output_stream = self.prepare_output()
-        for i, chunk in enumerate(chunks):
-            try:
-                if i > 0:
-                    output_stream.write("// -----\n")
-                module = self.parse_chunk(chunk, file_extension)
-                if module is not None:
-                    if self.apply_passes(module):
-                        output_stream.write(self.output_resulting_program(module))
-                output_stream.flush()
-            finally:
-                chunk.close()
+        try:
+            for i, chunk in enumerate(chunks):
+                try:
+                    if i > 0:
+                        output_stream.write("// -----\n")
+                    module = self.parse_chunk(chunk, file_extension)
+                    if module is not None:
+                        if self.apply_passes(module):
+                            output_stream.write(self.output_resulting_program(module))
+                    output_stream.flush()
+                finally:
+                    chunk.close()
+        finally:
+            if output_stream is not sys.stdout:
+                output_stream.close()
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
