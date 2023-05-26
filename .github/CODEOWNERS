@@ -6,7 +6,9 @@
 # the repo. Unless a later match takes precedence,
 *                             @math-fehr @webmiche @georgebisbas
 
-
+# nobody owns experimental by default
+/xdsl/dialects/experimental
+/xdsl/transforms/experimental
 
 # xDSL core
 xdsl/*                        @math-fehr @webmiche
