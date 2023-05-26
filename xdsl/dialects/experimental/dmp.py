@@ -398,12 +398,31 @@ class GatherOp(IRDLOperation):
 
     retain_order: OptOpAttr[builtin.UnitAttr]
     """
-    A naive mpi.gather() will result in "pancaking", where each nodes data will
-    be placed sequentially into the buffer, without any knowledge of the node 
-    layout.
-    
-    If retain_order is set, the gather op will make sure that the memref output
-    is well-ordered. 
+    A normal mpi.gather() will result in a reordering of the data, where each
+    nodes data will be placed sequentially into the buffer, without any
+    knowledge of the node layout.
+
+    Given a decomposition like this (number on the grid cell is the node id):
+
+    1 1 2 2 3 3
+    1 1 2 2 3 3
+    4 4 5 5 6 6
+    4 4 5 5 6 6
+
+    The mpi.gather will result in the following layout in the buffer:
+
+    1 1 1 1 2 2
+    2 2 3 3 3 3
+    4 4 4 4 5 5
+    5 5 6 6 6 6
+
+    If retain_order is set, the gather op will make sure that the data in the
+    output memred retains the same order as it is "logically":
+
+    1 1 2 2 3 3
+    1 1 2 2 3 3
+    4 4 5 5 6 6
+    4 4 5 5 6 6
     """
 
     # TODO: implement
