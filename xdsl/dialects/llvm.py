@@ -233,8 +233,6 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         else:
             output = parser.parse_attribute()
 
-        # parser.parse_char(" ")
-
         inputs = parser.parse_comma_separated_list(
             Parser.Delimiter.PAREN, parser.parse_attribute
         )
