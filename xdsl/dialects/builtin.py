@@ -1299,6 +1299,15 @@ f64 = Float64Type()
 f80 = Float64Type()
 f128 = Float64Type()
 
+
+class ShapeType(ABC):
+    def get_num_dims(self) -> int:
+        ...
+
+    def get_shape(self) -> tuple[int]:
+        ...
+
+
 Builtin = Dialect(
     [
         ModuleOp,
