@@ -28,6 +28,7 @@ from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.riscv import RISCV, print_assembly
 from xdsl.dialects.snitch import Snitch
+from xdsl.dialects.snitch_runtime import SnitchRuntime
 
 from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
@@ -243,6 +244,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(Test)
         self.ctx.register_dialect(RISCV)
         self.ctx.register_dialect(Snitch)
+        self.ctx.register_dialect(SnitchRuntime)
         self.ctx.register_dialect(RISCV_Func)
         self.ctx.register_dialect(IRDL)
 
