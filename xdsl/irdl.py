@@ -915,14 +915,13 @@ class OpDef:
                 raise wrong_field_exception(field_name)
 
         op_def.options = clsdict.get("irdl_options", [])
-        traits = clsdict.get("traits", frozenset())
+        traits = clsdict.get("traits", frozenset[OpTrait]())
         if not isinstance(traits, frozenset):
             raise Exception(
                 f"pyrdl operation definition '{pyrdl_def.__name__}' "
                 f"has a 'traits' field of type {type(traits)}, but "
                 "it should be of type frozenset."
             )
-        traits = cast(frozenset[OpTrait], traits)
         op_def.traits = traits
 
         return op_def
