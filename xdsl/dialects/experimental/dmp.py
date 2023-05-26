@@ -331,19 +331,30 @@ class HaloShapeInformation(ParametrizedAttribute):
 
 @irdl_attr_definition
 class NodeGrid(ParametrizedAttribute):
+    """
+    This attribute specifies the node layout used to distribute the computation.
+
+    dmp.grid<3x3> means nine nodes organized in a 3x3 grid.
+
+    This allows for higher-dimensional grids as well, e.g. dmp.grid<3x3x3> for
+    3-dimensional data.
+    """
     name = "dmp.grid"
 
     shape: ParameterDef[builtin.DenseArrayBase]
 
     def __init__(self, shape: Sequence[int]):
         if len(shape) < 1:
-            raise ValueError("dmp.grid must have at least one dimensions!")
+            raise ValueError("dmp.grid must have at least one dimension!")
         super().__init__([builtin.DenseArrayBase.from_list(builtin.i64, shape)])
 
-    def as_tuple(self):
+    def as_tuple(self) -> tuple[int]:
         shape = self.shape.as_tuple()
-        assert isa(shape, tuple[int])
+        assert isa(shape, tuple[int, ...])
         return shape
+
+    def node_count(self) -> int:
+        return prod(self.as_tuple())
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
