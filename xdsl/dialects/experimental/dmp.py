@@ -10,7 +10,7 @@ makes them run on node clusters.
 from __future__ import annotations
 
 from math import prod
-from typing import Sequence, ClassVar
+from typing import Sequence
 
 from xdsl.printer import Printer
 from xdsl.parser import Parser
@@ -28,6 +28,11 @@ from xdsl.irdl import (
     OpAttr,
 )
 from xdsl.dialects import builtin, memref
+
+# helpers for named dimensions:
+DIM_X = 0
+DIM_Y = 1
+DIM_Z = 2
 
 
 @irdl_attr_definition
@@ -195,11 +200,6 @@ class HaloShapeInformation(ParametrizedAttribute):
     core_lb_: ParameterDef[builtin.DenseArrayBase]
     core_ub_: ParameterDef[builtin.DenseArrayBase]
 
-    # helpers for named dimensions:
-    DIM_X: ClassVar[int] = 0
-    DIM_Y: ClassVar[int] = 1
-    DIM_Z: ClassVar[int] = 2
-
     @property
     def buff_lb(self) -> tuple[int, ...]:
         data = self.buff_lb_.as_tuple()
@@ -339,6 +339,7 @@ class NodeGrid(ParametrizedAttribute):
     This allows for higher-dimensional grids as well, e.g. dmp.grid<3x3x3> for
     3-dimensional data.
     """
+
     name = "dmp.grid"
 
     shape: ParameterDef[builtin.DenseArrayBase]

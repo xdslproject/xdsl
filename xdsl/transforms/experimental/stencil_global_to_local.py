@@ -65,32 +65,32 @@ class HorizontalSlices2D(DomainDecompositionStrategy):
         # upper halo exchange:
         yield dmp.HaloExchangeDecl(
             offset=(
-                dims.core_start(dims.DIM_X),
-                dims.buffer_start(dims.DIM_Y),
+                dims.core_start(dmp.DIM_X),
+                dims.buffer_start(dmp.DIM_Y),
             ),
             size=(
-                dims.core_size(dims.DIM_X),
-                dims.halo_size(dims.DIM_Y),
+                dims.core_size(dmp.DIM_X),
+                dims.halo_size(dmp.DIM_Y),
             ),
             source_offset=(
                 0,
-                dims.halo_size(dims.DIM_Y),
+                dims.halo_size(dmp.DIM_Y),
             ),
             neighbor=[-1],
         )
         # lower halo exchange:
         yield dmp.HaloExchangeDecl(
             offset=(
-                dims.core_start(dims.DIM_X),
-                dims.core_end(dims.DIM_Y),
+                dims.core_start(dmp.DIM_X),
+                dims.core_end(dmp.DIM_Y),
             ),
             size=(
-                dims.core_size(dims.DIM_X),
-                dims.halo_size(dims.DIM_Y),
+                dims.core_size(dmp.DIM_X),
+                dims.halo_size(dmp.DIM_Y),
             ),
             source_offset=(
                 0,
-                -dims.halo_size(dims.DIM_Y),
+                -dims.halo_size(dmp.DIM_Y),
             ),
             neighbor=[1],
         )
