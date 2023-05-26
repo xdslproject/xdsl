@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Operation, SSAValue, Dialect, OpResult, Data
 from xdsl.irdl import (
     AnyOf,
+    ConstraintVar,
     irdl_op_definition,
     OpAttr,
     AnyAttr,
@@ -149,9 +150,11 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
 
     They all have two operands and one result of a same type."""
 
-    lhs: Annotated[Operand, _T]
-    rhs: Annotated[Operand, _T]
-    result: Annotated[OpResult, _T]
+    T = Annotated[Attribute, ConstraintVar("T"), _T]
+
+    lhs: Annotated[Operand, T]
+    rhs: Annotated[Operand, T]
+    result: Annotated[OpResult, T]
 
     def __init__(
         self,
@@ -179,11 +182,6 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
         printer.print_ssa_value(self.rhs)
         printer.print(" : ")
         printer.print_attribute(self.result.typ)
-
-    # TODO replace with trait
-    def verify_(self) -> None:
-        if not (self.operands[0].typ == self.operands[1].typ == self.results[0].typ):
-            raise VerifyException("expect all input and result types to be equal")
 
     def __hash__(self) -> int:
         return id(self)

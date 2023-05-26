@@ -46,6 +46,14 @@
 // CHECK-NEXT:    "func.return"(%4) : (!llvm.array<1 x i32>) -> ()
 // CHECK-NEXT:  }) {"sym_name" = "array", "function_type" = (!llvm.array<2 x i64>) -> !llvm.array<1 x i32>, "sym_visibility" = "private"} : () -> ()
 
+  // literal
+  %s0, %s1 = "test.op"() : () -> (!llvm.struct<()>, !llvm.struct<(i32)>)
+  // named
+  %s2, %s3 = "test.op"() : () -> (!llvm.struct<"a", ()>, !llvm.struct<"a", (i32)>)
+
+  // CHECK-NEXT:   %s0, %s1 = "test.op"() : () -> (!llvm.struct<()>, !llvm.struct<(i32)>)
+  // CHECK-NEXT:   %s2, %s3 = "test.op"() : () -> (!llvm.struct<"a", ()>, !llvm.struct<"a", (i32)>)
+
   // Op tests
   "func.func"() ({
     %5 = "arith.constant"() {"value" = 1 : i32} : () -> i32
