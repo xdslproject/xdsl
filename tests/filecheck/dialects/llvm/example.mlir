@@ -60,7 +60,9 @@
 
   // function
   %f0 = "test.op"() : () -> !llvm.func<void ()>
+  %f1 = "test.op"() : () -> !llvm.func<i32 (i32, i32)>
   // CHECK-NEXT:   %f0 = "test.op"() : () -> !llvm.func<void ()>
+  // CHECK-NEXT:   %f1 = "test.op"() : () -> !llvm.func<i32 (i32, i32)>
 
 
   // Op tests
