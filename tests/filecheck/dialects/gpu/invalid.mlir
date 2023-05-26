@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics --parsing-diagnostics --split-input-file | filecheck %s
 
 "builtin.module"()({
     "gpu.module"()({
@@ -13,6 +13,13 @@
 }) {} : () -> ()
 
 // CHECK: gpu.all_reduce can't have both a non-empty region and an op attribute.
+
+// -----
+
+"builtin.module"() ({
+}) {"wrong_all_reduce_operation" = #gpu<all_reduce_op magic>}: () -> ()
+
+// CHECK: Unexpected op magic. A gpu all_reduce_op can only be add, and, max, min, mul, or, or xor
 
 // -----
 
