@@ -201,10 +201,15 @@ class RISCVInstruction(RISCVOp):
         """
         raise NotImplementedError()
 
+    def assembly_instruction_name(self) -> str:
+        """
+        By default, the name of the instruction is the same as the name of the operation.
+        """
+        return self.name.split(".")[-1]
+
     def assembly_line(self) -> str | None:
         # default assembly code generator
-        assert self.name.startswith("riscv.")
-        instruction_name = self.name[6:]
+        instruction_name = self.assembly_instruction_name()
         return _assembly_line(instruction_name, self.assembly_line_args(), self.comment)
 
 
