@@ -59,6 +59,24 @@ def test_simple_forgotten_op():
     assert_print_op(add, expected, None)
 
 
+def test_simple_forgotten_op():
+    """
+    Test that the parsing of an undefined operand does raises an exception if
+    `print_unknown_value_error` is set to False.
+    """
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+
+    lit = Constant.from_int_and_width(42, 32)
+    add = Addi(lit, lit)
+
+    add.verify()
+
+    expected = """%0 = "arith.addi"(%<UNKNOWN>, %<UNKNOWN>) : (i32, i32) -> i32"""
+
+    assert_print_op(add, expected, None, print_unknown_value_error=False)
+
+
 def test_forgotten_op_non_fail():
     """Test that the parsing of an undefined operand raises an exception."""
     ctx = MLContext()
