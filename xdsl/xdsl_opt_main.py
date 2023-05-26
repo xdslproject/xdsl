@@ -122,15 +122,14 @@ class xDSLOptMain:
         for module in modules:
             if not self.args.verify_diagnostics:
                 self.apply_passes(module)
+                output_list.append(self.output_resulting_program(module))
             else:
                 try:
                     self.apply_passes(module)
                 except DiagnosticException as e:
                     print(e)
-                    exit(0)
-            output_list.append(self.output_resulting_program(module))
-        contents = "// -----\n".join(output_list)
 
+        contents = "// -----\n".join(output_list)
         self.print_to_output_stream(contents)
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
