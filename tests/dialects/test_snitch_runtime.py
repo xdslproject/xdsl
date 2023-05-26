@@ -28,7 +28,7 @@ def test_snrt_op():
         dst_stride=stride,
         repeat=repeat,
     )
-    dma_start_2d_wideptr = snitch_runtime.DmaStart2DWidePtr(
+    dma_start_2d= snitch_runtime.DmaStart2D(
         src=src_32,
         dst=dst_32,
         size=size,
@@ -40,6 +40,8 @@ def test_snrt_op():
     print(cluster_num)
     print(cluster_hw_barrier)
     print(dma_start_1d_wideptr)
+    print(dma_start_1d)
     print(dma_wait_all)
     print(dma_start_2d_wideptr)
+    print(dma_start_2d)
     print(dma_wait)
