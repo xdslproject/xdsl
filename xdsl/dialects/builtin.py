@@ -1283,7 +1283,7 @@ class ModuleOp(IRDLOperation):
             printer.print_dictionary(self.attributes, printer.print, printer.print)
             printer.print("}")
 
-        if self.body.block.is_empty:
+        if not self.body.block:
             # Do not print the entry block if the region has an empty block
             printer.print(" {\n")
             printer.print("}")

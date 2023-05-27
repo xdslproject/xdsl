@@ -147,7 +147,7 @@ def test_func_get_return_op():
 def test_callable_constructor():
     f = FuncOp.from_callable("f", [], [], lambda *args: [])
     assert f.sym_name.data == "f"
-    assert f.body.block.is_empty
+    assert not f.body.block
 
 
 def test_call():

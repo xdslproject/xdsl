@@ -1003,6 +1003,9 @@ class BlockOps:
             result += 1
         return result
 
+    def __bool__(self) -> bool:
+        return bool(self.block)
+
     @property
     def first(self) -> Operation | None:
         """
@@ -1016,13 +1019,6 @@ class BlockOps:
         Last operation in the block, None if block is empty.
         """
         return self.block.last_op
-
-    @property
-    def is_empty(self) -> bool:
-        """
-        True if block is empty.
-        """
-        return self.block.is_empty
 
 
 @dataclass(init=False)
@@ -1145,10 +1141,9 @@ class Block(IRNode):
             )
         operation.parent = self
 
-    @property
-    def is_empty(self) -> bool:
+    def __bool__(self) -> bool:
         """Returns `True` if there are no operations in this block."""
-        return self._first_op is None
+        return self._first_op is not None
 
     @property
     def first_op(self) -> Operation | None:
