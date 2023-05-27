@@ -216,6 +216,15 @@ class RISCVInstruction(RISCVOp):
 # region Assembly printing
 
 
+def _append_comment(line: str, comment: StringAttr | None) -> str:
+    if comment is None:
+        return line
+
+    padding = " " * max(0, 48 - len(line))
+
+    return f"{line}{padding} # {comment.data}"
+
+
 def _assembly_line(
     name: str,
     args: Iterable[_AssemblyInstructionArg],
@@ -239,14 +248,6 @@ def _assembly_line(
             assert isinstance(arg.typ, RegisterType)
             reg = arg.typ.register_name
             arg_strs.append(reg)
-
-    def _append_comment(line: str, comment: StringAttr | None) -> str:
-        if comment is None:
-            return line
-
-        padding = " " * max(0, 48 - len(line))
-
-        return f"{line}{padding} # {comment.data}"
 
     code = "    " if is_indented else ""
     code += name
