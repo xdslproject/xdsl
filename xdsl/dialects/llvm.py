@@ -188,13 +188,6 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
 class LLVMVoidType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.void"
 
-    def print_parameters(self, printer: Printer) -> None:
-        ...
-
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
-        return []
-
 
 @irdl_attr_definition
 class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
