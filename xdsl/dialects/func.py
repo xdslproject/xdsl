@@ -168,15 +168,11 @@ class FuncOp(IRDLOperation):
 
     @staticmethod
     def external(
-        name: StringAttr | str,
-        input_types: Sequence[Attribute],
-        return_types: Sequence[Attribute],
+        name: str, input_types: Sequence[Attribute], return_types: Sequence[Attribute]
     ) -> FuncOp:
-        if isinstance(name, str):
-            name = StringAttr(name)
         type_attr = FunctionType.from_lists(input_types, return_types)
         attributes: dict[str, Attribute] = {
-            "sym_name": name,
+            "sym_name": StringAttr(name),
             "function_type": type_attr,
             "sym_visibility": StringAttr("private"),
         }
