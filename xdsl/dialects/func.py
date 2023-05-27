@@ -130,7 +130,7 @@ class FuncOp(IRDLOperation):
             printer.print("(")
             printer.print_list(self.body.blocks[0].args, printer.print_block_argument)
             printer.print(") ")
-            if len(self.function_type.outputs) > 0:
+            if self.function_type.outputs:
                 printer.print("-> ")
                 if len(self.function_type.outputs) > 1:
                     printer.print("(")
