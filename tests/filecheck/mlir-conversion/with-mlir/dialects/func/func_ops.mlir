@@ -16,7 +16,7 @@ builtin.module {
     "func.return"() : () -> ()
   }
 
-   // CHECK-NEXT: func.func @call_void() {
+   // CHECK: func.func @call_void() {
    // CHECK-NEXT:   "func.call"() {"callee" = @call_void} : () -> ()
    // CHECK-NEXT:   "func.return"() : () -> ()
    // CHECK-NEXT: }
@@ -26,7 +26,7 @@ builtin.module {
     "func.return"(%1) : (i32) -> ()
   }
 
-   // CHECK-NEXT: func.func @arg_rec(%arg0 : i32) -> i32 {
+   // CHECK: func.func @arg_rec(%arg0 : i32) -> i32 {
    // CHECK-NEXT:   %{{.*}} = "func.call"(%{{.*}}) {"callee" = @arg_rec} : (i32) -> i32
    // CHECK-NEXT:   "func.return"(%{{.*}}) : (i32) -> ()
    // CHECK-NEXT: }
@@ -37,19 +37,19 @@ builtin.module {
     "func.return"(%3) : (i32) -> ()
   }
 
-  // CHECK-NEXT: func.func @arg_rec_block(%1 : i32) -> i32 {
+  // CHECK: func.func @arg_rec_block(%1 : i32) -> i32 {
   // CHECK-NEXT:   %2 = "func.call"(%1) {"callee" = @arg_rec_block} : (i32) -> i32
   // CHECK-NEXT:   "func.return"(%2) : (i32) -> ()
   // CHECK-NEXT: }
 
   func.func private @external_fn(i32) -> (i32, i32)
-  // CHECK-NEXT: func.func private @external_fn(i32) -> (i32, i32)
+  // CHECK: func.func private @external_fn(i32) -> (i32, i32)
 
   func.func @multi_return_body(%a : i32) -> (i32, i32) {
     "func.return"(%a, %a) : (i32, i32) -> ()
   }
 
-  // CHECK-NEXT: func.func @multi_return_body(%3 : i32) -> (i32, i32) {
+  // CHECK: func.func @multi_return_body(%3 : i32) -> (i32, i32) {
   // CHECK-NEXT:   "func.return"(%3, %3) : (i32, i32) -> ()
   // CHECK-NEXT: }
 
