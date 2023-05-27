@@ -187,7 +187,7 @@ def test_call():
   ^0(%0 : i32, %1 : i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
-  }) {"sym_name" = "func0", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
+  }) {"sym_name" = "func0", "function_type" = (i32, i32) -> i32} : () -> ()
   %3 = "arith.constant"() {"value" = 1 : i32} : () -> i32
   %4 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   %5 = "func.call"(%3, %4) {"callee" = @func0} : (i32, i32) -> i32
@@ -233,7 +233,7 @@ def test_call_II():
   ^0(%0 : i32):
     %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
     "func.return"(%1) : (i32) -> ()
-  }) {"sym_name" = "func1", "function_type" = (i32) -> i32, "sym_visibility" = "private"} : () -> ()
+  }) {"sym_name" = "func1", "function_type" = (i32) -> i32} : () -> ()
   %2 = "arith.constant"() {"value" = 1 : i32} : () -> i32
   %3 = "func.call"(%2) {"callee" = @func1} : (i32) -> i32
 }) : () -> ()
