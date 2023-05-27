@@ -75,7 +75,7 @@ builtin.module {
     %prod = "arith.constant"() {"value" = 1 : index} : () -> index
     %res_1 = "scf.for"(%lb, %ub, %s, %prod) ({
     ^2(%iv : index, %prod_iter : index):
-      %prod_new = "arith.muli"(%prod_iter, %iv) : (index, index) -> index
+      %prod_new = arith.muli %prod_iter, %iv : index
       "scf.yield"(%prod_new) : (index) -> ()
     }) : (index, index, index, index) -> index
     "func.return"() : () -> ()
@@ -88,7 +88,7 @@ builtin.module {
   // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
   // CHECK-NEXT:   %{{.*}} = "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) ({
   // CHECK-NEXT:   ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
-  // CHECK-NEXT:     %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (index, index) -> index
+  // CHECK-NEXT:     %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
   // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (index) -> ()
   // CHECK-NEXT:   }) : (index, index, index, index) -> index
   // CHECK-NEXT:   "func.return"() : () -> ()

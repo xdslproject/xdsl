@@ -12,7 +12,7 @@ builtin.module {
    // CHECK: func.func @conorm(%p : !cmath.complex<f32>, %q : !cmath.complex<f32>) -> f32 {
    // CHECK-NEXT:   %norm_p = "cmath.norm"(%p) : (!cmath.complex<f32>) -> f32
    // CHECK-NEXT:   %norm_q = "cmath.norm"(%q) : (!cmath.complex<f32>) -> f32
-   // CHECK-NEXT:   %pq = "arith.mulf"(%norm_p, %norm_q) : (f32, f32) -> f32
+   // CHECK-NEXT:   %pq = arith.mulf %norm_p, %norm_q : f32
    // CHECK-NEXT:   "func.return"(%pq) : (f32) -> ()
    // CHECK-NEXT: }
 
