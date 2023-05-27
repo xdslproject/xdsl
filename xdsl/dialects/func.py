@@ -68,12 +68,18 @@ class FuncOp(IRDLOperation):
         # Parse function name
         name = parser.parse_symbol_name().data
 
+        def parse_fun_input():
+            ret = parser.parse_optional_argument()
+            if ret is None:
+                ret = parser.parse_optional_type()
+            if ret is None:
+                parser.raise_error("Expected argument or type")
+            return ret
+
         # Parse function arguments
         args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN,
-            lambda: parser.parse_optional_argument()
-            or parser.parse_optional_type()
-            or parser.raise_error("Expected argument or type"),
+            parse_fun_input,
         )
 
         # Check consistency (They should be either all named or none)
@@ -106,7 +112,9 @@ class FuncOp(IRDLOperation):
         )
 
         # Parse body
-        region = parser.parse_optional_region(entry_args) or Region()
+        region = parser.parse_optional_region(entry_args)
+        if region is None:
+            region = Region()
         func = FuncOp.from_region(name, input_types, return_types, region, visibility)
         if attr_dict is not None:
             func.attributes |= attr_dict.data
