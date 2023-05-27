@@ -4,7 +4,14 @@ from conftest import assert_print_op
 from xdsl.builder import Builder
 from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
-from xdsl.dialects.builtin import IntegerAttr, i32, ModuleOp, i64, IntegerType
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    StringAttr,
+    i32,
+    ModuleOp,
+    i64,
+    IntegerType,
+)
 from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import VerifyException
 
@@ -258,6 +265,13 @@ def test_return():
 def test_external_func_def():
     # FuncOp.external must produce a function with an empty body
     ext = FuncOp.external("testname", [i32, i32], [i64])
+
+    assert len(ext.regions) == 1
+    assert len(ext.regions[0].blocks) == 0
+    assert ext.sym_name.data == "testname"
+
+    # FuncOp.external must produce a function with an empty body
+    ext = FuncOp.external(StringAttr("testname"), [i32, i32], [i64])
 
     assert len(ext.regions) == 1
     assert len(ext.regions[0].blocks) == 0
