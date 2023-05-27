@@ -2,7 +2,11 @@ from __future__ import annotations
 import re
 from typing import Annotated, Union, Sequence
 
-from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
+from xdsl.dialects.builtin import (
+    StringAttr,
+    FunctionType,
+    SymbolRefAttr,
+)
 from xdsl.ir import (
     SSAValue,
     Operation,
@@ -22,6 +26,7 @@ from xdsl.irdl import (
     IRDLOperation,
 )
 from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.traits import HasParent
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -59,8 +64,6 @@ class FuncOp(IRDLOperation):
         )
         if isinstance(visibility, Span):
             visibility = visibility.text
-        else:
-            visibility = "private"
 
         # Parse function name
         name = parser.parse_symbol_name().data
@@ -98,9 +101,51 @@ class FuncOp(IRDLOperation):
         else:
             return_types = []
 
+        attr_dict = parser.parse_optional_attr_dict_with_keyword(
+            ("sym_name", "function_type", "sym_visibility")
+        )
+
         # Parse body
         region = parser.parse_optional_region(entry_args) or Region()
-        return FuncOp.from_region(name, input_types, return_types, region, visibility)
+        func = FuncOp.from_region(name, input_types, return_types, region, visibility)
+        if attr_dict is not None:
+            func.attributes |= attr_dict.data
+        return func
+
+    def print(self, printer: Printer):
+        if self.sym_visibility:
+            visibility = self.sym_visibility.data
+            printer.print(f" {visibility}")
+
+        printer.print(f" @{self.sym_name.data}")
+        if len(self.body.blocks) > 0:
+            printer.print("(")
+            printer.print_list(self.body.blocks[0].args, printer.print_block_argument)
+            printer.print(") ")
+            if len(self.function_type.outputs) > 0:
+                printer.print("-> ")
+                if len(self.function_type.outputs) > 1:
+                    printer.print("(")
+                printer.print_list(self.function_type.outputs, printer.print_attribute)
+                if len(self.function_type.outputs) > 1:
+                    printer.print(")")
+                printer.print(" ")
+        else:
+            printer.print_attribute(self.function_type)
+        attr_dict = {
+            k: v
+            for k, v in self.attributes.items()
+            if k not in ("sym_name", "function_type", "sym_visibility")
+        }
+        if len(attr_dict) > 0:
+            printer.print(" attributes {")
+            printer.print_list(
+                attr_dict.items(), lambda i: printer.print(f'"{i[0]}" = {i[1]}')
+            )
+            printer.print("}")
+
+        if len(self.body.blocks) > 0:
+            printer.print_region(self.body, False, False)
 
     @staticmethod
     def from_callable(
@@ -144,13 +189,15 @@ class FuncOp(IRDLOperation):
         input_types: Sequence[Attribute],
         return_types: Sequence[Attribute],
         region: Region,
-        visibility: str = "private",
+        visibility: StringAttr | str | None = None,
     ) -> FuncOp:
+        if isinstance(visibility, str):
+            visibility = StringAttr(visibility)
         type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes: dict[str, Attribute] = {
+        attributes: dict[str, Attribute | None] = {
             "sym_name": StringAttr(name),
             "function_type": type_attr,
-            "sym_visibility": StringAttr(visibility),
+            "sym_visibility": visibility,
         }
         op = FuncOp.build(attributes=attributes, regions=[region])
         return op

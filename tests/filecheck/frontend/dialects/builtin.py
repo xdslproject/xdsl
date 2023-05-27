@@ -19,33 +19,27 @@ from xdsl.frontend.dialects.builtin import (
 
 p = FrontendProgram()
 with CodeContext(p):
-    #      CHECK: "func.func"()
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : i1)
+    # CHECK: @bool(%{{.*}} : i1)
     def bool(x: i1):
         return
 
-    #      CHECK: "func.func"()
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : i32, %{{.*}} : i64)
+    # CHECK: @signless(%{{.*}} : i32, %{{.*}} : i64)
     def signless(x: i32, y: i64):
         return
 
-    #      CHECK: "func.func"()
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : ui32, %{{.*}} : ui64)
+    # CHECK: @unsigned(%{{.*}} : ui32, %{{.*}} : ui64)
     def unsigned(x: ui32, y: ui64):
         return
 
-    #      CHECK: "func.func"()
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : si32, %{{.*}} : si64)
+    # CHECK: @signed(%{{.*}} : si32, %{{.*}} : si64)
     def signed(x: si32, y: si64):
         return
 
-    #      CHECK: "func.func"()
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : index)
+    # CHECK: @indexed(%{{.*}} : index)
     def indexed(x: index):
         return
 
-    #      CHECK: "func.func"()
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : f16, %{{.*}} : f32, %{{.*}} : f64)
+    # CHECK: @fp(%{{.*}} : f16, %{{.*}} : f32, %{{.*}} : f64)
     def fp(x: f16, y: f32, z: f64):
         return
 
