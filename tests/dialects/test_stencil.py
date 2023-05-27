@@ -337,12 +337,12 @@ def test_index_attr_max(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices",
-    (([1]), ([1, 2]), ([1, 2, 3])),
+    (((1,)), ((1, 2)), ((1, 2, 3))),
 )
-def test_index_attr_tuple_return(indices: list[int]):
+def test_index_attr_iter(indices: tuple[int]):
     stencil_index_attr = IndexAttr.get(*indices)
 
-    assert stencil_index_attr.as_tuple() == tuple(indices)
+    assert tuple(stencil_index_attr) == indices
 
 
 @pytest.mark.parametrize(

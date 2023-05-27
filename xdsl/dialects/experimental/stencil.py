@@ -107,9 +107,6 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
             *(max(ae.data, be.data) for ae, be in zip(a.array.data, b.array.data))
         )
 
-    def as_tuple(self) -> tuple[int, ...]:
-        return tuple(e.data for e in self.array.data)
-
     def __len__(self):
         return len(self.array)
 
@@ -127,7 +124,7 @@ class StencilType(
         return len(self.shape)
 
     def get_shape(self) -> tuple[int]:
-        return self.shape.as_tuple()
+        return tuple(self.shape)
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
