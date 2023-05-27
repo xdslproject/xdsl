@@ -44,4 +44,12 @@ builtin.module {
   func.func private @external_fn(i32) -> (i32, i32)
   // CHECK-NEXT: func.func private @external_fn(i32) -> (i32, i32)
 
+  func.func @multi_return_body(%a : i32) -> (i32, i32) {
+    "func.return"(%a, %a) : (i32, i32) -> ()
+  }
+
+  // CHECK-NEXT: func.func @multi_return_body(%a : i32) -> (i32, i32) {
+  // CHECK-NEXT:   "func.return"(%a, %a) : (i32, i32) -> ()
+  // CHECK-NEXT: }
+
 }
