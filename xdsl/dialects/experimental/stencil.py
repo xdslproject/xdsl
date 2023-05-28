@@ -136,7 +136,7 @@ class StencilType(
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
         printer.print_list(
-            (e for e in self.shape),
+            self.shape,
             lambda i: printer.print(i) if i != -1 else printer.print("?"),
             "x",
         )
