@@ -1,6 +1,6 @@
 from __future__ import annotations
 import re
-from typing import Annotated, Union, Sequence
+from typing import Annotated, Union, Sequence, cast
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -85,8 +85,7 @@ class FuncOp(IRDLOperation):
         # Check consistency (They should be either all named or none)
         if isa(args, list[parser.Argument]):
             entry_args = args
-            input_types = [a.type for a in args]
-            assert isa(input_types, list[Attribute])
+            input_types = cast(list[Attribute], [a.type for a in args])
         elif isa(args, list[Attribute]):
             entry_args = None
             input_types = args
