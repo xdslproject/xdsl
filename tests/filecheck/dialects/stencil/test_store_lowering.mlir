@@ -3,8 +3,8 @@
 "builtin.module"() ({
     "func.func"() ({
     ^0(%0 : !stencil.field<?x?x?xf64>, %6 : !stencil.field<?x?x?xf64>):
-        %1 = "stencil.cast"(%0) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<68, 68, 68>} : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
-        %7 = "stencil.cast"(%6) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<68, 68, 68>} : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+        %1 = "stencil.cast"(%0) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+        %7 = "stencil.cast"(%6) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
         %2 = "stencil.load"(%1) : (!stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
         %8 = "stencil.apply"(%2) ({
         ^b0(%4: !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>):

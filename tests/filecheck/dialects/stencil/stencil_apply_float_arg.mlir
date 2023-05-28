@@ -3,7 +3,7 @@
 "builtin.module"() ({
   "func.func"() ({
   ^0(%0 : f64, %1 : !stencil.field<?x?x?xf64>):
-    %2 = "stencil.cast"(%1) {"lb" = #stencil.index<-3, -3, -3>, "ub" = #stencil.index<67, 67, 67>} : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
+    %2 = "stencil.cast"(%1) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
     %3 = "stencil.apply"(%0) ({
     ^1(%4 : f64):
       %5 = "arith.constant"() {"value" = 1.0 : f64} : () -> f64
@@ -16,7 +16,7 @@
 
   "func.func"() ({
   ^2(%7 : f32, %8 : !stencil.field<?x?x?xf32>):
-    %9 = "stencil.cast"(%8) {"lb" = #stencil.index<-3, -3, -3>, "ub" = #stencil.index<67, 67, 67>} : (!stencil.field<?x?x?xf32>) -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf32>
+    %9 = "stencil.cast"(%8) : (!stencil.field<?x?x?xf32>) -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf32>
     %10 = "stencil.apply"(%7) ({
     ^3(%11 : f32):
       %12 = "arith.constant"() {"value" = 1.0 : f32} : () -> f32

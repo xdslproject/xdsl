@@ -3,7 +3,7 @@
 "builtin.module"() ({
     "func.func"() ({
     ^0(%0 : !stencil.field<?xf64>):
-        %1 = "stencil.cast"(%0) {"lb" = #stencil.index<-4>, "ub" = #stencil.index<68>} : (!stencil.field<?xf64>) -> !stencil.field<[-4,68]xf64>
+        %1 = "stencil.cast"(%0) : (!stencil.field<?xf64>) -> !stencil.field<[-4,68]xf64>
         "func.return"() : () -> ()
     }) {"sym_name" = "test_funcop_lowering", "function_type" = (!stencil.field<?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
