@@ -410,7 +410,7 @@ class ImplicitBuilderRewritePattern(RewritePattern, ABC):
 
         with ImplicitBuilder(Builder(op.parent, op)):
             new_results = self.match_and_build(op, rewriter)
-            if new_results:
+            if new_results is not None:
                 rewriter.replace_matched_op([], new_results)
 
 
@@ -429,16 +429,7 @@ class AnonymousImplicitBuilderRewritePattern(ImplicitBuilderRewritePattern, ABC)
     def match_and_build(
         self, op: Operation, rewriter: PatternRewriter
     ) -> Sequence[SSAValue] | None:
-        self._match_and_build(op, rewriter)
-
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
-        if op.parent is None:
-            return
-
-        with ImplicitBuilder(Builder(op.parent, op)):
-            new_results = self.match_and_build(op, rewriter)
-            if new_results:
-                rewriter.replace_matched_op([], new_results)
+        return self._match_and_build(op, rewriter)
 
 
 _RewritePatternT = TypeVar("_RewritePatternT", bound=RewritePattern)

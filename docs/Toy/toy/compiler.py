@@ -20,7 +20,7 @@ from .emulator.emulator_iop import run_riscv
 from .emulator.toy_accelerator import ToyAccelerator
 
 from .dialects import toy, vector
-from xdsl.dialects import riscv, riscv_func
+from xdsl.dialects import riscv, riscv_func, test
 
 
 def context() -> MLContext:
@@ -30,6 +30,7 @@ def context() -> MLContext:
     ctx.register_dialect(vector.Vector)
     ctx.register_dialect(riscv.RISCV)
     ctx.register_dialect(riscv_func.RISCV_Func)
+    ctx.register_dialect(test.Test)
     return ctx
 
 
