@@ -1,6 +1,5 @@
 from abc import ABC
 from dataclasses import dataclass
-from typing import OrderedDict
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import Register, RegisterType, RISCVOp
 from xdsl.ir import MLContext
@@ -34,14 +33,11 @@ class RegisterAllocatorBlockNaive(AbstractRegisterAllocator):
         let's just assume that we have all the registers available for our use except the one explicitly reserved by the default riscv ABI.
         """
 
-        self.available_registers = OrderedDict(Register.ABI_INDEX_BY_NAME)
+        self.available_registers = list(Register.ABI_INDEX_BY_NAME.keys())
         reserved_registers = set(["zero", "sp", "gp", "tp", "fp", "s0"])
-        self.available_registers = OrderedDict(
-            filter(
-                lambda x: x[0] not in reserved_registers,
-                self.available_registers.items(),
-            )
-        )
+        self.available_registers = [
+            reg for reg in self.available_registers if reg not in reserved_registers
+        ]
 
     def allocate_registers(self, module: ModuleOp) -> None:
         """
@@ -62,12 +58,12 @@ class RegisterAllocatorBlockNaive(AbstractRegisterAllocator):
                         assert isinstance(result.typ, RegisterType)
                         if result.typ.data.name is None:
                             # If we run out of real registers, allocate a j register
-                            if len(block_registers) == 0:
+                            if not block_registers:
                                 result.typ = RegisterType(Register(f"j{self.idx}"))
                                 self.idx += 1
                             else:
                                 result.typ = RegisterType(
-                                    Register(block_registers.popitem()[0])
+                                    Register(block_registers.pop())
                                 )
 
 
