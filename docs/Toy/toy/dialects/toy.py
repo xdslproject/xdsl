@@ -198,11 +198,9 @@ class FuncOp(IRDLOperation):
 
     @staticmethod
     def implicit_builder(name: str, ftype: FunctionType, /, private: bool = False):
-        Builder.assert_implicit()
-        block = Block(arg_types=ftype.inputs)
-        region = Region(block)
-        _op = FuncOp(name, ftype, region, private=private)
-        return Builder(block).implicit()
+        return Builder.op(
+            lambda body: FuncOp(name, ftype, body, private=private), ftype.inputs
+        )
 
     @staticmethod
     def from_callable(

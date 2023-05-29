@@ -218,11 +218,10 @@ class FuncOp(IRDLOperation):
         input_types: Sequence[Attribute],
         return_types: Sequence[Attribute],
     ):
-        Builder.assert_implicit()
-        block = Block(arg_types=input_types)
-        region = Region(block)
-        _op = FuncOp.from_region(name, input_types, return_types, region)
-        return Builder(block).implicit()
+        return Builder.op(
+            lambda body: FuncOp.from_region(name, input_types, return_types, body),
+            input_types,
+        )
 
     def replace_argument_type(self, arg: int | BlockArgument, new_type: Attribute):
         """

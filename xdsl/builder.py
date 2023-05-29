@@ -1,7 +1,7 @@
 from __future__ import annotations
 from types import TracebackType
 
-from typing import Callable, ClassVar, Sequence, TypeAlias, overload
+from typing import Callable, ClassVar, Iterable, Sequence, TypeAlias, overload
 import threading
 import contextlib
 
@@ -231,6 +231,22 @@ class Builder:
             raise ValueError(
                 "op_builder must be called within an implicit builder block"
             )
+
+    @staticmethod
+    def op(
+        func: Callable[[Region], Operation],
+        arg_types: Iterable[Attribute] = (),
+    ) -> ImplicitBuilder:
+        """
+        Will construct an op with a region, and populate child region.
+        Must be called within an implicit builder context.
+        """
+        Builder.assert_implicit()
+        b = Block(arg_types=arg_types)
+        r = Region(b)
+        # will be added to parent implicit builder
+        _op = func(r)
+        return Builder(b).implicit()
 
 
 # Implicit builders

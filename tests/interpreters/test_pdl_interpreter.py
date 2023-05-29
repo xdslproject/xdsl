@@ -1,5 +1,5 @@
 from io import StringIO
-from xdsl.builder import Builder
+from xdsl.builder import Builder, ImplicitBuilder
 
 from xdsl.ir import MLContext, OpResult
 from xdsl.dialects import arith, func, pdl
@@ -91,7 +91,7 @@ def swap_arguments_pdl():
     @ModuleOp
     @Builder.implicit_region
     def pdl_module():
-        with pdl.PatternOp.implicit_builder(IntegerAttr(2, 16), None):
+        with ImplicitBuilder(pdl.PatternOp(IntegerAttr(2, 16), None).body):
             x = pdl.OperandOp().value
             y = pdl.OperandOp().value
             typ = pdl.TypeOp().result
@@ -107,7 +107,7 @@ def swap_arguments_pdl():
                 type_values=[typ],
             ).op
 
-            with pdl.RewriteOp.implicit_builder(x_y_z_op):
+            with ImplicitBuilder(pdl.RewriteOp(x_y_z_op).body):
                 z_x_y_op = pdl.OperationOp(
                     StringAttr("arith.addi"), operand_values=[z, x_y], type_values=[typ]
                 ).op
@@ -193,7 +193,7 @@ def add_zero_pdl():
     @ModuleOp
     @Builder.implicit_region
     def pdl_module():
-        with pdl.PatternOp.implicit_builder(IntegerAttr(2, 16), None):
+        with ImplicitBuilder(pdl.PatternOp(IntegerAttr(2, 16), None).body):
             # Type i32
             pdl_i32 = pdl.TypeOp().result
 
@@ -217,7 +217,7 @@ def add_zero_pdl():
                 type_values=[pdl_i32],
             ).op
 
-            with pdl.RewriteOp.implicit_builder(sum):
+            with ImplicitBuilder(pdl.RewriteOp(sum).body):
                 pdl.ReplaceOp(sum, repl_values=[lhs])
 
     return pdl_module
