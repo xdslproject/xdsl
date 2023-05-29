@@ -222,15 +222,19 @@ class Builder:
             return Builder._implicit_region_args(input)
 
     @staticmethod
+    def assert_implicit():
+        if _ImplicitBuilder.get() is None:
+            raise ValueError(
+                "op_builder must be called within an implicit builder block"
+            )
+
+    @staticmethod
     def op(func: Callable[[Region], Operation]) -> _ImplicitBuilder:
         """
         Will construct an op with a region, and populate child region.
         Must be called within an implicit builder context.
         """
-        if _ImplicitBuilder.get() is None:
-            raise ValueError(
-                "op_builder must be called within an implicit builder block"
-            )
+        Builder.assert_implicit()
         b = Block()
         r = Region(b)
         # will be added to parent implicit builder
