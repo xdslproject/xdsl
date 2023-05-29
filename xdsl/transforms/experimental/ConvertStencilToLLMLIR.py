@@ -140,17 +140,13 @@ class ReturnOpToMemref(RewritePattern):
         rewriter.replace_matched_op([*store_list])
 
 
-def verify_load_bounds(cast: CastOp, load: LoadOp):
-    assert isa(cast.result.typ, FieldType[Attribute])
-    assert isinstance(cast.result.typ.bounds, StencilBoundsAttr)
-    if [
-        i.data for i in IndexAttr.min(cast.result.typ.bounds.lb, load.lb).array.data
-    ] != [
-        i for i in cast.result.typ.bounds.lb
-    ]:  # noqa
+def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
+    assert isinstance(field.bounds, StencilBoundsAttr)
+    assert isinstance(temp.bounds, StencilBoundsAttr)
+    if IndexAttr.min(field.bounds.lb, temp.bounds.lb) != field.bounds.lb:  # noqa
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
-            f"{load.lb}, got {cast.result.typ.bounds.lb}, min: {IndexAttr.min(cast.result.typ.bounds.lb, load.lb)}"
+            f"{temp.bounds.lb}, got {field.bounds.lb}, min: {IndexAttr.min(field.bounds.lb, temp.bounds.lb)}"
         )
 
 
@@ -183,29 +179,27 @@ class IndexOpToLoopSSA(RewritePattern):
 class LoadOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        cast = op.field.owner
-        assert isinstance(cast, CastOp)
-        assert isa(cast.result.typ, FieldType[Attribute])
-        assert isa(cast.result.typ.bounds, StencilBoundsAttr)
+        field = op.field.typ
+        assert isa(field, FieldType[Attribute])
+        assert isa(field.bounds, StencilBoundsAttr)
+        temp = op.res.typ
+        assert isa(temp, TempType[Attribute])
+        assert isa(temp.bounds, StencilBoundsAttr)
 
-        verify_load_bounds(cast, op)
+        assert_subset(field, temp)
 
-        assert op.lb and op.ub
-
-        offsets = [i.data for i in (op.lb - cast.result.typ.bounds.lb).array.data]
-        sizes = [i.data for i in (op.ub - op.lb).array.data]
+        offsets = [i for i in temp.bounds.lb - field.bounds.lb]
+        sizes = [i for i in temp.bounds.ub - temp.bounds.lb]
         strides = [1] * len(sizes)
 
         subview = memref.Subview.from_static_parameters(
-            cast.result, GetMemRefFromField(cast.result.typ), offsets, sizes, strides
+            op.field, GetMemRefFromField(field), offsets, sizes, strides
         )
 
         rewriter.replace_matched_op(subview)
 
 
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
-    assert (op.lb is not None) and (op.ub is not None)
-
     # First replace all current arguments by their definition
     # and erase them from the block. (We are changing the op
     # to a loop, which has access to them either way)
@@ -225,14 +219,18 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
 class ApplyOpToParallel(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        assert (op.lb is not None) and (op.ub is not None)
+        # if not op.res:
+        #     return
+        res_typ = op.res[0].typ
+        assert isa(res_typ, TempType[Attribute])
+        assert isinstance(res_typ.bounds, StencilBoundsAttr)
 
         body = prepare_apply_body(op, rewriter)
         body.block.add_op(scf.Yield.get())
-        dim = len(op.lb.array.data)
+        dim = res_typ.get_num_dims()
 
         # Then create the corresponding scf.parallel
-        dims = IndexAttr.size_from_bounds(op.lb, op.ub)
+        dims = res_typ.get_shape()
         zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
         one = arith.Constant.from_int_and_width(1, builtin.IndexType())
         upperBounds = [
@@ -267,17 +265,17 @@ class ApplyOpToParallel(RewritePattern):
 class AccessOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
-        load = op.temp.owner
-        assert isinstance(load, LoadOp)
-        assert load.lb is not None
+        temp = op.temp.typ
+        assert isa(temp, TempType[Attribute])
+        assert isinstance(temp.bounds, StencilBoundsAttr)
 
         # Make pyright happy with the fact that this op has to be in
         # a block.
         assert (block := op.parent_block()) is not None
 
-        memref_offset = (op.offset - load.lb).array.data
+        memref_offset = op.offset - temp.bounds.lb
         off_const_ops = [
-            arith.Constant.from_int_and_width(x.data, builtin.IndexType())
+            arith.Constant.from_int_and_width(x, builtin.IndexType())
             for x in memref_offset
         ]
 
@@ -285,7 +283,7 @@ class AccessOpToMemref(RewritePattern):
 
         off_sum_ops = [arith.Addi(i, x) for i, x in zip(args, off_const_ops)]
 
-        load = memref.Load.get(load, off_sum_ops)
+        load = memref.Load.get(op.temp, off_sum_ops)
 
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load], [load.res])
 

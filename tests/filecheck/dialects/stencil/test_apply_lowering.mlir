@@ -4,10 +4,12 @@
     "func.func"() ({
     ^0(%0 : !stencil.field<?x?x?xf64>):
         %1 = "stencil.cast"(%0) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
-        %2 = "stencil.load"(%1) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<68, 68, 68>} : (!stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
-        "stencil.apply"(%2) ({
+        %2 = "stencil.load"(%1) : (!stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+        %5 = "stencil.apply"(%2) ({
         ^b0(%3: !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>):
-        }) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<68, 68, 68>} : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
+            %zero = "arith.constant"() {value = 0.0 : f64} : () -> f64
+            "stencil.return"(%zero) : (f64) -> ()
+        }) : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>)
         "func.return"() : () -> ()
     }) {"sym_name" = "test_funcop_lowering", "function_type" = (!stencil.field<?x?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
@@ -28,6 +30,7 @@
 // CHECK-NEXT:       ^2(%9 : index):
 // CHECK-NEXT:         "scf.for"(%3, %7, %4) ({
 // CHECK-NEXT:         ^3(%10 : index):
+// CHECK-NEXT:             %zero = "arith.constant"() {"value" = 0.0 : f64} : () -> f64
 // CHECK-NEXT:           "scf.yield"() : () -> ()
 // CHECK-NEXT:         }) : (index, index, index) -> ()
 // CHECK-NEXT:         "scf.yield"() : () -> ()

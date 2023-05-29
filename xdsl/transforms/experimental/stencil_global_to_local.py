@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TypeVar, Iterable, Callable
+from typing import TypeVar, Iterable, Callable, cast
 from abc import ABC, abstractmethod
 
 from xdsl.passes import ModulePass
@@ -587,15 +587,19 @@ class DmpSwapShapeInference:
         for use in op.input_stencil.uses:
             if not isinstance(use.operation, stencil.ApplyOp):
                 continue
-            core_lb = use.operation.lb
-            core_ub = use.operation.ub
+            assert use.operation.res
+            res_typ = cast(stencil.TempType[Attribute], use.operation.res[0].typ)
+            assert isinstance(res_typ.bounds, stencil.StencilBoundsAttr)
+            core_lb = res_typ.bounds.lb
+            core_ub = res_typ.bounds.ub
             break
 
         # this shouldn't have changed since the op was created!
-        load = op.input_stencil.owner
-        assert isinstance(load, stencil.LoadOp)
-        buff_lb = load.lb
-        buff_ub = load.ub
+        temp = op.input_stencil.typ
+        assert isa(temp, stencil.TempType[Attribute])
+        assert isinstance(temp.bounds, stencil.StencilBoundsAttr)
+        buff_lb = temp.bounds.lb
+        buff_ub = temp.bounds.ub
 
         # fun fact: pyright does not understand this:
         # assert None not in (core_lb, core_ub, buff_lb, buff_ub)

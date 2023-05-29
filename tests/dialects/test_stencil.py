@@ -26,8 +26,9 @@ from xdsl.dialects.experimental.stencil import (
     IndexAttr,
 )
 from xdsl.dialects.stencil import CastOp
-from xdsl.ir import Block
+from xdsl.ir import Attribute, Block
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -375,8 +376,10 @@ def test_stencil_load():
     assert isinstance(load.field.typ, FieldType)
     assert load.field.typ == field_type
     assert len(load.field.typ.get_shape()) == 2
-    assert load.lb is None
-    assert load.ub is None
+    assert isinstance(load.field.typ.bounds, StencilBoundsAttr)
+    assert isa(load.res.typ, TempType[Attribute])
+    assert isa(load.res.typ.bounds, IntAttr)
+    assert load.res.typ.bounds.data == 2
 
 
 def test_stencil_load_bounds():
@@ -388,14 +391,14 @@ def test_stencil_load_bounds():
 
     load = LoadOp.get(result_type_val1, lb, ub)
 
-    assert isinstance(load.lb, IndexAttr)
-    assert len(load.lb.array) == 2
-    for my_val, load_val in zip(lb.array.data, load.lb.array):
-        assert my_val.data == load_val.data
-    assert isinstance(load.ub, IndexAttr)
-    assert len(load.ub.array) == 2
-    for my_val, load_val in zip(ub.array.data, load.ub.array):
-        assert my_val.data == load_val.data
+    assert isa(load.res.typ, TempType[Attribute])
+    assert isinstance(load.res.typ.bounds, StencilBoundsAttr)
+    assert isinstance(load.res.typ.bounds.lb, IndexAttr)
+    assert isinstance(load.res.typ.bounds.ub, IndexAttr)
+    assert len(load.res.typ.bounds.lb) == 2
+    assert load.res.typ.bounds.lb == lb
+    assert len(load.res.typ.bounds.ub) == 2
+    assert load.res.typ.bounds.ub == ub
 
 
 @pytest.mark.parametrize(

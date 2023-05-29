@@ -28,7 +28,6 @@ from xdsl.irdl import (
     OpResult,
     VarOperand,
     VarOpResult,
-    OptOpAttr,
     Block,
     IRDLOperation,
 )
@@ -103,9 +102,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     def max(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr.get(
-            *(max(ae.data, be.data) for ae, be in zip(a.array.data, b.array.data))
-        )
+        return IndexAttr.get(*(max(ae, be) for ae, be in zip(a, b)))
 
     def __len__(self):
         return len(self.array)
@@ -349,8 +346,6 @@ class LoadOp(IRDLOperation):
 
     name = "stencil.load"
     field: Annotated[Operand, FieldType]
-    lb: OptOpAttr[IndexAttr]
-    ub: OptOpAttr[IndexAttr]
     res: Annotated[OpResult, TempType]
 
     @staticmethod
@@ -360,24 +355,36 @@ class LoadOp(IRDLOperation):
         ub: IndexAttr | None = None,
     ):
         field_t = SSAValue.get(field).typ
-        assert isinstance(field_t, FieldType)
-        field_t = cast(FieldType[Attribute], field_t)
+        assert isa(field_t, FieldType[Attribute])
+
+        if lb is None or ub is None:
+            res_typ = TempType(field_t.get_num_dims(), field_t.element_type)
+        else:
+            res_typ = TempType(tuple(zip(lb, ub)), field_t.element_type)
 
         return LoadOp.build(
             operands=[field],
-            attributes={
-                "lb": lb,
-                "ub": ub,
-            },
-            result_types=[
-                TempType[Attribute](len(field_t.get_shape()), field_t.element_type)
-            ],
+            result_types=[res_typ],
         )
 
     def verify_(self) -> None:
         for use in self.field.uses:
             if isa(use.operation, StoreOp):
                 raise VerifyException("Cannot Load and Store the same field!")
+        field = self.field.typ
+        temp = self.res.typ
+        assert isa(field, FieldType[Attribute])
+        assert isa(temp, TempType[Attribute])
+        if isinstance(field.bounds, StencilBoundsAttr) and isinstance(
+            temp.bounds, StencilBoundsAttr
+        ):
+            if (
+                IndexAttr.min(temp.bounds.lb, field.bounds.lb) != field.bounds.lb
+                or IndexAttr.max(temp.bounds.ub, field.bounds.ub) != field.bounds.ub
+            ):
+                raise VerifyException(
+                    "The stencil.load is too big for the loaded field."
+                )
 
 
 @irdl_op_definition
@@ -391,8 +398,6 @@ class BufferOp(IRDLOperation):
 
     name = "stencil.buffer"
     temp: Annotated[Operand, TempType]
-    lb: OpAttr[IndexAttr]
-    ub: OpAttr[IndexAttr]
     res: Annotated[OpResult, TempType]
 
 
@@ -441,8 +446,6 @@ class ApplyOp(IRDLOperation):
 
     name = "stencil.apply"
     args: Annotated[VarOperand, Attribute]
-    lb: OptOpAttr[IndexAttr]
-    ub: OptOpAttr[IndexAttr]
     region: Region
     res: Annotated[VarOpResult, TempType]
 
