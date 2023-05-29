@@ -1,5 +1,4 @@
 import pytest
-from xdsl.dialects import builtin
 
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -15,6 +14,7 @@ from xdsl.dialects.builtin import (
     i64,
     IntegerType,
     ArrayAttr,
+    IndexType,
 )
 from xdsl.dialects.experimental.stencil import (
     ReturnOp,
@@ -558,7 +558,7 @@ def test_stencil_index():
             "dim": dim,
             "offset": offset,
         },
-        result_types=[builtin.IndexType()],
+        result_types=[IndexType()],
     )
 
     assert isinstance(index, IndexOp)
