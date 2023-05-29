@@ -8,7 +8,14 @@ import contextlib
 from dataclasses import dataclass, field
 from xdsl.dialects.builtin import ArrayAttr
 
-from xdsl.ir import Operation, OperationInvT, Attribute, Region, Block, BlockArgument
+from xdsl.ir import (
+    Operation,
+    OperationInvT,
+    Attribute,
+    Region,
+    Block,
+    BlockArgument,
+)
 
 
 @dataclass
@@ -220,7 +227,7 @@ class Builder:
 
     @staticmethod
     def assert_implicit():
-        if _ImplicitBuilder.get() is None:
+        if ImplicitBuilder.get() is None:
             raise ValueError(
                 "op_builder must be called within an implicit builder block"
             )
@@ -294,6 +301,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
 
     def __enter__(self) -> tuple[BlockArgument, ...]:
         type(self)._stack.push(self._builder)
+        return self._builder.block.args
 
     def __exit__(
         self,
