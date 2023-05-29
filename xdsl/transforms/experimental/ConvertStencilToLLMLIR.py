@@ -85,13 +85,6 @@ class CastOpToMemref(RewritePattern):
         rewriter.replace_matched_op(cast)
 
 
-class StoreOpCleanup(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
-        rewriter.erase_matched_op()
-        pass
-
-
 # Collect up to 'number' block arguments by walking up the region tree
 # and collecting block arguments as we reach new parent regions.
 def collectBlockArguments(number: int, block: Block):
@@ -395,7 +388,6 @@ def StencilConversion(return_targets: dict[ReturnOp, list[SSAValue | None]], gpu
             AccessOpToMemref(),
             ReturnOpToMemref(return_targets),
             IndexOpToLoopSSA(),
-            StoreOpCleanup(),
             TrivialExternalLoadOpCleanup(),
             TrivialExternalStoreOpCleanup(),
             StencilTypeConversionFuncOp(),
