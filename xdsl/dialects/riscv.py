@@ -1247,9 +1247,6 @@ class ReturnOp(NullaryOperation):
 
     name = "riscv.ret"
 
-    def __init__(self):
-        super().__init__()
-
 
 # Conditional Branches
 
