@@ -1721,6 +1721,71 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
+class LabelOp(IRDLOperation, RISCVOp):
+    """
+    The label operation is used to emit text labels (e.g. loop:) that are used
+    as branch, unconditional jump targets and symbol offsets.
+
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels
+
+    Optionally, a label can be associated with a single-block region, since
+    that is a common target for jump instructions.
+
+    For example, to generate this assembly:
+    ```
+    label1:
+        add a0, a1, a2
+    ```
+
+    One needs to do the following:
+
+    ``` python
+    @Builder.implicit_region
+    def my_add():
+        a1_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+        a2_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
+        riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
+
+    label_op = riscv.LabelOp("label1", my_add)
+    ```
+    """
+
+    name = "riscv.label"
+    label: OpAttr[LabelAttr]
+    comment: OptOpAttr[StringAttr]
+    data: OptSingleBlockRegion
+
+    def __init__(
+        self,
+        label: str | LabelAttr,
+        region: OptSingleBlockRegion = None,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = LabelAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if region is None:
+            region = Region()
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            },
+            regions=[region],
+        )
+
+    def assembly_line(self) -> str | None:
+        comment = ""
+        if self.comment is not None and self.comment.data:
+            comment = f"    # {self.comment.data}"
+
+        return f"{self.label.data}:{comment}"
+
+
+@irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .text; .data; etc.)
@@ -1930,6 +1995,7 @@ RISCV = Dialect(
         RemuOp,
         LiOp,
         EcallOp,
+        LabelOp,
         DirectiveOp,
         EbreakOp,
         WfiOp,
