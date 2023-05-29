@@ -4,7 +4,6 @@ from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
 from typing import (
-    Callable,
     Iterable,
     Mapping,
     TypeAlias,
@@ -1282,16 +1281,6 @@ class ModuleOp(IRDLOperation):
         else:
             region = Region(Block(ops))
         super().__init__(regions=[region], attributes=attributes)
-
-    @staticmethod
-    def implicit_builder(input: Callable[[], None]) -> ModuleOp:
-        from xdsl.builder import Builder
-
-        block = Block()
-        region = Region(block)
-        with Builder(block).implicit():
-            input()
-        return ModuleOp(region)
 
     @property
     def ops(self) -> BlockOps:

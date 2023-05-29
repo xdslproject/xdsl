@@ -2,6 +2,7 @@ from pathlib import Path
 
 from xdsl.ir import OpResult, SSAValue
 from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
+from xdsl.builder import Builder
 
 from ..frontend.parser import Parser
 from ..frontend.ir_gen import IRGen
@@ -21,7 +22,8 @@ def test_convert_ast():
 
     generated_module_op = ir_gen.ir_gen_module(module_ast)
 
-    @ModuleOp.implicit_builder
+    @ModuleOp
+    @Builder.implicit_region
     def module_op():
         unrankedf64TensorType = toy.UnrankedTensorType.from_type(f64)
 
@@ -70,7 +72,8 @@ def test_convert_scalar():
 
     generated_module_op = ir_gen.ir_gen_module(module_ast)
 
-    @ModuleOp.implicit_builder
+    @ModuleOp
+    @Builder.implicit_region
     def module_op():
         with toy.FuncOp.implicit_builder("main", FunctionType.from_lists([], [])):
             a_0 = toy.ConstantOp.from_value(5.5).res

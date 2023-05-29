@@ -1,4 +1,5 @@
 from io import StringIO
+from xdsl.builder import Builder
 
 from xdsl.ir import MLContext, OpResult
 from xdsl.dialects import arith, func, pdl
@@ -55,7 +56,8 @@ def test_rewrite_swap_inputs_pdl():
 
 
 def swap_arguments_input():
-    @ModuleOp.implicit_builder
+    @ModuleOp
+    @Builder.implicit_region
     def ir_module():
         with func.FuncOp.implicit_builder("impl", [], []):
             x = arith.Constant.from_int_and_width(4, 32).result
@@ -69,7 +71,8 @@ def swap_arguments_input():
 
 
 def swap_arguments_output():
-    @ModuleOp.implicit_builder
+    @ModuleOp
+    @Builder.implicit_region
     def ir_module():
         with func.FuncOp.implicit_builder("impl", [], []):
             x = arith.Constant.from_int_and_width(4, 32).result
@@ -85,7 +88,8 @@ def swap_arguments_output():
 def swap_arguments_pdl():
     # The rewrite below matches the second addition as root op
 
-    @ModuleOp.implicit_builder
+    @ModuleOp
+    @Builder.implicit_region
     def pdl_module():
         with pdl.PatternOp.implicit_builder(IntegerAttr(2, 16), None):
             x = pdl.OperandOp().value
@@ -160,7 +164,8 @@ def test_rewrite_add_zero_pdl():
 
 
 def add_zero_input():
-    @ModuleOp.implicit_builder
+    @ModuleOp
+    @Builder.implicit_region
     def ir_module():
         with func.FuncOp.implicit_builder("impl", [], []):
             x = arith.Constant.from_int_and_width(4, 32)
@@ -172,7 +177,8 @@ def add_zero_input():
 
 
 def add_zero_output():
-    @ModuleOp.implicit_builder
+    @ModuleOp
+    @Builder.implicit_region
     def ir_module():
         with func.FuncOp.implicit_builder("impl", [], []):
             x = arith.Constant.from_int_and_width(4, 32)
@@ -184,7 +190,8 @@ def add_zero_output():
 
 def add_zero_pdl():
     # The rewrite below matches the second addition as root op
-    @ModuleOp.implicit_builder
+    @ModuleOp
+    @Builder.implicit_region
     def pdl_module():
         with pdl.PatternOp.implicit_builder(IntegerAttr(2, 16), None):
             # Type i32
