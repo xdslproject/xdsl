@@ -236,10 +236,10 @@ class HaloShapeInformation(ParametrizedAttribute):
         buff_ub: stencil.IndexAttr,
     ):
         # translate everything to "memref" coordinates
-        buff_lb_tuple = (buff_lb - buff_lb).as_tuple()
-        buff_ub_tuple = (buff_ub - buff_lb).as_tuple()
-        core_lb_tuple = (core_lb - buff_lb).as_tuple()
-        core_ub_tuple = (core_ub - buff_lb).as_tuple()
+        buff_lb_tuple = tuple(buff_lb - buff_lb)
+        buff_ub_tuple = tuple(buff_ub - buff_lb)
+        core_lb_tuple = tuple(core_lb - buff_lb)
+        core_ub_tuple = tuple(core_ub - buff_lb)
 
         typ = builtin.i64
         return HaloShapeInformation(

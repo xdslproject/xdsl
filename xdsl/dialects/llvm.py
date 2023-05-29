@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Annotated, Sequence
+from typing import Annotated, Sequence
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -41,9 +41,8 @@ from xdsl.irdl import (
 
 from xdsl.utils.exceptions import VerifyException
 
-if TYPE_CHECKING:
-    from xdsl.parser import Parser
-    from xdsl.printer import Printer
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -183,6 +182,62 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         if isinstance(size, int):
             size = IntAttr(size)
         return LLVMArrayType([size, type])
+
+
+@irdl_attr_definition
+class LLVMVoidType(ParametrizedAttribute, TypeAttribute):
+    name = "llvm.void"
+
+
+@irdl_attr_definition
+class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
+    """
+    Currently does not support variadics.
+
+    https://mlir.llvm.org/docs/Dialects/LLVM/#function-types
+    """
+
+    name = "llvm.func"
+
+    inputs: ParameterDef[ArrayAttr[Attribute]]
+    output: ParameterDef[Attribute]
+
+    def __init__(
+        self,
+        inputs: Sequence[Attribute] | ArrayAttr[Attribute],
+        output: Attribute | None = None,
+    ) -> None:
+        if not isinstance(inputs, ArrayAttr):
+            inputs = ArrayAttr(inputs)
+        if output is None:
+            output = LLVMVoidType()
+        super().__init__([inputs, output])
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<")
+        if isinstance(self.output, LLVMVoidType):
+            printer.print("void")
+        else:
+            printer.print_attribute(self.output)
+
+        printer.print(" (")
+        printer.print_list(self.inputs, printer.print_attribute)
+        printer.print_string(")>")
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_char("<")
+        if parser.try_parse_characters("void"):
+            output = LLVMVoidType()
+        else:
+            output = parser.parse_attribute()
+
+        inputs = parser.parse_comma_separated_list(
+            Parser.Delimiter.PAREN, parser.parse_attribute
+        )
+        parser.parse_char(">")
+
+        return [ArrayAttr(inputs), output]
 
 
 @irdl_attr_definition
@@ -719,6 +774,8 @@ LLVM = Dialect(
         LLVMStructType,
         LLVMPointerType,
         LLVMArrayType,
+        LLVMVoidType,
+        LLVMFunctionType,
         LinkageAttr,
     ],
 )
