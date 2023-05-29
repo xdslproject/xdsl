@@ -113,7 +113,7 @@ def test_label_op_with_comment():
     assert label_op.label.data == label_str
 
     code = riscv_code(ModuleOp([label_op]))
-    assert code == f"{label_str}:                                         # my label\n"
+    assert code == f"{label_str}:    # my label\n"
 
 
 def test_label_op_with_region():
