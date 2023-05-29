@@ -1688,7 +1688,10 @@ class Parser(ABC):
                     self.raise_error(
                         f"block argument %{arg.name} is already defined", arg.name
                     )
-                self.ssa_values[arg.name.text[1:]] = (block_arg,)
+                parsed_name = arg.name.text[1:]
+                self.ssa_values[parsed_name] = (block_arg,)
+                if SSAValue.is_valid_name(parsed_name):
+                    block_arg.name_hint = arg.name.text[1:]
 
             # Parse the entry block body
             self._parse_block_body(entry_block)
