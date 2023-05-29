@@ -192,6 +192,8 @@ class LLVMVoidType(ParametrizedAttribute, TypeAttribute):
 @irdl_attr_definition
 class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     """
+    Currently does not support variadics.
+
     https://mlir.llvm.org/docs/Dialects/LLVM/#function-types
     """
 
