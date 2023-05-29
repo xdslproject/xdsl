@@ -36,36 +36,36 @@
 }) : () -> ()
 
 // CHECK:      "builtin.module"() ({
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<t0>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<s0>
-// CHECK-NEXT:  %{{\d+}} = "riscv.add"(%{{\d+}}, %{{\d+}}) : (!riscv.reg<t0>, !riscv.reg<s0>) -> !riscv.reg<t1>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 29 : i32} : () -> !riscv.reg<t2>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 28 : i32} : () -> !riscv.reg<s1>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 27 : i32} : () -> !riscv.reg<a0>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 26 : i32} : () -> !riscv.reg<a1>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 25 : i32} : () -> !riscv.reg<a2>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 24 : i32} : () -> !riscv.reg<a3>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 23 : i32} : () -> !riscv.reg<a4>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 22 : i32} : () -> !riscv.reg<a5>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 21 : i32} : () -> !riscv.reg<a6>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 20 : i32} : () -> !riscv.reg<a7>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 19 : i32} : () -> !riscv.reg<s2>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 18 : i32} : () -> !riscv.reg<s3>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 17 : i32} : () -> !riscv.reg<s4>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 16 : i32} : () -> !riscv.reg<s5>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 15 : i32} : () -> !riscv.reg<s6>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 14 : i32} : () -> !riscv.reg<s7>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 13 : i32} : () -> !riscv.reg<s8>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 12 : i32} : () -> !riscv.reg<s9>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 11 : i32} : () -> !riscv.reg<s10>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 10 : i32} : () -> !riscv.reg<s11>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 9 : i32} : () -> !riscv.reg<t3>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 8 : i32} : () -> !riscv.reg<t4>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 7 : i32} : () -> !riscv.reg<t5>
 // CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<t6>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<j0>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 4 : i32} : () -> !riscv.reg<j1>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 3 : i32} : () -> !riscv.reg<j2>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 2 : i32} : () -> !riscv.reg<j3>
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<j4>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<s0>
+// CHECK-NEXT:  %{{\d+}} = "riscv.add"(%{{\d+}}, %{{\d+}}) : (!riscv.reg<t6>, !riscv.reg<s0>) -> !riscv.reg<t5>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 29 : i32} : () -> !riscv.reg<t4>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 28 : i32} : () -> !riscv.reg<t3>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 27 : i32} : () -> !riscv.reg<s11>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 26 : i32} : () -> !riscv.reg<s10>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 25 : i32} : () -> !riscv.reg<s9>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 24 : i32} : () -> !riscv.reg<s8>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 23 : i32} : () -> !riscv.reg<s7>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 22 : i32} : () -> !riscv.reg<s6>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 21 : i32} : () -> !riscv.reg<s5>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 20 : i32} : () -> !riscv.reg<s4>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 19 : i32} : () -> !riscv.reg<s3>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 18 : i32} : () -> !riscv.reg<s2>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 17 : i32} : () -> !riscv.reg<a7>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 16 : i32} : () -> !riscv.reg<a6>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 15 : i32} : () -> !riscv.reg<a5>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 14 : i32} : () -> !riscv.reg<a4>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 13 : i32} : () -> !riscv.reg<a3>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 12 : i32} : () -> !riscv.reg<a2>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 11 : i32} : () -> !riscv.reg<a1>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 10 : i32} : () -> !riscv.reg<a0>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 9 : i32} : () -> !riscv.reg<s1>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 8 : i32} : () -> !riscv.reg<t2>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 7 : i32} : () -> !riscv.reg<t1>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<t0>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<ra>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 4 : i32} : () -> !riscv.reg<j0>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 3 : i32} : () -> !riscv.reg<j1>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 2 : i32} : () -> !riscv.reg<j2>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<j3>
 // CHECK-NEXT: }) : () -> ()
