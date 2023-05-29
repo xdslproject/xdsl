@@ -1250,6 +1250,9 @@ class ReturnOp(NullaryOperation):
 
     name = "riscv.ret"
 
+    def __init__(self):
+        super().__init__()
+
 
 # Conditional Branches
 
@@ -1830,8 +1833,8 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class CustomEmulatorInstructionOp(IRDLOperation, RISCVInstruction):
-    name = "riscv.custom_emulator_instruction"
+class CustomInstructionOp(IRDLOperation, RISCVInstruction):
+    name = "riscv.custom_instruction"
     inputs: VarOperand
     outputs: VarOpResult
     instruction_name: OpAttr[StringAttr]
@@ -2036,7 +2039,7 @@ RISCV = Dialect(
         DirectiveOp,
         EbreakOp,
         WfiOp,
-        CustomEmulatorInstructionOp,
+        CustomInstructionOp,
         CommentOp,
         GetRegisterOp,
         ScfgwOp,
