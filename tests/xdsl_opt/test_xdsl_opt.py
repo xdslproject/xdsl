@@ -6,6 +6,7 @@ from xdsl.dialects import builtin
 
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
+from xdsl.utils.exceptions import DiagnosticException
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 
@@ -115,8 +116,35 @@ def test_operation_deletion():
     assert f.getvalue().strip() == expected.strip()
 
 
+def test_print_between_passes():
+    filename_in = "tests/xdsl_opt/empty_program.mlir"
+    passes = ["stencil-shape-inference", "dce", "frontend-desymrefy"]
+    flags = ["--print-between-passes", "-p", ",".join(passes)]
+
+    f = StringIO("")
+
+    opt = xDSLOptMain(args=[*flags, filename_in])
+
+    with redirect_stdout(f):
+        opt.run()
+
+    output = f.getvalue()
+    assert (
+        len([l for l in output.split("\n") if "builtin.module" in l]) == len(passes) + 1
+    )
+
+
+def test_diagnostic_exception():
+    filename_in = "tests/xdsl_opt/unverified_program.mlir"
+
+    opt = xDSLOptMain(args=[filename_in])
+
+    with pytest.raises(DiagnosticException):
+        opt.run()
+
+
 def test_split_input():
-    filename_in = "tests/xdsl_opt/split_input_file.mlir"
+    filename_in = "tests/xdsl_opt/empty_program.mlir"
     filename_out = "tests/xdsl_opt/split_input_file.out"
     flag = "--split-input-file"
 
