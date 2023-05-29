@@ -1740,6 +1740,7 @@ class LabelOp(IRDLOperation, RISCVOp):
     One needs to do the following:
 
     ``` python
+    @Builder.implicit_region
     def my_add():
         a1_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
         a2_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
