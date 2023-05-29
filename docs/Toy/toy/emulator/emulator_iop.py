@@ -1,8 +1,6 @@
 from __future__ import annotations
 from typing import IO, ClassVar
 
-# pyright: reportMissingTypeStubs=false
-
 from riscemu import RunConfig, UserModeCPU, RV32I, RV32M, AssemblyFileLoader
 from riscemu.instructions import InstructionSet, Instruction
 
