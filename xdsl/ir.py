@@ -1008,8 +1008,8 @@ class BlockOps:
         return result
 
     def __bool__(self) -> bool:
-        """Returns `True` if there are no operations in this block."""
-        return self.block.first_op is not None
+        """Returns `True` if there are operations in this block."""
+        return not self.block.is_empty
 
     @property
     def first(self) -> Operation | None:
@@ -1145,6 +1145,11 @@ class Block(IRNode):
                 "Can't add an operation to a block contained in the operation."
             )
         operation.parent = self
+
+    @property
+    def is_empty(self) -> bool:
+        """Returns `True` if there are no operations in this block."""
+        return self._first_op is None
 
     @property
     def first_op(self) -> Operation | None:
