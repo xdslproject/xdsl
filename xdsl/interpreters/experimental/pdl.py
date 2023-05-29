@@ -203,7 +203,7 @@ class PDLFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         block = op.body.block
 
-        if not block:
+        if not block.ops:
             raise InterpretationError("No ops in pattern")
 
         last_op = block.last_op

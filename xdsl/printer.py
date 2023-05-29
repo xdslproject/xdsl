@@ -326,7 +326,7 @@ class Printer:
         entry_block = region.blocks[0]
         print_entry_block_args = (
             bool(entry_block.args) and print_entry_block_args
-        ) or (not entry_block and print_empty_block)
+        ) or (not entry_block.ops and print_empty_block)
         self.print_block(entry_block, print_block_args=print_entry_block_args)
         for block in region.blocks[1:]:
             self.print_block(block)

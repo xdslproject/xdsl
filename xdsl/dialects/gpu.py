@@ -219,7 +219,7 @@ class AllReduceOp(IRDLOperation):
                 f"{self.operand.typ}. They must be the same type for gpu.all_reduce"
             )
 
-        non_empty_body = any(self.body.blocks)
+        non_empty_body = any(b.ops for b in self.body.blocks)
         op_attr = self.op is not None
         if non_empty_body == op_attr:
             if op_attr:
@@ -454,7 +454,7 @@ class LaunchOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not any(self.body.blocks):
+        if not any(b.ops for b in self.body.blocks):
             raise VerifyException("gpu.launch requires a non-empty body.")
         body_args = self.body.blocks[0].args
         args_type = [a.typ for a in body_args]

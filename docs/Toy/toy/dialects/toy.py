@@ -212,7 +212,7 @@ class FuncOp(IRDLOperation):
 
         block = self.body.blocks[0]
 
-        if not block:
+        if not block.ops:
             raise VerifyException("Expected FuncOp to not be empty")
 
         last_op = block.last_op
