@@ -201,10 +201,14 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     output: ParameterDef[Attribute]
 
     def __init__(
-        self, inputs: Sequence[Attribute] | ArrayAttr[Attribute], output: Attribute
+        self,
+        inputs: Sequence[Attribute] | ArrayAttr[Attribute],
+        output: Attribute | None = None,
     ) -> None:
         if not isinstance(inputs, ArrayAttr):
             inputs = ArrayAttr(inputs)
+        if output is None:
+            output = LLVMVoidType()
         super().__init__([inputs, output])
 
     def print_parameters(self, printer: Printer) -> None:
