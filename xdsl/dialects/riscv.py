@@ -1778,11 +1778,7 @@ class LabelOp(IRDLOperation, RISCVOp):
         )
 
     def assembly_line(self) -> str | None:
-        comment = ""
-        if self.comment is not None and self.comment.data:
-            comment = f"    # {self.comment.data}"
-
-        return f"{self.label.data}:{comment}"
+        return _append_comment(f"{self.label.data}:", self.comment)
 
 
 @irdl_op_definition
