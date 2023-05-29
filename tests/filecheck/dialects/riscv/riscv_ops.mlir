@@ -185,6 +185,11 @@
   // CHECK-NEXT:    %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
   // CHECK-NEXT:  }) {"directive" = ".text"} : () -> ()
 
+  // Custom instruction
+  %custom0, %custom1 = "riscv.custom_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
+  // CHECK-NEXT:   %custom0, %custom1 = "riscv.custom_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
+
+
   // RISC-V extensions
   "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()
   // CHECK-NEXT: "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()

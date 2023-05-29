@@ -167,4 +167,10 @@
   }) {"label" = #riscv.label<"label1">} : () -> ()
   // CHECK-NEXT: label1:
   // CHECK-NEXT: addi j1, j1, 1
+
+
+  // Custom instruction
+  %custom0, %custom1 = "riscv.custom_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<zero>, !riscv.reg<j1>) -> (!riscv.reg<j3>, !riscv.reg<j4>)
+  // CHECK-NEXT:   hello j3, j4, zero, j1
+
 }) : () -> ()
