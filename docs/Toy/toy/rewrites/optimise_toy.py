@@ -1,6 +1,7 @@
-from typing import cast
+from __future__ import annotations
+from typing import Callable, Sequence, cast
 
-from xdsl.ir import MLContext, OpResult
+from xdsl.ir import Attribute, AttributeInvT, MLContext, OpResult, Operation, SSAValue
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     ArrayAttr,
@@ -15,6 +16,50 @@ from xdsl.transforms.dead_code_elimination import dce
 from xdsl.utils.hints import isa
 
 from ..dialects.toy import ConstantOp, ReshapeOp, TensorTypeF64, TransposeOp
+
+
+class MatcherRewrite:
+    ...
+
+
+class Matcher:
+    def value(self, typ: type[Attribute]) -> SSAValue:
+        assert False
+
+    def attribute(self, typ: type[AttributeInvT]) -> AttributeInvT:
+        assert False
+
+    def rewrite(
+        self,
+        root: Operation,
+    ) -> Callable[[Callable[[], Sequence[SSAValue] | None]], MatcherRewrite]:
+        assert False
+
+
+def rt(matcher: Matcher) -> MatcherRewrite:
+    arg = matcher.value(Attribute)
+    transpose_0 = TransposeOp(arg)
+    transpose_1 = TransposeOp(transpose_0.res)
+
+    @matcher.rewrite(transpose_1)
+    def rewrite() -> Sequence[SSAValue] | None:
+        return (arg,)
+
+    return rewrite
+
+
+def rr(matcher: Matcher) -> MatcherRewrite:
+    arg = matcher.value(Attribute)
+    typ_0 = matcher.attribute(TensorType[Float64Type])
+    r_0 = ReshapeOp(arg, typ_0)
+    typ_1 = matcher.attribute(TensorType[Float64Type])
+    r_1 = ReshapeOp(r_0.res, typ_1)
+
+    @matcher.rewrite(r_1)
+    def rewrite() -> Sequence[SSAValue] | None:
+        return ReshapeOp(arg, typ_1).results
+
+    return rewrite
 
 
 @implicit_rewriter
