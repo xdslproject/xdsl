@@ -1,7 +1,7 @@
 from __future__ import annotations
 from types import TracebackType
 
-from typing import Callable, ClassVar, Sequence, TypeAlias, TypeVar, overload
+from typing import Callable, ClassVar, Sequence, TypeAlias, overload
 import threading
 import contextlib
 
@@ -9,9 +9,6 @@ from dataclasses import dataclass, field
 from xdsl.dialects.builtin import ArrayAttr
 
 from xdsl.ir import Operation, OperationInvT, Attribute, Region, Block, BlockArgument
-
-
-_T = TypeVar("_T")
 
 
 @dataclass
@@ -227,19 +224,6 @@ class Builder:
             raise ValueError(
                 "op_builder must be called within an implicit builder block"
             )
-
-    @staticmethod
-    def op(func: Callable[[Region], Operation]) -> _ImplicitBuilder:
-        """
-        Will construct an op with a region, and populate child region.
-        Must be called within an implicit builder context.
-        """
-        Builder.assert_implicit()
-        b = Block()
-        r = Region(b)
-        # will be added to parent implicit builder
-        _op = func(r)
-        return Builder(b).implicit()
 
 
 # Implicit builders
