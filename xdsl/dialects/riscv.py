@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import IO, Annotated, Iterable, TypeAlias
+from typing import IO, Annotated, Iterable, TypeAlias, Sequence
 
 from xdsl.ir import (
     Dialect,
     Operation,
     Region,
     SSAValue,
+    Attribute,
     Data,
     OpResult,
     TypeAttribute,
@@ -17,8 +18,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     OptSingleBlockRegion,
+    VarOpResult,
     irdl_op_definition,
     irdl_attr_definition,
+    VarOperand,
     Operand,
     OpAttr,
     OptOpAttr,
@@ -1247,9 +1250,6 @@ class ReturnOp(NullaryOperation):
 
     name = "riscv.ret"
 
-    def __init__(self):
-        super().__init__()
-
 
 # Conditional Branches
 
@@ -1830,6 +1830,43 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
+class CustomEmulatorInstructionOp(IRDLOperation, RISCVInstruction):
+    name = "riscv.custom_emulator_instruction"
+    inputs: VarOperand
+    outputs: VarOpResult
+    instruction_name: OpAttr[StringAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        instruction_name: str | StringAttr,
+        inputs: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(instruction_name, str):
+            instruction_name = StringAttr(instruction_name)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[inputs],
+            result_types=[result_types],
+            attributes={
+                "instruction_name": instruction_name,
+                "comment": comment,
+            },
+        )
+
+    def assembly_instruction_name(self) -> str:
+        return self.instruction_name.data
+
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return *self.results, *self.operands
+
+
+@irdl_op_definition
 class CommentOp(IRDLOperation, RISCVOp):
     name = "riscv.comment"
     comment: OpAttr[StringAttr]
@@ -1999,6 +2036,7 @@ RISCV = Dialect(
         DirectiveOp,
         EbreakOp,
         WfiOp,
+        CustomEmulatorInstructionOp,
         CommentOp,
         GetRegisterOp,
         ScfgwOp,
