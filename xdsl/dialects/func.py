@@ -1,6 +1,7 @@
 from __future__ import annotations
 import re
 from typing import Annotated, Union, Sequence, cast
+from xdsl.builder import Builder
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -210,6 +211,18 @@ class FuncOp(IRDLOperation):
             region=region,
             visibility=visibility,
         )
+
+    @staticmethod
+    def implicit_builder(
+        name: str,
+        input_types: Sequence[Attribute],
+        return_types: Sequence[Attribute],
+    ):
+        Builder.assert_implicit()
+        block = Block(arg_types=input_types)
+        region = Region(block)
+        _op = FuncOp.from_region(name, input_types, return_types, region)
+        return Builder(block).implicit()
 
     def replace_argument_type(self, arg: int | BlockArgument, new_type: Attribute):
         """
