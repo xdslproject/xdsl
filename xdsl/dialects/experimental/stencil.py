@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Sequence, TypeVar, cast, Iterable, Iterator
 
+from operator import add, lt, neg
+
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
@@ -55,12 +57,13 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
         return [ArrayAttr((IntAttr(i) for i in ints))]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print(f'<{", ".join((str(e.data) for e in self.array.data))}>')
+        printer.print(f'<{", ".join((str(e) for e in self))}>')
 
     def verify(self) -> None:
-        if len(self.array) < 1 or len(self.array) > 3:
+        l = len(self)
+        if l < 1 or l > 3:
             raise VerifyException(
-                f"Expected 1 to 3 indexes for stencil.index, got {len(self.array.data)}."
+                f"Expected 1 to 3 indexes for stencil.index, got {l}."
             )
 
     @staticmethod
@@ -75,34 +78,33 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
     @staticmethod
     def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
-        return [ub.data - lb.data for lb, ub in zip(lb.array.data, ub.array.data)]
+        return [ub - lb for lb, ub in zip(lb, ub)]
 
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
     def __neg__(self) -> IndexAttr:
-        return IndexAttr.get(*(-e.data for e in self.array.data))
+        return IndexAttr.get(*(map(neg, self)))
 
     def __add__(self, o: IndexAttr) -> IndexAttr:
-        return IndexAttr.get(
-            *(se.data + oe.data for se, oe in zip(self.array.data, o.array.data))
-        )
+        return IndexAttr.get(*(map(add, self, o)))
 
     def __sub__(self, o: IndexAttr) -> IndexAttr:
         return self + -o
+
+    def __lt__(self, o: IndexAttr) -> bool:
+        return any(map(lt, self, o))
 
     @staticmethod
     def min(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr.get(
-            *(min(ae.data, be.data) for ae, be in zip(a.array.data, b.array.data))
-        )
+        return IndexAttr.get(*map(min, a, b))
 
     @staticmethod
     def max(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr.get(*(max(ae, be) for ae, be in zip(a, b)))
+        return IndexAttr.get(*map(max, a, b))
 
     def __len__(self):
         return len(self.array)
@@ -112,7 +114,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
 
 @irdl_attr_definition
-class StencilBoundsAttr(ParametrizedAttribute, TypeAttribute):
+class StencilBoundsAttr(ParametrizedAttribute):
     name = "stencil.bounds"
     lb: ParameterDef[IndexAttr]
     ub: ParameterDef[IndexAttr]
@@ -128,9 +130,11 @@ class StencilBoundsAttr(ParametrizedAttribute, TypeAttribute):
                     "Incoherent stencil bounds: upper bound must be strictly greater than lower bound."
                 )
 
-    def __init__(self, bounds: Sequence[tuple[int | IntAttr, int | IntAttr]]):
-        lb = tuple(b[0] for b in bounds)
-        ub = tuple(b[1] for b in bounds)
+    def __init__(self, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]):
+        if bounds:
+            lb, ub = zip(*bounds)
+        else:
+            lb = ub = ()
         super().__init__(
             [
                 IndexAttr.get(*lb),
@@ -163,9 +167,9 @@ class StencilType(
             if parser.parse_optional_punctuation("?"):
                 return -1
             parser.parse_punctuation("[")
-            l = parser.parse_integer(False)
+            l = parser.parse_integer(allow_boolean=False)
             parser.parse_punctuation(",")
-            u = parser.parse_integer(False)
+            u = parser.parse_integer(allow_boolean=False)
             parser.parse_punctuation("]")
             return (l, u)
 
@@ -204,13 +208,13 @@ class StencilType(
 
     def __init__(
         self,
-        bounds: Sequence[tuple[int | IntAttr, int | IntAttr]]
+        bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]
         | int
         | IntAttr
         | StencilBoundsAttr,
         typ: _FieldTypeElement,
     ) -> None:
-        if isinstance(bounds, Sequence):
+        if isinstance(bounds, Iterable):
             nbounds = StencilBoundsAttr(bounds)
         elif isinstance(bounds, int):
             nbounds = IntAttr(bounds)
@@ -360,7 +364,7 @@ class LoadOp(IRDLOperation):
         if lb is None or ub is None:
             res_typ = TempType(field_t.get_num_dims(), field_t.element_type)
         else:
-            res_typ = TempType(tuple(zip(lb, ub)), field_t.element_type)
+            res_typ = TempType(zip(lb, ub), field_t.element_type)
 
         return LoadOp.build(
             operands=[field],
@@ -378,10 +382,7 @@ class LoadOp(IRDLOperation):
         if isinstance(field.bounds, StencilBoundsAttr) and isinstance(
             temp.bounds, StencilBoundsAttr
         ):
-            if (
-                IndexAttr.min(temp.bounds.lb, field.bounds.lb) != field.bounds.lb
-                or IndexAttr.max(temp.bounds.ub, field.bounds.ub) != field.bounds.ub
-            ):
+            if temp.bounds.lb < field.bounds.lb or temp.bounds.ub > field.bounds.ub:
                 raise VerifyException(
                     "The stencil.load is too big for the loaded field."
                 )
@@ -429,6 +430,8 @@ class StoreOp(IRDLOperation):
         for use in self.field.uses:
             if isa(use.operation, LoadOp):
                 raise VerifyException("Cannot Load and Store the same field!")
+            if isa(use.operation, LoadOp) and use.operation is not self:
+                raise VerifyException("Can only store once to a field!")
 
 
 @irdl_op_definition

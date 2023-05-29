@@ -143,10 +143,10 @@ class ReturnOpToMemref(RewritePattern):
 def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
     assert isinstance(field.bounds, StencilBoundsAttr)
     assert isinstance(temp.bounds, StencilBoundsAttr)
-    if IndexAttr.min(field.bounds.lb, temp.bounds.lb) != field.bounds.lb:  # noqa
+    if temp.bounds.lb < field.bounds.lb or temp.bounds.ub > field.bounds.ub:
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
-            f"{temp.bounds.lb}, got {field.bounds.lb}, min: {IndexAttr.min(field.bounds.lb, temp.bounds.lb)}"
+            f"{temp.bounds.lb}, got {field.bounds.lb}, min: {min(field.bounds.lb, temp.bounds.lb)}"
         )
 
 
@@ -315,10 +315,8 @@ class StencilTypeConversionFuncOp(RewritePattern):
             assert isa(cast.result.typ, FieldType[Attribute])
             assert isa(cast.result.typ.bounds, StencilBoundsAttr)
             new_cast = cast.clone()
-            offsets = [
-                i.data for i in (store.lb - cast.result.typ.bounds.lb).array.data
-            ]
-            sizes = [i.data for i in (store.ub - store.lb).array.data]
+            offsets = [i for i in store.lb - cast.result.typ.bounds.lb]
+            sizes = [i for i in store.ub - store.lb]
             subview = memref.Subview.from_static_parameters(
                 new_cast.result,
                 GetMemRefFromField(cast.result.typ),
