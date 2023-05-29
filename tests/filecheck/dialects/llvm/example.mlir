@@ -54,6 +54,17 @@
   // CHECK-NEXT:   %s0, %s1 = "test.op"() : () -> (!llvm.struct<()>, !llvm.struct<(i32)>)
   // CHECK-NEXT:   %s2, %s3 = "test.op"() : () -> (!llvm.struct<"a", ()>, !llvm.struct<"a", (i32)>)
 
+  // void
+  %v0 = "test.op"() : () -> !llvm.void
+  // CHECK-NEXT:   %v0 = "test.op"() : () -> !llvm.void
+
+  // function
+  %f0 = "test.op"() : () -> !llvm.func<void ()>
+  %f1 = "test.op"() : () -> !llvm.func<i32 (i32, i32)>
+  // CHECK-NEXT:   %f0 = "test.op"() : () -> !llvm.func<void ()>
+  // CHECK-NEXT:   %f1 = "test.op"() : () -> !llvm.func<i32 (i32, i32)>
+
+
   // Op tests
   "func.func"() ({
     %5 = "arith.constant"() {"value" = 1 : i32} : () -> i32

@@ -190,3 +190,9 @@ def test_addressof_op():
     assert isinstance(address_of.global_name, builtin.SymbolRefAttr)
     assert address_of.global_name.root_reference.data == "test"
     assert address_of.result.typ == ptr_type
+
+
+def test_implicit_void_func_return():
+    func_type = llvm.LLVMFunctionType([])
+
+    assert isinstance(func_type.output, llvm.LLVMVoidType)
