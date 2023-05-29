@@ -1,3 +1,4 @@
+from abc import ABC
 from dataclasses import dataclass
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import Register, RegisterType, RISCVOp
@@ -5,7 +6,7 @@ from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 
 
-class RegisterAllocatorStrategy:
+class AbstractRegisterAllocator(ABC):
     """
     Base class for register allocation strategies.
     """
@@ -21,7 +22,7 @@ class RegisterAllocatorStrategy:
         raise NotImplementedError()
 
 
-class RegisterAllocatorBlockNaive(RegisterAllocatorStrategy):
+class RegisterAllocatorBlockNaive(AbstractRegisterAllocator):
     idx: int
 
     def __init__(self) -> None:
@@ -57,7 +58,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocatorStrategy):
                         assert isinstance(result.typ, RegisterType)
                         if result.typ.data.name is None:
                             # If we run out of real registers, allocate a j register
-                            if block_registers == list():
+                            if len(block_registers) == 0:
                                 result.typ = RegisterType(Register(f"j{self.idx}"))
                                 self.idx += 1
                             else:
@@ -66,7 +67,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocatorStrategy):
                                 )
 
 
-class RegisterAllocatorJRegs(RegisterAllocatorStrategy):
+class RegisterAllocatorJRegs(AbstractRegisterAllocator):
     idx: int
 
     def __init__(self) -> None:
@@ -96,7 +97,7 @@ class RISCVRegisterAllocation(ModulePass):
 
     name = "riscv-allocate-registers"
 
-    allocation_type: str = "GlobalJRegs"
+    allocation_strategy: str = "GlobalJRegs"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         allocator_strategies = {
@@ -104,11 +105,11 @@ class RISCVRegisterAllocation(ModulePass):
             "BlockNaive": RegisterAllocatorBlockNaive,
         }
 
-        if self.allocation_type not in allocator_strategies:
+        if self.allocation_strategy not in allocator_strategies:
             raise ValueError(
-                f"Unknown register allocation type {self.allocation_type}. "
+                f"Unknown register allocation strategy {self.allocation_strategy}. "
                 f"Available allocation types: {allocator_strategies.keys()}"
             )
 
-        allocator = allocator_strategies[self.allocation_type]()
+        allocator = allocator_strategies[self.allocation_strategy]()
         allocator.allocate_registers(op)
