@@ -26,6 +26,7 @@ from xdsl.dialects.experimental.stencil import (
     LoadOp,
     ReturnOp,
     StencilBoundsAttr,
+    StencilType,
     StoreOp,
     TempType,
     ExternalLoadOp,
@@ -42,22 +43,12 @@ _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 # TODO docstrings and comments
 
 
-def GetMemRefFromField(
-    input_type: FieldType[_TypeElement] | TempType[_TypeElement],
+def StencilToMemRefType(
+    input_type: StencilType[_TypeElement],
 ) -> MemRefType[_TypeElement]:
     return MemRefType.from_element_type_and_shape(
         input_type.element_type, input_type.get_shape()
     )
-
-
-def GetMemRefFromFieldWithLBAndUB(
-    memref_element_type: _TypeElement, lb: IndexAttr, ub: IndexAttr
-) -> MemRefType[_TypeElement]:
-    # lb and ub defines the minimum and maximum coordinates of the resulting memref,
-    # so its shape is simply ub - lb, computed here.
-    dims = IndexAttr.size_from_bounds(lb, ub)
-
-    return MemRefType.from_element_type_and_shape(memref_element_type, dims)
 
 
 @dataclass
@@ -69,9 +60,7 @@ class CastOpToMemref(RewritePattern):
         assert isa(op.result.typ, FieldType[Attribute])
         assert isinstance(op.result.typ.bounds, StencilBoundsAttr)
 
-        result_typ = GetMemRefFromFieldWithLBAndUB(
-            op.result.typ.element_type, op.result.typ.bounds.lb, op.result.typ.bounds.ub
-        )
+        result_typ = StencilToMemRefType(op.result.typ)
 
         cast = memref.Cast.get(op.field, result_typ)
 
@@ -185,7 +174,7 @@ class LoadOpToMemref(RewritePattern):
         strides = [1] * len(sizes)
 
         subview = memref.Subview.from_static_parameters(
-            op.field, GetMemRefFromField(field), offsets, sizes, strides
+            op.field, StencilToMemRefType(field), offsets, sizes, strides
         )
 
         rewriter.replace_matched_op(subview)
@@ -284,15 +273,23 @@ class StencilTypeConversionFuncOp(RewritePattern):
         inputs: list[Attribute] = []
         for arg in op.body.block.args:
             if isa(arg.typ, FieldType[Attribute]):
-                memreftyp = GetMemRefFromField(arg.typ)
+                memreftyp = StencilToMemRefType(arg.typ)
                 rewriter.modify_block_argument_type(arg, memreftyp)
                 inputs.append(memreftyp)
             else:
                 inputs.append(arg.typ)
-
+        print(inputs)
         op.attributes["function_type"] = FunctionType.from_lists(
             inputs, list(op.function_type.outputs.data)
         )
+
+
+class TypeSpreadingForOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter, /):
+        pass
+        for i, a in enumerate(op.body.block.args[1:]):
+            op.iter_args[i].typ = a.typ
 
 
 @dataclass
@@ -305,19 +302,21 @@ class StencilStoreToSubview(RewritePattern):
 
         for store in stores:
             field = store.field
-            assert isinstance(field.owner, CastOp)
             assert isa(field.typ, FieldType[Attribute])
             assert isa(field.typ.bounds, StencilBoundsAttr)
             offsets = [i for i in store.lb - field.typ.bounds.lb]
             sizes = [i for i in store.ub - store.lb]
             subview = memref.Subview.from_static_parameters(
                 field,
-                GetMemRefFromField(field.typ),
+                StencilToMemRefType(field.typ),
                 offsets,
                 sizes,
                 [1] * len(sizes),
             )
-            rewriter.insert_op_after(subview, field.owner)
+            if isinstance(field.owner, Operation):
+                rewriter.insert_op_after(subview, field.owner)
+            else:
+                rewriter.insert_op_at_start(subview, field.owner)
             field.replace_by(subview.result)
             subview.replace_operand(subview.result, field)
 
@@ -333,7 +332,7 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
         assert isa(op.result.typ, FieldType[Attribute])
-        op.result.typ = GetMemRefFromField(op.result.typ)
+        op.result.typ = StencilToMemRefType(op.result.typ)
 
         if op.field.typ == op.result.typ:
             rewriter.replace_matched_op([], [op.field])
@@ -391,6 +390,7 @@ def StencilConversion(return_targets: dict[ReturnOp, list[SSAValue | None]], gpu
             TrivialExternalLoadOpCleanup(),
             TrivialExternalStoreOpCleanup(),
             StencilTypeConversionFuncOp(),
+            TypeSpreadingForOp(),
         ]
     )
 
