@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Literal
 
 import pytest
 
@@ -22,6 +23,8 @@ class CustomPass(ModulePass):
     str_thing: str
 
     nullable_str: str | None
+
+    literal: Literal["yes", "no", "maybe"] = "no"
 
     optional_bool: bool = False
 
@@ -56,6 +59,7 @@ def test_pass_instantiation():
                 "number": [2],
                 "int-list": [1, 2, 3],
                 "str-thing": ["hello world"],
+                "literal": ["maybe"]
                 # "optional" was left out here, as it is optional
             },
         )
@@ -65,6 +69,7 @@ def test_pass_instantiation():
     assert p.int_list == [1, 2, 3]
     assert p.str_thing == "hello world"
     assert p.nullable_str is None
+    assert p.literal == "maybe"
     assert p.optional_bool is False
 
     # this should just work
@@ -82,6 +87,10 @@ def test_pass_instantiation():
         ),
         (PipelinePassSpec("simple", {"a": []}), "Argument must contain a value"),
         (PipelinePassSpec("simple", {"a": ["test"]}), "Incompatible types"),
+        (
+            PipelinePassSpec("simple", {"a": ["test"], "literal": ["definitely"]}),
+            "Incompatible types",
+        ),
     ),
 )
 def test_pass_instantiation_error(spec: PipelinePassSpec, error_msg: str):
