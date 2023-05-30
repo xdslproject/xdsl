@@ -36,6 +36,21 @@ from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
 
 
+def test_stencilboundsattr_verify():
+    with pytest.raises(VerifyException) as e:
+        StencilBoundsAttr.new([IndexAttr.get(1), IndexAttr.get(2, 2)])
+    assert (
+        str(e.value)
+        == "Incoherent stencil bounds: lower and upper bounds must have the same dimensionality."
+    )
+    with pytest.raises(VerifyException) as e:
+        StencilBoundsAttr.new([IndexAttr.get(2, 2), IndexAttr.get(2, 2)])
+    assert (
+        str(e.value)
+        == "Incoherent stencil bounds: upper bound must be strictly greater than lower bound."
+    )
+
+
 def test_stencil_return_single_float():
     float_val1 = TestSSAValue(FloatAttr(4.0, f32))
     return_op = ReturnOp.get([float_val1])

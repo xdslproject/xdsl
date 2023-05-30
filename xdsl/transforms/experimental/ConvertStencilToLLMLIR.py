@@ -219,8 +219,6 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
 class ApplyOpToParallel(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        # if not op.res:
-        #     return
         res_typ = op.res[0].typ
         assert isa(res_typ, TempType[Attribute])
         assert isinstance(res_typ.bounds, StencilBoundsAttr)
