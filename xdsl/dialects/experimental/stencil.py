@@ -115,6 +115,10 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
 @irdl_attr_definition
 class StencilBoundsAttr(ParametrizedAttribute):
+    """
+    This attribute represents known bounds over a stencil type.
+    """
+
     name = "stencil.bounds"
     lb: ParameterDef[IndexAttr]
     ub: ParameterDef[IndexAttr]
@@ -147,6 +151,12 @@ class StencilType(
     Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute, builtin.ShapeType
 ):
     bounds: ParameterDef[StencilBoundsAttr | IntAttr]
+    """
+    Represents the bounds information of a stencil.field or stencil.temp.
+
+    A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
+    rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
+    """
     element_type: ParameterDef[_FieldTypeElement]
 
     def get_num_dims(self) -> int:
@@ -230,6 +240,13 @@ class FieldType(
     ParametrizedAttribute,
     TypeAttribute,
 ):
+    """
+    stencil.field represents memory from which stencil input values will be loaded,
+    or to which stencil output values will be stored.
+
+    stencil.temp are loaded from or stored to stencil.field
+    """
+
     name = "stencil.field"
 
 
@@ -240,6 +257,11 @@ class TempType(
     ParametrizedAttribute,
     TypeAttribute,
 ):
+    """
+    stencil.temp represents stencil values, and is the type on which stencil.apply operates.
+    It has value-semantics: it won't necesseraly be lowered to an actual buffer.
+    """
+
     name = "stencil.temp"
 
 
@@ -308,7 +330,7 @@ class IndexOp(IRDLOperation):
 @irdl_op_definition
 class AccessOp(IRDLOperation):
     """
-    This operation accesses a temporary element given a constant
+    This operation accesses a value from a stencil.temp given the specified offset.
     offset. The offset is specified relative to the current position.
 
     Example:
@@ -342,7 +364,7 @@ class AccessOp(IRDLOperation):
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     """
-    This operation takes a field and returns a temporary values.
+    This operation takes a field and returns its values.
 
     Example:
       %0 = stencil.load %field : (!stencil.field<70x70x60xf64>) -> !stencil.temp<?x?x?xf64>
@@ -405,7 +427,7 @@ class BufferOp(IRDLOperation):
 @irdl_op_definition
 class StoreOp(IRDLOperation):
     """
-    This operation takes a temp and writes a field on a user defined range.
+    This operation writes values to a field on a user defined range.
 
     Example:
       stencil.store %temp to %field ([0,0,0] : [64,64,60]) : !stencil.temp<?x?x?xf64> to !stencil.field<70x70x60xf64>
