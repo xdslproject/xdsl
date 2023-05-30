@@ -3,6 +3,7 @@ import re
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from enum import Enum
 from io import StringIO
 from itertools import chain
 from typing import (
@@ -1612,3 +1613,129 @@ class Region(IRNode):
         ):
             return False
         return True
+
+
+class _AffineExprKind(Enum):
+    Add = ("+",)
+    Mul = ("*",)
+    Mod = ("mod",)
+    FloorDiv = ("floordiv",)
+    CeilDiv = ("ceildiv",)
+    Constant = ("const",)
+    DimId = ("d",)
+    SymbolId = ("s",)
+
+
+class _AffineExprStorage(ABC):
+    kind: _AffineExprKind
+
+
+class _AffineBinaryOpExprStorage(_AffineExprStorage):
+    lhs: AffineExpr
+    rhs: AffineExpr
+
+    def __init__(self, kind: _AffineExprKind, lhs: AffineExpr, rhs: AffineExpr) -> None:
+        if kind not in [
+            _AffineExprKind.Add,
+            _AffineExprKind.Mul,
+            _AffineExprKind.Mod,
+            _AffineExprKind.FloorDiv,
+            _AffineExprKind.CeilDiv,
+        ]:
+            raise ValueError(f"Invalid kind {kind} for _AffineBinaryOpExprStorage")
+        self.kind = kind
+        self.lhs = lhs
+        self.rhs = rhs
+
+    def __str__(self) -> str:
+        return f"({str(self.lhs)} {str(self.kind.value[0])} {str(self.rhs)})"
+
+
+class _AffineDimExprStorage(_AffineExprStorage):
+    position: int
+
+    def __init__(self, kind: _AffineExprKind, position: int) -> None:
+        if kind != _AffineExprKind.DimId and kind != _AffineExprKind.SymbolId:
+            raise ValueError(f"Invalid kind {kind} for _AffineDimExprStorage")
+        self.kind = kind
+        self.position = position
+
+    def __str__(self) -> str:
+        return f"{str(self.kind.value[0])}{self.position}"
+
+
+class _AffineConstantExprStorage(_AffineExprStorage):
+    value: int
+
+    def __init__(self, value: int) -> None:
+        self.kind = _AffineExprKind.Constant
+        self.value = value
+
+    def __str__(self) -> str:
+        return f"{self.value}"
+
+
+@dataclass
+class AffineExpr:
+    impl: _AffineExprStorage
+
+    @staticmethod
+    def constant(value: int) -> AffineExpr:
+        return AffineExpr(_AffineConstantExprStorage(value))
+
+    @staticmethod
+    def dimension(position: int) -> AffineExpr:
+        return AffineExpr(_AffineDimExprStorage(_AffineExprKind.DimId, position))
+
+    @staticmethod
+    def symbol(position: int) -> AffineExpr:
+        return AffineExpr(_AffineDimExprStorage(_AffineExprKind.SymbolId, position))
+
+    def __add__(self, other: AffineExpr | int) -> AffineExpr:
+        if isinstance(other, int):
+            other = AffineExpr.constant(other)
+        # TODO: Simplify addition here before returning.
+        return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Add, self, other))
+
+    def __neg__(self) -> AffineExpr:
+        return self * -1
+
+    def __sub__(self, other: AffineExpr | int) -> AffineExpr:
+        return (self * -1) + other
+
+    def __mul__(self, other: AffineExpr | int) -> AffineExpr:
+        if isinstance(other, int):
+            other = AffineExpr.constant(other)
+        if other.impl.kind != _AffineExprKind.Constant:
+            # TODO: MLIR also supports multiplication by symbols although I don't like it so I leave this to Mr. Mathew.
+            raise ValueError(
+                "Multiplication with non-constant (semi-affine) is not supported"
+            )
+
+        # TODO: Simplify multiplication here before returning.
+        return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Mul, self, other))
+
+    def floor_div(self, other: AffineExpr | int) -> AffineExpr:
+        if isinstance(other, int):
+            other = AffineExpr.constant(other)
+        # TODO: Simplify floor division here before returning.
+        return AffineExpr(
+            _AffineBinaryOpExprStorage(_AffineExprKind.FloorDiv, self, other)
+        )
+
+    def ceil_div(self, other: AffineExpr | int) -> AffineExpr:
+        if isinstance(other, int):
+            other = AffineExpr.constant(other)
+        # TODO: Simplify ceil division here before returning.
+        return AffineExpr(
+            _AffineBinaryOpExprStorage(_AffineExprKind.CeilDiv, self, other)
+        )
+
+    def __mod__(self, other: AffineExpr | int) -> AffineExpr:
+        if isinstance(other, int):
+            other = AffineExpr.constant(other)
+        # TODO: Simplify modulo here before returning.
+        return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Mod, self, other))
+
+    def __str__(self) -> str:
+        return str(self.impl)
