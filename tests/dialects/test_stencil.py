@@ -4,7 +4,6 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     FloatAttr,
     IntAttr,
-    IntegerAttr,
     bf16,
     f16,
     f32,
@@ -15,16 +14,19 @@ from xdsl.dialects.builtin import (
     i64,
     IntegerType,
     ArrayAttr,
-    AnyIntegerAttr,
+    IndexType,
 )
 from xdsl.dialects.experimental.stencil import (
     ReturnOp,
     ResultType,
     ApplyOp,
+    StoreOp,
     TempType,
     LoadOp,
     FieldType,
     IndexAttr,
+    IndexOp,
+    AccessOp,
 )
 from xdsl.dialects.stencil import CastOp
 from xdsl.ir import Block
@@ -339,12 +341,12 @@ def test_index_attr_max(indices1: list[int], indices2: list[int]):
 
 @pytest.mark.parametrize(
     "indices",
-    (([1]), ([1, 2]), ([1, 2, 3])),
+    (((1,)), ((1, 2)), ((1, 2, 3))),
 )
-def test_index_attr_tuple_return(indices: list[int]):
+def test_index_attr_iter(indices: tuple[int]):
     stencil_index_attr = IndexAttr.get(*indices)
 
-    assert stencil_index_attr.as_tuple() == tuple(indices)
+    assert tuple(stencil_index_attr) == indices
 
 
 @pytest.mark.parametrize(
@@ -362,45 +364,32 @@ def test_index_attr_indices_length(indices: list[int]):
 @pytest.mark.parametrize(
     "attr, dims",
     (
-        (
-            i32,
-            ArrayAttr(
-                [IntegerAttr[IntegerType](1, 64), IntegerAttr[IntegerType](2, 64)]
-            ),
-        ),
+        (i32, (64, 64)),
         (
             i64,
-            ArrayAttr(
-                [
-                    IntegerAttr[IntegerType](1, 32),
-                    IntegerAttr[IntegerType](2, 32),
-                    IntegerAttr[IntegerType](3, 32),
-                ]
-            ),
+            (32, 32, 32),
         ),
     ),
 )
 def test_stencil_fieldtype_constructor_with_ArrayAttr(
-    attr: IntegerType, dims: ArrayAttr[AnyIntegerAttr]
+    attr: IntegerType, dims: tuple[int]
 ):
     stencil_fieldtype = FieldType(dims, attr)
 
     assert stencil_fieldtype.element_type == attr
     assert stencil_fieldtype.get_num_dims() == len(dims)
-    assert stencil_fieldtype.get_shape() == [
-        list(dims.data)[dim].value.data for dim in range(len(dims))
-    ]
+    assert stencil_fieldtype.get_shape() == dims
 
 
 @pytest.mark.parametrize(
     "attr, dims",
     (
-        (i32, [1, 2]),
-        (i32, [1, 1, 3]),
-        (i64, [1, 1, 3]),
+        (i32, (1, 2)),
+        (i32, (1, 1, 3)),
+        (i64, (1, 1, 3)),
     ),
 )
-def test_stencil_fieldtype_constructor(attr: IntegerType, dims: list[int]):
+def test_stencil_fieldtype_constructor(attr: IntegerType, dims: tuple[int]):
     stencil_fieldtype = FieldType(dims, attr)
 
     assert stencil_fieldtype.element_type == attr
@@ -418,10 +407,7 @@ def test_stencil_fieldtype_constructor(attr: IntegerType, dims: list[int]):
 def test_stencil_fieldtype_constructor_empty_list(attr: IntegerType, dims: list[int]):
     with pytest.raises(VerifyException) as exc_info:
         FieldType(dims, attr)
-    assert (
-        exc_info.value.args[0]
-        == "Number of field dimensions must be greater than zero, got 0."
-    )
+    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 def test_stencil_load():
@@ -459,46 +445,33 @@ def test_stencil_load_bounds():
 @pytest.mark.parametrize(
     "attr, dims",
     (
-        (
-            i32,
-            ArrayAttr(
-                [IntegerAttr[IntegerType](1, 64), IntegerAttr[IntegerType](2, 64)]
-            ),
-        ),
+        (i32, (64, 64)),
         (
             i64,
-            ArrayAttr(
-                [
-                    IntegerAttr[IntegerType](1, 32),
-                    IntegerAttr[IntegerType](2, 32),
-                    IntegerAttr[IntegerType](3, 32),
-                ]
-            ),
+            (32, 32, 32),
         ),
     ),
 )
 def test_stencil_temptype_constructor_with_ArrayAttr(
-    attr: IntegerType, dims: ArrayAttr[AnyIntegerAttr]
+    attr: IntegerType, dims: tuple[int]
 ):
     stencil_temptype = TempType(dims, attr)
 
     assert isinstance(stencil_temptype, TempType)
     assert stencil_temptype.element_type == attr
     assert stencil_temptype.get_num_dims() == len(dims)
-    assert stencil_temptype.get_shape() == [
-        list(dims.data)[dim].value.data for dim in range(len(dims))
-    ]
+    assert stencil_temptype.get_shape() == dims
 
 
 @pytest.mark.parametrize(
     "attr, dims",
     (
-        (i32, [1, 2]),
-        (i32, [1, 1, 3]),
-        (i64, [1, 1, 3]),
+        (i32, (1, 2)),
+        (i32, (1, 1, 3)),
+        (i64, (1, 1, 3)),
     ),
 )
-def test_stencil_temptype_constructor(attr: IntegerType, dims: list[int]):
+def test_stencil_temptype_constructor(attr: IntegerType, dims: tuple[int]):
     stencil_temptype = TempType(dims, attr)
 
     assert isinstance(stencil_temptype, TempType)
@@ -517,42 +490,7 @@ def test_stencil_temptype_constructor(attr: IntegerType, dims: list[int]):
 def test_stencil_temptype_constructor_empty_list(attr: IntegerType, dims: list[int]):
     with pytest.raises(VerifyException) as exc_info:
         TempType(dims, attr)
-    assert (
-        exc_info.value.args[0]
-        == "Number of field dimensions must be greater than zero, got 0."
-    )
-
-
-@pytest.mark.parametrize(
-    "attr, dims",
-    (
-        (i32, [1, 2]),
-        (i32, [1, 1, 3]),
-        (i64, [1, 1, 3]),
-    ),
-)
-def test_stencil_temptype_printing(attr: IntegerType, dims: list[int]):
-    stencil_temptype = TempType(dims, attr)
-
-    expected_string: str = f"stencil.temp<[{' '.join(str(d) for d in dims)}]>"
-
-    assert repr(stencil_temptype) == expected_string
-
-
-@pytest.mark.parametrize(
-    "attr, dims",
-    (
-        (i32, [1, 2]),
-        (i32, [1, 1, 3]),
-        (i64, [1, 1, 3]),
-    ),
-)
-def test_stencil_fieldtype_printing(attr: IntegerType, dims: list[int]):
-    stencil_temptype = FieldType(dims, attr)
-
-    expected_string: str = f"stencil.field<[{' '.join(str(d) for d in dims)}]>"
-
-    assert repr(stencil_temptype) == expected_string
+    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 @pytest.mark.parametrize(
@@ -564,3 +502,79 @@ def test_stencil_resulttype(float_type: AnyFloat):
 
     assert isinstance(stencil_resulttype, ResultType)
     assert stencil_resulttype.elem == float_type
+
+
+def test_stencil_store():
+    temp_type = TempType([5, 5], f32)
+    temp_type_ssa_val = TestSSAValue(temp_type)
+
+    field_type = FieldType([2, 2], f32)
+    field_type_ssa_val = TestSSAValue(field_type)
+
+    lb = IndexAttr.get(1, 1)
+    ub = IndexAttr.get(64, 64)
+
+    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, lb, ub)
+
+    assert isinstance(store, StoreOp)
+    assert isinstance(store.field.typ, FieldType)
+    assert store.field.typ == field_type
+    assert isinstance(store.temp.typ, TempType)
+    assert store.temp.typ == temp_type
+    assert len(store.field.typ.shape) == 2
+    assert len(store.temp.typ.shape) == 2
+    assert store.lb is lb
+    assert store.ub is ub
+
+
+def test_stencil_store_load_overlap():
+    temp_type = TempType([5, 5], f32)
+    temp_type_ssa_val = TestSSAValue(temp_type)
+
+    field_type = FieldType([2, 2], f32)
+    field_type_ssa_val = TestSSAValue(field_type)
+
+    lb = IndexAttr.get(1, 1)
+    ub = IndexAttr.get(64, 64)
+
+    load = LoadOp.get(field_type_ssa_val, lb, ub)
+    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, lb, ub)
+
+    with pytest.raises(VerifyException) as exc_info:
+        load.verify()
+    assert exc_info.value.args[0] == "Cannot Load and Store the same field!"
+
+    with pytest.raises(VerifyException) as exc_info:
+        store.verify()
+    assert exc_info.value.args[0] == "Cannot Load and Store the same field!"
+
+
+def test_stencil_index():
+    dim = IntAttr(10)
+    offset = IndexAttr.get(1)
+
+    index = IndexOp.build(
+        attributes={
+            "dim": dim,
+            "offset": offset,
+        },
+        result_types=[IndexType()],
+    )
+
+    assert isinstance(index, IndexOp)
+    assert index.dim is dim
+    assert index.offset is offset
+
+
+def test_stencil_access():
+    temp_type = TempType([5, 5], f32)
+    temp_type_ssa_val = TestSSAValue(temp_type)
+
+    offset = [1, 1]
+    offset_index_attr = IndexAttr.get(*offset)
+
+    access = AccessOp.get(temp_type_ssa_val, offset)
+
+    assert isinstance(access, AccessOp)
+    assert access.offset == offset_index_attr
+    assert access.temp.typ == temp_type

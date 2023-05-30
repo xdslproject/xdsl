@@ -7,7 +7,6 @@ from typing import (
     Sequence,
     TypeVar,
     Optional,
-    List,
     TypeAlias,
     cast,
 )
@@ -20,6 +19,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     DenseArrayBase,
     IndexType,
+    ShapeType,
     StridedLayoutAttr,
     ArrayAttr,
     NoneAttr,
@@ -62,7 +62,9 @@ _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
 
 @irdl_attr_definition
-class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, TypeAttribute):
+class MemRefType(
+    Generic[_MemRefTypeElement], ParametrizedAttribute, TypeAttribute, ShapeType
+):
     name = "memref"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -73,8 +75,8 @@ class MemRefType(Generic[_MemRefTypeElement], ParametrizedAttribute, TypeAttribu
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
+    def get_shape(self) -> tuple[int]:
+        return tuple(i.value.data for i in self.shape.data)
 
     @staticmethod
     def from_element_type_and_shape(
