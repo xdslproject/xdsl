@@ -339,7 +339,6 @@ def test_lower_mpi_all_reduce_no_send_buffer():
 
 
 def test_mpi_waitall():
-
     _, count, _ = CreateTestValsOp.get(
         llvm.LLVMPointerType.opaque(), i32, mpi.DataType()
     ).results
