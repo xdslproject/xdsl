@@ -752,9 +752,7 @@ class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         if self.strategy not in self.STRATEGIES:
             raise ValueError(f"Unknown strategy: {self.strategy}")
-        strategy = self.STRATEGIES[self.strategy](
-            self.slices
-        )
+        strategy = self.STRATEGIES[self.strategy](self.slices)
 
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
