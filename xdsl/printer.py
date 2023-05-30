@@ -74,6 +74,12 @@ class Printer:
     print_generic_format: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
+    print_unknown_value_error: bool = field(default=True, kw_only=True)
+    """
+    If this option is set, printing an operand that was not already given a name will
+    not print an error message.
+    """
+
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
     """
@@ -245,12 +251,13 @@ class Printer:
             begin_pos = self._current_column
             self.print("%<UNKNOWN>")
             end_pos = self._current_column
-            self._add_message_on_next_line(
-                "ERROR: SSAValue is not part of the IR, are you sure all operations "
-                "are added before their uses?",
-                begin_pos,
-                end_pos,
-            )
+            if self.print_unknown_value_error:
+                self._add_message_on_next_line(
+                    "ERROR: SSAValue is not part of the IR, are you sure all operations "
+                    "are added before their uses?",
+                    begin_pos,
+                    end_pos,
+                )
 
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)

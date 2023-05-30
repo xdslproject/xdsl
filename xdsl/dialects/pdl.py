@@ -529,9 +529,9 @@ class RangeOp(IRDLOperation):
             for arg in self.arguments:
                 if cur_elem_type := get_type_or_elem_type(arg) != elem_type:
                     raise VerifyException(
-                        f"All arguments must have the same type or be an array  \
-                          of the corresponding element type. First element type:\
-                          {elem_type}, current element type: {cur_elem_type}"
+                        "All arguments must have the same type or be an array of the "
+                        f"corresponding element type. First element type: {elem_type}"
+                        f", current element type: {cur_elem_type}"
                     )
 
     def __init__(

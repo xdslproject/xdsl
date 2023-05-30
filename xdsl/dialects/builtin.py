@@ -80,11 +80,11 @@ class ArrayOfConstraint(AttrConstraint):
     def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
         self.elem_constr = attr_constr_coercion(constr)
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, Data):
             raise Exception(f"expected data ArrayData but got {attr}")
         for e in cast(ArrayAttr[Attribute], attr).data:
-            self.elem_constr.verify(e)
+            self.elem_constr.verify(e, constraint_vars)
 
 
 @irdl_attr_definition
@@ -723,11 +723,11 @@ class ContainerOf(AttrConstraint):
     ) -> None:
         self.elem_constr = attr_constr_coercion(elem_constr)
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if isinstance(attr, VectorType) or isinstance(attr, TensorType):
-            self.elem_constr.verify(attr.element_type)  # type: ignore
+            self.elem_constr.verify(attr.element_type, constraint_vars)  # type: ignore
         else:
-            self.elem_constr.verify(attr)
+            self.elem_constr.verify(attr, constraint_vars)
 
 
 VectorOrTensorOf: TypeAlias = (
@@ -750,7 +750,7 @@ class VectorRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.get_num_dims() != self.expected_rank:
@@ -768,7 +768,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
     expected_type: Attribute
     """The expected vector base type."""
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.element_type != self.expected_type:  # type: ignore
@@ -789,14 +789,14 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         constraint = AllOf(
             [
                 VectorBaseTypeConstraint(self.expected_type),
                 VectorRankConstraint(self.expected_rank),
             ]
         )
-        constraint.verify(attr)
+        constraint.verify(attr, constraint_vars)
 
 
 @irdl_attr_definition
@@ -1298,6 +1298,15 @@ f32 = Float32Type()
 f64 = Float64Type()
 f80 = Float64Type()
 f128 = Float64Type()
+
+
+class ShapeType(ABC):
+    def get_num_dims(self) -> int:
+        ...
+
+    def get_shape(self) -> tuple[int]:
+        ...
+
 
 Builtin = Dialect(
     [

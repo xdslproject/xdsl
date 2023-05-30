@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from typing import Sequence, TypeVar, cast, Iterable, Iterator, List
+from typing import Sequence, TypeVar, cast, Iterable, Iterator
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntAttr,
-    IntegerAttr,
     ParametrizedAttribute,
     ArrayAttr,
-    IntegerType,
     AnyFloat,
 )
 from xdsl.ir import Attribute, Operation, Dialect, TypeAttribute
@@ -40,128 +38,6 @@ from xdsl.utils.hints import isa
 
 
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
-
-
-@irdl_attr_definition
-class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute):
-    name = "stencil.field"
-
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[_FieldTypeElement]
-
-    def get_num_dims(self) -> int:
-        return len(self.shape.data)
-
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
-
-    def verify(self):
-        if self.get_num_dims() <= 0:
-            raise VerifyException(
-                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
-            )
-
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_char("<")
-        dims, element_type = parser.parse_ranked_shape()
-        parser.parse_char(">")
-        return [ArrayAttr([IntegerAttr(d, 64) for d in dims]), element_type]
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_list(
-            (e.value.data for e in self.shape.data),
-            lambda i: printer.print(i) if i != -1 else printer.print("?"),
-            "x",
-        )
-        printer.print("x")
-        printer.print_attribute(self.element_type)
-        printer.print(">")
-
-    def __init__(
-        self,
-        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
-        typ: _FieldTypeElement,
-    ) -> None:
-        if isinstance(shape, ArrayAttr):
-            super().__init__([shape, typ])
-            return
-
-        # cast to list
-        shape = cast(list[int], shape)
-        super().__init__(
-            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
-        )
-
-
-@irdl_attr_definition
-class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute):
-    name = "stencil.temp"
-
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[_FieldTypeElement]
-
-    def get_num_dims(self) -> int:
-        return len(self.shape.data)
-
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
-
-    def verify(self):
-        if self.get_num_dims() <= 0:
-            raise VerifyException(
-                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
-            )
-
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_char("<")
-        dims, element_type = parser.parse_ranked_shape()
-        parser.parse_char(">")
-        return [ArrayAttr([IntegerAttr(d, 64) for d in dims]), element_type]
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        printer.print_list(
-            (e.value.data for e in self.shape.data),
-            lambda i: printer.print(i) if i != -1 else printer.print("?"),
-            "x",
-        )
-        printer.print("x")
-        printer.print_attribute(self.element_type)
-        printer.print(">")
-
-    def __init__(
-        self,
-        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
-        typ: _FieldTypeElement,
-    ) -> None:
-        if isinstance(shape, ArrayAttr):
-            super().__init__([shape, typ])
-            return
-
-        # cast to list
-        shape = cast(list[int], shape)
-        super().__init__(
-            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
-        )
-
-    def __repr__(self):
-        repr: str = "stencil.Temp<["
-        for size in self.shape.data:
-            repr += f"{size.value.data} "
-        repr += "]>"
-        return repr
-
-
-@irdl_attr_definition
-class ResultType(ParametrizedAttribute, TypeAttribute):
-    name = "stencil.result"
-    elem: ParameterDef[AnyFloat]
-
-    def __init__(self, float_t: AnyFloat) -> None:
-        super().__init__([float_t])
 
 
 @irdl_attr_definition
@@ -231,14 +107,78 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
             *(max(ae.data, be.data) for ae, be in zip(a.array.data, b.array.data))
         )
 
-    def as_tuple(self) -> tuple[int, ...]:
-        return tuple(e.data for e in self.array.data)
-
     def __len__(self):
         return len(self.array)
 
     def __iter__(self) -> Iterator[int]:
         return (e.data for e in self.array.data)
+
+
+class StencilType(
+    Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute, builtin.ShapeType
+):
+    shape: ParameterDef[IndexAttr]
+    element_type: ParameterDef[_FieldTypeElement]
+
+    def get_num_dims(self) -> int:
+        return len(self.shape)
+
+    def get_shape(self) -> tuple[int]:
+        return tuple(self.shape)
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_char("<")
+        dims, element_type = parser.parse_ranked_shape()
+        parser.parse_char(">")
+        return [IndexAttr.get(*dims), element_type]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print("<")
+        printer.print_list(
+            self.shape,
+            lambda i: printer.print(i) if i != -1 else printer.print("?"),
+            "x",
+        )
+        printer.print("x")
+        printer.print_attribute(self.element_type)
+        printer.print(">")
+
+    def __init__(
+        self,
+        shape: Sequence[IntAttr | int],
+        typ: _FieldTypeElement,
+    ) -> None:
+        super().__init__([IndexAttr.get(*shape), typ])
+
+
+@irdl_attr_definition
+class FieldType(
+    Generic[_FieldTypeElement],
+    StencilType[_FieldTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+):
+    name = "stencil.field"
+
+
+@irdl_attr_definition
+class TempType(
+    Generic[_FieldTypeElement],
+    StencilType[_FieldTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+):
+    name = "stencil.temp"
+
+
+@irdl_attr_definition
+class ResultType(ParametrizedAttribute, TypeAttribute):
+    name = "stencil.result"
+    elem: ParameterDef[AnyFloat]
+
+    def __init__(self, float_t: AnyFloat) -> None:
+        super().__init__([float_t])
 
 
 # Operations
@@ -360,9 +300,7 @@ class LoadOp(IRDLOperation):
                 "ub": ub,
             },
             result_types=[
-                TempType[Attribute](
-                    [-1] * len(field_t.shape.data), field_t.element_type
-                )
+                TempType[Attribute]([-1] * len(field_t.shape), field_t.element_type)
             ],
         )
 
@@ -500,22 +438,6 @@ class ReturnOp(IRDLOperation):
         return ReturnOp.build(operands=[list(res)])
 
 
-@irdl_op_definition
-class HaloSwapOp(IRDLOperation):
-    name = "stencil.halo_swap"
-
-    input_stencil: Annotated[Operand, TempType | memref.MemRefType]
-
-    buff_lb: OptOpAttr[IndexAttr]
-    buff_ub: OptOpAttr[IndexAttr]
-    core_lb: OptOpAttr[IndexAttr]
-    core_ub: OptOpAttr[IndexAttr]
-
-    @staticmethod
-    def get(input_stencil: SSAValue | Operation):
-        return HaloSwapOp.build(operands=[input_stencil])
-
-
 StencilExp = Dialect(
     [
         ExternalLoadOp,
@@ -528,7 +450,6 @@ StencilExp = Dialect(
         ApplyOp,
         StoreResultOp,
         ReturnOp,
-        HaloSwapOp,
     ],
     [
         FieldType,

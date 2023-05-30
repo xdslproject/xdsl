@@ -77,17 +77,14 @@ class CastOp(IRDLOperation):
                 self.result.typ.shape,
             )
         ):
-            in_: int = in_attr.value.data
-            out: int = out_attr.value.data
-
-            if ub - lb != out:
+            if ub - lb != out_attr:
                 raise VerifyException(
                     "Bound math doesn't check out in dimensions {}! {} - {} != {}".format(
-                        i, ub, lb, out
+                        i, ub, lb, out_attr
                     )
                 )
 
-            if in_ != -1 and in_ != out:
+            if in_attr != -1 and in_attr != out_attr:
                 raise VerifyException(
                     "If input shape is not dynamic, it must be the same as output"
                 )

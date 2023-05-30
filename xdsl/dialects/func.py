@@ -1,7 +1,12 @@
 from __future__ import annotations
-from typing import Annotated, Union, Sequence
+import re
+from typing import Annotated, Union, Sequence, cast
 
-from xdsl.dialects.builtin import StringAttr, FunctionType, SymbolRefAttr
+from xdsl.dialects.builtin import (
+    StringAttr,
+    FunctionType,
+    SymbolRefAttr,
+)
 from xdsl.ir import (
     SSAValue,
     Operation,
@@ -20,8 +25,12 @@ from xdsl.irdl import (
     OptOpAttr,
     IRDLOperation,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.traits import HasParent
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
+from xdsl.utils.lexer import Span
 
 
 @irdl_op_definition
@@ -46,6 +55,104 @@ class FuncOp(IRDLOperation):
                 "Expected entry block arguments to have the same types as the function "
                 "input types"
             )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> FuncOp:
+        # Parse visibility keyword if present
+        visibility = parser.tokenizer.next_token_of_pattern(
+            re.compile("public|nested|private")
+        )
+        if isinstance(visibility, Span):
+            visibility = visibility.text
+
+        # Parse function name
+        name = parser.parse_symbol_name().data
+
+        def parse_fun_input():
+            ret = parser.parse_optional_argument()
+            if ret is None:
+                ret = parser.parse_optional_type()
+            if ret is None:
+                parser.raise_error("Expected argument or type")
+            return ret
+
+        # Parse function arguments
+        args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN,
+            parse_fun_input,
+        )
+
+        # Check consistency (They should be either all named or none)
+        if isa(args, list[parser.Argument]):
+            entry_args = args
+            input_types = cast(list[Attribute], [a.type for a in args])
+        elif isa(args, list[Attribute]):
+            entry_args = None
+            input_types = args
+        else:
+            parser.raise_error(
+                "Expected all arguments to be named or all arguments to be unnamed."
+            )
+
+        # Parse return type
+        if parser.parse_optional_punctuation("->"):
+            return_types = parser.parse_optional_type()
+            if return_types:
+                return_types = [return_types]
+            else:
+                return_types = parser.parse_comma_separated_list(
+                    parser.Delimiter.PAREN, parser.parse_type
+                )
+        else:
+            return_types = []
+
+        attr_dict = parser.parse_optional_attr_dict_with_keyword(
+            ("sym_name", "function_type", "sym_visibility")
+        )
+
+        # Parse body
+        region = parser.parse_optional_region(entry_args)
+        if region is None:
+            region = Region()
+        func = FuncOp.from_region(name, input_types, return_types, region, visibility)
+        if attr_dict is not None:
+            func.attributes |= attr_dict.data
+        return func
+
+    def print(self, printer: Printer):
+        if self.sym_visibility:
+            visibility = self.sym_visibility.data
+            printer.print(f" {visibility}")
+
+        printer.print(f" @{self.sym_name.data}")
+        if len(self.body.blocks) > 0:
+            printer.print("(")
+            printer.print_list(self.body.blocks[0].args, printer.print_block_argument)
+            printer.print(") ")
+            if self.function_type.outputs:
+                printer.print("-> ")
+                if len(self.function_type.outputs) > 1:
+                    printer.print("(")
+                printer.print_list(self.function_type.outputs, printer.print_attribute)
+                if len(self.function_type.outputs) > 1:
+                    printer.print(")")
+                printer.print(" ")
+        else:
+            printer.print_attribute(self.function_type)
+        attr_dict = {
+            k: v
+            for k, v in self.attributes.items()
+            if k not in ("sym_name", "function_type", "sym_visibility")
+        }
+        if len(attr_dict) > 0:
+            printer.print(" attributes {")
+            printer.print_list(
+                attr_dict.items(), lambda i: printer.print(f'"{i[0]}" = {i[1]}')
+            )
+            printer.print("}")
+
+        if len(self.body.blocks) > 0:
+            printer.print_region(self.body, False, False)
 
     @staticmethod
     def from_callable(
@@ -85,12 +192,15 @@ class FuncOp(IRDLOperation):
         input_types: Sequence[Attribute],
         return_types: Sequence[Attribute],
         region: Region,
+        visibility: StringAttr | str | None = None,
     ) -> FuncOp:
+        if isinstance(visibility, str):
+            visibility = StringAttr(visibility)
         type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes: dict[str, Attribute] = {
+        attributes: dict[str, Attribute | None] = {
             "sym_name": StringAttr(name),
             "function_type": type_attr,
-            "sym_visibility": StringAttr("private"),
+            "sym_visibility": visibility,
         }
         op = FuncOp.build(attributes=attributes, regions=[region])
         return op

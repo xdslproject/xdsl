@@ -1,8 +1,8 @@
+from io import StringIO
 from xdsl.builder import Builder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
-from xdsl.riscv_asm_writer import riscv_code
 
 from xdsl.transforms.riscv_register_allocation import (
     RISCVRegisterAllocation,
@@ -13,6 +13,10 @@ def context() -> MLContext:
     ctx = MLContext()
     return ctx
 
+def riscv_code(module: ModuleOp) -> str:
+    stream = StringIO()
+    riscv.print_assembly(module, stream)
+    return stream.getvalue()
 
 # Handwritten riscv dialect code to test register allocation
 

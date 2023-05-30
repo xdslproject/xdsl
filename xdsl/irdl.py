@@ -60,6 +60,7 @@ class IRDLAnnotations(Enum):
     AttributeDefAnnot = 2
     OptAttributeDefAnnot = 3
     SingleBlockRegionAnnot = 4
+    ConstraintVarAnnot = 5
 
 
 #   ____                _             _       _
@@ -75,12 +76,54 @@ class AttrConstraint(ABC):
     """Constrain an attribute to a certain value."""
 
     @abstractmethod
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         """
         Check if the attribute satisfies the constraint,
         or raise an exception otherwise.
         """
         ...
+
+
+@dataclass
+class VarConstraint(AttrConstraint):
+    """
+    Constraint variable. If the variable is already set, this will constrain
+    the attribute to be equal to the variable. Otherwise, it will first check that the
+    variable satisfies the variable constraint, then set the variable with the
+    attribute.
+    """
+
+    name: str
+    """The variable name. All uses of that name refer to the same variable."""
+
+    constraint: AttrConstraint
+    """The constraint that the variable must satisfy."""
+
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if self.name in constraint_vars:
+            if attr != constraint_vars[self.name]:
+                raise VerifyException(
+                    f"attribute {constraint_vars[self.name]} expected from variable "
+                    f"'{self.name}', but got {attr}"
+                )
+        else:
+            self.constraint.verify(attr, constraint_vars)
+            constraint_vars[self.name] = attr
+
+
+@dataclass
+class ConstraintVar:
+    """
+    Annotation used in PyRDL to define a constraint variable.
+    For instance, the following code defines a constraint variable T,
+    that can then be used in PyRDL:
+    ```python
+    T = Annotated[PyRDLConstraint, ConstraintVar("T")]
+    ```
+    """
+
+    name: str
+    """The variable name. All uses of that name refer to the same variable."""
 
 
 @dataclass
@@ -90,7 +133,7 @@ class EqAttrConstraint(AttrConstraint):
     attr: Attribute
     """The attribute we want to check equality with."""
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if attr != self.attr:
             raise VerifyException(f"Expected attribute {self.attr} but got {attr}")
 
@@ -102,7 +145,7 @@ class BaseAttr(AttrConstraint):
     attr: type[Attribute]
     """The expected attribute base type."""
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, self.attr):
             raise VerifyException(
                 f"{attr} should be of base attribute {self.attr.name}"
@@ -129,7 +172,7 @@ def attr_constr_coercion(
 class AnyAttr(AttrConstraint):
     """Constraint that is verified by all attributes."""
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         pass
 
 
@@ -145,10 +188,15 @@ class AnyOf(AttrConstraint):
     ):
         self.attr_constrs = [attr_constr_coercion(constr) for constr in attr_constrs]
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         for attr_constr in self.attr_constrs:
+            # Copy the constraint to ensure that if the constraint fails, the
+            # constraint_vars are not modified.
+            constraint_vars_copy = constraint_vars.copy()
             try:
-                attr_constr.verify(attr)
+                attr_constr.verify(attr, constraint_vars_copy)
+                # If the constraint succeeds, we update back the constraint variables
+                constraint_vars.update(constraint_vars_copy)
                 return
             except VerifyException:
                 pass
@@ -162,12 +210,12 @@ class AllOf(AttrConstraint):
     attr_constrs: list[AttrConstraint]
     """The list of constraints that are checked."""
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         exc_bucket: list[VerifyException] = []
 
         for attr_constr in self.attr_constrs:
             try:
-                attr_constr.verify(attr)
+                attr_constr.verify(attr, constraint_vars)
             except VerifyException as e:
                 exc_bucket.append(e)
 
@@ -200,7 +248,7 @@ class ParamAttrConstraint(AttrConstraint):
         self.base_attr = base_attr
         self.param_constrs = [attr_constr_coercion(constr) for constr in param_constrs]
 
-    def verify(self, attr: Attribute) -> None:
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, self.base_attr):
             raise VerifyException(
                 f"{attr} should be of base attribute {self.base_attr.name}"
@@ -211,7 +259,49 @@ class ParamAttrConstraint(AttrConstraint):
                 f"but got {len(attr.parameters)}"
             )
         for idx, param_constr in enumerate(self.param_constrs):
-            param_constr.verify(attr.parameters[idx])
+            param_constr.verify(attr.parameters[idx], constraint_vars)
+
+
+def _irdl_list_to_attr_constraint(
+    pyrdl_constraints: Sequence[Any],
+    *,
+    allow_type_var: bool = False,
+    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
+) -> AttrConstraint:
+    """
+    Convert a list of PyRDL type annotations to an AttrConstraint.
+    Each list element correspond to a constraint to satisfy.
+    If there is a `ConstraintVar` annotation, we add the entire constraint to
+    the constraint variable.
+    """
+    # Check for a constraint varibale first
+    for idx, arg in enumerate(pyrdl_constraints):
+        if isinstance(arg, ConstraintVar):
+            constraint = _irdl_list_to_attr_constraint(
+                list(pyrdl_constraints[:idx]) + list(pyrdl_constraints[idx + 1 :]),
+                allow_type_var=allow_type_var,
+                type_var_mapping=type_var_mapping,
+            )
+            return VarConstraint(arg.name, constraint)
+
+    constraints: list[AttrConstraint] = []
+    for arg in pyrdl_constraints:
+        # We should not try to convert IRDL annotations, which do not
+        # correspond to constraints
+        if isinstance(arg, IRDLAnnotations):
+            continue
+        constraints.append(
+            irdl_to_attr_constraint(
+                arg,
+                allow_type_var=allow_type_var,
+                type_var_mapping=type_var_mapping,
+            )
+        )
+    if len(constraints) == 0:
+        return AnyAttr()
+    if len(constraints) > 1:
+        return AllOf(constraints)
+    return constraints[0]
 
 
 def irdl_to_attr_constraint(
@@ -228,23 +318,14 @@ def irdl_to_attr_constraint(
 
     # Annotated case
     # Each argument of the Annotated type corresponds to a constraint to satisfy.
+    # If there is a `ConstraintVar` annotation, we add the entire constraint to
+    # the constraint variable.
     if get_origin(irdl) == Annotated:
-        constraints: list[AttrConstraint] = []
-        for arg in get_args(irdl):
-            # We should not try to convert IRDL annotations, which do not
-            # correspond to constraints
-            if isinstance(arg, IRDLAnnotations):
-                continue
-            constraints.append(
-                irdl_to_attr_constraint(
-                    arg,
-                    allow_type_var=allow_type_var,
-                    type_var_mapping=type_var_mapping,
-                )
-            )
-        if len(constraints) > 1:
-            return AllOf(constraints)
-        return constraints[0]
+        return _irdl_list_to_attr_constraint(
+            get_args(irdl),
+            allow_type_var=allow_type_var,
+            type_var_mapping=type_var_mapping,
+        )
 
     # Attribute class case
     # This is an `AnyAttr`, which does not constrain the attribute.
@@ -710,6 +791,10 @@ class OpDef:
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
             ):
                 continue
+            # Constraint variables are allowed
+            if get_origin(value) is Annotated:
+                if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
+                    continue
             raise wrong_field_exception(field_name)
 
         if "name" not in clsdict:
@@ -750,20 +835,11 @@ class OpDef:
 
             # Get attribute constraints from a list of pyrdl constraints
             def get_constraint(pyrdl_constrs: tuple[Any, ...]) -> AttrConstraint:
-                constraints = [
-                    irdl_to_attr_constraint(
-                        pyrdl_constr,
-                        allow_type_var=True,
-                        type_var_mapping=type_var_mapping,
-                    )
-                    for pyrdl_constr in pyrdl_constrs
-                    if not isinstance(pyrdl_constr, IRDLAnnotations)
-                ]
-                if len(constraints) == 0:
-                    return AnyAttr()
-                if len(constraints) == 1:
-                    return constraints[0]
-                return AllOf(constraints)
+                return _irdl_list_to_attr_constraint(
+                    pyrdl_constrs,
+                    allow_type_var=True,
+                    type_var_mapping=type_var_mapping,
+                )
 
             # Get the operand, result, attribute, or region definition, from
             # the pyrdl description.
@@ -839,14 +915,13 @@ class OpDef:
                 raise wrong_field_exception(field_name)
 
         op_def.options = clsdict.get("irdl_options", [])
-        traits = clsdict.get("traits", frozenset())
+        traits = clsdict.get("traits", frozenset[OpTrait]())
         if not isinstance(traits, frozenset):
             raise Exception(
                 f"pyrdl operation definition '{pyrdl_def.__name__}' "
                 f"has a 'traits' field of type {type(traits)}, but "
                 "it should be of type frozenset."
             )
-        traits = cast(frozenset[OpTrait], traits)
         op_def.traits = traits
 
         return op_def
@@ -854,17 +929,20 @@ class OpDef:
     def verify(self, op: Operation):
         """Given an IRDL definition, verify that an operation satisfies its invariants."""
 
+        # Mapping from type variables to their concrete types.
+        constraint_vars: dict[str, Attribute] = {}
+
         # Verify operands.
-        irdl_op_verify_arg_list(op, self, VarIRConstruct.OPERAND)
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.OPERAND, constraint_vars)
 
         # Verify results.
-        irdl_op_verify_arg_list(op, self, VarIRConstruct.RESULT)
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.RESULT, constraint_vars)
 
         # Verify regions.
-        irdl_op_verify_arg_list(op, self, VarIRConstruct.REGION)
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.REGION, constraint_vars)
 
         # Verify successors.
-        irdl_op_verify_arg_list(op, self, VarIRConstruct.SUCCESSOR)
+        irdl_op_verify_arg_list(op, self, VarIRConstruct.SUCCESSOR, constraint_vars)
 
         # Verify attributes.
         for attr_name, attr_def in self.attributes.items():
@@ -872,7 +950,7 @@ class OpDef:
                 if isinstance(attr_def, OptAttributeDef):
                     continue
                 raise VerifyException(f"attribute {attr_name} expected")
-            attr_def.constr.verify(op.attributes[attr_name])
+            attr_def.constr.verify(op.attributes[attr_name], constraint_vars)
 
         # Verify traits.
         for trait in self.traits:
@@ -1117,7 +1195,10 @@ def get_operand_result_or_region(
 
 
 def irdl_op_verify_arg_list(
-    op: Operation, op_def: OpDef, construct: VarIRConstruct
+    op: Operation,
+    op_def: OpDef,
+    construct: VarIRConstruct,
+    constraint_vars: dict[str, Attribute],
 ) -> None:
     """Verify the argument list of an operation."""
     arg_sizes = get_variadic_sizes(op, op_def, construct)
@@ -1132,7 +1213,7 @@ def irdl_op_verify_arg_list(
                 construct == VarIRConstruct.OPERAND
                 or construct == VarIRConstruct.RESULT
             ):
-                arg_def.constr.verify(arg.typ)
+                arg_def.constr.verify(arg.typ, constraint_vars)
             elif construct == VarIRConstruct.REGION:
                 if isinstance(arg_def, SingleBlockRegionDef) and len(arg.blocks) != 1:
                     raise VerifyException(
@@ -1647,6 +1728,10 @@ class ParamAttrDef:
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
             ):
                 continue
+            # Constraint variables are allowed
+            if get_origin(value) is Annotated:
+                if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
+                    continue
             raise PyRDLAttrDefinitionError(
                 f"{field_name} is not a parameter definition."
             )
@@ -1679,8 +1764,9 @@ class ParamAttrDef:
                 f"{len(attr.parameters)}"
             )
 
+        constraint_vars: dict[str, Attribute] = {}
         for param, (_, param_def) in zip(attr.parameters, self.parameters):
-            param_def.verify(param)
+            param_def.verify(param, constraint_vars)
 
 
 _PAttrT = TypeVar("_PAttrT", bound=ParametrizedAttribute)

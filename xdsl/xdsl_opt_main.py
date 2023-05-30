@@ -3,8 +3,6 @@ import sys
 import os
 
 from io import StringIO
-from xdsl.dialects.riscv import RISCV
-from xdsl.dialects.snitch import Snitch
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import MLContext
@@ -28,6 +26,8 @@ from xdsl.dialects.test import Test
 from xdsl.dialects.stencil import Stencil
 from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.irdl import IRDL
+from xdsl.dialects.riscv import RISCV, print_assembly
+from xdsl.dialects.snitch import Snitch
 
 from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
@@ -52,7 +52,6 @@ from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 from typing import IO, Dict, Callable, List, Sequence, Type
-from xdsl.riscv_asm_writer import print_riscv_module
 
 
 class xDSLOptMain:
@@ -109,29 +108,23 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
-        if not self.args.parsing_diagnostics:
-            modules = self.parse_input()
-        else:
-            try:
-                modules = self.parse_input()
-            except ParseError as e:
-                print(e)
-                exit(0)
-
-        output_list: List[str] = []
-        for module in modules:
-            if not self.args.verify_diagnostics:
-                self.apply_passes(module)
-            else:
+        chunks, file_extension = self.prepare_input()
+        output_stream = self.prepare_output()
+        try:
+            for i, chunk in enumerate(chunks):
                 try:
-                    self.apply_passes(module)
-                except DiagnosticException as e:
-                    print(e)
-                    exit(0)
-            output_list.append(self.output_resulting_program(module))
-        contents = "// -----\n".join(output_list)
-
-        self.print_to_output_stream(contents)
+                    if i > 0:
+                        output_stream.write("// -----\n")
+                    module = self.parse_chunk(chunk, file_extension)
+                    if module is not None:
+                        if self.apply_passes(module):
+                            output_stream.write(self.output_resulting_program(module))
+                    output_stream.flush()
+                finally:
+                    chunk.close()
+        finally:
+            if output_stream is not sys.stdout:
+                output_stream.close()
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
@@ -307,7 +300,7 @@ class xDSLOptMain:
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
-            print_riscv_module(prog, output)
+            print_assembly(prog, output)
 
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
@@ -328,11 +321,10 @@ class xDSLOptMain:
             self.available_passes[p.name].from_pass_spec(p) for p in pipeline
         ]
 
-    def parse_input(self) -> List[ModuleOp]:
+    def prepare_input(self) -> tuple[List[IO[str]], str]:
         """
-        Parse the input file by invoking the parser specified by the `parser`
-        argument. If not set, the parser registered for this file extension
-        is used.
+        Prepare input by eventually splitting it in chunks. If not set, the parser
+        registered for this file extension is used.
         """
 
         # when using the split input flag, program is split into multiple chunks
@@ -350,35 +342,63 @@ class xDSLOptMain:
         chunks = [f]
         if self.args.split_input_file:
             chunks = [StringIO(chunk) for chunk in f.read().split("// -----")]
+            f.close()
         if self.args.frontend:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
-            f.close()
+            for chunk in chunks:
+                chunk.close()
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
+        return chunks, file_extension
+
+    def prepare_output(self) -> IO[str]:
+        if self.args.output_file is None:
+            return sys.stdout
+        else:
+            return open(self.args.output_file, "w")
+
+    def parse_chunk(self, chunk: IO[str], file_extension: str) -> ModuleOp | None:
+        """
+        Parse the input file by invoking the parser specified by the `parser`
+        argument. If not set, the parser registered for this file extension
+        is used.
+        """
+
         try:
-            module = [self.available_frontends[file_extension](s) for s in chunks]
+            return self.available_frontends[file_extension](chunk)
+        except ParseError as e:
+            if self.args.parsing_diagnostics:
+                print(e)
+            else:
+                raise e
         finally:
-            f.close()
+            chunk.close()
 
-        return module
-
-    def apply_passes(self, prog: ModuleOp):
+    def apply_passes(self, prog: ModuleOp) -> bool:
         """Apply passes in order."""
-        assert isinstance(prog, ModuleOp)
-        if not self.args.disable_verify:
-            prog.verify()
-        for p in self.pipeline:
-            p.apply(self.ctx, prog)
+        try:
             assert isinstance(prog, ModuleOp)
             if not self.args.disable_verify:
                 prog.verify()
-            if self.args.print_between_passes:
-                print(f"IR after {p.name}:")
-                printer = Printer(stream=sys.stdout)
-                printer.print_op(prog)
-                print("\n\n\n")
+            for p in self.pipeline:
+                p.apply(self.ctx, prog)
+                assert isinstance(prog, ModuleOp)
+                if not self.args.disable_verify:
+                    prog.verify()
+                if self.args.print_between_passes:
+                    print(f"IR after {p.name}:")
+                    printer = Printer(stream=sys.stdout)
+                    printer.print_op(prog)
+                    print("\n\n\n")
+        except DiagnosticException as e:
+            if self.args.verify_diagnostics:
+                print(e)
+                return False
+            else:
+                raise e
+        return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
@@ -388,14 +408,6 @@ class xDSLOptMain:
 
         self.available_targets[self.args.target](prog, output)
         return output.getvalue()
-
-    def print_to_output_stream(self, contents: str):
-        """Print the contents in the expected stream."""
-        if self.args.output_file is None:
-            print(contents)
-        else:
-            with open(self.args.output_file, "w") as output_stream:
-                output_stream.write(contents)
 
     def get_input_name(self):
         return self.args.input_file or "stdin"

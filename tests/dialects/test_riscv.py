@@ -1,4 +1,4 @@
-from xdsl.riscv_asm_writer import riscv_code
+from io import StringIO
 from xdsl.builder import Builder
 from xdsl.utils.test_value import TestSSAValue
 from xdsl.dialects import riscv
@@ -81,6 +81,12 @@ def test_csr_op():
     ).verify()
 
 
+def riscv_code(module: ModuleOp) -> str:
+    stream = StringIO()
+    riscv.print_assembly(module, stream)
+    return stream.getvalue()
+
+
 def test_comment_op():
     comment_op = riscv.CommentOp("my comment")
 
@@ -107,7 +113,7 @@ def test_label_op_with_comment():
     assert label_op.label.data == label_str
 
     code = riscv_code(ModuleOp([label_op]))
-    assert code == f"{label_str}:                                         # my label\n"
+    assert code == f"{label_str}:    # my label\n"
 
 
 def test_label_op_with_region():
