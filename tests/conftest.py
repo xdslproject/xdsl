@@ -1,4 +1,5 @@
 from io import StringIO
+from typing import Any
 from xdsl.ir import Operation
 
 from xdsl.printer import Printer
@@ -10,6 +11,7 @@ def assert_print_op(
     expected: str,
     diagnostic: Diagnostic | None,
     print_generic_format: bool = True,
+    **printer_options: Any,
 ):
     """
     Utility function that helps to check the printing of an operation compared to
@@ -39,6 +41,12 @@ def assert_print_op(
 
         assert_print_op(add, expected)
 
+    Additional options can be passed to the printer using keyword arguments:
+
+    .. code-block:: python
+
+        assert_print_op(add, expected, print_unknown_value_error=False)
+
     """
 
     file = StringIO("")
@@ -48,6 +56,7 @@ def assert_print_op(
         stream=file,
         print_generic_format=print_generic_format,
         diagnostic=diagnostic,
+        **printer_options,
     )
 
     printer.print(operation)
