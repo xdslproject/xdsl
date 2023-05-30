@@ -177,6 +177,10 @@ class LoadOpToMemref(RewritePattern):
         )
 
         rewriter.replace_matched_op(subview)
+        name = None
+        if subview.source.name_hint:
+            name = subview.source.name_hint + "_loadview"
+        subview.result.name_hint = name
 
 
 def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
@@ -296,6 +300,7 @@ class TypeSpreadingForOp(RewritePattern):
                 )
                 for y in [y for y in op.body.ops if isinstance(y, scf.Yield)]:
                     y.arguments[i].typ = op.iter_args[i].typ
+            if op.res[i].typ != op.iter_args[i].typ:
                 op.res[i].typ = op.iter_args[i].typ
 
 
@@ -320,12 +325,14 @@ class StencilStoreToSubview(RewritePattern):
                 sizes,
                 [1] * len(sizes),
             )
+            name = None
+            if subview.source.name_hint:
+                name = subview.source.name_hint + "_storeview"
+            subview.result.name_hint = name
             if isinstance(field.owner, Operation):
                 rewriter.insert_op_after(subview, field.owner)
             else:
                 rewriter.insert_op_at_start(subview, field.owner)
-            field.replace_by(subview.result)
-            subview.replace_operand(subview.result, field)
 
             rewriter.erase_op(store)
 
