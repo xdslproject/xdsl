@@ -74,12 +74,6 @@ class Printer:
     print_generic_format: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
-    print_unknown_value_error: bool = field(default=True, kw_only=True)
-    """
-    If this option is set, printing an operand that was not already given a name will
-    not print an error message.
-    """
-
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
     """

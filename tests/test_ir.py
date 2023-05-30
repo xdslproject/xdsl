@@ -415,7 +415,7 @@ def test_op_custom_verify_is_done_last():
     assert e.value.args[0] != "Custom Verification Check"
     assert (
         e.value.args[0]
-        == 'test.custom_verify_op operation does not verify\n\n"test.custom_verify_op"(%<UNKNOWN>) : (i32) -> ()\n\n'
+        == 'test.custom_verify_op operation does not verify\n\n"test.custom_verify_op"(%0) : (i32) -> ()\n\n'
     )
 
 
