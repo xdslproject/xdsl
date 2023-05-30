@@ -141,3 +141,135 @@ def test_return_op():
 
     code = riscv_code(ModuleOp([return_op]))
     assert code == "    ebreak                                       # my comment\n"
+
+def test_immediate_i_inst():
+    # I-Type - 12-bits immediate
+    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+
+    pos_invalid_addi_op = riscv.AddiOp(a1, 1 << 11, rd=riscv.Registers.A0)
+    with pytest.raises(VerifyException):
+        pos_invalid_addi_op.verify()
+
+    neg_invalid_addi_op = riscv.AddiOp(a1, -(1 << 11) - 2, rd=riscv.Registers.A0)
+    with pytest.raises(VerifyException):
+        neg_invalid_addi_op.verify()
+
+    neg_valid_addi_op = riscv.AddiOp(a1, -(1 << 11), rd=riscv.Registers.A0)
+    neg_valid_addi_op.verify()
+
+    pos_valid_addi_op = riscv.AddiOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
+    pos_valid_addi_op.verify()
+
+    """
+    Special handling for signed immediates for I- and S-Type instructions
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
+    """
+
+    sext_0_valid_addi_op = riscv.AddiOp(a1, 0xFFFFFFFFFFFFF800, rd=riscv.Registers.A0)
+    sext_0_valid_addi_op.verify()
+
+    sext_1_valid_addi_op = riscv.AddiOp(a1, 0xFFFFFFFFFFFFFFFF, rd=riscv.Registers.A0)
+    sext_1_valid_addi_op.verify()
+
+    sext_2_valid_addi_op = riscv.AddiOp(a1, 0xFFFFF800, rd=riscv.Registers.A0)
+    sext_2_valid_addi_op.verify()
+
+    sext_3_valid_addi_op = riscv.AddiOp(a1, 0xFFFFFFFF, rd=riscv.Registers.A0)
+    sext_3_valid_addi_op.verify()
+
+
+def test_immediate_s_inst():
+    # S-Type - 12-bits immediate
+    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+    a2 = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
+
+    pos_invalid_sw_op = riscv.SwOp(a1, a2, 1 << 11)
+    with pytest.raises(VerifyException):
+        pos_invalid_sw_op.verify()
+
+    neg_invalid_sw_op = riscv.SwOp(a1, a2, -(1 << 11) - 2)
+    with pytest.raises(VerifyException):
+        neg_invalid_sw_op.verify()
+
+    neg_valid_sw_op = riscv.SwOp(a1, a2, -(1 << 11))
+    neg_valid_sw_op.verify()
+
+    pos_valid_sw_op = riscv.SwOp(a1, a2, (1 << 11) - 1)
+    pos_valid_sw_op.verify()
+
+    """
+    Special handling for signed immediates for I- and S-Type instructions
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
+    """
+
+    sext_0_valid_sw_op = riscv.SwOp(a1, a2, 0xFFFFFFFFFFFFF800)
+    sext_0_valid_sw_op.verify()
+
+    sext_1_valid_sw_op = riscv.SwOp(a1, a2, 0xFFFFFFFFFFFFFFFF)
+    sext_1_valid_sw_op.verify()
+
+    sext_2_valid_sw_op = riscv.SwOp(a1, a2, 0xFFFFF800)
+    sext_2_valid_sw_op.verify()
+
+    sext_3_valid_sw_op = riscv.SwOp(a1, a2, 0xFFFFFFFF)
+    sext_3_valid_sw_op.verify()
+
+
+def test_immediate_u_j_inst():
+    # U-Type and J-Type - 20-bits immediate
+    pos_invalid_j_op = riscv.LuiOp(1 << 20)
+    with pytest.raises(VerifyException):
+        pos_invalid_j_op.verify()
+
+    neg_invalid_j_op = riscv.LuiOp(-(1 << 20) - 2)
+    with pytest.raises(VerifyException):
+        neg_invalid_j_op.verify()
+
+    valid_j_op = riscv.LuiOp((1 << 20) - 1)
+    valid_j_op.verify()
+
+
+def test_immediate_jalr_inst():
+    # Jalr - 12-bits immediate
+    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+
+    pos_invalid_jalr_op = riscv.JalrOp(a1, 1 << 12, rd=riscv.Registers.A0)
+    with pytest.raises(VerifyException):
+        pos_invalid_jalr_op.verify()
+
+    neg_invalid_jalr_op = riscv.JalrOp(a1, -(1 << 12) - 2, rd=riscv.Registers.A0)
+    with pytest.raises(VerifyException):
+        neg_invalid_jalr_op.verify()
+
+    jalr_op = riscv.JalrOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
+    jalr_op.verify()
+
+
+def test_immediate_pseudo_inst():
+    # Pseudo-Instruction with custom handling
+    neg_invalid_li_op = riscv.LiOp(-(1 << 31) - 1, rd=riscv.Registers.A0)
+    with pytest.raises(VerifyException):
+        neg_invalid_li_op.verify()
+
+    pos_invalid_li_op = riscv.LiOp(1 << 32, rd=riscv.Registers.A0)
+    with pytest.raises(VerifyException):
+        pos_invalid_li_op.verify()
+
+    valid_li_op = riscv.LiOp((1 << 32) - 1, rd=riscv.Registers.A0)
+    valid_li_op.verify()
+
+
+def test_immediate_shift_inst():
+    # Shift instructions (SLLI, SRLI, SRAI) - 5-bits immediate
+    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+
+    pos_invalid_slli_op = riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
+    with pytest.raises(VerifyException):
+        pos_invalid_slli_op.verify()
+
+    neg_invalid_slli_op = riscv.SlliOp(a1, -1, rd=riscv.Registers.A0)
+    with pytest.raises(VerifyException):
+        neg_invalid_slli_op.verify()
+
+    valid_slli_op = riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
+    valid_slli_op.verify()
