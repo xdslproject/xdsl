@@ -224,6 +224,15 @@ class StencilType(
         | StencilBoundsAttr,
         typ: _FieldTypeElement,
     ) -> None:
+        """
+            A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
+        rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
+
+        ### examples:
+
+        - `Field(3,f32)` is represented as `stencil.field<?x?x?xf32>`
+        - `Field([(-1,17),(-2,18)],f32)` is represented as `stencil.field<[-1,17]x[-2,18]xf32>`,
+        """
         if isinstance(bounds, Iterable):
             nbounds = StencilBoundsAttr(bounds)
         elif isinstance(bounds, int):
