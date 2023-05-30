@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TypeVar, Iterable, Callable
+from typing import TypeVar, Iterable, Callable, ClassVar
 from abc import ABC, abstractmethod
 
 from xdsl.passes import ModulePass
@@ -25,8 +25,11 @@ _T = TypeVar("_T", bound=Attribute)
 
 @dataclass
 class DomainDecompositionStrategy(ABC):
+    def __init__(self, _: list[int]):
+        pass
+
     @abstractmethod
-    def calc_resize(self, shape: tuple[int]) -> tuple[int]:
+    def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         raise NotImplementedError("SlicingStrategy must implement calc_resize!")
 
     @abstractmethod
@@ -43,6 +46,11 @@ class DomainDecompositionStrategy(ABC):
 @dataclass
 class HorizontalSlices2D(DomainDecompositionStrategy):
     slices: int
+
+    def __init__(self, slices: list[int]):
+        super().__init__(slices)
+        assert slices
+        self.slices = slices[0]
 
     def __post_init__(self):
         assert self.slices > 1, "must slice into at least two pieces!"
@@ -94,6 +102,103 @@ class HorizontalSlices2D(DomainDecompositionStrategy):
             ),
             neighbor=[1],
         )
+
+
+@dataclass
+class GridSlice2d(DomainDecompositionStrategy):
+    """
+    Slice a 2d domain into a grid of nodes.
+    """
+
+    topology: tuple[int, int]
+
+    diagonals: bool = False
+
+    def __post_init__(self):
+        assert len(self.topology) == 2, "GridSlice2d requires a 2d domain"
+
+    def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
+        assert len(shape) == 2, "GridSlice2d requires a 2d domain"
+        for size, node_count in zip(shape, self.topology):
+            assert (
+                size % node_count == 0
+            ), "GridSlice2d requires domain be neatly divisible by shape"
+        return tuple(
+            size // node_count for size, node_count in zip(shape, self.topology)
+        )
+
+    def halo_exchange_defs(
+        self, dims: dmp.HaloShapeInformation
+    ) -> Iterable[dmp.HaloExchangeDecl]:
+        # exchange to node "above" us on Y axis direction
+        yield dmp.HaloExchangeDecl(
+            offset=(
+                dims.buffer_start(dmp.DIM_X),
+                dims.buffer_start(dmp.DIM_Y),
+            ),
+            size=(
+                dims.buff_size(dmp.DIM_X),
+                dims.halo_size(dmp.DIM_Y),
+            ),
+            source_offset=(
+                0,
+                dims.halo_size(dmp.DIM_Y),
+            ),
+            neighbor=(0, -1),
+        )
+        # exchange to node "below" us on Y axis direction
+        yield dmp.HaloExchangeDecl(
+            offset=(
+                dims.buffer_start(dmp.DIM_X),
+                dims.core_end(dmp.DIM_X),
+            ),
+            size=(
+                dims.buff_size(dmp.DIM_X),
+                dims.halo_size(dmp.DIM_Y, at_end=True),
+            ),
+            source_offset=(
+                0,
+                -dims.halo_size(dmp.DIM_Y, at_end=True),
+            ),
+            neighbor=(0, 1),
+        )
+        # exchange to node "left" of us on X axis
+        yield dmp.HaloExchangeDecl(
+            offset=(
+                dims.buffer_start(dmp.DIM_X),
+                dims.buffer_start(dmp.DIM_Y),
+            ),
+            size=(
+                dims.halo_size(dmp.DIM_X),
+                dims.buff_size(dmp.DIM_Y),
+            ),
+            source_offset=(
+                dims.halo_size(dmp.DIM_X),
+                0,
+            ),
+            neighbor=(-1, 0),
+        )
+        # exchange to node "right" of us on X axis
+        yield dmp.HaloExchangeDecl(
+            offset=(
+                dims.core_end(dmp.DIM_X),
+                dims.buffer_start(dmp.DIM_Y),
+            ),
+            size=(
+                dims.halo_size(dmp.DIM_X, at_end=True),
+                dims.buff_size(dmp.DIM_Y),
+            ),
+            source_offset=(
+                -dims.halo_size(dmp.DIM_X),
+                0,
+            ),
+            neighbor=(1, 0),
+        )
+        # TOOD: add diagonals
+        assert not self.diagonals
+
+    def comm_layout(self) -> dmp.NodeGrid:
+        return dmp.NodeGrid(self.topology)
 
 
 @dataclass
@@ -630,15 +735,24 @@ class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
     pass pipeline!
     """
 
+    STRATEGIES: ClassVar[dict[str, type[DomainDecompositionStrategy]]] = {
+        "2d-horizontal": HorizontalSlices2D,
+        "2d-grid": GridSlice2d,
+    }
+
     name = "dmp-decompose-2d"
 
-    slices: int
+    strategy: str
+
+    slices: list[int]
     """
     Number of slices to decompose the input into
     """
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        strategy = HorizontalSlices2D(self.slices)
+        if self.strategy not in self.STRATEGIES:
+            raise ValueError(f"Unknown strategy: {self.strategy}")
+        strategy = self.STRATEGIES[self.strategy](self.slices)
 
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
