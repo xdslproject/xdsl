@@ -13,10 +13,12 @@ def context() -> MLContext:
     ctx = MLContext()
     return ctx
 
+
 def riscv_code(module: ModuleOp) -> str:
     stream = StringIO()
     riscv.print_assembly(module, stream)
     return stream.getvalue()
+
 
 # Handwritten riscv dialect code to test register allocation
 
