@@ -3,27 +3,27 @@
 "builtin.module"() ({
   "func.func"() ({
   ^0(%0 : f64, %1 : !stencil.field<?x?x?xf64>):
-    %2 = "stencil.cast"(%1) {"lb" = #stencil.index<-3, -3, -3>, "ub" = #stencil.index<67, 67, 67>} : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x70xf64>
+    %2 = "stencil.cast"(%1) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
     %3 = "stencil.apply"(%0) ({
     ^1(%4 : f64):
       %5 = "arith.constant"() {"value" = 1.0 : f64} : () -> f64
       %6 = "arith.addf"(%4, %5) : (f64, f64) -> f64
       "stencil.return"(%6) : (!stencil.result<f64>) -> ()
     }) : (f64) -> !stencil.temp<?x?x?xf64>
-    "stencil.store"(%3, %2) {"lb" = #stencil.index<1, 2, 3>, "ub" = #stencil.index<65, 66, 63>} : (!stencil.temp<?x?x?xf64>, !stencil.field<64x64x60xf64>) -> ()
+    "stencil.store"(%3, %2) {"lb" = #stencil.index<1, 2, 3>, "ub" = #stencil.index<65, 66, 63>} : (!stencil.temp<?x?x?xf64>, !stencil.field<[1,65]x[2,66]x[3,63]xf64>) -> ()
     "func.return"() : () -> ()
   }) {"function_type" = (f64, !stencil.field<?x?x?xf64>) -> (), "sym_name" = "stencil_float64_arg"} : () -> ()
 
   "func.func"() ({
   ^2(%7 : f32, %8 : !stencil.field<?x?x?xf32>):
-    %9 = "stencil.cast"(%8) {"lb" = #stencil.index<-3, -3, -3>, "ub" = #stencil.index<67, 67, 67>} : (!stencil.field<?x?x?xf32>) -> !stencil.field<70x70x70xf32>
+    %9 = "stencil.cast"(%8) : (!stencil.field<?x?x?xf32>) -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf32>
     %10 = "stencil.apply"(%7) ({
     ^3(%11 : f32):
       %12 = "arith.constant"() {"value" = 1.0 : f32} : () -> f32
       %13 = "arith.addf"(%11, %12) : (f32, f32) -> f32
       "stencil.return"(%13) : (f32) -> ()
     }) : (f32) -> !stencil.temp<?x?x?xf32>
-    "stencil.store"(%10, %9) {"lb" = #stencil.index<1, 2, 3>, "ub" = #stencil.index<65, 66, 63>} : (!stencil.temp<?x?x?xf32>, !stencil.field<70x70x70xf32>) -> ()
+    "stencil.store"(%10, %9) {"lb" = #stencil.index<1, 2, 3>, "ub" = #stencil.index<65, 66, 63>} : (!stencil.temp<?x?x?xf32>, !stencil.field<[-3,67]x[-3,67]x[-3,67]xf32>) -> ()
     "func.return"() : () -> ()
   }) {"function_type" = (f32, !stencil.field<?x?x?xf32>) -> (), "sym_name" = "stencil_float32_arg"} : () -> ()
 }) : () -> ()
