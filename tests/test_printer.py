@@ -6,7 +6,7 @@ from io import StringIO
 from typing import Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Constant
-from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, UnitAttr, i32
+from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, ModuleOp, UnitAttr, i32
 from xdsl.dialects.func import Func
 from xdsl.dialects.test import TestOp
 from xdsl.ir import (
@@ -31,6 +31,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
+from xdsl.rewriter import Rewriter
 
 from conftest import assert_print_op
 from xdsl.utils.exceptions import ParseError
@@ -49,6 +50,45 @@ def test_simple_forgotten_op():
     expected = """%0 = "arith.addi"(%1, %1) : (i32, i32) -> i32"""
 
     assert_print_op(add, expected, None)
+
+
+def test_unordered_ops():
+    """Test that the printing of unordered ops works."""
+
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+
+    lit = Constant.from_int_and_width(42, 32)
+    add = Addi(lit, lit)
+
+    expected = """
+"builtin.module"() ({
+  %0 = "arith.addi"(%1, %1) : (i32, i32) -> i32
+  %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+}) : () -> ()
+"""
+
+    assert_print_op(ModuleOp([add, lit]), expected, None)
+
+
+def test_unordered_ops():
+    """Test that the printing of ops with cyclic dependencies works."""
+
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+
+    op1 = TestOp(result_types=[i32], operands=[[]], regions=[[]])
+    op2 = TestOp(result_types=[i32], operands=[op1], regions=[[]])
+    op1.operands = [op2.results[0]]
+
+    expected = """
+"builtin.module"() ({
+  %0 = "test.op"(%1) : (i32) -> i32
+  %1 = "test.op"(%0) : (i32) -> i32
+}) : () -> ()
+"""
+
+    assert_print_op(ModuleOp([op1, op2]), expected, None)
 
 
 @irdl_op_definition
