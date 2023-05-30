@@ -142,6 +142,7 @@ def test_return_op():
     code = riscv_code(ModuleOp([return_op]))
     assert code == "    ebreak                                       # my comment\n"
 
+
 def test_immediate_i_inst():
     # I-Type - 12-bits immediate
     a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))

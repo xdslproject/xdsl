@@ -360,6 +360,7 @@ class RdImmOperation(IRDLOperation, RISCVInstruction, ABC):
                     f"Immediate value {self.immediate.value.data} does not fit in {self.immediate.typ.width.data} bits"
                 )
 
+
 class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     In the RISC-V spec, this is the same as `RdImmOperation`. For jumps, the `rd` register
@@ -412,6 +413,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
                 raise VerifyException(
                     f"Immediate value {self.immediate.value.data} does not fit in {self.immediate.typ.width.data} bits"
                 )
+
 
 class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -483,6 +485,7 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
                     f"Immediate value {self.immediate.value.data} does not fit in {self.immediate.typ.width.data} bits"
                 )
 
+
 class RdRsImmShiftOperation(RdRsImmOperation):
     """
     A base class for RISC-V operations that have one destination register, one source
@@ -508,6 +511,7 @@ class RdRsImmShiftOperation(RdRsImmOperation):
             raise VerifyException(
                 f"Immediate value {self.immediate.value.data} does not fit in 5 bits"
             )
+
 
 class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -572,6 +576,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
                 raise VerifyException(
                     f"Immediate value {self.immediate.value.data} does not fit in {self.immediate.typ.width.data} bits"
                 )
+
 
 class RdRsOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -655,6 +660,7 @@ class RsRsOffOperation(IRDLOperation, RISCVInstruction, ABC):
                 f"Immediate value {self.offset.value.data} does not fit in {self.offset.typ.width.data} bits"
             )
 
+
 class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source registers and an
@@ -719,6 +725,7 @@ class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
                 raise VerifyException(
                     f"Immediate value {self.immediate.value.data} does not fit in {self.immediate.typ.width.data} bits"
                 )
+
 
 class RsRsOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -1835,6 +1842,7 @@ class LiOp(RdImmOperation):
             raise VerifyException(
                 f"Immediate value {self.immediate.value.data} does not fit in 32 bits"
             )
+
 
 @irdl_op_definition
 class EcallOp(NullaryOperation):
