@@ -1,15 +1,17 @@
-from typing import Iterable, TypeVar
+from typing import Iterable, TypeVar, cast
 from xdsl.dialects import builtin
 from xdsl.dialects.experimental.stencil import (
     AccessOp,
     ApplyOp,
+    FieldType,
     IndexAttr,
     LoadOp,
+    StencilBoundsAttr,
     StoreOp,
     TempType,
 )
-from xdsl.dialects.stencil import CastOp
-from xdsl.ir import Attribute, BlockArgument, MLContext, Operation, SSAValue
+
+from xdsl.ir import Attribute, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -18,7 +20,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.experimental.ConvertStencilToLLMLIR import verify_load_bounds
+from xdsl.transforms.experimental.ConvertStencilToLLMLIR import assert_subset
 from xdsl.utils.hints import isa
 
 _OpT = TypeVar("_OpT", bound=Operation)
@@ -43,9 +45,12 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
     shape_ub: None | IndexAttr = None
 
     for apply in applies:
-        assert apply.lb is not None and apply.ub is not None
-        shape_lb = IndexAttr.min(apply.lb, shape_lb)
-        shape_ub = IndexAttr.max(apply.ub, shape_ub)
+        # assert apply.lb is not None and apply.ub is not None
+        assert apply.res
+        res_typ = cast(TempType[Attribute], apply.res[0])
+        assert isinstance(res_typ.bounds, StencilBoundsAttr)
+        shape_lb = IndexAttr.min(res_typ.bounds.lb, shape_lb)
+        shape_ub = IndexAttr.max(res_typ.bounds.ub, shape_ub)
 
     assert shape_lb is not None and shape_ub is not None
     return shape_lb, shape_ub
@@ -54,59 +59,59 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
 class LoadOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        cast = op.field.owner
-        assert isinstance(cast, CastOp)
+        field = op.field.typ
+        assert isa(field, FieldType[Attribute])
+        temp = op.res.typ
+        assert isa(temp, TempType[Attribute])
 
-        verify_load_bounds(cast, op)
-
-        assert op.lb and op.ub
-        assert isa(op.res.typ, TempType[Attribute])
-
-        # TODO: We need to think about that. Do we want an API for this?
-        # Do we just want to recreate the whole operation?
-        op.res.typ = TempType(
-            IndexAttr.size_from_bounds(op.lb, op.ub),
-            op.res.typ.element_type,
-        )
+        assert_subset(field, temp)
 
 
 class StoreOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
-        owner = op.temp.owner
+        temp = op.temp.typ
 
-        assert isinstance(owner, ApplyOp | LoadOp)
+        assert isa(temp, TempType[Attribute])
+        temp_lb = None
+        temp_ub = None
+        if isinstance(temp.bounds, StencilBoundsAttr):
+            temp_lb = temp.bounds.lb
+            temp_ub = temp.bounds.ub
 
-        owner.attributes["lb"] = IndexAttr.min(op.lb, owner.lb)
-        owner.attributes["ub"] = IndexAttr.max(op.ub, owner.ub)
+        temp_lb = IndexAttr.min(op.lb, temp_lb)
+        temp_ub = IndexAttr.max(op.ub, temp_ub)
+        op.temp.typ = TempType(tuple(zip(temp_lb, temp_ub)), temp.element_type)
 
 
 class ApplyOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        for access in op.walk():
-            assert (op.lb is not None) and (op.ub is not None)
-            if not isinstance(access, AccessOp):
+        if len(op.res) < 1:
+            return
+        res_typ = op.res[0].typ
+        assert isa(res_typ, TempType[Attribute])
+        assert isinstance(res_typ.bounds, StencilBoundsAttr)
+        ntyp = res_typ
+        assert isinstance(ntyp.bounds, StencilBoundsAttr)
+
+        accesses = [a for a in op.walk() if isinstance(a, AccessOp)]
+        if not accesses:
+            return
+        for access in accesses:
+            temp = access.temp.typ
+            assert isa(temp, TempType[Attribute])
+
+            lb = IndexAttr.min(res_typ.bounds.lb + access.offset, ntyp.bounds.lb)
+            ub = IndexAttr.max(res_typ.bounds.ub + access.offset, ntyp.bounds.ub)
+            ntyp = TempType(tuple(zip(lb, ub)), temp.element_type)
+            assert isinstance(ntyp.bounds, StencilBoundsAttr)
+
+        for i, arg in enumerate(op.args):
+            if not isa(arg.typ, TempType[Attribute]):
                 continue
-            assert isinstance(access.temp, BlockArgument)
-            temp_owner = op.args[access.temp.index].owner
-
-            assert isinstance(temp_owner, LoadOp | ApplyOp)
-
-            temp_owner.attributes["lb"] = IndexAttr.min(
-                op.lb + access.offset, temp_owner.lb
-            )
-            temp_owner.attributes["ub"] = IndexAttr.max(
-                op.ub + access.offset, temp_owner.ub
-            )
-
-        assert op.lb and op.ub
-
-        for result in op.results:
-            assert isa(result.typ, TempType[Attribute])
-            result.typ = TempType(
-                IndexAttr.size_from_bounds(op.lb, op.ub), result.typ.element_type
-            )
+            arg.typ = ntyp
+            op.region.block.args[i].typ = ntyp
 
 
 ShapeInference = GreedyRewritePatternApplier(
