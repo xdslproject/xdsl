@@ -31,14 +31,13 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.rewriter import Rewriter
 
 from conftest import assert_print_op
 from xdsl.utils.exceptions import ParseError
 
 
 def test_simple_forgotten_op():
-    """Test that the parsing of an undefined operand gives it a value."""
+    """Test that the parsing of an undefined operand gives it a name."""
     ctx = MLContext()
     ctx.register_dialect(Arith)
 
@@ -71,7 +70,7 @@ def test_unordered_ops():
     assert_print_op(ModuleOp([add, lit]), expected, None)
 
 
-def test_unordered_ops():
+def test_cyclic_ops():
     """Test that the printing of ops with cyclic dependencies works."""
 
     ctx = MLContext()
