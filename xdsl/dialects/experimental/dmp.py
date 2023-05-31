@@ -147,7 +147,7 @@ class HaloExchangeDecl(ParametrizedAttribute):
         printer.print_list(self.size, lambda x: printer.print_string(str(x)))
         printer.print_string("] source offset [")
         printer.print_list(self.source_offset, lambda x: printer.print_string(str(x)))
-        printer.print_string("] to {}>".format(self.neighbor))
+        printer.print_string("] to {}>".format(list(self.neighbor)))
 
     # TODO: def parse_parameters()
 

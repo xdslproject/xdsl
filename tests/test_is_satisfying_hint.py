@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeAlias, TypeVar
+from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
 from xdsl.ir import Attribute, ParametrizedAttribute
 from xdsl.irdl import ParameterDef, irdl_attr_definition
@@ -319,3 +319,23 @@ def test_parametrized_attribute():
     assert isa(attr, MyParamAttr[IntAttr])
     assert isa(attr, MyParamAttr[IntAttr | FloatData])
     assert not isa(attr, MyParamAttr[FloatData])
+
+
+################################################################################
+# Literal
+################################################################################
+
+
+def test_literal():
+    assert isa("string", Literal["string"])
+    assert isa("string", Literal["string", "another string"])
+    assert isa("another string", Literal["string", "another string"])
+    assert not isa("not this string", Literal["string", "another string"])
+
+    assert isa(1, Literal[1])
+    assert isa(1, Literal[1, 2])
+    assert isa(2, Literal[1, 2])
+    assert not isa(3, Literal[1, 2])
+
+    assert not isa(1, Literal["1"])
+    assert not isa("1", Literal[1])

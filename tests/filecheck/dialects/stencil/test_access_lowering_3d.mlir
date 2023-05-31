@@ -3,12 +3,13 @@
 "builtin.module"() ({
     "func.func"() ({
     ^0(%0 : !stencil.field<?x?x?xf64>):
-        %1 = "stencil.cast"(%0) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<68, 70, 72>} : (!stencil.field<?x?x?xf64>) -> !stencil.field<72x74x76xf64>
-        %2 = "stencil.load"(%1) {"lb" = #stencil.index<-4, -4, -4>, "ub" = #stencil.index<68, 70, 72>} : (!stencil.field<72x74x76xf64>) -> !stencil.temp<72x74x76xf64>
-        "stencil.apply"(%2) ({
-        ^b0(%3: !stencil.temp<72x74x76xf64>):
-            %4 = "stencil.access"(%3) {"offset" = #stencil.index<-1, 0, 1>} : (!stencil.temp<72x74x76xf64>) -> f64
-        }) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 68>} : (!stencil.temp<72x74x76xf64>) -> ()
+        %1 = "stencil.cast"(%0) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,70]x[-4,72]xf64>
+        %2 = "stencil.load"(%1) : (!stencil.field<[-4,68]x[-4,70]x[-4,72]xf64>) -> !stencil.temp<[-4,68]x[-4,70]x[-4,72]xf64>
+        %5 = "stencil.apply"(%2) ({
+        ^b0(%3: !stencil.temp<[-4,68]x[-4,70]x[-4,72]xf64>):
+            %4 = "stencil.access"(%3) {"offset" = #stencil.index<-1, 0, 1>} : (!stencil.temp<[-4,68]x[-4,70]x[-4,72]xf64>) -> f64
+            "stencil.return"(%4) : (f64) -> ()
+        }) : (!stencil.temp<[-4,68]x[-4,70]x[-4,72]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,68]xf64>)
         "func.return"() : () -> ()
     }) {"sym_name" = "test_funcop_lowering", "function_type" = (!stencil.field<?x?x?xf64>) -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
