@@ -27,6 +27,28 @@ class Builder:
     Operations will be inserted in this block.
     """
 
+    _insertion_point: Operation | None = field(default=None)
+    """
+    Operations will be inserted before this operation, or at the end of the block if None.
+    """
+
+    def __post_init__(self):
+        self._verify_insertion_point()
+
+    def _verify_insertion_point(self):
+        if self.insertion_point is not None:
+            if self.insertion_point.parent is not self.block:
+                raise ValueError("Insertion point must be in the builder's `block`")
+
+    @property
+    def insertion_point(self) -> Operation | None:
+        return self._insertion_point
+
+    @insertion_point.setter
+    def insertion_point(self, insertion_point: Operation | None):
+        self._insertion_point = insertion_point
+        self._verify_insertion_point()
+
     def insert(self, op: OperationInvT) -> OperationInvT:
         """
         Inserts `op` in `self.block` at the end of the block.
@@ -39,7 +61,10 @@ class Builder:
                 "Cannot insert operation explicitly when an implicit " "builder exists."
             )
 
-        self.block.add_op(op)
+        if self.insertion_point is not None:
+            self.block.insert_op_before(op, self.insertion_point)
+        else:
+            self.block.add_op(op)
         return op
 
     @staticmethod
