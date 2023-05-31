@@ -386,25 +386,6 @@ def return_target_analysis(module: builtin.ModuleOp):
     return return_targets
 
 
-def StencilConversion(return_targets: dict[ReturnOp, list[SSAValue | None]], gpu: bool):
-    """
-    List of rewrite passes for stencil
-    """
-    return GreedyRewritePatternApplier(
-        [
-            ApplyOpToParallel(),
-            StencilStoreToSubview(return_targets),
-            CastOpToMemref(gpu),
-            LoadOpToMemref(),
-            AccessOpToMemref(),
-            ReturnOpToMemref(return_targets),
-            IndexOpToLoopSSA(),
-            TrivialExternalLoadOpCleanup(),
-            TrivialExternalStoreOpCleanup(),
-        ]
-    )
-
-
 @dataclass
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
@@ -418,7 +399,17 @@ class ConvertStencilToLLMLIRPass(ModulePass):
 
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
-                [StencilConversion(return_targets, gpu=(self.target == "gpu"))]
+                [
+                    ApplyOpToParallel(),
+                    StencilStoreToSubview(return_targets),
+                    CastOpToMemref(gpu=(self.target == "gpu")),
+                    LoadOpToMemref(),
+                    AccessOpToMemref(),
+                    ReturnOpToMemref(return_targets),
+                    IndexOpToLoopSSA(),
+                    TrivialExternalLoadOpCleanup(),
+                    TrivialExternalStoreOpCleanup(),
+                ]
             ),
             apply_recursively=True,
             walk_reverse=True,
