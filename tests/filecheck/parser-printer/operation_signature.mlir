@@ -14,6 +14,20 @@ builtin.module {
 
 // -----
 
+// A correct operation with tuple values
+
+builtin.module {
+  %0 = "test.op"() : () -> !test.type<"foo">
+  %1:2 = "test.op"(%0) : (!test.type<"foo">) -> (!test.type<"bar">, !test.type<"foo">)
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   %0 = "test.op"() : () -> !test.type<"foo">
+// CHECK-NEXT:   %1, %2 = "test.op"(%0) : (!test.type<"foo">) -> (!test.type<"bar">, !test.type<"foo">)
+// CHECK-NEXT: }
+
+// -----
+
 // An operation signature with not enough results
 
 builtin.module {
@@ -62,3 +76,14 @@ builtin.module {
 }
 
 // CHECK: mismatch between operand types and operation signature for operand #0. Expected !test.type<"bar"> but got !test.type<"foo">.
+
+// -----
+
+// An operation signature using tuples that doesn't have the correct operand type
+
+builtin.module {
+  %0:2 = "test.op"() : () -> (!test.type<"foo1">, !test.type<"foo2">)
+  %1 = "test.op"(%0#1) : (!test.type<"bar">) -> !test.type<"bar">
+}
+
+// CHECK: mismatch between operand types and operation signature for operand #0. Expected !test.type<"bar"> but got !test.type<"foo2">.
