@@ -32,7 +32,7 @@ class Builder:
         Inserts `op` in `self.block` at the end of the block.
         """
 
-        implicit_builder = _ImplicitBuilder.get()
+        implicit_builder = ImplicitBuilder.get()
 
         if implicit_builder is not None and implicit_builder is not self:
             raise ValueError(
@@ -114,8 +114,8 @@ class Builder:
         else:
             return Builder._region_args(input)
 
-    def implicit(self) -> _ImplicitBuilder:
-        return _ImplicitBuilder(self)
+    def implicit(self) -> ImplicitBuilder:
+        return ImplicitBuilder(self)
 
     @staticmethod
     def _implicit_region_no_args(func: Callable[[], None]) -> Region:
@@ -125,7 +125,7 @@ class Builder:
         block = Block()
         builder = Builder(block)
 
-        with _ImplicitBuilder(builder):
+        with ImplicitBuilder(builder):
             func()
 
         return Region(block)
@@ -146,7 +146,7 @@ class Builder:
             block = Block(arg_types=input_types)
             builder = Builder(block)
 
-            with _ImplicitBuilder(builder):
+            with ImplicitBuilder(builder):
                 func(block.args)
 
             region = Region(block)
@@ -220,18 +220,38 @@ class _ImplicitBuilderStack(threading.local):
 
 
 @dataclass
-class _ImplicitBuilder(contextlib.AbstractContextManager[None]):
+class ImplicitBuilder(contextlib.AbstractContextManager[None]):
     """
     Stores the current implicit builder context, consisting of the stack of builders in
     the current thread, and the current builder.
+
+    Operations created within a `with` block of an implicit builder will be added to it.
+    If there are nested implicit builder blocks, the operation will be added to the
+    innermost one. Operations cannot be added to multiple blocks, and any attempt to do so
+    will result in an exception.
+
+    Example:
+
+    ``` python
+    from xdsl.dialects import arith
+
+    block = Block()
+    builder = Builder(block)
+
+    with builder.implicit():
+        arith.Constant.from_int_and_width(5, 32)
+
+    assert len(block.ops) == 1
+    assert isinstance(block.ops.first, arith.Constant)
+    ```
     """
 
     _stack: ClassVar[_ImplicitBuilderStack] = _ImplicitBuilderStack()
 
-    builder: Builder
+    _builder: Builder
 
     def __enter__(self) -> None:
-        type(self)._stack.push(self.builder)
+        type(self)._stack.push(self._builder)
 
     def __exit__(
         self,
@@ -239,10 +259,13 @@ class _ImplicitBuilder(contextlib.AbstractContextManager[None]):
         __exc_value: BaseException | None,
         __traceback: TracebackType | None,
     ) -> bool | None:
-        type(self)._stack.pop(self.builder)
+        type(self)._stack.pop(self._builder)
 
     @classmethod
     def get(cls) -> Builder | None:
+        """
+        Gets the topmost ImplicitBuilder on the stack.
+        """
         return cls._stack.get()
 
 
@@ -253,7 +276,7 @@ _CallableImplicitRegionFuncType: TypeAlias = Callable[[tuple[BlockArgument, ...]
 
 
 def _op_init_callback(op: Operation):
-    if (b := _ImplicitBuilder.get()) is not None:
+    if (b := ImplicitBuilder.get()) is not None:
         b.insert(op)
 
 
