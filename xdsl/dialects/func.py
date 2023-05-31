@@ -203,7 +203,10 @@ class FuncOp(IRDLOperation):
         visibility: StringAttr | str | None = None,
     ) -> FuncOp:
         return FuncOp(
-            name=name, function_type=(input_types, return_types), region=region
+            name=name,
+            function_type=(input_types, return_types),
+            region=region,
+            visibility=visibility,
         )
 
     def replace_argument_type(self, arg: int | BlockArgument, new_type: Attribute):
