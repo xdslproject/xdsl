@@ -66,11 +66,6 @@ SCALL_EXIT = 93
 
 
 class LowerRISCVFuncOp(RewritePattern):
-    """
-    Temporary lowering of only the main function, would like to lower non-main functions
-    soon.
-    """
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
         body = op.func_body.block
