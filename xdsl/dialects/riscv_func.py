@@ -76,13 +76,23 @@ class CallOp(IRDLOperation):
             },
         )
 
+    def verify_(self):
+        if len(self.args) >= 9:
+            raise VerifyException(
+                f"Function op has too many operands ({len(self.args)}), expected fewer than 9"
+            )
+
+        if len(self.results) >= 3:
+            raise VerifyException(
+                f"Function op has too many results ({len(self.results)}), expected fewer than 3"
+            )
+
 
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    args: Annotated[VarOperand, riscv.RegisterType]
     func_name: OpAttr[StringAttr]
     func_body: SingleBlockRegion
 
@@ -105,16 +115,6 @@ class FuncOp(IRDLOperation):
 
         if not isinstance(last_op, ReturnOp):
             raise VerifyException("Expected last op of FuncOp to be a ReturnOp")
-
-        if len(self.args) >= 9:
-            raise VerifyException(
-                f"Function op has too many operands ({len(self.args)}), expected fewer than 7"
-            )
-
-        if len(self.results) >= 3:
-            raise VerifyException(
-                f"Function op has too many results ({len(self.results)}), expected fewer than 3"
-            )
 
 
 @irdl_op_definition
@@ -139,6 +139,12 @@ class ReturnOp(IRDLOperation):
                 "comment": comment,
             },
         )
+
+    def verify_(self):
+        if len(self.results) >= 3:
+            raise VerifyException(
+                f"Function op has too many results ({len(self.results)}), expected fewer than 3"
+            )
 
 
 RISCV_Func = Dialect(
