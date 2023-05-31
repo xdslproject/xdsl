@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeVar, Iterable
+from typing import Literal, TypeVar, Iterable
 
 from warnings import warn
 
@@ -400,22 +400,11 @@ def StencilConversion(
     )
 
 
-class ConvertStencilToGPUPass(ModulePass):
-    name = "convert-stencil-to-gpu"
-
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        return_targets = return_target_analysis(op)
-
-        the_one_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([StencilConversion(return_targets, gpu=True)]),
-            apply_recursively=False,
-            walk_reverse=True,
-        )
-        the_one_pass.rewrite_module(op)
-
-
+@dataclass
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
+
+    target: Literal["cpu", "gpu"] = "cpu"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         return_targets: dict[
@@ -423,7 +412,9 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         ] = return_target_analysis(op)
 
         the_one_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([StencilConversion(return_targets, gpu=False)]),
+            GreedyRewritePatternApplier(
+                [StencilConversion(return_targets, gpu=(self.target == "gpu"))]
+            ),
             apply_recursively=False,
             walk_reverse=True,
         )

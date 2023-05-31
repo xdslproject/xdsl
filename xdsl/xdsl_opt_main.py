@@ -39,7 +39,6 @@ from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
-    ConvertStencilToGPUPass,
     ConvertStencilToLLMLIRPass,
 )
 from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
@@ -275,7 +274,6 @@ class xDSLOptMain:
         """
         self.register_pass(LowerMPIPass)
         self.register_pass(ConvertStencilToLLMLIRPass)
-        self.register_pass(ConvertStencilToGPUPass)
         self.register_pass(StencilShapeInferencePass)
         self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
         self.register_pass(DesymrefyPass)
