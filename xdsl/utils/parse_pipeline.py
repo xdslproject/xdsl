@@ -27,6 +27,8 @@ class Token:
 
 
 _lexer_rules: list[tuple[re.Pattern[str], Token.Kind]] = [
+    # first rule is special to allow 2d-slice to be recognized as an ident
+    (re.compile(r"[0-9]+[A-Za-z_-]+[A-Za-z0-9_-]*"), Token.Kind.IDENT),
     (re.compile(r"[-+]?[0-9]+(\.[0-9]*([eE][-+]?[0-9]+)?)?"), Token.Kind.NUMBER),
     (re.compile(r"[A-Za-z0-9_-]+"), Token.Kind.IDENT),
     (re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"'), Token.Kind.STRING_LIT),
