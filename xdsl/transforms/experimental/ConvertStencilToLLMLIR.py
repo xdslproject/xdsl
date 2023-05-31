@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal, TypeVar, Iterable
+from typing import Literal, TypeVar, Iterable, cast
 
 from warnings import warn
 
@@ -292,16 +292,14 @@ class UpdateLoopCarriedVarTypes(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter, /):
         for i in range(len(op.iter_args)):
-            arg_typ = op.body.block.args[i + 1].typ
+            block_arg = op.body.block.args[i + 1]
             iter_typ = op.iter_args[i].typ
-            if arg_typ != iter_typ:
-                rewriter.modify_block_argument_type(
-                    op.body.block.args[i + 1], op.iter_args[i].typ
-                )
-                for y in [y for y in op.body.ops if isinstance(y, scf.Yield)]:
-                    y.arguments[i].typ = op.iter_args[i].typ
-            if op.res[i].typ != op.iter_args[i].typ:
-                op.res[i].typ = op.iter_args[i].typ
+            if block_arg.typ != iter_typ:
+                rewriter.modify_block_argument_type(block_arg, iter_typ)
+            y = cast(scf.Yield, op.body.ops.last)
+            y.arguments[i].typ = iter_typ
+            if op.res[i].typ != iter_typ:
+                op.res[i].typ = iter_typ
 
 
 @dataclass
