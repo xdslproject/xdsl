@@ -401,6 +401,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ApplyOpToParallel(),
+                    StencilTypeConversionFuncOp(),
                     StencilStoreToSubview(return_targets),
                     CastOpToMemref(gpu=(self.target == "gpu")),
                     LoadOpToMemref(),
@@ -416,11 +417,6 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         )
         the_one_pass.rewrite_module(op)
         type_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    StencilTypeConversionFuncOp(),
-                    UpdateLoopCarriedVarTypes(),
-                ]
-            )
+            GreedyRewritePatternApplier([UpdateLoopCarriedVarTypes()])
         )
         type_pass.rewrite_module(op)
