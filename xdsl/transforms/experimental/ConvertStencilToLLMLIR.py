@@ -288,7 +288,7 @@ class StencilTypeConversionFuncOp(RewritePattern):
         op.attributes["function_type"] = FunctionType.from_lists(inputs, outputs)
 
 
-class TypeSpreadingForOp(RewritePattern):
+class UpdateLoopCarriedVarTypes(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter, /):
         for i in range(len(op.iter_args)):
@@ -430,7 +430,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     StencilTypeConversionFuncOp(),
-                    TypeSpreadingForOp(),
+                    UpdateLoopCarriedVarTypes(),
                 ]
             )
         )
