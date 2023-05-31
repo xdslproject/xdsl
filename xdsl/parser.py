@@ -702,13 +702,22 @@ class Parser(ABC):
         if op is None:
             self.raise_error("Could not parse entire input!")
 
-        if isinstance(op, ModuleOp):
-            return op
-        else:
+        if not isinstance(op, ModuleOp):
             self.tokenizer.pos = 0
             self.raise_error(
                 "Expected ModuleOp at top level!", self.tokenizer.next_token()
             )
+
+        if self.forward_ssa_references:
+            value_names = ", ".join(
+                "%" + name for name in self.forward_ssa_references.keys()
+            )
+            if len(self.forward_block_references.keys()) > 1:
+                self.raise_error(f"values {value_names} were used but not defined")
+            else:
+                self.raise_error(f"value {value_names} was used but not defined")
+
+        return op
 
     def _get_block_from_name(self, block_name: Span) -> Block:
         """
@@ -1693,12 +1702,14 @@ class Parser(ABC):
             # Check for forward references of this value
             if ssa_val_name in self.forward_ssa_references:
                 index_references = self.forward_ssa_references[ssa_val_name]
+                del self.forward_ssa_references[ssa_val_name]
                 if any(index >= res_size for index in index_references):
                     self.raise_error(
                         f"SSA value %{ssa_val_name} is referenced with an index "
                         f"larger than its size",
                         res_span,
                     )
+
                 # Replace the forward references with the actual SSA value
                 for index, value in index_references.items():
                     result = tuple_results[index]
