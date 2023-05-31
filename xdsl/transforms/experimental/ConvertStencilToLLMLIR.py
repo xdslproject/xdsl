@@ -285,10 +285,7 @@ class AccessOpToMemref(RewritePattern):
         rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load], [load.res])
 
 
-@dataclass
 class StencilTypeConversionFuncOp(RewritePattern):
-    return_targets: dict[ReturnOp, list[SSAValue | None]]
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         inputs: list[Attribute] = []
@@ -304,6 +301,13 @@ class StencilTypeConversionFuncOp(RewritePattern):
             inputs, list(op.function_type.outputs.data)
         )
 
+
+@dataclass
+class StencilStoreToSubview(RewritePattern):
+    return_targets: dict[ReturnOp, list[SSAValue | None]]
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         stores = [o for o in op.walk() if isinstance(o, StoreOp)]
 
         for store in stores:
@@ -323,6 +327,8 @@ class StencilTypeConversionFuncOp(RewritePattern):
             rewriter.insert_op_after(subview, field.owner)
             field.replace_by(subview.result)
             subview.replace_operand(subview.result, field)
+
+            rewriter.erase_op(store)
 
             for r, c in self.return_targets.items():
                 for i in range(len(c)):
@@ -383,7 +389,7 @@ def StencilConversion(return_targets: dict[ReturnOp, list[SSAValue | None]], gpu
     return GreedyRewritePatternApplier(
         [
             ApplyOpToParallel(),
-            StencilTypeConversionFuncOp(return_targets),
+            StencilStoreToSubview(return_targets),
             CastOpToMemref(gpu),
             LoadOpToMemref(),
             AccessOpToMemref(),
@@ -392,6 +398,7 @@ def StencilConversion(return_targets: dict[ReturnOp, list[SSAValue | None]], gpu
             StoreOpCleanup(),
             TrivialExternalLoadOpCleanup(),
             TrivialExternalStoreOpCleanup(),
+            StencilTypeConversionFuncOp(),
         ]
     )
 
@@ -411,7 +418,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             GreedyRewritePatternApplier(
                 [StencilConversion(return_targets, gpu=(self.target == "gpu"))]
             ),
-            apply_recursively=False,
+            apply_recursively=True,
             walk_reverse=True,
         )
         the_one_pass.rewrite_module(op)
