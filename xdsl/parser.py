@@ -2571,7 +2571,7 @@ class Parser(ABC):
 
         if len(args) != len(func_type.inputs):
             self.raise_error(
-                f"expected {len(args)} operand types but had {len(func_type.inputs)}",
+                f"expected {len(func_type.inputs)} operand types but had {len(args)}",
                 func_type_pos,
             )
 

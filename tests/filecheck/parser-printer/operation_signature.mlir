@@ -40,7 +40,7 @@ builtin.module {
   "test.op"(%0) : () -> ()
 }
 
-// CHECK: expected 1 operand types but had 0
+// CHECK: expected 0 operand types but had 1
 
 // -----
 
@@ -50,7 +50,7 @@ builtin.module {
   "test.op"() : (i32) -> ()
 }
 
-// CHECK: expected 0 operand types but had 1
+// CHECK: expected 1 operand types but had 0
 
 // -----
 
