@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Annotated, Sequence
+from typing import Annotated, Sequence
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -41,9 +41,8 @@ from xdsl.irdl import (
 
 from xdsl.utils.exceptions import VerifyException
 
-if TYPE_CHECKING:
-    from xdsl.parser import Parser
-    from xdsl.printer import Printer
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -56,6 +55,10 @@ should be used for this index.
 
 @irdl_attr_definition
 class LLVMStructType(ParametrizedAttribute, TypeAttribute):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#structure-types
+    """
+
     name = "llvm.struct"
 
     # An empty string refers to a struct without a name.
@@ -70,20 +73,29 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         return LLVMStructType([StringAttr(""), ArrayAttr(types)])
 
     def print_parameters(self, printer: Printer) -> None:
-        assert self.struct_name.data == ""
-        printer.print("<(")
+        printer.print("<")
+        if self.struct_name.data:
+            printer.print_string_literal(self.struct_name.data)
+            printer.print_string(", ")
+        printer.print("(")
         printer.print_list(self.types.data, printer.print_attribute)
         printer.print(")>")
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_characters("<(", "LLVM Struct must start with `<(`")
-        params = parser.parse_list_of(
-            parser.try_parse_type,
-            "Malformed LLVM struct, expected attribute definition here!",
+        parser.parse_characters("<", "LLVM Struct must start with `<`")
+        parsed_struct_name = parser.try_parse_string_literal()
+        if parsed_struct_name is None:
+            struct_name = ""
+        else:
+            struct_name = parsed_struct_name.string_contents
+            parser.parse_characters(", ", "comma after type")
+
+        params = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_type
         )
-        parser.parse_characters(")>", "Unexpected input, expected end of LLVM struct!")
-        return [StringAttr(""), ArrayAttr(params)]
+        parser.parse_characters(">", "LLVM Struct must start with `>`")
+        return [StringAttr(struct_name), ArrayAttr(params)]
 
 
 @irdl_attr_definition
@@ -110,7 +122,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
         if not parser.tokenizer.starts_with("<"):
             return [NoneAttr(), NoneAttr()]
         parser.parse_characters("<", "llvm.ptr parameters expected")
-        type = parser.try_parse_type()
+        type = parser.parse_optional_type()
         if type is None:
             parser.raise_error("Expected first parameter of llvm.ptr to be a type!")
         if not parser.tokenizer.starts_with(","):
@@ -119,7 +131,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
         parser.parse_characters(",", "llvm.ptr args must be separated by `,`")
         addr_space = parser.parse_integer()
         parser.parse_characters(">", "End of llvm.ptr parameters expected!")
-        return [type, IntegerAttr.from_params(addr_space, IndexType())]
+        return [type, IntegerAttr(addr_space, IndexType())]
 
     @staticmethod
     def opaque():
@@ -159,7 +171,7 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         parser.parse_characters(
             "x", "llvm.array size and type must be separated by `x`"
         )
-        type = parser.try_parse_type()
+        type = parser.parse_optional_type()
         if type is None:
             parser.raise_error("Expected second parameter of llvm.array to be a type!")
         parser.parse_characters(">", "End of llvm.array parameters expected!")
@@ -170,6 +182,62 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         if isinstance(size, int):
             size = IntAttr(size)
         return LLVMArrayType([size, type])
+
+
+@irdl_attr_definition
+class LLVMVoidType(ParametrizedAttribute, TypeAttribute):
+    name = "llvm.void"
+
+
+@irdl_attr_definition
+class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
+    """
+    Currently does not support variadics.
+
+    https://mlir.llvm.org/docs/Dialects/LLVM/#function-types
+    """
+
+    name = "llvm.func"
+
+    inputs: ParameterDef[ArrayAttr[Attribute]]
+    output: ParameterDef[Attribute]
+
+    def __init__(
+        self,
+        inputs: Sequence[Attribute] | ArrayAttr[Attribute],
+        output: Attribute | None = None,
+    ) -> None:
+        if not isinstance(inputs, ArrayAttr):
+            inputs = ArrayAttr(inputs)
+        if output is None:
+            output = LLVMVoidType()
+        super().__init__([inputs, output])
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<")
+        if isinstance(self.output, LLVMVoidType):
+            printer.print("void")
+        else:
+            printer.print_attribute(self.output)
+
+        printer.print(" (")
+        printer.print_list(self.inputs, printer.print_attribute)
+        printer.print_string(")>")
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_char("<")
+        if parser.try_parse_characters("void"):
+            output = LLVMVoidType()
+        else:
+            output = parser.parse_attribute()
+
+        inputs = parser.parse_comma_separated_list(
+            Parser.Delimiter.PAREN, parser.parse_attribute
+        )
+        parser.parse_char(">")
+
+        return [ArrayAttr(inputs), output]
 
 
 @irdl_attr_definition
@@ -706,6 +774,8 @@ LLVM = Dialect(
         LLVMStructType,
         LLVMPointerType,
         LLVMArrayType,
+        LLVMVoidType,
+        LLVMFunctionType,
         LinkageAttr,
     ],
 )

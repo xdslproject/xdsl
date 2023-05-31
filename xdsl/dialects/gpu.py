@@ -29,6 +29,7 @@ from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr
 from xdsl.dialects import memref
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.traits import HasParent
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -218,7 +219,7 @@ class AllReduceOp(IRDLOperation):
                 f"{self.operand.typ}. They must be the same type for gpu.all_reduce"
             )
 
-        non_empty_body = not all(b.is_empty for b in self.body.blocks)
+        non_empty_body = any(b.ops for b in self.body.blocks)
         op_attr = self.op is not None
         if non_empty_body == op_attr:
             if op_attr:
@@ -344,9 +345,7 @@ class ModuleOp(IRDLOperation):
         return op
 
     def verify_(self):
-        if self.body.block.is_empty or not isinstance(
-            self.body.block.last_op, ModuleEndOp
-        ):
+        if not isinstance(self.body.block.last_op, ModuleEndOp):
             raise VerifyException("gpu.module must end with gpu.module_end")
 
 
@@ -455,7 +454,7 @@ class LaunchOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if len(self.body.blocks) == 0 or all(b.is_empty for b in self.body.blocks):
+        if not any(b.ops for b in self.body.blocks):
             raise VerifyException("gpu.launch requires a non-empty body.")
         body_args = self.body.blocks[0].args
         args_type = [a.typ for a in body_args]
@@ -520,22 +519,19 @@ class SubgroupSizeOp(IRDLOperation):
 class TerminatorOp(IRDLOperation):
     name = "gpu.terminator"
 
+    traits = frozenset([HasParent(LaunchOp)])
+
     @staticmethod
     def get() -> TerminatorOp:
         return TerminatorOp.build()
 
     def verify_(self) -> None:
         block = self.parent_block()
-        op = self.parent_op()
         if block is not None:
             if self is not block.last_op:
                 raise VerifyException(
                     "A gpu.terminator must terminate its parent block"
                 )
-        if op is not None and not isinstance(op, LaunchOp):
-            raise VerifyException(
-                "gpu.terminator is only meant to terminate gpu.launch"
-            )
 
 
 @irdl_op_definition

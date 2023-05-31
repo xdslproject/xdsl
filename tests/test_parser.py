@@ -10,7 +10,9 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     Builtin,
     SymbolRefAttr,
+    i32,
 )
+from xdsl.dialects.test import Test
 from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
 from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
 from xdsl.parser import Parser
@@ -19,18 +21,6 @@ from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Token
 
 # pyright: reportPrivateUsage=false
-
-
-@pytest.mark.parametrize(
-    "input,expected",
-    [("0, 1, 1", [0, 1, 1]), ("1, 0, 1", [1, 0, 1]), ("1, 1, 0", [1, 1, 0])],
-)
-def test_int_list_parser(input: str, expected: list[int]):
-    ctx = MLContext()
-    parser = Parser(ctx, input)
-
-    int_list = parser.parse_list_of(parser.try_parse_integer_literal, "")
-    assert [int(span.text) for span in int_list] == expected
 
 
 @pytest.mark.parametrize(
@@ -175,6 +165,220 @@ def test_symref(ref: str, expected: Attribute | None):
     assert parsed_ref == expected
 
 
+@pytest.mark.parametrize(
+    "text,expected,expect_type",
+    [
+        ("%foo", ("foo", None), False),
+        ("%-1foo", ("-1foo", None), False),
+        ("%foo : i32", ("foo", i32), True),
+        ("i32 : %bar", None, False),
+        ("i32 : %bar", None, True),
+        ("i32 %bar", None, False),
+        ("i32 %bar", None, True),
+        ("i32", None, False),
+        ("i32", None, True),
+    ],
+)
+def test_parse_argument(
+    text: str, expected: tuple[str, Attribute | None] | None, expect_type: bool
+):
+    """
+    arg ::= percent-id              if expect_type is False
+    arg ::= percent-id ':' type     if expect_type is True
+    """
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    # parse_optional_argument
+    parser = Parser(ctx, text)
+    res = parser.parse_optional_argument(expect_type)
+    if expected is not None:
+        assert res is not None
+        assert res.name.text[1:] == expected[0]
+        assert res.type == expected[1]
+    else:
+        assert res is None
+
+    # parse_argument
+    parser = Parser(ctx, text)
+    if expected is not None:
+        res = parser.parse_argument(expect_type)
+        assert res is not None
+        assert res.name.text[1:] == expected[0]
+        assert res.type == expected[1]
+    else:
+        with pytest.raises(ParseError):
+            parser.parse_argument(expect_type)
+
+
+@pytest.mark.parametrize(
+    "text,expect_type",
+    [
+        ("%foo : %bar", True),
+        ("%foo : ", True),
+        ("%foo", True),
+        ("%foo %bar", True),
+    ],
+)
+def test_parse_argument_fail(text: str, expect_type: bool):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+
+    # parse_optional_argument
+    parser = Parser(ctx, text)
+    with pytest.raises(ParseError):
+        parser.parse_optional_argument(expect_type)
+
+    # parse_argument
+    parser = Parser(ctx, text)
+    with pytest.raises(ParseError):
+        parser.parse_argument(expect_type)
+
+
+@pytest.mark.parametrize(
+    "text,num_ops_and_args",
+    [
+        # no blocks
+        ("{}", []),
+        # One entry block
+        ("""{ "test.op"() : () -> () }""", [(1, 0)]),
+        # One entry block and another block
+        (
+            """{
+          "test.op"() : () -> ()
+        ^bb0(%x: i32):
+          "test.op"() : () -> ()
+          "test.op"() : () -> ()
+        }""",
+            [(1, 0), (2, 1)],
+        ),
+        # One labeled entry block and another block
+        (
+            """{
+        ^bb0:
+          "test.op"() : () -> ()
+          "test.op"() : () -> ()
+        ^bb1:
+          "test.op"() : () -> ()
+        }""",
+            [(2, 0), (1, 0)],
+        ),
+        # One labeled entry block with args and another block
+        (
+            """{
+        ^bb0(%x: i32, %y: i32):
+          "test.op"() : () -> ()
+          "test.op"() : () -> ()
+        ^bb1(%z: i32):
+          "test.op"() : () -> ()
+        }""",
+            [(2, 2), (1, 1)],
+        ),
+        # Not regions
+        ("""^bb:""", None),
+        ("""}""", None),
+        (""""test.op"() : () -> ()""", None),
+    ],
+)
+def test_parse_region_no_args(
+    text: str, num_ops_and_args: list[tuple[int, int]] | None
+):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Test)
+
+    parser = Parser(ctx, text)
+    if num_ops_and_args is None:
+        with pytest.raises(ParseError):
+            parser.parse_region()
+    else:
+        res = parser.parse_region()
+        for block, (n_ops, n_args) in zip(res.blocks, num_ops_and_args):
+            assert len(block.ops) == n_ops
+            assert len(block.args) == n_args
+
+    parser = Parser(ctx, text)
+    res = parser.parse_optional_region()
+    if num_ops_and_args is None:
+        assert res is None
+    else:
+        assert res is not None
+        for block, (n_ops, n_args) in zip(res.blocks, num_ops_and_args):
+            assert len(block.ops) == n_ops
+            assert len(block.args) == n_args
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        """{""",
+        """{ "test.op"() : () -> ()""",
+    ],
+)
+def test_parse_region_fail(text: str):
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Test)
+
+    parser = Parser(ctx, text)
+    with pytest.raises(ParseError):
+        parser.parse_region()
+
+    parser = Parser(ctx, text)
+    with pytest.raises(ParseError):
+        parser.parse_optional_region()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        """%x : i32 { "test.op"(%x) : (i32) -> () }""",
+        """%x : i32 { "test.op"(%x) : (i32) -> () ^bb0: }""",
+    ],
+)
+def test_parse_region_with_args(text: str):
+    """Parse a region with args already provided."""
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Test)
+
+    parser = Parser(ctx, text)
+    arg = parser.parse_argument()
+    region = parser.parse_region((arg,))
+    assert len(region.blocks[0].args) == 1
+
+    parser = Parser(ctx, text)
+    arg = parser.parse_argument()
+    region = parser.parse_optional_region((arg,))
+    assert region is not None
+    assert len(region.blocks[0].args) == 1
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        """%x : i32 { ^bb: "test.op"(%x) : (i32) -> () }""",
+        """%x : i32 { ^bb(%y : i32): "test.op"(%x) : (i32) -> () }""",
+        """%x : i32 { %x = "test.op"() : () -> (i32) }""",
+    ],
+)
+def test_parse_region_with_args_fail(text: str):
+    """Parse a region with args already provided."""
+    ctx = MLContext()
+    ctx.register_dialect(Builtin)
+    ctx.register_dialect(Test)
+
+    parser = Parser(ctx, text)
+    arg = parser.parse_argument()
+    with pytest.raises(ParseError):
+        parser.parse_region((arg,))
+
+    parser = Parser(ctx, text)
+    arg = parser.parse_argument()
+    with pytest.raises(ParseError):
+        parser.parse_optional_region((arg,))
+
+
 @irdl_op_definition
 class MultiRegionOp(IRDLOperation):
     name = "test.multi_region"
@@ -206,7 +410,7 @@ def test_parse_block_name():
 
     ctx = MLContext()
     parser = Parser(ctx, block_str)
-    block = parser.parse_block()
+    block = parser._parse_block()  # pyright: ignore[reportPrivateUsage]
 
     assert block.args[0].name_hint == "name"
     assert block.args[1].name_hint is None

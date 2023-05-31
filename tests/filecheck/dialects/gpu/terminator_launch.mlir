@@ -21,4 +21,4 @@
         "gpu.terminator"() : () -> ()
 }) {} : () -> ()
 
-// CHECK: gpu.terminator is only meant to terminate gpu.launch
+// CHECK: 'gpu.terminator' expects parent op 'gpu.launch'

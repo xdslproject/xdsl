@@ -8,6 +8,7 @@ from typing import Annotated
 from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, ModuleOp, UnitAttr, i32
 from xdsl.dialects.func import Func
+from xdsl.dialects.test import TestOp
 from xdsl.ir import (
     Attribute,
     MLContext,
@@ -15,6 +16,7 @@ from xdsl.ir import (
     Operation,
     ParametrizedAttribute,
     Block,
+    Region,
 )
 from xdsl.irdl import (
     Operand,
@@ -35,7 +37,7 @@ from xdsl.utils.exceptions import ParseError
 
 
 def test_simple_forgotten_op():
-    """Test that the parsing of an undefined operand raises an exception."""
+    """Test that the parsing of an undefined operand gives it a name."""
     ctx = MLContext()
     ctx.register_dialect(Arith)
 
@@ -44,43 +46,48 @@ def test_simple_forgotten_op():
 
     add.verify()
 
-    expected = """
-%0 = "arith.addi"(%<UNKNOWN>, %<UNKNOWN>) : (i32, i32) -> i32
-------------------^^^^^^^^^^---------------------------------------------------------------------
-| ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
--------------------------------------------------------------------------------------------------
-------------------------------^^^^^^^^^^---------------------------------------------------------
-| ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
--------------------------------------------------------------------------------------------------
-"""
+    expected = """%0 = "arith.addi"(%1, %1) : (i32, i32) -> i32"""
 
     assert_print_op(add, expected, None)
 
 
-def test_forgotten_op_non_fail():
-    """Test that the parsing of an undefined operand raises an exception."""
+def test_unordered_ops():
+    """Test that the printing of unordered ops works."""
+
     ctx = MLContext()
     ctx.register_dialect(Arith)
 
     lit = Constant.from_int_and_width(42, 32)
     add = Addi(lit, lit)
-    add2 = Addi(add, add)
-    mod = ModuleOp([add, add2])
-    mod.verify()
 
     expected = """
 "builtin.module"() ({
-  %0 = "arith.addi"(%<UNKNOWN>, %<UNKNOWN>) : (i32, i32) -> i32
-  ------------------^^^^^^^^^^---------------------------------------------------------------------
-  | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
-  -------------------------------------------------------------------------------------------------
-  ------------------------------^^^^^^^^^^---------------------------------------------------------
-  | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
-  -------------------------------------------------------------------------------------------------
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
-}) : () -> ()"""
+  %0 = "arith.addi"(%1, %1) : (i32, i32) -> i32
+  %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+}) : () -> ()
+"""
 
-    assert_print_op(mod, expected, None)
+    assert_print_op(ModuleOp([add, lit]), expected, None)
+
+
+def test_cyclic_ops():
+    """Test that the printing of ops with cyclic dependencies works."""
+
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+
+    op1 = TestOp(result_types=[i32], operands=[[]], regions=[[]])
+    op2 = TestOp(result_types=[i32], operands=[op1], regions=[[]])
+    op1.operands = [op2.results[0]]
+
+    expected = """
+"builtin.module"() ({
+  %0 = "test.op"(%1) : (i32) -> i32
+  %1 = "test.op"(%0) : (i32) -> i32
+}) : () -> ()
+"""
+
+    assert_print_op(ModuleOp([op1, op2]), expected, None)
 
 
 @irdl_op_definition
@@ -361,7 +368,107 @@ def test_print_custom_block_arg_name():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block(block)
-    assert io.getvalue() == """\n^0(%test : i32, %0 : i32):"""
+    assert io.getvalue() == """\n^0(%test : i32, %test_1 : i32):"""
+
+
+def test_print_block_argument():
+    """Print a block argument."""
+    block = Block(arg_types=[i32, i32])
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_block_argument(block.args[0])
+    p.print(", ")
+    p.print_block_argument(block.args[1], print_type=False)
+    assert io.getvalue() == """%0 : i32, %1"""
+
+
+def test_print_block():
+    """Print a block."""
+    block = Block(arg_types=[i32, i32])
+    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+
+    # Print block arguments inside the block
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_block(block)
+    assert (
+        io.getvalue() == """\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()"""
+    )
+
+
+def test_print_block_without_arguments():
+    """Print a block and its arguments separately."""
+    block = Block(arg_types=[i32, i32])
+    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+
+    # Print block arguments separately from the block
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_block_argument(block.args[0])
+    p.print(", ")
+    p.print_block_argument(block.args[1])
+    p.print_block(block, print_block_args=False)
+    assert io.getvalue() == """%0 : i32, %1 : i32\n  "test.op"(%1) : (i32) -> ()"""
+
+
+def test_print_region():
+    """Print a region."""
+    block = Block(arg_types=[i32, i32])
+    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+    region = Region(block)
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_region(region)
+    assert (
+        io.getvalue()
+        == """{\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
+    )
+
+
+def test_print_region_without_arguments():
+    """Print a region and its arguments separately."""
+    block = Block(arg_types=[i32, i32])
+    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+    region = Region(block)
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_block_argument(block.args[0])
+    p.print(", ")
+    p.print_block_argument(block.args[1])
+    p.print(" ")
+    p.print_region(region, print_entry_block_args=False)
+    assert io.getvalue() == """%0 : i32, %1 : i32 {\n  "test.op"(%1) : (i32) -> ()\n}"""
+
+
+def test_print_region_empty_block():
+    """
+    Print a region with an empty block, and specify that
+    empty entry blocks shouldn't be printed.
+    """
+    block = Block()
+    region = Region(block)
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_region(region, print_empty_block=False)
+    assert io.getvalue() == """{\n}"""
+
+
+def test_print_region_empty_block_with_args():
+    """
+    Print a region with an empty block and arguments, and specify that
+    empty entry blocks shouldn't be printed.
+    """
+    block = Block(arg_types=[i32, i32])
+    region = Region(block)
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_region(region, print_empty_block=False)
+    assert io.getvalue() == """{\n^0(%0 : i32, %1 : i32):\n}"""
 
 
 #   ____          _                  _____                          _
@@ -385,7 +492,7 @@ class PlusCustomFormatOp(IRDLOperation):
         parser.parse_characters("+", "Malformed operation format, expected `+`!")
         rhs = parser.parse_operand("Expected SSA Value name here!")
         parser.parse_punctuation(":")
-        type = parser.expect(parser.try_parse_type, "Expect type here!")
+        type = parser.parse_type()
 
         return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=[type])
 

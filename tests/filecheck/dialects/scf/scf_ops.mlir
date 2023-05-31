@@ -1,7 +1,7 @@
-// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s --print-op-generic | xdsl-opt | filecheck %s
 
 
-"builtin.module"() ({
+builtin.module {
 
 
   %0 = "test.op"() : () -> i1
@@ -40,7 +40,7 @@
   // CHECK-NEXT:   "scf.yield"(%{{.*}}) : (i32) -> ()
   // CHECK-NEXT: }) : (i1) -> i32
 
-  "func.func"() ({
+  func.func @while() {
     %init = "arith.constant"() {"value" = 0 : i32} : () -> i32
     %res = "scf.while"(%init) ({
     ^0(%arg : i32):
@@ -52,9 +52,9 @@
       "scf.yield"(%arg2) : (i32) -> ()
     }) : (i32) -> i32
     "func.return"() : () -> ()
-  }) {"sym_name" = "while", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
+  }
 
-  // CHECK:      "func.func"() ({
+  // CHECK:      func.func @while() {
   // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 0 : i32} : () -> i32
   // CHECK-NEXT:   %{{.*}} = "scf.while"(%{{.*}}) ({
   // CHECK-NEXT:   ^{{.*}}(%{{.*}} : i32):
@@ -66,33 +66,33 @@
   // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (i32) -> ()
   // CHECK-NEXT:   }) : (i32) -> i32
   // CHECK-NEXT:   "func.return"() : () -> ()
-  // CHECK-NEXT: }) {"sym_name" = "while", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
+  // CHECK-NEXT: }
 
-  "func.func"() ({
+  func.func @for() {
     %lb = "arith.constant"() {"value" = 0 : index} : () -> index
     %ub = "arith.constant"() {"value" = 42 : index} : () -> index
     %s = "arith.constant"() {"value" = 3 : index} : () -> index
     %prod = "arith.constant"() {"value" = 1 : index} : () -> index
     %res_1 = "scf.for"(%lb, %ub, %s, %prod) ({
     ^2(%iv : index, %prod_iter : index):
-      %prod_new = "arith.muli"(%prod_iter, %iv) : (index, index) -> index
+      %prod_new = arith.muli %prod_iter, %iv : index
       "scf.yield"(%prod_new) : (index) -> ()
     }) : (index, index, index, index) -> index
     "func.return"() : () -> ()
-  }) {"sym_name" = "for", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
+  }
 
-  // CHECK-NEXT: "func.func"() ({
+  // CHECK-NEXT: func.func @for() {
   // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
   // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 42 : index} : () -> index
   // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 3 : index} : () -> index
   // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
   // CHECK-NEXT:   %{{.*}} = "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) ({
   // CHECK-NEXT:   ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
-  // CHECK-NEXT:     %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (index, index) -> index
+  // CHECK-NEXT:     %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
   // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (index) -> ()
   // CHECK-NEXT:   }) : (index, index, index, index) -> index
   // CHECK-NEXT:   "func.return"() : () -> ()
-  // CHECK-NEXT: }) {"sym_name" = "for", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
+  // CHECK-NEXT: }
 
 
-}) : () -> ()
+}

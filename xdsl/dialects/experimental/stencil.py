@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from typing import Sequence, TypeVar, cast, Iterable, Iterator, List
+from typing import Sequence, TypeVar, cast, Iterable, Iterator
+
+from operator import add, lt, neg
 
 from xdsl.dialects import builtin
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
-    IntegerAttr,
+    IntAttr,
     ParametrizedAttribute,
     ArrayAttr,
-    IntegerType,
     AnyFloat,
 )
-from xdsl.ir import Operation, Dialect, TypeAttribute
+from xdsl.ir import Attribute, Operation, Dialect, TypeAttribute
 from xdsl.ir import SSAValue
 
 from xdsl.irdl import (
@@ -29,91 +30,249 @@ from xdsl.irdl import (
     OpResult,
     VarOperand,
     VarOpResult,
-    OptOpAttr,
     Block,
     IRDLOperation,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
 
-_FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute)
+_FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
 
 
 @irdl_attr_definition
-class FieldType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute):
+class IndexAttr(ParametrizedAttribute, Iterable[int]):
+    # TODO: can you have an attr and an op with the same name?
+    name = "stencil.index"
+
+    array: ParameterDef[ArrayAttr[IntAttr]]
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        """Parse the attribute parameters."""
+        ints = parser.parse_comma_separated_list(
+            parser.Delimiter.ANGLE, lambda: parser.parse_integer(allow_boolean=False)
+        )
+        return [ArrayAttr((IntAttr(i) for i in ints))]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print(f'<{", ".join((str(e) for e in self))}>')
+
+    def verify(self) -> None:
+        l = len(self)
+        if l < 1 or l > 3:
+            raise VerifyException(
+                f"Expected 1 to 3 indexes for stencil.index, got {l}."
+            )
+
+    @staticmethod
+    def get(*indices: int | IntAttr):
+        return IndexAttr(
+            [
+                ArrayAttr(
+                    [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
+                )
+            ]
+        )
+
+    @staticmethod
+    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
+        return [ub - lb for lb, ub in zip(lb, ub)]
+
+    # TODO : come to an agreement on, do we want to allow that kind of things
+    # on Attributes? Author's opinion is a clear yes :P
+    def __neg__(self) -> IndexAttr:
+        return IndexAttr.get(*(map(neg, self)))
+
+    def __add__(self, o: IndexAttr) -> IndexAttr:
+        return IndexAttr.get(*(map(add, self, o)))
+
+    def __sub__(self, o: IndexAttr) -> IndexAttr:
+        return self + -o
+
+    def __lt__(self, o: IndexAttr) -> bool:
+        return any(map(lt, self, o))
+
+    @staticmethod
+    def min(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
+        if b is None:
+            return a
+        return IndexAttr.get(*map(min, a, b))
+
+    @staticmethod
+    def max(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
+        if b is None:
+            return a
+        return IndexAttr.get(*map(max, a, b))
+
+    def __len__(self):
+        return len(self.array)
+
+    def __iter__(self) -> Iterator[int]:
+        return (e.data for e in self.array.data)
+
+
+@irdl_attr_definition
+class StencilBoundsAttr(ParametrizedAttribute):
+    """
+    This attribute represents known bounds over a stencil type.
+    """
+
+    name = "stencil.bounds"
+    lb: ParameterDef[IndexAttr]
+    ub: ParameterDef[IndexAttr]
+
+    def _verify(self):
+        if len(self.lb) != len(self.ub):
+            raise VerifyException(
+                "Incoherent stencil bounds: lower and upper bounds must have the same dimensionality."
+            )
+        for d in self.ub - self.lb:
+            if d <= 0:
+                raise VerifyException(
+                    "Incoherent stencil bounds: upper bound must be strictly greater than lower bound."
+                )
+
+    def __init__(self, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]):
+        if bounds:
+            lb, ub = zip(*bounds)
+        else:
+            lb = ub = ()
+        super().__init__(
+            [
+                IndexAttr.get(*lb),
+                IndexAttr.get(*ub),
+            ]
+        )
+
+
+class StencilType(
+    Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute, builtin.ShapeType
+):
+    name = "stencil.type"
+    bounds: ParameterDef[StencilBoundsAttr | IntAttr]
+    """
+    Represents the bounds information of a stencil.field or stencil.temp.
+
+    A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
+    rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
+    """
+    element_type: ParameterDef[_FieldTypeElement]
+
+    def get_num_dims(self) -> int:
+        if isinstance(self.bounds, IntAttr):
+            return self.bounds.data
+        else:
+            return len(self.bounds.ub.array.data)
+
+    def get_shape(self) -> tuple[int]:
+        if isinstance(self.bounds, IntAttr):
+            return (-1,) * self.bounds.data
+        else:
+            return tuple(self.bounds.ub - self.bounds.lb)
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        def parse_interval() -> tuple[int, int] | int:
+            if parser.parse_optional_punctuation("?"):
+                return -1
+            parser.parse_punctuation("[")
+            l = parser.parse_integer(allow_boolean=False)
+            parser.parse_punctuation(",")
+            u = parser.parse_integer(allow_boolean=False)
+            parser.parse_punctuation("]")
+            return (l, u)
+
+        parser.parse_char("<")
+        bounds = [parse_interval()]
+        parser.parse_char("x")
+        typ = parser.parse_optional_type()
+        while typ is None:
+            bounds.append(parse_interval())
+            parser.parse_char("x")
+            typ = parser.parse_optional_type()
+        parser.parse_char(">")
+        if isa(bounds, list[tuple[int, int]]):
+            bounds = StencilBoundsAttr(bounds)
+        elif isa(bounds, list[int]):
+            bounds = IntAttr(len(bounds))
+        else:
+            parser.raise_error("stencil types can only be fully dynamic or sized.")
+
+        return [bounds, typ]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print("<")
+        if isinstance(self.bounds, StencilBoundsAttr):
+            printer.print_list(
+                zip(self.bounds.lb, self.bounds.ub),
+                lambda b: printer.print(f"[{b[0]},{b[1]}]"),
+                "x",
+            )
+            printer.print("x")
+        else:
+            for _ in range(self.bounds.data):
+                printer.print("?x")
+        printer.print_attribute(self.element_type)
+        printer.print(">")
+
+    def __init__(
+        self,
+        bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]
+        | int
+        | IntAttr
+        | StencilBoundsAttr,
+        typ: _FieldTypeElement,
+    ) -> None:
+        """
+            A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
+        rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
+
+        ### examples:
+
+        - `Field(3,f32)` is represented as `stencil.field<?x?x?xf32>`
+        - `Field([(-1,17),(-2,18)],f32)` is represented as `stencil.field<[-1,17]x[-2,18]xf32>`,
+        """
+        if isinstance(bounds, Iterable):
+            nbounds = StencilBoundsAttr(bounds)
+        elif isinstance(bounds, int):
+            nbounds = IntAttr(bounds)
+        else:
+            nbounds = bounds
+        return super().__init__([nbounds, typ])
+
+
+@irdl_attr_definition
+class FieldType(
+    Generic[_FieldTypeElement],
+    StencilType[_FieldTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+):
+    """
+    stencil.field represents memory from which stencil input values will be loaded,
+    or to which stencil output values will be stored.
+
+    stencil.temp are loaded from or stored to stencil.field
+    """
+
     name = "stencil.field"
 
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[_FieldTypeElement]
-
-    def get_num_dims(self) -> int:
-        return len(self.shape.data)
-
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
-
-    def verify(self):
-        if self.get_num_dims() <= 0:
-            raise VerifyException(
-                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
-            )
-
-    def __init__(
-        self,
-        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
-        typ: _FieldTypeElement,
-    ) -> None:
-        if isinstance(shape, ArrayAttr):
-            super().__init__([shape, typ])
-            return
-
-        # cast to list
-        shape = cast(list[int], shape)
-        super().__init__(
-            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
-        )
-
 
 @irdl_attr_definition
-class TempType(Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute):
+class TempType(
+    Generic[_FieldTypeElement],
+    StencilType[_FieldTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+):
+    """
+    stencil.temp represents stencil values, and is the type on which stencil.apply operates.
+    It has value-semantics: it won't necesseraly be lowered to an actual buffer.
+    """
+
     name = "stencil.temp"
-
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
-    element_type: ParameterDef[_FieldTypeElement]
-
-    def get_num_dims(self) -> int:
-        return len(self.shape.data)
-
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
-
-    def verify(self):
-        if self.get_num_dims() <= 0:
-            raise VerifyException(
-                f"Number of field dimensions must be greater than zero, got {self.get_num_dims()}."
-            )
-
-    def __init__(
-        self,
-        shape: ArrayAttr[AnyIntegerAttr] | Sequence[AnyIntegerAttr] | Sequence[int],
-        typ: _FieldTypeElement,
-    ) -> None:
-        if isinstance(shape, ArrayAttr):
-            super().__init__([shape, typ])
-            return
-
-        # cast to list
-        shape = cast(list[int], shape)
-        super().__init__(
-            [ArrayAttr([IntegerAttr[IntegerType](d, 64) for d in shape]), typ]
-        )
-
-    def __repr__(self):
-        repr: str = "stencil.Temp<["
-        for size in self.shape.data:
-            repr += f"{size.value.data} "
-        repr += "]>"
-        return repr
 
 
 @irdl_attr_definition
@@ -123,91 +282,6 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
 
     def __init__(self, float_t: AnyFloat) -> None:
         super().__init__([float_t])
-
-
-@irdl_attr_definition
-class IndexAttr(ParametrizedAttribute, Iterable[int]):
-    # TODO: can you have an attr and an op with the same name?
-    name = "stencil.index"
-
-    array: ParameterDef[ArrayAttr[IntegerAttr[IntegerType]]]
-
-    def verify(self) -> None:
-        if len(self.array.data) < 1 or len(self.array.data) > 3:
-            raise VerifyException(
-                f"Expected 1 to 3 indexes for stencil.index, got {len(self.array.data)}."
-            )
-
-    @staticmethod
-    def get(*indices: int | IntegerAttr[IntegerType]):
-        return IndexAttr(
-            [
-                ArrayAttr(
-                    [
-                        (
-                            IntegerAttr[IntegerType](idx, 64)
-                            if isinstance(idx, int)
-                            else idx
-                        )
-                        for idx in indices
-                    ]
-                )
-            ]
-        )
-
-    @staticmethod
-    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
-        return [
-            ub.value.data - lb.value.data
-            for lb, ub in zip(lb.array.data, ub.array.data)
-        ]
-
-    # TODO : come to an agreement on, do we want to allow that kind of things
-    # on Attributes? Author's opinion is a clear yes :P
-    def __neg__(self) -> IndexAttr:
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(-e.value.data, IntegerType(64)) for e in self.array.data
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
-
-    def __add__(self, o: IndexAttr) -> IndexAttr:
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(se.value.data + oe.value.data, IntegerType(64))
-            for se, oe in zip(self.array.data, o.array.data)
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
-
-    def __sub__(self, o: IndexAttr) -> IndexAttr:
-        return self + -o
-
-    @staticmethod
-    def min(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
-        if b is None:
-            return a
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(min(ae.value.data, be.value.data), IntegerType(64))
-            for ae, be in zip(a.array.data, b.array.data)
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
-
-    @staticmethod
-    def max(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
-        if b is None:
-            return a
-        integer_attrs: list[Attribute] = [
-            IntegerAttr(max(ae.value.data, be.value.data), IntegerType(64))
-            for ae, be in zip(a.array.data, b.array.data)
-        ]
-        return IndexAttr([ArrayAttr(integer_attrs)])
-
-    def as_tuple(self) -> tuple[int, ...]:
-        return tuple(e.value.data for e in self.array.data)
-
-    def __len__(self):
-        return len(self.array)
-
-    def __iter__(self) -> Iterator[int]:
-        return (e.value.data for e in self.array.data)
 
 
 # Operations
@@ -266,7 +340,7 @@ class IndexOp(IRDLOperation):
 @irdl_op_definition
 class AccessOp(IRDLOperation):
     """
-    This operation accesses a temporary element given a constant
+    This operation accesses a value from a stencil.temp given the specified offset.
     offset. The offset is specified relative to the current position.
 
     Example:
@@ -289,9 +363,7 @@ class AccessOp(IRDLOperation):
             attributes={
                 "offset": IndexAttr(
                     [
-                        ArrayAttr(
-                            IntegerAttr[IntegerType](value, 64) for value in offset
-                        ),
+                        ArrayAttr(IntAttr(value) for value in offset),
                     ]
                 ),
             },
@@ -302,7 +374,7 @@ class AccessOp(IRDLOperation):
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     """
-    This operation takes a field and returns a temporary values.
+    This operation takes a field and returns its values.
 
     Example:
       %0 = stencil.load %field : (!stencil.field<70x70x60xf64>) -> !stencil.temp<?x?x?xf64>
@@ -310,8 +382,6 @@ class LoadOp(IRDLOperation):
 
     name = "stencil.load"
     field: Annotated[Operand, FieldType]
-    lb: OptOpAttr[IndexAttr]
-    ub: OptOpAttr[IndexAttr]
     res: Annotated[OpResult, TempType]
 
     @staticmethod
@@ -321,26 +391,33 @@ class LoadOp(IRDLOperation):
         ub: IndexAttr | None = None,
     ):
         field_t = SSAValue.get(field).typ
-        assert isinstance(field_t, FieldType)
-        field_t = cast(FieldType[Attribute], field_t)
+        assert isa(field_t, FieldType[Attribute])
+
+        if lb is None or ub is None:
+            res_typ = TempType(field_t.get_num_dims(), field_t.element_type)
+        else:
+            res_typ = TempType(zip(lb, ub), field_t.element_type)
 
         return LoadOp.build(
             operands=[field],
-            attributes={
-                "lb": lb,
-                "ub": ub,
-            },
-            result_types=[
-                TempType[Attribute](
-                    [-1] * len(field_t.shape.data), field_t.element_type
-                )
-            ],
+            result_types=[res_typ],
         )
 
     def verify_(self) -> None:
         for use in self.field.uses:
             if isa(use.operation, StoreOp):
                 raise VerifyException("Cannot Load and Store the same field!")
+        field = self.field.typ
+        temp = self.res.typ
+        assert isa(field, FieldType[Attribute])
+        assert isa(temp, TempType[Attribute])
+        if isinstance(field.bounds, StencilBoundsAttr) and isinstance(
+            temp.bounds, StencilBoundsAttr
+        ):
+            if temp.bounds.lb < field.bounds.lb or temp.bounds.ub > field.bounds.ub:
+                raise VerifyException(
+                    "The stencil.load is too big for the loaded field."
+                )
 
 
 @irdl_op_definition
@@ -354,15 +431,13 @@ class BufferOp(IRDLOperation):
 
     name = "stencil.buffer"
     temp: Annotated[Operand, TempType]
-    lb: OpAttr[IndexAttr]
-    ub: OpAttr[IndexAttr]
     res: Annotated[OpResult, TempType]
 
 
 @irdl_op_definition
 class StoreOp(IRDLOperation):
     """
-    This operation takes a temp and writes a field on a user defined range.
+    This operation writes values to a field on a user defined range.
 
     Example:
       stencil.store %temp to %field ([0,0,0] : [64,64,60]) : !stencil.temp<?x?x?xf64> to !stencil.field<70x70x60xf64>
@@ -387,6 +462,8 @@ class StoreOp(IRDLOperation):
         for use in self.field.uses:
             if isa(use.operation, LoadOp):
                 raise VerifyException("Cannot Load and Store the same field!")
+            if isa(use.operation, LoadOp) and use.operation is not self:
+                raise VerifyException("Can only store once to a field!")
 
 
 @irdl_op_definition
@@ -404,8 +481,6 @@ class ApplyOp(IRDLOperation):
 
     name = "stencil.apply"
     args: Annotated[VarOperand, Attribute]
-    lb: OptOpAttr[IndexAttr]
-    ub: OptOpAttr[IndexAttr]
     region: Region
     res: Annotated[VarOpResult, TempType]
 
@@ -413,7 +488,7 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block,
-        result_types: Sequence[TempType[_FieldTypeElement]],
+        result_types: Sequence[TempType[Attribute]],
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
     ):
@@ -471,22 +546,6 @@ class ReturnOp(IRDLOperation):
         return ReturnOp.build(operands=[list(res)])
 
 
-@irdl_op_definition
-class HaloSwapOp(IRDLOperation):
-    name = "stencil.halo_swap"
-
-    input_stencil: Annotated[Operand, TempType]
-
-    buff_lb: OptOpAttr[IndexAttr]
-    buff_ub: OptOpAttr[IndexAttr]
-    core_lb: OptOpAttr[IndexAttr]
-    core_ub: OptOpAttr[IndexAttr]
-
-    @staticmethod
-    def get(input_stencil: SSAValue | Operation):
-        return HaloSwapOp.build(operands=[input_stencil])
-
-
 StencilExp = Dialect(
     [
         ExternalLoadOp,
@@ -499,7 +558,6 @@ StencilExp = Dialect(
         ApplyOp,
         StoreResultOp,
         ReturnOp,
-        HaloSwapOp,
     ],
     [
         FieldType,

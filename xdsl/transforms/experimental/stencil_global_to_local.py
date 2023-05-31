@@ -1,7 +1,6 @@
-from dataclasses import dataclass
-from typing import TypeVar, Iterable, ClassVar, Callable
+from dataclasses import dataclass, field
+from typing import TypeVar, Iterable, Callable, cast, ClassVar
 from abc import ABC, abstractmethod
-from math import prod
 
 from xdsl.passes import ModulePass
 
@@ -17,201 +16,30 @@ from xdsl.rewriter import Rewriter
 from xdsl.ir import MLContext, Operation, SSAValue, Block, Region, OpResult
 from xdsl.irdl import Attribute
 from xdsl.dialects import builtin, mpi, memref, arith, scf, func
-from xdsl.dialects.experimental import stencil
+from xdsl.dialects.experimental import stencil, dmp
+
+from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
 
 _T = TypeVar("_T", bound=Attribute)
 
 
 @dataclass
-class HaloExchangeDef:
-    """
-    This declares a region to be "halo-exchanged".
-    The semantics define that the region specified by offset and size
-    is the *received part*. To get the section that should be sent,
-    use the source_area() method to get the source area.
-
-     - offset gives the coordinates from the origin of the stencil field.
-     - size gives the size of the buffer to be exchanged.
-     - source_offset gives a translation (n-d offset) where the data should be
-       read from that is exchanged with the other node.
-     - neighbor gives the offset in rank to the node this data is to be
-       exchanged with
-
-    Example:
-
-        offset = [4, 0]
-        size   = [10, 1]
-        source_offset = [0, 1]
-        neighbor = -1
-
-    To visualize:
-    0   4         14
-        xxxxxxxxxx    0
-        oooooooooo    1
-
-    Where `x` signifies the area that should be received,
-    and `o` the area that should be read from.
-
-    This data will be exchanged with the node of rank (my_rank -1)
-    """
-
-    offset: tuple[int, ...]
-    size: tuple[int, ...]
-    source_offset: tuple[int, ...]
-    neighbor: int
-
-    @property
-    def elem_count(self) -> int:
-        return prod(self.size)
-
-    @property
-    def dim(self) -> int:
-        return len(self.offset)
-
-    def source_area(self) -> "HaloExchangeDef":
-        """
-        Since a HaloExchangeDef by default specifies the area to receive into,
-        this method returns the area that should be read from.
-        """
-        # we set source_offset to all zeor, so that repeated calls to source_area never return the dest area
-        return HaloExchangeDef(
-            offset=tuple(
-                val + offs for val, offs in zip(self.offset, self.source_offset)
-            ),
-            size=self.size,
-            source_offset=tuple(0 for _ in range(len(self.source_offset))),
-            neighbor=self.neighbor,
-        )
-
-
-class DimsHelper:
-    """
-    Helper for getting various dimensions of an n-dimensional data array
-    assuming we know outer dims, and halo.
-
-    On the terminology used:
-
-    In each dimension, we are given four points. we abbreviate them in
-    annotations to an, bn, cn, dn, with n being the dimension. In 2d, these
-    create the following pattern, higher dimensional examples can
-    be derived from this:
-
-    a0 b0          c0 d0
-    +--+-----------+--+ a1
-    |  |           |  |
-    +--+-----------+--+ b1
-    |  |           |  |
-    |  |           |  |
-    |  |           |  |
-    |  |           |  |
-    +--+-----------+--+ c1
-    |  |           |  |
-    +--+-----------+--+ d1
-
-    We can now name these points:
-
-         - a: buffer_start
-         - b: core_start
-         - c: core_end
-         - d: buffer_end
-
-    This class provides easy getters for these four.
-
-    We can also define some common sizes on this object:
-
-        - buff_size(n) = dn - an
-        - core_size(n) = cn - bn
-        - halo_size(n, start) = bn - an
-        - halo_size(n, end  ) = dn - cn
-    """
-
-    dims: int
-    buff_lb: tuple[int, ...]
-    buff_ub: tuple[int, ...]
-    core_lb: tuple[int, ...]
-    core_ub: tuple[int, ...]
-
-    DIM_X: ClassVar[int] = 0
-    DIM_Y: ClassVar[int] = 1
-    DIM_Z: ClassVar[int] = 2
-
-    def __init__(self, op: stencil.HaloSwapOp):
-        assert (
-            op.buff_lb is not None
-        ), "HaloSwapOp must be lowered after shape inference!"
-        assert (
-            op.buff_ub is not None
-        ), "HaloSwapOp must be lowered after shape inference!"
-        assert (
-            op.core_lb is not None
-        ), "HaloSwapOp must be lowered after shape inference!"
-        assert (
-            op.core_ub is not None
-        ), "HaloSwapOp must be lowered after shape inference!"
-
-        # translate everything to "memref" coordinates
-        buff_lb = (op.buff_lb - op.buff_lb).as_tuple()
-        buff_ub = (op.buff_ub - op.buff_lb).as_tuple()
-        core_lb = (op.core_lb - op.buff_lb).as_tuple()
-        core_ub = (op.core_ub - op.buff_lb).as_tuple()
-
-        assert (
-            len(buff_lb) == len(buff_ub) == len(core_lb) == len(core_ub)
-        ), "Expected all args to be of the same length!"
-
-        self.dims = len(buff_lb)
-        self.buff_lb = buff_lb
-        self.buff_ub = buff_ub
-        self.core_lb = core_lb
-        self.core_ub = core_ub
-
-    # Helpers for specific positions:
-
-    def buffer_start(self, dim: int):
-        assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.buff_lb[dim]
-
-    def core_start(self, dim: int):
-        assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.core_lb[dim]
-
-    def buffer_end(self, dim: int):
-        assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.core_ub[dim]
-
-    def core_end(self, dim: int):
-        assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.buff_ub[dim]
-
-    # Helpers for specific sizes:
-
-    def buff_size(self, dim: int):
-        assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.buff_ub[dim] - self.buff_lb[dim]
-
-    def core_size(self, dim: int):
-        assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.core_ub[dim] - self.core_lb[dim]
-
-    def halo_size(self, dim: int, at_end: bool = False):
-        assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        if at_end:
-            return self.buff_ub[dim] - self.core_ub[dim]
-        return self.core_lb[dim] - self.buff_lb[dim]
-
-
-@dataclass
 class DomainDecompositionStrategy(ABC):
+    def __init__(self, _: list[int]):
+        pass
+
     @abstractmethod
-    def calc_resize(self, shape: tuple[int]) -> tuple[int]:
+    def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         raise NotImplementedError("SlicingStrategy must implement calc_resize!")
 
     @abstractmethod
-    def halo_exchange_defs(self, dims: DimsHelper) -> Iterable[HaloExchangeDef]:
+    def halo_exchange_defs(
+        self, dims: dmp.HaloShapeInformation
+    ) -> Iterable[dmp.HaloExchangeDecl]:
         raise NotImplementedError("SlicingStrategy must implement halo_exchange_defs!")
 
     @abstractmethod
-    def comm_count(self) -> int:
+    def comm_layout(self) -> dmp.NodeGrid:
         raise NotImplementedError("SlicingStrategy must implement comm_count!")
 
 
@@ -219,11 +47,16 @@ class DomainDecompositionStrategy(ABC):
 class HorizontalSlices2D(DomainDecompositionStrategy):
     slices: int
 
+    def __init__(self, slices: list[int]):
+        super().__init__(slices)
+        assert slices
+        self.slices = slices[0]
+
     def __post_init__(self):
         assert self.slices > 1, "must slice into at least two pieces!"
 
-    def comm_count(self) -> int:
-        return self.slices
+    def comm_layout(self) -> dmp.NodeGrid:
+        return dmp.NodeGrid([self.slices])
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         # slice on the y-axis
@@ -234,39 +67,138 @@ class HorizontalSlices2D(DomainDecompositionStrategy):
 
         return shape[0], shape[1] // self.slices
 
-    def halo_exchange_defs(self, dims: DimsHelper) -> Iterable[HaloExchangeDef]:
+    def halo_exchange_defs(
+        self, dims: dmp.HaloShapeInformation
+    ) -> Iterable[dmp.HaloExchangeDecl]:
         # upper halo exchange:
-        yield HaloExchangeDef(
+        yield dmp.HaloExchangeDecl(
             offset=(
-                dims.core_start(dims.DIM_X),
-                dims.buffer_start(dims.DIM_Y),
+                dims.core_start(dmp.DIM_X),
+                dims.buffer_start(dmp.DIM_Y),
             ),
             size=(
-                dims.core_size(dims.DIM_X),
-                dims.halo_size(dims.DIM_Y),
+                dims.core_size(dmp.DIM_X),
+                dims.halo_size(dmp.DIM_Y),
             ),
             source_offset=(
                 0,
-                dims.halo_size(dims.DIM_Y),
+                dims.halo_size(dmp.DIM_Y),
             ),
-            neighbor=-1,
+            neighbor=[-1],
         )
         # lower halo exchange:
-        yield HaloExchangeDef(
+        yield dmp.HaloExchangeDecl(
             offset=(
-                dims.core_start(dims.DIM_X),
-                dims.core_end(dims.DIM_Y),
+                dims.core_start(dmp.DIM_X),
+                dims.core_end(dmp.DIM_Y),
             ),
             size=(
-                dims.core_size(dims.DIM_X),
-                dims.halo_size(dims.DIM_Y),
+                dims.core_size(dmp.DIM_X),
+                dims.halo_size(dmp.DIM_Y),
             ),
             source_offset=(
                 0,
-                -dims.halo_size(dims.DIM_Y),
+                -dims.halo_size(dmp.DIM_Y),
             ),
-            neighbor=1,
+            neighbor=[1],
         )
+
+
+@dataclass
+class GridSlice2d(DomainDecompositionStrategy):
+    """
+    Slice a 2d domain into a grid of nodes.
+    """
+
+    topology: tuple[int, int]
+
+    diagonals: bool = False
+
+    def __post_init__(self):
+        assert len(self.topology) == 2, "GridSlice2d requires a 2d domain"
+
+    def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
+        assert len(shape) == 2, "GridSlice2d requires a 2d domain"
+        for size, node_count in zip(shape, self.topology):
+            assert (
+                size % node_count == 0
+            ), "GridSlice2d requires domain be neatly divisible by shape"
+        return tuple(
+            size // node_count for size, node_count in zip(shape, self.topology)
+        )
+
+    def halo_exchange_defs(
+        self, dims: dmp.HaloShapeInformation
+    ) -> Iterable[dmp.HaloExchangeDecl]:
+        # exchange to node "above" us on Y axis direction
+        yield dmp.HaloExchangeDecl(
+            offset=(
+                dims.buffer_start(dmp.DIM_X),
+                dims.buffer_start(dmp.DIM_Y),
+            ),
+            size=(
+                dims.buff_size(dmp.DIM_X),
+                dims.halo_size(dmp.DIM_Y),
+            ),
+            source_offset=(
+                0,
+                dims.halo_size(dmp.DIM_Y),
+            ),
+            neighbor=(0, -1),
+        )
+        # exchange to node "below" us on Y axis direction
+        yield dmp.HaloExchangeDecl(
+            offset=(
+                dims.buffer_start(dmp.DIM_X),
+                dims.core_end(dmp.DIM_X),
+            ),
+            size=(
+                dims.buff_size(dmp.DIM_X),
+                dims.halo_size(dmp.DIM_Y, at_end=True),
+            ),
+            source_offset=(
+                0,
+                -dims.halo_size(dmp.DIM_Y, at_end=True),
+            ),
+            neighbor=(0, 1),
+        )
+        # exchange to node "left" of us on X axis
+        yield dmp.HaloExchangeDecl(
+            offset=(
+                dims.buffer_start(dmp.DIM_X),
+                dims.buffer_start(dmp.DIM_Y),
+            ),
+            size=(
+                dims.halo_size(dmp.DIM_X),
+                dims.buff_size(dmp.DIM_Y),
+            ),
+            source_offset=(
+                dims.halo_size(dmp.DIM_X),
+                0,
+            ),
+            neighbor=(-1, 0),
+        )
+        # exchange to node "right" of us on X axis
+        yield dmp.HaloExchangeDecl(
+            offset=(
+                dims.core_end(dmp.DIM_X),
+                dims.buffer_start(dmp.DIM_Y),
+            ),
+            size=(
+                dims.halo_size(dmp.DIM_X, at_end=True),
+                dims.buff_size(dmp.DIM_Y),
+            ),
+            source_offset=(
+                -dims.halo_size(dmp.DIM_X),
+                0,
+            ),
+            neighbor=(1, 0),
+        )
+        # TOOD: add diagonals
+        assert not self.diagonals
+
+    def comm_layout(self) -> dmp.NodeGrid:
+        return dmp.NodeGrid(self.topology)
 
 
 @dataclass
@@ -276,10 +208,10 @@ class ChangeStoreOpSizes(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
         assert all(
-            integer_attr.value.data == 0 for integer_attr in op.lb.array.data
+            integer_attr.data == 0 for integer_attr in op.lb.array.data
         ), "lb must be 0"
         shape: tuple[int, ...] = tuple(
-            (integer_attr.value.data for integer_attr in op.ub.array.data)
+            (integer_attr.data for integer_attr in op.ub.array.data)
         )
         new_shape = self.strategy.calc_resize(shape)
         op.ub = stencil.IndexAttr.get(*new_shape)
@@ -288,45 +220,38 @@ class ChangeStoreOpSizes(RewritePattern):
 @dataclass
 class AddHaloExchangeOps(RewritePattern):
     """
-    This rewrite adds a `stencil.halo_exchange` before each `stencil.load` op
+    This rewrite adds a `stencil.halo_exchange` after each `stencil.load` op
     """
 
     strategy: DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
-        swap_op = stencil.HaloSwapOp.get(op.res)
+        swap_op = dmp.HaloSwapOp.get(op.res)
+        swap_op.nodes = self.strategy.comm_layout()
         rewriter.insert_op_after_matched_op(swap_op)
-
-
-class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
-    name = "stencil-to-local-2d-horizontal"
-
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        strategy = HorizontalSlices2D(2)
-
-        gpra = GreedyRewritePatternApplier(
-            [ChangeStoreOpSizes(strategy), AddHaloExchangeOps(strategy)]
-        )
-
-        PatternRewriteWalker(gpra, apply_recursively=False).rewrite_module(op)
 
 
 @dataclass
 class LowerHaloExchangeToMpi(RewritePattern):
-    strategy: DomainDecompositionStrategy
+    init: bool
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.HaloSwapOp, rewriter: PatternRewriter, /):
-        exchanges = list(self.strategy.halo_exchange_defs(DimsHelper(op)))
+    def match_and_rewrite(self, op: dmp.HaloSwapOp, rewriter: PatternRewriter, /):
+        assert op.swaps is not None
+        assert op.nodes is not None
+        exchanges = list(op.swaps)
+
         assert isa(op.input_stencil.typ, memref.MemRefType[Attribute])
+
         rewriter.replace_matched_op(
             list(
                 generate_mpi_calls_for(
                     op.input_stencil,
                     exchanges,
                     op.input_stencil.typ.element_type,
-                    self.strategy,
+                    op.nodes,
+                    emit_init=self.init,
                 )
             ),
             [],
@@ -335,12 +260,14 @@ class LowerHaloExchangeToMpi(RewritePattern):
 
 def generate_mpi_calls_for(
     source: SSAValue,
-    exchanges: list[HaloExchangeDef],
+    exchanges: list[dmp.HaloExchangeDecl],
     dtype: Attribute,
-    strat: DomainDecompositionStrategy,
+    grid: dmp.NodeGrid,
+    emit_init: bool = True,
 ) -> Iterable[Operation]:
     # call mpi init (this will be hoisted to function level)
-    init = mpi.Init()
+    if emit_init:
+        yield mpi.Init()
     # allocate request array
     # we need two request objects per exchange
     # one for the send, one for the recv
@@ -352,12 +279,13 @@ def generate_mpi_calls_for(
     # TODO: what is tag?
     tag = arith.Constant.from_int_and_width(0, builtin.i32)
 
-    yield from (init, req_cnt, reqs, rank, tag)
+    yield from (req_cnt, reqs, rank, tag)
 
-    recv_buffers: list[tuple[HaloExchangeDef, memref.Alloc, SSAValue]] = []
+    recv_buffers: list[tuple[dmp.HaloExchangeDecl, memref.Alloc, SSAValue]] = []
 
     for i, ex in enumerate(exchanges):
-        neighbor_offset = arith.Constant.from_int_and_width(ex.neighbor, builtin.i32)
+        # TODO: handle multi-d grids
+        neighbor_offset = arith.Constant.from_int_and_width(ex.neighbor[0], builtin.i32)
         neighbor_rank = arith.Addi(rank, neighbor_offset)
         yield from (neighbor_offset, neighbor_rank)
 
@@ -367,10 +295,11 @@ def generate_mpi_calls_for(
         yield from (alloc_outbound, alloc_inbound)
 
         # boundary condition:
+        # TODO: handle non-1d layouts
         bound = arith.Constant.from_int_and_width(
-            0 if ex.neighbor < 0 else strat.comm_count(), builtin.i32
+            0 if ex.neighbor[0] < 0 else grid.as_tuple()[0], builtin.i32
         )
-        comparison = "slt" if ex.neighbor < 0 else "sgt"
+        comparison = "slt" if ex.neighbor[0] < 0 else "sgt"
 
         cond_val = arith.Cmpi.get(neighbor_rank, bound, comparison)
         yield from (bound, cond_val)
@@ -460,7 +389,7 @@ def generate_mpi_calls_for(
 
 
 def generate_memcpy(
-    source: SSAValue, ex: HaloExchangeDef, dest: SSAValue, reverse: bool = False
+    source: SSAValue, ex: dmp.HaloExchangeDecl, dest: SSAValue, reverse: bool = False
 ) -> list[Operation]:
     """
     This function generates a memcpy routine to copy over the parts
@@ -507,7 +436,7 @@ def generate_memcpy(
         """
         Generates last loop unrolled (not using scf.for)
         """
-        dest_idx = arith.Muli.get(i, x_len)
+        dest_idx = arith.Muli(i, x_len)
         y = arith.Addi(i, y0)
         yield from (dest_idx, y)
 
@@ -526,7 +455,7 @@ def generate_memcpy(
         """
         Generates last loop as scf.for
         """
-        dest_idx = arith.Muli.get(i, x_len)
+        dest_idx = arith.Muli(i, x_len)
         y = arith.Addi(i, y0)
         yield from (dest_idx, y)
 
@@ -741,3 +670,124 @@ def collect_args_recursive(op: Operation) -> Iterable[Operation]:
         assert isinstance(arg, OpResult)
         yield from collect_args_recursive(arg.owner)
     yield op
+
+
+@dataclass
+class DmpSwapShapeInference:
+    """
+    Not a rewrite pattern, as it's a bit more involved.
+
+    This is applied after stencil shape inference has run. It will find the
+    HaloSwapOps again, and use the results of the shape inference pass
+    to attach the swap declarations.
+    """
+
+    strategy: DomainDecompositionStrategy
+    rewriter: Rewriter = field(default_factory=Rewriter)
+
+    def match_and_rewrite(self, op: dmp.HaloSwapOp):
+        core_lb: stencil.IndexAttr | None = None
+        core_ub: stencil.IndexAttr | None = None
+
+        for use in op.input_stencil.uses:
+            if not isinstance(use.operation, stencil.ApplyOp):
+                continue
+            assert use.operation.res
+            res_typ = cast(stencil.TempType[Attribute], use.operation.res[0].typ)
+            assert isinstance(res_typ.bounds, stencil.StencilBoundsAttr)
+            core_lb = res_typ.bounds.lb
+            core_ub = res_typ.bounds.ub
+            break
+
+        # this shouldn't have changed since the op was created!
+        temp = op.input_stencil.typ
+        assert isa(temp, stencil.TempType[Attribute])
+        assert isinstance(temp.bounds, stencil.StencilBoundsAttr)
+        buff_lb = temp.bounds.lb
+        buff_ub = temp.bounds.ub
+
+        # fun fact: pyright does not understand this:
+        # assert None not in (core_lb, core_ub, buff_lb, buff_ub)
+        assert core_lb is not None
+        assert core_ub is not None
+        assert buff_lb is not None
+        assert buff_ub is not None
+
+        op.swaps = builtin.ArrayAttr(
+            self.strategy.halo_exchange_defs(
+                dmp.HaloShapeInformation.from_index_attrs(
+                    buff_lb=buff_lb,
+                    core_lb=core_lb,
+                    buff_ub=buff_ub,
+                    core_ub=core_ub,
+                )
+            )
+        )
+
+    def apply(self, module: builtin.ModuleOp):
+        for op in module.walk():
+            if isinstance(op, dmp.HaloSwapOp):
+                self.match_and_rewrite(op)
+
+
+@dataclass
+class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
+    """
+    Decompose a stencil to apply to a local domain.
+
+    This pass *replaces* stencil shape inference in a
+    pass pipeline!
+    """
+
+    STRATEGIES: ClassVar[dict[str, type[DomainDecompositionStrategy]]] = {
+        "2d-horizontal": HorizontalSlices2D,
+        "2d-grid": GridSlice2d,
+    }
+
+    name = "dmp-decompose-2d"
+
+    strategy: str
+
+    slices: list[int]
+    """
+    Number of slices to decompose the input into
+    """
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        if self.strategy not in self.STRATEGIES:
+            raise ValueError(f"Unknown strategy: {self.strategy}")
+        strategy = self.STRATEGIES[self.strategy](self.slices)
+
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    ChangeStoreOpSizes(strategy),
+                    AddHaloExchangeOps(strategy),
+                ]
+            ),
+            apply_recursively=False,
+        ).rewrite_module(op)
+
+        # run the shape inference pass
+        StencilShapeInferencePass().apply(ctx, op)
+
+        DmpSwapShapeInference(strategy).apply(op)
+
+
+@dataclass
+class LowerHaloToMPI(ModulePass):
+    name = "dmp-to-mpi"
+
+    mpi_init: bool = True
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    LowerHaloExchangeToMpi(
+                        self.mpi_init,
+                    ),
+                ]
+            )
+        ).rewrite_module(op)
+        MpiLoopInvariantCodeMotion().rewrite_module(op)

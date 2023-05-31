@@ -1,14 +1,18 @@
 from __future__ import annotations
+from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from xdsl.dialects.builtin import IntAttr, StringAttr, i32
+from xdsl.dialects.builtin import IndexType, IntAttr, IntegerType, StringAttr, i32
+from xdsl.dialects.test import TestType
 
+from xdsl.utils.test_value import TestSSAValue
 from xdsl.ir import Attribute, OpResult, Region
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    ConstraintVar,
     Operand,
     OptOpAttr,
     OptOpResult,
@@ -27,7 +31,11 @@ from xdsl.irdl import (
     OpAttr,
     IRDLOperation,
 )
-from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
+from xdsl.utils.exceptions import (
+    DiagnosticException,
+    PyRDLOpDefinitionError,
+    VerifyException,
+)
 
 ################################################################################
 #                              IRDL definition                                 #
@@ -104,6 +112,76 @@ def test_attr_verify():
     with pytest.raises(VerifyException) as e:
         op.verify()
     assert e.value.args[0] == "#int<1> should be of base attribute string"
+
+
+@irdl_op_definition
+class ConstraintVarOp(IRDLOperation):
+    name = "test.constraint_var_op"
+
+    T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
+
+    operand: Annotated[Operand, T]
+    result: Annotated[OpResult, T]
+    attribute: OpAttr[T]
+
+
+def test_constraint_var():
+    i32_operand = TestSSAValue(i32)
+    index_operand = TestSSAValue(IndexType())
+    op = ConstraintVarOp.create(
+        operands=[i32_operand], result_types=[i32], attributes={"attribute": i32}
+    )
+    op.verify()
+
+    op2 = ConstraintVarOp.create(
+        operands=[index_operand],
+        result_types=[IndexType()],
+        attributes={"attribute": IndexType()},
+    )
+    op2.verify()
+
+
+def test_constraint_var_fail_non_equal():
+    """Check that all uses of a constraint variable are of the same attribute."""
+    i32_operand = TestSSAValue(i32)
+    index_operand = TestSSAValue(IndexType())
+
+    # Fail because of operand
+    op = ConstraintVarOp.create(
+        operands=[index_operand], result_types=[i32], attributes={"attribute": i32}
+    )
+    with pytest.raises(DiagnosticException):
+        op.verify()
+
+    # Fail because of result
+    op2 = ConstraintVarOp.create(
+        operands=[i32_operand],
+        result_types=[IndexType()],
+        attributes={"attribute": i32},
+    )
+    with pytest.raises(DiagnosticException):
+        op2.verify()
+
+    # Fail because of attribute
+    op3 = ConstraintVarOp.create(
+        operands=[i32_operand],
+        result_types=[i32],
+        attributes={"attribute": IndexType()},
+    )
+    with pytest.raises(DiagnosticException):
+        op3.verify()
+
+
+def test_constraint_var_fail_not_satisfy_constraint():
+    """Check that all uses of a constraint variable are satisfying the constraint."""
+    test_operand = TestSSAValue(TestType("foo"))
+    op = ConstraintVarOp.create(
+        operands=[test_operand],
+        result_types=[TestType("foo")],
+        attributes={"attribute": TestType("foo")},
+    )
+    with pytest.raises(DiagnosticException):
+        op.verify()
 
 
 ################################################################################
@@ -232,3 +310,68 @@ def test_attribute_setters():
 
     op.opt_attr = None
     assert op.opt_attr is None
+
+
+################################################################################
+#                             Generic operation                                #
+################################################################################
+
+FooType = Annotated[TestType, TestType("foo")]
+BarType = Annotated[TestType, TestType("bar")]
+
+
+_Attr = TypeVar("_Attr", bound=StringAttr | IntAttr)
+_Operand = TypeVar("_Operand", bound=FooType | BarType)
+_Result = TypeVar("_Result", bound=FooType | BarType)
+
+
+class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
+    name = "test.string_or_int_generic"
+
+    attr: OpAttr[_Attr]
+    operand: Annotated[Operand, _Operand]
+    result: Annotated[OpResult, _Result]
+
+
+@irdl_op_definition
+class StringFooOp(GenericOp[StringAttr, FooType, FooType]):
+    name = "test.string_specialized"
+
+
+def test_generic_op():
+    """Test generic operation."""
+    FooOperand = TestSSAValue(TestType("foo"))
+    BarOperand = TestSSAValue(TestType("bar"))
+    FooResultType = TestType("foo")
+    BarResultType = TestType("bar")
+
+    op = StringFooOp(
+        attributes={"attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    op.verify()
+
+    op_attr_fail = StringFooOp(
+        attributes={"attr": IntAttr(1)},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_attr_fail.verify()
+
+    op_operand_fail = StringFooOp(
+        attributes={"attr": StringAttr("test")},
+        operands=[BarOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_operand_fail.verify()
+
+    op_result_fail = StringFooOp(
+        attributes={"attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[BarResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_result_fail.verify()

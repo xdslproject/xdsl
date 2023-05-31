@@ -1,4 +1,5 @@
-from xdsl.riscv_asm_writer import riscv_code
+from io import StringIO
+from xdsl.builder import Builder
 from xdsl.utils.test_value import TestSSAValue
 from xdsl.dialects import riscv
 
@@ -80,6 +81,12 @@ def test_csr_op():
     ).verify()
 
 
+def riscv_code(module: ModuleOp) -> str:
+    stream = StringIO()
+    riscv.print_assembly(module, stream)
+    return stream.getvalue()
+
+
 def test_comment_op():
     comment_op = riscv.CommentOp("my comment")
 
@@ -87,6 +94,42 @@ def test_comment_op():
 
     code = riscv_code(ModuleOp([comment_op]))
     assert code == "    # my comment\n"
+
+
+def test_label_op_without_comment():
+    label_str = "mylabel"
+    label_op = riscv.LabelOp(label_str)
+
+    assert label_op.label.data == label_str
+
+    code = riscv_code(ModuleOp([label_op]))
+    assert code == f"{label_str}:\n"
+
+
+def test_label_op_with_comment():
+    label_str = "mylabel"
+    label_op = riscv.LabelOp(f"{label_str}", comment="my label")
+
+    assert label_op.label.data == label_str
+
+    code = riscv_code(ModuleOp([label_op]))
+    assert code == f"{label_str}:                                         # my label\n"
+
+
+def test_label_op_with_region():
+    @Builder.implicit_region
+    def label_region():
+        a1_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+        a2_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
+        riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
+
+    label_str = "mylabel"
+    label_op = riscv.LabelOp(f"{label_str}", region=label_region)
+
+    assert label_op.label.data == label_str
+
+    code = riscv_code(ModuleOp([label_op]))
+    assert code == f"{label_str}:\n    add a0, a1, a2\n"
 
 
 def test_return_op():

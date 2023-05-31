@@ -39,6 +39,7 @@ def test_operation_deletion():
 
     expected = """\
 "builtin.module"() ({
+^0:
 }) : () -> ()"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
@@ -145,6 +146,7 @@ def test_inline_block_at_end():
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = true} : () -> i1
   "scf.if"(%0) ({
+  ^0:
   }) : (i1) -> ()
   %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
 }) : () -> ()
@@ -178,6 +180,7 @@ def test_inline_block_before():
   %0 = "arith.constant"() {"value" = true} : () -> i1
   %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   "scf.if"(%0) ({
+  ^0:
   }) : (i1) -> ()
 }) : () -> ()
 """
@@ -209,6 +212,7 @@ def test_inline_block_after():
   %0 = "arith.constant"() {"value" = true} : () -> i1
   %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   "scf.if"(%0) ({
+  ^0:
   }) : (i1) -> ()
 }) : () -> ()
 """
@@ -256,9 +260,8 @@ def test_insert_block2():
 
     expected = """\
 "builtin.module"() ({
-^0:
   %0 = "arith.constant"() {"value" = true} : () -> i1
-^1:
+^0:
 }) : () -> ()
 """
 
@@ -302,9 +305,8 @@ def test_insert_block_after():
 
     expected = """\
 "builtin.module"() ({
-^0:
   %0 = "arith.constant"() {"value" = true} : () -> i1
-^1:
+^0:
 }) : () -> ()
 """
 

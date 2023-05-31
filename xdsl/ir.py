@@ -581,7 +581,7 @@ class Operation(IRNode):
         return None
 
     def parent_region(self) -> Region | None:
-        if p := self.parent_block():
+        if (p := self.parent_block()) is not None:
             return p.parent
         return None
 
@@ -915,15 +915,19 @@ class Operation(IRNode):
             or self.attributes != other.attributes
         ):
             return False
-        if self.parent and other.parent and context.get(self.parent) != other.parent:
+        if (
+            self.parent is not None
+            and other.parent is not None
+            and context.get(self.parent) != other.parent
+        ):
             return False
         if not all(
-            context.get(operand) == other_operand
+            context.get(operand, operand) == other_operand
             for operand, other_operand in zip(self.operands, other.operands)
         ):
             return False
         if not all(
-            context.get(successor) == other_successor
+            context.get(successor, successor) == other_successor
             for successor, other_successor in zip(self.successors, other.successors)
         ):
             return False
@@ -1003,6 +1007,10 @@ class BlockOps:
             result += 1
         return result
 
+    def __bool__(self) -> bool:
+        """Returns `True` if there are operations in this block."""
+        return not self.block.is_empty
+
     @property
     def first(self) -> Operation | None:
         """
@@ -1016,13 +1024,6 @@ class BlockOps:
         Last operation in the block, None if block is empty.
         """
         return self.block.last_op
-
-    @property
-    def is_empty(self) -> bool:
-        """
-        True if block is empty.
-        """
-        return self.block.is_empty
 
 
 @dataclass(init=False)
@@ -1382,7 +1383,11 @@ class Region(IRNode):
         return self.parent
 
     def parent_region(self) -> Region | None:
-        return self.parent.parent.parent if self.parent and self.parent.parent else None
+        return (
+            self.parent.parent.parent
+            if self.parent is not None and self.parent.parent is not None
+            else None
+        )
 
     def __repr__(self) -> str:
         return f"Region(num_blocks={len(self.blocks)})"

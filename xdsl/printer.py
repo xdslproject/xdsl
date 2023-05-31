@@ -203,54 +203,36 @@ class Printer:
         self._next_valid_block_id += 1
         return self._next_valid_block_id - 1
 
-    def _print_result_value(self, op: Operation, idx: int) -> None:
-        val = op.results[idx]
-        self.print("%")
-        if val in self._ssa_values:
-            name = self._ssa_values[val]
-        elif val.name_hint:
-            curr_ind = self._ssa_names.get(val.name_hint, 0)
-            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{val.name_hint}{suffix}"
-            self._ssa_values[val] = name
-            self._ssa_names[val.name_hint] = curr_ind + 1
-        else:
-            name = self._get_new_valid_name_id()
-            self._ssa_values[val] = name
-        self.print("%s" % name)
-
     def _print_results(self, op: Operation) -> None:
         results = op.results
         # No results
         if len(results) == 0:
             return
 
-        # One result
-        if len(results) == 1:
-            self._print_result_value(op, 0)
-            self.print(" = ")
-            return
-
         # Multiple results
-        self._print_result_value(op, 0)
-        for idx in range(1, len(results)):
-            self.print(", ")
-            self._print_result_value(op, idx)
+        self.print_list(op.results, self.print)
         self.print(" = ")
 
     def print_ssa_value(self, value: SSAValue) -> None:
-        if ssa_val := self._ssa_values.get(value):
-            self.print(f"%{ssa_val}")
+        """
+        Print an SSA value in the printer. This assigns a name to the value if the value
+        does not have one in the current printing context.
+        If the value has a name hint, it will use it as a prefix, and otherwise assign
+        a number as the name. Numbers are assigned in order.
+        """
+        if value in self._ssa_values:
+            name = self._ssa_values[value]
+        elif value.name_hint:
+            curr_ind = self._ssa_names.get(value.name_hint, 0)
+            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+            name = f"{value.name_hint}{suffix}"
+            self._ssa_values[value] = name
+            self._ssa_names[value.name_hint] = curr_ind + 1
         else:
-            begin_pos = self._current_column
-            self.print("%<UNKNOWN>")
-            end_pos = self._current_column
-            self._add_message_on_next_line(
-                "ERROR: SSAValue is not part of the IR, are you sure all operations "
-                "are added before their uses?",
-                begin_pos,
-                end_pos,
-            )
+            name = self._get_new_valid_name_id()
+            self._ssa_values[value] = name
+
+        self.print(f"%{name}")
 
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
@@ -261,19 +243,21 @@ class Printer:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def print_block(self, block: Block, print_block_name: bool = True) -> None:
+    def print_block(self, block: Block, print_block_args: bool = True) -> None:
+        """
+        Print a block with syntax `(<caret-ident>`(` <block-args> `)`)? ops* )`
+        * If `print_block_args` is False, the label and arguments are not printed.
+        """
         if not isinstance(block, Block):
             raise TypeError("Expected a Block; got %s" % type(block).__name__)
 
-        print_block_args = len(block.args) > 0
-        if print_block_args or print_block_name:
+        if print_block_args:
             self._print_new_line()
             self.print_block_name(block)
-        if print_block_args:
-            self.print("(")
-            self.print_list(block.args, self._print_block_arg)
-            self.print(")")
-        if print_block_args or print_block_name:
+            if len(block.args) != 0:
+                self.print("(")
+                self.print_list(block.args, self.print_block_argument)
+                self.print(")")
             self.print(":")
 
         self._indent += 1
@@ -282,26 +266,44 @@ class Printer:
             self.print_op(op)
         self._indent -= 1
 
-    def _print_block_arg(self, arg: BlockArgument) -> None:
-        self.print("%")
-        if arg.name_hint and arg.name_hint not in self._ssa_values.values():
-            name = arg.name_hint
-            self._ssa_names[arg.name_hint] = self._ssa_names.get(arg.name_hint, 0) + 1
-        else:
-            name = self._get_new_valid_name_id()
-        self._ssa_values[arg] = name
-        self.print("%s : " % name)
-        self.print_attribute(arg.typ)
+    def print_block_argument(self, arg: BlockArgument, print_type: bool = True) -> None:
+        """
+        Print a block argument with its type, e.g. `%arg : i32`
+        Optionally, do not print the type.
+        """
+        self.print(arg)
+        if print_type:
+            self.print(" : ", arg.typ)
 
-    def print_region(self, region: Region) -> None:
+    def print_region(
+        self,
+        region: Region,
+        print_entry_block_args: bool = True,
+        print_empty_block: bool = True,
+    ) -> None:
+        """
+        Print a region with syntax `{ <block>* }`
+        * If `print_entry_block_args` is False, the arguments of the entry block
+          are not printed.
+        * If `print_empty_block` is False, empty entry blocks are not printed.
+        """
         if not isinstance(region, Region):
             raise TypeError("Expected a Region; got %s" % type(region).__name__)
 
-        print_block_name = len(region.blocks) != 1
-
+        # Empty region
         self.print("{")
-        for block in region.blocks:
-            self.print_block(block, print_block_name=print_block_name)
+        if len(region.blocks) == 0:
+            self._print_new_line()
+            self.print("}")
+            return
+
+        entry_block = region.blocks[0]
+        print_entry_block_args = (
+            bool(entry_block.args) and print_entry_block_args
+        ) or (not entry_block.ops and print_empty_block)
+        self.print_block(entry_block, print_block_args=print_entry_block_args)
+        for block in region.blocks[1:]:
+            self.print_block(block)
         self._print_new_line()
         self.print("}")
 

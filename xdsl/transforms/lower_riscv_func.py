@@ -87,17 +87,14 @@ class LowerRISCVFuncOp(RewritePattern):
             first_op = get_reg_op
             rewriter.erase_block_argument(last_arg)
 
-        rewriter.inline_block_after(op.func_body.block, op)
-        rewriter.replace_matched_op(riscv.LabelOp(op.func_name.data))
+        label_body = rewriter.move_region_contents_to_new_regions(op.func_body)
+
+        rewriter.replace_matched_op(riscv.LabelOp(op.func_name.data, region=label_body))
 
 
 class LowerRISCVFuncReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.ReturnOp, rewriter: PatternRewriter):
-        func_op = op.parent_op()
-        if func_op is not None:
-            assert isinstance(func_op, riscv_func.FuncOp)
-
         if op.value is not None:
             rewriter.insert_op_before_matched_op(
                 riscv.MVOp(op.value, rd=riscv.Registers.A0)
@@ -113,8 +110,9 @@ class LowerRISCVCallOp(RewritePattern):
             rewriter.insert_op_before_matched_op(
                 riscv.MVOp(arg, rd=riscv.Register(f"a{i}"))
             )
+
         ops: list[Operation] = [
-            riscv.JalOp(immediate=op.func_name.data, rd=riscv.Registers.RA),
+            riscv.JalOp(op.func_name.data),
         ]
 
         if op.result is not None:
@@ -131,8 +129,8 @@ class LowerRISCVFunc(ModulePass):
     name = "lower-riscv-func"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        PatternRewriteWalker(LowerSyscallOp()).rewrite_module(op)
         PatternRewriteWalker(LowerRISCVFuncReturnOp()).rewrite_module(op)
         PatternRewriteWalker(LowerRISCVFuncOp()).rewrite_module(op)
         PatternRewriteWalker(LowerRISCVCallOp()).rewrite_module(op)
+        PatternRewriteWalker(LowerSyscallOp()).rewrite_module(op)
         dce(op)

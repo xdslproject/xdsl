@@ -176,6 +176,19 @@
   // CHECK-NEXT: "riscv.ecall"() : () -> ()
   "riscv.ebreak"() : () -> ()
   // CHECK-NEXT: "riscv.ebreak"() : () -> ()
+  "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
+  // CHECK-NEXT: "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
+  "riscv.directive"() ({
+    %nested_li = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+  }) {"directive" = ".text"} : () -> ()
+  // CHECK-NEXT:  "riscv.directive"() ({
+  // CHECK-NEXT:    %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+  // CHECK-NEXT:  }) {"directive" = ".text"} : () -> ()
+
+  // Custom instruction
+  %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
+  // CHECK-NEXT:   %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
+
 
   // RISC-V extensions
   "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()

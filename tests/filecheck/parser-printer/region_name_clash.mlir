@@ -41,7 +41,9 @@
   // CHECK:      "test.op"() ({
   // CHECK-NEXT: ^{{.*}}(%{{.*}} : i1):
   // CHECK-NEXT:   "test.op"(%{{.*}}) ({
+  // CHECK-NEXT:   ^{{.*}}:
   // CHECK-NEXT:   }, {
+  // CHECK-NEXT:   ^{{.*}}:
   // CHECK-NEXT:   }) : (i1) -> ()
   // CHECK-NEXT:   "test.op"(%{{.*}}) : (i1) -> ()
   // CHECK-NEXT: }) : () -> ()
@@ -53,6 +55,7 @@
     "test.op"(%0) ({
       %1 = "test.op"() : () -> i32
     }, {
+    ^1:
     }) : (i1) -> ()
     %1 = "test.op"() : () -> i32
     "test.op"(%0) : (i1) -> ()
@@ -64,6 +67,7 @@
   // CHECK-NEXT:   "test.op"(%{{.*}}) ({
   // CHECK-NEXT:     %{{.*}} = "test.op"() : () -> i32
   // CHECK-NEXT:   }, {
+  // CHECK-NEXT:   ^{{.*}}:
   // CHECK-NEXT:   }) : (i1) -> ()
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
   // CHECK-NEXT:   "test.op"(%{{.*}}) : (i1) -> ()

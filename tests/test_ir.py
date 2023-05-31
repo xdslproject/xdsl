@@ -7,10 +7,12 @@ from xdsl.dialects.builtin import Builtin, IntegerType, i32, i64, IntegerAttr, M
 from xdsl.dialects.func import Func
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.scf import If
+from xdsl.dialects.test import TestOp
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import Parser
 from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_ops_accessor():
@@ -27,7 +29,7 @@ def test_ops_accessor():
     assert len(region.blocks[0].ops) == 3
 
     # Operation to subtract b from a
-    d = Subi.get(a, b)
+    d = Subi(a, b)
 
     assert d.results[0] != c.results[0]
 
@@ -51,7 +53,7 @@ def test_ops_accessor_II():
     assert len(region.blocks[0].ops) == 3
 
     # Operation to subtract b from a
-    d = Subi.get(a, b)
+    d = Subi(a, b)
 
     assert d.results[0] != c.results[0]
 
@@ -238,6 +240,22 @@ def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     assert lhs.is_structurally_equivalent(rhs) == expected_result
 
 
+def test_is_structurally_equivalent_free_operands():
+    val1 = TestSSAValue(i32)
+    val2 = TestSSAValue(i64)
+    op1 = TestOp.create(operands=[val1, val2])
+    op2 = TestOp.create(operands=[val1, val2])
+    assert op1.is_structurally_equivalent(op2)
+
+
+def test_is_structurally_equivalent_free_operands_fail():
+    val1 = TestSSAValue(i32)
+    val2 = TestSSAValue(i32)
+    op1 = TestOp.create(operands=[val1])
+    op2 = TestOp.create(operands=[val2])
+    assert not op1.is_structurally_equivalent(op2)
+
+
 def test_is_structurally_equivalent_incompatible_ir_nodes():
     program_func = """
 "builtin.module"() ({
@@ -395,10 +413,7 @@ def test_op_custom_verify_is_done_last():
     with pytest.raises(Exception) as e:
         b.verify()
     assert e.value.args[0] != "Custom Verification Check"
-    assert (
-        e.value.args[0]
-        == 'test.custom_verify_op operation does not verify\n\n"test.custom_verify_op"(%<UNKNOWN>) : (i32) -> ()\n\n'
-    )
+    assert "test.custom_verify_op operation does not verify" in e.value.args[0]
 
 
 def test_replace_operand():

@@ -4,7 +4,16 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import UnionType
-from typing import Callable, TypeVar, Union, get_args, get_origin, Iterable, Sequence
+from typing import (
+    Callable,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+    Iterable,
+    Sequence,
+    overload,
+)
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, Region, Block, BlockArgument, Attribute, SSAValue
@@ -327,7 +336,7 @@ class PatternRewriter:
         if op is self.current_operation:
             return self.inline_block_after_matched_op(block)
         if not self._can_modify_block(block) or (
-            op.parent and not self._can_modify_block(op.parent)
+            op.parent is not None and not self._can_modify_block(op.parent)
         ):
             raise Exception(
                 "Cannot move blocks that are not contained in the matched operation."
@@ -414,10 +423,27 @@ _RewritePatternT = TypeVar("_RewritePatternT", bound=RewritePattern)
 _OperationT = TypeVar("_OperationT", bound=Operation)
 
 
+@overload
+def op_type_rewrite_pattern(
+    func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
+) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
+    ...
+
+
+@overload
+def op_type_rewrite_pattern(
+    func: Callable[[_OperationT, PatternRewriter], None]
+) -> Callable[[RewritePattern, Operation, PatternRewriter], None]:
+    ...
+
+
 def op_type_rewrite_pattern(
     func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
     | Callable[[_OperationT, PatternRewriter], None]
-) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
+) -> (
+    Callable[[_RewritePatternT, Operation, PatternRewriter], None]
+    | Callable[[RewritePattern, Operation, PatternRewriter], None]
+):
     """
     This function is intended to be used as a decorator on a RewritePatter method.
     It uses type hints to match on a specific operation type before calling the decorated
