@@ -1359,6 +1359,12 @@ class Block(IRNode):
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
+    class Default:
+        """
+        A marker to be used as a default parameter to functions when a default region
+        should be constructed.
+        """
+
     blocks: list[Block] = field(default_factory=list)
     """Blocks contained in the region. The first block is the entry block."""
 

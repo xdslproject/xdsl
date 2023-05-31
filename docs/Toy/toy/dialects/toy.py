@@ -177,12 +177,19 @@ class FuncOp(IRDLOperation):
     sym_visibility: OptOpAttr[StringAttr]
 
     def __init__(
-        self, name: str, ftype: FunctionType, region: Region, /, private: bool = False
+        self,
+        name: str,
+        ftype: FunctionType,
+        region: Region | None = None,
+        /,
+        private: bool = False,
     ):
         attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(name),
             "function_type": ftype,
         }
+        if region is None:
+            region = Region(Block(arg_types=ftype.inputs))
         if private:
             attributes["sym_visibility"] = StringAttr("private")
 

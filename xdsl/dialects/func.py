@@ -46,7 +46,7 @@ class FuncOp(IRDLOperation):
         self,
         name: str,
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
-        region: Region,
+        region: Region | None,
         visibility: StringAttr | str | None = None,
     ):
         if isinstance(visibility, str):
@@ -54,6 +54,8 @@ class FuncOp(IRDLOperation):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
+        if region is None:
+            region = Region(Block(arg_types=function_type.inputs))
         attributes: dict[str, Attribute | None] = {
             "sym_name": StringAttr(name),
             "function_type": function_type,
@@ -199,7 +201,7 @@ class FuncOp(IRDLOperation):
         name: str,
         input_types: Sequence[Attribute],
         return_types: Sequence[Attribute],
-        region: Region,
+        region: Region | None = None,
         visibility: StringAttr | str | None = None,
     ) -> FuncOp:
         return FuncOp(
