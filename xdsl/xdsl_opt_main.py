@@ -40,6 +40,7 @@ from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
+from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
     ConvertStencilToLLMLIRPass,
 )
@@ -286,6 +287,7 @@ class xDSLOptMain:
         self.register_pass(DesymrefyPass)
         self.register_pass(DeadCodeElimination)
         self.register_pass(LowerSnitchPass)
+        self.register_pass(LowerSnitchRuntimePass)
         self.register_pass(RISCVRegisterAllocation)
         self.register_pass(LowerRISCVFunc)
         self.register_pass(LowerHaloToMPI)
