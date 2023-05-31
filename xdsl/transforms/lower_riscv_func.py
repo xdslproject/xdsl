@@ -3,6 +3,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext, OpResult, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriteWalker,
     op_type_rewrite_pattern,
     RewritePattern,
@@ -118,8 +119,14 @@ class LowerRISCVFunc(ModulePass):
     name = "lower-riscv-func"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        PatternRewriteWalker(LowerRISCVFuncReturnOp()).rewrite_module(op)
-        PatternRewriteWalker(LowerRISCVFuncOp()).rewrite_module(op)
-        PatternRewriteWalker(LowerRISCVCallOp()).rewrite_module(op)
-        PatternRewriteWalker(LowerSyscallOp()).rewrite_module(op)
         dce(op)
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    LowerRISCVFuncReturnOp(),
+                    LowerRISCVFuncOp(),
+                    LowerRISCVCallOp(),
+                    LowerSyscallOp(),
+                ]
+            )
+        ).rewrite_module(op)
