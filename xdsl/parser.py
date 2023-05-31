@@ -1851,14 +1851,7 @@ class Parser(ABC):
             # Set the block arguments in the context
             entry_block = Block(arg_types=arg_types)
             for block_arg, arg in zip(entry_block.args, arguments):
-                if arg.name.text[1:] in self.ssa_values:
-                    self.raise_error(
-                        f"block argument %{arg.name} is already defined", arg.name
-                    )
-                parsed_name = arg.name.text[1:]
-                self.ssa_values[parsed_name] = (block_arg,)
-                if SSAValue.is_valid_name(parsed_name):
-                    block_arg.name_hint = arg.name.text[1:]
+                self._register_ssa_definition(arg.name.text[1:], (block_arg,), arg.name)
 
             # Parse the entry block body
             self._parse_block_body(entry_block)
