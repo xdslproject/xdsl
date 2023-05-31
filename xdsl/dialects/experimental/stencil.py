@@ -150,6 +150,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
 class StencilType(
     Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute, builtin.ShapeType
 ):
+    name = "stencil.type"
     bounds: ParameterDef[StencilBoundsAttr | IntAttr]
     """
     Represents the bounds information of a stencil.field or stencil.temp.
