@@ -27,10 +27,22 @@ class Builder:
     Operations will be inserted in this block.
     """
 
-    insertion_point: Operation | None = field(default=None)
+    _insertion_point: Operation | None = field(default=None)
     """
     Operations will be inserted before this operation, or at the end of the block if None.
     """
+
+    @property
+    def insertion_point(self) -> Operation | None:
+        return self._insertion_point
+
+    @insertion_point.setter
+    def insertion_point(self, insertion_point: Operation | None):
+        if insertion_point is not None:
+            if insertion_point.parent is not self.block:
+                raise ValueError("Insertion point must be in the builder's `block`")
+
+        self._insertion_point = insertion_point
 
     def insert(self, op: OperationInvT) -> OperationInvT:
         """
