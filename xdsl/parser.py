@@ -2674,15 +2674,12 @@ class Parser(ABC):
                 func_type_pos,
             )
 
-        for idx, (arg, arg_type) in enumerate(zip(args, func_type.inputs)):
-            if arg_type != arg.typ:
-                self.raise_error(
-                    f"mismatch between operand types and operation signature for operand #{idx}. "
-                    f"Expected {arg_type} but got {arg.typ}.",
-                    func_type_pos,
-                )
+        operands = [
+            self.resolve_operand(operand, type)
+            for operand, type in zip(args, func_type.inputs)
+        ]
 
-        return args, succ, attrs, regions, func_type
+        return operands, succ, attrs, regions, func_type
 
     def _parse_optional_successor_list(self) -> list[Span]:
         self._synchronize_lexer_and_tokenizer()
@@ -2694,9 +2691,11 @@ class Parser(ABC):
         )
         return successors
 
-    def _parse_op_args_list(self) -> list[SSAValue]:
+    def _parse_op_args_list(self) -> list[UnresolvedOperand]:
         return self.parse_comma_separated_list(
-            self.Delimiter.PAREN, self.parse_operand, " in operation argument list"
+            self.Delimiter.PAREN,
+            self.parse_unresolved_operand,
+            " in operation argument list",
         )
 
     def parse_region_list(self) -> list[Region]:
