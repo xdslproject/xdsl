@@ -1836,8 +1836,7 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
     """
     An instruction with unspecified semantics, that can be printed during assembly
-    emission. Can be useful when prototyping or leveraging dynamic features in RISC-V
-    emulation.
+    emission.
 
     During assembly emission, the results are printed before the operands:
 
