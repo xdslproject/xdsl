@@ -731,21 +731,6 @@ class Parser(ABC):
             self.blocks[name] = (Block(), None)
         return self.blocks[name][0]
 
-    def _parse_ssa_definition(self) -> str:
-        """
-        Parse an SSA definition, with the format `%ident`. Returns the value name.
-        If a value with the same name is already in scope, return an error.
-        """
-        name_token = self._parse_token(
-            Token.Kind.PERCENT_IDENT, "Expected result SSA value!"
-        )
-        name = name_token.text[1:]
-        if name in self.ssa_values:
-            self.raise_error(
-                f"a value with name '{name}' is already defined", name_token.span
-            )
-        return name
-
     def _parse_optional_block_arg_list(self, block: Block):
         """
         Parse a block argument list, if present, and add them to the block.
@@ -758,19 +743,17 @@ class Parser(ABC):
 
         def parse_argument() -> None:
             """Parse a single block argument with its type."""
-            arg_name = self._parse_ssa_definition()
+            arg_name = self._parse_token(
+                Token.Kind.PERCENT_IDENT, "block argument expected"
+            ).span
             self.parse_punctuation(":")
             self._synchronize_lexer_and_tokenizer()
             arg_type = self.parse_attribute()
             self._synchronize_lexer_and_tokenizer()
 
-            # Insert the block argument in the block, and set its name.
+            # Insert the block argument in the block, and register it in the parser
             block_arg = block.insert_arg(arg_type, len(block.args))
-            if SSAValue.is_valid_name(arg_name):
-                block_arg.name_hint = arg_name
-
-            # Register the value name in the parser
-            self.ssa_values[arg_name] = (block_arg,)
+            self._register_ssa_definition(arg_name.text[1:], (block_arg,), arg_name)
 
         self.parse_comma_separated_list(self.Delimiter.PAREN, parse_argument)
         return block

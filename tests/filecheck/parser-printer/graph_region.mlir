@@ -22,6 +22,27 @@ builtin.module {
 
 // -----
 
+// A forward value defined by a block argument
+
+builtin.module {
+    "test.op"() ({
+        "test.op"(%0) : (i32) -> ()
+        ^bb0(%0: i32):
+        "test.op"() : () -> ()
+    }) : () -> ()
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   "test.op"() ({
+// CHECK-NEXT:     "test.op"(%0) : (i32) -> ()
+// CHECK-NEXT:   ^0(%0 : i32):
+// CHECK-NEXT:     "test.op"() : () -> ()
+// CHECK-NEXT:   }) : () -> ()
+// CHECK-NEXT: }
+
+
+// -----
+
 // A graph region that refers to a value that is not defined in the module.
 
 builtin.module {
