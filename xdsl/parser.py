@@ -462,6 +462,12 @@ class ForwardDeclaredValue(SSAValue):
     def owner(self) -> Operation | Block:
         assert False, "Forward declared values do not have an owner"
 
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
+    def __hash__(self) -> int:  # type: ignore
+        return id(self)
+
 
 @dataclass
 class UnresolvedOperand:
@@ -548,6 +554,7 @@ class Parser(ABC):
         self.ssa_values = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
+        self.forward_ssa_references = dict()
         self.allow_unregistered_dialect = allow_unregistered_dialect
 
     def resume_from(self, pos: Position):
@@ -1078,6 +1085,13 @@ class Parser(ABC):
         and checks that the type is consistent.
         """
         name = operand.operand_name
+
+        # If the indexed operand is already used as a forward reference, return it
+        if (
+            name in self.forward_ssa_references
+            and operand.index in self.forward_ssa_references[name]
+        ):
+            return self.forward_ssa_references[name][operand.index]
 
         # If the operand is not yet defined, create a forward reference
         if name not in self.ssa_values:
@@ -1665,13 +1679,40 @@ class Parser(ABC):
         res_idx = 0
         for res_span, res_size, _ in results:
             ssa_val_name = res_span.text[1:]  # Removing the leading '%'
+
+            # Check for duplicate SSA value names.
             if ssa_val_name in self.ssa_values:
                 self.raise_error(
                     f"SSA value %{ssa_val_name} is already defined", res_span
                 )
-            self.ssa_values[ssa_val_name] = tuple(
-                op.results[res_idx : res_idx + res_size]
-            )
+
+            # Register the SSA value name.
+            tuple_results = op.results[res_idx : res_idx + res_size]
+            self.ssa_values[ssa_val_name] = tuple(tuple_results)
+
+            # Check for forward references of this value
+            if ssa_val_name in self.forward_ssa_references:
+                index_references = self.forward_ssa_references[ssa_val_name]
+                if any(index >= res_size for index in index_references):
+                    self.raise_error(
+                        f"SSA value %{ssa_val_name} is referenced with an index "
+                        f"larger than its size",
+                        res_span,
+                    )
+                # Replace the forward references with the actual SSA value
+                for index, value in index_references.items():
+                    result = tuple_results[index]
+                    if value.typ != result.typ:
+                        result_name = f"%{ssa_val_name}"
+                        if res_size != 1:
+                            result_name = f"%{ssa_val_name}#{index}"
+                        self.raise_error(
+                            f"Result {result_name} is defined with "
+                            f"type {result.typ}, but used with type {value.typ}",
+                            res_span,
+                        )
+                    value.replace_by(result)
+
             res_idx += res_size
             # Carry over `ssa_val_name` for non-numeric names:
             if SSAValue.is_valid_name(ssa_val_name):

@@ -87,3 +87,15 @@ builtin.module {
 }
 
 // CHECK: mismatch between operand types and operation signature for operand #0. Expected !test.type<"bar"> but got !test.type<"foo2">.
+
+// -----
+
+// A forward declared operand that is used with an incorrect type
+
+builtin.module {
+  %1 = "test.op"(%0) : (!test.type<"bar">) -> !test.type<"bar">
+  %0 = "test.op"() : () -> !test.type<"foo">
+}
+
+// CHECK: Result %0 is defined with type !test.type<"foo">, but used with type !test.type<"bar">
+
