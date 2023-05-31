@@ -198,6 +198,16 @@ class FuncOp(IRDLOperation):
 
     @staticmethod
     def implicit_builder(name: str, ftype: FunctionType, /, private: bool = False):
+        """
+        Usage:
+
+        ``` python
+        add_type = FunctionType((i32, i32), (i32,))
+        with toy.FuncOp.implicitBuilder("add", add_type) as (lhs, rhs):
+            sum = arith.Addi(lhs, rhs).result
+            toy.ReturnOp(sum)
+        ```
+        """
         return Builder.op(
             lambda body: FuncOp(name, ftype, body, private=private), ftype.inputs
         )

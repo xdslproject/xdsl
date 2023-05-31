@@ -218,6 +218,15 @@ class FuncOp(IRDLOperation):
         input_types: Sequence[Attribute],
         return_types: Sequence[Attribute],
     ):
+        """
+        Usage:
+
+        ``` python
+        with func.FuncOp.implicitBuilder("add", (i32, i32), (i32, )) as (lhs, rhs):
+            sum = arith.Addi(lhs, rhs).result
+            func.Return(sum)
+        ```
+        """
         return Builder.op(
             lambda body: FuncOp.from_region(name, input_types, return_types, body),
             input_types,
