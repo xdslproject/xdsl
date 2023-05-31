@@ -50,6 +50,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     OpAttr,
     IRDLOperation,
+    OptOpAttr,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -233,7 +234,7 @@ class Alloc(IRDLOperation):
     memref: Annotated[OpResult, MemRefType[Attribute]]
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: OpAttr[AnyIntegerAttr]
+    alignment: OptOpAttr[AnyIntegerAttr]
 
     irdl_options = [AttrSizedOperandSegments()]
 
