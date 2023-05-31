@@ -37,17 +37,18 @@ def test_builder_insertion_point():
     )
 
     block = Block()
-    b0 = Builder(block)
+    b = Builder(block)
 
     x = Constant.from_int_and_width(1, 1)
     y = Constant.from_int_and_width(2, 1)
     z = Constant.from_int_and_width(3, 1)
 
-    b0.insert(x)
-    b0.insert(z)
+    b.insert(x)
+    b.insert(z)
 
-    b1 = Builder(block, insertion_point=z)
-    b1.insert(y)
+    b.insertion_point = z
+
+    b.insert(y)
 
     assert target.is_structurally_equivalent(block)
 
