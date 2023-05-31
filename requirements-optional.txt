@@ -8,7 +8,7 @@ nbval<0.11
 filecheck<0.0.24
 lit<17.0.0
 pre-commit==3.3.2
-git+https://github.com/antonlydike/riscemu.git@1bd754953ccf7832301de034a508cd164cc9f271#egg=riscemu
+git+https://github.com/antonlydike/riscemu.git@d508e01a6bfaefbdabdb7b8ce0daa1cf54004fda#egg=riscemu
 # pyright has to be the last line and fixed with `==`. The CI parses this file
 # in `.github/parse_pyright_version.py` and installs the according version for
 # typechecking.
