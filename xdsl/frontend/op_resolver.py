@@ -4,7 +4,9 @@ import inspect
 from dataclasses import dataclass
 from typing import Callable, Type
 
-from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
+from xdsl.frontend.dialects.builtin import (
+    _FrontendType,  # pyright: ignore[reportPrivateUsage]
+)
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Operation
 

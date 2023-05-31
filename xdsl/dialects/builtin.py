@@ -679,7 +679,8 @@ class ContainerOf(AttrConstraint):
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if isinstance(attr, VectorType) or isinstance(attr, TensorType):
-            self.elem_constr.verify(attr.element_type, constraint_vars)  # type: ignore
+            attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
+            self.elem_constr.verify(attr.element_type, constraint_vars)
         else:
             self.elem_constr.verify(attr, constraint_vars)
 
@@ -725,6 +726,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
+        attr = cast(VectorType[Attribute], attr)
         if attr.element_type != self.expected_type:  # type: ignore
             raise VerifyException(
                 f"Expected vector type to be {self.expected_type}, got {attr.element_type}."  # type: ignore

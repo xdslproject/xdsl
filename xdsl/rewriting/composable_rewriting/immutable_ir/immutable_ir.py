@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Any, Sequence, TypeGuard
+from typing import Any, Sequence, TypeGuard, cast
 
 from immutabledict import immutabledict
 
@@ -30,7 +30,7 @@ class ISSAValue(ABC):
     users: IList[IOperation]
 
     def _add_user(self, op: IOperation):
-        self.users._unfreeze()  # type: ignore
+        self.users._unfreeze()  # pyright: ignore[reportPrivateUsage]
         self.users.append(op)
         self.users.freeze()
 
@@ -40,7 +40,7 @@ class ISSAValue(ABC):
                 f"Trying to remove a user ({op.name}) that is not an actual user of this value!"
             )
 
-        self.users._unfreeze()  # type: ignore
+        self.users._unfreeze()  # pyright: ignore[reportPrivateUsage]
         self.users.remove(op)
         self.users.freeze()
 
@@ -282,7 +282,10 @@ class IBlock:
             # The IBlock that will house this IBlockArg is not constructed yet.
             # After construction the block field will be set by the IBlock.
             immutable_arg = IBlockArg(
-                arg.type, IList([]), None, arg.index  # type: ignore
+                arg.type,
+                IList(),
+                cast(IBlock, None),
+                arg.index,
             )
             args.append(immutable_arg)
             value_map[arg] = immutable_arg
@@ -361,7 +364,7 @@ class IOperation:
         object.__setattr__(self, "attributes", attributes)
         object.__setattr__(self, "operands", IList(operands))
         for operand in operands:
-            operand._add_user(self)  # type: ignore
+            operand._add_user(self)  # pyright: ignore[reportPrivateUsage]
         object.__setattr__(
             self,
             "results",
@@ -454,7 +457,9 @@ class IOperation:
                 print(f"ERROR: op {self.name} uses SSAValue before definition")
                 # Continuing to enable printing the IR including missing
                 # operands for investigation
-                mutable_operands.append(OpResult(operand.type, None, 0))  # type: ignore
+                mutable_operands.append(
+                    OpResult(operand.type, cast(Operation, None), 0)
+                )
 
         mutable_successors: list[Block] = []
         for successor in self.successors:

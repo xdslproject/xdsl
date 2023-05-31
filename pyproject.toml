@@ -3,6 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 
 [tool.pyright]
 reportImportCycles = false
+enableTypeIgnoreComments = false
 typeCheckingMode = "strict"
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
@@ -14,7 +15,10 @@ typeCheckingMode = "strict"
 "ignore" = [
     "tests/filecheck/frontend/dialects/builtin.py",
     "tests/filecheck/frontend/dialects/invalid.py",
+    "tests/filecheck/frontend/dialects/arith.py",
+    "tests/filecheck/frontend/dialects/scf.py",
     "tests/filecheck/frontend/programs/invalid.py",
+    "xdsl/_version.py",
 ]
 
 [tool.isort]
