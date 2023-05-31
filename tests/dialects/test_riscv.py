@@ -147,12 +147,12 @@ def test_immediate_i_inst():
     # I-Type - 12-bits immediate
     a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
 
-    pos_invalid_addi_op = riscv.AddiOp(a1, 1 << 11, rd=riscv.Registers.A0)
     with pytest.raises(VerifyException):
+        pos_invalid_addi_op = riscv.AddiOp(a1, 1 << 11, rd=riscv.Registers.A0)
         pos_invalid_addi_op.verify()
 
-    neg_invalid_addi_op = riscv.AddiOp(a1, -(1 << 11) - 2, rd=riscv.Registers.A0)
     with pytest.raises(VerifyException):
+        neg_invalid_addi_op = riscv.AddiOp(a1, -(1 << 11) - 2, rd=riscv.Registers.A0)
         neg_invalid_addi_op.verify()
 
     neg_valid_addi_op = riscv.AddiOp(a1, -(1 << 11), rd=riscv.Registers.A0)
@@ -184,12 +184,12 @@ def test_immediate_s_inst():
     a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
     a2 = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
 
-    pos_invalid_sw_op = riscv.SwOp(a1, a2, 1 << 11)
     with pytest.raises(VerifyException):
+        pos_invalid_sw_op = riscv.SwOp(a1, a2, 1 << 11)
         pos_invalid_sw_op.verify()
 
-    neg_invalid_sw_op = riscv.SwOp(a1, a2, -(1 << 11) - 2)
     with pytest.raises(VerifyException):
+        neg_invalid_sw_op = riscv.SwOp(a1, a2, -(1 << 11) - 2)
         neg_invalid_sw_op.verify()
 
     neg_valid_sw_op = riscv.SwOp(a1, a2, -(1 << 11))
@@ -218,12 +218,12 @@ def test_immediate_s_inst():
 
 def test_immediate_u_j_inst():
     # U-Type and J-Type - 20-bits immediate
-    pos_invalid_j_op = riscv.LuiOp(1 << 20)
     with pytest.raises(VerifyException):
+        pos_invalid_j_op = riscv.LuiOp(1 << 20)
         pos_invalid_j_op.verify()
 
-    neg_invalid_j_op = riscv.LuiOp(-(1 << 20) - 2)
     with pytest.raises(VerifyException):
+        neg_invalid_j_op = riscv.LuiOp(-(1 << 20) - 2)
         neg_invalid_j_op.verify()
 
     valid_j_op = riscv.LuiOp((1 << 20) - 1)
@@ -234,12 +234,12 @@ def test_immediate_jalr_inst():
     # Jalr - 12-bits immediate
     a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
 
-    pos_invalid_jalr_op = riscv.JalrOp(a1, 1 << 12, rd=riscv.Registers.A0)
     with pytest.raises(VerifyException):
+        pos_invalid_jalr_op = riscv.JalrOp(a1, 1 << 12, rd=riscv.Registers.A0)
         pos_invalid_jalr_op.verify()
 
-    neg_invalid_jalr_op = riscv.JalrOp(a1, -(1 << 12) - 2, rd=riscv.Registers.A0)
     with pytest.raises(VerifyException):
+        neg_invalid_jalr_op = riscv.JalrOp(a1, -(1 << 12) - 2, rd=riscv.Registers.A0)
         neg_invalid_jalr_op.verify()
 
     jalr_op = riscv.JalrOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
@@ -248,15 +248,15 @@ def test_immediate_jalr_inst():
 
 def test_immediate_pseudo_inst():
     # Pseudo-Instruction with custom handling
-    neg_invalid_li_op = riscv.LiOp(-(1 << 31) - 1, rd=riscv.Registers.A0)
     with pytest.raises(VerifyException):
+        neg_invalid_li_op = riscv.LiOp(-(1 << 31) - 1, rd=riscv.Registers.A0)
         neg_invalid_li_op.verify()
 
-    pos_invalid_li_op = riscv.LiOp(1 << 32, rd=riscv.Registers.A0)
     with pytest.raises(VerifyException):
+        pos_invalid_li_op = riscv.LiOp(1 << 32, rd=riscv.Registers.A0)
         pos_invalid_li_op.verify()
 
-    valid_li_op = riscv.LiOp((1 << 32) - 1, rd=riscv.Registers.A0)
+    valid_li_op = riscv.LiOp((1 << 31) - 1, rd=riscv.Registers.A0)
     valid_li_op.verify()
 
 
@@ -264,12 +264,12 @@ def test_immediate_shift_inst():
     # Shift instructions (SLLI, SRLI, SRAI) - 5-bits immediate
     a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
 
-    pos_invalid_slli_op = riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
     with pytest.raises(VerifyException):
+        pos_invalid_slli_op = riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
         pos_invalid_slli_op.verify()
 
-    neg_invalid_slli_op = riscv.SlliOp(a1, -1, rd=riscv.Registers.A0)
     with pytest.raises(VerifyException):
+        neg_invalid_slli_op = riscv.SlliOp(a1, -1, rd=riscv.Registers.A0)
         neg_invalid_slli_op.verify()
 
     valid_slli_op = riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)

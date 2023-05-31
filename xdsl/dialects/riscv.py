@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import IO, Annotated, Iterable, TypeAlias
 
+
 from xdsl.ir import (
     Dialect,
     Operation,
@@ -30,6 +31,7 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntegerType,
     ModuleOp,
+    Signedness,
     UnitAttr,
     IntegerAttr,
     StringAttr,
@@ -150,6 +152,40 @@ class RegisterType(Data[Register], TypeAttribute):
         if name is None:
             return
         printer.print_string(name)
+
+
+@irdl_attr_definition
+class SImm12Attr(IntegerAttr[IntegerType]):
+    """
+    A 12-bit immediate signed value.
+    """
+
+    name = "riscv.simm12"
+
+    def __init__(self, value: int) -> None:
+        super().__init__(value, IntegerType(12, Signedness.SIGNED))
+
+    # Pyright is confused by the parent class __new__ signature
+    def __new__(cls, value: int) -> SImm12Attr:
+        return super().__new__(cls)  # type: ignore
+
+    def verify(self) -> None:
+        """
+        All I- and S-type instructions with 12-bit signed immediates --- e.g., addi but not slli ---
+        accept their immediate argument as an integer in the interval [-2048, 2047]. Integers in the subinterval [-2048, -1]
+        can also be passed by their (unsigned) associates in the interval [0xfffff800, 0xffffffff] on RV32I,
+        and in [0xfffffffffffff800, 0xffffffffffffffff] on both RV32I and RV64I.
+
+        https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
+        """
+
+        if 0xFFFFFFFFFFFFF800 <= self.value.data <= 0xFFFFFFFFFFFFFFFF:
+            return
+
+        if 0xFFFFF800 <= self.value.data <= 0xFFFFFFFF:
+            return
+
+        super().verify()
 
 
 @irdl_attr_definition
@@ -327,7 +363,7 @@ class RdImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, 20)
+            immediate = IntegerAttr(immediate, IntegerType(20, Signedness.UNSIGNED))
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
@@ -347,18 +383,6 @@ class RdImmOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
-
-    def verify_(self) -> None:
-        if isinstance(self.immediate, IntegerAttr) and isinstance(
-            self.immediate.typ, IntegerType
-        ):
-            max_value = (1 << (self.immediate.typ.width.data)) - 1
-            min_value = 0
-
-            if not (min_value <= self.immediate.value.data <= max_value):
-                raise VerifyException(
-                    f"Immediate value {self.immediate.value.data} does not fit in {self.immediate.typ.width.data} bits"
-                )
 
 
 class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -384,7 +408,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, 20)
+            immediate = IntegerAttr(immediate, IntegerType(20, Signedness.SIGNED))
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(rd, Register):
@@ -401,18 +425,6 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
-
-    def verify_(self) -> None:
-        if isinstance(self.immediate, IntegerAttr) and isinstance(
-            self.immediate.typ, IntegerType
-        ):
-            max_value = (1 << (self.immediate.typ.width.data - 1)) - 1
-            min_value = -(1 << (self.immediate.typ.width.data - 1))
-
-            if not (min_value <= self.immediate.value.data <= max_value):
-                raise VerifyException(
-                    f"Immediate value {self.immediate.value.data} does not fit in {self.immediate.typ.width.data} bits"
-                )
 
 
 class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -436,7 +448,7 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, 12)
+            immediate = SImm12Attr(immediate)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -458,33 +470,6 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
 
-    def verify_(self) -> None:
-        if isinstance(self.immediate, IntegerAttr) and isinstance(
-            self.immediate.typ, IntegerType
-        ):
-            max_value = (1 << (self.immediate.typ.width.data - 1)) - 1
-            min_value = -(1 << (self.immediate.typ.width.data - 1))
-
-            """
-            All I- and S-type instructions with 12-bit signed immediates --- e.g., addi but not slli ---
-            accept their immediate argument as an integer in the interval [-2048, 2047]. Integers in the subinterval [-2048, -1]
-            can also be passed by their (unsigned) associates in the interval [0xfffff800, 0xffffffff] on RV32I,
-            and in [0xfffffffffffff800, 0xffffffffffffffff] on both RV32I and RV64I.
-
-            https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
-            """
-
-            if 0xFFFFFFFFFFFFF800 <= self.immediate.value.data <= 0xFFFFFFFFFFFFFFFF:
-                return
-
-            if 0xFFFFF800 <= self.immediate.value.data <= 0xFFFFFFFF:
-                return
-
-            if not (min_value <= self.immediate.value.data <= max_value):
-                raise VerifyException(
-                    f"Immediate value {self.immediate.value.data} does not fit in {self.immediate.typ.width.data} bits"
-                )
-
 
 class RdRsImmShiftOperation(RdRsImmOperation):
     """
@@ -500,17 +485,18 @@ class RdRsImmShiftOperation(RdRsImmOperation):
     imm[5] 6 != 0 but the shift amount is encoded in the lower 6 bits of the I-immediate field for RV64I.
     """
 
-    def verify_(self) -> None:
-        assert isinstance(self.immediate, IntegerAttr)
-        assert isinstance(self.immediate.typ, IntegerType)
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        *,
+        rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, IntegerType(5, Signedness.UNSIGNED))
 
-        max_value = (1 << 5) - 1
-        min_value = 0
-
-        if not (min_value <= self.immediate.value.data <= max_value):
-            raise VerifyException(
-                f"Immediate value {self.immediate.value.data} does not fit in 5 bits"
-            )
+        super().__init__(rs1, immediate, rd=rd, comment=comment)
 
 
 class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -543,7 +529,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, 12)
+            immediate = IntegerAttr(immediate, IntegerType(12, Signedness.SIGNED))
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -564,18 +550,6 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
-
-    def verify_(self) -> None:
-        if isinstance(self.immediate, IntegerAttr) and isinstance(
-            self.immediate.typ, IntegerType
-        ):
-            max_value = (1 << (self.immediate.typ.width.data - 1)) - 1
-            min_value = -(1 << (self.immediate.typ.width.data - 1))
-
-            if not (min_value <= self.immediate.value.data <= max_value):
-                raise VerifyException(
-                    f"Immediate value {self.immediate.value.data} does not fit in {self.immediate.typ.width.data} bits"
-                )
 
 
 class RdRsOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -648,18 +622,6 @@ class RsRsOffOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.offset
 
-    def verify_(self) -> None:
-        assert isinstance(self.offset, IntegerAttr)
-        assert isinstance(self.offset.typ, IntegerType)
-
-        max_value = (1 << (self.offset.typ.width.data - 1)) - 1
-        min_value = -(1 << (self.offset.typ.width.data - 1))
-
-        if not (min_value <= self.offset.value.data <= max_value):
-            raise VerifyException(
-                f"Immediate value {self.offset.value.data} does not fit in {self.offset.typ.width.data} bits"
-            )
-
 
 class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -682,7 +644,7 @@ class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, 12)
+            immediate = SImm12Attr(immediate)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
@@ -698,33 +660,6 @@ class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.immediate
-
-    def verify_(self) -> None:
-        if isinstance(self.immediate, IntegerAttr) and isinstance(
-            self.immediate.typ, IntegerType
-        ):
-            max_value = (1 << (self.immediate.typ.width.data - 1)) - 1
-            min_value = -(1 << (self.immediate.typ.width.data - 1))
-
-            """
-            All I- and S-type instructions with 12-bit signed immediates --- e.g., addi but not slli ---
-            accept their immediate argument as an integer in the interval [-2048, 2047]. Integers in the subinterval [-2048, -1]
-            can also be passed by their (unsigned) associates in the interval [0xfffff800, 0xffffffff] on RV32I,
-            and in [0xfffffffffffff800, 0xffffffffffffffff] on both RV32I and RV64I.
-
-            https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
-            """
-
-            if 0xFFFFFFFFFFFFF800 <= self.immediate.value.data <= 0xFFFFFFFFFFFFFFFF:
-                return
-
-            if 0xFFFFF800 <= self.immediate.value.data <= 0xFFFFFFFF:
-                return
-
-            if not (min_value <= self.immediate.value.data <= max_value):
-                raise VerifyException(
-                    f"Immediate value {self.immediate.value.data} does not fit in {self.immediate.typ.width.data} bits"
-                )
 
 
 class RsRsOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -1831,17 +1766,17 @@ class LiOp(RdImmOperation):
 
     name = "riscv.li"
 
-    def verify_(self) -> None:
-        assert isinstance(self.immediate, IntegerAttr)
-        assert isinstance(self.immediate.typ, IntegerType)
+    def __init__(
+        self,
+        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        *,
+        rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, IntegerType(32, Signedness.SIGNED))
 
-        max_value = (1 << 32) - 1
-        min_value = -(1 << (31))
-
-        if not (min_value <= self.immediate.value.data <= max_value):
-            raise VerifyException(
-                f"Immediate value {self.immediate.value.data} does not fit in 32 bits"
-            )
+        super().__init__(immediate, rd=rd, comment=comment)
 
 
 @irdl_op_definition
