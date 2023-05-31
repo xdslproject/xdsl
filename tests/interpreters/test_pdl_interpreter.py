@@ -59,7 +59,7 @@ def swap_arguments_input():
     @ModuleOp
     @Builder.implicit_region
     def ir_module():
-        with func.FuncOp.implicit_builder("impl", [], []):
+        with ImplicitBuilder(func.FuncOp.from_region("impl", [], []).body):
             x = arith.Constant.from_int_and_width(4, 32).result
             y = arith.Constant.from_int_and_width(2, 32).result
             z = arith.Constant.from_int_and_width(1, 32).result
@@ -74,7 +74,7 @@ def swap_arguments_output():
     @ModuleOp
     @Builder.implicit_region
     def ir_module():
-        with func.FuncOp.implicit_builder("impl", [], []):
+        with ImplicitBuilder(func.FuncOp.from_region("impl", [], []).body):
             x = arith.Constant.from_int_and_width(4, 32).result
             y = arith.Constant.from_int_and_width(2, 32).result
             z = arith.Constant.from_int_and_width(1, 32).result
@@ -167,7 +167,7 @@ def add_zero_input():
     @ModuleOp
     @Builder.implicit_region
     def ir_module():
-        with func.FuncOp.implicit_builder("impl", [], []):
+        with ImplicitBuilder(func.FuncOp.from_region("impl", [], []).body):
             x = arith.Constant.from_int_and_width(4, 32)
             y = arith.Constant.from_int_and_width(0, 32)
             z = arith.Addi(x, y)
@@ -180,7 +180,7 @@ def add_zero_output():
     @ModuleOp
     @Builder.implicit_region
     def ir_module():
-        with func.FuncOp.implicit_builder("impl", [], []):
+        with ImplicitBuilder(func.FuncOp.from_region("impl", [], []).body):
             x = arith.Constant.from_int_and_width(4, 32)
             _y = arith.Constant.from_int_and_width(0, 32)
             func.Return.get(x)

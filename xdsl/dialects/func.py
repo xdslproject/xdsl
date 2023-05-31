@@ -1,7 +1,6 @@
 from __future__ import annotations
 import re
 from typing import Annotated, Union, Sequence, cast
-from xdsl.builder import Builder, ImplicitBuilder
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -210,26 +209,6 @@ class FuncOp(IRDLOperation):
             function_type=(input_types, return_types),
             region=region,
             visibility=visibility,
-        )
-
-    @staticmethod
-    def implicit_builder(
-        name: str,
-        input_types: Sequence[Attribute],
-        return_types: Sequence[Attribute],
-    ) -> ImplicitBuilder:
-        """
-        Usage:
-
-        ``` python
-        with func.FuncOp.implicitBuilder("add", (i32, i32), (i32, )) as (lhs, rhs):
-            sum = arith.Addi(lhs, rhs).result
-            func.Return(sum)
-        ```
-        """
-        return Builder.op(
-            lambda body: FuncOp.from_region(name, input_types, return_types, body),
-            input_types,
         )
 
     def replace_argument_type(self, arg: int | BlockArgument, new_type: Attribute):

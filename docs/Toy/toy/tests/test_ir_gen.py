@@ -2,7 +2,7 @@ from pathlib import Path
 
 from xdsl.ir import OpResult, SSAValue
 from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
-from xdsl.builder import Builder
+from xdsl.builder import Builder, ImplicitBuilder
 
 from ..frontend.parser import Parser
 from ..frontend.ir_gen import IRGen
@@ -31,8 +31,8 @@ def test_convert_ast():
             [unrankedf64TensorType, unrankedf64TensorType], [unrankedf64TensorType]
         )
 
-        with toy.FuncOp.implicit_builder(
-            "multiply_transpose", multiply_transpose_type, private=True
+        with ImplicitBuilder(
+            toy.FuncOp("multiply_transpose", multiply_transpose_type, private=True).body
         ) as (a, b):
             a_t = toy.TransposeOp(a).res
             b_t = toy.TransposeOp(b).res
@@ -46,7 +46,7 @@ def test_convert_ast():
 
         main_type = FunctionType.from_lists([], [])
 
-        with toy.FuncOp.implicit_builder("main", main_type):
+        with ImplicitBuilder(toy.FuncOp("main", main_type).body):
             a = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3]).res
             b_0 = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [6]).res
             b = toy.ReshapeOp(b_0, [2, 3]).res
@@ -75,7 +75,7 @@ def test_convert_scalar():
     @ModuleOp
     @Builder.implicit_region
     def module_op():
-        with toy.FuncOp.implicit_builder("main", FunctionType.from_lists([], [])):
+        with ImplicitBuilder(toy.FuncOp("main", FunctionType.from_lists([], [])).body):
             a_0 = toy.ConstantOp.from_value(5.5).res
             a = toy.ReshapeOp(a_0, [2, 2]).res
             toy.PrintOp(a)

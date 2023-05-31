@@ -6,7 +6,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from typing import Annotated, TypeAlias, cast
-from xdsl.builder import Builder, ImplicitBuilder
 
 from xdsl.ir import Dialect, Operation, SSAValue, Attribute, Block, Region, OpResult
 from xdsl.dialects.builtin import (
@@ -195,24 +194,6 @@ class FuncOp(IRDLOperation):
             attributes["sym_visibility"] = StringAttr("private")
 
         return super().__init__(attributes=attributes, regions=[region])
-
-    @staticmethod
-    def implicit_builder(
-        name: str, ftype: FunctionType, /, private: bool = False
-    ) -> ImplicitBuilder:
-        """
-        Usage:
-
-        ``` python
-        add_type = FunctionType((i32, i32), (i32,))
-        with toy.FuncOp.implicitBuilder("add", add_type) as (lhs, rhs):
-            sum = arith.Addi(lhs, rhs).result
-            toy.ReturnOp(sum)
-        ```
-        """
-        return Builder.op(
-            lambda body: FuncOp(name, ftype, body, private=private), ftype.inputs
-        )
 
     @staticmethod
     def from_callable(
