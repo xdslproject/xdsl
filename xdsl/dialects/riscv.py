@@ -1833,8 +1833,26 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class CustomInstructionOp(IRDLOperation, RISCVInstruction):
-    name = "riscv.custom_instruction"
+class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
+    """
+    An instruction with unspecified semantics, that can be printed during assembly
+    emission. Can be useful when prototyping or leveraging dynamic features in RISC-V
+    emulation.
+
+    During assembly emission, the results are printed before the operands:
+
+    ``` python
+    s0 = riscv.GetRegisterOp(Registers.s0).res
+    s1 = riscv.GetRegisterOp(Registers.s1).res
+    rs2 = riscv.RegisterType(Registers.s2)
+    rs3 = riscv.RegisterType(Registers.s3)
+    op = CustomAssemblyInstructionOp("my_instr", (s0, s1), (rs2, rs3))
+
+    op.assembly_line()   # "my_instr s2, s3, s0, s1"
+    ```
+    """
+
+    name = "riscv.custom_assembly_instruction"
     inputs: VarOperand
     outputs: VarOpResult
     instruction_name: OpAttr[StringAttr]
@@ -2039,7 +2057,7 @@ RISCV = Dialect(
         DirectiveOp,
         EbreakOp,
         WfiOp,
-        CustomInstructionOp,
+        CustomAssemblyInstructionOp,
         CommentOp,
         GetRegisterOp,
         ScfgwOp,
