@@ -32,17 +32,22 @@ class Builder:
     Operations will be inserted before this operation, or at the end of the block if None.
     """
 
+    def __post_init__(self):
+        self._verify_insertion_point()
+
+    def _verify_insertion_point(self):
+        if self.insertion_point is not None:
+            if self.insertion_point.parent is not self.block:
+                raise ValueError("Insertion point must be in the builder's `block`")
+
     @property
     def insertion_point(self) -> Operation | None:
         return self._insertion_point
 
     @insertion_point.setter
     def insertion_point(self, insertion_point: Operation | None):
-        if insertion_point is not None:
-            if insertion_point.parent is not self.block:
-                raise ValueError("Insertion point must be in the builder's `block`")
-
         self._insertion_point = insertion_point
+        self._verify_insertion_point()
 
     def insert(self, op: OperationInvT) -> OperationInvT:
         """

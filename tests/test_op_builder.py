@@ -57,6 +57,11 @@ def test_builder_insertion_point():
 
     assert e.value.args[0] == "Insertion point must be in the builder's `block`"
 
+    with pytest.raises(ValueError) as e:
+        Builder(block, Constant.from_int_and_width(4, 8))
+
+    assert e.value.args[0] == "Insertion point must be in the builder's `block`"
+
 
 def test_build_region():
     one = IntAttr(1)
