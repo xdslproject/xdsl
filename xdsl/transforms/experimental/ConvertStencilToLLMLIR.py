@@ -22,7 +22,6 @@ from xdsl.dialects.experimental.stencil import (
     AccessOp,
     ApplyOp,
     FieldType,
-    IndexAttr,
     LoadOp,
     ReturnOp,
     StencilBoundsAttr,
@@ -278,18 +277,26 @@ class StencilTypeConversionFuncOp(RewritePattern):
                 inputs.append(memreftyp)
             else:
                 inputs.append(arg.typ)
-        print(inputs)
-        op.attributes["function_type"] = FunctionType.from_lists(
-            inputs, list(op.function_type.outputs.data)
-        )
+        outputs: list[Attribute] = [
+            StencilToMemRefType(out) if isa(out, FieldType[Attribute]) else out
+            for out in op.function_type.outputs
+        ]
+        op.attributes["function_type"] = FunctionType.from_lists(inputs, outputs)
 
 
 class TypeSpreadingForOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter, /):
-        pass
-        for i, a in enumerate(op.body.block.args[1:]):
-            op.iter_args[i].typ = a.typ
+        for i in range(len(op.iter_args)):
+            arg_typ = op.body.block.args[i + 1].typ
+            iter_typ = op.iter_args[i].typ
+            if arg_typ != iter_typ:
+                rewriter.modify_block_argument_type(
+                    op.body.block.args[i + 1], op.iter_args[i].typ
+                )
+                for y in [y for y in op.body.ops if isinstance(y, scf.Yield)]:
+                    y.arguments[i].typ = op.iter_args[i].typ
+                op.res[i].typ = op.iter_args[i].typ
 
 
 @dataclass
@@ -389,8 +396,6 @@ def StencilConversion(return_targets: dict[ReturnOp, list[SSAValue | None]], gpu
             IndexOpToLoopSSA(),
             TrivialExternalLoadOpCleanup(),
             TrivialExternalStoreOpCleanup(),
-            StencilTypeConversionFuncOp(),
-            TypeSpreadingForOp(),
         ]
     )
 
@@ -414,3 +419,12 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             walk_reverse=True,
         )
         the_one_pass.rewrite_module(op)
+        type_pass = PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    StencilTypeConversionFuncOp(),
+                    TypeSpreadingForOp(),
+                ]
+            )
+        )
+        type_pass.rewrite_module(op)
