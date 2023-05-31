@@ -5,7 +5,7 @@
   // CHECK:      li zero, 6
   %1 = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<j1>
   // CHECK-NEXT: li j1, 5
-  %2 = "riscv.add"(%0, %1) : (!riscv.reg<j1>, !riscv.reg<zero>) -> !riscv.reg<j2>
+  %2 = "riscv.add"(%0, %1) : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
   // CHECK-NEXT: add j2, zero, j1
   %mv = "riscv.mv"(%0) : (!riscv.reg<zero>) -> !riscv.reg<j2>
   // CHECK-NEXT: mv j2, zero
