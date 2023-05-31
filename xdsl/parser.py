@@ -1628,6 +1628,59 @@ class Parser(ABC):
             self.raise_error(msg)
         return match
 
+    def _register_ssa_definition(
+        self, name: str, values: Sequence[SSAValue], span: Span
+    ) -> None:
+        """
+        Register an SSA definition in the parsing context.
+        In the case the value was already used as a forward reference, the forward
+        references are replaced by this value.
+        """
+
+        # Check for duplicate SSA value names.
+        if name in self.ssa_values:
+            self.raise_error(f"SSA value %{name} is already defined", span)
+
+        # Register the SSA values in the context
+        self.ssa_values[name] = tuple(values)
+
+        tuple_size = len(values)
+        # Check for forward references of this value
+        if name in self.forward_ssa_references:
+            index_references = self.forward_ssa_references[name]
+            del self.forward_ssa_references[name]
+            if any(index >= tuple_size for index in index_references):
+                self.raise_error(
+                    f"SSA value %{name} is referenced with an index "
+                    f"larger than its size",
+                    span,
+                )
+
+            # Replace the forward references with the actual SSA value
+            for index, value in index_references.items():
+                if index >= tuple_size:
+                    self.raise_error(
+                        f"SSA value tuple %{name} is referenced with index {index}, but "
+                        f"has size {tuple_size}",
+                        span,
+                    )
+
+                result = values[index]
+                if value.typ != result.typ:
+                    result_name = f"%{name}"
+                    if tuple_size != 1:
+                        result_name = f"%{name}#{index}"
+                    self.raise_error(
+                        f"Result {result_name} is defined with "
+                        f"type {result.typ}, but used with type {value.typ}",
+                        span,
+                    )
+                value.replace_by(result)
+
+        if SSAValue.is_valid_name(name):
+            for val in values:
+                val.name_hint = name
+
     def try_parse_operation(self) -> Operation | None:
         with self.backtracking("operation"):
             return self.parse_operation()
@@ -1688,47 +1741,10 @@ class Parser(ABC):
         res_idx = 0
         for res_span, res_size, _ in results:
             ssa_val_name = res_span.text[1:]  # Removing the leading '%'
-
-            # Check for duplicate SSA value names.
-            if ssa_val_name in self.ssa_values:
-                self.raise_error(
-                    f"SSA value %{ssa_val_name} is already defined", res_span
-                )
-
-            # Register the SSA value name.
-            tuple_results = op.results[res_idx : res_idx + res_size]
-            self.ssa_values[ssa_val_name] = tuple(tuple_results)
-
-            # Check for forward references of this value
-            if ssa_val_name in self.forward_ssa_references:
-                index_references = self.forward_ssa_references[ssa_val_name]
-                del self.forward_ssa_references[ssa_val_name]
-                if any(index >= res_size for index in index_references):
-                    self.raise_error(
-                        f"SSA value %{ssa_val_name} is referenced with an index "
-                        f"larger than its size",
-                        res_span,
-                    )
-
-                # Replace the forward references with the actual SSA value
-                for index, value in index_references.items():
-                    result = tuple_results[index]
-                    if value.typ != result.typ:
-                        result_name = f"%{ssa_val_name}"
-                        if res_size != 1:
-                            result_name = f"%{ssa_val_name}#{index}"
-                        self.raise_error(
-                            f"Result {result_name} is defined with "
-                            f"type {result.typ}, but used with type {value.typ}",
-                            res_span,
-                        )
-                    value.replace_by(result)
-
+            self._register_ssa_definition(
+                ssa_val_name, op.results[res_idx : res_idx + res_size], res_span
+            )
             res_idx += res_size
-            # Carry over `ssa_val_name` for non-numeric names:
-            if SSAValue.is_valid_name(ssa_val_name):
-                for val in self.ssa_values[ssa_val_name]:
-                    val.name_hint = ssa_val_name
 
         return op
 
