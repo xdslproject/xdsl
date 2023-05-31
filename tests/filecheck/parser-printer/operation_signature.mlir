@@ -29,6 +29,8 @@ builtin.module {
   %0 = "test.op"() : () -> (!test.type<"foo">, !test.type<"bar">)
 }
 
+// CHECK: Operation has 2 results, but were given 1 to bind.
+
 // -----
 
 // An operation signature that has not enough operands
