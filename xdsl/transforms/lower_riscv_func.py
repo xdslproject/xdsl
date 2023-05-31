@@ -10,7 +10,6 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
 )
 from xdsl.dialects import riscv, riscv_func
-from xdsl.transforms.dead_code_elimination import dce
 
 
 class LowerSyscallOp(RewritePattern):
@@ -119,7 +118,6 @@ class LowerRISCVFunc(ModulePass):
     name = "lower-riscv-func"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        dce(op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
