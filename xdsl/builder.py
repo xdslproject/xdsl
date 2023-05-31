@@ -146,9 +146,6 @@ class Builder:
         else:
             return Builder._region_args(input)
 
-    def implicit(self) -> ImplicitBuilder:
-        return ImplicitBuilder(self)
-
     @staticmethod
     def _implicit_region_no_args(func: Callable[[], None]) -> Region:
         """
@@ -246,7 +243,7 @@ class Builder:
         r = Region(b)
         # will be added to parent implicit builder
         _op = func(r)
-        return Builder(b).implicit()
+        return ImplicitBuilder(Builder(b))
 
 
 # Implicit builders
