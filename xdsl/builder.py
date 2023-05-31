@@ -244,8 +244,7 @@ class _ImplicitBuilderStack(threading.local):
         return popped
 
 
-@dataclass
-class ImplicitBuilder(contextlib.AbstractContextManager[None]):
+class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...]]):
     """
     Stores the current implicit builder context, consisting of the stack of builders in
     the current thread, and the current builder.
@@ -275,7 +274,18 @@ class ImplicitBuilder(contextlib.AbstractContextManager[None]):
 
     _builder: Builder
 
-    def __enter__(self) -> None:
+    def __init__(self, arg: Builder | Block | Region | None):
+        if arg is None:
+            # None option added as convenience to allow for extending optional regions in
+            # ops easily
+            raise ValueError("Cannot pass None to ImplicitBuidler init")
+        if isinstance(arg, Region):
+            arg = arg.block
+        if isinstance(arg, Block):
+            arg = Builder(arg)
+        self._builder = arg
+
+    def __enter__(self) -> tuple[BlockArgument, ...]:
         type(self)._stack.push(self._builder)
 
     def __exit__(
