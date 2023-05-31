@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Sequence
 
 from xdsl.ir import Operation, SSAValue, Dialect, Attribute, Region
 from xdsl.utils.exceptions import VerifyException
@@ -9,7 +9,7 @@ from xdsl.irdl import (
     IRDLOperation,
     OptOpAttr,
     OptOpResult,
-    OptOperand,
+    VarOpResult,
     VarOperand,
     irdl_op_definition,
     SingleBlockRegion,
@@ -58,18 +58,18 @@ class CallOp(IRDLOperation):
     name = "riscv_func.call"
     args: Annotated[VarOperand, riscv.RegisterType]
     func_name: OpAttr[StringAttr]
-    result: Annotated[OptOpResult, riscv.RegisterType]
+    ress: Annotated[VarOpResult, riscv.RegisterType]
 
     def __init__(
         self,
         func_name: StringAttr,
-        args: list[Operation | SSAValue],
-        has_result: bool = True,
+        args: Sequence[Operation | SSAValue],
+        result_types: Sequence[riscv.RegisterType],
         comment: StringAttr | None = None,
     ):
         super().__init__(
             operands=[args],
-            result_types=[riscv.RegisterType(riscv.Register()) if has_result else None],
+            result_types=result_types,
             attributes={
                 "func_name": func_name,
                 "comment": comment,
@@ -122,19 +122,19 @@ class ReturnOp(IRDLOperation):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    value: Annotated[OptOperand, riscv.RegisterType]
+    values: Annotated[VarOperand, riscv.RegisterType]
     comment: OptOpAttr[StringAttr]
 
     def __init__(
         self,
-        value: Operation | SSAValue | None = None,
+        values: Sequence[Operation | SSAValue],
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
-            operands=[value],
+            operands=[values],
             attributes={
                 "comment": comment,
             },

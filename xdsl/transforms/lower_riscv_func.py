@@ -1,6 +1,6 @@
 from typing import cast
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import MLContext, OpResult, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
@@ -95,9 +95,9 @@ class LowerRISCVFuncOp(RewritePattern):
 class LowerRISCVFuncReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.ReturnOp, rewriter: PatternRewriter):
-        if op.value is not None:
+        for i, value in enumerate(op.values):
             rewriter.insert_op_before_matched_op(
-                riscv.MVOp(op.value, rd=riscv.Registers.A0)
+                riscv.MVOp(value, rd=riscv.Register(f"a{i}"))
             )
         rewriter.replace_matched_op(riscv.ReturnOp())
 
@@ -114,14 +114,14 @@ class LowerRISCVCallOp(RewritePattern):
         ops: list[Operation] = [
             riscv.JalOp(op.func_name.data),
         ]
+        new_results: list[OpResult] = []
 
-        if op.result is not None:
-            get_a0 = riscv.GetRegisterOp(riscv.Registers.A0)
-            move_res = riscv.MVOp(get_a0)
-            ops.extend((get_a0, move_res))
-            new_results = move_res.results
-        else:
-            new_results = []
+        for i in range(len(op.results)):
+            get_reg = riscv.GetRegisterOp(riscv.Register(f"a{i}"))
+            move_res = riscv.MVOp(get_reg)
+            ops.extend((get_reg, move_res))
+            new_results.append(move_res.rd)
+
         rewriter.replace_matched_op(ops, new_results=new_results)
 
 
