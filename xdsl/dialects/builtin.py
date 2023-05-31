@@ -406,7 +406,9 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
 
             if not (min_value <= self.value.data <= max_value):
                 raise VerifyException(
-                    f"Integer value {self.value.data} is out of range for type {self.typ} which supports values in the range [{min_value}, {max_value}]"
+                    f"Integer value {self.value.data} is out of range for "
+                    f"type {self.typ} which supports values in the "
+                    f"range [{min_value}, {max_value}]"
                 )
 
 
