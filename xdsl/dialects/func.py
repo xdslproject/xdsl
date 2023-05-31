@@ -1,7 +1,7 @@
 from __future__ import annotations
 import re
 from typing import Annotated, Union, Sequence, cast
-from xdsl.builder import Builder
+from xdsl.builder import Builder, ImplicitBuilder
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -217,7 +217,7 @@ class FuncOp(IRDLOperation):
         name: str,
         input_types: Sequence[Attribute],
         return_types: Sequence[Attribute],
-    ):
+    ) -> ImplicitBuilder:
         """
         Usage:
 
