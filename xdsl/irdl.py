@@ -39,6 +39,7 @@ from xdsl.utils.exceptions import (
     PyRDLAttrDefinitionError,
     PyRDLOpDefinitionError,
     VerifyException,
+    assert_never,
 )
 from xdsl.utils.hints import (
     PropertyType,
@@ -971,15 +972,15 @@ class VarIRConstruct(Enum):
 
 def get_construct_name(construct: VarIRConstruct) -> str:
     """Get the type name, this is used mostly for error messages."""
-    if construct == VarIRConstruct.OPERAND:
-        return "operand"
-    if construct == VarIRConstruct.RESULT:
-        return "result"
-    if construct == VarIRConstruct.REGION:
-        return "region"
-    if construct == VarIRConstruct.SUCCESSOR:
-        return "successor"
-    assert False, "Unknown VarIRConstruct value"
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return "operand"
+        case VarIRConstruct.RESULT:
+            return "result"
+        case VarIRConstruct.REGION:
+            return "region"
+        case VarIRConstruct.SUCCESSOR:
+            return "successor"
 
 
 def get_construct_defs(
