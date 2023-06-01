@@ -30,3 +30,14 @@ class HasParent(OpTrait):
             )
         names = ", ".join([f"'{p.name}'" for p in self.parameters])
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
+
+
+class NoTerminator(OpTrait):
+    """Allow the operation to have single block regions with no terminator."""
+
+    def verify(self, op: Operation) -> None:
+        for r in op.regions:
+            if len(r.blocks) > 1:
+                raise VerifyException(f"'{op.name}' expects single block region '{r}'")
+
+        return
