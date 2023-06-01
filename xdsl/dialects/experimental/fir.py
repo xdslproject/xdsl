@@ -127,7 +127,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "fir.array"
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr | DeferredAttr]]
+    shape: ParameterDef[ArrayAttr[AnyIntegerAttr | DeferredAttr | NoneType]]
     type: ParameterDef[AnyIntegerAttr | AnyFloat | ReferenceType]
     type2: ParameterDef[AnyIntegerAttr | AnyFloat | ReferenceType | NoneType]
 
@@ -138,7 +138,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
         type2: Optional[ParameterDef[AnyIntegerAttr | AnyFloat | ReferenceType]] = None,
     ):
         if type2 is not None:
-            super().__init__([ArrayAttr([]), type1, type2])
+            super().__init__([ArrayAttr([NoneType()]), type1, type2])
         else:
             if shape is None:
                 shape = [1]
@@ -167,6 +167,10 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             for s in self.shape.data:
                 if isinstance(s, DeferredAttr):
                     printer.print_string("?")
+                elif isinstance(s, NoneType):
+                    raise Exception(
+                        "Can not have none type as part of sequence shape with only one type"
+                    )
                 else:
                     printer.print_string(f"{s.value.data}")
                 printer.print_string("x")
