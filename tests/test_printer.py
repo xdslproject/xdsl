@@ -37,7 +37,7 @@ from xdsl.utils.exceptions import ParseError
 
 
 def test_simple_forgotten_op():
-    """Test that the parsing of an undefined operand raises an exception."""
+    """Test that the parsing of an undefined operand gives it a name."""
     ctx = MLContext()
     ctx.register_dialect(Arith)
 
@@ -46,61 +46,48 @@ def test_simple_forgotten_op():
 
     add.verify()
 
-    expected = """
-%0 = "arith.addi"(%<UNKNOWN>, %<UNKNOWN>) : (i32, i32) -> i32
-------------------^^^^^^^^^^---------------------------------------------------------------------
-| ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
--------------------------------------------------------------------------------------------------
-------------------------------^^^^^^^^^^---------------------------------------------------------
-| ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
--------------------------------------------------------------------------------------------------
-"""
+    expected = """%0 = "arith.addi"(%1, %1) : (i32, i32) -> i32"""
 
     assert_print_op(add, expected, None)
 
 
-def test_simple_forgotten_op_error_option():
-    """
-    Test that the parsing of an undefined operand does not print an error if
-    `print_unknown_value_error` is set to False.
-    """
+def test_unordered_ops():
+    """Test that the printing of unordered ops works."""
+
     ctx = MLContext()
     ctx.register_dialect(Arith)
 
     lit = Constant.from_int_and_width(42, 32)
     add = Addi(lit, lit)
-
-    add.verify()
-
-    expected = """%0 = "arith.addi"(%<UNKNOWN>, %<UNKNOWN>) : (i32, i32) -> i32"""
-
-    assert_print_op(add, expected, None, print_unknown_value_error=False)
-
-
-def test_forgotten_op_non_fail():
-    """Test that the parsing of an undefined operand raises an exception."""
-    ctx = MLContext()
-    ctx.register_dialect(Arith)
-
-    lit = Constant.from_int_and_width(42, 32)
-    add = Addi(lit, lit)
-    add2 = Addi(add, add)
-    mod = ModuleOp([add, add2])
-    mod.verify()
 
     expected = """
 "builtin.module"() ({
-  %0 = "arith.addi"(%<UNKNOWN>, %<UNKNOWN>) : (i32, i32) -> i32
-  ------------------^^^^^^^^^^---------------------------------------------------------------------
-  | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
-  -------------------------------------------------------------------------------------------------
-  ------------------------------^^^^^^^^^^---------------------------------------------------------
-  | ERROR: SSAValue is not part of the IR, are you sure all operations are added before their uses?
-  -------------------------------------------------------------------------------------------------
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
-}) : () -> ()"""
+  %0 = "arith.addi"(%1, %1) : (i32, i32) -> i32
+  %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+}) : () -> ()
+"""
 
-    assert_print_op(mod, expected, None)
+    assert_print_op(ModuleOp([add, lit]), expected, None)
+
+
+def test_cyclic_ops():
+    """Test that the printing of ops with cyclic dependencies works."""
+
+    ctx = MLContext()
+    ctx.register_dialect(Arith)
+
+    op1 = TestOp(result_types=[i32], operands=[[]], regions=[[]])
+    op2 = TestOp(result_types=[i32], operands=[op1], regions=[[]])
+    op1.operands = [op2.results[0]]
+
+    expected = """
+"builtin.module"() ({
+  %0 = "test.op"(%1) : (i32) -> i32
+  %1 = "test.op"(%0) : (i32) -> i32
+}) : () -> ()
+"""
+
+    assert_print_op(ModuleOp([op1, op2]), expected, None)
 
 
 @irdl_op_definition
@@ -381,7 +368,7 @@ def test_print_custom_block_arg_name():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block(block)
-    assert io.getvalue() == """\n^0(%test : i32, %0 : i32):"""
+    assert io.getvalue() == """\n^0(%test : i32, %test_1 : i32):"""
 
 
 def test_print_block_argument():
@@ -392,7 +379,7 @@ def test_print_block_argument():
     p = Printer(stream=io)
     p.print_block_argument(block.args[0])
     p.print(", ")
-    p.print_block_argument(block.args[0], print_type=False)
+    p.print_block_argument(block.args[1], print_type=False)
     assert io.getvalue() == """%0 : i32, %1"""
 
 

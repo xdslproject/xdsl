@@ -42,6 +42,25 @@ class FuncOp(IRDLOperation):
     function_type: OpAttr[FunctionType]
     sym_visibility: OptOpAttr[StringAttr]
 
+    def __init__(
+        self,
+        name: str,
+        function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
+        region: Region,
+        visibility: StringAttr | str | None = None,
+    ):
+        if isinstance(visibility, str):
+            visibility = StringAttr(visibility)
+        if isinstance(function_type, tuple):
+            inputs, outputs = function_type
+            function_type = FunctionType.from_lists(inputs, outputs)
+        attributes: dict[str, Attribute | None] = {
+            "sym_name": StringAttr(name),
+            "function_type": function_type,
+            "sym_visibility": visibility,
+        }
+        super().__init__(attributes=attributes, regions=[region])
+
     def verify_(self) -> None:
         # If this is an empty region (external function), then return
         if len(self.body.blocks) == 0:
@@ -161,30 +180,19 @@ class FuncOp(IRDLOperation):
         return_types: Sequence[Attribute],
         func: Block.BlockCallback,
     ) -> FuncOp:
-        type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes: dict[str, Attribute] = {
-            "sym_name": StringAttr(name),
-            "function_type": type_attr,
-            "sym_visibility": StringAttr("private"),
-        }
-        op = FuncOp.build(
-            attributes=attributes,
-            regions=[Region(Block.from_callable(input_types, func))],
-        )
-        return op
+        region = Region(Block.from_callable(input_types, func))
+        return FuncOp(name, (input_types, return_types), region, "private")
 
     @staticmethod
     def external(
         name: str, input_types: Sequence[Attribute], return_types: Sequence[Attribute]
     ) -> FuncOp:
-        type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes: dict[str, Attribute] = {
-            "sym_name": StringAttr(name),
-            "function_type": type_attr,
-            "sym_visibility": StringAttr("private"),
-        }
-        op = FuncOp.build(attributes=attributes, regions=[Region()])
-        return op
+        return FuncOp(
+            name=name,
+            function_type=(input_types, return_types),
+            region=Region(),
+            visibility="private",
+        )
 
     @staticmethod
     def from_region(
@@ -194,16 +202,12 @@ class FuncOp(IRDLOperation):
         region: Region,
         visibility: StringAttr | str | None = None,
     ) -> FuncOp:
-        if isinstance(visibility, str):
-            visibility = StringAttr(visibility)
-        type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes: dict[str, Attribute | None] = {
-            "sym_name": StringAttr(name),
-            "function_type": type_attr,
-            "sym_visibility": visibility,
-        }
-        op = FuncOp.build(attributes=attributes, regions=[region])
-        return op
+        return FuncOp(
+            name=name,
+            function_type=(input_types, return_types),
+            region=region,
+            visibility=visibility,
+        )
 
     def replace_argument_type(self, arg: int | BlockArgument, new_type: Attribute):
         """

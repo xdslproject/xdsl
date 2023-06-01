@@ -3,7 +3,7 @@
 "builtin.module"() ({
   %0 = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<>
   %1 = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<s0>
-  %2 = "riscv.add"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+  %2 = "riscv.add"(%0, %1) : (!riscv.reg<>, !riscv.reg<s0>) -> !riscv.reg<>
 }) : () -> ()
 
 // CHECK:      "builtin.module"() ({

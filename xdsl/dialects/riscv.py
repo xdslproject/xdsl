@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import IO, Annotated, Iterable, TypeAlias
+from typing import IO, Annotated, Iterable, TypeAlias, Sequence
 
 from xdsl.ir import (
     Dialect,
     Operation,
     Region,
     SSAValue,
+    Attribute,
     Data,
     OpResult,
     TypeAttribute,
@@ -17,8 +18,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     OptSingleBlockRegion,
+    VarOpResult,
     irdl_op_definition,
     irdl_attr_definition,
+    VarOperand,
     Operand,
     OpAttr,
     OptOpAttr,
@@ -1247,9 +1250,6 @@ class ReturnOp(NullaryOperation):
 
     name = "riscv.ret"
 
-    def __init__(self):
-        super().__init__()
-
 
 # Conditional Branches
 
@@ -1778,11 +1778,7 @@ class LabelOp(IRDLOperation, RISCVOp):
         )
 
     def assembly_line(self) -> str | None:
-        comment = ""
-        if self.comment is not None and self.comment.data:
-            comment = f"    # {self.comment.data}"
-
-        return f"{self.label.data}:{comment}"
+        return _append_comment(f"{self.label.data}:", self.comment)
 
 
 @irdl_op_definition
@@ -1827,6 +1823,60 @@ class DirectiveOp(IRDLOperation, RISCVOp):
             value = None
 
         return _assembly_line(self.directive.data, (value,), is_indented=False)
+
+
+@irdl_op_definition
+class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
+    """
+    An instruction with unspecified semantics, that can be printed during assembly
+    emission.
+
+    During assembly emission, the results are printed before the operands:
+
+    ``` python
+    s0 = riscv.GetRegisterOp(Registers.s0).res
+    s1 = riscv.GetRegisterOp(Registers.s1).res
+    rs2 = riscv.RegisterType(Registers.s2)
+    rs3 = riscv.RegisterType(Registers.s3)
+    op = CustomAssemblyInstructionOp("my_instr", (s0, s1), (rs2, rs3))
+
+    op.assembly_line()   # "my_instr s2, s3, s0, s1"
+    ```
+    """
+
+    name = "riscv.custom_assembly_instruction"
+    inputs: VarOperand
+    outputs: VarOpResult
+    instruction_name: OpAttr[StringAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        instruction_name: str | StringAttr,
+        inputs: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(instruction_name, str):
+            instruction_name = StringAttr(instruction_name)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[inputs],
+            result_types=[result_types],
+            attributes={
+                "instruction_name": instruction_name,
+                "comment": comment,
+            },
+        )
+
+    def assembly_instruction_name(self) -> str:
+        return self.instruction_name.data
+
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return *self.results, *self.operands
 
 
 @irdl_op_definition
@@ -1999,6 +2049,7 @@ RISCV = Dialect(
         DirectiveOp,
         EbreakOp,
         WfiOp,
+        CustomAssemblyInstructionOp,
         CommentOp,
         GetRegisterOp,
         ScfgwOp,

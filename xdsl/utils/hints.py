@@ -5,6 +5,7 @@ from typing import (
     Any,
     Generic,
     Iterable,
+    Literal,
     Sequence,
     TypeGuard,
     TypeVar,
@@ -66,6 +67,9 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
 
     if origin in [Union, UnionType]:
         return any(isa(arg, union_arg) for union_arg in get_args(hint))
+
+    if origin is Literal:
+        return arg in get_args(hint)
 
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
 

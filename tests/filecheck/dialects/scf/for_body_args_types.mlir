@@ -8,5 +8,5 @@
 // CHECK: Block arguments with wrong type, expected i8, got index
   ^0(%iv : index, %carried_arg : index):
     "scf.yield"() : () -> ()
-  }) : (index, index, index) -> ()
+  }) : (index, index, index, i8) -> ()
 }) : () -> ()

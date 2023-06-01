@@ -31,7 +31,7 @@
             %griddimz = "gpu.grid_dim"() {"dimension" = #gpu<dim z>} : () -> index
 
             %gmemref = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>}: () -> memref<10x10xi32>
-            %gdmemref = "gpu.alloc"(%griddimx, %griddimy,%griddimz) {"operand_segment_sizes" = array<i32: 0, 3, 0>}: () -> memref<?x?x?xf64>
+            %gdmemref = "gpu.alloc"(%griddimx, %griddimy,%griddimz) {"operand_segment_sizes" = array<i32: 0, 3, 0>}: (index, index, index) -> memref<?x?x?xf64>
 
             "gpu.memcpy"(%memref, %gmemref) {"operand_segment_sizes" = array<i32: 0, 1, 1>} : (memref<10x10xi32>, memref<10x10xi32>) -> ()
 
