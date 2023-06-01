@@ -133,14 +133,14 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.array"
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr | DeferredAttr | NoneType]]
-    type: ParameterDef[AnyIntegerAttr | AnyFloat | ReferenceType]
-    type2: ParameterDef[AnyIntegerAttr | AnyFloat | ReferenceType | NoneType]
+    type: ParameterDef[IntegerType | AnyFloat | ReferenceType]
+    type2: ParameterDef[IntegerType | AnyFloat | ReferenceType | NoneType]
 
     def __init__(
         self,
-        type1: ParameterDef[AnyIntegerAttr | AnyFloat | ReferenceType],
+        type1: ParameterDef[IntegerType | AnyFloat | ReferenceType],
         shape: Optional[List[int | IntegerAttr[IndexType] | DeferredAttr]] = None,
-        type2: Optional[ParameterDef[AnyIntegerAttr | AnyFloat | ReferenceType]] = None,
+        type2: Optional[ParameterDef[IntegerType | AnyFloat | ReferenceType]] = None,
     ):
         if type2 is not None:
             super().__init__([ArrayAttr([NoneType()]), type1, type2])
@@ -1405,12 +1405,7 @@ class Global(IRDLOperation):
     sym_name: OpAttr[StringAttr]
     symref: OpAttr[SymbolRefAttr]
     type: OpAttr[
-        AnyIntegerAttr
-        | AnyFloat
-        | SequenceType
-        | BoxType
-        | CharacterType
-        | ReferenceType
+        IntegerType | AnyFloat | SequenceType | BoxType | CharacterType | ReferenceType
     ]
     linkName: OptOpAttr[StringAttr]
     constant: OptOpAttr[UnitAttr]
