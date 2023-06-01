@@ -38,10 +38,3 @@ class NoTerminator(OpTrait):
 
     https://mlir.llvm.org/docs/Traits/#terminator
     """
-
-    def verify(self, op: Operation) -> None:
-        for r in op.regions:
-            if len(r.blocks) > 1:
-                raise VerifyException(f"'{op.name}' expects single block region '{r}'")
-
-        return
