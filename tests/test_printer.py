@@ -6,7 +6,7 @@ from io import StringIO
 from typing import Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Constant
-from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, ModuleOp, UnitAttr, i32
+from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, UnitAttr, i32
 from xdsl.dialects.func import Func
 from xdsl.dialects.test import TestOp
 from xdsl.ir import (
