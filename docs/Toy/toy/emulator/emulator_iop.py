@@ -48,7 +48,7 @@ def run_riscv(
 
     loader = AssemblyFileLoader.instantiate("example.asm", {})
     assert isinstance(loader, AssemblyFileLoader)
-    cpu.load_program(loader.parse_io(io))  # pyright: ignore[reportUnknownMemberType]
+    cpu.load_program(loader.parse_io(io))
 
     # mmu: MMU = getattr(cpu, "mmu")
     try:
