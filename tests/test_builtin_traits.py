@@ -5,10 +5,11 @@ Test the usage of builtin traits.
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.irdl import IRDLOperation, irdl_op_definition
-from xdsl.ir import Region
-from xdsl.traits import HasParent
+from xdsl.irdl import IRDLOperation, irdl_op_definition, Region
+from xdsl.ir import Block
+from xdsl.traits import HasParent, NoTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.dialects.test import TestOp
 
 
 @irdl_op_definition
@@ -98,3 +99,55 @@ def test_has_parent_verify():
 
     op = Parent2Op(regions=[[HasMultipleParentOp()]])
     op.verify()
+
+
+@irdl_op_definition
+class HasNoTerminatorOp(IRDLOperation):
+    """
+    An operation that can opt out from having a terminator.
+    This requires the operation to have a single block.
+    """
+
+    name = "test.has_no_terminator"
+
+    region: Region
+
+    traits = frozenset([NoTerminator()])
+
+
+def test_has_no_terminator_verify_with_empty_single_block_region():
+    """
+    Test that an operation with a NoTerminator trait expects its containing
+    region to have an empty single block and no terminator.
+    """
+
+    noterm_op = HasNoTerminatorOp.build(regions=[[Block()]])
+    noterm_op.verify()
+
+
+def test_has_no_terminator_verify_with_non_empty_single_block_region():
+    """
+    Test that an operation with a NoTerminator trait expects its containing
+    region to have a non-empty single block and no terminator.
+    """
+
+    noterm_op = HasNoTerminatorOp.build(regions=[[Block([TestOp.create()])]])
+    noterm_op.verify()
+
+
+def test_has_no_terminator_not_single_block_region():
+    """
+    Test that an operation with a NoTerminator trait fails when its containing
+    region has more than single block.
+    """
+
+    block0 = Block([TestOp.create(), TestOp.create()])
+    block1 = Block([TestOp.create(), TestOp.create()])
+    noterm_op = HasNoTerminatorOp.build(regions=[[block0, block1]])
+
+    with pytest.raises(VerifyException) as exc_info:
+        noterm_op.verify()
+
+    assert str(exc_info.value) == (
+        "'test.has_no_terminator' expects single block region 'Region(num_blocks=2)'"
+    )
