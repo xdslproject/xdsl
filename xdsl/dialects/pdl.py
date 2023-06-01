@@ -747,8 +747,8 @@ class RewriteOp(IRDLOperation):
         root: SSAValue | None,
         body: Region
         | Block.BlockCallback
-        | type[Region.Default]
-        | None = Region.Default,
+        | type[Region.DEFAULT]
+        | None = Region.DEFAULT,
         name: str | StringAttr | None = None,
         external_args: Sequence[SSAValue] = (),
     ) -> None:
@@ -763,7 +763,7 @@ class RewriteOp(IRDLOperation):
         operands.append(external_args)
 
         regions: list[Region | list[Region]] = []
-        if body is Region.Default:
+        if body is Region.DEFAULT:
             regions.append(Region(Block()))
         elif isinstance(body, Region):
             regions.append(body)

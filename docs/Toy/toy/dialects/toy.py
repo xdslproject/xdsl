@@ -180,7 +180,7 @@ class FuncOp(IRDLOperation):
         self,
         name: str,
         ftype: FunctionType,
-        region: Region | None = None,
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
         /,
         private: bool = False,
     ):
@@ -188,7 +188,7 @@ class FuncOp(IRDLOperation):
             "sym_name": StringAttr(name),
             "function_type": ftype,
         }
-        if region is None:
+        if not isinstance(region, Region):
             region = Region(Block(arg_types=ftype.inputs))
         if private:
             attributes["sym_visibility"] = StringAttr("private")
