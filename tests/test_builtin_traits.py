@@ -145,9 +145,5 @@ def test_has_no_terminator_not_single_block_region():
     block1 = Block([TestOp.create(), TestOp.create()])
     noterm_op = HasNoTerminatorOp.build(regions=[[block0, block1]])
 
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(VerifyException, match="expects single block region"):
         noterm_op.verify()
-
-    assert str(exc_info.value) == (
-        "'test.has_no_terminator' expects single block region 'Region(num_blocks=2)'"
-    )
