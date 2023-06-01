@@ -92,13 +92,13 @@ def test_func_II():
 def test_wrong_blockarg_types():
     r = Region(Block.from_callable([i32], lambda *x: [Addi(x[0], x[0])]))
     f = FuncOp.from_region("f", [i32, i32], [], r)
-    with pytest.raises(VerifyException) as e:
-        f.verify()
 
-    assert (
-        "Expected entry block arguments to have the same "
-        "types as the function input types" in e.value.args[0]
+    message = (
+        "Expected entry block arguments to have the "
+        "same types as the function input types"
     )
+    with pytest.raises(VerifyException, match=message):
+        f.verify()
 
 
 def test_func_rewriting_helpers():
