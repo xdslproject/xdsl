@@ -8,5 +8,5 @@
 // CHECK: Wrong number of block arguments, expected 2, got 1. The body must have the induction variable and loop-carried variables as arguments.
   ^0(%iv : index):
     "scf.yield"() : () -> ()
-  }) : (index, index, index) -> ()
+  }) : (index, index, index, i8) -> ()
 }) : () -> ()
