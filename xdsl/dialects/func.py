@@ -46,7 +46,7 @@ class FuncOp(IRDLOperation):
         self,
         name: str,
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
-        region: Region | None,
+        region: Region | None = None,
         visibility: StringAttr | str | None = None,
     ):
         if isinstance(visibility, str):
