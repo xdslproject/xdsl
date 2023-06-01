@@ -1,8 +1,12 @@
 from __future__ import annotations
 from typing import IO, ClassVar
 
-from riscemu import RunConfig, UserModeCPU, RV32I, RV32M, AssemblyFileLoader
-from riscemu.instructions import InstructionSet, Instruction
+from riscemu.config import RunConfig
+from riscemu import RV32I, RV32M
+from riscemu.CPU import UserModeCPU
+from riscemu.parser import AssemblyFileLoader
+from riscemu.instructions.instruction_set import InstructionSet
+from riscemu.types.instruction import Instruction
 
 from io import StringIO
 
