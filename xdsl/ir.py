@@ -1288,12 +1288,21 @@ class Block(IRNode):
             yield from op.walk()
 
     def verify(self) -> None:
-        for operation in self.ops:
-            if operation.parent != self:
-                raise Exception(
-                    "Parent pointer of operation does not refer to containing region"
-                )
-            operation.verify()
+        last_op = self.last_op
+        if not last_op:
+            # TODO special handling for empty blocks
+            pass
+        else:
+            for operation in self.ops:
+                if operation.parent != self:
+                    raise Exception(
+                        "Parent pointer of operation does not refer to containing region"
+                    )
+                if len(operation.successors) and operation != last_op:
+                    raise Exception(
+                        "Operation with block successors must terminate its parent block"
+                    )
+                operation.verify()
 
     def drop_all_references(self) -> None:
         """
