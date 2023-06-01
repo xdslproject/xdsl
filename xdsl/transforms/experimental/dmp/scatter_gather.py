@@ -197,8 +197,8 @@ class LowerDmpGather(RewritePattern):
                 unwrapped_local.len,
                 unwrapped_local.typ,
                 unwrapped_global.ptr,
-                unwrapped_global.len,
-                unwrapped_global.typ,
+                unwrapped_local.len,
+                unwrapped_local.typ,
                 root_rank,
             )
         )
