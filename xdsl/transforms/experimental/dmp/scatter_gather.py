@@ -57,8 +57,8 @@ class LowerDmpScatter(RewritePattern):
                 grid.as_tuple()[0], idx
             ),
             # linearize node
-            node_id_x := arith.DivUI(op.my_rank, node_topo_width),
-            node_id_y := arith.RemUI(op.my_rank, node_topo_width),
+            node_id_x := arith.RemUI(op.my_rank, node_topo_width),
+            node_id_y := arith.DivUI(op.my_rank, node_topo_width),
             # get local domain sizes
             local_domain_width := arith.Constant.from_int_and_width(
                 local_domain[0], idx
