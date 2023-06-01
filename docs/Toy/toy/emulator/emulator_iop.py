@@ -50,7 +50,6 @@ def run_riscv(
     assert isinstance(loader, AssemblyFileLoader)
     cpu.load_program(loader.parse_io(io))
 
-    # mmu: MMU = getattr(cpu, "mmu")
     try:
         cpu.launch(verbosity > 1)
     except Exception as ex:
