@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated, Sequence
 
 from xdsl.ir import Operation, SSAValue, Dialect, Attribute, Region
+from xdsl.traits import HasParent
 from xdsl.utils.exceptions import VerifyException
 
 from xdsl.irdl import (
@@ -101,21 +102,6 @@ class FuncOp(IRDLOperation):
 
         super().__init__(attributes=attributes, regions=[region])
 
-    def verify_(self):
-        # Check that the returned value matches the type of the function
-        if len(self.func_body.blocks) != 1:
-            raise VerifyException("Expected FuncOp to contain one block")
-
-        block = self.func_body.blocks[0]
-
-        if not len(block.ops):
-            raise VerifyException("Expected FuncOp to not be empty")
-
-        last_op = block.last_op
-
-        if not isinstance(last_op, ReturnOp):
-            raise VerifyException("Expected last op of FuncOp to be a ReturnOp")
-
 
 @irdl_op_definition
 class ReturnOp(IRDLOperation):
@@ -124,6 +110,8 @@ class ReturnOp(IRDLOperation):
     name = "riscv_func.return"
     values: Annotated[VarOperand, riscv.RegisterType]
     comment: OptOpAttr[StringAttr]
+
+    traits = frozenset([HasParent(FuncOp)])
 
     def __init__(
         self,
