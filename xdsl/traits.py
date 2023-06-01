@@ -33,7 +33,11 @@ class HasParent(OpTrait):
 
 
 class NoTerminator(OpTrait):
-    """Allow the operation to have single block regions with no terminator."""
+    """
+    Allow an operation to have single block regions with no terminator.
+
+    https://mlir.llvm.org/docs/Traits/#terminator
+    """
 
     def verify(self, op: Operation) -> None:
         for r in op.regions:
