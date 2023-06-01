@@ -25,7 +25,7 @@ class Diagnostic:
         from xdsl.printer import Printer
 
         f = StringIO()
-        p = Printer(stream=f, diagnostic=self)
+        p = Printer(stream=f, diagnostic=self, print_generic_format=True)
         toplevel = ir.get_toplevel_object()
         if isinstance(toplevel, Operation):
             p.print_op(toplevel)
