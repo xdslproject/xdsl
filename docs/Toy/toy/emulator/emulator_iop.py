@@ -14,7 +14,7 @@ from io import StringIO
 class RV_Debug(InstructionSet):
     stream: ClassVar[IO[str] | None] = None
 
-    # this instruction will dissappear into our emualtor soon-ish
+    # riscemu matches `instruction_` prefixes, so this will be called by `print reg`
     def instruction_print(self, ins: Instruction):
         reg = ins.get_reg(0)
         value = self.regs.get(reg)
