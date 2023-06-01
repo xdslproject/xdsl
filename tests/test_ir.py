@@ -141,6 +141,19 @@ def test_op_clone_with_regions():
     assert if2.false_region.op is not if_.false_region.op
 
 
+def test_block_containing_not_term_op_with_successors():
+    block1 = Block([TestOp.create(), TestOp.create()])
+
+    op_with_successors = TestOp.create(successors=[block1])
+    block0 = Block([op_with_successors, TestOp.create()])
+
+    with pytest.raises(
+        Exception,
+        match="Operation with block successors must terminate its parent block",
+    ):
+        block0.verify()
+
+
 ##################### Testing is_structurally_equal #####################
 
 program_region = """
