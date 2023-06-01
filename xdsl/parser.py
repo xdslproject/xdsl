@@ -1137,9 +1137,6 @@ class Parser(ABC):
         """Parse an operand with format `%<value-id>`."""
         return self.expect(self.parse_optional_operand, msg)
 
-    def try_parse_block_id(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.block_id)
-
     def parse_type(self) -> Attribute:
         """
         Parse an xDSL type.
