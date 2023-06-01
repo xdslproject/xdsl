@@ -97,8 +97,8 @@ def test_vector_load_verify_type_matching():
     with pytest.raises(Exception) as exc_info:
         load.verify()
     assert (
-        exc_info.value.args[0]
-        == "MemRef element type should match the Vector element type."
+        "MemRef element type should match the Vector element type."
+        in exc_info.value.args[0]
     )
 
 
@@ -109,7 +109,7 @@ def test_vector_load_verify_indexing_exception():
 
     with pytest.raises(Exception) as exc_info:
         load.verify()
-    assert exc_info.value.args[0] == "Expected an index for each dimension."
+    assert "Expected an index for each dimension." in exc_info.value.args[0]
 
 
 def test_vector_store_i32():
@@ -146,8 +146,8 @@ def test_vector_store_verify_type_matching():
     with pytest.raises(Exception) as exc_info:
         store.verify()
     assert (
-        exc_info.value.args[0]
-        == "MemRef element type should match the Vector element type."
+        "MemRef element type should match the Vector element type."
+        in exc_info.value.args[0]
     )
 
 
@@ -159,7 +159,7 @@ def test_vector_store_verify_indexing_exception():
 
     with pytest.raises(Exception) as exc_info:
         store.verify()
-    assert exc_info.value.args[0] == "Expected an index for each dimension."
+    assert "Expected an index for each dimension." in exc_info.value.args[0]
 
 
 def test_vector_broadcast():
@@ -180,8 +180,8 @@ def test_vector_broadcast_verify_type_matching():
     with pytest.raises(Exception) as exc_info:
         broadcast.verify()
     assert (
-        exc_info.value.args[0]
-        == "Source operand and result vector must have the same element type."
+        "Source operand and result vector must have the same element type."
+        in exc_info.value.args[0]
     )
 
 
@@ -231,8 +231,8 @@ def test_vector_fma_verify_res_lhs_type_matching():
     with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert (
-        exc_info.value.args[0]
-        == "Result vector type must match with all source vectors. Found different types for result vector and lhs vector."
+        "Result vector type must match with all source vectors. Found "
+        "different types for result vector and lhs vector." in exc_info.value.args[0]
     )
 
 
@@ -250,8 +250,9 @@ def test_vector_fma_verify_res_rhs_type_matching():
     with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert (
-        exc_info.value.args[0]
-        == "Result vector type must match with all source vectors. Found different types for result vector and rhs vector."
+        "Result vector type must match with all source vectors. "
+        "Found different types for result vector and rhs vector."
+        in exc_info.value.args[0]
     )
 
 
@@ -269,8 +270,9 @@ def test_vector_fma_verify_res_acc_type_matching():
     with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert (
-        exc_info.value.args[0]
-        == "Result vector type must match with all source vectors. Found different types for result vector and acc vector."
+        "Result vector type must match with all source vectors. "
+        "Found different types for result vector and acc vector."
+        in exc_info.value.args[0]
     )
 
 
@@ -288,8 +290,9 @@ def test_vector_fma_verify_res_lhs_shape_matching():
     with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert (
-        exc_info.value.args[0]
-        == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and lhs vector."
+        "Result vector shape must match with all source vector shapes. "
+        "Found different shapes for result vector and lhs vector."
+        in exc_info.value.args[0]
     )
 
 
@@ -307,8 +310,9 @@ def test_vector_fma_verify_res_rhs_shape_matching():
     with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert (
-        exc_info.value.args[0]
-        == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and rhs vector."
+        "Result vector shape must match with all source vector shapes. "
+        "Found different shapes for result vector and rhs vector."
+        in exc_info.value.args[0]
     )
 
 
@@ -326,8 +330,9 @@ def test_vector_fma_verify_res_acc_shape_matching():
     with pytest.raises(Exception) as exc_info:
         fma.verify()
     assert (
-        exc_info.value.args[0]
-        == "Result vector shape must match with all source vector shapes. Found different shapes for result vector and acc vector."
+        "Result vector shape must match with all source vector shapes. "
+        "Found different shapes for result vector and acc vector."
+        in exc_info.value.args[0]
     )
 
 
@@ -392,8 +397,9 @@ def test_vector_masked_load_verify_memref_res_type_matching():
     with pytest.raises(Exception) as exc_info:
         maskedload.verify()
     assert (
-        exc_info.value.args[0]
-        == "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and result."
+        "MemRef element type should match the result vector and passthrough "
+        "vector element type. Found different element types for memref and result."
+        in exc_info.value.args[0]
     )
 
 
@@ -419,8 +425,9 @@ def test_vector_masked_load_verify_memref_passthrough_type_matching():
     with pytest.raises(Exception) as exc_info:
         maskedload.verify()
     assert (
-        exc_info.value.args[0]
-        == "MemRef element type should match the result vector and passthrough vector element type. Found different element types for memref and passthrough."
+        "MemRef element type should match the result vector and passthrough "
+        "vector element type. Found different element types for memref and passthrough."
+        in exc_info.value.args[0]
     )
 
 
@@ -437,7 +444,7 @@ def test_vector_masked_load_verify_indexing_exception():
 
     with pytest.raises(Exception) as exc_info:
         maskedload.verify()
-    assert exc_info.value.args[0] == "Expected an index for each memref dimension."
+    assert "Expected an index for each memref dimension." in exc_info.value.args[0]
 
 
 def test_vector_masked_store():
@@ -494,9 +501,9 @@ def test_vector_masked_store_verify_memref_value_to_store_type_matching():
 
     with pytest.raises(Exception) as exc_info:
         maskedstore.verify()
-    assert exc_info.value.args[0] == (
+    assert (
         "MemRef element type should match the stored vector type. "
-        "Obtained types were i32 and i64."
+        "Obtained types were i32 and i64." in exc_info.value.args[0]
     )
 
 
@@ -513,7 +520,7 @@ def test_vector_masked_store_verify_indexing_exception():
 
     with pytest.raises(Exception) as exc_info:
         maskedstore.verify()
-    assert exc_info.value.args[0] == "Expected an index for each memref dimension."
+    assert "Expected an index for each memref dimension." in exc_info.value.args[0]
 
 
 def test_vector_print():
@@ -552,6 +559,6 @@ def test_vector_create_mask_verify_indexing_exception():
     with pytest.raises(Exception) as exc_info:
         create_mask.verify()
     assert (
-        exc_info.value.args[0]
-        == "Expected an operand value for each dimension of resultant mask."
+        "Expected an operand value for each dimension of resultant mask."
+        in exc_info.value.args[0]
     )

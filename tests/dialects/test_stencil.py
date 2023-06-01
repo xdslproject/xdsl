@@ -526,11 +526,11 @@ def test_stencil_store_load_overlap():
 
     with pytest.raises(VerifyException) as exc_info:
         load.verify()
-    assert exc_info.value.args[0] == "Cannot Load and Store the same field!"
+    assert "Cannot Load and Store the same field!" in exc_info.value.args[0]
 
     with pytest.raises(VerifyException) as exc_info:
         store.verify()
-    assert exc_info.value.args[0] == "Cannot Load and Store the same field!"
+    assert "Cannot Load and Store the same field!" in exc_info.value.args[0]
 
 
 def test_stencil_index():

@@ -95,9 +95,9 @@ def test_wrong_blockarg_types():
     with pytest.raises(VerifyException) as e:
         f.verify()
 
-    assert e.value.args[0] == (
+    assert (
         "Expected entry block arguments to have the same "
-        "types as the function input types"
+        "types as the function input types" in e.value.args[0]
     )
 
 

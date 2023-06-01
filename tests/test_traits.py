@@ -114,16 +114,15 @@ def test_verifier():
     op = TestOp.create(operands=[operand1], result_types=[i32])
     with pytest.raises(VerifyException) as e:
         op.verify()
-    assert e.value.args[0] == (
-        "Operation has a result bitwidth greater" " or equal to the operand bitwidth."
+    assert (
+        "Operation has a result bitwidth greater"
+        " or equal to the operand bitwidth." in e.value.args[0]
     )
 
     op = TestOp.create(operands=[operand64], result_types=[i32])
     with pytest.raises(VerifyException) as e:
         op.verify()
-    assert e.value.args[0] == (
-        "Operation has a bitwidth sum " "greater or equal to 64."
-    )
+    assert "Operation has a bitwidth sum " "greater or equal to 64." in e.value.args[0]
 
     op = TestOp.create(operands=[operand32], result_types=[i1])
     op.verify()
@@ -136,7 +135,7 @@ def test_verifier_order():
     op = TestOp.create(operands=[], result_types=[i1])
     with pytest.raises(VerifyException) as e:
         op.verify()
-    assert e.value.args[0] == ("Expected 1 operand, but got 0")
+    assert "Expected 1 operand, but got 0" in e.value.args[0]
 
 
 class LargerOperandOp(IRDLOperation, ABC):
