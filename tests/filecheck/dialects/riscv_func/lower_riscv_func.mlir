@@ -21,7 +21,7 @@
         %0 = "riscv_func.call"() {"func_name" = "get_one"} : () -> !riscv.reg<>
         %1 = "riscv_func.call"() {"func_name" = "get_one"} : () -> !riscv.reg<>
         %2 = "riscv_func.call"(%0, %1) {"func_name" = "add"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-        "riscv_func.call"(%2) {"func_name" = "my_print"} : () -> !riscv.reg<>
+        "riscv_func.call"(%2) {"func_name" = "my_print"} : (!riscv.reg<>) -> ()
         "riscv_func.return"() : () -> ()
     }) {"func_name" = "main"} : () -> ()
 
@@ -53,7 +53,7 @@
 
     "riscv_func.func"() ({
         %0 = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
-        "riscv_func.return"(%0) : () -> ()
+        "riscv_func.return"(%0) : (!riscv.reg<>) -> ()
     }) {"func_name" = "get_one"} : () -> ()
 
 // CHECK-NEXT:     "riscv.label"() ({
