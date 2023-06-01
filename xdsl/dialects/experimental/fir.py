@@ -113,6 +113,11 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class NoneType(ParametrizedAttribute, TypeAttribute):
+    """
+    This isn't part of the FIR MLIR dialect, and is only represented internally with
+    xDSL, but is useful to denote when there is a none or empty attribute
+    """
+
     name = "fir.none"
 
 
