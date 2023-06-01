@@ -138,7 +138,7 @@ class LowerDmpGather(RewritePattern):
         ]
         ubs = [
             arith.Constant.from_int_and_width(
-                shape_info.halo_size(x) + core_size[x], idx
+                shape_info.halo_size(x) + local_domain[x], idx
             )
             for x in range(rank)
         ]
