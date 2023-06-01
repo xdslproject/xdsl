@@ -241,7 +241,7 @@ class Alloc(IRDLOperation):
     @staticmethod
     def get(
         return_type: Attribute,
-        alignment: int,
+        alignment: int | None = None,
         shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
     ) -> Alloc:
         if shape is None:
@@ -249,7 +249,11 @@ class Alloc(IRDLOperation):
         return Alloc.build(
             operands=[[], []],
             result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
-            attributes={"alignment": IntegerAttr.from_int_and_width(alignment, 64)},
+            attributes={
+                "alignment": IntegerAttr.from_int_and_width(alignment, 64)
+                if alignment is not None
+                else None
+            },
         )
 
 
