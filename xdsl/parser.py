@@ -2565,7 +2565,23 @@ class Parser(ABC):
         self.parse_characters(
             ":", "MLIR Operation definitions must end in a function type signature!"
         )
+
+        func_type_pos = self._current_token.span.start
         func_type = self.parse_function_type()
+
+        if len(args) != len(func_type.inputs):
+            self.raise_error(
+                f"expected {len(func_type.inputs)} operand types but had {len(args)}",
+                func_type_pos,
+            )
+
+        for idx, (arg, arg_type) in enumerate(zip(args, func_type.inputs)):
+            if arg_type != arg.typ:
+                self.raise_error(
+                    f"mismatch between operand types and operation signature for operand #{idx}. "
+                    f"Expected {arg_type} but got {arg.typ}.",
+                    func_type_pos,
+                )
 
         return args, succ, attrs, regions, func_type
 

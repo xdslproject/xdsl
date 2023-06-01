@@ -19,7 +19,7 @@
       %cst = "arith.constant"() {"value" = -4.0 : f64} : () -> f64
       %18 = "arith.mulf"(%14, %cst) : (f64, f64) -> f64
       %19 = "arith.addf"(%18, %17) : (f64, f64) -> f64
-      "stencil.return"(%19) : (!stencil.result<f64>) -> ()
+      "stencil.return"(%19) : (f64) -> ()
     }) : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
     "stencil.store"(%8, %4) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 64>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
     "func.return"() : () -> ()

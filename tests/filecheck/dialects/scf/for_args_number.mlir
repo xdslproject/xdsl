@@ -7,5 +7,5 @@
   "scf.for"(%ub, %step) ({
   ^0(%iv : index):
     "scf.yield"() : () -> ()
-  }) : (index, index, index) -> ()
+  }) : (index, index) -> ()
 }) : () -> ()
