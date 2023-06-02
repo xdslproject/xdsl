@@ -388,8 +388,10 @@ class OptRegionOp(IRDLOperation):
 def test_opt_region_builder():
     op1 = OptRegionOp.build(regions=[[[Block(), Block()]]])
     op2 = OptRegionOp.build(regions=[[Region()]])
+    op3 = OptRegionOp.build(regions=[None])
     op1.verify()
     op2.verify()
+    op3.verify()
 
 
 def test_opt_region_builder_two_args():
