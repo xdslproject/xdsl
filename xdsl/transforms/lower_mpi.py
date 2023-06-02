@@ -145,18 +145,13 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         """
         This function retrieves the data size of a provided MPI type object
         """
-        if isinstance(mpi_dialect_dtype, mpi.RequestType):
-            return self.info.MPI_Request_size
-        elif isinstance(mpi_dialect_dtype, mpi.StatusType):
-            return self.info.MPI_Status_size
-        elif isinstance(mpi_dialect_dtype, mpi.DataType):
-            return self.info.MPI_Datatype_size
-        else:
-            raise ValueError(
-                "MPI internal type size lookup: Unsupported type: {}".format(
-                    mpi_dialect_dtype
-                )
-            )
+        match mpi_dialect_dtype:
+            case mpi.RequestType():
+                return self.info.MPI_Request_size
+            case mpi.StatusType():
+                return self.info.MPI_Status_size
+            case mpi.DataType():
+                return self.info.MPI_Datatype_size
 
     def _emit_mpi_status_objs(
         self, number_to_output: int

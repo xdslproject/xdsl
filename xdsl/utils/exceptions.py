@@ -8,16 +8,12 @@ import sys
 import typing
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, IO, Never
+from typing import Any, IO
 
 if typing.TYPE_CHECKING:
     from xdsl.parser import Span, BacktrackingHistory
     from xdsl.ir import Attribute
     from xdsl.utils.parse_pipeline import Token
-
-
-def assert_never(_: Never) -> Never:
-    raise AssertionError("Expected code to be unreachable")
 
 
 class DiagnosticException(Exception):

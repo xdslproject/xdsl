@@ -39,7 +39,6 @@ from xdsl.utils.exceptions import (
     PyRDLAttrDefinitionError,
     PyRDLOpDefinitionError,
     VerifyException,
-    assert_never,
 )
 from xdsl.utils.hints import (
     PropertyType,

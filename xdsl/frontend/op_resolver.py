@@ -45,14 +45,8 @@ class OpResolver:
         #   from M import F
         #   return F(...)
         python_ast = ast.parse(inspect.getsource(overload).strip())
-        if not isinstance(python_ast, ast.Module) or not isinstance(
-            python_ast.body[0], ast.FunctionDef
-        ):
-            raise FrontendProgramException(
-                f"Internal failure while resolving '{python_op}'. Function AST"
-                " for resolution not found."
-            )
         func_ast = python_ast.body[0]
+        assert isinstance(func_ast, ast.FunctionDef)
 
         if (
             len(func_ast.body) != 2

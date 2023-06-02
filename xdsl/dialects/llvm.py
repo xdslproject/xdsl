@@ -437,9 +437,6 @@ class GEPOp(IRDLOperation):
         ptr_val = SSAValue.get(ptr)
         ptr_type = ptr_val.typ
 
-        if not isinstance(result_type, LLVMPointerType):
-            raise ValueError("Result type must be a pointer.")
-
         if not isinstance(ptr_type, LLVMPointerType):
             raise ValueError("Input must be a pointer")
 

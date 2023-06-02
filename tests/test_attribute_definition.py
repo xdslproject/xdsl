@@ -150,10 +150,14 @@ class IntListData(Data[list[int]]):
         printer.print_string("]")
 
     def verify(self) -> None:
-        if not isinstance(self.data, list):
+        if not isinstance(
+            self.data, list
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise VerifyException("int_list data should hold a list.")
         for elem in self.data:
-            if not isinstance(elem, int):
+            if not isinstance(
+                elem, int
+            ):  # pyright: ignore[reportUnnecessaryIsInstance]
                 raise VerifyException("int_list list elements should be integers.")
 
 
@@ -493,7 +497,9 @@ class ListData(GenericData[list[A]]):
         return ListData(data)
 
     def verify(self) -> None:
-        if not isinstance(self.data, list):
+        if not isinstance(
+            self.data, list
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise VerifyException(
                 f"Wrong type given to attribute {self.name}: got"
                 f" {type(self.data)}, but expected list of"
@@ -651,14 +657,11 @@ class OveriddenInitAttr(ParametrizedAttribute):
     param: ParameterDef[Attribute]
 
     def __init__(self, param: int | str):
-        if isinstance(param, int):
-            super().__init__([IntData(param)])
-        elif isinstance(param, str):
-            super().__init__([StringData(param)])
-        else:
-            raise TypeError(
-                "Expected `int` or `str` type in " "OveriddenInitAttr constructor"
-            )
+        match param:
+            case int():
+                super().__init__([IntData(param)])
+            case str():
+                super().__init__([StringData(param)])
 
 
 def test_generic_constructor():
