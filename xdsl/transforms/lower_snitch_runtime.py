@@ -20,6 +20,7 @@ class LowerGetInfoOpToFunc(RewritePattern, ABC):
     Note: Takes the name of the op and replaces "snrt." with "snrt_" to link with
     snrt.h
     """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: snitch_runtime.SnitchRuntimeGetInfo, rewriter: PatternRewriter, /
@@ -29,7 +30,28 @@ class LowerGetInfoOpToFunc(RewritePattern, ABC):
     def lower(
         self, op: snitch_runtime.SnitchRuntimeGetInfo
     ) -> tuple[Operation, list[SSAValue]]:
-        return func.Call.get("snrt_"+op.name[5:], [], [i32]), [op.result]
+        return func.Call.get("snrt_" + op.name[5:], [], [i32]), [op.result]
+
+
+class LowerBarrierOpToFunc(RewritePattern, ABC):
+    """
+    Rewrite pattern that matches on all SnitchRuntimeBarrier ops, since they have
+    the same function signature.
+
+    Note: Takes the name of the op and replaces "snrt." with "snrt_" to link with
+    snrt.h
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.SnitchRuntimeBarrier, rewriter: PatternRewriter, /
+    ):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(
+        self, op: snitch_runtime.SnitchRuntimeBarrier
+    ) -> tuple[Operation, list[SSAValue]]:
+        return func.Call.get("snrt_" + op.name[5:], [], []), []
 
 
 class AddExternalFuncs(RewritePattern, ABC):
@@ -63,7 +85,10 @@ class LowerSnitchRuntimePass(ModulePass):
     # lower to func.call
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker1 = PatternRewriteWalker(
-            GreedyRewritePatternApplier([LowerGetInfoOpToFunc()]), apply_recursively=True
+            GreedyRewritePatternApplier(
+                [LowerGetInfoOpToFunc(), LowerBarrierOpToFunc()]
+            ),
+            apply_recursively=True,
         )
         walker2 = PatternRewriteWalker(AddExternalFuncs())
         walker1.rewrite_module(op)
