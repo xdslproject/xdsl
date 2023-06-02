@@ -1304,6 +1304,10 @@ class Block(IRNode):
                     )
                 operation.verify()
 
+            for succ in last_op.successors:
+                if succ.parent != self.parent:
+                    raise Exception("Branching to a block of a different region")
+
     def drop_all_references(self) -> None:
         """
         Drop all references to other operations.
