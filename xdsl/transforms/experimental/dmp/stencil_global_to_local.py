@@ -211,7 +211,7 @@ def generate_mpi_calls_for(
                         list(
                             generate_memcpy(
                                 source,
-                                ex.source_area(),
+                                ex,
                                 buffer.memref,
                                 reverse=True,
                             )
