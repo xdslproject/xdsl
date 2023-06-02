@@ -7,6 +7,6 @@
   "scf.for"(%lb, %ub, %step, %carried) ({
 // CHECK: Expected i8, got index. The scf.for's scf.yield must match carried variables types.
   ^0(%iv : index, %carried_arg : i8):
-    "scf.yield"(%iv) : () -> ()
-  }) : (index, index, index) -> ()
+    "scf.yield"(%iv) : (index) -> ()
+  }) : (index, index, index, i8) -> ()
 }) : () -> ()

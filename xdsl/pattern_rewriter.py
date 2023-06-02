@@ -336,7 +336,7 @@ class PatternRewriter:
         if op is self.current_operation:
             return self.inline_block_after_matched_op(block)
         if not self._can_modify_block(block) or (
-            op.parent and not self._can_modify_block(op.parent)
+            op.parent is not None and not self._can_modify_block(op.parent)
         ):
             raise Exception(
                 "Cannot move blocks that are not contained in the matched operation."

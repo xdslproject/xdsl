@@ -10,5 +10,5 @@
   "scf.for"(%lbi, %ub, %step) ({
   ^0(%iv : index):
     "scf.yield"() : () -> ()
-  }) : (index, index, index) -> ()
+  }) : (i32, index, index) -> ()
 }) : () -> ()

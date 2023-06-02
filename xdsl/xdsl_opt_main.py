@@ -28,9 +28,11 @@ from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.riscv import RISCV, print_assembly
 from xdsl.dialects.snitch import Snitch
+from xdsl.dialects.snitch_runtime import SnitchRuntime
 
 from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
+from xdsl.dialects.experimental.dmp import DMP
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
@@ -39,13 +41,15 @@ from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
-    ConvertStencilToGPUPass,
     ConvertStencilToLLMLIRPass,
 )
 from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
-from xdsl.transforms.experimental.stencil_global_to_local import (
+from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
     GlobalStencilToLocalStencil2DHorizontal,
     LowerHaloToMPI,
+)
+from xdsl.transforms.experimental.dmp.scatter_gather import (
+    DmpScatterGatherTrivialLowering,
 )
 
 from xdsl.utils.exceptions import DiagnosticException
@@ -244,8 +248,10 @@ class xDSLOptMain:
         self.ctx.register_dialect(Test)
         self.ctx.register_dialect(RISCV)
         self.ctx.register_dialect(Snitch)
+        self.ctx.register_dialect(SnitchRuntime)
         self.ctx.register_dialect(RISCV_Func)
         self.ctx.register_dialect(IRDL)
+        self.ctx.register_dialect(DMP)
 
     def register_all_frontends(self):
         """
@@ -275,7 +281,6 @@ class xDSLOptMain:
         """
         self.register_pass(LowerMPIPass)
         self.register_pass(ConvertStencilToLLMLIRPass)
-        self.register_pass(ConvertStencilToGPUPass)
         self.register_pass(StencilShapeInferencePass)
         self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
         self.register_pass(DesymrefyPass)
@@ -284,6 +289,7 @@ class xDSLOptMain:
         self.register_pass(RISCVRegisterAllocation)
         self.register_pass(LowerRISCVFunc)
         self.register_pass(LowerHaloToMPI)
+        self.register_pass(DmpScatterGatherTrivialLowering)
 
     def register_all_targets(self):
         """

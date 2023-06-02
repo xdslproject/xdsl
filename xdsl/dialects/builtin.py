@@ -391,19 +391,24 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
 
     def verify(self) -> None:
         if isinstance(self.typ, IntegerType):
-            if self.typ.signedness.data == Signedness.SIGNED:
-                min_value = -(1 << (self.typ.width.data - 1))
-                max_value = (1 << (self.typ.width.data - 1)) - 1
-            elif self.typ.signedness.data == Signedness.UNSIGNED:
-                min_value = 0
-                max_value = (1 << self.typ.width.data) - 1
-            else:
-                min_value = -(1 << self.typ.width.data)
-                max_value = 1 << self.typ.width.data
+            match self.typ.signedness.data:
+                case Signedness.SIGNLESS:
+                    min_value = -(1 << self.typ.width.data)
+                    max_value = 1 << self.typ.width.data
+                case Signedness.SIGNED:
+                    min_value = -(1 << (self.typ.width.data - 1))
+                    max_value = (1 << (self.typ.width.data - 1)) - 1
+                case Signedness.UNSIGNED:
+                    min_value = 0
+                    max_value = (1 << self.typ.width.data) - 1
+                case _:
+                    assert False, "unreachable"
 
             if not (min_value <= self.value.data <= max_value):
                 raise VerifyException(
-                    f"Integer value {self.value.data} is out of range for type {self.typ} which supports values in the range [{min_value}, {max_value}]"
+                    f"Integer value {self.value.data} is out of range for "
+                    f"type {self.typ} which supports values in the "
+                    f"range [{min_value}, {max_value}]"
                 )
 
 
@@ -1300,7 +1305,7 @@ class ModuleOp(IRDLOperation):
             printer.print_dictionary(self.attributes, printer.print, printer.print)
             printer.print("}")
 
-        if self.body.block.is_empty:
+        if not self.body.block.ops:
             # Do not print the entry block if the region has an empty block
             printer.print(" {\n")
             printer.print("}")

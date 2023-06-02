@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TypeVar, Iterable, Callable
-from abc import ABC, abstractmethod
+from typing import TypeVar, Iterable, Callable, cast, ClassVar
 
 from xdsl.passes import ModulePass
 
@@ -13,87 +12,28 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import Rewriter
-from xdsl.ir import MLContext, Operation, SSAValue, Block, Region, OpResult
+from xdsl.ir import (
+    BlockArgument,
+    MLContext,
+    Operation,
+    SSAValue,
+    Block,
+    Region,
+    OpResult,
+)
 from xdsl.irdl import Attribute
 from xdsl.dialects import builtin, mpi, memref, arith, scf, func
 from xdsl.dialects.experimental import stencil, dmp
 
 from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
 
+from xdsl.transforms.experimental.dmp.decompositions import (
+    DomainDecompositionStrategy,
+    HorizontalSlices2D,
+    GridSlice2d,
+)
+
 _T = TypeVar("_T", bound=Attribute)
-
-
-@dataclass
-class DomainDecompositionStrategy(ABC):
-    @abstractmethod
-    def calc_resize(self, shape: tuple[int]) -> tuple[int]:
-        raise NotImplementedError("SlicingStrategy must implement calc_resize!")
-
-    @abstractmethod
-    def halo_exchange_defs(
-        self, dims: dmp.HaloShapeInformation
-    ) -> Iterable[dmp.HaloExchangeDecl]:
-        raise NotImplementedError("SlicingStrategy must implement halo_exchange_defs!")
-
-    @abstractmethod
-    def comm_layout(self) -> dmp.NodeGrid:
-        raise NotImplementedError("SlicingStrategy must implement comm_count!")
-
-
-@dataclass
-class HorizontalSlices2D(DomainDecompositionStrategy):
-    slices: int
-
-    def __post_init__(self):
-        assert self.slices > 1, "must slice into at least two pieces!"
-
-    def comm_layout(self) -> dmp.NodeGrid:
-        return dmp.NodeGrid([self.slices])
-
-    def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
-        # slice on the y-axis
-        assert len(shape) == 2, "HorizontalSlices2D only works on 2d fields!"
-        assert (
-            shape[1] % self.slices == 0
-        ), "HorizontalSlices2D expects second dim to be divisible by number of slices!"
-
-        return shape[0], shape[1] // self.slices
-
-    def halo_exchange_defs(
-        self, dims: dmp.HaloShapeInformation
-    ) -> Iterable[dmp.HaloExchangeDecl]:
-        # upper halo exchange:
-        yield dmp.HaloExchangeDecl(
-            offset=(
-                dims.core_start(dmp.DIM_X),
-                dims.buffer_start(dmp.DIM_Y),
-            ),
-            size=(
-                dims.core_size(dmp.DIM_X),
-                dims.halo_size(dmp.DIM_Y),
-            ),
-            source_offset=(
-                0,
-                dims.halo_size(dmp.DIM_Y),
-            ),
-            neighbor=[-1],
-        )
-        # lower halo exchange:
-        yield dmp.HaloExchangeDecl(
-            offset=(
-                dims.core_start(dmp.DIM_X),
-                dims.core_end(dmp.DIM_Y),
-            ),
-            size=(
-                dims.core_size(dmp.DIM_X),
-                dims.halo_size(dmp.DIM_Y),
-            ),
-            source_offset=(
-                0,
-                -dims.halo_size(dmp.DIM_Y),
-            ),
-            neighbor=[1],
-        )
 
 
 @dataclass
@@ -354,18 +294,19 @@ def generate_memcpy(
         y = arith.Addi(i, y0)
         yield from (dest_idx, y)
 
-        def inner(j: SSAValue) -> Iterable[Operation]:
-            x = arith.Addi(j, x0)
-            linearized_idx = arith.Addi(dest_idx, j)
+        def inner(*j: BlockArgument) -> list[Operation]:
+            x = arith.Addi(j[0], x0)
+            linearized_idx = arith.Addi(dest_idx, j[0])
             if reverse:
                 load = memref.Load.get(dest, [linearized_idx])
                 store = memref.Store.get(load, source, [x, y])
             else:
                 load = memref.Load.get(source, [x, y])
                 store = memref.Store.get(load, dest, [linearized_idx])
-            yield from (x, linearized_idx, load, store)
-            # add an scf.yield at the end
-            yield scf.Yield.get()
+            # yield from (x, linearized_idx, load, store)
+            # # add an scf.yield at the end
+            # yield scf.Yield.get()
+            return [x, linearized_idx, load, store, scf.Yield.get()]
 
         yield scf.For.get(
             cst0,
@@ -383,7 +324,11 @@ def generate_memcpy(
 
     # TODO: make type annotations here aware that they can work with generators!
     loop = scf.For.get(
-        cst0, y_len, cst1, [], Block.from_callable([builtin.IndexType()], loop_body)  # type: ignore
+        cst0,
+        y_len,
+        cst1,
+        [],
+        Block.from_callable([builtin.IndexType()], loop_body),  # type: ignore
     )
 
     return [
@@ -587,15 +532,19 @@ class DmpSwapShapeInference:
         for use in op.input_stencil.uses:
             if not isinstance(use.operation, stencil.ApplyOp):
                 continue
-            core_lb = use.operation.lb
-            core_ub = use.operation.ub
+            assert use.operation.res
+            res_typ = cast(stencil.TempType[Attribute], use.operation.res[0].typ)
+            assert isinstance(res_typ.bounds, stencil.StencilBoundsAttr)
+            core_lb = res_typ.bounds.lb
+            core_ub = res_typ.bounds.ub
             break
 
         # this shouldn't have changed since the op was created!
-        load = op.input_stencil.owner
-        assert isinstance(load, stencil.LoadOp)
-        buff_lb = load.lb
-        buff_ub = load.ub
+        temp = op.input_stencil.typ
+        assert isa(temp, stencil.TempType[Attribute])
+        assert isinstance(temp.bounds, stencil.StencilBoundsAttr)
+        buff_lb = temp.bounds.lb
+        buff_ub = temp.bounds.ub
 
         # fun fact: pyright does not understand this:
         # assert None not in (core_lb, core_ub, buff_lb, buff_ub)
@@ -622,7 +571,33 @@ class DmpSwapShapeInference:
 
 
 @dataclass
-class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
+class DmpDecompositionPass(ModulePass):
+    """
+    Represents a pass that takes a strategy as input
+    """
+
+    STRATEGIES: ClassVar[dict[str, type[DomainDecompositionStrategy]]] = {
+        "2d-horizontal": HorizontalSlices2D,
+        "2d-grid": GridSlice2d,
+    }
+
+    name = "dmp-decompose-2d"
+
+    strategy: str
+
+    slices: list[int]
+    """
+    Number of slices to decompose the input into
+    """
+
+    def get_strategy(self) -> DomainDecompositionStrategy:
+        if self.strategy not in self.STRATEGIES:
+            raise ValueError(f"Unknown strategy: {self.strategy}")
+        return self.STRATEGIES[self.strategy](self.slices)
+
+
+@dataclass
+class GlobalStencilToLocalStencil2DHorizontal(DmpDecompositionPass):
     """
     Decompose a stencil to apply to a local domain.
 
@@ -630,15 +605,8 @@ class GlobalStencilToLocalStencil2DHorizontal(ModulePass):
     pass pipeline!
     """
 
-    name = "dmp-decompose-2d"
-
-    slices: int
-    """
-    Number of slices to decompose the input into
-    """
-
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        strategy = HorizontalSlices2D(self.slices)
+        strategy = self.get_strategy()
 
         PatternRewriteWalker(
             GreedyRewritePatternApplier(

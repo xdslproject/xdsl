@@ -184,49 +184,36 @@ def test_simple_data_constructor_failure():
 def test_signed_integer_attr():
     """Test the verification of a signed integer attribute."""
     with pytest.raises(VerifyException):
-        attr = IntegerAttr(1 << 31, IntegerType(32, Signedness.SIGNED))
-        attr.verify()
+        IntegerAttr(1 << 31, IntegerType(32, Signedness.SIGNED))
 
     with pytest.raises(VerifyException):
-        attr = IntegerAttr(-(1 << 31) - 1, IntegerType(32, Signedness.SIGNED))
-        attr.verify()
+        IntegerAttr(-(1 << 31) - 1, IntegerType(32, Signedness.SIGNED))
 
-    attr = IntegerAttr((1 << 31) - 1, IntegerType(32, Signedness.SIGNED))
-    attr.verify()
-
-    attr = IntegerAttr(-(1 << 31), IntegerType(32, Signedness.SIGNED))
-    attr.verify()
+    IntegerAttr((1 << 31) - 1, IntegerType(32, Signedness.SIGNED))
+    IntegerAttr(-(1 << 31), IntegerType(32, Signedness.SIGNED))
 
 
 def test_unsigned_integer_attr():
     """Test the verification of a unsigned integer attribute."""
     with pytest.raises(VerifyException):
-        attr = IntegerAttr(1 << 32, IntegerType(32, Signedness.UNSIGNED))
-        attr.verify()
+        IntegerAttr(1 << 32, IntegerType(32, Signedness.UNSIGNED))
 
     with pytest.raises(VerifyException):
-        attr = IntegerAttr(-1, IntegerType(32, Signedness.UNSIGNED))
-        attr.verify()
+        IntegerAttr(-1, IntegerType(32, Signedness.UNSIGNED))
 
-    attr = IntegerAttr((1 << 32) - 1, IntegerType(32, Signedness.UNSIGNED))
-    attr.verify()
+    IntegerAttr((1 << 32) - 1, IntegerType(32, Signedness.UNSIGNED))
 
 
 def test_signless_integer_attr():
     """Test the verification of a signless integer attribute."""
     with pytest.raises(VerifyException):
-        attr = IntegerAttr((1 << 32) + 1, IntegerType(32, Signedness.SIGNLESS))
-        attr.verify()
+        IntegerAttr((1 << 32) + 1, IntegerType(32, Signedness.SIGNLESS))
 
     with pytest.raises(VerifyException):
-        attr = IntegerAttr(-(1 << 32) - 1, IntegerType(32, Signedness.SIGNLESS))
-        attr.verify()
+        IntegerAttr(-(1 << 32) - 1, IntegerType(32, Signedness.SIGNLESS))
 
-    attr = IntegerAttr(1 << 32, IntegerType(32, Signedness.SIGNLESS))
-    attr.verify()
-
-    attr = IntegerAttr(-(1 << 32), IntegerType(32, Signedness.SIGNLESS))
-    attr.verify()
+    IntegerAttr(1 << 32, IntegerType(32, Signedness.SIGNLESS))
+    IntegerAttr(-(1 << 32), IntegerType(32, Signedness.SIGNLESS))
 
 
 ################################################################################

@@ -408,7 +408,7 @@ def test_lower_mpi_gather():
         mpi.GatherOp(ptr, count, dtype, ptr, count, dtype, root)
     )
 
-    # bcast has no results
+    # gather has no results
     assert len(result) == 0
 
     check_emitted_function_signature(

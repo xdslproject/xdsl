@@ -6,7 +6,7 @@
   %3 = "llvm.mlir.null"() : () -> !llvm.ptr
   %4 = "llvm.alloca"(%0) {"alignment" = 32 : i64} : (i64) -> !llvm.ptr<index>
   %5 = "llvm.load"(%4) : (!llvm.ptr<index>) -> index
-  %6 = "llvm.getelementptr"(%4, %0){elem_type = i32, rawConstantIndices = array<i32:-2147483648>} : (!llvm.ptr<i32>, i32) -> !llvm.ptr<i32>
+  %6 = "llvm.getelementptr"(%4, %0){elem_type = i32, rawConstantIndices = array<i32:-2147483648>} : (!llvm.ptr<index>, i64) -> !llvm.ptr<i32>
 }) : () -> ()
 
 // CHECK: "builtin.module"() ({
