@@ -8,7 +8,7 @@ from xdsl.irdl import (
     VarOperand,
 )
 from xdsl.ir import OpResult, Dialect
-from xdsl.dialects.builtin import IntegerType, Signedness, IndexType, i32, AnyAttr
+from xdsl.dialects.builtin import IntegerType, Signedness, IndexType, i32
 from xdsl.dialects.llvm import LLVMPointerType
 from typing import Annotated
 
