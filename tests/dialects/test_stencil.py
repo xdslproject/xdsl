@@ -195,7 +195,7 @@ def test_stencil_apply_no_results():
         ),
     ),
 )
-def test_create_index_attr_from_int_list(indices: list[int]):
+def test_create_index_attr_from_int_list(indices: list[int | IntAttr]):
     stencil_index_attr = IndexAttr.get(*indices)
     expected_array_attr = ArrayAttr(
         [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]

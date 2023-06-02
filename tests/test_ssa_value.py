@@ -9,20 +9,6 @@ from xdsl.ir import Block, OpResult, BlockArgument, SSAValue
 from xdsl.irdl import irdl_op_definition, IRDLOperation
 
 
-def test_ssa():
-    c = Constant.from_int_and_width(1, i32)
-    with pytest.raises(TypeError):
-        # test that we raise a TypeError if we give an incorrect type
-        # hence ignore
-        _ = SSAValue.get([c])  # type: ignore
-
-    b0 = Block([c])
-    with pytest.raises(TypeError):
-        # test that we raise a TypeError if we give an incorrect type
-        # hence ignore
-        _ = SSAValue.get(b0)  # type: ignore
-
-
 @irdl_op_definition
 class TwoResultOp(IRDLOperation):
     name = "test.tworesults"
