@@ -2138,9 +2138,10 @@ class Parser(ABC):
             return float(self.value)
 
         def to_type(self, parser: Parser, type: AnyFloat | IntegerType | IndexType):
+            if isinstance(type, AnyFloat):
+                return self.to_float(parser)
+
             match type:
-                case BFloat16Type() | Float16Type() | Float32Type() | Float64Type() | Float80Type() | Float128Type():
-                    return self.to_float(parser)
                 case IntegerType():
                     return self.to_int(
                         parser,

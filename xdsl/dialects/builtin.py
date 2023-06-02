@@ -871,6 +871,11 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
         data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
+        if isinstance(type.element_type, AnyFloat):
+            new_type = cast(RankedVectorOrTensorOf[AnyFloat], type)
+            new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
+            return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
+
         match type.element_type:
             case IntegerType():
                 new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
@@ -882,12 +887,6 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
                 new_type = cast(RankedVectorOrTensorOf[IndexType], type)
                 new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
                 return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
-            case BFloat16Type() | Float16Type() | Float32Type() | Float64Type() | Float80Type() | Float128Type():
-                new_type = cast(RankedVectorOrTensorOf[AnyFloat], type)
-                new_data = cast(
-                    Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data
-                )
-                return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
 
     @staticmethod
     def vector_from_list(
