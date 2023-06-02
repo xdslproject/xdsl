@@ -11,7 +11,7 @@ from xdsl.dialects.experimental.stencil import (
     TempType,
 )
 
-from xdsl.ir import Attribute, MLContext, Operation, SSAValue
+from xdsl.ir import Attribute, BlockArgument, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -84,6 +84,32 @@ class StoreOpShapeInference(RewritePattern):
         op.temp.typ = TempType(tuple(zip(temp_lb, temp_ub)), temp.element_type)
 
 
+class AccessOpShapeInference(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter):
+        apply = op.parent_op()
+        assert isinstance(apply, ApplyOp)
+        assert isa(op.temp.typ, TempType[Attribute])
+        assert isinstance(op.temp, BlockArgument)
+        assert op.temp.block.parent_op() is apply
+        assert isa(apply.res[0].typ, TempType[Attribute]), f"{apply.res[0]}"
+
+        temp_typ = op.temp.typ
+        temp_lb = None
+        temp_ub = None
+        if isinstance(temp_typ.bounds, StencilBoundsAttr):
+            temp_lb = temp_typ.bounds.lb
+            temp_ub = temp_typ.bounds.ub
+        output_size = apply.res[0].typ.bounds
+        assert isinstance(output_size, StencilBoundsAttr)
+
+        lb = IndexAttr.min(output_size.lb + op.offset, temp_lb)
+        ub = IndexAttr.max(output_size.ub + op.offset, temp_ub)
+        ntyp = TempType(tuple(zip(lb, ub)), temp_typ.element_type)
+
+        op.temp.typ = ntyp
+
+
 class ApplyOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
@@ -95,28 +121,16 @@ class ApplyOpShapeInference(RewritePattern):
         ntyp = res_typ
         assert isinstance(ntyp.bounds, StencilBoundsAttr)
 
-        accesses = [a for a in op.walk() if isinstance(a, AccessOp)]
-        if not accesses:
-            return
-        for access in accesses:
-            temp = access.temp.typ
-            assert isa(temp, TempType[Attribute])
-
-            lb = IndexAttr.min(res_typ.bounds.lb + access.offset, ntyp.bounds.lb)
-            ub = IndexAttr.max(res_typ.bounds.ub + access.offset, ntyp.bounds.ub)
-            ntyp = TempType(tuple(zip(lb, ub)), temp.element_type)
-            assert isinstance(ntyp.bounds, StencilBoundsAttr)
-
-        for i, arg in enumerate(op.args):
+        for i, arg in enumerate(op.region.block.args):
             if not isa(arg.typ, TempType[Attribute]):
                 continue
-            arg.typ = ntyp
-            op.region.block.args[i].typ = ntyp
+            op.operands[i].typ = arg.typ
 
 
 ShapeInference = GreedyRewritePatternApplier(
     [
         ApplyOpShapeInference(),
+        AccessOpShapeInference(),
         LoadOpShapeInference(),
         StoreOpShapeInference(),
     ]
@@ -128,6 +142,9 @@ class StencilShapeInferencePass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         inference_walker = PatternRewriteWalker(
-            ShapeInference, apply_recursively=False, walk_reverse=True
+            ShapeInference,
+            apply_recursively=False,
+            walk_reverse=True,
+            walk_regions_first=True,
         )
         inference_walker.rewrite_module(op)
