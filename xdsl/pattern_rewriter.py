@@ -389,18 +389,6 @@ class RewritePattern(ABC):
         ...
 
 
-@dataclass(eq=False, repr=False)
-class AnonymousRewritePattern(RewritePattern):
-    """
-    A rewrite pattern encoded by an anonymous function.
-    """
-
-    func: Callable[[Operation, PatternRewriter], None]
-
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
-        self.func(op, rewriter)
-
-
 _RewritePatternT = TypeVar("_RewritePatternT", bound=RewritePattern)
 _OperationT = TypeVar("_OperationT", bound=Operation)
 
@@ -451,41 +439,6 @@ def op_type_rewrite_pattern(
             func(self, op, rewriter)
 
     return impl
-
-
-def anonymous_rewrite_pattern(
-    func: Callable[[_OperationT, PatternRewriter], None]
-) -> AnonymousRewritePattern:
-    """
-    This function is intended to be used as a decorator on a method implementing
-    a rewrite pattern. It uses type hints to match on a specific operation type
-    before calling the decorated function.
-    """
-    # Get the operation argument and check that it is a subclass of Operation
-    params = [param for param in inspect.signature(func).parameters.values()]
-    if len(params) != 2:
-        raise Exception(
-            "op_type_rewrite_pattern expects the decorated function to "
-            "have two arguments."
-        )
-
-    expected_type: type[_OperationT] = params[0].annotation
-    expected_types = (expected_type,)
-    if get_origin(expected_type) in [Union, UnionType]:
-        expected_types = get_args(expected_type)
-
-    if not all(issubclass(t, Operation) for t in expected_types):
-        raise Exception(
-            "op_type_rewrite_pattern expects the first non-self argument "
-            "type hint to be an `Operation` subclass or a union of `Operation` "
-            "subclasses."
-        )
-
-    def impl(op: Operation, rewriter: PatternRewriter) -> None:
-        if isinstance(op, expected_type):
-            func(op, rewriter)
-
-    return AnonymousRewritePattern(impl)
 
 
 @dataclass(eq=False, repr=False)
