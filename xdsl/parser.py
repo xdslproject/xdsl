@@ -1688,7 +1688,10 @@ class Parser(ABC):
                     self.raise_error(
                         f"block argument %{arg.name} is already defined", arg.name
                     )
-                self.ssa_values[arg.name.text[1:]] = (block_arg,)
+                parsed_name = arg.name.text[1:]
+                self.ssa_values[parsed_name] = (block_arg,)
+                if SSAValue.is_valid_name(parsed_name):
+                    block_arg.name_hint = arg.name.text[1:]
 
             # Parse the entry block body
             self._parse_block_body(entry_block)
@@ -2562,7 +2565,23 @@ class Parser(ABC):
         self.parse_characters(
             ":", "MLIR Operation definitions must end in a function type signature!"
         )
+
+        func_type_pos = self._current_token.span.start
         func_type = self.parse_function_type()
+
+        if len(args) != len(func_type.inputs):
+            self.raise_error(
+                f"expected {len(func_type.inputs)} operand types but had {len(args)}",
+                func_type_pos,
+            )
+
+        for idx, (arg, arg_type) in enumerate(zip(args, func_type.inputs)):
+            if arg_type != arg.typ:
+                self.raise_error(
+                    f"mismatch between operand types and operation signature for operand #{idx}. "
+                    f"Expected {arg_type} but got {arg.typ}.",
+                    func_type_pos,
+                )
 
         return args, succ, attrs, regions, func_type
 

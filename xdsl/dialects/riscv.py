@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import IO, Annotated, Iterable, TypeAlias
+from typing import IO, Annotated, Iterable, TypeAlias, Sequence
 
 from xdsl.ir import (
     Dialect,
     Operation,
     Region,
     SSAValue,
+    Attribute,
     Data,
     OpResult,
     TypeAttribute,
@@ -17,8 +18,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     OptSingleBlockRegion,
+    VarOpResult,
     irdl_op_definition,
     irdl_attr_definition,
+    VarOperand,
     Operand,
     OpAttr,
     OptOpAttr,
@@ -1247,9 +1250,6 @@ class ReturnOp(NullaryOperation):
 
     name = "riscv.ret"
 
-    def __init__(self):
-        super().__init__()
-
 
 # Conditional Branches
 
@@ -1721,6 +1721,67 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
+class LabelOp(IRDLOperation, RISCVOp):
+    """
+    The label operation is used to emit text labels (e.g. loop:) that are used
+    as branch, unconditional jump targets and symbol offsets.
+
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels
+
+    Optionally, a label can be associated with a single-block region, since
+    that is a common target for jump instructions.
+
+    For example, to generate this assembly:
+    ```
+    label1:
+        add a0, a1, a2
+    ```
+
+    One needs to do the following:
+
+    ``` python
+    @Builder.implicit_region
+    def my_add():
+        a1_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+        a2_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
+        riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
+
+    label_op = riscv.LabelOp("label1", my_add)
+    ```
+    """
+
+    name = "riscv.label"
+    label: OpAttr[LabelAttr]
+    comment: OptOpAttr[StringAttr]
+    data: OptSingleBlockRegion
+
+    def __init__(
+        self,
+        label: str | LabelAttr,
+        region: OptSingleBlockRegion = None,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = LabelAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if region is None:
+            region = Region()
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            },
+            regions=[region],
+        )
+
+    def assembly_line(self) -> str | None:
+        return _append_comment(f"{self.label.data}:", self.comment)
+
+
+@irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .text; .data; etc.)
@@ -1762,6 +1823,60 @@ class DirectiveOp(IRDLOperation, RISCVOp):
             value = None
 
         return _assembly_line(self.directive.data, (value,), is_indented=False)
+
+
+@irdl_op_definition
+class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
+    """
+    An instruction with unspecified semantics, that can be printed during assembly
+    emission.
+
+    During assembly emission, the results are printed before the operands:
+
+    ``` python
+    s0 = riscv.GetRegisterOp(Registers.s0).res
+    s1 = riscv.GetRegisterOp(Registers.s1).res
+    rs2 = riscv.RegisterType(Registers.s2)
+    rs3 = riscv.RegisterType(Registers.s3)
+    op = CustomAssemblyInstructionOp("my_instr", (s0, s1), (rs2, rs3))
+
+    op.assembly_line()   # "my_instr s2, s3, s0, s1"
+    ```
+    """
+
+    name = "riscv.custom_assembly_instruction"
+    inputs: VarOperand
+    outputs: VarOpResult
+    instruction_name: OpAttr[StringAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        instruction_name: str | StringAttr,
+        inputs: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(instruction_name, str):
+            instruction_name = StringAttr(instruction_name)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[inputs],
+            result_types=[result_types],
+            attributes={
+                "instruction_name": instruction_name,
+                "comment": comment,
+            },
+        )
+
+    def assembly_instruction_name(self) -> str:
+        return self.instruction_name.data
+
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return *self.results, *self.operands
 
 
 @irdl_op_definition
@@ -1930,9 +2045,11 @@ RISCV = Dialect(
         RemuOp,
         LiOp,
         EcallOp,
+        LabelOp,
         DirectiveOp,
         EbreakOp,
         WfiOp,
+        CustomAssemblyInstructionOp,
         CommentOp,
         GetRegisterOp,
         ScfgwOp,

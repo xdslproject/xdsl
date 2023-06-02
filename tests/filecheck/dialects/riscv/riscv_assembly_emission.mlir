@@ -5,7 +5,7 @@
   // CHECK:      li zero, 6
   %1 = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<j1>
   // CHECK-NEXT: li j1, 5
-  %2 = "riscv.add"(%0, %1) : (!riscv.reg<j1>, !riscv.reg<zero>) -> !riscv.reg<j2>
+  %2 = "riscv.add"(%0, %1) : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
   // CHECK-NEXT: add j2, zero, j1
   %mv = "riscv.mv"(%0) : (!riscv.reg<zero>) -> !riscv.reg<j2>
   // CHECK-NEXT: mv j2, zero
@@ -160,4 +160,17 @@
   }) {"directive" = ".text"} : () -> ()
   // CHECK-NEXT:  .text
   // CHECK-NEXT:  addi j1, j1, 1
+  "riscv.label"() {"label" = #riscv.label<"label0">} : () -> ()
+  // CHECK-NEXT: label0:
+  "riscv.label"() ({
+    %nested_addi = "riscv.addi"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j1>
+  }) {"label" = #riscv.label<"label1">} : () -> ()
+  // CHECK-NEXT: label1:
+  // CHECK-NEXT: addi j1, j1, 1
+
+
+  // Custom instruction
+  %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<zero>, !riscv.reg<j1>) -> (!riscv.reg<j3>, !riscv.reg<j4>)
+  // CHECK-NEXT:   hello j3, j4, zero, j1
+
 }) : () -> ()

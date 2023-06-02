@@ -8,9 +8,24 @@ from xdsl.frontend.dialects.builtin import index, i1, i32, f32
 
 p = FrontendProgram()
 with CodeContext(p):
-    # CHECK:      "func.func"() ({
-    # CHECK-NEXT: ^0(%{{.*}} : index):
+    # CHECK:      func.func @test_for_I(%{{.*}} : index) {
     # CHECK:        %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
+    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
+    # CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+    # CHECK-NEXT:   ^0(%{{.*}} : index):
+    # CHECK-NEXT:     "scf.yield"() : () -> ()
+    # CHECK-NEXT:   }) : (index, index, index) -> ()
+    # CHECK-NEXT:   "func.return"() : () -> ()
+    # CHECK-NEXT: }
+
+    def test_for_I(end: index):
+        for _ in range(end):  # type: ignore
+            pass
+        return
+
+    # CHECK:      func.func @test_for_II(%{{.*}} : index, %{{.*}} : index) {
+    # CHECK:        %{{.*}} = "symref.fetch"() {"symbol" = @start} : () -> index
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
     # CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
     # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
@@ -18,47 +33,28 @@ with CodeContext(p):
     # CHECK-NEXT:     "scf.yield"() : () -> ()
     # CHECK-NEXT:   }) : (index, index, index) -> ()
     # CHECK-NEXT:   "func.return"() : () -> ()
-    # CHECK-NEXT: }) {"sym_name" = "test_for_I", "function_type" = (index) -> (), "sym_visibility" = "private"} : () -> ()
-
-    def test_for_I(end: index):
-        for _ in range(end):  # type: ignore
-            pass
-        return
-
-    # CHECK:      "func.func"() ({
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
-    # CHECK:        %{{.*}} = "symref.fetch"() {"symbol" = @start} : () -> index
-    # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
-    # CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
-    # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-    # CHECK-NEXT:   ^3(%{{.*}} : index):
-    # CHECK-NEXT:     "scf.yield"() : () -> ()
-    # CHECK-NEXT:   }) : (index, index, index) -> ()
-    # CHECK-NEXT:   "func.return"() : () -> ()
-    # CHECK-NEXT: }) {"sym_name" = "test_for_II", "function_type" = (index, index) -> (), "sym_visibility" = "private"} : () -> ()
+    # CHECK-NEXT: }
     def test_for_II(start: index, end: index):
         for _ in range(start, end):  # type: ignore
             pass
         return
 
-    # CHECK:      "func.func"() ({
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
+    # CHECK:      func.func @test_for_III(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
     # CHECK:        %{{.*}} = "symref.fetch"() {"symbol" = @start} : () -> index
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @step} : () -> index
     # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-    # CHECK-NEXT:   ^5(%{{.*}} : index):
+    # CHECK-NEXT:   ^2(%{{.*}} : index):
     # CHECK-NEXT:     "scf.yield"() : () -> ()
     # CHECK-NEXT:   }) : (index, index, index) -> ()
     # CHECK-NEXT:   "func.return"() : () -> ()
-    # CHECK-NEXT: }) {"sym_name" = "test_for_III", "function_type" = (index, index, index) -> (), "sym_visibility" = "private"} : () -> ()
+    # CHECK-NEXT: }
     def test_for_III(start: index, end: index, step: index):
         for _ in range(start, end, step):  # type: ignore
             pass
         return
 
-    # CHECK:        "func.func"() ({
-    # CHECK-NEXT:   ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
+    # CHECK:        func.func @test_for_IV(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
     # CHECK:          %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
     # CHECK-NEXT:     %{{.*}} = "symref.fetch"() {"symbol" = @a} : () -> index
     # CHECK-NEXT:     %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
@@ -81,7 +77,7 @@ with CodeContext(p):
     # CHECK-NEXT:       "scf.yield"() : () -> ()
     # CHECK-NEXT:     }) : (index, index, index) -> ()
     # CHECK-NEXT:   "func.return"() : () -> ()
-    # CHECK-NEXT:   }) {"sym_name" = "test_for_IV", "function_type" = (index, index, index) -> (), "sym_visibility" = "private"} : () -> ()
+    # CHECK-NEXT:   }
     def test_for_IV(a: index, b: index, c: index):
         for _ in range(a):  # type: ignore
             for _ in range(b):  # type: ignore

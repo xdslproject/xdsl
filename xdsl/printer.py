@@ -203,54 +203,36 @@ class Printer:
         self._next_valid_block_id += 1
         return self._next_valid_block_id - 1
 
-    def _print_result_value(self, op: Operation, idx: int) -> None:
-        val = op.results[idx]
-        self.print("%")
-        if val in self._ssa_values:
-            name = self._ssa_values[val]
-        elif val.name_hint:
-            curr_ind = self._ssa_names.get(val.name_hint, 0)
-            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{val.name_hint}{suffix}"
-            self._ssa_values[val] = name
-            self._ssa_names[val.name_hint] = curr_ind + 1
-        else:
-            name = self._get_new_valid_name_id()
-            self._ssa_values[val] = name
-        self.print("%s" % name)
-
     def _print_results(self, op: Operation) -> None:
         results = op.results
         # No results
         if len(results) == 0:
             return
 
-        # One result
-        if len(results) == 1:
-            self._print_result_value(op, 0)
-            self.print(" = ")
-            return
-
         # Multiple results
-        self._print_result_value(op, 0)
-        for idx in range(1, len(results)):
-            self.print(", ")
-            self._print_result_value(op, idx)
+        self.print_list(op.results, self.print)
         self.print(" = ")
 
     def print_ssa_value(self, value: SSAValue) -> None:
-        if ssa_val := self._ssa_values.get(value):
-            self.print(f"%{ssa_val}")
+        """
+        Print an SSA value in the printer. This assigns a name to the value if the value
+        does not have one in the current printing context.
+        If the value has a name hint, it will use it as a prefix, and otherwise assign
+        a number as the name. Numbers are assigned in order.
+        """
+        if value in self._ssa_values:
+            name = self._ssa_values[value]
+        elif value.name_hint:
+            curr_ind = self._ssa_names.get(value.name_hint, 0)
+            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+            name = f"{value.name_hint}{suffix}"
+            self._ssa_values[value] = name
+            self._ssa_names[value.name_hint] = curr_ind + 1
         else:
-            begin_pos = self._current_column
-            self.print("%<UNKNOWN>")
-            end_pos = self._current_column
-            self._add_message_on_next_line(
-                "ERROR: SSAValue is not part of the IR, are you sure all operations "
-                "are added before their uses?",
-                begin_pos,
-                end_pos,
-            )
+            name = self._get_new_valid_name_id()
+            self._ssa_values[value] = name
+
+        self.print(f"%{name}")
 
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
@@ -289,15 +271,7 @@ class Printer:
         Print a block argument with its type, e.g. `%arg : i32`
         Optionally, do not print the type.
         """
-
-        if arg.name_hint and arg.name_hint not in self._ssa_values.values():
-            name = arg.name_hint
-            self._ssa_names[arg.name_hint] = self._ssa_names.get(arg.name_hint, 0) + 1
-        else:
-            name = self._get_new_valid_name_id()
-        self._ssa_values[arg] = name
-
-        self.print(f"%{name}")
+        self.print(arg)
         if print_type:
             self.print(" : ", arg.typ)
 
@@ -325,8 +299,8 @@ class Printer:
 
         entry_block = region.blocks[0]
         print_entry_block_args = (
-            len(entry_block.args) != 0 and print_entry_block_args
-        ) or (entry_block.is_empty and print_empty_block)
+            bool(entry_block.args) and print_entry_block_args
+        ) or (not entry_block.ops and print_empty_block)
         self.print_block(entry_block, print_block_args=print_entry_block_args)
         for block in region.blocks[1:]:
             self.print_block(block)

@@ -28,9 +28,11 @@ from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.riscv import RISCV, print_assembly
 from xdsl.dialects.snitch import Snitch
+from xdsl.dialects.snitch_runtime import SnitchRuntime
 
 from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
+from xdsl.dialects.experimental.dmp import DMP
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
@@ -39,13 +41,15 @@ from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
-    ConvertStencilToGPUPass,
     ConvertStencilToLLMLIRPass,
 )
 from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
-from xdsl.transforms.experimental.stencil_global_to_local import (
+from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
     GlobalStencilToLocalStencil2DHorizontal,
     LowerHaloToMPI,
+)
+from xdsl.transforms.experimental.dmp.scatter_gather import (
+    DmpScatterGatherTrivialLowering,
 )
 
 from xdsl.utils.exceptions import DiagnosticException
@@ -108,28 +112,23 @@ class xDSLOptMain:
         """
         Executes the different steps.
         """
-        if not self.args.parsing_diagnostics:
-            modules = self.parse_input()
-        else:
-            try:
-                modules = self.parse_input()
-            except ParseError as e:
-                print(e)
-                exit(0)
-
-        output_list: List[str] = []
-        for module in modules:
-            if not self.args.verify_diagnostics:
-                self.apply_passes(module)
-                output_list.append(self.output_resulting_program(module))
-            else:
+        chunks, file_extension = self.prepare_input()
+        output_stream = self.prepare_output()
+        try:
+            for i, chunk in enumerate(chunks):
                 try:
-                    self.apply_passes(module)
-                except DiagnosticException as e:
-                    print(e)
-
-        contents = "// -----\n".join(output_list)
-        self.print_to_output_stream(contents)
+                    if i > 0:
+                        output_stream.write("// -----\n")
+                    module = self.parse_chunk(chunk, file_extension)
+                    if module is not None:
+                        if self.apply_passes(module):
+                            output_stream.write(self.output_resulting_program(module))
+                    output_stream.flush()
+                finally:
+                    chunk.close()
+        finally:
+            if output_stream is not sys.stdout:
+                output_stream.close()
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """
@@ -249,8 +248,10 @@ class xDSLOptMain:
         self.ctx.register_dialect(Test)
         self.ctx.register_dialect(RISCV)
         self.ctx.register_dialect(Snitch)
+        self.ctx.register_dialect(SnitchRuntime)
         self.ctx.register_dialect(RISCV_Func)
         self.ctx.register_dialect(IRDL)
+        self.ctx.register_dialect(DMP)
 
     def register_all_frontends(self):
         """
@@ -280,7 +281,6 @@ class xDSLOptMain:
         """
         self.register_pass(LowerMPIPass)
         self.register_pass(ConvertStencilToLLMLIRPass)
-        self.register_pass(ConvertStencilToGPUPass)
         self.register_pass(StencilShapeInferencePass)
         self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
         self.register_pass(DesymrefyPass)
@@ -289,6 +289,7 @@ class xDSLOptMain:
         self.register_pass(RISCVRegisterAllocation)
         self.register_pass(LowerRISCVFunc)
         self.register_pass(LowerHaloToMPI)
+        self.register_pass(DmpScatterGatherTrivialLowering)
 
     def register_all_targets(self):
         """
@@ -326,11 +327,10 @@ class xDSLOptMain:
             self.available_passes[p.name].from_pass_spec(p) for p in pipeline
         ]
 
-    def parse_input(self) -> List[ModuleOp]:
+    def prepare_input(self) -> tuple[List[IO[str]], str]:
         """
-        Parse the input file by invoking the parser specified by the `parser`
-        argument. If not set, the parser registered for this file extension
-        is used.
+        Prepare input by eventually splitting it in chunks. If not set, the parser
+        registered for this file extension is used.
         """
 
         # when using the split input flag, program is split into multiple chunks
@@ -348,35 +348,63 @@ class xDSLOptMain:
         chunks = [f]
         if self.args.split_input_file:
             chunks = [StringIO(chunk) for chunk in f.read().split("// -----")]
+            f.close()
         if self.args.frontend:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
-            f.close()
+            for chunk in chunks:
+                chunk.close()
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
+        return chunks, file_extension
+
+    def prepare_output(self) -> IO[str]:
+        if self.args.output_file is None:
+            return sys.stdout
+        else:
+            return open(self.args.output_file, "w")
+
+    def parse_chunk(self, chunk: IO[str], file_extension: str) -> ModuleOp | None:
+        """
+        Parse the input file by invoking the parser specified by the `parser`
+        argument. If not set, the parser registered for this file extension
+        is used.
+        """
+
         try:
-            module = [self.available_frontends[file_extension](s) for s in chunks]
+            return self.available_frontends[file_extension](chunk)
+        except ParseError as e:
+            if self.args.parsing_diagnostics:
+                print(e)
+            else:
+                raise e
         finally:
-            f.close()
+            chunk.close()
 
-        return module
-
-    def apply_passes(self, prog: ModuleOp):
+    def apply_passes(self, prog: ModuleOp) -> bool:
         """Apply passes in order."""
-        assert isinstance(prog, ModuleOp)
-        if not self.args.disable_verify:
-            prog.verify()
-        for p in self.pipeline:
-            p.apply(self.ctx, prog)
+        try:
             assert isinstance(prog, ModuleOp)
             if not self.args.disable_verify:
                 prog.verify()
-            if self.args.print_between_passes:
-                print(f"IR after {p.name}:")
-                printer = Printer(stream=sys.stdout)
-                printer.print_op(prog)
-                print("\n\n\n")
+            for p in self.pipeline:
+                p.apply(self.ctx, prog)
+                assert isinstance(prog, ModuleOp)
+                if not self.args.disable_verify:
+                    prog.verify()
+                if self.args.print_between_passes:
+                    print(f"IR after {p.name}:")
+                    printer = Printer(stream=sys.stdout)
+                    printer.print_op(prog)
+                    print("\n\n\n")
+        except DiagnosticException as e:
+            if self.args.verify_diagnostics:
+                print(e)
+                return False
+            else:
+                raise e
+        return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
@@ -386,14 +414,6 @@ class xDSLOptMain:
 
         self.available_targets[self.args.target](prog, output)
         return output.getvalue()
-
-    def print_to_output_stream(self, contents: str):
-        """Print the contents in the expected stream."""
-        if self.args.output_file is None:
-            print(contents)
-        else:
-            with open(self.args.output_file, "w") as output_stream:
-                output_stream.write(contents)
 
     def get_input_name(self):
         return self.args.input_file or "stdin"

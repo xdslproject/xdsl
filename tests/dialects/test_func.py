@@ -4,7 +4,13 @@ from conftest import assert_print_op
 from xdsl.builder import Builder
 from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
-from xdsl.dialects.builtin import IntegerAttr, i32, ModuleOp, i64, IntegerType
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    i32,
+    ModuleOp,
+    i64,
+    IntegerType,
+)
 from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import VerifyException
 
@@ -147,7 +153,7 @@ def test_func_get_return_op():
 def test_callable_constructor():
     f = FuncOp.from_callable("f", [], [], lambda *args: [])
     assert f.sym_name.data == "f"
-    assert f.body.block.is_empty
+    assert not f.body.block.ops
 
 
 def test_call():
@@ -187,7 +193,7 @@ def test_call():
   ^0(%0 : i32, %1 : i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
-  }) {"sym_name" = "func0", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
+  }) {"sym_name" = "func0", "function_type" = (i32, i32) -> i32} : () -> ()
   %3 = "arith.constant"() {"value" = 1 : i32} : () -> i32
   %4 = "arith.constant"() {"value" = 2 : i32} : () -> i32
   %5 = "func.call"(%3, %4) {"callee" = @func0} : (i32, i32) -> i32
@@ -233,7 +239,7 @@ def test_call_II():
   ^0(%0 : i32):
     %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
     "func.return"(%1) : (i32) -> ()
-  }) {"sym_name" = "func1", "function_type" = (i32) -> i32, "sym_visibility" = "private"} : () -> ()
+  }) {"sym_name" = "func1", "function_type" = (i32) -> i32} : () -> ()
   %2 = "arith.constant"() {"value" = 1 : i32} : () -> i32
   %3 = "func.call"(%2) {"callee" = @func1} : (i32) -> i32
 }) : () -> ()
