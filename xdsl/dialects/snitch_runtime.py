@@ -180,17 +180,11 @@ class DmaWaitOp(SnitchRuntimeBaseOp):
 
 
 @irdl_op_definition
-class DmaWaitAllOp(SnitchRuntimeBaseOp):
+class DmaWaitAllOp(SnitchRuntimeBarrier):
     """
     Block until all operations on the DMA cease
     """
-
     name = "snrt.dma_wait_all"
-
-    def __init__(
-        self,
-    ):
-        super().__init__(operands=[], result_types=[])
 
 
 SnitchRuntime = Dialect(
