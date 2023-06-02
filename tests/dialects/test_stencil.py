@@ -1,5 +1,3 @@
-import re
-from unittest import result
 import pytest
 
 from xdsl.dialects.builtin import (
@@ -491,18 +489,6 @@ def test_stencil_resulttype(float_type: AnyFloat):
     assert stencil_resulttype.elem == float_type
 
 
-def test_store_result():
-    elem = IndexAttr.get(1)
-    elem_ssa_val = TestSSAValue(elem)
-    result_type = ResultType(f32)
-
-    store_result = StoreResultOp.build(operands=[elem_ssa_val], result_types=[result_type])
-
-    assert isinstance(store_result, StoreResultOp)
-    assert store_result.args[0] == elem_ssa_val
-    assert store_result.res.typ == result_type
-
-
 def test_stencil_store():
     temp_type = TempType([(0, 5), (0, 5)], f32)
     temp_type_ssa_val = TestSSAValue(temp_type)
@@ -577,3 +563,15 @@ def test_stencil_access():
     assert isinstance(access, AccessOp)
     assert access.offset == offset_index_attr
     assert access.temp.typ == temp_type
+
+
+def test_store_result():
+    elem = IndexAttr.get(1)
+    elem_ssa_val = TestSSAValue(elem)
+    result_type = ResultType(f32)
+
+    store_result = StoreResultOp.build(operands=[elem_ssa_val], result_types=[result_type])
+
+    assert isinstance(store_result, StoreResultOp)
+    assert store_result.args[0] == elem_ssa_val
+    assert store_result.res.typ == result_type
