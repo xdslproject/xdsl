@@ -267,8 +267,11 @@ def generate_memcpy(
 
         # x = i + x0
         # y = i + y0
-        x = arith.Addi(i, x0)
-        y = arith.Addi(j, y0)
+        x_ = arith.Addi(i, x0)
+        x = arith.Addi(x_, cst1)
+        y_ = arith.Addi(j, y0)
+        y = arith.Addi(y_, cst1)
+
         x.result.name_hint = "x"
         y.result.name_hint = "y"
 
