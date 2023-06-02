@@ -167,6 +167,24 @@ def test_block_containing_not_term_op_with_successors():
         block0.verify()
 
 
+def test_block_not_branching_to_another_region():
+    block1 = Block([TestOp.create(), TestOp.create()])
+    region1 = Region([block1])
+
+    op_with_successors = SuccessorOp.create(successors=[block1])
+    block0 = Block([op_with_successors])
+    region0 = Region([block0])
+    reg_op0 = TestOp.create(regions=[region0, region1])
+
+    outer_block = Block([reg_op0])
+
+    with pytest.raises(
+        Exception,
+        match="Branching to a block of a different region",
+    ):
+        outer_block.verify()
+
+
 ##################### Testing is_structurally_equal #####################
 
 program_region = """
