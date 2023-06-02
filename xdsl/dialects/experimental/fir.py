@@ -1,4 +1,3 @@
-from typing import List, Optional
 from xdsl.ir import ParametrizedAttribute, TypeAttribute, Dialect, Attribute
 from xdsl.irdl import (
     Operand,
@@ -139,26 +138,23 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
     def __init__(
         self,
         type1: ParameterDef[IntegerType | AnyFloat | ReferenceType],
-        shape: Optional[List[int | IntegerAttr[IndexType] | DeferredAttr]] = None,
-        type2: Optional[ParameterDef[IntegerType | AnyFloat | ReferenceType]] = None,
+        shape: list[int | IntegerAttr[IndexType] | DeferredAttr] | None = None,
+        type2: ParameterDef[IntegerType | AnyFloat | ReferenceType] | None = None,
     ):
         if type2 is not None:
             super().__init__([ArrayAttr([NoneType()]), type1, type2])
         else:
             if shape is None:
                 shape = [1]
+            shape_array_attr = ArrayAttr(
+                [
+                    (IntegerAttr[IntegerType](d, 32) if isinstance(d, int) else d)
+                    for d in shape
+                ]
+            )
             super().__init__(
                 [
-                    ArrayAttr(
-                        [
-                            (
-                                IntegerAttr[IntegerType](d, 32)
-                                if isinstance(d, int)
-                                else d
-                            )
-                            for d in shape
-                        ]
-                    ),
+                    shape_array_attr,
                     type1,
                     NoneType(),
                 ]
@@ -198,7 +194,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             s = parser.parse_integer(allow_boolean=False)
             return IntegerAttr[IntegerType](s, 32)
 
-        shape: List[IntegerAttr[IntegerType] | DeferredAttr] = []
+        shape: list[IntegerAttr[IntegerType] | DeferredAttr] = []
         type2 = NoneType()
         parser.parse_char("<")
         has_tuple = parser.try_parse_characters("0xtuple<")
