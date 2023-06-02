@@ -127,15 +127,19 @@ def generate_mpi_calls_for(
 
         # generate a temp buffer to store the data in
         alloc_outbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        alloc_outbound.memref.name_hint = f"send_buff_ex{i}"
         alloc_inbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        alloc_inbound.memref.name_hint = f"recv_buff_ex{i}"
         yield from (alloc_outbound, alloc_inbound)
 
         # boundary condition:
         # TODO: handle non-1d layouts
+        assert len(ex.neighbor) == 1
         bound = arith.Constant.from_int_and_width(
             0 if ex.neighbor[0] < 0 else grid.as_tuple()[0], builtin.i32
         )
-        comparison = "slt" if ex.neighbor[0] < 0 else "sgt"
+        # comparison == true <=> we have a valid dest rank
+        comparison = "sge" if ex.neighbor[0] < 0 else "slt"
 
         cond_val = arith.Cmpi.get(neighbor_rank, bound, comparison)
         yield from (bound, cond_val)
@@ -156,6 +160,7 @@ def generate_mpi_calls_for(
             yield from generate_memcpy(source, ex.source_area(), alloc_outbound.memref)
             # get ptr, count, dtype
             unwrap_out = mpi.UnwrapMemrefOp.get(alloc_outbound)
+            unwrap_out.ptr.name_hint = f"send_buff_ex{i}_ptr"
             yield unwrap_out
 
             # isend call
@@ -170,8 +175,8 @@ def generate_mpi_calls_for(
 
             # get ptr for receive buffer
             unwrap_in = mpi.UnwrapMemrefOp.get(alloc_inbound)
+            unwrap_in.ptr.name_hint = f"recv_buff_ex{i}_ptr"
             yield unwrap_in
-
             # Irecv call
             yield mpi.Irecv.get(
                 unwrap_in.ptr,

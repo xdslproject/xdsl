@@ -259,11 +259,11 @@ class HaloShapeInformation(ParametrizedAttribute):
 
     def buffer_end(self, dim: int) -> int:
         assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.core_ub[dim]
+        return self.buff_ub[dim]
 
     def core_end(self, dim: int) -> int:
         assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.buff_ub[dim]
+        return self.core_ub[dim]
 
     # Helpers for specific sizes:
 
