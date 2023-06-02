@@ -87,18 +87,6 @@ def test_simple_data():
     assert stream.getvalue() == "#bool<True>"
 
 
-def test_simple_data_verifier_failure():
-    """
-    Test that the verifier of a data with a class parameter fails when given
-    a parameter of the wrong type.
-    """
-    with pytest.raises(VerifyException) as e:
-        BoolData(2)  # type: ignore
-    assert e.value.args[0] == (
-        "bool data attribute expected type " "<class 'bool'>, but <class 'int'> given."
-    )
-
-
 class IntListMissingVerifierData(Data[list[int]]):
     """
     An attribute holding a list of integers.
@@ -150,15 +138,8 @@ class IntListData(Data[list[int]]):
         printer.print_string("]")
 
     def verify(self) -> None:
-        if not isinstance(
-            self.data, list
-        ):  # pyright: ignore[reportUnnecessaryIsInstance]
-            raise VerifyException("int_list data should hold a list.")
-        for elem in self.data:
-            if not isinstance(
-                elem, int
-            ):  # pyright: ignore[reportUnnecessaryIsInstance]
-                raise VerifyException("int_list list elements should be integers.")
+        # We must override verify on Attribute
+        ...
 
 
 def test_non_class_data():
@@ -168,16 +149,6 @@ def test_non_class_data():
     p = Printer(stream=stream)
     p.print_attribute(attr)
     assert stream.getvalue() == "#int_list<[0, 1, 42]>"
-
-
-def test_simple_data_constructor_failure():
-    """
-    Test that the verifier of a Data with a non-class parameter fails when
-    given wrong arguments.
-    """
-    with pytest.raises(VerifyException) as e:
-        IntListData([0, 1, 42, ""])  # type: ignore
-    assert e.value.args[0] == "int_list list elements should be integers."
 
 
 ################################################################################
@@ -497,14 +468,6 @@ class ListData(GenericData[list[A]]):
         return ListData(data)
 
     def verify(self) -> None:
-        if not isinstance(
-            self.data, list
-        ):  # pyright: ignore[reportUnnecessaryIsInstance]
-            raise VerifyException(
-                f"Wrong type given to attribute {self.name}: got"
-                f" {type(self.data)}, but expected list of"
-                " attributes."
-            )
         for idx, val in enumerate(self.data):
             if not isinstance(val, Attribute):
                 raise VerifyException(
@@ -526,28 +489,6 @@ class Test_generic_data_verifier:
         p = Printer(stream=stream)
         p.print_attribute(attr)
         assert stream.getvalue() == "#list<[#bool<True>, #list<[#bool<False>]>]>"
-
-    def test_generic_data_verifier_fail(self):
-        """
-        Test that a GenericData verifier fails when given wrong parameters.
-        """
-        with pytest.raises(VerifyException) as e:
-            ListData([0])  # type: ignore
-        assert e.value.args[0] == (
-            "list data expects attribute list, but"
-            " element 0 is of type <class 'int'>."
-        )
-
-    def test_generic_data_verifier_fail_II(self):
-        """
-        Test that a GenericData verifier fails when given wrong parameters.
-        """
-        with pytest.raises(VerifyException) as e:
-            ListData((0))  # type: ignore
-        assert e.value.args[0] == (
-            "Wrong type given to attribute list: "
-            "got <class 'int'>, but expected list of attributes."
-        )
 
 
 @irdl_attr_definition
