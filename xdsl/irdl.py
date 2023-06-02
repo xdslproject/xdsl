@@ -1436,11 +1436,6 @@ def irdl_op_init(
     for attr_name, attr in attributes.items():
         if attr is None:
             continue
-        if not isinstance(attr, Attribute):
-            raise ValueError(
-                error_prefix + f"{attr_name} is expected to be an "
-                f"attribute, but got {type(attr)}."
-            )
         built_attributes[attr_name] = attr
 
     # Take care of variadic operand and result segment sizes.
