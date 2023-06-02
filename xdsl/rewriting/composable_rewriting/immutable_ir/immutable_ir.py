@@ -52,7 +52,7 @@ class IOpResult(ISSAValue):
     def __hash__(self) -> int:
         return hash(id(self.op)) + hash(self.index)
 
-    def __eq__(self, __o: IOpResult) -> bool:
+    def __eq__(self, __o: object) -> bool:
         if isinstance(__o, IOpResult):
             return self.op == __o.op and self.index == __o.index
         return False
