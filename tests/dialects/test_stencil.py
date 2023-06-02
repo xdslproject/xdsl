@@ -504,16 +504,12 @@ def test_stencil_resulttype(float_type: AnyFloat):
 
 
 def test_store_result():
-    elems = IndexAttr.get(1, 1)
+    elem = IndexAttr.get(1)
+    elem_ssa_val = TestSSAValue(elem)
     result_type = ResultType(f32)
 
-    store_result = StoreResultOp.build(operands=[elems], result_types=[result_type])
+    store_result = StoreResultOp.build(operands=[elem_ssa_val], result_types=[result_type])
 
-    print(store_result.args == elems)
-    print(type(store_result.args))
-    # print(type(elems.))
-    print(store_result.res == result_type)
-
-
-test_store_result()
-
+    assert isinstance(store_result, StoreResultOp)
+    assert store_result.args[0] == elem_ssa_val
+    assert store_result.res.typ == result_type
