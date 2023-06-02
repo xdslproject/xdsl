@@ -533,6 +533,9 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
             to_add_data[k] = v
         return DictionaryAttr(to_add_data)
 
+    def verify(self) -> None:
+        return super().verify()
+
 
 @irdl_attr_definition
 class TupleType(ParametrizedAttribute):
