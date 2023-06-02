@@ -11,7 +11,13 @@ from xdsl.dialects.test import TestOp
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import Parser
-from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand
+from xdsl.irdl import (
+    IRDLOperation,
+    VarRegion,
+    irdl_op_definition,
+    Operand,
+    OptSuccessor,
+)
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -141,10 +147,17 @@ def test_op_clone_with_regions():
     assert if2.false_region.op is not if_.false_region.op
 
 
+@irdl_op_definition
+class SuccessorOp(IRDLOperation):
+    name = "test.successor_op"
+
+    successor: OptSuccessor
+
+
 def test_block_containing_not_term_op_with_successors():
     block1 = Block([TestOp.create(), TestOp.create()])
 
-    op_with_successors = TestOp.create(successors=[block1])
+    op_with_successors = SuccessorOp.create(successors=[block1])
     block0 = Block([op_with_successors, TestOp.create()])
 
     with pytest.raises(
