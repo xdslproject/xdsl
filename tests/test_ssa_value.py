@@ -3,7 +3,6 @@ import pytest
 from typing import Annotated
 
 from xdsl.dialects.builtin import i32, StringAttr
-from xdsl.dialects.arith import Constant
 
 from xdsl.ir import Block, OpResult, BlockArgument, SSAValue
 from xdsl.irdl import irdl_op_definition, IRDLOperation
