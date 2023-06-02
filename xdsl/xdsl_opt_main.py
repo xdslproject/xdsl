@@ -32,6 +32,7 @@ from xdsl.dialects.snitch_runtime import SnitchRuntime
 
 from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
+from xdsl.dialects.experimental.fir import FIR
 from xdsl.dialects.experimental.dmp import DMP
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
@@ -251,6 +252,7 @@ class xDSLOptMain:
         self.ctx.register_dialect(SnitchRuntime)
         self.ctx.register_dialect(RISCV_Func)
         self.ctx.register_dialect(IRDL)
+        self.ctx.register_dialect(FIR)
         self.ctx.register_dialect(DMP)
 
     def register_all_frontends(self):
