@@ -1,5 +1,17 @@
 // RUN: xdsl-opt %s | xdsl-opt --print-op-generic | filecheck %s
 "builtin.module"() ({
+    // Printf
+
+    // Pointer to format string
+    "llvm.mlir.global"() ({}) {"global_type" = !llvm.array<6 x i8>, "sym_name" = "format_str", "linkage" = #llvm.linkage<"internal">, "addr_space" = 0 : i32, "constant", "value" = "%d:%d!", "unnamed_addr" = 0 : i64} : () -> ()
+    %format_str_ptr = "llvm.mlir.addressof"() {"global_name" = @format_str} : () -> !llvm.ptr<i8>
+    // Values to print
+    %element1 = "arith.constant"() {"value" = 2 : si32} : () -> si32
+    %element2 = "arith.constant"() {"value" = 0 : si32} : () -> si32
+    %count = "snrt.printf"(%format_str_ptr, %element1, %element2) : (!llvm.ptr<i8>, si32, si32) -> i32
+    // CHECK: %count = "snrt.printf"(%format_str_ptr, %element1, %element2) : (!llvm.ptr<i8>, si32, si32) -> i32
+
+
     // Barriers
     "snrt.cluster_hw_barrier"() : () -> ()
     // CHECK: "snrt.cluster_hw_barrier"() : () -> ()

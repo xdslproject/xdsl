@@ -1,11 +1,21 @@
 from abc import ABC
-from xdsl.irdl import irdl_op_definition, IRDLOperation, Operand, Operation, SSAValue
+from xdsl.irdl import (
+    irdl_op_definition,
+    IRDLOperation,
+    Operand,
+    Operation,
+    SSAValue,
+    VarOperand,
+)
 from xdsl.ir import OpResult, Dialect
-from xdsl.dialects.builtin import IntegerType, Signedness, IndexType
+from xdsl.dialects.builtin import IntegerType, Signedness, IndexType, i32, AnyAttr
+from xdsl.dialects.llvm import LLVMPointerType
 from typing import Annotated
 
 u32 = IntegerType(data=32, signedness=Signedness.UNSIGNED)
 u64 = IntegerType(data=64, signedness=Signedness.UNSIGNED)
+i8 = IntegerType(data=8, signedness=Signedness.SIGNLESS)
+charptr = LLVMPointerType.typed(i8)
 tx_id = u32
 
 
@@ -193,6 +203,27 @@ class DmaWaitAllOp(SnitchRuntimeBaseOp):
         super().__init__(operands=[], result_types=[])
 
 
+@irdl_op_definition
+class PrintfOp(SnitchRuntimeBaseOp):
+    """
+    Call to tiny C Printf implementation included in Snitch Runtime
+    """
+
+    name = "snrt.printf"
+    format_string_ptr: Annotated[Operand, charptr]
+    variadic_input: VarOperand
+    count: Annotated[OpResult, i32]
+
+    def __init__(
+        self,
+        format_string_ptr: Operation | SSAValue,
+        variadic_input: Operation | SSAValue | None,
+    ):
+        super().__init__(
+            operands=[format_string_ptr, variadic_input], result_types=[i32]
+        )
+
+
 SnitchRuntime = Dialect(
     [
         ClusterNumOp,
@@ -203,6 +234,7 @@ SnitchRuntime = Dialect(
         DmaStart2DOp,
         DmaWaitOp,
         DmaWaitAllOp,
+        PrintfOp,
     ],
     [],
 )
