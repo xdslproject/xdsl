@@ -168,10 +168,6 @@ class SImm12Attr(IntegerAttr[IntegerType]):
     def __init__(self, value: int) -> None:
         super().__init__(value, IntegerType(12, Signedness.SIGNED))
 
-    # Pyright is confused by the parent class __new__ signature
-    def __new__(cls, value: int) -> SImm12Attr:
-        return super().__new__(cls)  # type: ignore
-
     def verify(self) -> None:
         """
         All I- and S-type instructions with 12-bit signed immediates --- e.g., addi but not slli ---
@@ -451,7 +447,9 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(immediate)
+            immediate = SImm12Attr(
+                immediate
+            )  # pyright: ignore[reportGeneralTypeIssues]
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -647,7 +645,9 @@ class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(immediate)
+            immediate = SImm12Attr(
+                immediate
+            )  # pyright: ignore[reportGeneralTypeIssues]
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
