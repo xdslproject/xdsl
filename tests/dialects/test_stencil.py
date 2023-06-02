@@ -1,3 +1,5 @@
+import re
+from unittest import result
 import pytest
 
 from xdsl.dialects.builtin import (
@@ -23,6 +25,7 @@ from xdsl.dialects.experimental.stencil import (
     LoadOp,
     FieldType,
     IndexAttr,
+    StoreResultOp,
 )
 from xdsl.dialects.stencil import CastOp
 from xdsl.ir import Block
@@ -498,3 +501,19 @@ def test_stencil_resulttype(float_type: AnyFloat):
 
     assert isinstance(stencil_resulttype, ResultType)
     assert stencil_resulttype.elem == float_type
+
+
+def test_store_result():
+    elems = IndexAttr.get(1, 1)
+    result_type = ResultType(f32)
+
+    store_result = StoreResultOp.build(operands=[elems], result_types=[result_type])
+
+    print(store_result.args == elems)
+    print(type(store_result.args))
+    # print(type(elems.))
+    print(store_result.res == result_type)
+
+
+test_store_result()
+
