@@ -12,17 +12,24 @@ from xdsl.pattern_rewriter import (
 )
 
 
-class LowerClusterNumOp(RewritePattern, ABC):
+class LowerGetInfoOpToFunc(RewritePattern, ABC):
+    """
+    Rewrite pattern that matches on all SnitchRuntimeGetInfo ops, since they have
+    the same function signature.
+
+    Note: Takes the name of the op and replaces "snrt." with "snrt_" to link with
+    snrt.h
+    """
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: snitch_runtime.ClusterNumOp, rewriter: PatternRewriter, /
+        self, op: snitch_runtime.SnitchRuntimeGetInfo, rewriter: PatternRewriter, /
     ):
         rewriter.replace_matched_op(*self.lower(op))
 
     def lower(
-        self, op: snitch_runtime.ClusterNumOp
+        self, op: snitch_runtime.SnitchRuntimeGetInfo
     ) -> tuple[Operation, list[SSAValue]]:
-        return func.Call.get("snrt_cluster_num", [], [i32]), [op.result]
+        return func.Call.get("snrt_"+op.name[5:], [], [i32]), [op.result]
 
 
 class AddExternalFuncs(RewritePattern, ABC):
@@ -56,7 +63,7 @@ class LowerSnitchRuntimePass(ModulePass):
     # lower to func.call
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker1 = PatternRewriteWalker(
-            GreedyRewritePatternApplier([LowerClusterNumOp()]), apply_recursively=True
+            GreedyRewritePatternApplier([LowerGetInfoOpToFunc()]), apply_recursively=True
         )
         walker2 = PatternRewriteWalker(AddExternalFuncs())
         walker1.rewrite_module(op)
