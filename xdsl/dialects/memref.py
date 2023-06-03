@@ -80,7 +80,7 @@ class MemRefType(
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
-    def get_shape(self) -> tuple[int]:
+    def get_shape(self) -> tuple[int, ...]:
         return tuple(i.value.data for i in self.shape.data)
 
     def get_element_type(self) -> _MemRefTypeElement:

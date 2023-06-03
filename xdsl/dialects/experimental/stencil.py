@@ -170,7 +170,7 @@ class StencilType(
         else:
             return len(self.bounds.ub.array.data)
 
-    def get_shape(self) -> tuple[int]:
+    def get_shape(self) -> tuple[int, ...]:
         if isinstance(self.bounds, IntAttr):
             return (-1,) * self.bounds.data
         else:

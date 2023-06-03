@@ -70,7 +70,7 @@ class ShapeType(ABC):
         ...
 
     @abstractmethod
-    def get_shape(self) -> tuple[int]:
+    def get_shape(self) -> tuple[int, ...]:
         ...
 
     def element_count(self) -> int:
@@ -651,7 +651,7 @@ class VectorType(
     def get_num_scalable_dims(self) -> int:
         return self.num_scalable_dims.data
 
-    def get_shape(self) -> tuple[int]:
+    def get_shape(self) -> tuple[int, ...]:
         return tuple(i.value.data for i in self.shape.data)
 
     def get_element_type(self) -> AttributeCovT:
@@ -724,7 +724,7 @@ class TensorType(
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
-    def get_shape(self) -> tuple[int]:
+    def get_shape(self) -> tuple[int, ...]:
         return tuple(i.value.data for i in self.shape.data)
 
     def get_element_type(self) -> AttributeCovT:
