@@ -1,5 +1,5 @@
 from __future__ import annotations
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from dataclasses import dataclass
 from enum import Enum
@@ -16,7 +16,10 @@ from typing import (
     TypeVar,
     overload,
     Iterator,
+    Generic,
 )
+
+from math import prod
 
 from xdsl.ir import (
     Block,
@@ -1323,11 +1326,27 @@ f128 = Float64Type()
 
 
 class ShapeType(ABC):
+    @abstractmethod
     def get_num_dims(self) -> int:
         ...
 
+    @abstractmethod
     def get_shape(self) -> tuple[int]:
         ...
+
+    def element_count(self) -> int:
+        return prod(self.get_shape())
+
+
+_ContainerElementTypeT = TypeVar(
+    "_ContainerElementTypeT", bound=Attribute, covariant=True
+)
+
+
+class ContainerType(Generic[_ContainerElementTypeT], ABC):
+    @abstractmethod
+    def get_element_type(self) -> _ContainerElementTypeT:
+        pass
 
 
 Builtin = Dialect(

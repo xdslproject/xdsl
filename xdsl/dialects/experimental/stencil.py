@@ -148,7 +148,11 @@ class StencilBoundsAttr(ParametrizedAttribute):
 
 
 class StencilType(
-    Generic[_FieldTypeElement], ParametrizedAttribute, TypeAttribute, builtin.ShapeType
+    Generic[_FieldTypeElement],
+    ParametrizedAttribute,
+    TypeAttribute,
+    builtin.ShapeType,
+    builtin.ContainerType[_FieldTypeElement],
 ):
     name = "stencil.type"
     bounds: ParameterDef[StencilBoundsAttr | IntAttr]
@@ -171,6 +175,9 @@ class StencilType(
             return (-1,) * self.bounds.data
         else:
             return tuple(self.bounds.ub - self.bounds.lb)
+
+    def get_element_type(self) -> _FieldTypeElement:
+        return self.element_type
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
