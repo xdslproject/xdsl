@@ -2437,12 +2437,11 @@ class Parser(ABC):
           string-attr ::= string-literal
         """
         self._synchronize_lexer_and_tokenizer()
-        if (token := self._parse_optional_token(Token.Kind.STRING_LIT)) is None:
-            self._synchronize_lexer_and_tokenizer()
-            return None
-
+        token = self._parse_optional_token(Token.Kind.STRING_LIT)
         self._synchronize_lexer_and_tokenizer()
-        return StringAttr(token.get_string_literal_value())
+        return (
+            StringAttr(token.get_string_literal_value()) if token is not None else None
+        )
 
     def try_parse_builtin_arr_attr(self) -> AnyArrayAttr | None:
         if not self.tokenizer.starts_with("["):
@@ -2458,7 +2457,7 @@ class Parser(ABC):
         attrs = self.parse_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
         )
-        return dict((name, attr) for name, attr in attrs)
+        return dict(attrs)
 
     def parse_function_type(self) -> FunctionType:
         """
