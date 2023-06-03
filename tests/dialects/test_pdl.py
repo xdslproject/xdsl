@@ -47,6 +47,11 @@ def test_build_rewrite():
     assert r.attributes["name"] == StringAttr("r")
     assert r.external_args == (type_val, attr_val)
     assert len(r.results) == 0
+    assert r.body is None
+
+    r1 = pdl.RewriteOp(name="r", root=None, external_args=[type_val, attr_val])
+
+    assert r1.body is not None
 
 
 def test_build_operation_replace():

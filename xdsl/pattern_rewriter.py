@@ -12,7 +12,6 @@ from typing import (
     get_origin,
     Iterable,
     Sequence,
-    overload,
 )
 
 from xdsl.dialects.builtin import ModuleOp
@@ -390,68 +389,21 @@ class RewritePattern(ABC):
         ...
 
 
-@dataclass(eq=False, repr=False)
-class AnonymousRewritePattern(RewritePattern):
-    """
-    A rewrite pattern encoded by an anonymous function.
-    """
-
-    func: Callable[[RewritePattern, Operation, PatternRewriter], None]
-
-    def __init__(
-        self,
-        func: Callable[[RewritePattern, Operation, PatternRewriter], None]
-        | Callable[[Operation, PatternRewriter], None],
-    ):
-        params = [param for param in inspect.signature(func).parameters.values()]
-        if len(params) == 2:
-
-            def new_func(
-                self: RewritePattern, op: Operation, rewriter: PatternRewriter
-            ):
-                func(op, rewriter)  # type: ignore
-
-            self.func = new_func
-        else:
-            self.func = func  # type: ignore
-
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
-        self.func(self, op, rewriter)
-
-
 _RewritePatternT = TypeVar("_RewritePatternT", bound=RewritePattern)
 _OperationT = TypeVar("_OperationT", bound=Operation)
 
 
-@overload
 def op_type_rewrite_pattern(
     func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
 ) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
-    ...
-
-
-@overload
-def op_type_rewrite_pattern(
-    func: Callable[[_OperationT, PatternRewriter], None]
-) -> Callable[[RewritePattern, Operation, PatternRewriter], None]:
-    ...
-
-
-def op_type_rewrite_pattern(
-    func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
-    | Callable[[_OperationT, PatternRewriter], None]
-) -> (
-    Callable[[_RewritePatternT, Operation, PatternRewriter], None]
-    | Callable[[RewritePattern, Operation, PatternRewriter], None]
-):
     """
-    This function is intended to be used as a decorator on a RewritePatter method.
-    It uses type hints to match on a specific operation type before calling the decorated
-    function.
+    This function is intended to be used as a decorator on a RewritePatter
+    method. It uses type hints to match on a specific operation type before
+    calling the decorated function.
     """
     # Get the operation argument and check that it is a subclass of Operation
     params = [param for param in inspect.signature(func).parameters.values()]
-    if len(params) < 2:
+    if len(params) != 3:
         raise Exception(
             "op_type_rewrite_pattern expects the decorated function to "
             "have two non-self arguments."
@@ -474,6 +426,7 @@ def op_type_rewrite_pattern(
     expected_types = (expected_type,)
     if get_origin(expected_type) in [Union, UnionType]:
         expected_types = get_args(expected_type)
+
     if not all(issubclass(t, Operation) for t in expected_types):
         raise Exception(
             "op_type_rewrite_pattern expects the first non-self argument "
@@ -481,25 +434,11 @@ def op_type_rewrite_pattern(
             "subclasses."
         )
 
-    if not is_method:
+    def impl(self: _RewritePatternT, op: Operation, rewriter: PatternRewriter) -> None:
+        if isinstance(op, expected_type):
+            func(self, op, rewriter)
 
-        def op_type_rewrite_pattern_static_wrapper(
-            self: RewritePattern, op: Operation, rewriter: PatternRewriter
-        ) -> None:
-            if not isinstance(op, expected_type):
-                return None
-            func(op, rewriter)  # type: ignore
-
-        return op_type_rewrite_pattern_static_wrapper
-
-    def op_type_rewrite_pattern_method_wrapper(
-        self: _RewritePatternT, op: Operation, rewriter: PatternRewriter
-    ) -> None:
-        if not isinstance(op, expected_type):
-            return None
-        func(self, op, rewriter)  # type: ignore
-
-    return op_type_rewrite_pattern_method_wrapper
+    return impl
 
 
 @dataclass(eq=False, repr=False)

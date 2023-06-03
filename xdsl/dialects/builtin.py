@@ -389,6 +389,28 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr(value, IndexType())
 
+    def verify(self) -> None:
+        if isinstance(self.typ, IntegerType):
+            match self.typ.signedness.data:
+                case Signedness.SIGNLESS:
+                    min_value = -(1 << self.typ.width.data)
+                    max_value = 1 << self.typ.width.data
+                case Signedness.SIGNED:
+                    min_value = -(1 << (self.typ.width.data - 1))
+                    max_value = (1 << (self.typ.width.data - 1)) - 1
+                case Signedness.UNSIGNED:
+                    min_value = 0
+                    max_value = (1 << self.typ.width.data) - 1
+                case _:
+                    assert False, "unreachable"
+
+            if not (min_value <= self.value.data <= max_value):
+                raise VerifyException(
+                    f"Integer value {self.value.data} is out of range for "
+                    f"type {self.typ} which supports values in the "
+                    f"range [{min_value}, {max_value}]"
+                )
+
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 

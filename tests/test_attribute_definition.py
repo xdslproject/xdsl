@@ -8,7 +8,7 @@ from io import StringIO
 from typing import Any, TypeVar, cast, Annotated, Generic, TypeAlias
 
 import pytest
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
@@ -174,6 +174,46 @@ def test_simple_data_constructor_failure():
     with pytest.raises(VerifyException) as e:
         IntListData([0, 1, 42, ""])  # type: ignore
     assert e.value.args[0] == "int_list list elements should be integers."
+
+
+################################################################################
+# IntegerAttr
+################################################################################
+
+
+def test_signed_integer_attr():
+    """Test the verification of a signed integer attribute."""
+    with pytest.raises(VerifyException):
+        IntegerAttr(1 << 31, IntegerType(32, Signedness.SIGNED))
+
+    with pytest.raises(VerifyException):
+        IntegerAttr(-(1 << 31) - 1, IntegerType(32, Signedness.SIGNED))
+
+    IntegerAttr((1 << 31) - 1, IntegerType(32, Signedness.SIGNED))
+    IntegerAttr(-(1 << 31), IntegerType(32, Signedness.SIGNED))
+
+
+def test_unsigned_integer_attr():
+    """Test the verification of a unsigned integer attribute."""
+    with pytest.raises(VerifyException):
+        IntegerAttr(1 << 32, IntegerType(32, Signedness.UNSIGNED))
+
+    with pytest.raises(VerifyException):
+        IntegerAttr(-1, IntegerType(32, Signedness.UNSIGNED))
+
+    IntegerAttr((1 << 32) - 1, IntegerType(32, Signedness.UNSIGNED))
+
+
+def test_signless_integer_attr():
+    """Test the verification of a signless integer attribute."""
+    with pytest.raises(VerifyException):
+        IntegerAttr((1 << 32) + 1, IntegerType(32, Signedness.SIGNLESS))
+
+    with pytest.raises(VerifyException):
+        IntegerAttr(-(1 << 32) - 1, IntegerType(32, Signedness.SIGNLESS))
+
+    IntegerAttr(1 << 32, IntegerType(32, Signedness.SIGNLESS))
+    IntegerAttr(-(1 << 32), IntegerType(32, Signedness.SIGNLESS))
 
 
 ################################################################################

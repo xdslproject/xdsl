@@ -9,7 +9,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
     RewritePattern,
     PatternRewriter,
-    AnonymousRewritePattern,
     GreedyRewritePatternApplier,
 )
 from xdsl.parser import Parser
@@ -105,32 +104,6 @@ def test_op_type_rewrite_pattern_method_decorator():
     )
 
 
-def test_op_type_rewrite_pattern_static_decorator():
-    """Test op_type_rewrite_pattern decorator on static functions."""
-
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
-}) : () -> ()"""
-
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 43 : i32} : () -> i32
-  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
-}) : () -> ()"""
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(Constant.from_int_and_width(43, i32))
-
-    rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
-    )
-
-
 def test_op_type_rewrite_pattern_union_type():
     """Test op_type_rewrite_pattern decorator on static functions."""
 
@@ -146,16 +119,13 @@ def test_op_type_rewrite_pattern_union_type():
   %2 = "test"(%0, %1) : (i32, i32) -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant | Addi, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(Constant.from_int_and_width(42, i32))
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: Constant | Addi, rewriter: PatternRewriter):
+            rewriter.replace_matched_op(Constant.from_int_and_width(42, i32))
 
     rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
     )
 
 
@@ -178,26 +148,25 @@ def test_recursive_rewriter():
   %8 = "arith.addi"(%6, %7) : (i32, i32) -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        if not isa(op.value, IntegerAttr):
-            return
-        val = op.value.value.data
-        if val == 0 or val == 1:
-            return None
-        constant_op = Constant.from_attr(
-            IntegerAttr.from_int_and_width(val - 1, 32), i32
-        )
-        constant_one = Constant.from_attr(IntegerAttr.from_int_and_width(1, 32), i32)
-        add_op = Addi(constant_op, constant_one)
-        rewriter.replace_matched_op([constant_op, constant_one, add_op])
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
+            if not isa(op.value, IntegerAttr):
+                return
+            val = op.value.value.data
+            if val == 0 or val == 1:
+                return None
+            constant_op = Constant.from_attr(
+                IntegerAttr.from_int_and_width(val - 1, 32), i32
+            )
+            constant_one = Constant.from_attr(
+                IntegerAttr.from_int_and_width(1, 32), i32
+            )
+            add_op = Addi(constant_op, constant_one)
+            rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=True
-        ),
+        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=True)
     )
 
 
@@ -220,28 +189,27 @@ def test_recursive_rewriter_reversed():
   %8 = "arith.addi"(%6, %7) : (i32, i32) -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        if not isa(op.value, IntegerAttr):
-            return
-        val = op.value.value.data
-        if val == 0 or val == 1:
-            return None
-        constant_op = Constant.from_attr(
-            IntegerAttr.from_int_and_width(val - 1, 32), i32
-        )
-        constant_one = Constant.from_attr(IntegerAttr.from_int_and_width(1, 32), i32)
-        add_op = Addi(constant_op, constant_one)
-        rewriter.replace_matched_op([constant_op, constant_one, add_op])
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
+            if not isa(op.value, IntegerAttr):
+                return
+            val = op.value.value.data
+            if val == 0 or val == 1:
+                return None
+            constant_op = Constant.from_attr(
+                IntegerAttr.from_int_and_width(val - 1, 32), i32
+            )
+            constant_one = Constant.from_attr(
+                IntegerAttr.from_int_and_width(1, 32), i32
+            )
+            add_op = Addi(constant_op, constant_one)
+            rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite),
-            apply_recursively=True,
-            walk_reverse=True,
-        ),
+        PatternRewriteWalker(Rewrite(), apply_recursively=True, walk_reverse=True),
     )
 
 
@@ -258,24 +226,21 @@ def test_greedy_rewrite_pattern_applier():
   %1 = "arith.muli"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def constant_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.replace_matched_op([Constant.from_int_and_width(43, i32)])
+    class ConstantRewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
+            rewriter.replace_matched_op([Constant.from_int_and_width(43, i32)])
 
-    @op_type_rewrite_pattern
-    def addi_rewrite(op: Addi, rewriter: PatternRewriter):
-        rewriter.replace_matched_op([Muli(op.lhs, op.rhs)])
+    class AddiRewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: Addi, rewriter: PatternRewriter):
+            rewriter.replace_matched_op([Muli(op.lhs, op.rhs)])
 
     rewrite_and_compare(
         prog,
         expected,
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    AnonymousRewritePattern(constant_rewrite),
-                    AnonymousRewritePattern(addi_rewrite),
-                ]
-            ),
+            GreedyRewritePatternApplier([ConstantRewrite(), AddiRewrite()]),
             apply_recursively=False,
         ),
     )
@@ -293,17 +258,15 @@ def test_insert_op_before_matched_op():
   %1 = "arith.constant"() {"value" = 5 : i32} : () -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_and_width(42, i32)
-        rewriter.insert_op_before_matched_op(new_cst)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, cst: Constant, rewriter: PatternRewriter):
+            new_cst = Constant.from_int_and_width(42, i32)
+
+            rewriter.insert_op_before_matched_op(new_cst)
 
     rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
     )
 
 
@@ -319,17 +282,15 @@ def test_insert_op_at_start():
   %1 = "arith.constant"() {"value" = 5 : i32} : () -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_and_width(42, i32)
-        rewriter.insert_op_at_start(new_cst, mod.regions[0].blocks[0])
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
+            new_cst = Constant.from_int_and_width(42, i32)
+
+            rewriter.insert_op_at_start(new_cst, mod.regions[0].blocks[0])
 
     rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
     )
 
 
@@ -342,13 +303,12 @@ def test_insert_op_at_end():
 
     to_be_inserted = Constant.from_int_and_width(42, 32)
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        rewriter.insert_op_at_end(to_be_inserted, mod.regions[0].blocks[0])
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
+            rewriter.insert_op_at_end(to_be_inserted, mod.regions[0].blocks[0])
 
-    PatternRewriteWalker(
-        AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-    ).rewrite_module(prog)
+    PatternRewriteWalker(Rewrite(), apply_recursively=False).rewrite_module(prog)
 
     assert to_be_inserted in prog.ops
     assert prog.body.block.get_operation_index(to_be_inserted) == 1
@@ -366,19 +326,17 @@ def test_insert_op_before():
   %1 = "arith.constant"() {"value" = 5 : i32} : () -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_and_width(42, i32)
-        first_op = mod.ops.first
-        assert first_op is not None
-        rewriter.insert_op_before(new_cst, first_op)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
+            new_cst = Constant.from_int_and_width(42, i32)
+
+            first_op = mod.ops.first
+            assert first_op is not None
+            rewriter.insert_op_before(new_cst, first_op)
 
     rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
     )
 
 
@@ -394,19 +352,17 @@ def test_insert_op_after():
   %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(mod: ModuleOp, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_and_width(42, i32)
-        first_op = mod.ops.first
-        assert first_op is not None
-        rewriter.insert_op_after(new_cst, first_op)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
+            new_cst = Constant.from_int_and_width(42, i32)
+
+            first_op = mod.ops.first
+            assert first_op is not None
+            rewriter.insert_op_after(new_cst, first_op)
 
     rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
     )
 
 
@@ -422,17 +378,15 @@ def test_insert_op_after_matched_op():
   %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_and_width(42, i32)
-        rewriter.insert_op_after_matched_op(new_cst)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, cst: Constant, rewriter: PatternRewriter):
+            new_cst = Constant.from_int_and_width(42, i32)
+
+            rewriter.insert_op_after_matched_op(new_cst)
 
     rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
     )
 
 
@@ -448,19 +402,17 @@ def test_insert_op_after_matched_op_reversed():
   %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(cst: Constant, rewriter: PatternRewriter):
-        new_cst = Constant.from_int_and_width(42, i32)
-        rewriter.insert_op_after_matched_op(new_cst)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, cst: Constant, rewriter: PatternRewriter):
+            new_cst = Constant.from_int_and_width(42, i32)
+
+            rewriter.insert_op_after_matched_op(new_cst)
 
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite),
-            apply_recursively=False,
-            walk_reverse=True,
-        ),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False, walk_reverse=True),
     )
 
 
@@ -475,13 +427,12 @@ def test_operation_deletion():
 ^0:
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.erase_matched_op()
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
+            rewriter.erase_matched_op()
 
-    rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
-    )
+    rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()))
 
 
 def test_operation_deletion_reversed():
@@ -499,16 +450,15 @@ def test_operation_deletion_reversed():
 ^0:
 }) : () -> ()"""
 
-    def match_and_rewrite(op: Operation, rewriter: PatternRewriter):
-        if not isinstance(op, ModuleOp):
-            rewriter.erase_matched_op()
+    class EraseAll(RewritePattern):
+        def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+            if not isinstance(op, ModuleOp):
+                rewriter.erase_matched_op()
 
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), walk_reverse=True
-        ),
+        PatternRewriteWalker(EraseAll(), walk_reverse=True),
     )
 
 
@@ -524,13 +474,14 @@ def test_operation_deletion_failure():
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: Constant, rewriter: PatternRewriter):
-        rewriter.erase_matched_op()
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
+            rewriter.erase_matched_op()
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
-    walker = PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
+    walker = PatternRewriteWalker(Rewrite())
 
     # Check that the rewrite fails
     try:
@@ -551,15 +502,15 @@ def test_delete_inner_op():
 ^0:
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
-        first_op = op.ops.first
-        assert first_op is not None
-        rewriter.erase_op(first_op)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
+            first_op = op.ops.first
 
-    rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
-    )
+            assert first_op is not None
+            rewriter.erase_op(first_op)
+
+    rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()))
 
 
 def test_replace_inner_op():
@@ -573,15 +524,15 @@ def test_replace_inner_op():
   %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
-        first_op = op.ops.first
-        assert first_op is not None
-        rewriter.replace_op(first_op, [Constant.from_int_and_width(42, i32)])
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
+            first_op = op.ops.first
 
-    rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(AnonymousRewritePattern(match_and_rewrite))
-    )
+            assert first_op is not None
+            rewriter.replace_op(first_op, [Constant.from_int_and_width(42, i32)])
+
+    rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()))
 
 
 def test_block_argument_type_change():
@@ -604,16 +555,13 @@ def test_block_argument_type_change():
   }) : (i1) -> ()
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        rewriter.modify_block_argument_type(op.true_region.blocks[0].args[0], i64)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
+            rewriter.modify_block_argument_type(op.true_region.blocks[0].args[0], i64)
 
     rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
     )
 
 
@@ -638,16 +586,13 @@ def test_block_argument_erasure():
   }) : (i1) -> ()
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        rewriter.erase_block_argument(op.true_region.blocks[0].args[0])
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
+            rewriter.erase_block_argument(op.true_region.blocks[0].args[0])
 
     rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
     )
 
 
@@ -672,16 +617,15 @@ def test_block_argument_insertion():
   }) : (i1) -> ()
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        rewriter.insert_block_argument(op.true_region.blocks[0], 0, i32)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
+            rewriter.insert_block_argument(op.true_region.blocks[0], 0, i32)
 
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
     )
 
 
@@ -707,16 +651,15 @@ def test_inline_block_before_matched_op():
   }) : (i1) -> ()
 }) : () -> ()"""
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        rewriter.inline_block_before_matched_op(op.true_region.blocks[0])
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
+            rewriter.inline_block_before_matched_op(op.true_region.blocks[0])
 
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
     )
 
 
@@ -752,19 +695,19 @@ def test_inline_block_before():
 }) : () -> ()
 """
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        first_op = op.true_region.blocks[0].first_op
-        if isinstance(first_op, If):
-            inner_if_block = first_op.true_region.blocks[0]
-            rewriter.inline_block_before(inner_if_block, first_op)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
+            first_op = op.true_region.blocks[0].first_op
+
+            if isinstance(first_op, If):
+                inner_if_block = first_op.true_region.blocks[0]
+                rewriter.inline_block_before(inner_if_block, first_op)
 
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
     )
 
 
@@ -792,16 +735,15 @@ def test_inline_block_at_before_when_op_is_matched_op():
 }) : () -> ()
 """
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        rewriter.inline_block_before(op.true_region.blocks[0], op)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
+            rewriter.inline_block_before(op.true_region.blocks[0], op)
 
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
     )
 
 
@@ -837,19 +779,19 @@ def test_inline_block_after():
 }) : () -> ()
 """
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        first_op = op.true_region.blocks[0].first_op
-        if first_op is not None and isinstance(first_op, If):
-            inner_if_block = first_op.true_region.blocks[0]
-            rewriter.inline_block_after(inner_if_block, first_op)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
+            first_op = op.true_region.blocks[0].first_op
+
+            if first_op is not None and isinstance(first_op, If):
+                inner_if_block = first_op.true_region.blocks[0]
+                rewriter.inline_block_after(inner_if_block, first_op)
 
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
     )
 
 
@@ -885,19 +827,19 @@ def test_inline_block_after_matched():
 }) : () -> ()
 """
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: If, rewriter: PatternRewriter):
-        first_op = op.true_region.block.first_op
-        if first_op is not None and isinstance(first_op, If):
-            inner_if_block = first_op.true_region.block
-            rewriter.inline_block_after(inner_if_block, op)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
+            first_op = op.true_region.block.first_op
+
+            if first_op is not None and isinstance(first_op, If):
+                inner_if_block = first_op.true_region.block
+                rewriter.inline_block_after(inner_if_block, op)
 
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
     )
 
 
@@ -924,20 +866,20 @@ def test_move_region_contents_to_new_regions():
 }) : () -> ()
 """
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(op: ModuleOp, rewriter: PatternRewriter):
-        ops_iter = iter(op.ops)
-        _first_op = next(ops_iter)
-        old_if = next(ops_iter)
-        assert isinstance(old_if, If)
-        new_region = rewriter.move_region_contents_to_new_regions(old_if.regions[0])
-        new_if = If.get(old_if.cond, [], new_region, Region([Block()]))
-        rewriter.insert_op_after(new_if, old_if)
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
+            ops_iter = iter(op.ops)
+
+            _first_op = next(ops_iter)
+            old_if = next(ops_iter)
+            assert isinstance(old_if, If)
+            new_region = rewriter.move_region_contents_to_new_regions(old_if.regions[0])
+            new_if = If.get(old_if.cond, [], new_region, Region([Block()]))
+            rewriter.insert_op_after(new_if, old_if)
 
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(
-            AnonymousRewritePattern(match_and_rewrite), apply_recursively=False
-        ),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
     )

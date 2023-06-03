@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Generic, Iterable, Sequence, TypeVar
+from typing import Annotated, Generic, Iterable, Sequence, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
@@ -472,13 +472,15 @@ class PatternOp(IRDLOperation):
         self,
         benefit: int | IntegerAttr[IntegerType],
         sym_name: str | StringAttr | None,
-        body: Region | Block.BlockCallback,
+        body: Region | Block.BlockCallback | None = None,
     ):
         if isinstance(benefit, int):
             benefit = IntegerAttr(benefit, 16)
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
-        if not isinstance(body, Region):
+        if body is None:
+            body = Region(Block())
+        elif not isinstance(body, Region):
             body = Region(Block.from_callable([], body))
         super().__init__(
             attributes={
@@ -743,7 +745,10 @@ class RewriteOp(IRDLOperation):
     def __init__(
         self,
         root: SSAValue | None,
-        body: Region | Block.BlockCallback | None = None,
+        body: Region
+        | Block.BlockCallback
+        | type[Region.DEFAULT]
+        | None = Region.DEFAULT,
         name: str | StringAttr | None = None,
         external_args: Sequence[SSAValue] = (),
     ) -> None:
@@ -758,12 +763,15 @@ class RewriteOp(IRDLOperation):
         operands.append(external_args)
 
         regions: list[Region | list[Region]] = []
-        if isinstance(body, Region):
-            regions.append([body])
-        elif body is not None:
-            regions.append(Region(Block.from_callable([], body)))
-        else:
+        if body is Region.DEFAULT:
+            regions.append(Region(Block()))
+        elif isinstance(body, Region):
+            regions.append(body)
+        elif body is None:
             regions.append([])
+        else:
+            body = cast(Block.BlockCallback, body)
+            regions.append(Region(Block.from_callable([], body)))
 
         attributes: dict[str, Attribute] = {}
         if name is not None:

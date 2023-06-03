@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from xdsl.ir import OpResult, BlockArgument, SSAValue
+from xdsl.ir import OpResult, SSAValue
 from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
-from xdsl.builder import Builder
+from xdsl.builder import Builder, ImplicitBuilder
 
 from ..frontend.parser import Parser
 from ..frontend.ir_gen import IRGen
@@ -31,9 +31,9 @@ def test_convert_ast():
             [unrankedf64TensorType, unrankedf64TensorType], [unrankedf64TensorType]
         )
 
-        @Builder.implicit_region(multiply_transpose_type.inputs)
-        def multiply_transpose(args: tuple[BlockArgument, ...]) -> None:
-            a, b = args
+        with ImplicitBuilder(
+            toy.FuncOp("multiply_transpose", multiply_transpose_type, private=True).body
+        ) as (a, b):
             a_t = toy.TransposeOp(a).res
             b_t = toy.TransposeOp(b).res
             prod = toy.MulOp(a_t, b_t).res
@@ -46,8 +46,7 @@ def test_convert_ast():
 
         main_type = FunctionType.from_lists([], [])
 
-        @Builder.implicit_region
-        def main() -> None:
+        with ImplicitBuilder(toy.FuncOp("main", main_type).body):
             a = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [2, 3]).res
             b_0 = toy.ConstantOp.from_list([1, 2, 3, 4, 5, 6], [6]).res
             b = toy.ReshapeOp(b_0, [2, 3]).res
@@ -57,14 +56,6 @@ def test_convert_ast():
             a_t = toy.TransposeOp(a).res
             call_multiply_transpose(a_t, c)
             toy.ReturnOp()
-
-        toy.FuncOp(
-            "multiply_transpose",
-            multiply_transpose_type,
-            multiply_transpose,
-            private=True,
-        )
-        toy.FuncOp("main", main_type, main)
 
     assert module_op.is_structurally_equivalent(generated_module_op)
 
@@ -84,13 +75,10 @@ def test_convert_scalar():
     @ModuleOp
     @Builder.implicit_region
     def module_op():
-        @Builder.implicit_region
-        def main() -> None:
+        with ImplicitBuilder(toy.FuncOp("main", FunctionType.from_lists([], [])).body):
             a_0 = toy.ConstantOp.from_value(5.5).res
             a = toy.ReshapeOp(a_0, [2, 2]).res
             toy.PrintOp(a)
             toy.ReturnOp()
-
-        toy.FuncOp("main", FunctionType.from_lists([], []), main)
 
     assert module_op.is_structurally_equivalent(generated_module_op)
