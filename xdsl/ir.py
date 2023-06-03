@@ -10,6 +10,7 @@ from typing import (
     Any,
     Generic,
     Iterable,
+    NoReturn,
     Protocol,
     Sequence,
     TypeVar,
@@ -18,6 +19,7 @@ from typing import (
     ClassVar,
 )
 from xdsl.utils.deprecation import deprecated
+from xdsl.utils.exceptions import VerifyException
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -784,7 +786,10 @@ class Operation(IRNode):
                 region.verify()
 
         # Custom verifier
-        self.verify_()
+        try:
+            self.verify_()
+        except VerifyException as err:
+            self.emit_error("Operation does not verify: " + str(err))
 
     def verify_(self) -> None:
         pass
@@ -941,6 +946,16 @@ class Operation(IRNode):
             context[result] = other_result
 
         return True
+
+    def emit_error(
+        self, message: str, exception_type: type[Exception] = VerifyException
+    ) -> NoReturn:
+        """Emit an error with the given message."""
+        from xdsl.utils.diagnostic import Diagnostic
+
+        diagnostic = Diagnostic()
+        diagnostic.add_message(self, message)
+        diagnostic.raise_exception(message, self, exception_type)
 
     def __eq__(self, other: object) -> bool:
         return self is other
