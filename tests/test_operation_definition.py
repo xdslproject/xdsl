@@ -109,9 +109,10 @@ class AttrOp(IRDLOperation):
 
 def test_attr_verify():
     op = AttrOp.create(attributes={"attr": IntAttr(1)})
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException, match="#int<1> should be of base attribute string"
+    ):
         op.verify()
-    assert e.value.args[0] == "#int<1> should be of base attribute string"
 
 
 @irdl_op_definition

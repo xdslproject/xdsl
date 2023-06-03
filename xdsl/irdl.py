@@ -448,6 +448,7 @@ class IRDLOperation(Operation):
         successors: Sequence[Block | Sequence[Block] | None] | None = None,
         regions: Sequence[
             Region
+            | None
             | Sequence[Operation]
             | Sequence[Block]
             | Sequence[Region | Sequence[Operation] | Sequence[Block]]
@@ -484,6 +485,7 @@ class IRDLOperation(Operation):
         successors: Sequence[Block | Sequence[Block] | None] | None = None,
         regions: Sequence[
             Region
+            | None
             | Sequence[Operation]
             | Sequence[Block]
             | Sequence[Region | Sequence[Operation] | Sequence[Block]]
