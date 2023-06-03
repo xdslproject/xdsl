@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import TypeVar, Iterable, Callable, cast, ClassVar
 
+from xdsl.builder import Builder
 from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
@@ -126,15 +127,19 @@ def generate_mpi_calls_for(
 
         # generate a temp buffer to store the data in
         alloc_outbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        alloc_outbound.memref.name_hint = f"send_buff_ex{i}"
         alloc_inbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        alloc_inbound.memref.name_hint = f"recv_buff_ex{i}"
         yield from (alloc_outbound, alloc_inbound)
 
         # boundary condition:
         # TODO: handle non-1d layouts
+        assert len(ex.neighbor) == 1
         bound = arith.Constant.from_int_and_width(
             0 if ex.neighbor[0] < 0 else grid.as_tuple()[0], builtin.i32
         )
-        comparison = "slt" if ex.neighbor[0] < 0 else "sgt"
+        # comparison == true <=> we have a valid dest rank
+        comparison = "sge" if ex.neighbor[0] < 0 else "slt"
 
         cond_val = arith.Cmpi.get(neighbor_rank, bound, comparison)
         yield from (bound, cond_val)
@@ -155,6 +160,7 @@ def generate_mpi_calls_for(
             yield from generate_memcpy(source, ex.source_area(), alloc_outbound.memref)
             # get ptr, count, dtype
             unwrap_out = mpi.UnwrapMemrefOp.get(alloc_outbound)
+            unwrap_out.ptr.name_hint = f"send_buff_ex{i}_ptr"
             yield unwrap_out
 
             # isend call
@@ -169,8 +175,8 @@ def generate_mpi_calls_for(
 
             # get ptr for receive buffer
             unwrap_in = mpi.UnwrapMemrefOp.get(alloc_inbound)
+            unwrap_in.ptr.name_hint = f"recv_buff_ex{i}_ptr"
             yield unwrap_in
-
             # Irecv call
             yield mpi.Irecv.get(
                 unwrap_in.ptr,
@@ -210,7 +216,7 @@ def generate_mpi_calls_for(
                         list(
                             generate_memcpy(
                                 source,
-                                ex.source_area(),
+                                ex,
                                 buffer.memref,
                                 reverse=True,
                             )
@@ -230,105 +236,66 @@ def generate_memcpy(
     This function generates a memcpy routine to copy over the parts
     specified by the `ex` from `source` into `dest`.
 
-    If reverse=True, it insteads copy from `dest` into the parts of
+    If reverse=True, it instead copy from `dest` into the parts of
     `source` as specified by `ex`
 
     """
     assert ex.dim == 2, "Cannot handle non-2d case of memcpy yet!"
-    x0 = arith.Constant.from_int_and_width(ex.offset[0], builtin.IndexType())
+
+    idx = builtin.IndexType()
+
+    x0 = arith.Constant.from_int_and_width(ex.offset[0], idx)
     x0.result.name_hint = "x0"
-    y0 = arith.Constant.from_int_and_width(ex.offset[1], builtin.IndexType())
+    y0 = arith.Constant.from_int_and_width(ex.offset[1], idx)
     y0.result.name_hint = "y0"
-    x_len = arith.Constant.from_int_and_width(ex.size[0], builtin.IndexType())
+    x_len = arith.Constant.from_int_and_width(ex.size[0], idx)
     x_len.result.name_hint = "x_len"
-    y_len = arith.Constant.from_int_and_width(ex.size[1], builtin.IndexType())
+    y_len = arith.Constant.from_int_and_width(ex.size[1], idx)
     y_len.result.name_hint = "y_len"
-    cst0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
-    cst1 = arith.Constant.from_int_and_width(1, builtin.IndexType())
+    cst0 = arith.Constant.from_int_and_width(0, idx)
+    cst1 = arith.Constant.from_int_and_width(1, idx)
 
-    # TODO: set to something like ex.size[1] < 8?
-    unroll_inner = False
-
-    # enable to get verbose information on what buffers are exchanged:
-    # print("Generating{} memcpy from buff[{}:{},{}:{}]{}temp[{}:{}]".format(
-    #    " unrolled" if unrolled else "",
-    #    ex.offset[0], ex.offset[0] + ex.size[0],
-    #    ex.offset[1], ex.offset[1] + ex.size[1],
-    #    '<-' if reverse else '->',
-    #    0, ex.elem_count
-    # ))
-
-    # only generate indices if we actually want to unroll
-    if unroll_inner:
-        indices = [
-            arith.Constant.from_int_and_width(i, builtin.IndexType())
-            for i in range(ex.offset[0], ex.offset[0] + ex.size[0])
-        ]
-    else:
-        indices = []
-
-    def loop_body_unrolled(i: SSAValue) -> Iterable[Operation]:
+    @Builder.implicit_region([idx, idx])
+    def loop_body(args: tuple[BlockArgument, ...]):
         """
-        Generates last loop unrolled (not using scf.for)
+        Loop body of the scf.parallel() that iterates the following domain:
+        i = (0->x_len), y = (0->y_len)
         """
-        dest_idx = arith.Muli(i, x_len)
-        y = arith.Addi(i, y0)
-        yield from (dest_idx, y)
+        i, j = args
+        i.name_hint = "i"
+        j.name_hint = "j"
 
-        for x in indices:
-            linearized_idx = arith.Addi(dest_idx, x)
-            if reverse:
-                load = memref.Load.get(dest, [linearized_idx])
-                store = memref.Store.get(load, source, [x, y])
-            else:
-                load = memref.Load.get(source, [x, y])
-                store = memref.Store.get(load, dest, [linearized_idx])
-            yield from (linearized_idx, load, store)
-        yield scf.Yield.get()
+        # x = i + x0
+        # y = i + y0
+        # TODO: proper fix this (probs in HaloDimsHelper)
+        x_ = arith.Addi(i, x0)
+        x = arith.Addi(x_, cst1)
+        y_ = arith.Addi(j, y0)
+        y = arith.Addi(y_, cst1)
 
-    def loop_body_with_for(i: SSAValue) -> Iterable[Operation]:
-        """
-        Generates last loop as scf.for
-        """
-        dest_idx = arith.Muli(i, x_len)
-        y = arith.Addi(i, y0)
-        yield from (dest_idx, y)
+        x.result.name_hint = "x"
+        y.result.name_hint = "y"
 
-        def inner(*j: BlockArgument) -> list[Operation]:
-            x = arith.Addi(j[0], x0)
-            linearized_idx = arith.Addi(dest_idx, j[0])
-            if reverse:
-                load = memref.Load.get(dest, [linearized_idx])
-                store = memref.Store.get(load, source, [x, y])
-            else:
-                load = memref.Load.get(source, [x, y])
-                store = memref.Store.get(load, dest, [linearized_idx])
-            # yield from (x, linearized_idx, load, store)
-            # # add an scf.yield at the end
-            # yield scf.Yield.get()
-            return [x, linearized_idx, load, store, scf.Yield.get()]
+        # linearized_idx = (j * x_len) + i
+        dest_idx = arith.Muli(j, x_len)
+        linearized_idx = arith.Addi(dest_idx, i)
+        linearized_idx.result.name_hint = "linearized_idx"
 
-        yield scf.For.get(
-            cst0,
-            x_len,
-            cst1,
-            [],
-            [Block.from_callable([builtin.IndexType()], inner)],  # type: ignore
-        )
+        if reverse:
+            load = memref.Load.get(dest, [linearized_idx])
+            memref.Store.get(load, source, [x, y])
+        else:
+            load = memref.Load.get(source, [x, y])
+            memref.Store.get(load, dest, [linearized_idx])
 
-        yield scf.Yield.get()
+        scf.Yield.get()
 
-    loop_body: Callable[[SSAValue], Iterable[Operation]] = (
-        loop_body_unrolled if unroll_inner else loop_body_with_for
-    )
-
-    # TODO: make type annotations here aware that they can work with generators!
-    loop = scf.For.get(
-        cst0,
-        y_len,
-        cst1,
+    loop = scf.ParallelOp.get(
+        [cst0, cst0],
+        [x_len, y_len],
+        [cst1, cst1],
+        loop_body,
         [],
-        Block.from_callable([builtin.IndexType()], loop_body),  # type: ignore
     )
 
     return [
@@ -338,7 +305,6 @@ def generate_memcpy(
         y_len,
         cst0,
         cst1,
-        *indices,
         loop,
     ]
 
