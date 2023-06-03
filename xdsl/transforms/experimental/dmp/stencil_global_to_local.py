@@ -236,7 +236,7 @@ def generate_memcpy(
     This function generates a memcpy routine to copy over the parts
     specified by the `ex` from `source` into `dest`.
 
-    If reverse=True, it insteads copy from `dest` into the parts of
+    If reverse=True, it instead copy from `dest` into the parts of
     `source` as specified by `ex`
 
     """
@@ -267,6 +267,7 @@ def generate_memcpy(
 
         # x = i + x0
         # y = i + y0
+        # TODO: proper fix this (probs in HaloDimsHelper)
         x_ = arith.Addi(i, x0)
         x = arith.Addi(x_, cst1)
         y_ = arith.Addi(j, y0)
@@ -289,7 +290,6 @@ def generate_memcpy(
 
         scf.Yield.get()
 
-    # TODO: make type annotations here aware that they can work with generators!
     loop = scf.ParallelOp.get(
         [cst0, cst0],
         [x_len, y_len],
