@@ -45,7 +45,7 @@ def test_vectorType():
     vec = VectorType.from_element_type_and_shape(i32, [1])
 
     assert vec.get_num_dims() == 1
-    assert vec.get_shape() == [1]
+    assert vec.get_shape() == (1,)
     assert vec.element_type is i32
 
 
@@ -53,7 +53,7 @@ def test_vectorType_with_dimensions():
     vec = VectorType.from_element_type_and_shape(i32, [3, 3, 3])
 
     assert vec.get_num_dims() == 3
-    assert vec.get_shape() == [3, 3, 3]
+    assert vec.get_shape() == (3, 3, 3)
     assert vec.element_type is i32
 
 
@@ -62,7 +62,7 @@ def test_vectorType_from_params():
     vec = VectorType.from_params(my_i32)
 
     assert vec.get_num_dims() == 1
-    assert vec.get_shape() == [1]
+    assert vec.get_shape() == (1,)
     assert vec.element_type is my_i32
 
 

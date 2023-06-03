@@ -64,6 +64,30 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 
+class ShapeType(ABC):
+    @abstractmethod
+    def get_num_dims(self) -> int:
+        ...
+
+    @abstractmethod
+    def get_shape(self) -> tuple[int]:
+        ...
+
+    def element_count(self) -> int:
+        return prod(self.get_shape())
+
+
+_ContainerElementTypeT = TypeVar(
+    "_ContainerElementTypeT", bound=Attribute | None, covariant=True
+)
+
+
+class ContainerType(Generic[_ContainerElementTypeT], ABC):
+    @abstractmethod
+    def get_element_type(self) -> _ContainerElementTypeT:
+        pass
+
+
 @irdl_attr_definition
 class NoneAttr(ParametrizedAttribute):
     """An attribute representing the absence of an attribute."""
@@ -608,7 +632,13 @@ class TupleType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
+class VectorType(
+    Generic[AttributeCovT],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ShapeType,
+    ContainerType[AttributeCovT],
+):
     name = "vector"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -621,8 +651,11 @@ class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     def get_num_scalable_dims(self) -> int:
         return self.num_scalable_dims.data
 
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
+    def get_shape(self) -> tuple[int]:
+        return tuple(i.value.data for i in self.shape.data)
+
+    def get_element_type(self) -> AttributeCovT:
+        return self.element_type
 
     def verify(self):
         if self.get_num_scalable_dims() < 0:
@@ -675,7 +708,13 @@ AnyVectorType: TypeAlias = VectorType[Attribute]
 
 
 @irdl_attr_definition
-class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
+class TensorType(
+    Generic[AttributeCovT],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ShapeType,
+    ContainerType[AttributeCovT],
+):
     name = "tensor"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -685,8 +724,11 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
+    def get_shape(self) -> tuple[int]:
+        return tuple(i.value.data for i in self.shape.data)
+
+    def get_element_type(self) -> AttributeCovT:
+        return self.element_type
 
     @staticmethod
     def from_type_and_list(
@@ -825,7 +867,9 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class DenseIntOrFPElementsAttr(ParametrizedAttribute):
+class DenseIntOrFPElementsAttr(
+    ParametrizedAttribute, ContainerType[IntegerType | IndexType | AnyFloat]
+):
     name = "dense"
     type: ParameterDef[
         RankedVectorOrTensorOf[IntegerType]
@@ -835,15 +879,17 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
-    @property
-    def shape(self) -> List[int] | None:
+    def get_shape(self) -> tuple[int] | None:
         if isinstance(self.type, UnrankedTensorType):
             return None
         return self.type.get_shape()
 
+    def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
+        return self.type.get_element_type()
+
     @property
     def shape_is_complete(self) -> bool:
-        shape = self.shape
+        shape = self.get_shape()
         if shape is None or not len(shape):
             return False
 
@@ -1323,30 +1369,6 @@ f32 = Float32Type()
 f64 = Float64Type()
 f80 = Float64Type()
 f128 = Float64Type()
-
-
-class ShapeType(ABC):
-    @abstractmethod
-    def get_num_dims(self) -> int:
-        ...
-
-    @abstractmethod
-    def get_shape(self) -> tuple[int]:
-        ...
-
-    def element_count(self) -> int:
-        return prod(self.get_shape())
-
-
-_ContainerElementTypeT = TypeVar(
-    "_ContainerElementTypeT", bound=Attribute | None, covariant=True
-)
-
-
-class ContainerType(Generic[_ContainerElementTypeT], ABC):
-    @abstractmethod
-    def get_element_type(self) -> _ContainerElementTypeT:
-        pass
 
 
 Builtin = Dialect(
