@@ -524,13 +524,11 @@ def test_stencil_store_load_overlap():
     load = LoadOp.get(field_type_ssa_val, lb, ub)
     store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, lb, ub)
 
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
         load.verify()
-    assert exc_info.value.args[0] == "Cannot Load and Store the same field!"
 
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
         store.verify()
-    assert exc_info.value.args[0] == "Cannot Load and Store the same field!"
 
 
 def test_stencil_index():

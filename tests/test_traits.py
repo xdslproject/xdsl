@@ -112,18 +112,18 @@ def test_verifier():
     operand32 = TestSSAValue(i32)
     operand1 = TestSSAValue(i1)
     op = TestOp.create(operands=[operand1], result_types=[i32])
-    with pytest.raises(VerifyException) as e:
-        op.verify()
-    assert e.value.args[0] == (
-        "Operation has a result bitwidth greater" " or equal to the operand bitwidth."
+
+    message = (
+        "Operation has a result bitwidth greater or equal to the operand bitwidth."
     )
+    with pytest.raises(VerifyException, match=message):
+        op.verify()
 
     op = TestOp.create(operands=[operand64], result_types=[i32])
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException, match="Operation has a bitwidth sum greater or equal to 64."
+    ):
         op.verify()
-    assert e.value.args[0] == (
-        "Operation has a bitwidth sum " "greater or equal to 64."
-    )
 
     op = TestOp.create(operands=[operand32], result_types=[i1])
     op.verify()
@@ -134,9 +134,8 @@ def test_verifier_order():
     Check that trait verifiers are called after IRDL verifiers.
     """
     op = TestOp.create(operands=[], result_types=[i1])
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Expected 1 operand, but got 0"):
         op.verify()
-    assert e.value.args[0] == ("Expected 1 operand, but got 0")
 
 
 class LargerOperandOp(IRDLOperation, ABC):
