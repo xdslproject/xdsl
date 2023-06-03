@@ -236,11 +236,10 @@ class HaloShapeInformation(ParametrizedAttribute):
         core_ub: stencil.IndexAttr,
         buff_ub: stencil.IndexAttr,
     ):
-        # translate everything to "memref" coordinates
-        buff_lb_tuple = tuple(buff_lb - buff_lb)
-        buff_ub_tuple = tuple(buff_ub - buff_lb)
-        core_lb_tuple = tuple(core_lb - buff_lb)
-        core_ub_tuple = tuple(core_ub - buff_lb)
+        buff_lb_tuple = tuple(buff_lb)
+        buff_ub_tuple = tuple(buff_ub)
+        core_lb_tuple = tuple(core_lb)
+        core_ub_tuple = tuple(core_ub)
 
         typ = builtin.i64
         return HaloShapeInformation(
@@ -260,11 +259,11 @@ class HaloShapeInformation(ParametrizedAttribute):
 
     def buffer_end(self, dim: int) -> int:
         assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.core_ub[dim]
+        return self.buff_ub[dim]
 
     def core_end(self, dim: int) -> int:
         assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.buff_ub[dim]
+        return self.core_ub[dim]
 
     # Helpers for specific sizes:
 
