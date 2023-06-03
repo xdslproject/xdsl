@@ -93,7 +93,7 @@ class ConstantOp(IRDLOperation):
         return cast(TensorTypeF64, self.value.type)
 
     def get_shape(self) -> list[int]:
-        return self.get_type().get_shape()
+        return list(self.get_type().get_shape())
 
     def get_data(self) -> list[float]:
         return [float(el.value.data) for el in self.value.data.data]
