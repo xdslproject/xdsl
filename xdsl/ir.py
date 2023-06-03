@@ -1287,6 +1287,23 @@ class Block(IRNode):
         for op in self.ops:
             yield from op.walk()
 
+    @staticmethod
+    def _may_be_valid_without_terminator(block: Block) -> bool:
+        parent_region = block.parent
+        if not parent_region:
+            return True
+
+        if len(parent_region.blocks) != 1:
+            return False
+
+        # TODO cyclic dependency if at top-level
+        from xdsl.traits import NoTerminator
+
+        if not parent_region.parent or parent_region.parent.has_trait(NoTerminator):
+            return True
+
+        return False
+
     def verify(self) -> None:
         last_op = self.last_op
         if not last_op:
