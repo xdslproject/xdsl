@@ -1307,8 +1307,8 @@ class Block(IRNode):
     def verify(self) -> None:
         last_op = self.last_op
         if not last_op:
-            # TODO special handling for empty blocks
-            pass
+            if not self._may_be_valid_without_terminator(self):
+                raise Exception("Empty block expects at least a terminator")
         else:
             for operation in self.ops:
                 if operation.parent != self:
@@ -1324,6 +1324,8 @@ class Block(IRNode):
             for succ in last_op.successors:
                 if succ.parent != self.parent:
                     raise Exception("Branching to a block of a different region")
+
+            # TODO missing further check requiring `IsTerminator` trait (when implemented) here
 
     def drop_all_references(self) -> None:
         """
