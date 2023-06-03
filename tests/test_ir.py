@@ -3,13 +3,27 @@ import pytest
 from typing import cast, Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Subi, Constant
-from xdsl.dialects.builtin import Builtin, IntegerType, i32, i64, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import (
+    Builtin,
+    IntegerType,
+    i32,
+    i64,
+    IntegerAttr,
+    ModuleOp,
+)
 from xdsl.dialects.func import Func
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.scf import If
 from xdsl.dialects.test import TestOp
 
-from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
+from xdsl.ir import (
+    MLContext,
+    Operation,
+    Block,
+    Region,
+    ErasedSSAValue,
+    SSAValue,
+)
 from xdsl.parser import Parser
 from xdsl.irdl import (
     IRDLOperation,
@@ -183,6 +197,60 @@ def test_block_not_branching_to_another_region():
         match="Branching to a block of a different region",
     ):
         outer_block.verify()
+
+
+def test_empty_block_with_no_parent_region_requires_no_terminator():
+    """
+    Tests that an empty block belonging no parent region requires no terminator
+    operation.
+    """
+    block0 = Block([])
+
+    block0.verify()
+
+
+def test_empty_block_with_single_block_parent_region_requires_no_terminator():
+    """
+    Tests that an empty block belonging to a single-block region with no parent
+    operation requires no terminator operation.
+    """
+    block0 = Block([])
+    _ = Region([block0])
+
+    block0.verify()
+
+
+def test_empty_block_with_non_single_block_parent_region_requires_terminator():
+    block0 = Block([])
+    block1 = Block([])
+    _ = Region([block0, block1])
+
+    with pytest.raises(Exception, match="Empty block expects at least a terminator"):
+        block0.verify()
+
+
+def test_empty_block_with_orphan_single_block_parent_region_requires_no_terminator():
+    """
+    Tests that an empty block belonging to a single-block region with no parent
+    operation requires no terminator operation.
+    """
+    block0 = Block([])
+    _ = Region([block0])
+
+    block0.verify()
+
+
+def test_empty_block_with_single_block_parent_region_requires_terminator():
+    """
+    Tests that an empty block belonging to a single-block region with parent
+    operation requires terminator operation.
+    """
+    block0 = Block([])
+    region0 = Region([block0])
+    _ = TestOp.create(regions=[region0])
+
+    with pytest.raises(Exception, match="Empty block expects at least a terminator"):
+        block0.verify()
 
 
 ##################### Testing is_structurally_equal #####################
