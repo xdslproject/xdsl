@@ -1,18 +1,8 @@
 {
-    "benchmarks.MemSuite.mem_list": {
-        "code": "class MemSuite:\n    def mem_list(self):\n        return [0] * 256",
-        "name": "benchmarks.MemSuite.mem_list",
-        "param_names": [],
-        "params": [],
-        "timeout": 60.0,
-        "type": "memory",
-        "unit": "bytes",
-        "version": "abe86bab484550a681c61d7bb6eb081fbd37eb6d5009eba1df85c935530577b9"
-    },
-    "benchmarks.TimeSuite.time_keys": {
-        "code": "class TimeSuite:\n    def time_keys(self):\n        for key in self.d.keys():\n            pass\n\n    def setup(self):\n        self.d = {}\n        for x in range(500):\n            self.d[x] = None",
+    "import_xdsl_opt.ImportXDSLOptSuite.time_import_xdsl_opt_main": {
+        "code": "class ImportXDSLOptSuite:\n    def time_import_xdsl_opt_main(self):\n        from xdsl import xdsl_opt_main as _",
         "min_run_count": 2,
-        "name": "benchmarks.TimeSuite.time_keys",
+        "name": "import_xdsl_opt.ImportXDSLOptSuite.time_import_xdsl_opt_main",
         "number": 0,
         "param_names": [],
         "params": [],
@@ -22,39 +12,7 @@
         "timeout": 60.0,
         "type": "time",
         "unit": "seconds",
-        "version": "86e015a3c40c52da31e4185fff7c7176c38c5e1e1e4aba71912db0b388225191",
-        "warmup_time": -1
-    },
-    "benchmarks.TimeSuite.time_range": {
-        "code": "class TimeSuite:\n    def time_range(self):\n        d = self.d\n        for key in range(500):\n            x = d[key]\n\n    def setup(self):\n        self.d = {}\n        for x in range(500):\n            self.d[x] = None",
-        "min_run_count": 2,
-        "name": "benchmarks.TimeSuite.time_range",
-        "number": 0,
-        "param_names": [],
-        "params": [],
-        "repeat": 0,
-        "rounds": 2,
-        "sample_time": 0.01,
-        "timeout": 60.0,
-        "type": "time",
-        "unit": "seconds",
-        "version": "cc3e85248a6284df968bcf8afe866da285261eb2487c10e9dd9e2d17a05deb47",
-        "warmup_time": -1
-    },
-    "benchmarks.TimeSuite.time_values": {
-        "code": "class TimeSuite:\n    def time_values(self):\n        for value in self.d.values():\n            pass\n\n    def setup(self):\n        self.d = {}\n        for x in range(500):\n            self.d[x] = None",
-        "min_run_count": 2,
-        "name": "benchmarks.TimeSuite.time_values",
-        "number": 0,
-        "param_names": [],
-        "params": [],
-        "repeat": 0,
-        "rounds": 2,
-        "sample_time": 0.01,
-        "timeout": 60.0,
-        "type": "time",
-        "unit": "seconds",
-        "version": "cace9f2d006aa364dcf5762823afba3680c2fb50179ee30beaf880c0697256e2",
+        "version": "bd3ae95d425a55d73ebc48bdfa6df7d67ff052bd9f8f860f1f055b2cb01f032e",
         "warmup_time": -1
     },
     "version": 2
