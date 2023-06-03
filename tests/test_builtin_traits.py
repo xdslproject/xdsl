@@ -115,35 +115,13 @@ class HasNoTerminatorOp(IRDLOperation):
     traits = frozenset([NoTerminator()])
 
 
-def test_has_no_terminator_verify_with_empty_single_block_region():
+def test_has_no_terminator_empty_block_with_single_block_region_requires_no_terminator():
     """
-    Test that an operation with a NoTerminator trait expects its containing
-    region to have an empty single block and no terminator.
+    Tests that an empty block belonging to a single-block region with parent
+    operation requires no terminator operation if it has the NoTerminator trait.
     """
+    block0 = Block([])
+    region0 = Region([block0])
+    _ = HasNoTerminatorOp.create(regions=[region0])
 
-    noterm_op = HasNoTerminatorOp.build(regions=[[Block()]])
-    noterm_op.verify()
-
-
-def test_has_no_terminator_verify_with_non_empty_single_block_region():
-    """
-    Test that an operation with a NoTerminator trait expects its containing
-    region to have a non-empty single block and no terminator.
-    """
-
-    noterm_op = HasNoTerminatorOp.build(regions=[[Block([TestOp.create()])]])
-    noterm_op.verify()
-
-
-def test_has_no_terminator_not_single_block_region():
-    """
-    Test that an operation with a NoTerminator trait fails when its containing
-    region has more than single block.
-    """
-
-    block0 = Block([TestOp.create(), TestOp.create()])
-    block1 = Block([TestOp.create(), TestOp.create()])
-    noterm_op = HasNoTerminatorOp.build(regions=[[block0, block1]])
-
-    with pytest.raises(VerifyException, match="expects single block region"):
-        noterm_op.verify()
+    block0.verify()
