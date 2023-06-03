@@ -455,8 +455,7 @@ class FloatData(Data[float]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> float:
-        span = parser.expect(parser.try_parse_float_literal, "Expect float literal")
-        return float(span.text)
+        return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")

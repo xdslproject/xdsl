@@ -984,7 +984,7 @@ class Parser(ABC):
         """
         return self.expect(
             lambda: self.parse_optional_number(),
-            "Expected integer or float literal" + context_msg,
+            "integer or float literal expected" + context_msg,
         )
 
     def parse_integer(
@@ -1003,12 +1003,6 @@ class Parser(ABC):
             lambda: self.parse_optional_integer(allow_boolean, allow_negative),
             "Expected integer literal" + context_msg,
         )
-
-    def try_parse_integer_literal(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.integer_literal)
-
-    def try_parse_decimal_literal(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.decimal_literal)
 
     def parse_optional_str_literal(self) -> str | None:
         """
@@ -1036,14 +1030,8 @@ class Parser(ABC):
             "string literal expected" + context_msg,
         )
 
-    def try_parse_float_literal(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.float_literal)
-
     def try_parse_bare_id(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.bare_id)
-
-    def try_parse_value_id(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.value_id)
 
     _decimal_integer_regex = re.compile(r"[0-9]+")
 
@@ -1151,14 +1139,8 @@ class Parser(ABC):
         """Parse an operand with format `%<value-id>`."""
         return self.expect(self.parse_optional_operand, msg)
 
-    def try_parse_suffix_id(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.suffix_id)
-
     def try_parse_block_id(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.block_id)
-
-    def try_parse_boolean_literal(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.boolean_literal)
 
     def parse_type(self) -> Attribute:
         """
@@ -2176,16 +2158,7 @@ class Parser(ABC):
 
         self.parse_characters(":", err_msg)
 
-        def parse_dense_array_value() -> int | float:
-            if (v := self.try_parse_float_literal()) is not None:
-                return float(v.text)
-            if (v := self.try_parse_integer_literal()) is not None:
-                return int(v.text)
-            self.raise_error("integer or float literal expected")
-
-        values = self.parse_comma_separated_list(
-            self.Delimiter.NONE, parse_dense_array_value
-        )
+        values = self.parse_comma_separated_list(self.Delimiter.NONE, self.parse_number)
         self.parse_characters(">", err_msg)
 
         return DenseArrayBase.from_list(element_type, values)
