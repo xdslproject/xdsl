@@ -1010,12 +1010,21 @@ class Parser(ABC):
     def try_parse_decimal_literal(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.decimal_literal)
 
-    def try_parse_string_literal(self) -> StringLiteral | None:
-        return StringLiteral.from_span(
-            self.tokenizer.next_token_of_pattern(ParserCommons.string_literal)
-        )
+    def parse_optional_str_literal(self) -> str | None:
+        """
+        Parse a string literal with the format `"..."`, if present.
 
-    def parse_string_literal(self) -> str:
+        Returns the string contents without the quotes and with escape sequences
+        resolved.
+        """
+
+        self._synchronize_lexer_and_tokenizer()
+        if (token := self._parse_optional_token(Token.Kind.STRING_LIT)) is None:
+            return None
+        self._synchronize_lexer_and_tokenizer()
+        return token.get_string_literal_value()
+
+    def parse_str_literal(self, context_msg: str = "") -> str:
         """
         Parse a string literal with the format `"..."`.
 
@@ -1023,9 +1032,9 @@ class Parser(ABC):
         resolved.
         """
         return self.expect(
-            self.try_parse_string_literal,
-            "string literal expected",
-        ).string_contents
+            self.parse_optional_str_literal,
+            "string literal expected" + context_msg,
+        )
 
     def try_parse_float_literal(self) -> Span | None:
         return self.tokenizer.next_token_of_pattern(ParserCommons.float_literal)
@@ -1683,11 +1692,11 @@ class Parser(ABC):
         # Check for custom op format
         op_name = self.try_parse_bare_id()
         if op_name is not None:
-            op_type = self._get_op_by_name(op_name)
+            op_type = self._get_op_by_name(op_name.text)
             op = op_type.parse(self)
         else:
             # Check for basic op format
-            op_name = self.try_parse_string_literal()
+            op_name = self.parse_optional_str_literal()
             if op_name is None:
                 self.raise_error(
                     "Expected an operation name here, either a bare-id, or a string "
@@ -1731,20 +1740,15 @@ class Parser(ABC):
 
         return op
 
-    def _get_op_by_name(self, span: Span) -> type[Operation]:
-        if isinstance(span, StringLiteral):
-            op_name = span.string_contents
-        else:
-            op_name = span.text
-
+    def _get_op_by_name(self, name: str) -> type[Operation]:
         op_type = self.ctx.get_optional_op(
-            op_name, allow_unregistered=self.allow_unregistered_dialect
+            name, allow_unregistered=self.allow_unregistered_dialect
         )
 
         if op_type is not None:
             return op_type
 
-        self.raise_error(f"Unknown operation {op_name}!", span)
+        self.raise_error(f"unregistered operation {name}!")
 
     @dataclass
     class Argument:
@@ -1901,15 +1905,19 @@ class Parser(ABC):
             self.raise_error("Expected region!")
         return region
 
-    def _parse_attribute_entry(self) -> tuple[Span, Attribute]:
+    def _parse_attribute_entry(self) -> tuple[str, Attribute]:
         """
         Parse entry in attribute dict. Of format:
 
         attribute_entry := (bare-id | string-literal) `=` attribute
         attribute       := dialect-attribute | builtin-attribute
         """
-        if (name := self.try_parse_bare_id()) is None:
-            name = self.try_parse_string_literal()
+        self._synchronize_lexer_and_tokenizer()
+        if (name := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
+            name = name.span.text
+        else:
+            name = self.parse_optional_str_literal()
+        self._synchronize_lexer_and_tokenizer()
 
         if name is None:
             self.raise_error(
@@ -1943,7 +1951,7 @@ class Parser(ABC):
         """
         next_token = self.tokenizer.next_token(peek=True)
         if next_token.text == '"':
-            return self.try_parse_builtin_str_attr()
+            return self._parse_optional_string_attr()
         elif next_token.text == "[":
             return self.try_parse_builtin_arr_attr()
         elif next_token.text == "@":
@@ -2119,7 +2127,7 @@ class Parser(ABC):
 
     def _parse_builtin_opaque_attr(self, _name: Span):
         str_lit_list = self.parse_comma_separated_list(
-            self.Delimiter.ANGLE, self.parse_string_literal
+            self.Delimiter.ANGLE, self.parse_str_literal
         )
 
         if len(str_lit_list) != 2:
@@ -2423,15 +2431,17 @@ class Parser(ABC):
             return IntegerAttr(1 if value else 0, IntegerType(1))
         return None
 
-    def try_parse_builtin_str_attr(self):
-        if not self.tokenizer.starts_with('"'):
-            return None
-
-        with self.backtracking("string literal"):
-            literal = self.try_parse_string_literal()
-            if literal is None:
-                self.raise_error("Invalid string literal")
-            return StringAttr(literal.string_contents)
+    def _parse_optional_string_attr(self) -> StringAttr | None:
+        """
+        Parse a string attribute, if present.
+          string-attr ::= string-literal
+        """
+        self._synchronize_lexer_and_tokenizer()
+        token = self._parse_optional_token(Token.Kind.STRING_LIT)
+        self._synchronize_lexer_and_tokenizer()
+        return (
+            StringAttr(token.get_string_literal_value()) if token is not None else None
+        )
 
     def try_parse_builtin_arr_attr(self) -> AnyArrayAttr | None:
         if not self.tokenizer.starts_with("["):
@@ -2447,22 +2457,7 @@ class Parser(ABC):
         attrs = self.parse_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
         )
-        return self._attr_dict_from_tuple_list(attrs)
-
-    def _attr_dict_from_tuple_list(
-        self, tuple_list: list[tuple[Span, Attribute]]
-    ) -> dict[str, Attribute]:
-        """
-        Convert a list of tuples (Span, Attribute) to a dictionary.
-        This function converts the span to a string, trimming quotes from string literals
-        """
-
-        def span_to_str(span: Span) -> str:
-            if isinstance(span, StringLiteral):
-                return span.string_contents
-            return span.text
-
-        return dict((span_to_str(span), attr) for span, attr in tuple_list)
+        return dict(attrs)
 
     def parse_function_type(self) -> FunctionType:
         """
@@ -2553,11 +2548,6 @@ class Parser(ABC):
 
     def parse_char(self, text: str):
         self.parse_characters(text, "Expected '{}' here!".format(text))
-
-    def parse_str_literal(self) -> str:
-        return self.expect(
-            self.try_parse_string_literal, "Malformed string literal!"
-        ).string_contents
 
     def parse_op(self) -> Operation:
         return self.parse_operation()

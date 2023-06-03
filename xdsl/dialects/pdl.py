@@ -400,9 +400,7 @@ class OperationOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> OperationOp:
-        name = parser.try_parse_string_literal()
-        if name is not None:
-            name = name.string_contents
+        name = parser.parse_optional_str_literal()
         operands = []
         if parser.parse_optional_punctuation("(") is not None:
             operands = parse_operands_with_types(parser)

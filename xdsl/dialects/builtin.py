@@ -154,8 +154,7 @@ class StringAttr(Data[str]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:
-        data = parser.parse_str_literal()
-        return data
+        return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f'"{self.data}"')
