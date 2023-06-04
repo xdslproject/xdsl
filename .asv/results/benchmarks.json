@@ -1,9 +1,9 @@
 {
-    "import_xdsl_opt.ImportXDSLOptSuite.time_import_xdsl_opt_main": {
-        "code": "class ImportXDSLOptSuite:\n    def time_import_xdsl_opt_main(self):\n        from xdsl import xdsl_opt_main as _",
+    "import_xdsl_opt.timeraw_import_inspect": {
+        "code": "def timeraw_import_inspect():\n    \"\"\"\n    A benchmark that measures the time to import xdsl_opt_main. This is most of the\n    constant cost of running xdsl-opt.\n    \"\"\"\n    return \"\"\"\n    from xdsl.xdsl_opt_main import xDSLOptMain\n    \"\"\"",
         "min_run_count": 2,
-        "name": "import_xdsl_opt.ImportXDSLOptSuite.time_import_xdsl_opt_main",
-        "number": 0,
+        "name": "import_xdsl_opt.timeraw_import_inspect",
+        "number": 1,
         "param_names": [],
         "params": [],
         "repeat": 0,
@@ -12,7 +12,7 @@
         "timeout": 60.0,
         "type": "time",
         "unit": "seconds",
-        "version": "bd3ae95d425a55d73ebc48bdfa6df7d67ff052bd9f8f860f1f055b2cb01f032e",
+        "version": "2d8f68cd39a2d3f11888f669c489de3f963d34bf0cd9517602254fb2e37c8f67",
         "warmup_time": -1
     },
     "version": 2
