@@ -963,8 +963,25 @@ class Parser(ABC):
             "string literal expected" + context_msg,
         )
 
-    def try_parse_bare_id(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.bare_id)
+    def parse_optional_identifier(self) -> str | None:
+        """
+        Parse an identifier, if present, with syntax:
+            ident ::= (letter|[_]) (letter|digit|[_$.])*
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if (token := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return token.text
+        return None
+
+    def parse_identifier(self, context_msg: str = "") -> str:
+        """
+        Parse an identifier, if present, with syntax:
+            ident ::= (letter|[_]) (letter|digit|[_$.])*
+        """
+        return self.expect(
+            self.parse_optional_identifier, "identifier expected" + context_msg
+        )
 
     _decimal_integer_regex = re.compile(r"[0-9]+")
 
@@ -1981,13 +1998,13 @@ class Parser(ABC):
             "(`dense_resource` `<` resource-handle `>`)"
         )
         self.parse_characters("<", err_msg)
-        resource_handle = self.expect(self.try_parse_bare_id, err_msg)
+        resource_handle = self.parse_identifier(" for resource handle")
         self.parse_characters(">", err_msg)
         self.parse_characters(":", err_msg)
         type = self.expect(
             self.parse_optional_type, "Dense resource attribute must be typed!"
         )
-        return DenseResourceAttr.from_params(resource_handle.text, type)
+        return DenseResourceAttr.from_params(resource_handle, type)
 
     def _parse_builtin_densearray_attr(self, name: Span) -> DenseArrayBase | None:
         err_msg = (
