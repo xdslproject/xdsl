@@ -312,5 +312,30 @@ func.func @trivial_externals(%dyn_mem : memref<?x?x?xf64>, %sta_mem : memref<64x
 // CHECK-NEXT:    %casted = "memref.cast"(%dyn_mem) : (memref<?x?x?xf64>) -> memref<64x64x64xf64>
 // CHECK-NEXT: }
 
+func.func @neg_bounds(%in : !stencil.field<[-32,32]xf64>, %out : !stencil.field<[-32,32]xf64>) {
+  %tin = "stencil.load"(%in) : (!stencil.field<[-32,32]xf64>) -> !stencil.temp<[-16,16]xf64>
+  %outt = "stencil.apply"(%tin) ({
+  ^0(%tinb : !stencil.temp<[-16,16]xf64>):
+    %val = "stencil.access"(%tinb) {"offset" = #stencil.index<0>} : (!stencil.temp<[-16,16]xf64>) -> f64
+    "stencil.return"(%val) : (f64) -> ()
+  }) : (!stencil.temp<[-16,16]xf64>) -> !stencil.temp<[-16,16]xf64>
+  "stencil.store"(%outt, %out) {"lb" = #stencil.index<-16>, "ub" = #stencil.index<16>} : (!stencil.temp<[-16,16]xf64>, !stencil.field<[-32,32]xf64>) -> ()
+}
+// CHECK:      func.func @neg_bounds(%in : memref<64xf64>, %out_1 : memref<64xf64>) {
+// CHECK-NEXT:   %out_storeview = "memref.subview"(%out_1) {"static_offsets" = array<i64: 16>, "static_sizes" = array<i64: 32>, "static_strides" = array<i64: 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<64xf64>) -> memref<32xf64, strided<[1], offset: 16>>
+// CHECK-NEXT:   %in_loadview = "memref.subview"(%in) {"static_offsets" = array<i64: 16>, "static_sizes" = array<i64: 32>, "static_strides" = array<i64: 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<64xf64>) -> memref<32xf64, strided<[1], offset: 16>>
+// CHECK-NEXT:   %120 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:   %121 = "arith.constant"() {"value" = 1 : index} : () -> index
+// CHECK-NEXT:   %122 = "arith.constant"() {"value" = 32 : index} : () -> index
+// CHECK-NEXT:   "scf.parallel"(%120, %122, %121) ({
+// CHECK-NEXT:   ^15(%123 : index):
+// CHECK-NEXT:     %val = "arith.constant"() {"value" = 16 : index} : () -> index
+// CHECK-NEXT:     %val_1 = arith.addi %123, %val : index
+// CHECK-NEXT:     %val_2 = "memref.load"(%in_loadview, %val_1) : (memref<32xf64, strided<[1], offset: 16>>, index) -> f64
+// CHECK-NEXT:     "memref.store"(%val_2, %out_storeview, %123) : (f64, memref<32xf64, strided<[1], offset: 16>>, index) -> ()
+// CHECK-NEXT:     "scf.yield"() : () -> ()
+// CHECK-NEXT:   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
+// CHECK-NEXT: }
+
 }
 // CHECK-NEXT: }
