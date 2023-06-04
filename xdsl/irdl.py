@@ -863,9 +863,6 @@ class OpDef:
             if field_name in operation_fields:
                 continue
 
-            if pyrdl_def.__name__ == "ConstantOp":
-                print("asdassad")
-
             # Get attribute constraints from a list of pyrdl constraints
             def get_constraint(pyrdl_constrs: tuple[Any, ...]) -> AttrConstraint:
                 return _irdl_list_to_attr_constraint(
