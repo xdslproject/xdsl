@@ -2345,7 +2345,7 @@ class Parser(ABC):
         return ArrayAttr(attrs)
 
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
-        if not self.tokenizer.starts_with("{"):
+        if self._current_token.kind != Token.Kind.L_BRACE:
             return dict()
         attrs = self.parse_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
