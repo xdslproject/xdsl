@@ -18,7 +18,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     DenseArrayBase,
     IndexType,
-    ShapeType,
+    ShapedType,
     StridedLayoutAttr,
     ArrayAttr,
     NoneAttr,
@@ -67,7 +67,7 @@ class MemRefType(
     Generic[_MemRefTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
-    ShapeType,
+    ShapedType,
     ContainerType[_MemRefTypeElement],
 ):
     name = "memref"

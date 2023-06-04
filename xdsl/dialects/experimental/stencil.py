@@ -151,7 +151,7 @@ class StencilType(
     Generic[_FieldTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
-    builtin.ShapeType,
+    builtin.ShapedType,
     builtin.ContainerType[_FieldTypeElement],
 ):
     name = "stencil.type"

@@ -64,7 +64,7 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 
-class ShapeType(ABC):
+class ShapedType(ABC):
     @abstractmethod
     def get_num_dims(self) -> int:
         ...
@@ -636,7 +636,7 @@ class VectorType(
     Generic[AttributeCovT],
     ParametrizedAttribute,
     TypeAttribute,
-    ShapeType,
+    ShapedType,
     ContainerType[AttributeCovT],
 ):
     name = "vector"
@@ -712,7 +712,7 @@ class TensorType(
     Generic[AttributeCovT],
     ParametrizedAttribute,
     TypeAttribute,
-    ShapeType,
+    ShapedType,
     ContainerType[AttributeCovT],
 ):
     name = "tensor"
