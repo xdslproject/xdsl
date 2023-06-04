@@ -585,11 +585,10 @@ class CustomFormatAttr(ParametrizedAttribute):
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_characters("<")
-        value = parser.tokenizer.next_token_of_pattern(re.compile("(zero|one)"))
-        if value and value.text == "zero":
+        if parser.parse_optional_keyword("zero"):
             parser.parse_characters(">")
             return [IntAttr(0)]
-        if value and value.text == "one":
+        if parser.parse_optional_keyword("one"):
             parser.parse_characters(">")
             return [IntAttr(1)]
         assert False
