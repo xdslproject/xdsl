@@ -165,6 +165,9 @@ class SImm12Attr(IntegerAttr[IntegerType]):
 
     name = "riscv.simm12"
 
+    def __new__(cls, value: int):
+        return super().__new__(cls, value, IntegerType(12, Signedness.SIGNED))
+
     def __init__(self, value: int) -> None:
         super().__init__(value, IntegerType(12, Signedness.SIGNED))
 
@@ -447,9 +450,7 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(
-                immediate
-            )  # pyright: ignore[reportGeneralTypeIssues]
+            immediate = SImm12Attr(immediate)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -645,9 +646,7 @@ class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(
-                immediate
-            )  # pyright: ignore[reportGeneralTypeIssues]
+            immediate = SImm12Attr(immediate)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
