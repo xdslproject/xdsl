@@ -595,7 +595,8 @@ class GetStatusField(MPIBaseOp):
 @irdl_op_definition
 class CommRank(MPIBaseOp):
     """
-    Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns the rank of the communicator
+    Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns
+    the rank of the communicator
 
     Currently limited to COMM_WORLD
     """
@@ -612,7 +613,8 @@ class CommRank(MPIBaseOp):
 @irdl_op_definition
 class CommSize(MPIBaseOp):
     """
-    Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns the size of the communicator
+    Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns
+    the size of the communicator
 
     Currently limited to COMM_WORLD
     """
@@ -699,8 +701,8 @@ class GetDtypeOp(MPIBaseOp):
 @irdl_op_definition
 class AllocateTypeOp(MPIBaseOp):
     """
-    This op is used to allocate a specific MPI dialect type with a set size, returning this
-    in an MPI vector of that type
+    This op is used to allocate a specific MPI dialect type with a set size,
+    returning this in an MPI vector of that type
 
     This is useful as it means we can, in a self contained manner, store things like
     requests, statuses etc. It accepts the base type that the array will contain, the
