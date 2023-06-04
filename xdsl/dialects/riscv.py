@@ -166,7 +166,7 @@ class SImm12Attr(IntegerAttr[IntegerType]):
     name = "riscv.simm12"
 
     def __new__(cls, value: int):
-        return super().__new__(cls, value, IntegerType(12, Signedness.SIGNED))
+        return super().__new__(cls)
 
     def __init__(self, value: int) -> None:
         super().__init__(value, IntegerType(12, Signedness.SIGNED))
