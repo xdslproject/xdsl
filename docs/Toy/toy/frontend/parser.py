@@ -118,9 +118,8 @@ class Parser:
         return self.peek(pattern) is not None
 
     def pop(self) -> Token:
-        token = self.tokens[self.pos]
         self.pos += 1
-        return token
+        return self.tokens[self.pos - 1]
 
     def pop_pattern(self, pattern: str) -> Token:
         """
