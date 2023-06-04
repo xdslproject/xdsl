@@ -32,6 +32,7 @@ from xdsl.irdl import (
     VarOpResult,
     Block,
     IRDLOperation,
+    result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -356,7 +357,7 @@ class AccessOp(IRDLOperation):
     name = "stencil.access"
     temp: Annotated[Operand, TempType]
     offset: OpAttr[IndexAttr]
-    res: Annotated[OpResult, Attribute]
+    res: OpResult = result_def(Attribute)
 
     @staticmethod
     def get(temp: SSAValue | Operation, offset: Sequence[int]):
@@ -388,7 +389,7 @@ class LoadOp(IRDLOperation):
 
     name = "stencil.load"
     field: Annotated[Operand, FieldType]
-    res: Annotated[OpResult, TempType]
+    res: OpResult = result_def(TempType)
 
     @staticmethod
     def get(
@@ -437,7 +438,7 @@ class BufferOp(IRDLOperation):
 
     name = "stencil.buffer"
     temp: Annotated[Operand, TempType]
-    res: Annotated[OpResult, TempType]
+    res: OpResult = result_def(TempType)
 
 
 @irdl_op_definition
@@ -526,7 +527,7 @@ class StoreResultOp(IRDLOperation):
 
     name = "stencil.store_result"
     args: Annotated[VarOperand, Attribute]
-    res: Annotated[OpResult, ResultType]
+    res: OpResult = result_def(ResultType)
 
 
 @irdl_op_definition

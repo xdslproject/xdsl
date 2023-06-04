@@ -11,7 +11,14 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue, Dialect, OpResult
-from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand, IRDLOperation
+from xdsl.irdl import (
+    AnyAttr,
+    irdl_op_definition,
+    Operand,
+    VarOperand,
+    IRDLOperation,
+    result_def,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import assert_isa, isa
 
@@ -21,7 +28,7 @@ class Load(IRDLOperation):
     name = "vector.load"
     memref: Annotated[Operand, MemRefType]
     indices: Annotated[VarOperand, IndexType]
-    res: Annotated[OpResult, VectorType]
+    res: OpResult = result_def(VectorType)
 
     def verify_(self):
         assert isa(self.memref.typ, MemRefType[Attribute])
@@ -80,7 +87,7 @@ class Store(IRDLOperation):
 class Broadcast(IRDLOperation):
     name = "vector.broadcast"
     source: Annotated[Operand, AnyAttr()]
-    vector: Annotated[OpResult, VectorType]
+    vector: OpResult = result_def(VectorType)
 
     def verify_(self):
         assert isa(self.vector.typ, VectorType[Attribute])
@@ -106,7 +113,7 @@ class FMA(IRDLOperation):
     lhs: Annotated[Operand, VectorType]
     rhs: Annotated[Operand, VectorType]
     acc: Annotated[Operand, VectorType]
-    res: Annotated[OpResult, VectorType]
+    res: OpResult = result_def(VectorType)
 
     def verify_(self):
         assert isa(self.lhs.typ, VectorType[Attribute])

@@ -728,6 +728,26 @@ OptSuccessor: TypeAlias = Block | None
 VarSuccessor: TypeAlias = list[Block]
 
 
+def result_def(
+    constraint: AttrConstraint | Attribute | type[Attribute],
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> OpResult:
+    match constraint:
+        case AttrConstraint():
+            _constraint = constraint
+        case Attribute():
+            _constraint = EqAttrConstraint(constraint)
+        case _:
+            _constraint = BaseAttr(constraint)
+
+    result_def = ResultDef(_constraint)
+    # Return result definition instead of result
+    return cast(OpResult, result_def)
+
+
 @dataclass(kw_only=True)
 class OpDef:
     """The internal IRDL definition of an operation."""
@@ -797,6 +817,9 @@ class OpDef:
             if get_origin(value) is Annotated:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
                     continue
+            # Result and Operand definitions are allowed
+            if isinstance(value, OperandOrResultDef):
+                continue
             raise wrong_field_exception(field_name)
 
         if "name" not in clsdict:
@@ -821,6 +844,21 @@ class OpDef:
             if field_name in operation_fields:
                 continue
 
+            # Get attribute constraints from a list of pyrdl constraints
+            def get_constraint(pyrdl_constrs: tuple[Any, ...]) -> AttrConstraint:
+                return _irdl_list_to_attr_constraint(
+                    pyrdl_constrs,
+                    allow_type_var=True,
+                    type_var_mapping=type_var_mapping,
+                )
+
+            if field_name in clsdict:
+                field_value = clsdict[field_name]
+
+                if isinstance(field_value, ResultDef):
+                    op_def.results.append((field_name, field_value))
+                    continue
+
             # If the field type is an Annotated, separate the origin
             # from the arguments.
             # If the field type is not an Annotated, then the arguments should
@@ -834,14 +872,6 @@ class OpDef:
             else:
                 args = (field_type,)
             args = cast(tuple[Any, ...], args)
-
-            # Get attribute constraints from a list of pyrdl constraints
-            def get_constraint(pyrdl_constrs: tuple[Any, ...]) -> AttrConstraint:
-                return _irdl_list_to_attr_constraint(
-                    pyrdl_constrs,
-                    allow_type_var=True,
-                    type_var_mapping=type_var_mapping,
-                )
 
             # Get the operand, result, attribute, or region definition, from
             # the pyrdl description.

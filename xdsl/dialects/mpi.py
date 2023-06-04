@@ -28,6 +28,7 @@ from xdsl.irdl import (
     OptOperand,
     OptOpAttr,
     IRDLOperation,
+    result_def,
 )
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
@@ -496,7 +497,7 @@ class Test(MPIBaseOp):
     request: Annotated[Operand, RequestType]
 
     flag: Annotated[OpResult, t_bool]
-    status: Annotated[OpResult, StatusType]
+    status: OpResult = result_def(StatusType)
 
     @staticmethod
     def get(request: Operand):
@@ -581,7 +582,7 @@ class GetStatusField(MPIBaseOp):
 
     field: OpAttr[StringAttr]
 
-    result: Annotated[OpResult, i32]
+    result: OpResult = result_def(i32)
 
     @staticmethod
     def get(status_obj: Operand, field: StatusTypeField):
@@ -603,7 +604,7 @@ class CommRank(MPIBaseOp):
 
     name = "mpi.comm.rank"
 
-    rank: Annotated[OpResult, i32]
+    rank: OpResult = result_def(i32)
 
     @staticmethod
     def get():
@@ -621,7 +622,7 @@ class CommSize(MPIBaseOp):
 
     name = "mpi.comm.size"
 
-    size: Annotated[OpResult, i32]
+    size: OpResult = result_def(i32)
 
     @staticmethod
     def get():
@@ -659,8 +660,8 @@ class UnwrapMemrefOp(MPIBaseOp):
     ref: Annotated[Operand, MemRefType[AnyNumericType]]
 
     ptr: Annotated[OpResult, llvm.LLVMPointerType]
-    len: Annotated[OpResult, i32]
-    typ: Annotated[OpResult, DataType]
+    len: OpResult = result_def(i32)
+    typ: OpResult = result_def(DataType)
 
     @staticmethod
     def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
@@ -691,7 +692,7 @@ class GetDtypeOp(MPIBaseOp):
 
     dtype: OpAttr[Attribute]
 
-    result: Annotated[OpResult, DataType]
+    result: OpResult = result_def(DataType)
 
     @staticmethod
     def get(typ: Attribute):
@@ -716,7 +717,7 @@ class AllocateTypeOp(MPIBaseOp):
     dtype: OpAttr[VectorWrappable]
     count: Annotated[Operand, i32]
 
-    result: Annotated[OpResult, VectorType]
+    result: OpResult = result_def(VectorType)
 
     @staticmethod
     def get(
@@ -746,7 +747,7 @@ class VectorGetOp(MPIBaseOp):
     vect: Annotated[Operand, VectorType]
     element: Annotated[Operand, i32]
 
-    result: Annotated[OpResult, VectorWrappable]
+    result: OpResult = result_def(VectorWrappable)
 
     @staticmethod
     def get(vect: SSAValue | Operation, element: SSAValue | Operation) -> VectorGetOp:

@@ -30,6 +30,7 @@ from xdsl.irdl import (
     OpAttr,
     OptOpAttr,
     IRDLOperation,
+    result_def,
 )
 
 #  ____                 _ _
@@ -44,7 +45,7 @@ from xdsl.irdl import (
 class ResultOp(IRDLOperation):
     name = "test.result_op"
 
-    res: Annotated[OpResult, StringAttr]
+    res: OpResult = result_def(StringAttr)
 
 
 def test_result_builder():

@@ -5,7 +5,7 @@ from xdsl.dialects.builtin import IntAttr
 
 from xdsl.dialects.experimental.stencil import FieldType, StencilBoundsAttr
 from xdsl.ir import OpResult, SSAValue, Operation, Attribute, Dialect
-from xdsl.irdl import irdl_op_definition, IRDLOperation, Operand
+from xdsl.irdl import irdl_op_definition, IRDLOperation, Operand, result_def
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -24,7 +24,7 @@ class CastOp(IRDLOperation):
 
     name = "stencil.cast"
     field: Annotated[Operand, FieldType]
-    result: Annotated[OpResult, FieldType]
+    result: OpResult = result_def(FieldType)
 
     @staticmethod
     def get(

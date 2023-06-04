@@ -51,6 +51,7 @@ from xdsl.irdl import (
     OpAttr,
     IRDLOperation,
     OptOpAttr,
+    result_def,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -371,7 +372,7 @@ class Dim(IRDLOperation):
     source: Annotated[Operand, MemRefType[Attribute] | UnrankedMemrefType[Attribute]]
     index: Annotated[Operand, IndexType]
 
-    result: Annotated[OpResult, IndexType]
+    result: OpResult = result_def(IndexType)
 
     @staticmethod
     def from_source_and_index(
@@ -386,7 +387,7 @@ class Rank(IRDLOperation):
 
     source: Annotated[Operand, MemRefType[Attribute]]
 
-    rank: Annotated[OpResult, IndexType]
+    rank: OpResult = result_def(IndexType)
 
     @staticmethod
     def from_memref(memref: Operation | SSAValue):
@@ -399,7 +400,7 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
 
     source: Annotated[Operand, MemRefType]
 
-    aligned_pointer: Annotated[OpResult, IndexType]
+    aligned_pointer: OpResult = result_def(IndexType)
 
     @staticmethod
     def get(source: SSAValue | Operation):
@@ -419,7 +420,7 @@ class Subview(IRDLOperation):
     static_offsets: OpAttr[DenseArrayBase]
     static_sizes: OpAttr[DenseArrayBase]
     static_strides: OpAttr[DenseArrayBase]
-    result: Annotated[OpResult, MemRefType]
+    result: OpResult = result_def(MemRefType)
 
     irdl_options = [AttrSizedOperandSegments()]
 

@@ -33,6 +33,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     IRDLOperation,
+    result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -235,7 +236,7 @@ class AttributeOp(IRDLOperation):
     name = "pdl.attribute"
     value: OptOpAttr[Attribute]
     value_type: Annotated[OptOperand, TypeType]
-    output: Annotated[OpResult, AttributeType]
+    output: OpResult = result_def(AttributeType)
 
     def verify_(self):
         if self.value is not None and self.value_type is not None:
@@ -306,7 +307,7 @@ class OperandOp(IRDLOperation):
 
     name = "pdl.operand"
     value_type: Annotated[OptOperand, TypeType]
-    value: Annotated[OpResult, ValueType]
+    value: OpResult = result_def(ValueType)
 
     def __init__(self, value_type: SSAValue | None = None) -> None:
         super().__init__(operands=[value_type], result_types=[ValueType()])
@@ -363,7 +364,7 @@ class OperationOp(IRDLOperation):
     operand_values: Annotated[VarOperand, ValueType | RangeType[ValueType]]
     attribute_values: Annotated[VarOperand, AttributeType]
     type_values: Annotated[VarOperand, TypeType | RangeType[TypeType]]
-    op: Annotated[OpResult, OperationType]
+    op: OpResult = result_def(OperationType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -653,7 +654,7 @@ class ResultOp(IRDLOperation):
     name = "pdl.result"
     index: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
     parent_: Annotated[Operand, OperationType]
-    val: Annotated[OpResult, ValueType]
+    val: OpResult = result_def(ValueType)
 
     def __init__(self, index: int | IntegerAttr[IntegerType], parent: SSAValue) -> None:
         if isinstance(index, int):
@@ -821,7 +822,7 @@ class TypeOp(IRDLOperation):
 
     name = "pdl.type"
     constantType: OptOpAttr[Attribute]
-    result: Annotated[OpResult, TypeType]
+    result: OpResult = result_def(TypeType)
 
     def __init__(self, constant_type: Attribute | None = None) -> None:
         super().__init__(

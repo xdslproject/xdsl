@@ -27,6 +27,7 @@ from xdsl.irdl import (
     Operand,
     OpAttr,
     OptOpAttr,
+    result_def,
 )
 
 from xdsl.parser import Parser
@@ -320,7 +321,7 @@ class RdRsRsOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called R-Type in the RISC-V specification.
     """
 
-    rd: Annotated[OpResult, RegisterType]
+    rd: OpResult = result_def(RegisterType)
     rs1: Annotated[Operand, RegisterType]
     rs2: Annotated[Operand, RegisterType]
 
@@ -357,7 +358,7 @@ class RdImmOperation(IRDLOperation, RISCVInstruction, ABC):
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
     """
 
-    rd: Annotated[OpResult, RegisterType]
+    rd: OpResult = result_def(RegisterType)
     immediate: OpAttr[AnyIntegerAttr | LabelAttr]
 
     def __init__(
@@ -440,7 +441,7 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called I-Type in the RISC-V specification.
     """
 
-    rd: Annotated[OpResult, RegisterType]
+    rd: OpResult = result_def(RegisterType)
     rs1: Annotated[Operand, RegisterType]
     immediate: OpAttr[AnyIntegerAttr | LabelAttr]
 
@@ -563,7 +564,7 @@ class RdRsOperation(IRDLOperation, RISCVInstruction, ABC):
     source register.
     """
 
-    rd: Annotated[OpResult, RegisterType]
+    rd: OpResult = result_def(RegisterType)
     rs: Annotated[Operand, RegisterType]
 
     def __init__(
@@ -719,7 +720,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
       returned in rd
     """
 
-    rd: Annotated[OpResult, RegisterType]
+    rd: OpResult = result_def(RegisterType)
     rs1: Annotated[Operand, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     writeonly: OptOpAttr[UnitAttr]
@@ -777,7 +778,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
       to writing to a CSR takes place even if the mask in rs has no actual bits set.
     """
 
-    rd: Annotated[OpResult, RegisterType]
+    rd: OpResult = result_def(RegisterType)
     rs1: Annotated[Operand, RegisterType]
     csr: OpAttr[AnyIntegerAttr]
     readonly: OptOpAttr[UnitAttr]
@@ -833,7 +834,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
       returned in rd
     """
 
-    rd: Annotated[OpResult, RegisterType]
+    rd: OpResult = result_def(RegisterType)
     csr: OpAttr[AnyIntegerAttr]
     writeonly: OptOpAttr[UnitAttr]
     immediate: OptOpAttr[AnyIntegerAttr]
@@ -891,7 +892,7 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
       place.
     """
 
-    rd: Annotated[OpResult, RegisterType]
+    rd: OpResult = result_def(RegisterType)
     csr: OpAttr[AnyIntegerAttr]
     immediate: OpAttr[AnyIntegerAttr]
 
@@ -2031,7 +2032,7 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.get_register"
-    res: Annotated[OpResult, RegisterType]
+    res: OpResult = result_def(RegisterType)
 
     def __init__(
         self,

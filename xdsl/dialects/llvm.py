@@ -38,6 +38,7 @@ from xdsl.irdl import (
     VarOperand,
     OptOpAttr,
     IRDLOperation,
+    result_def,
 )
 
 from xdsl.utils.exceptions import VerifyException
@@ -404,7 +405,7 @@ class GEPOp(IRDLOperation):
     ssa_indices: Annotated[VarOperand, IntegerType]
     elem_type: OptOpAttr[Attribute]
 
-    result: Annotated[OpResult, LLVMPointerType]
+    result: OpResult = result_def(LLVMPointerType)
 
     rawConstantIndices: OpAttr[DenseArrayBase]
     inbounds: OptOpAttr[UnitAttr]
@@ -529,7 +530,7 @@ class IntToPtrOp(IRDLOperation):
 
     input: Annotated[Operand, IntegerType]
 
-    output: Annotated[OpResult, LLVMPointerType]
+    output: OpResult = result_def(LLVMPointerType)
 
     @staticmethod
     def get(input: SSAValue | Operation, ptr_type: Attribute | None = None):
@@ -546,7 +547,7 @@ class PtrToIntOp(IRDLOperation):
 
     input: Annotated[Operand, LLVMPointerType]
 
-    output: Annotated[OpResult, IntegerType]
+    output: OpResult = result_def(IntegerType)
 
     @staticmethod
     def get(arg: SSAValue | Operation, int_type: Attribute = i64):
@@ -619,7 +620,7 @@ class StoreOp(IRDLOperation):
 class NullOp(IRDLOperation):
     name = "llvm.mlir.null"
 
-    nullptr: Annotated[OpResult, LLVMPointerType]
+    nullptr: OpResult = result_def(LLVMPointerType)
 
     @staticmethod
     def get(ptr_type: LLVMPointerType | None = None):
@@ -735,7 +736,7 @@ class AddressOfOp(IRDLOperation):
     name = "llvm.mlir.addressof"
 
     global_name: OpAttr[SymbolRefAttr]
-    result: Annotated[OpResult, LLVMPointerType]
+    result: OpResult = result_def(LLVMPointerType)
 
     @staticmethod
     def get(

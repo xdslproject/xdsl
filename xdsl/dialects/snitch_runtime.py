@@ -1,5 +1,12 @@
 from abc import ABC
-from xdsl.irdl import irdl_op_definition, IRDLOperation, Operand, Operation, SSAValue
+from xdsl.irdl import (
+    irdl_op_definition,
+    IRDLOperation,
+    Operand,
+    Operation,
+    SSAValue,
+    result_def,
+)
 from xdsl.ir import OpResult, Dialect
 from xdsl.dialects.builtin import IntegerType, Signedness, IndexType
 from typing import Annotated
@@ -27,7 +34,7 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOp, ABC):
     A base class for snitch runtime functions that get a certain value at runtime
     """
 
-    result: Annotated[OpResult, u32]
+    result: OpResult = result_def(u32)
 
     def __init__(
         self,

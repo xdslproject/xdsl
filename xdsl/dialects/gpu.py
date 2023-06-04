@@ -24,6 +24,7 @@ from xdsl.irdl import (
     SingleBlockRegion,
     OpAttr,
     IRDLOperation,
+    result_def,
 )
 from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
 from xdsl.dialects import memref
@@ -176,7 +177,7 @@ class AllReduceOp(IRDLOperation):
     op: OptOpAttr[AllReduceOperationAttr]
     uniform: OptOpAttr[UnitAttr]
     operand: Annotated[Operand, Attribute]
-    result: Annotated[OpResult, Attribute]
+    result: OpResult = result_def(Attribute)
     body: Region
 
     @staticmethod
@@ -249,7 +250,7 @@ class BarrierOp(IRDLOperation):
 class BlockDimOp(IRDLOperation):
     name = "gpu.block_dim"
     dimension: OpAttr[DimensionAttr]
-    result: Annotated[OpResult, IndexType]
+    result: OpResult = result_def(IndexType)
 
     @staticmethod
     def get(dim: DimensionAttr) -> BlockDimOp:
@@ -262,7 +263,7 @@ class BlockDimOp(IRDLOperation):
 class BlockIdOp(IRDLOperation):
     name = "gpu.block_id"
     dimension: OpAttr[DimensionAttr]
-    result: Annotated[OpResult, IndexType]
+    result: OpResult = result_def(IndexType)
 
     @staticmethod
     def get(dim: DimensionAttr) -> BlockIdOp:
@@ -347,7 +348,7 @@ class ModuleOp(IRDLOperation):
 class GlobalIdOp(IRDLOperation):
     name = "gpu.global_id"
     dimension: OpAttr[DimensionAttr]
-    result: Annotated[OpResult, IndexType]
+    result: OpResult = result_def(IndexType)
 
     @staticmethod
     def get(dim: DimensionAttr) -> GlobalIdOp:
@@ -360,7 +361,7 @@ class GlobalIdOp(IRDLOperation):
 class GridDimOp(IRDLOperation):
     name = "gpu.grid_dim"
     dimension: OpAttr[DimensionAttr]
-    result: Annotated[OpResult, IndexType]
+    result: OpResult = result_def(IndexType)
 
     @staticmethod
     def get(dim: DimensionAttr) -> GridDimOp:
@@ -393,7 +394,7 @@ class HostRegisterOp(IRDLOperation):
 @irdl_op_definition
 class LaneIdOp(IRDLOperation):
     name = "gpu.lane_id"
-    result: Annotated[OpResult, IndexType]
+    result: OpResult = result_def(IndexType)
 
     @staticmethod
     def get() -> LaneIdOp:
@@ -472,7 +473,7 @@ class ModuleEndOp(IRDLOperation):
 @irdl_op_definition
 class NumSubgroupsOp(IRDLOperation):
     name = "gpu.num_subgroups"
-    result: Annotated[OpResult, IndexType]
+    result: OpResult = result_def(IndexType)
 
     @staticmethod
     def get() -> NumSubgroupsOp:
@@ -492,7 +493,7 @@ class SetDefaultDeviceOp(IRDLOperation):
 @irdl_op_definition
 class SubgroupIdOp(IRDLOperation):
     name = "gpu.subgroup_id"
-    result: Annotated[OpResult, IndexType]
+    result: OpResult = result_def(IndexType)
 
     @staticmethod
     def get() -> SubgroupIdOp:
@@ -502,7 +503,7 @@ class SubgroupIdOp(IRDLOperation):
 @irdl_op_definition
 class SubgroupSizeOp(IRDLOperation):
     name = "gpu.subgroup_size"
-    result: Annotated[OpResult, IndexType]
+    result: OpResult = result_def(IndexType)
 
     @staticmethod
     def get() -> SubgroupSizeOp:
@@ -532,7 +533,7 @@ class TerminatorOp(IRDLOperation):
 class ThreadIdOp(IRDLOperation):
     name = "gpu.thread_id"
     dimension: OpAttr[DimensionAttr]
-    result: Annotated[OpResult, IndexType]
+    result: OpResult = result_def(IndexType)
 
     @staticmethod
     def get(dim: DimensionAttr) -> ThreadIdOp:
