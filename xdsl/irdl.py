@@ -735,15 +735,8 @@ def result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OpResult:
-    match constraint:
-        case AttrConstraint():
-            _constraint = constraint
-        case Attribute():
-            _constraint = EqAttrConstraint(constraint)
-        case _:
-            _constraint = BaseAttr(constraint)
-
-    result_def = ResultDef(_constraint)
+    constraint = irdl_to_attr_constraint(constraint)
+    result_def = ResultDef(constraint)
     # Return result definition instead of result
     return cast(OpResult, result_def)
 
@@ -755,14 +748,7 @@ def var_result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarOpResult:
-    match constraint:
-        case AttrConstraint():
-            _constraint = constraint
-        case Attribute():
-            _constraint = EqAttrConstraint(constraint)
-        case _:
-            _constraint = BaseAttr(constraint)
-
+    _constraint = irdl_to_attr_constraint(constraint)
     result_def = VarResultDef(_constraint)
     # Return result definition instead of result
     return cast(VarOpResult, result_def)
@@ -775,14 +761,7 @@ def opt_result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptOpResult:
-    match constraint:
-        case AttrConstraint():
-            _constraint = constraint
-        case Attribute():
-            _constraint = EqAttrConstraint(constraint)
-        case _:
-            _constraint = BaseAttr(constraint)
-
+    _constraint = irdl_to_attr_constraint(constraint)
     result_def = OptResultDef(_constraint)
     # Return result definition instead of result
     return cast(OptOpResult, result_def)
