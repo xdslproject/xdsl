@@ -26,6 +26,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     IRDLOperation,
+    result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -444,7 +445,7 @@ class PlusCustomFormatOp(IRDLOperation):
     name = "test.add"
     lhs: Annotated[Operand, IntegerType]
     rhs: Annotated[Operand, IntegerType]
-    res: Annotated[OpResult, IntegerType]
+    res: OpResult = result_def(IntegerType)
 
     @classmethod
     def parse(cls, parser: Parser) -> PlusCustomFormatOp:

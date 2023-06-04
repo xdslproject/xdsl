@@ -32,6 +32,7 @@ from xdsl.irdl import (
     var_result_def,
     Block,
     IRDLOperation,
+    VarOpResult,
     result_def,
 )
 from xdsl.parser import Parser
@@ -489,7 +490,7 @@ class ApplyOp(IRDLOperation):
     name = "stencil.apply"
     args: Annotated[VarOperand, Attribute]
     region: Region
-    res: OpResult = var_result_def(TempType)
+    res: VarOpResult = var_result_def(TempType)
 
     @staticmethod
     def get(

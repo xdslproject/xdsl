@@ -11,7 +11,6 @@ from xdsl.ir import Block, OpResult, Region
 from xdsl.irdl import (
     AttrSizedRegionSegments,
     AttrSizedSuccessorSegments,
-    OptOpResult,
     OptOperand,
     OptRegion,
     OptSingleBlockRegion,
@@ -30,7 +29,10 @@ from xdsl.irdl import (
     OpAttr,
     OptOpAttr,
     IRDLOperation,
+    OptOpResult,
     result_def,
+    opt_result_def,
+    var_result_def,
 )
 
 #  ____                 _ _
@@ -63,7 +65,7 @@ def test_result_builder_exception():
 class OptResultOp(IRDLOperation):
     name = "test.opt_result_op"
 
-    res: Annotated[OptOpResult, StringAttr]
+    res: OptOpResult = opt_result_def(StringAttr)
 
 
 def test_opt_result_builder():
@@ -87,7 +89,7 @@ def test_opt_result_builder_two_args():
 class VarResultOp(IRDLOperation):
     name = "test.var_result_op"
 
-    res: Annotated[VarOpResult, StringAttr]
+    res: VarOpResult = var_result_def(StringAttr)
 
 
 def test_var_result_builder():
@@ -100,8 +102,8 @@ def test_var_result_builder():
 class TwoVarResultOp(IRDLOperation):
     name = "test.two_var_result_op"
 
-    res1: Annotated[VarOpResult, StringAttr]
-    res2: Annotated[VarOpResult, StringAttr]
+    res1: VarOpResult = var_result_def(StringAttr)
+    res2: VarOpResult = var_result_def(StringAttr)
     irdl_options = [AttrSizedResultSegments()]
 
 
@@ -148,9 +150,9 @@ def test_two_var_result_builder2():
 class MixedResultOp(IRDLOperation):
     name = "test.mixed"
 
-    res1: Annotated[VarOpResult, StringAttr]
-    res2: Annotated[OpResult, StringAttr]
-    res3: Annotated[VarOpResult, StringAttr]
+    res1: VarOpResult = var_result_def(StringAttr)
+    res2: OpResult = result_def(StringAttr)
+    res3: VarOpResult = var_result_def(StringAttr)
     irdl_options = [AttrSizedResultSegments()]
 
 

@@ -754,7 +754,7 @@ def var_result_def(
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> tuple[OpResult]:
+) -> VarOpResult:
     match constraint:
         case AttrConstraint():
             _constraint = constraint
@@ -765,7 +765,7 @@ def var_result_def(
 
     result_def = VarResultDef(_constraint)
     # Return result definition instead of result
-    return cast(tuple[OpResult], result_def)
+    return cast(VarOpResult, result_def)
 
 
 def opt_result_def(
@@ -774,7 +774,7 @@ def opt_result_def(
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> tuple[OpResult]:
+) -> OptOpResult:
     match constraint:
         case AttrConstraint():
             _constraint = constraint
@@ -785,7 +785,7 @@ def opt_result_def(
 
     result_def = OptResultDef(_constraint)
     # Return result definition instead of result
-    return cast(tuple[OpResult], result_def)
+    return cast(OptOpResult, result_def)
 
 
 @dataclass(kw_only=True)

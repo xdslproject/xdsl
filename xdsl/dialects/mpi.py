@@ -461,7 +461,7 @@ class Recv(MPIBaseOp):
     source: Annotated[Operand, i32]
     tag: Annotated[Operand, i32]
 
-    status: OpResult = opt_result_def(StatusType)
+    status: OptOpResult = opt_result_def(StatusType)
 
     @staticmethod
     def get(
@@ -522,7 +522,7 @@ class Wait(MPIBaseOp):
     name = "mpi.wait"
 
     request: Annotated[Operand, RequestType]
-    status: OpResult = opt_result_def(StatusType)
+    status: OptOpResult = opt_result_def(StatusType)
 
     @staticmethod
     def get(request: Operand, ignore_status: bool = True):

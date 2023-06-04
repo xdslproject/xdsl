@@ -15,7 +15,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     Operand,
     OptOpAttr,
-    opt_result_def,
+    OptOpResult,
     OptOperand,
     ParameterDef,
     VarOperand,
@@ -25,6 +25,7 @@ from xdsl.irdl import (
     OpAttr,
     IRDLOperation,
     result_def,
+    opt_result_def,
 )
 from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
 from xdsl.dialects import memref
@@ -133,7 +134,7 @@ class AllocOp(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments()]
 
     result: Annotated[OpResult, memref.MemRefType[Attribute]]
-    asyncToken: OpResult = opt_result_def(AsyncTokenType)
+    asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
 
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
@@ -281,7 +282,7 @@ class DeallocOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    asyncToken: OpResult = opt_result_def(AsyncTokenType)
+    asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
 
     @staticmethod
     def get(
@@ -305,7 +306,7 @@ class MemcpyOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    asyncToken: OpResult = opt_result_def(AsyncTokenType)
+    asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
 
     @staticmethod
     def get(
@@ -412,7 +413,7 @@ class LaunchOp(IRDLOperation):
     blockSizeY: Annotated[Operand, IndexType]
     blockSizeZ: Annotated[Operand, IndexType]
     dynamicSharedMemorySize: Annotated[OptOperand, i32]
-    asyncToken: OpResult = opt_result_def(AsyncTokenType)
+    asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
     body: Region
     irdl_options = [AttrSizedOperandSegments()]
 
