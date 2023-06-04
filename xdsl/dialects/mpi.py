@@ -29,6 +29,7 @@ from xdsl.irdl import (
     OptOpAttr,
     IRDLOperation,
     result_def,
+    opt_result_def,
 )
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
@@ -460,7 +461,7 @@ class Recv(MPIBaseOp):
     source: Annotated[Operand, i32]
     tag: Annotated[Operand, i32]
 
-    status: Annotated[OptOpResult, StatusType]
+    status: OpResult = opt_result_def(StatusType)
 
     @staticmethod
     def get(
@@ -521,7 +522,7 @@ class Wait(MPIBaseOp):
     name = "mpi.wait"
 
     request: Annotated[Operand, RequestType]
-    status: Annotated[OptOpResult, StatusType]
+    status: OpResult = opt_result_def(StatusType)
 
     @staticmethod
     def get(request: Operand, ignore_status: bool = True):

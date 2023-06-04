@@ -768,6 +768,26 @@ def var_result_def(
     return cast(tuple[OpResult], result_def)
 
 
+def opt_result_def(
+    constraint: AttrConstraint | Attribute | type[Attribute],
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> tuple[OpResult]:
+    match constraint:
+        case AttrConstraint():
+            _constraint = constraint
+        case Attribute():
+            _constraint = EqAttrConstraint(constraint)
+        case _:
+            _constraint = BaseAttr(constraint)
+
+    result_def = OptResultDef(_constraint)
+    # Return result definition instead of result
+    return cast(tuple[OpResult], result_def)
+
+
 @dataclass(kw_only=True)
 class OpDef:
     """The internal IRDL definition of an operation."""
@@ -875,7 +895,7 @@ class OpDef:
             if field_name in clsdict:
                 field_value = clsdict[field_name]
 
-                if isinstance(field_value, (ResultDef, VarResultDef)):
+                if isinstance(field_value, (ResultDef, VarResultDef, OptResultDef)):
                     op_def.results.append((field_name, field_value))
                     continue
 
