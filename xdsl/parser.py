@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import functools
 import itertools
 import math
@@ -564,70 +563,6 @@ class Parser(ABC):
         self.tokenizer.pos = pos
         self.lexer.pos = pos
         self._current_token = self.lexer.lex()
-
-    @contextlib.contextmanager
-    def backtracking(self, region_name: str | None = None):
-        """
-        This context manager can be used to mark backtracking regions.
-
-        When an error is thrown during backtracking, it is recorded and stored together
-        with some meta information in the history attribute.
-
-        The backtracker accepts the following exceptions:
-        - ParseError: signifies that the region could not be parsed because of
-          (unexpected) syntax errors
-        - AssertionError: this error should probably be phased out in favour
-          of the two above
-        - EOFError: signals that EOF was reached unexpectedly
-
-        Any other error will be printed to stderr, but backtracking will continue
-        as normal.
-        """
-        self._synchronize_lexer_and_tokenizer()
-        save = self.tokenizer.save()
-        starting_position = self.tokenizer.pos
-        try:
-            yield
-            # Clear error history when something doesn't fail
-            # This is because we are only interested in the last "cascade" of failures.
-            # If a backtracking() completes without failure,
-            # something has been parsed (we assume)
-            if (
-                self.tokenizer.pos > starting_position
-                and self.tokenizer.history is not None
-            ):
-                self.tokenizer.history = None
-        except Exception as ex:
-            how_far_we_got = self.tokenizer.pos
-
-            # If we have no error history, start recording!
-            if not self.tokenizer.history:
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            # If we got further than on previous attempts
-            elif how_far_we_got > self.tokenizer.history.get_farthest_point():
-                # Throw away history
-                self.tokenizer.history = None
-                # Generate new history entry,
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            # Otherwise, add to exception, if we are in a named region
-            elif region_name is not None and how_far_we_got - starting_position > 0:
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            self.resume_from(save)
 
     def _synchronize_lexer_and_tokenizer(self):
         """
