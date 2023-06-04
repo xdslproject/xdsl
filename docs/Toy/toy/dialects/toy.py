@@ -30,6 +30,8 @@ from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
     result_def,
+    operand_def,
+    opt_operand_def,
 )
 
 from xdsl.utils.exceptions import VerifyException
@@ -125,8 +127,8 @@ class AddOp(IRDLOperation):
     """
 
     name = "toy.add"
-    lhs: Annotated[Operand, AnyTensorTypeF64]
-    rhs: Annotated[Operand, AnyTensorTypeF64]
+    lhs: Operand = operand_def(AnyTensorTypeF64)
+    rhs: Operand = operand_def(AnyTensorTypeF64)
     res: OpResult = result_def(AnyTensorTypeF64)
 
     traits = frozenset((Pure(), InferAddOpShapeTrait()))
@@ -301,8 +303,8 @@ class MulOp(IRDLOperation):
     """
 
     name = "toy.mul"
-    lhs: Annotated[Operand, AnyTensorTypeF64]
-    rhs: Annotated[Operand, AnyTensorTypeF64]
+    lhs: Operand = operand_def(AnyTensorTypeF64)
+    rhs: Operand = operand_def(AnyTensorTypeF64)
     res: OpResult = result_def(AnyTensorTypeF64)
 
     traits = frozenset((Pure(), InferMulOpShapeTrait()))
@@ -361,7 +363,7 @@ class ReturnOp(IRDLOperation):
     """
 
     name = "toy.return"
-    input: Annotated[OptOperand, AnyTensorTypeF64]
+    input: OptOperand = opt_operand_def(AnyTensorTypeF64)
 
     def __init__(self, input: SSAValue | None = None):
         return super().__init__(operands=[input])
@@ -379,7 +381,7 @@ class ReshapeOp(IRDLOperation):
     """
 
     name = "toy.reshape"
-    arg: Annotated[Operand, AnyTensorTypeF64]
+    arg: Operand = operand_def(AnyTensorTypeF64)
     # We expect that the reshape operation returns a statically shaped tensor.
     res: OpResult = result_def(TensorTypeF64)
 
@@ -432,7 +434,7 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
     name = "toy.transpose"
-    arg: Annotated[Operand, AnyTensorTypeF64]
+    arg: Operand = operand_def(AnyTensorTypeF64)
     res: OpResult = result_def(AnyTensorTypeF64)
 
     traits = frozenset((Pure(), InferTransposeOpShapeTrait()))
@@ -475,7 +477,7 @@ class InferCastOpShapeTrait(ToyShapeInferenceTrait):
 @irdl_op_definition
 class CastOp(IRDLOperation):
     name = "toy.cast"
-    arg: Annotated[Operand, AnyTensorTypeF64]
+    arg: Operand = operand_def(AnyTensorTypeF64)
     res: OpResult = result_def(AnyTensorTypeF64)
 
     traits = frozenset((Pure(), InferCastOpShapeTrait()))

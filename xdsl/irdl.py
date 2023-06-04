@@ -767,6 +767,45 @@ def opt_result_def(
     return cast(OptOpResult, result_def)
 
 
+def operand_def(
+    constraint: AttrConstraint | Attribute | type[Attribute],
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> Operand:
+    constraint = irdl_to_attr_constraint(constraint)
+    operand_def = OperandDef(constraint)
+    # Return result definition instead of result
+    return cast(OpResult, operand_def)
+
+
+def var_operand_def(
+    constraint: AttrConstraint | Attribute | type[Attribute],
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> VarOperand:
+    _constraint = irdl_to_attr_constraint(constraint)
+    operand = VarOperandDef(_constraint)
+    # Return result definition instead of result
+    return cast(VarOperand, operand)
+
+
+def opt_operand_def(
+    constraint: AttrConstraint | Attribute | type[Attribute],
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> OptOperand:
+    _constraint = irdl_to_attr_constraint(constraint)
+    operand_def = OptOperandDef(_constraint)
+    # Return result definition instead of result
+    return cast(OptOperand, operand_def)
+
+
 @dataclass(kw_only=True)
 class OpDef:
     """The internal IRDL definition of an operation."""
@@ -876,6 +915,11 @@ class OpDef:
 
                 if isinstance(field_value, (ResultDef, VarResultDef, OptResultDef)):
                     op_def.results.append((field_name, field_value))
+                    continue
+                elif isinstance(
+                    field_value, (OperandDef, VarOperandDef, OptOperandDef)
+                ):
+                    op_def.operands.append((field_name, field_value))
                     continue
 
             # If the field type is an Annotated, separate the origin

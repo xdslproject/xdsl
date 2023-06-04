@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 from io import StringIO
-from typing import Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, UnitAttr, i32
@@ -26,6 +25,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     IRDLOperation,
+    operand_def,
     result_def,
 )
 from xdsl.parser import Parser
@@ -443,8 +443,8 @@ def test_print_region_empty_block_with_args():
 @irdl_op_definition
 class PlusCustomFormatOp(IRDLOperation):
     name = "test.add"
-    lhs: Annotated[Operand, IntegerType]
-    rhs: Annotated[Operand, IntegerType]
+    lhs: Operand = operand_def(IntegerType)
+    rhs: Operand = operand_def(IntegerType)
     res: OpResult = result_def(IntegerType)
 
     @classmethod
