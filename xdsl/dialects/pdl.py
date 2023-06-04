@@ -28,7 +28,7 @@ from xdsl.irdl import (
     OptOperand,
     OptRegion,
     ParameterDef,
-    VarOpResult,
+    var_result_def,
     VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
@@ -174,7 +174,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
     # https://github.com/xdslproject/xdsl/issues/98
     # name: OpAttr[StringAttr]
     args: Annotated[VarOperand, AnyPDLType]
-    res: Annotated[VarOpResult, AnyPDLType]
+    res: OpResult = var_result_def(AnyPDLType)
 
     @property
     def constraint_name(self) -> StringAttr:

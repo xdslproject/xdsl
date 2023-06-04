@@ -29,7 +29,7 @@ from xdsl.irdl import (
     OpAttr,
     OpResult,
     VarOperand,
-    VarOpResult,
+    var_result_def,
     Block,
     IRDLOperation,
     result_def,
@@ -489,7 +489,7 @@ class ApplyOp(IRDLOperation):
     name = "stencil.apply"
     args: Annotated[VarOperand, Attribute]
     region: Region
-    res: Annotated[VarOpResult, TempType]
+    res: OpResult = var_result_def(TempType)
 
     @staticmethod
     def get(
