@@ -184,15 +184,15 @@ class StencilType(
             parser.parse_punctuation("]")
             return (l, u)
 
-        parser.parse_char("<")
+        parser.parse_characters("<")
         bounds = [parse_interval()]
-        parser.parse_char("x")
+        parser.parse_shape_delimiter()
         typ = parser.parse_optional_type()
         while typ is None:
             bounds.append(parse_interval())
-            parser.parse_char("x")
+            parser.parse_shape_delimiter()
             typ = parser.parse_optional_type()
-        parser.parse_char(">")
+        parser.parse_characters(">")
         if isa(bounds, list[tuple[int, int]]):
             bounds = StencilBoundsAttr(bounds)
         elif isa(bounds, list[int]):

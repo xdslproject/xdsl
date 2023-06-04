@@ -1,5 +1,4 @@
 from __future__ import annotations
-import re
 from typing import Annotated, Union, Sequence, cast
 
 from xdsl.dialects.builtin import (
@@ -30,7 +29,6 @@ from xdsl.printer import Printer
 from xdsl.traits import HasParent
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.lexer import Span
 
 
 @irdl_op_definition
@@ -80,11 +78,14 @@ class FuncOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         # Parse visibility keyword if present
-        visibility = parser.tokenizer.next_token_of_pattern(
-            re.compile("public|nested|private")
-        )
-        if isinstance(visibility, Span):
-            visibility = visibility.text
+        if parser.parse_optional_keyword("public"):
+            visibility = "public"
+        elif parser.parse_optional_keyword("nested"):
+            visibility = "nested"
+        elif parser.parse_optional_keyword("private"):
+            visibility = "private"
+        else:
+            visibility = None
 
         # Parse function name
         name = parser.parse_symbol_name().data

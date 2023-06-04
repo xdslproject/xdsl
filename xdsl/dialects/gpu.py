@@ -71,37 +71,31 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
     def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_characters(
             "<",
-            f"Expected <. gpu attributes currently have the #gpu<name value> syntax.",
+            f": gpu attributes currently have the #gpu<name value> syntax.",
         )
-        ntok = parser.tokenizer.next_token()
-
-        if ntok.text == "dim":
+        if parser.parse_optional_keyword("dim"):
             attrtype = _DimensionAttr
-            vtok = parser.tokenizer.next_token()
-            if vtok.text not in ["x", "y", "z"]:
+            vtok = parser.parse_optional_identifier()
+            if vtok not in ["x", "y", "z"]:
                 parser.raise_error(
-                    f"Unexpected dim {vtok.text}. A gpu dim can only be x, y, or z",
-                    vtok,
+                    f"Unexpected dim {vtok}. A gpu dim can only be x, y, or z",
                 )
 
-        elif ntok.text == "all_reduce_op":
+        elif parser.parse_optional_keyword("all_reduce_op"):
             attrtype = _AllReduceOperationAttr
-            vtok = parser.tokenizer.next_token()
-            if vtok.text not in ["add", "and", "max", "min", "mul", "or", "xor"]:
+            vtok = parser.parse_optional_identifier()
+            if vtok not in ["add", "and", "max", "min", "mul", "or", "xor"]:
                 parser.raise_error(
-                    f"Unexpected op {vtok.text}. A gpu all_reduce_op can only be add, "
+                    f"Unexpected op {vtok}. A gpu all_reduce_op can only be add, "
                     "and, max, min, mul, or, or xor ",
-                    vtok,
                 )
         else:
-            parser.raise_error(
-                f"Unexpected token {ntok.text}. Expected dim or all_reduce_op", ntok
-            )
+            parser.raise_error(f"'dim' or 'all_reduce_op' expected")
         parser.parse_characters(
             ">",
-            f"Expected >. gpu attributes currently have the #gpu<name value> syntax.",
+            f". gpu attributes currently have the #gpu<name value> syntax.",
         )
-        return [attrtype([StringAttr(vtok.text)])]
+        return [attrtype([StringAttr(vtok)])]
 
     @staticmethod
     def from_op(value: str) -> AllReduceOperationAttr:
