@@ -118,9 +118,7 @@ class Parser:
         return self.peek(pattern) is not None
 
     def pop(self) -> Token:
-        token = self.peek()
-        assert token is not None
-        self.peek()
+        token = self.tokens[self.pos]
         self.pos += 1
         return token
 
