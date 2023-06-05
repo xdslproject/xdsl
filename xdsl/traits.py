@@ -30,3 +30,12 @@ class HasParent(OpTrait):
             )
         names = ", ".join([f"'{p.name}'" for p in self.parameters])
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
+
+
+class IsTerminator(OpTrait):
+    """
+    This trait provides verification and functionality for operations that are
+    known to be terminators.
+
+    https://mlir.llvm.org/docs/Traits/#terminator
+    """
