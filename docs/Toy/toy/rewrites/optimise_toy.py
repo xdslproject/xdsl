@@ -36,7 +36,13 @@ from xdsl.transforms.dead_code_elimination import dce
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from ..dialects.toy import ConstantOp, ReshapeOp, TensorTypeF64, TransposeOp
+from ..dialects.toy import (
+    ConstantOp,
+    ReshapeOp,
+    TensorTypeF64,
+    TransposeOp,
+    UnrankedTensorTypeF64,
+)
 
 
 @dataclass(frozen=True)
@@ -177,8 +183,10 @@ class Matcher:
 @MatcherRewrite.build
 def tt(matcher: Matcher) -> MatcherRewrite:
     arg = matcher.value(Attribute)
-    transpose_0 = TransposeOp(arg)
-    transpose_1 = TransposeOp(transpose_0.res)
+    t0 = matcher.attribute(TensorTypeF64 | UnrankedTensorTypeF64)
+    t1 = matcher.attribute(TensorTypeF64 | UnrankedTensorTypeF64)
+    transpose_0 = TransposeOp(arg, t0)
+    transpose_1 = TransposeOp(transpose_0.res, t1)
 
     @matcher.rewrite(transpose_1)
     def rewrite() -> Sequence[SSAValue] | None:
@@ -187,7 +195,7 @@ def tt(matcher: Matcher) -> MatcherRewrite:
     return rewrite
 
 
-@MatcherRewrite.build
+# @MatcherRewrite.build
 def rr(matcher: Matcher) -> MatcherRewrite:
     arg = matcher.value(Attribute)
     typ_0 = matcher.attribute(TensorType[Float64Type])

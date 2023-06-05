@@ -429,20 +429,24 @@ class TransposeOp(IRDLOperation):
 
     traits = frozenset((Pure(), InferTransposeOpShapeTrait()))
 
-    def __init__(self, arg: SSAValue):
-        output_type: TensorTypeF64 | UnrankedTensorTypeF64
-        if isa(arg.typ, TensorTypeF64):
-            element_type = arg.typ.element_type
-            output_type = TensorType.from_type_and_list(
-                element_type, list(reversed(arg.typ.get_shape()))
-            )
-        else:
-            if not isa(arg.typ, UnrankedTensorTypeF64):
-                raise ValueError(
-                    f"Unexpected operand of type {arg.typ} passed to TransposeOp, "
-                    "expected {TensorTypeF64 | UnrankedTensorTypeF64}"
+    def __init__(
+        self,
+        arg: SSAValue,
+        output_type: TensorTypeF64 | UnrankedTensorTypeF64 | None = None,
+    ):
+        if output_type is None:
+            if isa(arg.typ, TensorTypeF64):
+                element_type = arg.typ.element_type
+                output_type = TensorType.from_type_and_list(
+                    element_type, list(reversed(arg.typ.get_shape()))
                 )
-            output_type = arg.typ
+            else:
+                if not isa(arg.typ, UnrankedTensorTypeF64):
+                    raise ValueError(
+                        f"Unexpected operand of type {arg.typ} passed to TransposeOp, "
+                        "expected {TensorTypeF64 | UnrankedTensorTypeF64}"
+                    )
+                output_type = arg.typ
 
         super().__init__(operands=[arg], result_types=[output_type])
 
