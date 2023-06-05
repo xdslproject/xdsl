@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     i32,
     i64,
+    ContainerType,
 )
 from xdsl.ir import (
     Block,
@@ -84,11 +85,10 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_characters("<", "LLVM Struct must start with `<`")
-        parsed_struct_name = parser.try_parse_string_literal()
-        if parsed_struct_name is None:
+        struct_name = parser.parse_optional_str_literal()
+        if struct_name is None:
             struct_name = ""
         else:
-            struct_name = parsed_struct_name.string_contents
             parser.parse_characters(", ", "comma after type")
 
         params = parser.parse_comma_separated_list(
@@ -99,7 +99,9 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
+class LLVMPointerType(
+    ParametrizedAttribute, TypeAttribute, ContainerType[Attribute | None]
+):
     name = "llvm.ptr"
 
     type: ParameterDef[Attribute | NoneAttr]
@@ -143,6 +145,9 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
+
+    def get_element_type(self) -> Attribute | None:
+        return self.type
 
 
 @irdl_attr_definition
@@ -262,10 +267,8 @@ class LinkageAttr(ParametrizedAttribute):
         # The linkage string is output from xDSL as a string (and accepted by MLIR as such)
         # however it is always output from MLIR without quotes. Therefore need to determine
         # whether this is a string or not and slightly change how we parse based upon that
-        linkage_str = parser.try_parse_string_literal()
-        if linkage_str is not None:
-            linkage_str = linkage_str.string_contents
-        else:
+        linkage_str = parser.parse_optional_str_literal()
+        if linkage_str is None:
             linkage_str = parser.tokenizer.next_token().text
         linkage = StringAttr(linkage_str)
         parser.parse_characters(">", "End of llvm.linkage parameter expected!")
@@ -436,9 +439,6 @@ class GEPOp(IRDLOperation):
         # convert a potential Operation into an SSAValue
         ptr_val = SSAValue.get(ptr)
         ptr_type = ptr_val.typ
-
-        if not isinstance(result_type, LLVMPointerType):
-            raise ValueError("Result type must be a pointer.")
 
         if not isinstance(ptr_type, LLVMPointerType):
             raise ValueError("Input must be a pointer")

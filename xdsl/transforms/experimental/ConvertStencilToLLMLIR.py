@@ -107,7 +107,7 @@ class ReturnOpToMemref(RewritePattern):
             if target is None:
                 break
 
-            assert isinstance(target.typ, builtin.ShapeType)
+            assert isinstance(target.typ, builtin.ShapedType)
 
             assert (block := op.parent_block()) is not None
 
@@ -401,7 +401,6 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ApplyOpToParallel(),
-                    StencilTypeConversionFuncOp(),
                     StencilStoreToSubview(return_targets),
                     CastOpToMemref(gpu=(self.target == "gpu")),
                     LoadOpToMemref(),
@@ -417,6 +416,11 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         )
         the_one_pass.rewrite_module(op)
         type_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([UpdateLoopCarriedVarTypes()])
+            GreedyRewritePatternApplier(
+                [
+                    UpdateLoopCarriedVarTypes(),
+                    StencilTypeConversionFuncOp(),
+                ]
+            )
         )
         type_pass.rewrite_module(op)

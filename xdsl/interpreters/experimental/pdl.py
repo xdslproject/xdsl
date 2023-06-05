@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -7,7 +9,7 @@ from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
-    AnonymousRewritePattern,
+    RewritePattern,
 )
 from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
 from xdsl.utils.exceptions import InterpretationError
@@ -147,12 +149,15 @@ class PDLMatcher:
         for pdl_operand, xdsl_operand in zip(pdl_operands, xdsl_operands):
             assert isinstance(pdl_operand, OpResult)
             assert isinstance(pdl_operand.op, pdl.OperandOp | pdl.ResultOp)
-            if isinstance(pdl_operand.op, pdl.OperandOp):
-                if not self.match_operand(pdl_operand, pdl_operand.op, xdsl_operand):
-                    return False
-            elif isinstance(pdl_operand.op, pdl.ResultOp):
-                if not self.match_result(pdl_operand, pdl_operand.op, xdsl_operand):
-                    return False
+            match pdl_operand.op:
+                case pdl.OperandOp():
+                    if not self.match_operand(
+                        pdl_operand, pdl_operand.op, xdsl_operand
+                    ):
+                        return False
+                case pdl.ResultOp():
+                    if not self.match_result(pdl_operand, pdl_operand.op, xdsl_operand):
+                        return False
 
         pdl_results = pdl_op.type_values
         xdsl_results = xdsl_op.results
@@ -169,6 +174,35 @@ class PDLMatcher:
         self.matching_context[ssa_val] = xdsl_op
 
         return True
+
+
+@dataclass
+class InterpreterRewrite(RewritePattern):
+    functions: PDLFunctions
+    pdl_rewrite_op: pdl.RewriteOp
+    interpreter: Interpreter
+
+    def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
+        pdl_op_val = self.pdl_rewrite_op.root
+        assert pdl_op_val is not None, "TODO: handle None root op in pdl.RewriteOp"
+        assert (
+            self.pdl_rewrite_op.body is not None
+        ), "TODO: handle None body op in pdl.RewriteOp"
+
+        (pdl_op,) = self.interpreter.get_values((pdl_op_val,))
+        assert isinstance(pdl_op, pdl.OperationOp)
+        matcher = PDLMatcher()
+        if not matcher.match_operation(pdl_op_val, pdl_op, xdsl_op):
+            return
+
+        self.interpreter.push_scope("rewrite")
+        self.interpreter.set_values(matcher.matching_context.items())
+        self.functions.rewriter = rewriter
+
+        for rewrite_impl_op in self.pdl_rewrite_op.body.ops:
+            self.interpreter.run(rewrite_impl_op)
+
+        self.interpreter.pop_scope()
 
 
 @register_impls
@@ -235,33 +269,10 @@ class PDLFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         input_module = self.module
 
-        def rewrite(xdsl_op: Operation, rewriter: PatternRewriter) -> None:
-            pdl_op_val = pdl_rewrite_op.root
-            assert pdl_op_val is not None, "TODO: handle None root op in pdl.RewriteOp"
-            assert (
-                pdl_rewrite_op.body is not None
-            ), "TODO: handle None body op in pdl.RewriteOp"
-
-            (pdl_op,) = interpreter.get_values((pdl_op_val,))
-            assert isinstance(pdl_op, pdl.OperationOp)
-            matcher = PDLMatcher()
-            if not matcher.match_operation(pdl_op_val, pdl_op, xdsl_op):
-                return
-
-            interpreter.push_scope("rewrite")
-            interpreter.set_values(matcher.matching_context.items())
-            self.rewriter = rewriter
-
-            for rewrite_impl_op in pdl_rewrite_op.body.ops:
-                interpreter.run(rewrite_impl_op)
-
-            interpreter.pop_scope()
-
-        rewriter = AnonymousRewritePattern(rewrite)
-
-        PatternRewriteWalker(rewriter, apply_recursively=False).rewrite_module(
-            input_module
-        )
+        PatternRewriteWalker(
+            InterpreterRewrite(self, pdl_rewrite_op, interpreter),
+            apply_recursively=False,
+        ).rewrite_module(input_module)
 
         return ()
 

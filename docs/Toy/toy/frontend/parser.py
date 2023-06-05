@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, NoReturn, TypeVar, cast
+from typing import List, NoReturn, TypeVar, cast, overload
 
 from .lexer import (
     OperatorToken,
@@ -83,61 +83,65 @@ class Parser:
         }
         op = self.getToken().text
 
-        try:
-            return PRECEDENCE[op]
-        except KeyError:
-            return -1
+        return PRECEDENCE.get(op, -1)
 
-    def peek(self, pattern: str | type[Token] | None = None) -> None:
+    @overload
+    def peek(self, pattern: str) -> Token | None:
+        ...
+
+    @overload
+    def peek(self, pattern: type[TokenT] = Token) -> TokenT | None:
+        ...
+
+    def peek(self, pattern: str | type[TokenT] = Token) -> Token | TokenT | None:
         """
-        Verifies that the current token fits the pattern,
-        raises ParseError otherwise
+        Returns token matching pattern or None
         """
         token = self.getToken()
-        tokenType, text = (
-            (None, pattern) if isinstance(pattern, str) else (pattern, None)
-        )
-        if tokenType is not None:
-            if type(token) is not tokenType:
-                self.parseError(tokenType)
 
-        if text is not None:
-            if token.text != text:
-                self.parseError(f"'{text}'")
+        if isinstance(pattern, str):
+            if token.text == pattern:
+                return token
+            else:
+                return None
+        else:
+            if isinstance(token, pattern):
+                return token
+            else:
+                return None
 
-    def check(self, pattern: str | type[Token] | None = None) -> bool:
+    def check(self, pattern: str | type[Token] = Token) -> bool:
         """
         Verifies that the current token fits the pattern,
-        raises ParseError otherwise
+        returns False otherwise
         """
-        try:
-            self.peek(pattern)
-            return True
-        except ParseError:
-            return False
+        return self.peek(pattern) is not None
 
     def pop(self) -> Token:
-        self.peek()
         self.pos += 1
         return self.tokens[self.pos - 1]
 
-    def pop_pattern(self, pattern: str | None = None) -> Token:
+    def pop_pattern(self, pattern: str) -> Token:
         """
         Verifies that the current token fits the pattern,
         raises ParseError otherwise
         """
-        self.peek(pattern)
+        token = self.peek(pattern)
+        if token is None:
+            self.parseError(f"'{pattern}'")
         self.pos += 1
-        return self.tokens[self.pos - 1]
+        return token
 
     def pop_token(self, tokenType: type[TokenT]) -> TokenT:
         """
         Verifies that the current token is of expected type,
         raises ParseError otherwise
         """
-        self.peek(tokenType)
+        token = self.peek(tokenType)
+        if token is None:
+            self.parseError(tokenType)
         self.pos += 1
-        return cast(TokenT, self.tokens[self.pos - 1])
+        return token
 
     def parseModule(self):
         """

@@ -212,10 +212,10 @@ class Allreduce(MPIBaseOp):
 
     name = "mpi.allreduce"
 
+    send_buffer: Annotated[OptOperand, Attribute]
     recv_buffer: Annotated[Operand, Attribute]
     count: Annotated[Operand, i32]
     datatype: Annotated[Operand, DataType]
-    send_buffer: Annotated[OptOperand, Attribute]
     operationtype: OpAttr[OperationType]
 
     @staticmethod
@@ -230,9 +230,9 @@ class Allreduce(MPIBaseOp):
             SSAValue | Operation | Sequence[SSAValue | Operation]
         ] = []
         if send_buffer is None:
-            operands_to_add = [recv_buffer, count, datatype, []]
+            operands_to_add = [[], recv_buffer, count, datatype]
         else:
-            operands_to_add = [recv_buffer, count, datatype, [send_buffer]]
+            operands_to_add = [[send_buffer], recv_buffer, count, datatype]
 
         return Allreduce.build(
             operands=operands_to_add,
@@ -595,7 +595,8 @@ class GetStatusField(MPIBaseOp):
 @irdl_op_definition
 class CommRank(MPIBaseOp):
     """
-    Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns the rank of the communicator
+    Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns
+    the rank of the communicator
 
     Currently limited to COMM_WORLD
     """
@@ -612,7 +613,8 @@ class CommRank(MPIBaseOp):
 @irdl_op_definition
 class CommSize(MPIBaseOp):
     """
-    Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns the size of the communicator
+    Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns
+    the size of the communicator
 
     Currently limited to COMM_WORLD
     """
@@ -699,12 +701,12 @@ class GetDtypeOp(MPIBaseOp):
 @irdl_op_definition
 class AllocateTypeOp(MPIBaseOp):
     """
-    This op is used to allocate a specific MPI dialect type with a set size, returning this
-    in an MPI vector of that type
+    This op is used to allocate a specific MPI dialect type with a set size,
+    returning this in an MPI vector of that type
 
     This is useful as it means we can, in a self contained manner, store things like
     requests, statuses etc. It accepts the base type that the array will contain, the
-    number of elements and an optional bindc_name which contains the name of the
+    number of elements and an optional 'bindc_name' which contains the name of the
     variable that this is allocating
     """
 
@@ -781,9 +783,9 @@ class GatherOp(MPIBaseOp):
     This is used to gather data into one big buffer.
 
     int MPI_Gather(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
-                    void *recvbuf, int recvcount, MPI_Datatype recvtype,
-                    int root,
-                    MPI_Comm comm)
+                   void *recvbuf, int recvcount, MPI_Datatype recvtype,
+                   int root,
+                   MPI_Comm comm)
 
      - sendbuf, sendcount, sendtype: info on the buffer to be sent
      - recvbuf, recvcount, recvtype: info on the gather buffer

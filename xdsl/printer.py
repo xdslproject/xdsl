@@ -248,8 +248,6 @@ class Printer:
         Print a block with syntax `(<caret-ident>`(` <block-args> `)`)? ops* )`
         * If `print_block_args` is False, the label and arguments are not printed.
         """
-        if not isinstance(block, Block):
-            raise TypeError("Expected a Block; got %s" % type(block).__name__)
 
         if print_block_args:
             self._print_new_line()
@@ -287,8 +285,6 @@ class Printer:
           are not printed.
         * If `print_empty_block` is False, empty entry blocks are not printed.
         """
-        if not isinstance(region, Region):
-            raise TypeError("Expected a Region; got %s" % type(region).__name__)
 
         # Empty region
         self.print("{")
@@ -467,7 +463,7 @@ class Printer:
 
             def print_dense_list(
                 array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
-                shape: List[int],
+                shape: Sequence[int],
             ):
                 self.print("[")
                 if len(shape) > 1:
@@ -482,7 +478,9 @@ class Printer:
 
             self.print("dense<")
             data = attribute.data.data
-            shape = attribute.shape if attribute.shape_is_complete else [len(data)]
+            shape = (
+                attribute.get_shape() if attribute.shape_is_complete else (len(data),)
+            )
             assert shape is not None, "If shape is complete, then it cannot be None"
             if len(data) == 0:
                 pass
@@ -525,7 +523,7 @@ class Printer:
             # Separate the dimensions between the static and the scalable ones
             if attribute.get_num_scalable_dims() == 0:
                 static_dimensions = shape
-                scalable_dimensions = []
+                scalable_dimensions = ()
             else:
                 static_dimensions = shape[: -attribute.get_num_scalable_dims()]
                 scalable_dimensions = shape[-attribute.get_num_scalable_dims() :]
@@ -679,8 +677,6 @@ class Printer:
             self.print(")")
 
     def print_op(self, op: Operation) -> None:
-        if not isinstance(op, Operation):
-            raise TypeError("Expected an Operation; got %s" % type(op).__name__)
         begin_op_pos = self._current_column
         self._print_results(op)
         use_custom_format = False

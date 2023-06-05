@@ -229,3 +229,21 @@ def test_token_get_float_value(text: str, expected: float):
     token = get_token(text)
     assert token.kind == Token.Kind.FLOAT_LIT
     assert token.get_float_value() == expected
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ('""', ""),
+        ('"@"', "@"),
+        ('"foo"', "foo"),
+        ('"\\""', '"'),
+        ('"\\n"', "\n"),
+        ('"\\\\"', "\\"),
+        ('"\\t"', "\t"),
+    ],
+)
+def test_token_get_string_literal_value(text: str, expected: float):
+    token = get_token(text)
+    assert token.kind == Token.Kind.STRING_LIT
+    assert token.get_string_literal_value() == expected

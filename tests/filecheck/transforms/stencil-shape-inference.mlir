@@ -1,6 +1,40 @@
 // RUN: xdsl-opt -p stencil-shape-inference --verify-diagnostics --split-input-file %s | filecheck %s
 
 builtin.module {
+  func.func @different_input_offsets(%out : !stencil.field<[-4,68]xf64>, %left : !stencil.field<[-4,68]xf64>, %right : !stencil.field<[-4,68]xf64>) {
+    %tleft = "stencil.load"(%left) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
+    %tright = "stencil.load"(%right) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
+    %tout = "stencil.apply"(%tleft, %tright) ({
+    ^0(%lefti : !stencil.temp<?xf64>, %righti : !stencil.temp<?xf64>):
+      %l = "stencil.access"(%lefti) {"offset" = #stencil.index<-1>} : (!stencil.temp<?xf64>) -> f64
+      %r = "stencil.access"(%righti) {"offset" = #stencil.index< 1>} : (!stencil.temp<?xf64>) -> f64
+      %o = arith.addf %l, %r : f64
+      "stencil.return"(%o) : (f64) -> ()
+    }) : (!stencil.temp<?xf64>, !stencil.temp<?xf64>) -> !stencil.temp<?xf64>
+    "stencil.store"(%tout, %out) {"lb" = #stencil.index<0>, "ub" = #stencil.index<64>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
+    "func.return"() : () -> ()
+  }
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   func.func @different_input_offsets(%out : !stencil.field<[-4,68]xf64>, %left : !stencil.field<[-4,68]xf64>, %right : !stencil.field<[-4,68]xf64>) {
+// CHECK-NEXT:     %tleft = "stencil.load"(%left) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<[-1,63]xf64>
+// CHECK-NEXT:     %tright = "stencil.load"(%right) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<[1,65]xf64>
+// CHECK-NEXT:     %tout = "stencil.apply"(%tleft, %tright) ({
+// CHECK-NEXT:     ^0(%lefti : !stencil.temp<[-1,63]xf64>, %righti : !stencil.temp<[1,65]xf64>):
+// CHECK-NEXT:       %l = "stencil.access"(%lefti) {"offset" = #stencil.index<-1>} : (!stencil.temp<[-1,63]xf64>) -> f64
+// CHECK-NEXT:       %r = "stencil.access"(%righti) {"offset" = #stencil.index<1>} : (!stencil.temp<[1,65]xf64>) -> f64
+// CHECK-NEXT:       %o = arith.addf %l, %r : f64
+// CHECK-NEXT:       "stencil.return"(%o) : (f64) -> ()
+// CHECK-NEXT:     }) : (!stencil.temp<[-1,63]xf64>, !stencil.temp<[1,65]xf64>) -> !stencil.temp<[0,64]xf64>
+// CHECK-NEXT:     "stencil.store"(%tout, %out) {"lb" = #stencil.index<0>, "ub" = #stencil.index<64>} : (!stencil.temp<[0,64]xf64>, !stencil.field<[-4,68]xf64>) -> ()
+// CHECK-NEXT:     "func.return"() : () -> ()
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
+
+// -----
+
+builtin.module {
   func.func @stencil_hdiff(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {
     %2 = "stencil.cast"(%0) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     %3 = "stencil.cast"(%1) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>

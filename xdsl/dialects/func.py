@@ -46,7 +46,7 @@ class FuncOp(IRDLOperation):
         self,
         name: str,
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
-        region: Region,
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
         visibility: StringAttr | str | None = None,
     ):
         if isinstance(visibility, str):
@@ -54,6 +54,8 @@ class FuncOp(IRDLOperation):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
+        if not isinstance(region, Region):
+            region = Region(Block(arg_types=function_type.inputs))
         attributes: dict[str, Attribute | None] = {
             "sym_name": StringAttr(name),
             "function_type": function_type,
@@ -115,13 +117,16 @@ class FuncOp(IRDLOperation):
 
         # Parse return type
         if parser.parse_optional_punctuation("->"):
-            return_types = parser.parse_optional_type()
-            if return_types:
-                return_types = [return_types]
+            if parser.parse_optional_punctuation("(") is not None:
+                if parser.parse_optional_punctuation(")") is not None:
+                    return_types = []
+                else:
+                    return_types = parser.parse_comma_separated_list(
+                        parser.Delimiter.NONE, parser.parse_type
+                    )
+                    parser.parse_punctuation(")")
             else:
-                return_types = parser.parse_comma_separated_list(
-                    parser.Delimiter.PAREN, parser.parse_type
-                )
+                return_types = [parser.parse_type()]
         else:
             return_types = []
 
@@ -199,7 +204,7 @@ class FuncOp(IRDLOperation):
         name: str,
         input_types: Sequence[Attribute],
         return_types: Sequence[Attribute],
-        region: Region,
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
         visibility: StringAttr | str | None = None,
     ) -> FuncOp:
         return FuncOp(

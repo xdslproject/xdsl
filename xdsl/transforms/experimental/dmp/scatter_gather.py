@@ -57,8 +57,8 @@ class LowerDmpScatter(RewritePattern):
                 grid.as_tuple()[0], idx
             ),
             # linearize node
-            node_id_x := arith.RemUI(op.my_rank, node_topo_width),
-            node_id_y := arith.DivUI(op.my_rank, node_topo_width),
+            node_id_x := arith.DivUI(op.my_rank, node_topo_width),
+            node_id_y := arith.RemUI(op.my_rank, node_topo_width),
             # get local domain sizes
             local_domain_width := arith.Constant.from_int_and_width(
                 local_domain[0], idx
@@ -73,11 +73,15 @@ class LowerDmpScatter(RewritePattern):
             offset_x_ub := arith.Addi(offset_x, local_domain_width),
             offset_y_ub := arith.Addi(offset_y, local_domain_height),
             # get the halo size
-            halo_x := arith.Constant.from_int_and_width(shape_info.halo_size(0), idx),
-            halo_y := arith.Constant.from_int_and_width(shape_info.halo_size(1), idx),
+            halo_x := arith.Constant.from_int_and_width(
+                shape_info.halo_size(0) * 2, idx
+            ),
+            halo_y := arith.Constant.from_int_and_width(
+                shape_info.halo_size(1) * 2, idx
+            ),
             # translate from core dims to buff dims
-            loop_lb_x := arith.Addi(offset_x, halo_x),
-            loop_lb_y := arith.Addi(offset_y, halo_y),
+            # loop_lb_x := arith.Addi(offset_x, halo_x),
+            # loop_lb_y := arith.Addi(offset_y, halo_y),
             loop_ub_x := arith.Addi(offset_x_ub, halo_x),
             loop_ub_y := arith.Addi(offset_y_ub, halo_y),
             # calc global halo local halo difference
@@ -97,7 +101,7 @@ class LowerDmpScatter(RewritePattern):
             scf.Yield.get()
 
         lööp = scf.ParallelOp.get(
-            [loop_lb_x, loop_lb_y], [loop_ub_x, loop_ub_y], [cst1, cst1], lööp_body
+            [offset_x, offset_y], [loop_ub_x, loop_ub_y], [cst1, cst1], lööp_body
         )
 
         rewriter.replace_matched_op(lööp)
@@ -138,7 +142,7 @@ class LowerDmpGather(RewritePattern):
         ]
         ubs = [
             arith.Constant.from_int_and_width(
-                shape_info.halo_size(x) + core_size[x], idx
+                shape_info.halo_size(x) + local_domain[x], idx
             )
             for x in range(rank)
         ]
@@ -197,8 +201,8 @@ class LowerDmpGather(RewritePattern):
                 unwrapped_local.len,
                 unwrapped_local.typ,
                 unwrapped_global.ptr,
-                unwrapped_global.len,
-                unwrapped_global.typ,
+                unwrapped_local.len,
+                unwrapped_local.typ,
                 root_rank,
             )
         )

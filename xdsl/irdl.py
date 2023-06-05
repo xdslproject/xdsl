@@ -448,6 +448,7 @@ class IRDLOperation(Operation):
         successors: Sequence[Block | Sequence[Block] | None] | None = None,
         regions: Sequence[
             Region
+            | None
             | Sequence[Operation]
             | Sequence[Block]
             | Sequence[Region | Sequence[Operation] | Sequence[Block]]
@@ -484,6 +485,7 @@ class IRDLOperation(Operation):
         successors: Sequence[Block | Sequence[Block] | None] | None = None,
         regions: Sequence[
             Region
+            | None
             | Sequence[Operation]
             | Sequence[Block]
             | Sequence[Region | Sequence[Operation] | Sequence[Block]]
@@ -971,15 +973,15 @@ class VarIRConstruct(Enum):
 
 def get_construct_name(construct: VarIRConstruct) -> str:
     """Get the type name, this is used mostly for error messages."""
-    if construct == VarIRConstruct.OPERAND:
-        return "operand"
-    if construct == VarIRConstruct.RESULT:
-        return "result"
-    if construct == VarIRConstruct.REGION:
-        return "region"
-    if construct == VarIRConstruct.SUCCESSOR:
-        return "successor"
-    assert False, "Unknown VarIRConstruct value"
+    match construct:
+        case VarIRConstruct.OPERAND:
+            return "operand"
+        case VarIRConstruct.RESULT:
+            return "result"
+        case VarIRConstruct.REGION:
+            return "region"
+        case VarIRConstruct.SUCCESSOR:
+            return "successor"
 
 
 def get_construct_defs(
@@ -1436,11 +1438,6 @@ def irdl_op_init(
     for attr_name, attr in attributes.items():
         if attr is None:
             continue
-        if not isinstance(attr, Attribute):
-            raise ValueError(
-                error_prefix + f"{attr_name} is expected to be an "
-                f"attribute, but got {type(attr)}."
-            )
         built_attributes[attr_name] = attr
 
     # Take care of variadic operand and result segment sizes.

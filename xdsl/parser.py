@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import functools
 import itertools
 import math
@@ -20,9 +19,9 @@ from typing import (
     IO,
     cast,
     Literal,
-    Sequence,
     Callable,
     overload,
+    Sequence,
 )
 
 from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
@@ -451,6 +450,47 @@ class ParserCommons:
     comma = re.compile(",")
 
 
+@dataclass
+class ForwardDeclaredValue(SSAValue):
+    """
+    An SSA value that is used before it is defined.
+    It will be replaced to an operation result or a block argument when it is defined.
+    """
+
+    @property
+    def owner(self) -> Operation | Block:
+        assert False, "Forward declared values do not have an owner"
+
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
+    def __hash__(self) -> int:  # type: ignore
+        return id(self)
+
+
+@dataclass
+class UnresolvedOperand:
+    """
+    An operand that is not yet resolved in an operation parser.
+    It will either be resolved to an SSA value, or to a forward reference of
+    an SSA value.
+    To resolve it, you need to provide its type.
+    """
+
+    span: Span
+    """
+    The parsing location of the operand name, including the `%`,
+    but excluding the optional tuple index.
+    """
+
+    index: int
+    """The value tuple index, if it is a tuple value."""
+
+    @property
+    def operand_name(self) -> str:
+        return self.span.text[1:]
+
+
 class Parser(ABC):
     """
     Basic recursive descent parser.
@@ -478,6 +518,11 @@ class Parser(ABC):
     """
     Blocks we encountered references to before the definition (must be empty after
     parsing of region completes)
+    """
+    forward_ssa_references: dict[str, dict[int, ForwardDeclaredValue]]
+    """
+    SSA values that are referenced, but are not yet defined.
+    This field map a name and a tuple index to the forward declared SSA value.
     """
 
     lexer: Lexer
@@ -508,6 +553,7 @@ class Parser(ABC):
         self.ssa_values = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
+        self.forward_ssa_references = dict()
         self.allow_unregistered_dialect = allow_unregistered_dialect
 
     def resume_from(self, pos: Position):
@@ -517,70 +563,6 @@ class Parser(ABC):
         self.tokenizer.pos = pos
         self.lexer.pos = pos
         self._current_token = self.lexer.lex()
-
-    @contextlib.contextmanager
-    def backtracking(self, region_name: str | None = None):
-        """
-        This context manager can be used to mark backtracking regions.
-
-        When an error is thrown during backtracking, it is recorded and stored together
-        with some meta information in the history attribute.
-
-        The backtracker accepts the following exceptions:
-        - ParseError: signifies that the region could not be parsed because of
-          (unexpected) syntax errors
-        - AssertionError: this error should probably be phased out in favour
-          of the two above
-        - EOFError: signals that EOF was reached unexpectedly
-
-        Any other error will be printed to stderr, but backtracking will continue
-        as normal.
-        """
-        self._synchronize_lexer_and_tokenizer()
-        save = self.tokenizer.save()
-        starting_position = self.tokenizer.pos
-        try:
-            yield
-            # Clear error history when something doesn't fail
-            # This is because we are only interested in the last "cascade" of failures.
-            # If a backtracking() completes without failure,
-            # something has been parsed (we assume)
-            if (
-                self.tokenizer.pos > starting_position
-                and self.tokenizer.history is not None
-            ):
-                self.tokenizer.history = None
-        except Exception as ex:
-            how_far_we_got = self.tokenizer.pos
-
-            # If we have no error history, start recording!
-            if not self.tokenizer.history:
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            # If we got further than on previous attempts
-            elif how_far_we_got > self.tokenizer.history.get_farthest_point():
-                # Throw away history
-                self.tokenizer.history = None
-                # Generate new history entry,
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            # Otherwise, add to exception, if we are in a named region
-            elif region_name is not None and how_far_we_got - starting_position > 0:
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            self.resume_from(save)
 
     def _synchronize_lexer_and_tokenizer(self):
         """
@@ -650,18 +632,27 @@ class Parser(ABC):
         return self._consume_token()
 
     def parse_module(self) -> ModuleOp:
-        op = self.try_parse_operation()
+        op = self.parse_optional_operation()
 
         if op is None:
             self.raise_error("Could not parse entire input!")
 
-        if isinstance(op, ModuleOp):
-            return op
-        else:
+        if not isinstance(op, ModuleOp):
             self.tokenizer.pos = 0
             self.raise_error(
                 "Expected ModuleOp at top level!", self.tokenizer.next_token()
             )
+
+        if self.forward_ssa_references:
+            value_names = ", ".join(
+                "%" + name for name in self.forward_ssa_references.keys()
+            )
+            if len(self.forward_block_references.keys()) > 1:
+                self.raise_error(f"values {value_names} were used but not defined")
+            else:
+                self.raise_error(f"value {value_names} was used but not defined")
+
+        return op
 
     def _get_block_from_name(self, block_name: Span) -> Block:
         """
@@ -675,21 +666,6 @@ class Parser(ABC):
             self.blocks[name] = (Block(), None)
         return self.blocks[name][0]
 
-    def _parse_ssa_definition(self) -> str:
-        """
-        Parse an SSA definition, with the format `%ident`. Returns the value name.
-        If a value with the same name is already in scope, return an error.
-        """
-        name_token = self._parse_token(
-            Token.Kind.PERCENT_IDENT, "Expected result SSA value!"
-        )
-        name = name_token.text[1:]
-        if name in self.ssa_values:
-            self.raise_error(
-                f"a value with name '{name}' is already defined", name_token.span
-            )
-        return name
-
     def _parse_optional_block_arg_list(self, block: Block):
         """
         Parse a block argument list, if present, and add them to the block.
@@ -702,19 +678,17 @@ class Parser(ABC):
 
         def parse_argument() -> None:
             """Parse a single block argument with its type."""
-            arg_name = self._parse_ssa_definition()
+            arg_name = self._parse_token(
+                Token.Kind.PERCENT_IDENT, "block argument expected"
+            ).span
             self.parse_punctuation(":")
             self._synchronize_lexer_and_tokenizer()
             arg_type = self.parse_attribute()
             self._synchronize_lexer_and_tokenizer()
 
-            # Insert the block argument in the block, and set its name.
+            # Insert the block argument in the block, and register it in the parser
             block_arg = block.insert_arg(arg_type, len(block.args))
-            if SSAValue.is_valid_name(arg_name):
-                block_arg.name_hint = arg_name
-
-            # Register the value name in the parser
-            self.ssa_values[arg_name] = (block_arg,)
+            self._register_ssa_definition(arg_name.text[1:], (block_arg,), arg_name)
 
         self.parse_comma_separated_list(self.Delimiter.PAREN, parse_argument)
         return block
@@ -724,9 +698,7 @@ class Parser(ABC):
         Parse a block body, which consist of a list of operations.
         The operations are added at the end of the block.
         """
-        self._synchronize_lexer_and_tokenizer()
-        while (op := self.try_parse_operation()) is not None:
-            self._synchronize_lexer_and_tokenizer()
+        while (op := self.parse_optional_operation()) is not None:
             block.add_op(op)
 
     def _parse_block(self) -> Block:
@@ -945,7 +917,7 @@ class Parser(ABC):
         """
         return self.expect(
             lambda: self.parse_optional_number(),
-            "Expected integer or float literal" + context_msg,
+            "integer or float literal expected" + context_msg,
         )
 
     def parse_integer(
@@ -965,18 +937,21 @@ class Parser(ABC):
             "Expected integer literal" + context_msg,
         )
 
-    def try_parse_integer_literal(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.integer_literal)
+    def parse_optional_str_literal(self) -> str | None:
+        """
+        Parse a string literal with the format `"..."`, if present.
 
-    def try_parse_decimal_literal(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.decimal_literal)
+        Returns the string contents without the quotes and with escape sequences
+        resolved.
+        """
 
-    def try_parse_string_literal(self) -> StringLiteral | None:
-        return StringLiteral.from_span(
-            self.tokenizer.next_token_of_pattern(ParserCommons.string_literal)
-        )
+        self._synchronize_lexer_and_tokenizer()
+        if (token := self._parse_optional_token(Token.Kind.STRING_LIT)) is None:
+            return None
+        self._synchronize_lexer_and_tokenizer()
+        return token.get_string_literal_value()
 
-    def parse_string_literal(self) -> str:
+    def parse_str_literal(self, context_msg: str = "") -> str:
         """
         Parse a string literal with the format `"..."`.
 
@@ -984,30 +959,41 @@ class Parser(ABC):
         resolved.
         """
         return self.expect(
-            self.try_parse_string_literal,
-            "string literal expected",
-        ).string_contents
+            self.parse_optional_str_literal,
+            "string literal expected" + context_msg,
+        )
 
-    def try_parse_float_literal(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.float_literal)
+    def parse_optional_identifier(self) -> str | None:
+        """
+        Parse an identifier, if present, with syntax:
+            ident ::= (letter|[_]) (letter|digit|[_$.])*
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if (token := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return token.text
+        return None
 
-    def try_parse_bare_id(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.bare_id)
-
-    def try_parse_value_id(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.value_id)
+    def parse_identifier(self, context_msg: str = "") -> str:
+        """
+        Parse an identifier, if present, with syntax:
+            ident ::= (letter|[_]) (letter|digit|[_$.])*
+        """
+        return self.expect(
+            self.parse_optional_identifier, "identifier expected" + context_msg
+        )
 
     _decimal_integer_regex = re.compile(r"[0-9]+")
 
-    def parse_optional_operand(self) -> SSAValue | None:
+    def parse_optional_unresolved_operand(self) -> UnresolvedOperand | None:
         """
         Parse an operand with format `%<value-id>(#<int-literal>)?`, if present.
+        The operand may be forward declared.
         """
         self._synchronize_lexer_and_tokenizer()
         name_token = self._parse_optional_token(Token.Kind.PERCENT_IDENT)
         if name_token is None:
             return None
-        name = name_token.text[1:]
 
         index = 0
         index_token = self._parse_optional_token(Token.Kind.HASH_IDENT)
@@ -1018,33 +1004,90 @@ class Parser(ABC):
                 )
             index = int(index_token.text[1:], 10)
 
+        self._synchronize_lexer_and_tokenizer()
+        return UnresolvedOperand(name_token.span, index)
+
+    def parse_unresolved_operand(
+        self, msg: str = "operand expected"
+    ) -> UnresolvedOperand:
+        """
+        Parse an operand with format `%<value-id>(#<int-literal>)?`.
+        The operand may be forward declared.
+        """
+        return self.expect(self.parse_optional_unresolved_operand, msg)
+
+    def resolve_operand(self, operand: UnresolvedOperand, type: Attribute) -> SSAValue:
+        """
+        Resolve an unresolved operand.
+        If the operand is not yet defined, it creates a forward reference.
+        If the operand is already defined, it returns the corresponding SSA value,
+        and checks that the type is consistent.
+        """
+        name = operand.operand_name
+
+        # If the indexed operand is already used as a forward reference, return it
+        if (
+            name in self.forward_ssa_references
+            and operand.index in self.forward_ssa_references[name]
+        ):
+            return self.forward_ssa_references[name][operand.index]
+
+        # If the operand is not yet defined, create a forward reference
+        if name not in self.ssa_values:
+            forward_value = ForwardDeclaredValue(type)
+            reference_tuple = self.forward_ssa_references.setdefault(name, {})
+            reference_tuple[operand.index] = forward_value
+            return forward_value
+
+        # If the operand is already defined, check that the tuple index is in range
+        tuple_size = len(self.ssa_values[name])
+        if operand.index >= tuple_size:
+            self.raise_error(
+                "SSA value tuple index out of bounds. "
+                f"Tuple is of size {tuple_size} but tried to access element {operand.index}.",
+                operand.span,
+            )
+
+        # Check that the type is consistent
+        resolved = self.ssa_values[name][operand.index]
+        if resolved.typ != type:
+            self.raise_error(
+                f"operand is used with type {type}, but has been "
+                f"previously used or defined with type {resolved.typ}",
+                operand.span,
+            )
+
+        return resolved
+
+    def parse_optional_operand(self) -> SSAValue | None:
+        """
+        Parse an operand with format `%<value-id>(#<int-literal>)?`, if present.
+        """
+        unresolved_operand = self.parse_optional_unresolved_operand()
+        if unresolved_operand is None:
+            return None
+
+        name = unresolved_operand.operand_name
+        index = unresolved_operand.index
+
         if name not in self.ssa_values.keys():
-            self.raise_error("SSA value used before assignment", name_token.span)
+            self.raise_error(
+                "SSA value used before assignment", unresolved_operand.span
+            )
 
         tuple_size = len(self.ssa_values[name])
         if index >= tuple_size:
-            assert index_token is not None, "Fatal error in SSA value parsing"
             self.raise_error(
                 "SSA value tuple index out of bounds. "
                 f"Tuple is of size {tuple_size} but tried to access element {index}.",
-                index_token.span,
+                unresolved_operand.span,
             )
 
-        self._synchronize_lexer_and_tokenizer()
         return self.ssa_values[name][index]
 
     def parse_operand(self, msg: str = "Expected an operand.") -> SSAValue:
         """Parse an operand with format `%<value-id>`."""
         return self.expect(self.parse_optional_operand, msg)
-
-    def try_parse_suffix_id(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.suffix_id)
-
-    def try_parse_block_id(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.block_id)
-
-    def try_parse_boolean_literal(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.boolean_literal)
 
     def parse_type(self) -> Attribute:
         """
@@ -1079,7 +1122,7 @@ class Parser(ABC):
             token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
         ) is not None:
             return self._parse_dialect_type_or_attribute_inner(token.text[1:], True)
-        return self.try_parse_builtin_type()
+        return self._parse_optional_builtin_type()
 
     def parse_attribute(self) -> Attribute:
         """
@@ -1112,7 +1155,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
             return self._parse_dialect_type_or_attribute_inner(token.text[1:], False)
-        return self.try_parse_builtin_attr()
+        return self._parse_optional_builtin_attr()
 
     def _parse_dialect_type_or_attribute_inner(
         self, attr_name: str, is_type: bool = True
@@ -1216,30 +1259,42 @@ class Parser(ABC):
         assert body is not None
         return body
 
-    def _parse_builtin_parametrized_type(self, name: Span) -> ParametrizedAttribute:
+    def _parse_optional_builtin_parametrized_type(self) -> ParametrizedAttribute | None:
         """
-        This function is called after we parse the name of a parameterized type
-        such as vector.
+        Parse an builtin parametrized type, if present, with format:
+            builtin-parametrized-type ::= builtin-name `<` args `>`
+            builtin-name ::= vector | memref | tensor | complex | tuple
+            args ::= <defined by the builtin name>
         """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
 
-        def unimplemented() -> ParametrizedAttribute:
-            raise ParseError(name, "Builtin {} not supported yet!".format(name.text))
+        name = self._current_token.text
+
+        def unimplemented() -> NoReturn:
+            raise ParseError(
+                self._current_token.span,
+                "Builtin {} is not supported yet!".format(name),
+            )
 
         builtin_parsers: dict[str, Callable[[], ParametrizedAttribute]] = {
-            "vector": self.parse_vector_attrs,
-            "memref": self.parse_memref_attrs,
-            "tensor": self.parse_tensor_attrs,
-            "complex": self.parse_complex_attrs,
+            "vector": self._parse_vector_attrs,
+            "memref": self._parse_memref_attrs,
+            "tensor": self._parse_tensor_attrs,
+            "complex": self._parse_complex_attrs,
             "tuple": unimplemented,
         }
 
-        self.parse_characters("<", "Expected parameter list here!")
-        # Get the parser for the type, falling back to the unimplemented warning
-        self._synchronize_lexer_and_tokenizer()
-        res = builtin_parsers.get(name.text, unimplemented)()
-        self._synchronize_lexer_and_tokenizer()
-        self.parse_characters(">", "Expected end of parameter list here!")
+        if name not in builtin_parsers:
+            return None
+        self._consume_token(Token.Kind.BARE_IDENT)
 
+        self.parse_punctuation("<", " after builtin name")
+        # Get the parser for the type, falling back to the unimplemented warning
+        res = builtin_parsers.get(name, unimplemented)()
+        self.parse_punctuation(">", " after builtin parameter list")
+        self._synchronize_lexer_and_tokenizer()
         return res
 
     def _parse_shape_dimension(self, allow_dynamic: bool = True) -> int:
@@ -1337,7 +1392,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return res
 
-    def parse_complex_attrs(self) -> ComplexType:
+    def _parse_complex_attrs(self) -> ComplexType:
         element_type = self.parse_attribute()
         if not isa(element_type, IntegerType | AnyFloat):
             self.raise_error(
@@ -1345,7 +1400,7 @@ class Parser(ABC):
             )
         return ComplexType(element_type)
 
-    def parse_memref_attrs(
+    def _parse_memref_attrs(
         self,
     ) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
         shape, type = self.parse_shape()
@@ -1400,7 +1455,7 @@ class Parser(ABC):
             "Cannot decide if the given attribute " "is a layout or a memory space!"
         )
 
-    def parse_vector_attrs(self) -> AnyVectorType:
+    def _parse_vector_attrs(self) -> AnyVectorType:
         self._synchronize_lexer_and_tokenizer()
 
         dims: list[int] = []
@@ -1432,7 +1487,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return VectorType.from_element_type_and_shape(type, dims, num_scalable_dims)
 
-    def parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
+    def _parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
         shape, type = self.parse_shape()
 
         if shape is None:
@@ -1506,95 +1561,58 @@ class Parser(ABC):
             self.raise_error(msg)
         return match
 
-    def try_parse_operation(self) -> Operation | None:
-        with self.backtracking("operation"):
-            return self.parse_operation()
+    def _register_ssa_definition(
+        self, name: str, values: Sequence[SSAValue], span: Span
+    ) -> None:
+        """
+        Register an SSA definition in the parsing context.
+        In the case the value was already used as a forward reference, the forward
+        references are replaced by this value.
+        """
 
-    def parse_operation(self) -> Operation:
-        self._synchronize_lexer_and_tokenizer()
-        if self._current_token.kind == Token.Kind.PERCENT_IDENT:
-            results = self._parse_op_result_list()
-        else:
-            results = []
-        ret_types = [result[2] for result in results]
-        if len(results) > 0:
-            self.parse_characters(
-                "=", "Operation definitions expect an `=` after op-result-list!"
-            )
+        # Check for duplicate SSA value names.
+        if name in self.ssa_values:
+            self.raise_error(f"SSA value %{name} is already defined", span)
 
-        # Check for custom op format
-        op_name = self.try_parse_bare_id()
-        if op_name is not None:
-            op_type = self._get_op_by_name(op_name)
-            op = op_type.parse(self)
-        else:
-            # Check for basic op format
-            op_name = self.try_parse_string_literal()
-            if op_name is None:
+        # Register the SSA values in the context
+        self.ssa_values[name] = tuple(values)
+
+        tuple_size = len(values)
+        # Check for forward references of this value
+        if name in self.forward_ssa_references:
+            index_references = self.forward_ssa_references[name]
+            del self.forward_ssa_references[name]
+            if any(index >= tuple_size for index in index_references):
                 self.raise_error(
-                    "Expected an operation name here, either a bare-id, or a string "
-                    "literal!"
+                    f"SSA value %{name} is referenced with an index "
+                    f"larger than its size",
+                    span,
                 )
 
-            args, successors, attrs, regions, func_type = self.parse_operation_details()
+            # Replace the forward references with the actual SSA value
+            for index, value in index_references.items():
+                if index >= tuple_size:
+                    self.raise_error(
+                        f"SSA value tuple %{name} is referenced with index {index}, but "
+                        f"has size {tuple_size}",
+                        span,
+                    )
 
-            if any(res_type is None for res_type in ret_types):
-                assert func_type is not None
-                ret_types = func_type.outputs.data
-            ret_types = cast(Sequence[Attribute], ret_types)
+                result = values[index]
+                if value.typ != result.typ:
+                    result_name = f"%{name}"
+                    if tuple_size != 1:
+                        result_name = f"%{name}#{index}"
+                    self.raise_error(
+                        f"Result {result_name} is defined with "
+                        f"type {result.typ}, but used with type {value.typ}",
+                        span,
+                    )
+                value.replace_by(result)
 
-            op_type = self._get_op_by_name(op_name)
-
-            op = op_type.create(
-                operands=args,
-                result_types=ret_types,
-                attributes=attrs,
-                successors=[
-                    self._get_block_from_name(block_name) for block_name in successors
-                ],
-                regions=regions,
-            )
-
-        expected_results = sum(r[1] for r in results)
-        if len(op.results) != expected_results:
-            self.raise_error(
-                f"Operation has {len(op.results)} results, "
-                f"but were given {expected_results} to bind."
-            )
-
-        # Register the result SSA value names in the parser
-        res_idx = 0
-        for res_span, res_size, _ in results:
-            ssa_val_name = res_span.text[1:]  # Removing the leading '%'
-            if ssa_val_name in self.ssa_values:
-                self.raise_error(
-                    f"SSA value %{ssa_val_name} is already defined", res_span
-                )
-            self.ssa_values[ssa_val_name] = tuple(
-                op.results[res_idx : res_idx + res_size]
-            )
-            res_idx += res_size
-            # Carry over `ssa_val_name` for non-numeric names:
-            if SSAValue.is_valid_name(ssa_val_name):
-                for val in self.ssa_values[ssa_val_name]:
-                    val.name_hint = ssa_val_name
-
-        return op
-
-    def _get_op_by_name(self, span: Span) -> type[Operation]:
-        if isinstance(span, StringLiteral):
-            op_name = span.string_contents
-        else:
-            op_name = span.text
-
-        op_type = self.ctx.get_optional_op(
-            op_name, allow_unregistered=self.allow_unregistered_dialect
-        )
-
-        if op_type is not None:
-            return op_type
-
-        self.raise_error(f"Unknown operation {op_name}!", span)
+        if SSAValue.is_valid_name(name):
+            for val in values:
+                val.name_hint = name
 
     @dataclass
     class Argument:
@@ -1684,14 +1702,7 @@ class Parser(ABC):
             # Set the block arguments in the context
             entry_block = Block(arg_types=arg_types)
             for block_arg, arg in zip(entry_block.args, arguments):
-                if arg.name.text[1:] in self.ssa_values:
-                    self.raise_error(
-                        f"block argument %{arg.name} is already defined", arg.name
-                    )
-                parsed_name = arg.name.text[1:]
-                self.ssa_values[parsed_name] = (block_arg,)
-                if SSAValue.is_valid_name(parsed_name):
-                    block_arg.name_hint = arg.name.text[1:]
+                self._register_ssa_definition(arg.name.text[1:], (block_arg,), arg.name)
 
             # Parse the entry block body
             self._parse_block_body(entry_block)
@@ -1758,27 +1769,27 @@ class Parser(ABC):
             self.raise_error("Expected region!")
         return region
 
-    def _parse_attribute_entry(self) -> tuple[Span, Attribute]:
+    def _parse_attribute_entry(self) -> tuple[str, Attribute]:
         """
         Parse entry in attribute dict. Of format:
 
         attribute_entry := (bare-id | string-literal) `=` attribute
         attribute       := dialect-attribute | builtin-attribute
         """
-        if (name := self.try_parse_bare_id()) is None:
-            name = self.try_parse_string_literal()
+        self._synchronize_lexer_and_tokenizer()
+        if (name := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
+            name = name.span.text
+        else:
+            name = self.parse_optional_str_literal()
+        self._synchronize_lexer_and_tokenizer()
 
         if name is None:
             self.raise_error(
                 "Expected bare-id or string-literal here as part of attribute entry!"
             )
 
-        if not self.tokenizer.starts_with("="):
+        if self.parse_optional_punctuation("=") is None:
             return name, UnitAttr()
-
-        self.parse_characters(
-            "=", "Attribute entries must be of format name `=` attribute!"
-        )
 
         return name, self.parse_attribute()
 
@@ -1794,38 +1805,28 @@ class Parser(ABC):
             "Expected attribute type definition here ( `:` type )",
         )
 
-    def try_parse_builtin_attr(self) -> Attribute | None:
+    def _parse_optional_builtin_attr(self) -> Attribute | None:
         """
         Tries to parse a builtin attribute, e.g. a string literal, int, array, etc..
         """
-        next_token = self.tokenizer.next_token(peek=True)
-        if next_token.text == '"':
-            return self.try_parse_builtin_str_attr()
-        elif next_token.text == "[":
-            return self.try_parse_builtin_arr_attr()
-        elif next_token.text == "@":
-            return self.parse_optional_symref_attr()
-        elif next_token.text == "{":
-            return self.parse_builtin_dict_attr()
-        elif next_token.text == "(":
-            return self.try_parse_function_type()
-        elif next_token.text in ParserCommons.builtin_attr_names:
-            return self.try_parse_builtin_named_attr()
+        self._synchronize_lexer_and_tokenizer()
+
+        # String literal
+        if (str_lit := self.parse_optional_str_literal()) is not None:
+            return StringAttr(str_lit)
 
         attrs = (
             self.parse_optional_builtin_int_or_float_attr,
+            self._parse_optional_array_attr,
+            self._parse_optional_symref_attr,
+            self._parse_optional_builtin_dict_attr,
             self.parse_optional_type,
+            self._parse_optional_builtin_parametrized_attr,
         )
 
         for attr_parser in attrs:
             if (val := attr_parser()) is not None:
                 return val
-
-        self._synchronize_lexer_and_tokenizer()
-        if self._current_token.text == "strided":
-            strided = self.parse_strided_layout_attr()
-            self._synchronize_lexer_and_tokenizer()
-            return strided
 
         return None
 
@@ -1860,15 +1861,12 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return None
 
-    def parse_strided_layout_attr(self) -> Attribute:
+    def _parse_strided_layout_attr(self, name: Span) -> Attribute:
         """
-        Parse a strided layout attribute.
-        | `strided` `<` `[` comma-separated-int-or-question `]`
+        Parse a strided layout attribute parameters.
+        | `<` `[` comma-separated-int-or-question `]`
           (`,` `offset` `:` integer-literal)? `>`
         """
-        # Parse `strided` keyword
-        self.parse_keyword("strided")
-
         # Parse stride list
         self._parse_token(Token.Kind.LESS, "Expected `<` after `strided`")
         strides = self.parse_comma_separated_list(
@@ -1896,23 +1894,26 @@ class Parser(ABC):
         self._parse_token(Token.Kind.GREATER, "Expected '>' in end of stride attribute")
         return StridedLayoutAttr(strides, None if offset == "?" else offset)
 
-    def try_parse_builtin_named_attr(self) -> Attribute | None:
-        name = self.tokenizer.next_token(peek=True)
-        with self.backtracking("Builtin attribute {}".format(name.text)):
-            self.tokenizer.consume_peeked(name)
-            parsers = {
-                "dense": self._parse_builtin_dense_attr,
-                "opaque": self._parse_builtin_opaque_attr,
-                "dense_resource": self._parse_builtin_dense_resource_attr,
-                "array": self._parse_builtin_array_attr,
-                "affine_map": self._parse_builtin_affine_attr,
-                "affine_set": self._parse_builtin_affine_attr,
-            }
+    def _parse_optional_builtin_parametrized_attr(self) -> Attribute | None:
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+        name = self._current_token.span
+        parsers = {
+            "dense": self._parse_builtin_dense_attr,
+            "opaque": self._parse_builtin_opaque_attr,
+            "dense_resource": self._parse_builtin_dense_resource_attr,
+            "array": self._parse_builtin_densearray_attr,
+            "affine_map": self._parse_builtin_affine_attr,
+            "affine_set": self._parse_builtin_affine_attr,
+            "strided": self._parse_strided_layout_attr,
+        }
 
-            def not_implemented(_name: Span):
-                raise NotImplementedError()
-
-            return parsers.get(name.text, not_implemented)(name)
+        if name.text not in parsers:
+            return None
+        self._consume_token(Token.Kind.BARE_IDENT)
+        self._synchronize_lexer_and_tokenizer()
+        return parsers[name.text](name)
 
     def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
         self._synchronize_lexer_and_tokenizer()
@@ -1976,7 +1977,7 @@ class Parser(ABC):
 
     def _parse_builtin_opaque_attr(self, _name: Span):
         str_lit_list = self.parse_comma_separated_list(
-            self.Delimiter.ANGLE, self.parse_string_literal
+            self.Delimiter.ANGLE, self.parse_str_literal
         )
 
         if len(str_lit_list) != 2:
@@ -1997,15 +1998,15 @@ class Parser(ABC):
             "(`dense_resource` `<` resource-handle `>`)"
         )
         self.parse_characters("<", err_msg)
-        resource_handle = self.expect(self.try_parse_bare_id, err_msg)
+        resource_handle = self.parse_identifier(" for resource handle")
         self.parse_characters(">", err_msg)
         self.parse_characters(":", err_msg)
         type = self.expect(
             self.parse_optional_type, "Dense resource attribute must be typed!"
         )
-        return DenseResourceAttr.from_params(resource_handle.text, type)
+        return DenseResourceAttr.from_params(resource_handle, type)
 
-    def _parse_builtin_array_attr(self, name: Span) -> DenseArrayBase | None:
+    def _parse_builtin_densearray_attr(self, name: Span) -> DenseArrayBase | None:
         err_msg = (
             "Malformed dense array, format must be "
             "`array` `<` (integer-type | float-type) (`:` tensor-literal)? `>`"
@@ -2025,16 +2026,7 @@ class Parser(ABC):
 
         self.parse_characters(":", err_msg)
 
-        def parse_dense_array_value() -> int | float:
-            if (v := self.try_parse_float_literal()) is not None:
-                return float(v.text)
-            if (v := self.try_parse_integer_literal()) is not None:
-                return int(v.text)
-            self.raise_error("integer or float literal expected")
-
-        values = self.parse_comma_separated_list(
-            self.Delimiter.NONE, parse_dense_array_value
-        )
+        values = self.parse_comma_separated_list(self.Delimiter.NONE, self.parse_number)
         self.parse_characters(">", err_msg)
 
         return DenseArrayBase.from_list(element_type, values)
@@ -2133,8 +2125,6 @@ class Parser(ABC):
             Convert the element to a float value. Raises an error if the type
             is compatible.
             """
-            if not isinstance(self.value, int | float):
-                parser.raise_error("Expected float value", at_position=self.span)
             if self.is_negative:
                 return -float(self.value)
             return float(self.value)
@@ -2142,16 +2132,18 @@ class Parser(ABC):
         def to_type(self, parser: Parser, type: AnyFloat | IntegerType | IndexType):
             if isinstance(type, AnyFloat):
                 return self.to_float(parser)
-            elif isinstance(type, IntegerType):
-                return self.to_int(
-                    parser,
-                    type.signedness.data != Signedness.UNSIGNED,
-                    type.width.data == 1,
-                )
-            elif isinstance(type, IndexType):
-                return self.to_int(parser, allow_negative=True, allow_booleans=False)
-            else:
-                assert False, "fatal error in parser"
+
+            match type:
+                case IntegerType():
+                    return self.to_int(
+                        parser,
+                        type.signedness.data != Signedness.UNSIGNED,
+                        type.width.data == 1,
+                    )
+                case IndexType():
+                    return self.to_int(
+                        parser, allow_negative=True, allow_booleans=False
+                    )
 
     def _parse_tensor_literal_element(self) -> _TensorLiteralElement:
         """
@@ -2212,7 +2204,7 @@ class Parser(ABC):
             element = self._parse_tensor_literal_element()
             return [element], []
 
-    def parse_optional_symref_attr(self) -> SymbolRefAttr | None:
+    def _parse_optional_symref_attr(self) -> SymbolRefAttr | None:
         """
         Parse a symbol reference attribute, if present.
           symbol-attr ::= symbol-ref-id (`::` symbol-ref-id)*
@@ -2280,18 +2272,24 @@ class Parser(ABC):
             return IntegerAttr(1 if value else 0, IntegerType(1))
         return None
 
-    def try_parse_builtin_str_attr(self):
-        if not self.tokenizer.starts_with('"'):
-            return None
+    def _parse_optional_string_attr(self) -> StringAttr | None:
+        """
+        Parse a string attribute, if present.
+          string-attr ::= string-literal
+        """
+        self._synchronize_lexer_and_tokenizer()
+        token = self._parse_optional_token(Token.Kind.STRING_LIT)
+        self._synchronize_lexer_and_tokenizer()
+        return (
+            StringAttr(token.get_string_literal_value()) if token is not None else None
+        )
 
-        with self.backtracking("string literal"):
-            literal = self.try_parse_string_literal()
-            if literal is None:
-                self.raise_error("Invalid string literal")
-            return StringAttr(literal.string_contents)
-
-    def try_parse_builtin_arr_attr(self) -> AnyArrayAttr | None:
-        if not self.tokenizer.starts_with("["):
+    def _parse_optional_array_attr(self) -> AnyArrayAttr | None:
+        """
+        Parse an array attribute, if present, with format:
+            array-attr ::= `[` (attribute (`,` attribute)*)? `]`
+        """
+        if self._current_token.kind != Token.Kind.L_SQUARE:
             return None
         attrs = self.parse_comma_separated_list(
             self.Delimiter.SQUARE, self.parse_attribute
@@ -2299,103 +2297,49 @@ class Parser(ABC):
         return ArrayAttr(attrs)
 
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
-        if not self.tokenizer.starts_with("{"):
+        if self._current_token.kind != Token.Kind.L_BRACE:
             return dict()
         attrs = self.parse_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
         )
-        return self._attr_dict_from_tuple_list(attrs)
+        return dict(attrs)
 
-    def _attr_dict_from_tuple_list(
-        self, tuple_list: list[tuple[Span, Attribute]]
-    ) -> dict[str, Attribute]:
+    def _parse_function_type(self) -> FunctionType:
         """
-        Convert a list of tuples (Span, Attribute) to a dictionary.
-        This function converts the span to a string, trimming quotes from string literals
+        Parse a function type.
+            function-type ::= type-list `->` (type | type-list)
+            type-list     ::= `(` `)` | `(` type (`,` type)* `)`
         """
+        return self.expect(
+            self._parse_optional_function_type,
+            "function type expected",
+        )
 
-        def span_to_str(span: Span) -> str:
-            if isinstance(span, StringLiteral):
-                return span.string_contents
-            return span.text
-
-        return dict((span_to_str(span), attr) for span, attr in tuple_list)
-
-    def parse_function_type(self) -> FunctionType:
+    def _parse_optional_function_type(self) -> FunctionType | None:
         """
-        Parses function-type:
-
-        viable function types are:
-            (i32)   -> ()
-            ()      -> (i32, i32)
-            (i32, i32) -> ()
-            ()      -> i32
-        Non-viable types are:
-            i32     -> i32
-            i32     -> ()
-
-        Uses type-or-type-list-parens internally
-        """
-        args = self.parse_comma_separated_list(self.Delimiter.PAREN, self.parse_type)
-
-        self.parse_characters("->", "Malformed function type, expected `->`!")
-
-        return FunctionType.from_lists(args, self._parse_type_or_type_list_parens())
-
-    def _parse_type_or_type_list_parens(self) -> list[Attribute]:
-        """
-        Parses type-or-type-list-parens, which is used in function-type.
-
-        type-or-type-list-parens ::= type | type-list-parens
-        type-list-parens         ::= `(` `)` | `(` type-list-no-parens `)`
-        type-list-no-parens      ::=  type (`,` type)*
+        Parse a function type, if present.
+            function-type ::= type-list `->` (type | type-list)
+            type-list     ::= `(` `)` | `(` type (`,` type)* `)`
         """
         self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.L_PAREN:
+            return None
+
+        # Parse the arguments
+        args = self.parse_comma_separated_list(self.Delimiter.PAREN, self.parse_type)
+
+        self.parse_punctuation("->")
+
+        # Parse the returns
         if self._current_token.kind == Token.Kind.L_PAREN:
-            args = self.parse_comma_separated_list(
+            returns = self.parse_comma_separated_list(
                 self.Delimiter.PAREN, self.parse_type
             )
         else:
-            args = [self.parse_type()]
-        return args
-
-    def try_parse_function_type(self) -> FunctionType | None:
-        if not self.tokenizer.starts_with("("):
-            return None
-        with self.backtracking("function type"):
-            return self.parse_function_type()
-
-    def _parse_builtin_type_with_name(self, name: Span):
-        """
-        Parses one of the builtin types like i42, vector, etc...
-        """
-        if name.text == "index":
-            return IndexType()
-        if (re_match := re.match(r"^[su]?i(\d+)$", name.text)) is not None:
-            signedness = {
-                "s": Signedness.SIGNED,
-                "u": Signedness.UNSIGNED,
-                "i": Signedness.SIGNLESS,
-            }
-            return IntegerType(int(re_match.group(1)), signedness[name.text[0]])
-
-        if name.text == "bf16":
-            return BFloat16Type()
-
-        if (re_match := re.match(r"^f(\d+)$", name.text)) is not None:
-            width = int(re_match.group(1))
-            type = {
-                16: Float16Type,
-                32: Float32Type,
-                64: Float64Type,
-                80: Float80Type,
-                128: Float128Type,
-            }.get(width, None)
-            if type is None:
-                self.raise_error("Unsupported floating point width: {}".format(width))
-            return type()
-
-        return self._parse_builtin_parametrized_type(name)
+            self._synchronize_lexer_and_tokenizer()
+            returns = [self.parse_type()]
+        self._synchronize_lexer_and_tokenizer()
+        return FunctionType.from_lists(args, returns)
 
     def parse_paramattr_parameters(
         self, skip_white_space: bool = True
@@ -2411,17 +2355,24 @@ class Parser(ABC):
     def parse_char(self, text: str):
         self.parse_characters(text, "Expected '{}' here!".format(text))
 
-    def parse_str_literal(self) -> str:
-        return self.expect(
-            self.try_parse_string_literal, "Malformed string literal!"
-        ).string_contents
-
     def parse_op(self) -> Operation:
         return self.parse_operation()
 
-    def parse_builtin_dict_attr(self) -> DictionaryAttr:
+    def _parse_optional_builtin_dict_attr(self) -> DictionaryAttr | None:
         """
-        Parse a dictionary attribute, with the following syntax:
+        Parse a dictionary attribute, if present, with format:
+        `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
+        `attribute-entry` := (bare-id | string-literal) `=` attribute
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.L_BRACE:
+            return None
+        param = DictionaryAttr.parse_parameter(self)
+        return DictionaryAttr(param)
+
+    def _parse_builtin_dict_attr(self) -> DictionaryAttr:
+        """
+        Parse a dictionary attribute with format:
         `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
         `attribute-entry` := (bare-id | string-literal) `=` attribute
         """
@@ -2444,7 +2395,7 @@ class Parser(ABC):
         if self.parse_optional_keyword("attributes") is None:
             return None
         self._synchronize_lexer_and_tokenizer()
-        attr = self.parse_builtin_dict_attr()
+        attr = self._parse_builtin_dict_attr()
         for reserved_name in reserved_attr_names:
             if reserved_name in attr.data:
                 self.raise_error(
@@ -2491,83 +2442,239 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return punctuation
 
-    def try_parse_builtin_type(self) -> Attribute | None:
+    _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
+    _builtin_float_type_regex = re.compile(r"^f(\d+)$")
+
+    def _parse_optional_integer_or_float_type(self) -> Attribute | None:
         """
-        parse a builtin-type like i32, index, vector<i32> etc.
+        Parse as integer or float type, if present.
+          integer-or-float-type ::= index-type | integer-type | float-type
+          index-type            ::= `index`
+          integer-type          ::= (`i` | `si` | `ui`) decimal-literal
+          float-type            ::= `f16` | `f32` | `f64` | `f80` | `f128` | `bf16`
         """
-        with self.backtracking("builtin type"):
-            # Check the function type separately, it is the only
-            # case of a type starting with a symbol
-            next_token = self.tokenizer.next_token(peek=True)
-            if next_token.text == "(":
-                return self.try_parse_function_type()
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+        name = self._current_token.text
 
-            name = self.tokenizer.next_token_of_pattern(ParserCommons.builtin_type)
-            if name is None:
-                self.raise_error("Expected builtin name!")
+        # Index type
+        if name == "index":
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return IndexType()
 
-            return self._parse_builtin_type_with_name(name)
+        # Integer type
+        if (match := self._builtin_integer_type_regex.match(name)) is not None:
+            signedness = {
+                "s": Signedness.SIGNED,
+                "u": Signedness.UNSIGNED,
+                "i": Signedness.SIGNLESS,
+            }
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return IntegerType(int(match.group(1)), signedness[name[0]])
 
-    def _parse_op_result(self) -> tuple[Span, int, Attribute | None]:
+        # bf16 type
+        if name == "bf16":
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return BFloat16Type()
+
+        # Float type
+        if (re_match := self._builtin_float_type_regex.match(name)) is not None:
+            width = int(re_match.group(1))
+            type = {
+                16: Float16Type,
+                32: Float32Type,
+                64: Float64Type,
+                80: Float80Type,
+                128: Float128Type,
+            }.get(width, None)
+            if type is None:
+                self.raise_error("Unsupported floating point width: {}".format(width))
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return type()
+
+        return None
+
+    def _parse_optional_builtin_type(self) -> Attribute | None:
+        """
+        parse a builtin-type, like i32, index, vector<i32>, if present.
+        """
+        self._synchronize_lexer_and_tokenizer()
+
+        # Check for a function type
+        if (function_type := self._parse_optional_function_type()) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return function_type
+
+        # Check for an integer or float type
+        if (number_type := self._parse_optional_integer_or_float_type()) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return number_type
+
+        return self._parse_optional_builtin_parametrized_type()
+
+    def parse_optional_operation(self) -> Operation | None:
+        """
+        Parse an operation, if present, with format:
+            operation             ::= op-result-list? (generic-operation | custom-operation)
+            generic-operation     ::= string-literal `(` value-use-list? `)`  successor-list?
+                                      region-list? dictionary-attribute? `:` function-type
+            custom-operation      ::= bare-id custom-operation-format
+            op-result-list        ::= op-result (`,` op-result)* `=`
+            op-result             ::= value-id (`:` integer-literal)
+            successor-list        ::= `[` successor (`,` successor)* `]`
+            successor             ::= caret-id (`:` block-arg-list)?
+            region-list           ::= `(` region (`,` region)* `)`
+            dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
+        """
+        if self._current_token.kind not in (
+            Token.Kind.PERCENT_IDENT,
+            Token.Kind.BARE_IDENT,
+            Token.Kind.STRING_LIT,
+        ):
+            return None
+        return self.parse_operation()
+
+    def parse_operation(self) -> Operation:
+        """
+        Parse an operation with format:
+            operation             ::= op-result-list? (generic-operation | custom-operation)
+            generic-operation     ::= string-literal `(` value-use-list? `)`  successor-list?
+                                      region-list? dictionary-attribute? `:` function-type
+            custom-operation      ::= bare-id custom-operation-format
+            op-result-list        ::= op-result (`,` op-result)* `=`
+            op-result             ::= value-id (`:` integer-literal)
+            successor-list        ::= `[` successor (`,` successor)* `]`
+            successor             ::= caret-id (`:` block-arg-list)?
+            region-list           ::= `(` region (`,` region)* `)`
+            dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
+        """
+        self._synchronize_lexer_and_tokenizer()
+
+        # Parse the operation results
+        bound_results = self._parse_op_result_list()
+
+        if (op_name := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
+            # Custom operation format
+            op_type = self._get_op_by_name(op_name.text)
+            self._synchronize_lexer_and_tokenizer()
+            op = op_type.parse(self)
+            self._synchronize_lexer_and_tokenizer()
+        else:
+            # Generic operation format
+            op_name = self.expect(
+                self.parse_optional_str_literal, "operation name expected"
+            )
+            op_type = self._get_op_by_name(op_name)
+            op = self._parse_generic_operation(op_type)
+
+        self._synchronize_lexer_and_tokenizer()
+
+        n_bound_results = sum(r[1] for r in bound_results)
+        if (n_bound_results != 0) and (len(op.results) != n_bound_results):
+            self.raise_error(
+                f"Operation has {len(op.results)} results, "
+                f"but was given {n_bound_results} to bind."
+            )
+
+        # Register the result SSA value names in the parser
+        res_idx = 0
+        for res_span, res_size in bound_results:
+            ssa_val_name = res_span.text[1:]  # Removing the leading '%'
+            self._register_ssa_definition(
+                ssa_val_name, op.results[res_idx : res_idx + res_size], res_span
+            )
+            res_idx += res_size
+
+        return op
+
+    def _get_op_by_name(self, name: str) -> type[Operation]:
+        """
+        Get an operation type by its name.
+        Raises an error if the operation is not registered, and if unregistered
+        dialects are not allowed.
+        """
+        op_type = self.ctx.get_optional_op(
+            name, allow_unregistered=self.allow_unregistered_dialect
+        )
+
+        if op_type is not None:
+            return op_type
+
+        self.raise_error(f"unregistered operation {name}!")
+
+    def _parse_op_result(self) -> tuple[Span, int]:
+        """
+        Parse an operation result.
+        Returns the span of the SSA value name (including the `%`), and the size of the
+        value tuple (by default 1).
+        """
         value_token = self._parse_token(
             Token.Kind.PERCENT_IDENT, "Expected result SSA value!"
         )
         if self._parse_optional_token(Token.Kind.COLON) is None:
-            return (value_token.span, 1, None)
+            return (value_token.span, 1)
 
         size_token = self._parse_token(
             Token.Kind.INTEGER_LIT, "Expected SSA value tuple size"
         )
         size = size_token.get_int_value()
-        return (value_token.span, size, None)
+        return (value_token.span, size)
 
-    def _parse_op_result_list(self) -> list[tuple[Span, int, Attribute | None]]:
-        self._synchronize_lexer_and_tokenizer()
-        res = self.parse_comma_separated_list(
-            self.Delimiter.NONE, self._parse_op_result, " in operation result list"
-        )
-        self._synchronize_lexer_and_tokenizer()
-        return res
+    def _parse_op_result_list(self) -> list[tuple[Span, int]]:
+        """
+        Parse the list of operation results.
+        If no results are present, returns an empty list.
+        Each result is a tuple of the span of the SSA value name (including the `%`),
+        and the size of the value tuple (by default 1).
+        """
+        if self._current_token.kind == Token.Kind.PERCENT_IDENT:
+            res = self.parse_comma_separated_list(
+                self.Delimiter.NONE, self._parse_op_result, " in operation result list"
+            )
+            self.parse_punctuation("=", " after operation result list")
+            return res
+        return []
 
     def parse_optional_attr_dict(self) -> dict[str, Attribute]:
         return self.parse_optional_dictionary_attr_dict()
 
-    def parse_operation_details(
-        self,
-    ) -> tuple[
-        list[SSAValue],
-        list[Span],
-        dict[str, Attribute],
-        list[Region],
-        FunctionType | None,
-    ]:
+    def _parse_generic_operation(self, op_type: type[Operation]) -> Operation:
         """
-        Must return a tuple consisting of:
-            - a list of arguments to the operation
-            - a list of successor names
-            - the attributes attached to the OP
-            - the regions of the op
-            - An optional function type. If not supplied, `parse_op_result_list`
-              must return a second value containing the types of the returned SSAValues
-
+        Parse an operation with format:
+            generic-operation     ::= string-literal `(` value-use-list? `)`  successor-list?
+                                      region-list? dictionary-attribute? `:` function-type
+            successor-list        ::= `[` successor (`,` successor)* `]`
+            successor             ::= caret-id
+            region-list           ::= `(` region (`,` region)* `)`
+            dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
         """
+        # Parse arguments
         args = self._parse_op_args_list()
-        succ = self._parse_optional_successor_list()
 
+        # Parse successors
+        successors = self.parse_optional_successors()
+
+        # Parse regions
         regions = []
-        if self.tokenizer.starts_with("("):
-            self.parse_characters("(", "Expected brackets enclosing regions!")
-            regions = self.parse_region_list()
-            self.parse_characters(")", "Expected brackets enclosing regions!")
+        if self._current_token.kind == Token.Kind.L_PAREN:
+            regions = self.parse_comma_separated_list(
+                self.Delimiter.PAREN, self.parse_region, " in operation region list"
+            )
 
+        # Parse attribute dictionary
         attrs = self.parse_optional_attr_dict()
 
-        self.parse_characters(
-            ":", "MLIR Operation definitions must end in a function type signature!"
-        )
+        self.parse_punctuation(":", "function type signature expected")
 
         func_type_pos = self._current_token.span.start
-        func_type = self.parse_function_type()
+
+        # Parse function type
+        func_type = self._parse_function_type()
 
         if len(args) != len(func_type.inputs):
             self.raise_error(
@@ -2575,46 +2682,71 @@ class Parser(ABC):
                 func_type_pos,
             )
 
-        for idx, (arg, arg_type) in enumerate(zip(args, func_type.inputs)):
-            if arg_type != arg.typ:
-                self.raise_error(
-                    f"mismatch between operand types and operation signature for operand #{idx}. "
-                    f"Expected {arg_type} but got {arg.typ}.",
-                    func_type_pos,
-                )
+        operands = [
+            self.resolve_operand(operand, type)
+            for operand, type in zip(args, func_type.inputs)
+        ]
 
-        return args, succ, attrs, regions, func_type
+        return op_type.create(
+            operands=operands,
+            result_types=func_type.outputs.data,
+            attributes=attrs,
+            successors=successors,
+            regions=regions,
+        )
 
-    def _parse_optional_successor_list(self) -> list[Span]:
+    def parse_optional_successor(self) -> Block | None:
+        """
+        Parse a successor with format:
+            successor      ::= caret-id
+        """
         self._synchronize_lexer_and_tokenizer()
+        block_token = self._parse_optional_token(Token.Kind.CARET_IDENT)
+        if block_token is None:
+            return None
+        name = block_token.text[1:]
+        if name not in self.blocks:
+            self.forward_block_references[name].append(block_token.span)
+            self.blocks[name] = (Block(), None)
+        self._synchronize_lexer_and_tokenizer()
+        return self.blocks[name][0]
+
+    def parse_successor(self) -> Block:
+        """
+        Parse a successor with format:
+            successor      ::= caret-id
+        """
+        return self.expect(self.parse_optional_successor, "successor expected")
+
+    def parse_optional_successors(self) -> list[Block] | None:
+        """
+        Parse a list of successors, if present, with format
+            successor-list ::= `[` successor (`,` successor)* `]`
+            successor      ::= caret-id
+        """
         if self._current_token.kind != Token.Kind.L_SQUARE:
-            return []
-        successors = self.parse_comma_separated_list(
-            self.Delimiter.SQUARE,
-            lambda: self.expect(self.try_parse_block_id, "block-id expected"),
-        )
-        return successors
+            return None
+        return self.parse_successors()
 
-    def _parse_op_args_list(self) -> list[SSAValue]:
+    def parse_successors(self) -> list[Block]:
+        """
+        Parse a list of successors with format:
+            successor-list ::= `[` successor (`,` successor)* `]`
+            successor      ::= caret-id
+        """
         return self.parse_comma_separated_list(
-            self.Delimiter.PAREN, self.parse_operand, " in operation argument list"
+            self.Delimiter.SQUARE,
+            lambda: self.expect(self.parse_successor, "block-id expected"),
         )
 
-    def parse_region_list(self) -> list[Region]:
+    def _parse_op_args_list(self) -> list[UnresolvedOperand]:
         """
-        Parses a sequence of regions for as long as there is a `{` in the input.
+        Parse a list of arguments with format:
+           args-list ::= `(` value-use-list? `)`
+           value-use-list ::= `%` suffix-id (`,` `%` suffix-id)*
         """
-        regions: list[Region] = []
-        while not self.tokenizer.is_eof() and self.tokenizer.starts_with("{"):
-            regions.append(self.parse_region())
-            if self.tokenizer.starts_with(","):
-                self.parse_characters(
-                    ",",
-                    msg="This error should never be printed, please open "
-                    "an issue at github.com/xdslproject/xdsl",
-                )
-                if not self.tokenizer.starts_with("{"):
-                    self.raise_error(
-                        "Expected next region (because of `,` after region end)!"
-                    )
-        return regions
+        return self.parse_comma_separated_list(
+            self.Delimiter.PAREN,
+            self.parse_unresolved_operand,
+            " in operation argument list",
+        )
