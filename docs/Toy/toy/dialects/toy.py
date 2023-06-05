@@ -5,7 +5,7 @@ Toy language dialect from MLIR tutorial.
 from __future__ import annotations
 from abc import ABC, abstractmethod
 
-from typing import Annotated, TypeAlias, cast
+from typing import TypeAlias, cast
 
 from xdsl.ir import Dialect, Operation, SSAValue, Attribute, Block, Region, OpResult
 from xdsl.dialects.builtin import (
@@ -24,6 +24,7 @@ from xdsl.irdl import (
     OptOpAttr,
     OptOperand,
     VarOpResult,
+    var_operand_def,
     var_result_def,
     VarOperand,
     irdl_op_definition,
@@ -255,7 +256,7 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class GenericCallOp(IRDLOperation):
     name = "toy.generic_call"
-    arguments: Annotated[VarOperand, AnyAttr()]
+    arguments: VarOperand = var_operand_def(AnyAttr())
     callee: OpAttr[SymbolRefAttr]
 
     # Note: naming this results triggers an ArgumentError
@@ -340,7 +341,7 @@ class PrintOp(IRDLOperation):
     """
 
     name = "toy.print"
-    input: Annotated[Operand, AnyAttr()]
+    input: Operand = operand_def(AnyAttr())
 
     def __init__(self, input: SSAValue):
         return super().__init__(operands=[input])

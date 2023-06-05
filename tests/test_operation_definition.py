@@ -30,6 +30,8 @@ from xdsl.irdl import (
     RegionDef,
     OpAttr,
     IRDLOperation,
+    operand_def,
+    result_def,
 )
 from xdsl.utils.exceptions import (
     DiagnosticException,
