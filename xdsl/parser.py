@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import functools
 import itertools
 import math
@@ -564,70 +563,6 @@ class Parser(ABC):
         self.tokenizer.pos = pos
         self.lexer.pos = pos
         self._current_token = self.lexer.lex()
-
-    @contextlib.contextmanager
-    def backtracking(self, region_name: str | None = None):
-        """
-        This context manager can be used to mark backtracking regions.
-
-        When an error is thrown during backtracking, it is recorded and stored together
-        with some meta information in the history attribute.
-
-        The backtracker accepts the following exceptions:
-        - ParseError: signifies that the region could not be parsed because of
-          (unexpected) syntax errors
-        - AssertionError: this error should probably be phased out in favour
-          of the two above
-        - EOFError: signals that EOF was reached unexpectedly
-
-        Any other error will be printed to stderr, but backtracking will continue
-        as normal.
-        """
-        self._synchronize_lexer_and_tokenizer()
-        save = self.tokenizer.save()
-        starting_position = self.tokenizer.pos
-        try:
-            yield
-            # Clear error history when something doesn't fail
-            # This is because we are only interested in the last "cascade" of failures.
-            # If a backtracking() completes without failure,
-            # something has been parsed (we assume)
-            if (
-                self.tokenizer.pos > starting_position
-                and self.tokenizer.history is not None
-            ):
-                self.tokenizer.history = None
-        except Exception as ex:
-            how_far_we_got = self.tokenizer.pos
-
-            # If we have no error history, start recording!
-            if not self.tokenizer.history:
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            # If we got further than on previous attempts
-            elif how_far_we_got > self.tokenizer.history.get_farthest_point():
-                # Throw away history
-                self.tokenizer.history = None
-                # Generate new history entry,
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            # Otherwise, add to exception, if we are in a named region
-            elif region_name is not None and how_far_we_got - starting_position > 0:
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            self.resume_from(save)
 
     def _synchronize_lexer_and_tokenizer(self):
         """
@@ -1203,7 +1138,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
             return self._parse_dialect_type_or_attribute_inner(token.text[1:], False)
-        return self.try_parse_builtin_attr()
+        return self._parse_optional_builtin_attr()
 
     def _parse_dialect_type_or_attribute_inner(
         self, attr_name: str, is_type: bool = True
@@ -1836,12 +1771,8 @@ class Parser(ABC):
                 "Expected bare-id or string-literal here as part of attribute entry!"
             )
 
-        if not self.tokenizer.starts_with("="):
+        if self.parse_optional_punctuation("=") is None:
             return name, UnitAttr()
-
-        self.parse_characters(
-            "=", "Attribute entries must be of format name `=` attribute!"
-        )
 
         return name, self.parse_attribute()
 
@@ -1857,38 +1788,28 @@ class Parser(ABC):
             "Expected attribute type definition here ( `:` type )",
         )
 
-    def try_parse_builtin_attr(self) -> Attribute | None:
+    def _parse_optional_builtin_attr(self) -> Attribute | None:
         """
         Tries to parse a builtin attribute, e.g. a string literal, int, array, etc..
         """
-        next_token = self.tokenizer.next_token(peek=True)
-        if next_token.text == '"':
-            return self._parse_optional_string_attr()
-        elif next_token.text == "[":
-            return self.try_parse_builtin_arr_attr()
-        elif next_token.text == "@":
-            return self.parse_optional_symref_attr()
-        elif next_token.text == "{":
-            return self.parse_builtin_dict_attr()
-        elif next_token.text == "(":
-            return self._parse_function_type()
-        elif next_token.text in ParserCommons.builtin_attr_names:
-            return self.try_parse_builtin_named_attr()
+        self._synchronize_lexer_and_tokenizer()
+
+        # String literal
+        if (str_lit := self.parse_optional_str_literal()) is not None:
+            return StringAttr(str_lit)
 
         attrs = (
             self.parse_optional_builtin_int_or_float_attr,
+            self._parse_optional_array_attr,
+            self._parse_optional_symref_attr,
+            self._parse_optional_builtin_dict_attr,
             self.parse_optional_type,
+            self._parse_optional_builtin_parametrized_attr,
         )
 
         for attr_parser in attrs:
             if (val := attr_parser()) is not None:
                 return val
-
-        self._synchronize_lexer_and_tokenizer()
-        if self._current_token.text == "strided":
-            strided = self.parse_strided_layout_attr()
-            self._synchronize_lexer_and_tokenizer()
-            return strided
 
         return None
 
@@ -1923,15 +1844,12 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return None
 
-    def parse_strided_layout_attr(self) -> Attribute:
+    def _parse_strided_layout_attr(self, name: Span) -> Attribute:
         """
-        Parse a strided layout attribute.
-        | `strided` `<` `[` comma-separated-int-or-question `]`
+        Parse a strided layout attribute parameters.
+        | `<` `[` comma-separated-int-or-question `]`
           (`,` `offset` `:` integer-literal)? `>`
         """
-        # Parse `strided` keyword
-        self.parse_keyword("strided")
-
         # Parse stride list
         self._parse_token(Token.Kind.LESS, "Expected `<` after `strided`")
         strides = self.parse_comma_separated_list(
@@ -1959,23 +1877,26 @@ class Parser(ABC):
         self._parse_token(Token.Kind.GREATER, "Expected '>' in end of stride attribute")
         return StridedLayoutAttr(strides, None if offset == "?" else offset)
 
-    def try_parse_builtin_named_attr(self) -> Attribute | None:
-        name = self.tokenizer.next_token(peek=True)
-        with self.backtracking("Builtin attribute {}".format(name.text)):
-            self.tokenizer.consume_peeked(name)
-            parsers = {
-                "dense": self._parse_builtin_dense_attr,
-                "opaque": self._parse_builtin_opaque_attr,
-                "dense_resource": self._parse_builtin_dense_resource_attr,
-                "array": self._parse_builtin_array_attr,
-                "affine_map": self._parse_builtin_affine_attr,
-                "affine_set": self._parse_builtin_affine_attr,
-            }
+    def _parse_optional_builtin_parametrized_attr(self) -> Attribute | None:
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+        name = self._current_token.span
+        parsers = {
+            "dense": self._parse_builtin_dense_attr,
+            "opaque": self._parse_builtin_opaque_attr,
+            "dense_resource": self._parse_builtin_dense_resource_attr,
+            "array": self._parse_builtin_densearray_attr,
+            "affine_map": self._parse_builtin_affine_attr,
+            "affine_set": self._parse_builtin_affine_attr,
+            "strided": self._parse_strided_layout_attr,
+        }
 
-            def not_implemented(_name: Span):
-                raise NotImplementedError()
-
-            return parsers.get(name.text, not_implemented)(name)
+        if name.text not in parsers:
+            return None
+        self._consume_token(Token.Kind.BARE_IDENT)
+        self._synchronize_lexer_and_tokenizer()
+        return parsers[name.text](name)
 
     def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
         self._synchronize_lexer_and_tokenizer()
@@ -2068,7 +1989,7 @@ class Parser(ABC):
         )
         return DenseResourceAttr.from_params(resource_handle.text, type)
 
-    def _parse_builtin_array_attr(self, name: Span) -> DenseArrayBase | None:
+    def _parse_builtin_densearray_attr(self, name: Span) -> DenseArrayBase | None:
         err_msg = (
             "Malformed dense array, format must be "
             "`array` `<` (integer-type | float-type) (`:` tensor-literal)? `>`"
@@ -2266,7 +2187,7 @@ class Parser(ABC):
             element = self._parse_tensor_literal_element()
             return [element], []
 
-    def parse_optional_symref_attr(self) -> SymbolRefAttr | None:
+    def _parse_optional_symref_attr(self) -> SymbolRefAttr | None:
         """
         Parse a symbol reference attribute, if present.
           symbol-attr ::= symbol-ref-id (`::` symbol-ref-id)*
@@ -2346,8 +2267,12 @@ class Parser(ABC):
             StringAttr(token.get_string_literal_value()) if token is not None else None
         )
 
-    def try_parse_builtin_arr_attr(self) -> AnyArrayAttr | None:
-        if not self.tokenizer.starts_with("["):
+    def _parse_optional_array_attr(self) -> AnyArrayAttr | None:
+        """
+        Parse an array attribute, if present, with format:
+            array-attr ::= `[` (attribute (`,` attribute)*)? `]`
+        """
+        if self._current_token.kind != Token.Kind.L_SQUARE:
             return None
         attrs = self.parse_comma_separated_list(
             self.Delimiter.SQUARE, self.parse_attribute
@@ -2355,7 +2280,7 @@ class Parser(ABC):
         return ArrayAttr(attrs)
 
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
-        if not self.tokenizer.starts_with("{"):
+        if self._current_token.kind != Token.Kind.L_BRACE:
             return dict()
         attrs = self.parse_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
@@ -2416,9 +2341,21 @@ class Parser(ABC):
     def parse_op(self) -> Operation:
         return self.parse_operation()
 
-    def parse_builtin_dict_attr(self) -> DictionaryAttr:
+    def _parse_optional_builtin_dict_attr(self) -> DictionaryAttr | None:
         """
-        Parse a dictionary attribute, with the following syntax:
+        Parse a dictionary attribute, if present, with format:
+        `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
+        `attribute-entry` := (bare-id | string-literal) `=` attribute
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.L_BRACE:
+            return None
+        param = DictionaryAttr.parse_parameter(self)
+        return DictionaryAttr(param)
+
+    def _parse_builtin_dict_attr(self) -> DictionaryAttr:
+        """
+        Parse a dictionary attribute with format:
         `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
         `attribute-entry` := (bare-id | string-literal) `=` attribute
         """
@@ -2441,7 +2378,7 @@ class Parser(ABC):
         if self.parse_optional_keyword("attributes") is None:
             return None
         self._synchronize_lexer_and_tokenizer()
-        attr = self.parse_builtin_dict_attr()
+        attr = self._parse_builtin_dict_attr()
         for reserved_name in reserved_attr_names:
             if reserved_name in attr.data:
                 self.raise_error(
