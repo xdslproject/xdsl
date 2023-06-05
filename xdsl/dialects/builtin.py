@@ -57,7 +57,6 @@ from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
-    from utils.exceptions import ParseError
     from xdsl.printer import Printer
 
 
@@ -257,16 +256,13 @@ class SignednessAttr(Data[Signedness]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> Signedness:
-        value = parser.expect(
-            parser.try_parse_bare_id, "Expected `signless`, `signed`, or `unsigned`."
-        )
-        if value.text == "signless":
+        if parser.parse_optional_keyword("signless") is not None:
             return Signedness.SIGNLESS
-        elif value.text == "signed":
+        if parser.parse_optional_keyword("signed") is not None:
             return Signedness.SIGNED
-        elif value.text == "unsigned":
+        if parser.parse_optional_keyword("unsigned") is not None:
             return Signedness.UNSIGNED
-        raise ParseError(value, "Expected signedness")
+        parser.raise_error("`signless`, `signed`, or `unsigned` expected")
 
     def print_parameter(self, printer: Printer) -> None:
         data = self.data
