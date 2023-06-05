@@ -1170,7 +1170,7 @@ class Parser(ABC):
             token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
         ) is not None:
             return self._parse_dialect_type_or_attribute_inner(token.text[1:], True)
-        return self.try_parse_builtin_type()
+        return self._parse_optional_builtin_type()
 
     def parse_attribute(self) -> Attribute:
         """
@@ -1307,30 +1307,42 @@ class Parser(ABC):
         assert body is not None
         return body
 
-    def _parse_builtin_parametrized_type(self, name: Span) -> ParametrizedAttribute:
+    def _parse_optional_builtin_parametrized_type(self) -> ParametrizedAttribute | None:
         """
-        This function is called after we parse the name of a parameterized type
-        such as vector.
+        Parse an builtin parametrized type, if present, with format:
+            builtin-parametrized-type ::= builtin-name `<` args `>`
+            builtin-name ::= vector | memref | tensor | complex | tuple
+            args ::= <defined by the builtin name>
         """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
 
-        def unimplemented() -> ParametrizedAttribute:
-            raise ParseError(name, "Builtin {} not supported yet!".format(name.text))
+        name = self._current_token.text
+
+        def unimplemented() -> NoReturn:
+            raise ParseError(
+                self._current_token.span,
+                "Builtin {} is not supported yet!".format(name),
+            )
 
         builtin_parsers: dict[str, Callable[[], ParametrizedAttribute]] = {
-            "vector": self.parse_vector_attrs,
-            "memref": self.parse_memref_attrs,
-            "tensor": self.parse_tensor_attrs,
-            "complex": self.parse_complex_attrs,
+            "vector": self._parse_vector_attrs,
+            "memref": self._parse_memref_attrs,
+            "tensor": self._parse_tensor_attrs,
+            "complex": self._parse_complex_attrs,
             "tuple": unimplemented,
         }
 
-        self.parse_characters("<", "Expected parameter list here!")
-        # Get the parser for the type, falling back to the unimplemented warning
-        self._synchronize_lexer_and_tokenizer()
-        res = builtin_parsers.get(name.text, unimplemented)()
-        self._synchronize_lexer_and_tokenizer()
-        self.parse_characters(">", "Expected end of parameter list here!")
+        if name not in builtin_parsers:
+            return None
+        self._consume_token(Token.Kind.BARE_IDENT)
 
+        self.parse_punctuation("<", " after builtin name")
+        # Get the parser for the type, falling back to the unimplemented warning
+        res = builtin_parsers.get(name, unimplemented)()
+        self.parse_punctuation(">", " after builtin parameter list")
+        self._synchronize_lexer_and_tokenizer()
         return res
 
     def _parse_shape_dimension(self, allow_dynamic: bool = True) -> int:
@@ -1428,7 +1440,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return res
 
-    def parse_complex_attrs(self) -> ComplexType:
+    def _parse_complex_attrs(self) -> ComplexType:
         element_type = self.parse_attribute()
         if not isa(element_type, IntegerType | AnyFloat):
             self.raise_error(
@@ -1436,7 +1448,7 @@ class Parser(ABC):
             )
         return ComplexType(element_type)
 
-    def parse_memref_attrs(
+    def _parse_memref_attrs(
         self,
     ) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
         shape, type = self.parse_shape()
@@ -1491,7 +1503,7 @@ class Parser(ABC):
             "Cannot decide if the given attribute " "is a layout or a memory space!"
         )
 
-    def parse_vector_attrs(self) -> AnyVectorType:
+    def _parse_vector_attrs(self) -> AnyVectorType:
         self._synchronize_lexer_and_tokenizer()
 
         dims: list[int] = []
@@ -1523,7 +1535,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return VectorType.from_element_type_and_shape(type, dims, num_scalable_dims)
 
-    def parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
+    def _parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
         shape, type = self.parse_shape()
 
         if shape is None:
@@ -1859,7 +1871,7 @@ class Parser(ABC):
         elif next_token.text == "{":
             return self.parse_builtin_dict_attr()
         elif next_token.text == "(":
-            return self.try_parse_function_type()
+            return self._parse_function_type()
         elif next_token.text in ParserCommons.builtin_attr_names:
             return self.try_parse_builtin_named_attr()
 
@@ -2350,81 +2362,42 @@ class Parser(ABC):
         )
         return dict(attrs)
 
-    def parse_function_type(self) -> FunctionType:
+    def _parse_function_type(self) -> FunctionType:
         """
-        Parses function-type:
-
-        viable function types are:
-            (i32)   -> ()
-            ()      -> (i32, i32)
-            (i32, i32) -> ()
-            ()      -> i32
-        Non-viable types are:
-            i32     -> i32
-            i32     -> ()
-
-        Uses type-or-type-list-parens internally
+        Parse a function type.
+            function-type ::= type-list `->` (type | type-list)
+            type-list     ::= `(` `)` | `(` type (`,` type)* `)`
         """
-        args = self.parse_comma_separated_list(self.Delimiter.PAREN, self.parse_type)
+        return self.expect(
+            self._parse_optional_function_type,
+            "function type expected",
+        )
 
-        self.parse_characters("->", "Malformed function type, expected `->`!")
-
-        return FunctionType.from_lists(args, self._parse_type_or_type_list_parens())
-
-    def _parse_type_or_type_list_parens(self) -> list[Attribute]:
+    def _parse_optional_function_type(self) -> FunctionType | None:
         """
-        Parses type-or-type-list-parens, which is used in function-type.
-
-        type-or-type-list-parens ::= type | type-list-parens
-        type-list-parens         ::= `(` `)` | `(` type-list-no-parens `)`
-        type-list-no-parens      ::=  type (`,` type)*
+        Parse a function type, if present.
+            function-type ::= type-list `->` (type | type-list)
+            type-list     ::= `(` `)` | `(` type (`,` type)* `)`
         """
         self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.L_PAREN:
+            return None
+
+        # Parse the arguments
+        args = self.parse_comma_separated_list(self.Delimiter.PAREN, self.parse_type)
+
+        self.parse_punctuation("->")
+
+        # Parse the returns
         if self._current_token.kind == Token.Kind.L_PAREN:
-            args = self.parse_comma_separated_list(
+            returns = self.parse_comma_separated_list(
                 self.Delimiter.PAREN, self.parse_type
             )
         else:
-            args = [self.parse_type()]
-        return args
-
-    def try_parse_function_type(self) -> FunctionType | None:
-        if not self.tokenizer.starts_with("("):
-            return None
-        with self.backtracking("function type"):
-            return self.parse_function_type()
-
-    def _parse_builtin_type_with_name(self, name: Span):
-        """
-        Parses one of the builtin types like i42, vector, etc...
-        """
-        if name.text == "index":
-            return IndexType()
-        if (re_match := re.match(r"^[su]?i(\d+)$", name.text)) is not None:
-            signedness = {
-                "s": Signedness.SIGNED,
-                "u": Signedness.UNSIGNED,
-                "i": Signedness.SIGNLESS,
-            }
-            return IntegerType(int(re_match.group(1)), signedness[name.text[0]])
-
-        if name.text == "bf16":
-            return BFloat16Type()
-
-        if (re_match := re.match(r"^f(\d+)$", name.text)) is not None:
-            width = int(re_match.group(1))
-            type = {
-                16: Float16Type,
-                32: Float32Type,
-                64: Float64Type,
-                80: Float80Type,
-                128: Float128Type,
-            }.get(width, None)
-            if type is None:
-                self.raise_error("Unsupported floating point width: {}".format(width))
-            return type()
-
-        return self._parse_builtin_parametrized_type(name)
+            self._synchronize_lexer_and_tokenizer()
+            returns = [self.parse_type()]
+        self._synchronize_lexer_and_tokenizer()
+        return FunctionType.from_lists(args, returns)
 
     def parse_paramattr_parameters(
         self, skip_white_space: bool = True
@@ -2515,22 +2488,80 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return punctuation
 
-    def try_parse_builtin_type(self) -> Attribute | None:
-        """
-        parse a builtin-type like i32, index, vector<i32> etc.
-        """
-        with self.backtracking("builtin type"):
-            # Check the function type separately, it is the only
-            # case of a type starting with a symbol
-            next_token = self.tokenizer.next_token(peek=True)
-            if next_token.text == "(":
-                return self.try_parse_function_type()
+    _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
+    _builtin_float_type_regex = re.compile(r"^f(\d+)$")
 
-            name = self.tokenizer.next_token_of_pattern(ParserCommons.builtin_type)
-            if name is None:
-                return None
+    def _parse_optional_integer_or_float_type(self) -> Attribute | None:
+        """
+        Parse as integer or float type, if present.
+          integer-or-float-type ::= index-type | integer-type | float-type
+          index-type            ::= `index`
+          integer-type          ::= (`i` | `si` | `ui`) decimal-literal
+          float-type            ::= `f16` | `f32` | `f64` | `f80` | `f128` | `bf16`
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+        name = self._current_token.text
 
-            return self._parse_builtin_type_with_name(name)
+        # Index type
+        if name == "index":
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return IndexType()
+
+        # Integer type
+        if (match := self._builtin_integer_type_regex.match(name)) is not None:
+            signedness = {
+                "s": Signedness.SIGNED,
+                "u": Signedness.UNSIGNED,
+                "i": Signedness.SIGNLESS,
+            }
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return IntegerType(int(match.group(1)), signedness[name[0]])
+
+        # bf16 type
+        if name == "bf16":
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return BFloat16Type()
+
+        # Float type
+        if (re_match := self._builtin_float_type_regex.match(name)) is not None:
+            width = int(re_match.group(1))
+            type = {
+                16: Float16Type,
+                32: Float32Type,
+                64: Float64Type,
+                80: Float80Type,
+                128: Float128Type,
+            }.get(width, None)
+            if type is None:
+                self.raise_error("Unsupported floating point width: {}".format(width))
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return type()
+
+        return None
+
+    def _parse_optional_builtin_type(self) -> Attribute | None:
+        """
+        parse a builtin-type, like i32, index, vector<i32>, if present.
+        """
+        self._synchronize_lexer_and_tokenizer()
+
+        # Check for a function type
+        if (function_type := self._parse_optional_function_type()) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return function_type
+
+        # Check for an integer or float type
+        if (number_type := self._parse_optional_integer_or_float_type()) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return number_type
+
+        return self._parse_optional_builtin_parametrized_type()
 
     def parse_optional_operation(self) -> Operation | None:
         """
@@ -2689,7 +2720,7 @@ class Parser(ABC):
         func_type_pos = self._current_token.span.start
 
         # Parse function type
-        func_type = self.parse_function_type()
+        func_type = self._parse_function_type()
 
         if len(args) != len(func_type.inputs):
             self.raise_error(
