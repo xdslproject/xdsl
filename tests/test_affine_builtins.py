@@ -1,4 +1,3 @@
-import pytest
 from xdsl.ir import AffineExpr
 
 
@@ -9,7 +8,6 @@ def test_affine_expr():
 
     # (5 * d0) + s0 + 1
     c = (a * 5) + b + 1
-    print(c)
 
-
-test_affine_expr()
+    # TODO: Assert properly here
+    assert c == c

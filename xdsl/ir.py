@@ -3,7 +3,7 @@ import re
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, auto
 from io import StringIO
 from itertools import chain
 from typing import (
@@ -1615,55 +1615,76 @@ class Region(IRNode):
         return True
 
 
+@dataclass
 class _AffineExprKind(Enum):
-    Add = ("+",)
-    Mul = ("*",)
-    Mod = ("mod",)
-    FloorDiv = ("floordiv",)
-    CeilDiv = ("ceildiv",)
-    Constant = ("const",)
-    DimId = ("d",)
-    SymbolId = ("s",)
+    Add = auto()
+    Mul = auto()
+    Mod = auto()
+    FloorDiv = auto()
+    CeilDiv = auto()
+    Constant = auto()
+    DimId = auto()
+    SymbolId = auto()
+
+    def get_token(self):
+        match self:
+            case _AffineExprKind.Add:
+                return "+"
+            case _AffineExprKind.Mul:
+                return "*"
+            case _AffineExprKind.Mod:
+                return "mod"
+            case _AffineExprKind.FloorDiv:
+                return "floordiv"
+            case _AffineExprKind.CeilDiv:
+                return "ceildiv"
+            case _AffineExprKind.Constant:
+                return "const"
+            case _AffineExprKind.DimId:
+                return "d"
+            case _AffineExprKind.SymbolId:
+                return "s"
 
 
+@dataclass
 class _AffineExprStorage(ABC):
     kind: _AffineExprKind
 
 
+@dataclass
 class _AffineBinaryOpExprStorage(_AffineExprStorage):
     lhs: AffineExpr
     rhs: AffineExpr
 
-    def __init__(self, kind: _AffineExprKind, lhs: AffineExpr, rhs: AffineExpr) -> None:
-        if kind not in [
+    def __post_init__(self) -> None:
+        if self.kind not in [
             _AffineExprKind.Add,
             _AffineExprKind.Mul,
             _AffineExprKind.Mod,
             _AffineExprKind.FloorDiv,
             _AffineExprKind.CeilDiv,
         ]:
-            raise ValueError(f"Invalid kind {kind} for _AffineBinaryOpExprStorage")
-        self.kind = kind
-        self.lhs = lhs
-        self.rhs = rhs
+            raise ValueError(f"Invalid kind {self.kind} for _AffineBinaryOpExprStorage")
 
     def __str__(self) -> str:
-        return f"({str(self.lhs)} {str(self.kind.value[0])} {str(self.rhs)})"
+        return f"({self.lhs}) {self.kind.get_token()} {self.rhs})"
 
 
+@dataclass
 class _AffineDimExprStorage(_AffineExprStorage):
     position: int
 
-    def __init__(self, kind: _AffineExprKind, position: int) -> None:
-        if kind != _AffineExprKind.DimId and kind != _AffineExprKind.SymbolId:
-            raise ValueError(f"Invalid kind {kind} for _AffineDimExprStorage")
-        self.kind = kind
-        self.position = position
+    def __post_init__(self) -> None:
+        if self.kind != _AffineExprKind.DimId and self.kind != _AffineExprKind.SymbolId:
+            raise ValueError(f"Invalid kind {self.kind} for _AffineDimExprStorage")
+        self.kind = self.kind
+        self.position = self.position
 
     def __str__(self) -> str:
-        return f"{str(self.kind.value[0])}{self.position}"
+        return f"{self.kind.get_token()}{self.position}"
 
 
+@dataclass
 class _AffineConstantExprStorage(_AffineExprStorage):
     value: int
 
@@ -1707,9 +1728,10 @@ class AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
         if other.impl.kind != _AffineExprKind.Constant:
-            # TODO: MLIR also supports multiplication by symbols although I don't like it so I leave this to Mr. Mathew.
-            raise ValueError(
-                "Multiplication with non-constant (semi-affine) is not supported"
+            # TODO: MLIR also supports multiplication by symbols also, making
+            # maps semi-affine. Currently, we do not implement semi-affine maps.
+            raise NotImplementedError(
+                "Multiplication with non-constant (semi-affine) is not supported yet"
             )
 
         # TODO: Simplify multiplication here before returning.
@@ -1718,6 +1740,12 @@ class AffineExpr:
     def floor_div(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
+        if other.impl.kind != _AffineExprKind.Constant:
+            # TODO: MLIR also supports floor-division by symbols also, making
+            # maps semi-affine. Currently, we do not implement semi-affine maps.
+            raise NotImplementedError(
+                "Floor division with non-constant (semi-affine) is not supported yet"
+            )
         # TODO: Simplify floor division here before returning.
         return AffineExpr(
             _AffineBinaryOpExprStorage(_AffineExprKind.FloorDiv, self, other)
@@ -1726,6 +1754,12 @@ class AffineExpr:
     def ceil_div(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
+        if other.impl.kind != _AffineExprKind.Constant:
+            # TODO: MLIR also supports ceil-division by symbols also, making
+            # maps semi-affine. Currently, we do not implement semi-affine maps.
+            raise NotImplementedError(
+                "Ceil division with non-constant (semi-affine) is not supported yet"
+            )
         # TODO: Simplify ceil division here before returning.
         return AffineExpr(
             _AffineBinaryOpExprStorage(_AffineExprKind.CeilDiv, self, other)
@@ -1734,6 +1768,12 @@ class AffineExpr:
     def __mod__(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
+        if other.impl.kind != _AffineExprKind.Constant:
+            # TODO: MLIR also supports Mod by symbols also, making maps
+            # semi-affine. Currently, we do not implement semi-affine maps.
+            raise NotImplementedError(
+                "Mod with non-constant (semi-affine) is not supported yet"
+            )
         # TODO: Simplify modulo here before returning.
         return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Mod, self, other))
 
