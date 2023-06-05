@@ -503,7 +503,7 @@ class AllocaOp(IRDLOperation):
 
     alignment: OpAttr[AnyIntegerAttr]
 
-    res: OpResult
+    res: OpResult = result_def()
 
     @staticmethod
     def get(
@@ -562,7 +562,7 @@ class LoadOp(IRDLOperation):
 
     ptr: Operand = operand_def(LLVMPointerType)
 
-    dereferenced_value: OpResult
+    dereferenced_value: OpResult = result_def()
 
     @staticmethod
     def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):

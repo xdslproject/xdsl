@@ -27,6 +27,8 @@ from xdsl.irdl import (
     IRDLOperation,
     operand_def,
     result_def,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -551,8 +553,8 @@ def test_custom_format_II():
 class NoCustomFormatOp(IRDLOperation):
     name = "test.no_custom_format"
 
-    ops: VarOperand
-    res: VarOpResult
+    ops: VarOperand = var_operand_def()
+    res: VarOpResult = var_result_def()
 
 
 def test_missing_custom_format():

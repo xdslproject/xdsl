@@ -54,6 +54,8 @@ from xdsl.irdl import (
     AttrConstraint,
     AnyAttr,
     IRDLOperation,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
@@ -1140,8 +1142,8 @@ class StridedLayoutAttr(ParametrizedAttribute):
 class UnrealizedConversionCastOp(IRDLOperation):
     name = "builtin.unrealized_conversion_cast"
 
-    inputs: VarOperand
-    outputs: VarOpResult
+    inputs: VarOperand = var_operand_def()
+    outputs: VarOpResult = var_result_def()
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
@@ -1163,7 +1165,7 @@ class UnregisteredOp(IRDLOperation, ABC):
 
     op_name__: OpAttr[StringAttr]
     args: VarOperand
-    res: VarOpResult
+    res: VarOpResult = var_result_def()
     regs: VarRegion
 
     @property

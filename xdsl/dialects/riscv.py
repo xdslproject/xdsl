@@ -29,6 +29,8 @@ from xdsl.irdl import (
     OptOpAttr,
     operand_def,
     result_def,
+    var_operand_def,
+    var_result_def,
 )
 
 from xdsl.parser import Parser
@@ -1926,8 +1928,8 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
     """
 
     name = "riscv.custom_assembly_instruction"
-    inputs: VarOperand
-    outputs: VarOpResult
+    inputs: VarOperand = var_operand_def()
+    outputs: VarOpResult = var_result_def()
     instruction_name: OpAttr[StringAttr]
     comment: OptOpAttr[StringAttr]
 

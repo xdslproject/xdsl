@@ -31,7 +31,9 @@ from xdsl.irdl import (
     OpAttr,
     IRDLOperation,
     operand_def,
+    opt_result_def,
     result_def,
+    var_result_def,
 )
 from xdsl.utils.exceptions import (
     DiagnosticException,
@@ -48,8 +50,8 @@ from xdsl.utils.exceptions import (
 class OpDefTestOp(IRDLOperation):
     name = "test.op_def_test"
 
-    operand: Operand
-    result: OpResult
+    operand: Operand = operand_def()
+    result: OpResult = result_def()
     attr: OpAttr[Attribute]
     region: Region
 
@@ -260,9 +262,9 @@ class OpResultOp(IRDLOperation):
 
     irdl_options = [AttrSizedResultSegments()]
 
-    result: OpResult
-    opt_result: OptOpResult
-    var_result: VarOpResult
+    result: OpResult = result_def()
+    opt_result: OptOpResult = opt_result_def()
+    var_result: VarOpResult = var_result_def()
 
 
 def test_opresult_accessors():

@@ -740,7 +740,7 @@ class OpDefField:
 
 
 def result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -750,7 +750,7 @@ def result_def(
 
 
 def var_result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -760,7 +760,7 @@ def var_result_def(
 
 
 def opt_result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -770,7 +770,7 @@ def opt_result_def(
 
 
 def operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -780,7 +780,7 @@ def operand_def(
 
 
 def var_operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -790,7 +790,7 @@ def var_operand_def(
 
 
 def opt_operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -835,7 +835,7 @@ class OpDef:
 
         def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
             raise PyRDLOpDefinitionError(
-                f"{field_name} is neither a function, or an "
+                f"{pyrdl_def.__name__}.{field_name} is neither a function, or an "
                 "operand, result, region, or attribute definition. "
                 "Operands should be defined with type hints of "
                 "Annotated[Operand, <Constraint>], results with "
@@ -957,17 +957,6 @@ class OpDef:
             elif args[0] == (Operand | None):
                 constraint = get_constraint(args[1:])
                 op_def.operands.append((field_name, OptOperandDef(constraint)))
-
-            # Result annotation
-            elif args[0] == OpResult:
-                constraint = get_constraint(args[1:])
-                op_def.results.append((field_name, ResultDef(constraint)))
-            elif args[0] == list[OpResult]:
-                constraint = get_constraint(args[1:])
-                op_def.results.append((field_name, VarResultDef(constraint)))
-            elif args[0] == (OpResult | None):
-                constraint = get_constraint(args[1:])
-                op_def.results.append((field_name, OptResultDef(constraint)))
 
             # Attribute annotation
             elif IRDLAnnotations.AttributeDefAnnot in args:

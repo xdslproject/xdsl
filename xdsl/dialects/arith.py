@@ -590,9 +590,9 @@ class Minf(FloatingPointLikeBinaryOp):
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
-    input: Operand
+    input: Operand = operand_def()
 
-    result: OpResult
+    result: OpResult = result_def()
 
     @staticmethod
     def get(input_arg: SSAValue | Operation, target_type: Attribute):

@@ -56,9 +56,9 @@ class Mul(IRDLOperation):
     rhs: Annotated[
         Operand, ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
     ]
-    result: Annotated[
-        OpResult, ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
-    ]
+    result: OpResult = result_def(
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
+    )
 
     # TODO replace with trait
     def verify_(self) -> None:

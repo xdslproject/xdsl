@@ -8,6 +8,8 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     IRDLOperation,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -24,8 +26,8 @@ class TestOp(IRDLOperation):
 
     name = "test.op"
 
-    res: VarOpResult
-    ops: VarOperand
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
     regs: VarRegion
 
 
