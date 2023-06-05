@@ -71,7 +71,7 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
     def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_characters(
             "<",
-            f": gpu attributes currently have the #gpu<name value> syntax.",
+            ": gpu attributes currently have the #gpu<name value> syntax.",
         )
         if parser.parse_optional_keyword("dim"):
             attrtype = _DimensionAttr
