@@ -120,12 +120,6 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         )
 
     def verify(self) -> None:
-        if not isinstance(self.data, tuple):
-            raise VerifyException(
-                f"Wrong type given to attribute {self.name}: got"
-                f" {type(self.data)}, but expected list of"
-                " attributes"
-            )
         for idx, val in enumerate(self.data):
             if not isinstance(val, Attribute):
                 raise VerifyException(
@@ -154,8 +148,7 @@ class StringAttr(Data[str]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:
-        data = parser.parse_str_literal()
-        return data
+        return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f'"{self.data}"')
@@ -456,8 +449,7 @@ class FloatData(Data[float]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> float:
-        span = parser.expect(parser.try_parse_float_literal, "Expect float literal")
-        return float(span.text)
+        return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
@@ -550,25 +542,6 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
         raise Exception(f"Unsupported operation on {DictionaryAttr.name}")
 
-    def verify(self) -> None:
-        if not isinstance(self.data, dict):
-            raise VerifyException(
-                f"Wrong type given to attribute {self.name}: got"
-                f" {type(self.data)}, but expected dictionary of"
-                " attributes"
-            )
-        for key, val in self.data.items():
-            if not isinstance(key, str):
-                raise VerifyException(
-                    f"{self.name} key expects str, but {key} "
-                    f"element is of type {type(key)}"
-                )
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} key expects attribute, but {val} "
-                    f"element is of type {type(val)}"
-                )
-
     @staticmethod
     @deprecated_constructor
     def from_dict(data: dict[str | StringAttr, Attribute]) -> DictionaryAttr:
@@ -577,14 +550,11 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
             # try to coerce keys into StringAttr
             if isinstance(k, StringAttr):
                 k = k.data
-            # if coercion fails, raise KeyError!
-            if not isinstance(k, str):
-                raise TypeError(
-                    f"DictionaryAttr.from_dict expects keys to"
-                    f" be of type str or StringAttr, but {type(k)} provided"
-                )
             to_add_data[k] = v
         return DictionaryAttr(to_add_data)
+
+    def verify(self) -> None:
+        return super().verify()
 
 
 @irdl_attr_definition
@@ -921,20 +891,22 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
         data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
-        if isinstance(type.element_type, IntegerType):
-            new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]], data)
-            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
-        elif isinstance(type.element_type, IndexType):
-            new_type = cast(RankedVectorOrTensorOf[IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
-            return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
-        elif isinstance(type.element_type, AnyFloat):
+        if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedVectorOrTensorOf[AnyFloat], type)
             new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
-        else:
-            raise TypeError(f"Unsupported element type {type.element_type}")
+
+        match type.element_type:
+            case IntegerType():
+                new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
+                new_data = cast(
+                    Sequence[int] | Sequence[IntegerAttr[IntegerType]], data
+                )
+                return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
+            case IndexType():
+                new_type = cast(RankedVectorOrTensorOf[IndexType], type)
+                new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
+                return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
 
     @staticmethod
     def vector_from_list(

@@ -6,7 +6,7 @@ import ast
 from dataclasses import dataclass, field
 from io import StringIO
 from enum import Enum
-from typing import ClassVar, Literal, TypeAlias, TypeGuard, cast
+from typing import ClassVar, Literal, TypeAlias, TypeGuard, cast, overload
 from string import hexdigits
 
 from xdsl.utils.exceptions import ParseError
@@ -152,6 +152,16 @@ class StringLiteral(Span):
     def __post_init__(self):
         if len(self) < 2 or self.text[0] != '"' or self.text[-1] != '"':
             raise ParseError(self, "Invalid string literal!")
+
+    @overload
+    @classmethod
+    def from_span(cls, span: Span) -> StringLiteral:
+        ...
+
+    @overload
+    @classmethod
+    def from_span(cls, span: None) -> None:
+        ...
 
     @classmethod
     def from_span(cls, span: Span | None) -> StringLiteral | None:
@@ -316,6 +326,17 @@ class Token:
         if self.kind != Token.Kind.FLOAT_LIT:
             raise ValueError("Token is not a float literal!")
         return float(self.text)
+
+    def get_string_literal_value(self) -> str:
+        """
+        Translate the token text into a string literal value.
+        This will remove the quotes around the string literal, and unescape
+        the string.
+        This function will raise an exception if the token is not a string literal.
+        """
+        if self.kind != Token.Kind.STRING_LIT:
+            raise ValueError("Token is not a string literal!")
+        return StringLiteral.from_span(self.span).string_contents
 
 
 @dataclass

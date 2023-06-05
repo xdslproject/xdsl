@@ -10,6 +10,7 @@ from typing import (
     Any,
     Generic,
     Iterable,
+    NoReturn,
     Protocol,
     Sequence,
     TypeVar,
@@ -18,6 +19,7 @@ from typing import (
     ClassVar,
 )
 from xdsl.utils.deprecation import deprecated
+from xdsl.utils.exceptions import VerifyException
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -215,15 +217,15 @@ class SSAValue(ABC):
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
         "Get a new SSAValue from either a SSAValue, or an operation with a single result."
-        if isinstance(arg, SSAValue):
-            return arg
-        if isinstance(arg, Operation):
-            if len(arg.results) == 1:
-                return arg.results[0]
-            raise ValueError("SSAValue.build: expected operation with a single result.")
-        raise TypeError(
-            f"Expected SSAValue or Operation for SSAValue.get, but got {arg}"
-        )
+        match arg:
+            case SSAValue():
+                return arg
+            case Operation():
+                if len(arg.results) == 1:
+                    return arg.results[0]
+                raise ValueError(
+                    "SSAValue.build: expected operation with a single result."
+                )
 
     def add_use(self, use: Use):
         """Add a new use of the value."""
@@ -784,7 +786,10 @@ class Operation(IRNode):
                 region.verify()
 
         # Custom verifier
-        self.verify_()
+        try:
+            self.verify_()
+        except VerifyException as err:
+            self.emit_error("Operation does not verify: " + str(err))
 
     def verify_(self) -> None:
         pass
@@ -941,6 +946,16 @@ class Operation(IRNode):
             context[result] = other_result
 
         return True
+
+    def emit_error(
+        self, message: str, exception_type: type[Exception] = VerifyException
+    ) -> NoReturn:
+        """Emit an error with the given message."""
+        from xdsl.utils.diagnostic import Diagnostic
+
+        diagnostic = Diagnostic()
+        diagnostic.add_message(self, message)
+        diagnostic.raise_exception(message, self, exception_type)
 
     def __eq__(self, other: object) -> bool:
         return self is other
@@ -1413,13 +1428,16 @@ class Region(IRNode):
     def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
             return arg
-        if isinstance(arg, list):
-            if len(arg) == 0:
-                return Region([Block()])
-            if isinstance(arg[0], Block):
+
+        if len(arg) == 0:
+            return Region([Block()])
+
+        match arg[0]:
+            case Block():
                 return Region(cast(list[Block], arg))
-            if isinstance(arg[0], Operation):
+            case Operation():
                 return Region([Block(cast(list[Operation], arg))])
+
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property
