@@ -1615,7 +1615,6 @@ class Region(IRNode):
         return True
 
 
-@dataclass
 class _AffineExprKind(Enum):
     Add = auto()
     Mul = auto()
@@ -1667,7 +1666,7 @@ class _AffineBinaryOpExprStorage(_AffineExprStorage):
             raise ValueError(f"Invalid kind {self.kind} for _AffineBinaryOpExprStorage")
 
     def __str__(self) -> str:
-        return f"({self.lhs}) {self.kind.get_token()} {self.rhs})"
+        return f"({self.lhs} {self.kind.get_token()} {self.rhs})"
 
 
 @dataclass
@@ -1696,9 +1695,9 @@ class _AffineConstantExprStorage(_AffineExprStorage):
         return f"{self.value}"
 
 
-@dataclass
+@dataclass()
 class AffineExpr:
-    impl: _AffineExprStorage
+    _impl: _AffineExprStorage
 
     @staticmethod
     def constant(value: int) -> AffineExpr:
@@ -1712,35 +1711,73 @@ class AffineExpr:
     def symbol(position: int) -> AffineExpr:
         return AffineExpr(_AffineDimExprStorage(_AffineExprKind.SymbolId, position))
 
+    def eval(self, dims: list[int], symbols: list[int]) -> int:
+        if isinstance(self._impl, _AffineConstantExprStorage):
+            return self._impl.value
+
+        if isinstance(self._impl, _AffineDimExprStorage):
+            match self._impl.kind:
+                case _AffineExprKind.DimId:
+                    return dims[self._impl.position]
+                case _AffineExprKind.SymbolId:
+                    return symbols[self._impl.position]
+                case _:
+                    raise ValueError(f"Unreachable")
+
+        if isinstance(self._impl, _AffineBinaryOpExprStorage):
+            lhs = self._impl.lhs.eval(dims, symbols)
+            rhs = self._impl.rhs.eval(dims, symbols)
+
+            if self._impl.kind == _AffineExprKind.Add:
+                return lhs + rhs
+            elif self._impl.kind == _AffineExprKind.Mul:
+                return lhs * rhs
+            elif self._impl.kind == _AffineExprKind.Mod:
+                return lhs % rhs
+            elif self._impl.kind == _AffineExprKind.FloorDiv:
+                return lhs // rhs
+            elif self._impl.kind == _AffineExprKind.CeilDiv:
+                return -(-lhs // rhs)
+
+        raise ValueError("Unreachable")
+
     def __add__(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
         # TODO: Simplify addition here before returning.
         return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Add, self, other))
 
+    def __radd__(self, other: AffineExpr | int) -> AffineExpr:
+        return self.__add__(other)
+
     def __neg__(self) -> AffineExpr:
         return self * -1
 
     def __sub__(self, other: AffineExpr | int) -> AffineExpr:
-        return (self * -1) + other
+        return self + (-1 * other)
+
+    def __rsub__(self, other: AffineExpr | int) -> AffineExpr:
+        return self.__sub__(other)
 
     def __mul__(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
-        if other.impl.kind != _AffineExprKind.Constant:
+        if other._impl.kind != _AffineExprKind.Constant:
             # TODO: MLIR also supports multiplication by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
             raise NotImplementedError(
                 "Multiplication with non-constant (semi-affine) is not supported yet"
             )
-
         # TODO: Simplify multiplication here before returning.
         return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Mul, self, other))
+
+    def __rmul__(self, other: AffineExpr | int) -> AffineExpr:
+        return self.__mul__(other)
 
     def floor_div(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
-        if other.impl.kind != _AffineExprKind.Constant:
+        if other._impl.kind != _AffineExprKind.Constant:
             # TODO: MLIR also supports floor-division by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
             raise NotImplementedError(
@@ -1754,7 +1791,7 @@ class AffineExpr:
     def ceil_div(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
-        if other.impl.kind != _AffineExprKind.Constant:
+        if other._impl.kind != _AffineExprKind.Constant:
             # TODO: MLIR also supports ceil-division by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
             raise NotImplementedError(
@@ -1768,7 +1805,7 @@ class AffineExpr:
     def __mod__(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
-        if other.impl.kind != _AffineExprKind.Constant:
+        if other._impl.kind != _AffineExprKind.Constant:
             # TODO: MLIR also supports Mod by symbols also, making maps
             # semi-affine. Currently, we do not implement semi-affine maps.
             raise NotImplementedError(
@@ -1778,4 +1815,33 @@ class AffineExpr:
         return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Mod, self, other))
 
     def __str__(self) -> str:
-        return str(self.impl)
+        return str(self._impl)
+
+
+@dataclass
+class AffineMap:
+    num_dims: int
+    num_symbols: int
+    results: list[AffineExpr]
+
+    def eval(self, dims: list[int], symbols: list[int]) -> list[int]:
+        assert len(dims) == self.num_dims
+        assert len(symbols) == self.num_symbols
+        return [expr.eval(dims, symbols) for expr in self.results]
+
+    def __str__(self) -> str:
+        # Create comma seperated list of dims.
+        dims = [
+            _AffineExprKind.DimId.get_token() + str(i) for i in range(self.num_dims)
+        ]
+        dims = ", ".join(dims)
+        # Create comma seperated list of symbols.
+        syms = [
+            _AffineExprKind.SymbolId.get_token() + str(i)
+            for i in range(self.num_symbols)
+        ]
+        syms = ", ".join(syms)
+        # Create comma seperated list of results.
+        results = ", ".join([str(expr) for expr in self.results])
+
+        return f"({dims})[{syms}] -> ({results})"
