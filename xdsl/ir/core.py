@@ -781,6 +781,21 @@ class Operation(IRNode):
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
 
+        # TODO fix circular import
+        from xdsl.traits import IsTerminator
+
+        if (parent_block := self.parent) and (parent_region := parent_block.parent):
+            # TODO single-block regions dealt when the NoTerminator trait is implemented
+            if len(parent_region.blocks) > 1:
+                if len(self.successors) > 0:
+                    if parent_block.last_op != self:
+                        raise Exception(
+                            "Operation with block successors must terminate its parent block"
+                        )
+
+                    if not self.has_trait(IsTerminator):
+                        raise Exception("Operation terminates block with no terminator")
+
         if verify_nested_ops:
             for region in self.regions:
                 region.verify()
