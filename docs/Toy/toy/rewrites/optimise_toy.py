@@ -1,7 +1,19 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from typing import Callable, Sequence, cast
+from xdsl.builder import Builder, ImplicitBuilder
+from xdsl.interpreters.experimental.pdl import PDLMatcher
 
-from xdsl.ir import Attribute, AttributeInvT, MLContext, OpResult, Operation, SSAValue
+from xdsl.ir import (
+    Attribute,
+    AttributeInvT,
+    Block,
+    MLContext,
+    OpResult,
+    Operation,
+    OperationInvT,
+    SSAValue,
+)
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     ArrayAttr,
@@ -10,33 +22,160 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     TensorType,
 )
+from xdsl.irdl import AttrConstraint, BaseAttr, EqAttrConstraint
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import PatternRewriteWalker, implicit_rewriter
+from xdsl.pattern_rewriter import (
+    AnonymousImplicitBuilderRewritePattern,
+    ImplicitBuilderRewritePattern,
+    PatternRewriteWalker,
+    PatternRewriter,
+    RewritePattern,
+    implicit_rewriter,
+)
 from xdsl.transforms.dead_code_elimination import dce
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 from ..dialects.toy import ConstantOp, ReshapeOp, TensorTypeF64, TransposeOp
 
 
-class MatcherRewrite:
-    ...
+@dataclass(frozen=True)
+class MatcherAttribute(Attribute):
+    name = "matcher.attribute"
+    id: str
+    constraint: AttrConstraint
+    _value: Attribute | None = None
+
+    def match(self, other: Attribute) -> bool:
+        if self._value is None:
+            try:
+                self.constraint.verify(other, {})
+                setattr(self, "_value", other)
+                return True
+            except VerifyException:
+                return False
+        else:
+            return self._value == other
+
+    def unmatch(self) -> bool:
+        unmatched = self._value is not None
+        setattr(self, "_value", None)
+        return unmatched
+
+
+class MatcherSSAValue(SSAValue):
+    _value: SSAValue | None = None
+
+    def match(self, other: SSAValue) -> bool:
+        if self._value is None:
+            self._value = other
+            return True
+        else:
+            return self._value == other
+
+    def unmatch(self) -> bool:
+        unmatched = self._value is not None
+        self._value = None
+        return unmatched
+
+    @property
+    def owner(self) -> Operation | Block:
+        assert False, "Attempting to get the owner of a `MatcherSSAValue`"
+
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
+    # This might be problematic, as the superclass is not hashable ...
+    def __hash__(self) -> int:  # type: ignore
+        return id(self)
+
+
+class MatchBuilder(Builder):
+    def insert(self, op: OperationInvT) -> OperationInvT:
+        # Rewrite all match attributes and values to the real deal
+        assert False
+        return op
+
+
+class MatcherRewrite(RewritePattern):
+    root: Operation
+    _match_and_build: Callable[[Operation, PatternRewriter], Sequence[SSAValue] | None]
+
+    def __init__(
+        self,
+        root: Operation,
+        match_and_build: Callable[
+            [Operation, PatternRewriter], Sequence[SSAValue] | None
+        ],
+    ):
+        super().__init__()
+        self.root = root
+        self._match_and_build = match_and_build
+
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
+        if op.parent is None:
+            return
+
+        with ImplicitBuilder(MatchBuilder(op.parent, op)):
+            new_results = self._match_and_build(op, rewriter)
+            if new_results is not None:
+                rewriter.replace_matched_op([], new_results)
+
+    @staticmethod
+    def build(func: Callable[[Matcher], MatcherRewrite]) -> MatcherRewrite:
+        return func(Matcher())
 
 
 class Matcher:
+    var_id: int = 0
+    match_attributes: list[MatcherAttribute] = []
+    match_values: list[MatcherSSAValue] = []
+
     def value(self, typ: type[Attribute]) -> SSAValue:
-        assert False
+        value = MatcherSSAValue(self.attribute(typ))
+        self.match_values.append(value)
+        return cast(SSAValue, value)
 
     def attribute(self, typ: type[AttributeInvT]) -> AttributeInvT:
+        constraint = BaseAttr(typ)
+        var_id = self.var_id
+        self.var_id += 1
+        attr = MatcherAttribute(f"{var_id}", constraint)
+        self.match_attributes.append(attr)
+        return cast(AttributeInvT, attr)
+
+    def match_op(self, op: Operation, *, root: Operation) -> bool:
         assert False
+
+    def unmatch(self):
+        for attr in self.match_attributes:
+            assert attr.unmatch()
+        for value in self.match_values:
+            assert value.unmatch()
 
     def rewrite(
         self,
         root: Operation,
     ) -> Callable[[Callable[[], Sequence[SSAValue] | None]], MatcherRewrite]:
-        assert False
+        def impl(
+            rewrite_func: Callable[[], Sequence[SSAValue] | None]
+        ) -> MatcherRewrite:
+            def match_and_build(
+                op: Operation, rewriter: PatternRewriter
+            ) -> Sequence[SSAValue] | None:
+                res = None
+                if self.match_op(op, root=root):
+                    res = rewrite_func()
+                    self.unmatch()
+                return res
+
+            return MatcherRewrite(root, match_and_build)
+
+        return impl
 
 
-def rt(matcher: Matcher) -> MatcherRewrite:
+@MatcherRewrite.build
+def tt(matcher: Matcher) -> MatcherRewrite:
     arg = matcher.value(Attribute)
     transpose_0 = TransposeOp(arg)
     transpose_1 = TransposeOp(transpose_0.res)
@@ -48,6 +187,7 @@ def rt(matcher: Matcher) -> MatcherRewrite:
     return rewrite
 
 
+@MatcherRewrite.build
 def rr(matcher: Matcher) -> MatcherRewrite:
     arg = matcher.value(Attribute)
     typ_0 = matcher.attribute(TensorType[Float64Type])
@@ -98,7 +238,7 @@ class OptimiseToy(ModulePass):
     name = "dce"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        PatternRewriteWalker(simplify_redundant_transpose).rewrite_module(op)
+        PatternRewriteWalker(tt).rewrite_module(op)
         PatternRewriteWalker(reshape_reshape).rewrite_module(op)
         PatternRewriteWalker(constant_reshape).rewrite_module(op)
         dce(op)

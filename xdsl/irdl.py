@@ -249,6 +249,11 @@ class ParamAttrConstraint(AttrConstraint):
         self.param_constrs = [attr_constr_coercion(constr) for constr in param_constrs]
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if type(attr).__name__ == "MatcherAttribute":
+            inner_attr: Attribute | None = getattr(attr, "_value")
+            if inner_attr is None:
+                return
+            attr = inner_attr
         if not isinstance(attr, self.base_attr):
             raise VerifyException(
                 f"{attr} should be of base attribute {self.base_attr.name}"
