@@ -248,8 +248,6 @@ class Printer:
         Print a block with syntax `(<caret-ident>`(` <block-args> `)`)? ops* )`
         * If `print_block_args` is False, the label and arguments are not printed.
         """
-        if not isinstance(block, Block):
-            raise TypeError("Expected a Block; got %s" % type(block).__name__)
 
         if print_block_args:
             self._print_new_line()
@@ -287,8 +285,6 @@ class Printer:
           are not printed.
         * If `print_empty_block` is False, empty entry blocks are not printed.
         """
-        if not isinstance(region, Region):
-            raise TypeError("Expected a Region; got %s" % type(region).__name__)
 
         # Empty region
         self.print("{")
@@ -679,8 +675,6 @@ class Printer:
             self.print(")")
 
     def print_op(self, op: Operation) -> None:
-        if not isinstance(op, Operation):
-            raise TypeError("Expected an Operation; got %s" % type(op).__name__)
         begin_op_pos = self._current_column
         self._print_results(op)
         use_custom_format = False

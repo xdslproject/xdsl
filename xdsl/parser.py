@@ -2187,8 +2187,6 @@ class Parser(ABC):
             Convert the element to a float value. Raises an error if the type
             is compatible.
             """
-            if not isinstance(self.value, int | float):
-                parser.raise_error("Expected float value", at_position=self.span)
             if self.is_negative:
                 return -float(self.value)
             return float(self.value)
@@ -2196,16 +2194,18 @@ class Parser(ABC):
         def to_type(self, parser: Parser, type: AnyFloat | IntegerType | IndexType):
             if isinstance(type, AnyFloat):
                 return self.to_float(parser)
-            elif isinstance(type, IntegerType):
-                return self.to_int(
-                    parser,
-                    type.signedness.data != Signedness.UNSIGNED,
-                    type.width.data == 1,
-                )
-            elif isinstance(type, IndexType):
-                return self.to_int(parser, allow_negative=True, allow_booleans=False)
-            else:
-                assert False, "fatal error in parser"
+
+            match type:
+                case IntegerType():
+                    return self.to_int(
+                        parser,
+                        type.signedness.data != Signedness.UNSIGNED,
+                        type.width.data == 1,
+                    )
+                case IndexType():
+                    return self.to_int(
+                        parser, allow_negative=True, allow_booleans=False
+                    )
 
     def _parse_tensor_literal_element(self) -> _TensorLiteralElement:
         """
