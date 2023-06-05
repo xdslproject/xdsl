@@ -728,82 +728,75 @@ OptSuccessor: TypeAlias = Block | None
 VarSuccessor: TypeAlias = list[Block]
 
 
+class OpDefField:
+    cls: type
+    param: AttrConstraint | Attribute | type[Attribute] | TypeVar
+
+    def __init__(
+        self, cls: type, param: AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ):
+        self.cls = cls
+        self.param = param
+
+
 def result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute],
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
     *,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OpResult:
-    constraint = irdl_to_attr_constraint(constraint)
-    result_def = ResultDef(constraint)
-    # Return result definition instead of result
-    return cast(OpResult, result_def)
+    return cast(OpResult, OpDefField(ResultDef, constraint))
 
 
 def var_result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute],
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
     *,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarOpResult:
-    _constraint = irdl_to_attr_constraint(constraint)
-    result_def = VarResultDef(_constraint)
-    # Return result definition instead of result
-    return cast(VarOpResult, result_def)
+    return cast(VarOpResult, OpDefField(VarResultDef, constraint))
 
 
 def opt_result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute],
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
     *,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptOpResult:
-    _constraint = irdl_to_attr_constraint(constraint)
-    result_def = OptResultDef(_constraint)
-    # Return result definition instead of result
-    return cast(OptOpResult, result_def)
+    return cast(OptOpResult, OpDefField(OptResultDef, constraint))
 
 
 def operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute],
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
     *,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
 ) -> Operand:
-    constraint = irdl_to_attr_constraint(constraint)
-    operand_def = OperandDef(constraint)
-    # Return result definition instead of result
-    return cast(OpResult, operand_def)
+    return cast(Operand, OpDefField(OperandDef, constraint))
 
 
 def var_operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute],
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
     *,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarOperand:
-    _constraint = irdl_to_attr_constraint(constraint)
-    operand = VarOperandDef(_constraint)
-    # Return result definition instead of result
-    return cast(VarOperand, operand)
+    return cast(VarOperand, OpDefField(VarOperandDef, constraint))
 
 
 def opt_operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute],
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar,
     *,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptOperand:
-    _constraint = irdl_to_attr_constraint(constraint)
-    operand_def = OptOperandDef(_constraint)
-    # Return result definition instead of result
-    return cast(OptOperand, operand_def)
+    return cast(OptOperand, OpDefField(OptOperandDef, constraint))
 
 
 @dataclass(kw_only=True)
@@ -875,8 +868,8 @@ class OpDef:
             if get_origin(value) is Annotated:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
                     continue
-            # Result and Operand definitions are allowed
-            if isinstance(value, OperandOrResultDef):
+            # OpDefField are allowed
+            if isinstance(value, OpDefField):
                 continue
             raise wrong_field_exception(field_name)
 
@@ -913,14 +906,19 @@ class OpDef:
             if field_name in clsdict:
                 field_value = clsdict[field_name]
 
-                if isinstance(field_value, (ResultDef, VarResultDef, OptResultDef)):
-                    op_def.results.append((field_name, field_value))
-                    continue
-                elif isinstance(
-                    field_value, (OperandDef, VarOperandDef, OptOperandDef)
-                ):
-                    op_def.operands.append((field_name, field_value))
-                    continue
+                if isinstance(field_value, OpDefField):
+                    if field_value.cls in (ResultDef, VarResultDef, OptResultDef):
+                        constraint = get_constraint((field_value.param,))
+                        result_def = field_value.cls(constraint)
+                        op_def.results.append((field_name, result_def))
+                        continue
+                    elif field_value.cls in (OperandDef, VarOperandDef, OptOperandDef):
+                        constraint = get_constraint((field_value.param,))
+                        operand_def = field_value.cls(constraint)
+                        op_def.operands.append((field_name, operand_def))
+                        continue
+                    else:
+                        assert False
 
             # If the field type is an Annotated, separate the origin
             # from the arguments.

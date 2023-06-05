@@ -154,9 +154,9 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
 
     T = Annotated[Attribute, ConstraintVar("T"), _T]
 
-    lhs: Annotated[Operand, T]
-    rhs: Annotated[Operand, T]
-    result: Annotated[OpResult, T]
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    result: OpResult = result_def(T)
 
     def __init__(
         self,

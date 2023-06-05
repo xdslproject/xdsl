@@ -30,6 +30,8 @@ from xdsl.irdl import (
     RegionDef,
     OpAttr,
     IRDLOperation,
+    operand_def,
+    result_def,
 )
 from xdsl.utils.exceptions import (
     DiagnosticException,
@@ -121,8 +123,8 @@ class ConstraintVarOp(IRDLOperation):
 
     T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
 
-    operand: Annotated[Operand, T]
-    result: Annotated[OpResult, T]
+    operand: Operand = operand_def(T)
+    result: OpResult = result_def(T)
     attribute: OpAttr[T]
 
 
@@ -330,8 +332,8 @@ class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
     name = "test.string_or_int_generic"
 
     attr: OpAttr[_Attr]
-    operand: Annotated[Operand, _Operand]
-    result: Annotated[OpResult, _Result]
+    operand: Operand = operand_def(_Operand)
+    result: OpResult = result_def(_Result)
 
 
 @irdl_op_definition
