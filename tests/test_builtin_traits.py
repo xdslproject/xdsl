@@ -5,10 +5,11 @@ Test the usage of builtin traits.
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.irdl import IRDLOperation, irdl_op_definition
-from xdsl.ir import Region
-from xdsl.traits import HasParent
+from xdsl.irdl import IRDLOperation, OptSuccessor, irdl_op_definition
+from xdsl.ir import Region, Block
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.dialects.test import TestOp
 
 
 @irdl_op_definition
@@ -100,3 +101,28 @@ def test_has_parent_verify():
 
     op = Parent2Op(regions=[[HasMultipleParentOp()]])
     op.verify()
+
+
+@irdl_op_definition
+class IsTerminatorOp(IRDLOperation):
+    """
+    An operation that provides the IsTerminator trait.
+    """
+
+    name = "test.is_terminator"
+
+    successor: OptSuccessor
+
+    traits = frozenset([IsTerminator()])
+
+
+def test_is_terminator_verify():
+    """
+    Test that an operation with an IsTerminator trait expects successor blocks.
+    """
+    block0 = Block([])
+    block1 = Block([IsTerminatorOp.create(successors=[block0])])
+    region0 = Region([block0, block1])
+    op0 = TestOp.create(regions=[region0])
+
+    op0.verify()
