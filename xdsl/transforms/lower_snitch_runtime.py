@@ -72,8 +72,30 @@ class LowerDma1DOpToFunc(RewritePattern, ABC):
     ) -> tuple[Operation, list[SSAValue]]:
         # Get all function inputs types
         return func.Call.get(
-            "snrt_" + op.name[5:], [op.src, op.dst, op.size], [tx_id]
+            "snrt_" + op.name[5:], [op.dst, op.src, op.size], [tx_id]
         ), [op.transfer_id]
+
+
+class LowerDma2DOpToFunc(RewritePattern, ABC):
+    """
+    Rewrite pattern that matches on DmaStart2DOp instances and lowers to external
+    function calls
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.DmaStart2DOp, rewriter: PatternRewriter, /
+    ):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(
+        self, op: snitch_runtime.DmaStart2DOp
+    ) -> tuple[Operation, list[SSAValue]]:
+        # Get all function inputs types
+        return func.Call.get(
+            "snrt_" + op.name[5:], [op.dst, op.src, op.dst_stride, op.src_stride, op.size, op.repeat], [tx_id]
+        ), [op.transfer_id]
+
 
 
 class AddExternalFuncs(RewritePattern, ABC):
@@ -108,7 +130,7 @@ class LowerSnitchRuntimePass(ModulePass):
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker1 = PatternRewriteWalker(
             GreedyRewritePatternApplier(
-                [LowerGetInfoOpToFunc(), LowerBarrierOpToFunc(), LowerDma1DOpToFunc()]
+                [LowerGetInfoOpToFunc(), LowerBarrierOpToFunc(), LowerDma1DOpToFunc(), LowerDma2DOpToFunc()]
             ),
             apply_recursively=True,
         )
