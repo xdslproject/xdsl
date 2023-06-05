@@ -587,6 +587,7 @@ def test_external_load():
 
     external_load = ExternalLoadOp.get(memref, field_type)
 
+    assert isinstance(external_load, ExternalLoadOp)
     assert external_load.field == memref
     assert external_load.result.typ == field_type
 
@@ -597,6 +598,7 @@ def test_external_store():
 
     external_store = ExternalStoreOp.build(operands=[field, memref])
 
+    assert isinstance(external_store, ExternalStoreOp)
     assert external_store.field == memref
     assert external_store.temp == field
 
@@ -607,5 +609,6 @@ def test_buffer():
 
     buffer = BufferOp.build(operands=[temp], result_types=[res_typ])
 
+    assert isinstance(buffer, BufferOp)
     assert buffer.temp == temp
     assert buffer.res.typ == res_typ
