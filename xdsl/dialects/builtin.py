@@ -385,7 +385,7 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
                 )
 
 
-AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
+AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType] | IntegerAttr[IndexType]
 
 
 @irdl_attr_definition

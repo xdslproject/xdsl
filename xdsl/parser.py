@@ -2259,13 +2259,18 @@ class Parser(ABC):
         if isinstance(type, IntegerType | IndexType):
             if isinstance(value, float):
                 self.raise_error("Floating point value is not valid for integer type.")
-            return IntegerAttr(value, type)
+            # Pyright workaround, IntegerAttr[IntegerType | IndexType] is not a subtype of
+            # IntegerAttr[IntegerType] | IntegerAttr[IndexType]
+            if isinstance(type, IntegerType):
+                return IntegerAttr(value, type)
+            else:
+                return IntegerAttr(value, type)
 
         self.raise_error("Invalid type given for integer or float attribute.")
 
     def try_parse_builtin_boolean_attr(
         self,
-    ) -> IntegerAttr[IntegerType | IndexType] | None:
+    ) -> IntegerAttr[IntegerType] | None:
         self._synchronize_lexer_and_tokenizer()
         if (value := self.parse_optional_boolean()) is not None:
             self._synchronize_lexer_and_tokenizer()
