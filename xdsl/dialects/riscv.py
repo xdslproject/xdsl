@@ -141,11 +141,10 @@ class RegisterType(Data[Register], TypeAttribute):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> Register:
-        name = parser.try_parse_bare_id()
+        name = parser.parse_optional_identifier()
         if name is None:
             return Register()
-        text = name.text
-        return Register(text)
+        return Register(name)
 
     def print_parameter(self, printer: Printer) -> None:
         name = self.data.name
