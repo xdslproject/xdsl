@@ -168,8 +168,8 @@ class LoadOpToMemref(RewritePattern):
 
         assert_subset(field, temp)
 
-        offsets = [i for i in temp.bounds.lb - field.bounds.lb]
-        sizes = [i for i in temp.bounds.ub - temp.bounds.lb]
+        offsets = [i for i in -field.bounds.lb]
+        sizes = [i for i in temp.get_shape()]
         strides = [1] * len(sizes)
 
         subview = memref.Subview.from_static_parameters(
@@ -212,11 +212,14 @@ class ApplyOpToParallel(RewritePattern):
         dim = res_typ.get_num_dims()
 
         # Then create the corresponding scf.parallel
-        dims = res_typ.get_shape()
-        zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
+        lowerBounds = [
+            arith.Constant.from_int_and_width(x, builtin.IndexType())
+            for x in res_typ.bounds.lb
+        ]
         one = arith.Constant.from_int_and_width(1, builtin.IndexType())
         upperBounds = [
-            arith.Constant.from_int_and_width(x, builtin.IndexType()) for x in dims
+            arith.Constant.from_int_and_width(x, builtin.IndexType())
+            for x in res_typ.bounds.ub
         ]
 
         # Generate an outer parallel loop as well as two inner sequential
@@ -225,7 +228,11 @@ class ApplyOpToParallel(RewritePattern):
         current_region = body
         for i in range(1, dim):
             for_op = scf.For.get(
-                lb=zero, ub=upperBounds[-i], step=one, iter_args=[], body=current_region
+                lb=lowerBounds[-i],
+                ub=upperBounds[-i],
+                step=one,
+                iter_args=[],
+                body=current_region,
             )
             block = Block(
                 ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
@@ -233,14 +240,14 @@ class ApplyOpToParallel(RewritePattern):
             current_region = Region(block)
 
         p = scf.ParallelOp.get(
-            lowerBounds=[zero],
+            lowerBounds=[lowerBounds[0]],
             upperBounds=[upperBounds[0]],
             steps=[one],
             body=current_region,
         )
 
         # Replace with the loop and necessary constants.
-        rewriter.insert_op_before_matched_op([zero, one, *upperBounds, p])
+        rewriter.insert_op_before_matched_op([*lowerBounds, one, *upperBounds, p])
         rewriter.erase_matched_op()
 
 
@@ -255,7 +262,7 @@ class AccessOpToMemref(RewritePattern):
         # a block.
         assert (block := op.parent_block()) is not None
 
-        memref_offset = op.offset - temp.bounds.lb
+        memref_offset = op.offset
         off_const_ops = [
             arith.Constant.from_int_and_width(x, builtin.IndexType())
             for x in memref_offset
@@ -314,8 +321,10 @@ class StencilStoreToSubview(RewritePattern):
             field = store.field
             assert isa(field.typ, FieldType[Attribute])
             assert isa(field.typ.bounds, StencilBoundsAttr)
-            offsets = [i for i in store.lb - field.typ.bounds.lb]
-            sizes = [i for i in store.ub - store.lb]
+            temp = store.temp
+            assert isa(temp.typ, TempType[Attribute])
+            offsets = [i for i in -field.typ.bounds.lb]
+            sizes = [i for i in temp.typ.get_shape()]
             subview = memref.Subview.from_static_parameters(
                 field,
                 StencilToMemRefType(field.typ),
