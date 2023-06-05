@@ -217,15 +217,15 @@ class SSAValue(ABC):
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
         "Get a new SSAValue from either a SSAValue, or an operation with a single result."
-        if isinstance(arg, SSAValue):
-            return arg
-        if isinstance(arg, Operation):
-            if len(arg.results) == 1:
-                return arg.results[0]
-            raise ValueError("SSAValue.build: expected operation with a single result.")
-        raise TypeError(
-            f"Expected SSAValue or Operation for SSAValue.get, but got {arg}"
-        )
+        match arg:
+            case SSAValue():
+                return arg
+            case Operation():
+                if len(arg.results) == 1:
+                    return arg.results[0]
+                raise ValueError(
+                    "SSAValue.build: expected operation with a single result."
+                )
 
     def add_use(self, use: Use):
         """Add a new use of the value."""
@@ -1428,13 +1428,16 @@ class Region(IRNode):
     def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
             return arg
-        if isinstance(arg, list):
-            if len(arg) == 0:
-                return Region([Block()])
-            if isinstance(arg[0], Block):
+
+        if len(arg) == 0:
+            return Region([Block()])
+
+        match arg[0]:
+            case Block():
                 return Region(cast(list[Block], arg))
-            if isinstance(arg[0], Operation):
+            case Operation():
                 return Region([Block(cast(list[Operation], arg))])
+
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property
@@ -1560,16 +1563,24 @@ class Region(IRNode):
         if block_mapper is None:
             block_mapper = {}
 
+        new_blocks: list[Block] = []
+
+        # Clone all blocks without their contents, and register the block mapping
+        # This ensures that operations can refer to blocks that are not yet cloned
         for block in self.blocks:
             new_block = Block()
+            new_blocks.append(new_block)
             block_mapper[block] = new_block
+
+        dest.insert_block(new_blocks, insert_index)
+
+        # Populate the blocks with the cloned operations
+        for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
                 new_block.insert_arg(block_arg.typ, idx)
                 value_mapper[block_arg] = new_block.args[idx]
             for op in block.ops:
                 new_block.add_op(op.clone(value_mapper, block_mapper))
-            dest.insert_block(new_block, insert_index)
-            insert_index += 1
 
     def walk(self) -> Iterator[Operation]:
         """Call a function on all operations contained in the region."""

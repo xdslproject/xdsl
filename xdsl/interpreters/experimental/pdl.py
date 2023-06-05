@@ -149,12 +149,15 @@ class PDLMatcher:
         for pdl_operand, xdsl_operand in zip(pdl_operands, xdsl_operands):
             assert isinstance(pdl_operand, OpResult)
             assert isinstance(pdl_operand.op, pdl.OperandOp | pdl.ResultOp)
-            if isinstance(pdl_operand.op, pdl.OperandOp):
-                if not self.match_operand(pdl_operand, pdl_operand.op, xdsl_operand):
-                    return False
-            elif isinstance(pdl_operand.op, pdl.ResultOp):
-                if not self.match_result(pdl_operand, pdl_operand.op, xdsl_operand):
-                    return False
+            match pdl_operand.op:
+                case pdl.OperandOp():
+                    if not self.match_operand(
+                        pdl_operand, pdl_operand.op, xdsl_operand
+                    ):
+                        return False
+                case pdl.ResultOp():
+                    if not self.match_result(pdl_operand, pdl_operand.op, xdsl_operand):
+                        return False
 
         pdl_results = pdl_op.type_values
         xdsl_results = xdsl_op.results
