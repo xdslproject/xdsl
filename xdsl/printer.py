@@ -463,7 +463,7 @@ class Printer:
 
             def print_dense_list(
                 array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
-                shape: List[int],
+                shape: Sequence[int],
             ):
                 self.print("[")
                 if len(shape) > 1:
@@ -478,7 +478,9 @@ class Printer:
 
             self.print("dense<")
             data = attribute.data.data
-            shape = attribute.shape if attribute.shape_is_complete else [len(data)]
+            shape = (
+                attribute.get_shape() if attribute.shape_is_complete else (len(data),)
+            )
             assert shape is not None, "If shape is complete, then it cannot be None"
             if len(data) == 0:
                 pass
@@ -521,7 +523,7 @@ class Printer:
             # Separate the dimensions between the static and the scalable ones
             if attribute.get_num_scalable_dims() == 0:
                 static_dimensions = shape
-                scalable_dimensions = []
+                scalable_dimensions = ()
             else:
                 static_dimensions = shape[: -attribute.get_num_scalable_dims()]
                 scalable_dimensions = shape[-attribute.get_num_scalable_dims() :]

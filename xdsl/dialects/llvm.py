@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     i32,
     i64,
+    ContainerType,
 )
 from xdsl.ir import (
     Block,
@@ -98,7 +99,9 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
+class LLVMPointerType(
+    ParametrizedAttribute, TypeAttribute, ContainerType[Attribute | None]
+):
     name = "llvm.ptr"
 
     type: ParameterDef[Attribute | NoneAttr]
@@ -142,6 +145,9 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
+
+    def get_element_type(self) -> Attribute | None:
+        return self.type
 
 
 @irdl_attr_definition
