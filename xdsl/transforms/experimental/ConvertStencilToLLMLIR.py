@@ -107,7 +107,7 @@ class ReturnOpToMemref(RewritePattern):
             if target is None:
                 break
 
-            assert isinstance(target.typ, builtin.ShapeType)
+            assert isinstance(target.typ, builtin.ShapedType)
 
             assert (block := op.parent_block()) is not None
 
