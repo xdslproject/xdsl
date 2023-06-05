@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import functools
 import itertools
 import math
@@ -565,70 +564,6 @@ class Parser(ABC):
         self.lexer.pos = pos
         self._current_token = self.lexer.lex()
 
-    @contextlib.contextmanager
-    def backtracking(self, region_name: str | None = None):
-        """
-        This context manager can be used to mark backtracking regions.
-
-        When an error is thrown during backtracking, it is recorded and stored together
-        with some meta information in the history attribute.
-
-        The backtracker accepts the following exceptions:
-        - ParseError: signifies that the region could not be parsed because of
-          (unexpected) syntax errors
-        - AssertionError: this error should probably be phased out in favour
-          of the two above
-        - EOFError: signals that EOF was reached unexpectedly
-
-        Any other error will be printed to stderr, but backtracking will continue
-        as normal.
-        """
-        self._synchronize_lexer_and_tokenizer()
-        save = self.tokenizer.save()
-        starting_position = self.tokenizer.pos
-        try:
-            yield
-            # Clear error history when something doesn't fail
-            # This is because we are only interested in the last "cascade" of failures.
-            # If a backtracking() completes without failure,
-            # something has been parsed (we assume)
-            if (
-                self.tokenizer.pos > starting_position
-                and self.tokenizer.history is not None
-            ):
-                self.tokenizer.history = None
-        except Exception as ex:
-            how_far_we_got = self.tokenizer.pos
-
-            # If we have no error history, start recording!
-            if not self.tokenizer.history:
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            # If we got further than on previous attempts
-            elif how_far_we_got > self.tokenizer.history.get_farthest_point():
-                # Throw away history
-                self.tokenizer.history = None
-                # Generate new history entry,
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            # Otherwise, add to exception, if we are in a named region
-            elif region_name is not None and how_far_we_got - starting_position > 0:
-                self.tokenizer.history = (
-                    self.tokenizer._history_entry_from_exception(  # type: ignore
-                        ex, region_name, how_far_we_got
-                    )
-                )
-
-            self.resume_from(save)
-
     def _synchronize_lexer_and_tokenizer(self):
         """
         Advance the lexer and the tokenizer to the same position,
@@ -1028,8 +963,25 @@ class Parser(ABC):
             "string literal expected" + context_msg,
         )
 
-    def try_parse_bare_id(self) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(ParserCommons.bare_id)
+    def parse_optional_identifier(self) -> str | None:
+        """
+        Parse an identifier, if present, with syntax:
+            ident ::= (letter|[_]) (letter|digit|[_$.])*
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if (token := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return token.text
+        return None
+
+    def parse_identifier(self, context_msg: str = "") -> str:
+        """
+        Parse an identifier, if present, with syntax:
+            ident ::= (letter|[_]) (letter|digit|[_$.])*
+        """
+        return self.expect(
+            self.parse_optional_identifier, "identifier expected" + context_msg
+        )
 
     _decimal_integer_regex = re.compile(r"[0-9]+")
 
@@ -1170,7 +1122,7 @@ class Parser(ABC):
             token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
         ) is not None:
             return self._parse_dialect_type_or_attribute_inner(token.text[1:], True)
-        return self.try_parse_builtin_type()
+        return self._parse_optional_builtin_type()
 
     def parse_attribute(self) -> Attribute:
         """
@@ -1203,7 +1155,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
             return self._parse_dialect_type_or_attribute_inner(token.text[1:], False)
-        return self.try_parse_builtin_attr()
+        return self._parse_optional_builtin_attr()
 
     def _parse_dialect_type_or_attribute_inner(
         self, attr_name: str, is_type: bool = True
@@ -1307,30 +1259,42 @@ class Parser(ABC):
         assert body is not None
         return body
 
-    def _parse_builtin_parametrized_type(self, name: Span) -> ParametrizedAttribute:
+    def _parse_optional_builtin_parametrized_type(self) -> ParametrizedAttribute | None:
         """
-        This function is called after we parse the name of a parameterized type
-        such as vector.
+        Parse an builtin parametrized type, if present, with format:
+            builtin-parametrized-type ::= builtin-name `<` args `>`
+            builtin-name ::= vector | memref | tensor | complex | tuple
+            args ::= <defined by the builtin name>
         """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
 
-        def unimplemented() -> ParametrizedAttribute:
-            raise ParseError(name, "Builtin {} not supported yet!".format(name.text))
+        name = self._current_token.text
+
+        def unimplemented() -> NoReturn:
+            raise ParseError(
+                self._current_token.span,
+                "Builtin {} is not supported yet!".format(name),
+            )
 
         builtin_parsers: dict[str, Callable[[], ParametrizedAttribute]] = {
-            "vector": self.parse_vector_attrs,
-            "memref": self.parse_memref_attrs,
-            "tensor": self.parse_tensor_attrs,
-            "complex": self.parse_complex_attrs,
+            "vector": self._parse_vector_attrs,
+            "memref": self._parse_memref_attrs,
+            "tensor": self._parse_tensor_attrs,
+            "complex": self._parse_complex_attrs,
             "tuple": unimplemented,
         }
 
-        self.parse_characters("<", "Expected parameter list here!")
-        # Get the parser for the type, falling back to the unimplemented warning
-        self._synchronize_lexer_and_tokenizer()
-        res = builtin_parsers.get(name.text, unimplemented)()
-        self._synchronize_lexer_and_tokenizer()
-        self.parse_characters(">", "Expected end of parameter list here!")
+        if name not in builtin_parsers:
+            return None
+        self._consume_token(Token.Kind.BARE_IDENT)
 
+        self.parse_punctuation("<", " after builtin name")
+        # Get the parser for the type, falling back to the unimplemented warning
+        res = builtin_parsers.get(name, unimplemented)()
+        self.parse_punctuation(">", " after builtin parameter list")
+        self._synchronize_lexer_and_tokenizer()
         return res
 
     def _parse_shape_dimension(self, allow_dynamic: bool = True) -> int:
@@ -1428,7 +1392,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return res
 
-    def parse_complex_attrs(self) -> ComplexType:
+    def _parse_complex_attrs(self) -> ComplexType:
         element_type = self.parse_attribute()
         if not isa(element_type, IntegerType | AnyFloat):
             self.raise_error(
@@ -1436,7 +1400,7 @@ class Parser(ABC):
             )
         return ComplexType(element_type)
 
-    def parse_memref_attrs(
+    def _parse_memref_attrs(
         self,
     ) -> MemRefType[Attribute] | UnrankedMemrefType[Attribute]:
         shape, type = self.parse_shape()
@@ -1491,7 +1455,7 @@ class Parser(ABC):
             "Cannot decide if the given attribute " "is a layout or a memory space!"
         )
 
-    def parse_vector_attrs(self) -> AnyVectorType:
+    def _parse_vector_attrs(self) -> AnyVectorType:
         self._synchronize_lexer_and_tokenizer()
 
         dims: list[int] = []
@@ -1523,7 +1487,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return VectorType.from_element_type_and_shape(type, dims, num_scalable_dims)
 
-    def parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
+    def _parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
         shape, type = self.parse_shape()
 
         if shape is None:
@@ -1824,12 +1788,8 @@ class Parser(ABC):
                 "Expected bare-id or string-literal here as part of attribute entry!"
             )
 
-        if not self.tokenizer.starts_with("="):
+        if self.parse_optional_punctuation("=") is None:
             return name, UnitAttr()
-
-        self.parse_characters(
-            "=", "Attribute entries must be of format name `=` attribute!"
-        )
 
         return name, self.parse_attribute()
 
@@ -1845,38 +1805,28 @@ class Parser(ABC):
             "Expected attribute type definition here ( `:` type )",
         )
 
-    def try_parse_builtin_attr(self) -> Attribute | None:
+    def _parse_optional_builtin_attr(self) -> Attribute | None:
         """
         Tries to parse a builtin attribute, e.g. a string literal, int, array, etc..
         """
-        next_token = self.tokenizer.next_token(peek=True)
-        if next_token.text == '"':
-            return self._parse_optional_string_attr()
-        elif next_token.text == "[":
-            return self.try_parse_builtin_arr_attr()
-        elif next_token.text == "@":
-            return self.parse_optional_symref_attr()
-        elif next_token.text == "{":
-            return self.parse_builtin_dict_attr()
-        elif next_token.text == "(":
-            return self.try_parse_function_type()
-        elif next_token.text in ParserCommons.builtin_attr_names:
-            return self.try_parse_builtin_named_attr()
+        self._synchronize_lexer_and_tokenizer()
+
+        # String literal
+        if (str_lit := self.parse_optional_str_literal()) is not None:
+            return StringAttr(str_lit)
 
         attrs = (
             self.parse_optional_builtin_int_or_float_attr,
+            self._parse_optional_array_attr,
+            self._parse_optional_symref_attr,
+            self._parse_optional_builtin_dict_attr,
             self.parse_optional_type,
+            self._parse_optional_builtin_parametrized_attr,
         )
 
         for attr_parser in attrs:
             if (val := attr_parser()) is not None:
                 return val
-
-        self._synchronize_lexer_and_tokenizer()
-        if self._current_token.text == "strided":
-            strided = self.parse_strided_layout_attr()
-            self._synchronize_lexer_and_tokenizer()
-            return strided
 
         return None
 
@@ -1911,15 +1861,12 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return None
 
-    def parse_strided_layout_attr(self) -> Attribute:
+    def _parse_strided_layout_attr(self, name: Span) -> Attribute:
         """
-        Parse a strided layout attribute.
-        | `strided` `<` `[` comma-separated-int-or-question `]`
+        Parse a strided layout attribute parameters.
+        | `<` `[` comma-separated-int-or-question `]`
           (`,` `offset` `:` integer-literal)? `>`
         """
-        # Parse `strided` keyword
-        self.parse_keyword("strided")
-
         # Parse stride list
         self._parse_token(Token.Kind.LESS, "Expected `<` after `strided`")
         strides = self.parse_comma_separated_list(
@@ -1947,23 +1894,26 @@ class Parser(ABC):
         self._parse_token(Token.Kind.GREATER, "Expected '>' in end of stride attribute")
         return StridedLayoutAttr(strides, None if offset == "?" else offset)
 
-    def try_parse_builtin_named_attr(self) -> Attribute | None:
-        name = self.tokenizer.next_token(peek=True)
-        with self.backtracking("Builtin attribute {}".format(name.text)):
-            self.tokenizer.consume_peeked(name)
-            parsers = {
-                "dense": self._parse_builtin_dense_attr,
-                "opaque": self._parse_builtin_opaque_attr,
-                "dense_resource": self._parse_builtin_dense_resource_attr,
-                "array": self._parse_builtin_array_attr,
-                "affine_map": self._parse_builtin_affine_attr,
-                "affine_set": self._parse_builtin_affine_attr,
-            }
+    def _parse_optional_builtin_parametrized_attr(self) -> Attribute | None:
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+        name = self._current_token.span
+        parsers = {
+            "dense": self._parse_builtin_dense_attr,
+            "opaque": self._parse_builtin_opaque_attr,
+            "dense_resource": self._parse_builtin_dense_resource_attr,
+            "array": self._parse_builtin_densearray_attr,
+            "affine_map": self._parse_builtin_affine_attr,
+            "affine_set": self._parse_builtin_affine_attr,
+            "strided": self._parse_strided_layout_attr,
+        }
 
-            def not_implemented(_name: Span):
-                raise NotImplementedError()
-
-            return parsers.get(name.text, not_implemented)(name)
+        if name.text not in parsers:
+            return None
+        self._consume_token(Token.Kind.BARE_IDENT)
+        self._synchronize_lexer_and_tokenizer()
+        return parsers[name.text](name)
 
     def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
         self._synchronize_lexer_and_tokenizer()
@@ -2048,15 +1998,15 @@ class Parser(ABC):
             "(`dense_resource` `<` resource-handle `>`)"
         )
         self.parse_characters("<", err_msg)
-        resource_handle = self.expect(self.try_parse_bare_id, err_msg)
+        resource_handle = self.parse_identifier(" for resource handle")
         self.parse_characters(">", err_msg)
         self.parse_characters(":", err_msg)
         type = self.expect(
             self.parse_optional_type, "Dense resource attribute must be typed!"
         )
-        return DenseResourceAttr.from_params(resource_handle.text, type)
+        return DenseResourceAttr.from_params(resource_handle, type)
 
-    def _parse_builtin_array_attr(self, name: Span) -> DenseArrayBase | None:
+    def _parse_builtin_densearray_attr(self, name: Span) -> DenseArrayBase | None:
         err_msg = (
             "Malformed dense array, format must be "
             "`array` `<` (integer-type | float-type) (`:` tensor-literal)? `>`"
@@ -2175,8 +2125,6 @@ class Parser(ABC):
             Convert the element to a float value. Raises an error if the type
             is compatible.
             """
-            if not isinstance(self.value, int | float):
-                parser.raise_error("Expected float value", at_position=self.span)
             if self.is_negative:
                 return -float(self.value)
             return float(self.value)
@@ -2184,16 +2132,18 @@ class Parser(ABC):
         def to_type(self, parser: Parser, type: AnyFloat | IntegerType | IndexType):
             if isinstance(type, AnyFloat):
                 return self.to_float(parser)
-            elif isinstance(type, IntegerType):
-                return self.to_int(
-                    parser,
-                    type.signedness.data != Signedness.UNSIGNED,
-                    type.width.data == 1,
-                )
-            elif isinstance(type, IndexType):
-                return self.to_int(parser, allow_negative=True, allow_booleans=False)
-            else:
-                assert False, "fatal error in parser"
+
+            match type:
+                case IntegerType():
+                    return self.to_int(
+                        parser,
+                        type.signedness.data != Signedness.UNSIGNED,
+                        type.width.data == 1,
+                    )
+                case IndexType():
+                    return self.to_int(
+                        parser, allow_negative=True, allow_booleans=False
+                    )
 
     def _parse_tensor_literal_element(self) -> _TensorLiteralElement:
         """
@@ -2254,7 +2204,7 @@ class Parser(ABC):
             element = self._parse_tensor_literal_element()
             return [element], []
 
-    def parse_optional_symref_attr(self) -> SymbolRefAttr | None:
+    def _parse_optional_symref_attr(self) -> SymbolRefAttr | None:
         """
         Parse a symbol reference attribute, if present.
           symbol-attr ::= symbol-ref-id (`::` symbol-ref-id)*
@@ -2334,8 +2284,12 @@ class Parser(ABC):
             StringAttr(token.get_string_literal_value()) if token is not None else None
         )
 
-    def try_parse_builtin_arr_attr(self) -> AnyArrayAttr | None:
-        if not self.tokenizer.starts_with("["):
+    def _parse_optional_array_attr(self) -> AnyArrayAttr | None:
+        """
+        Parse an array attribute, if present, with format:
+            array-attr ::= `[` (attribute (`,` attribute)*)? `]`
+        """
+        if self._current_token.kind != Token.Kind.L_SQUARE:
             return None
         attrs = self.parse_comma_separated_list(
             self.Delimiter.SQUARE, self.parse_attribute
@@ -2343,88 +2297,49 @@ class Parser(ABC):
         return ArrayAttr(attrs)
 
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
-        if not self.tokenizer.starts_with("{"):
+        if self._current_token.kind != Token.Kind.L_BRACE:
             return dict()
         attrs = self.parse_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
         )
         return dict(attrs)
 
-    def parse_function_type(self) -> FunctionType:
+    def _parse_function_type(self) -> FunctionType:
         """
-        Parses function-type:
-
-        viable function types are:
-            (i32)   -> ()
-            ()      -> (i32, i32)
-            (i32, i32) -> ()
-            ()      -> i32
-        Non-viable types are:
-            i32     -> i32
-            i32     -> ()
-
-        Uses type-or-type-list-parens internally
+        Parse a function type.
+            function-type ::= type-list `->` (type | type-list)
+            type-list     ::= `(` `)` | `(` type (`,` type)* `)`
         """
-        args = self.parse_comma_separated_list(self.Delimiter.PAREN, self.parse_type)
+        return self.expect(
+            self._parse_optional_function_type,
+            "function type expected",
+        )
 
-        self.parse_characters("->", "Malformed function type, expected `->`!")
-
-        return FunctionType.from_lists(args, self._parse_type_or_type_list_parens())
-
-    def _parse_type_or_type_list_parens(self) -> list[Attribute]:
+    def _parse_optional_function_type(self) -> FunctionType | None:
         """
-        Parses type-or-type-list-parens, which is used in function-type.
-
-        type-or-type-list-parens ::= type | type-list-parens
-        type-list-parens         ::= `(` `)` | `(` type-list-no-parens `)`
-        type-list-no-parens      ::=  type (`,` type)*
+        Parse a function type, if present.
+            function-type ::= type-list `->` (type | type-list)
+            type-list     ::= `(` `)` | `(` type (`,` type)* `)`
         """
         self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.L_PAREN:
+            return None
+
+        # Parse the arguments
+        args = self.parse_comma_separated_list(self.Delimiter.PAREN, self.parse_type)
+
+        self.parse_punctuation("->")
+
+        # Parse the returns
         if self._current_token.kind == Token.Kind.L_PAREN:
-            args = self.parse_comma_separated_list(
+            returns = self.parse_comma_separated_list(
                 self.Delimiter.PAREN, self.parse_type
             )
         else:
-            args = [self.parse_type()]
-        return args
-
-    def try_parse_function_type(self) -> FunctionType | None:
-        if not self.tokenizer.starts_with("("):
-            return None
-        with self.backtracking("function type"):
-            return self.parse_function_type()
-
-    def _parse_builtin_type_with_name(self, name: Span):
-        """
-        Parses one of the builtin types like i42, vector, etc...
-        """
-        if name.text == "index":
-            return IndexType()
-        if (re_match := re.match(r"^[su]?i(\d+)$", name.text)) is not None:
-            signedness = {
-                "s": Signedness.SIGNED,
-                "u": Signedness.UNSIGNED,
-                "i": Signedness.SIGNLESS,
-            }
-            return IntegerType(int(re_match.group(1)), signedness[name.text[0]])
-
-        if name.text == "bf16":
-            return BFloat16Type()
-
-        if (re_match := re.match(r"^f(\d+)$", name.text)) is not None:
-            width = int(re_match.group(1))
-            type = {
-                16: Float16Type,
-                32: Float32Type,
-                64: Float64Type,
-                80: Float80Type,
-                128: Float128Type,
-            }.get(width, None)
-            if type is None:
-                self.raise_error("Unsupported floating point width: {}".format(width))
-            return type()
-
-        return self._parse_builtin_parametrized_type(name)
+            self._synchronize_lexer_and_tokenizer()
+            returns = [self.parse_type()]
+        self._synchronize_lexer_and_tokenizer()
+        return FunctionType.from_lists(args, returns)
 
     def parse_paramattr_parameters(
         self, skip_white_space: bool = True
@@ -2443,9 +2358,21 @@ class Parser(ABC):
     def parse_op(self) -> Operation:
         return self.parse_operation()
 
-    def parse_builtin_dict_attr(self) -> DictionaryAttr:
+    def _parse_optional_builtin_dict_attr(self) -> DictionaryAttr | None:
         """
-        Parse a dictionary attribute, with the following syntax:
+        Parse a dictionary attribute, if present, with format:
+        `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
+        `attribute-entry` := (bare-id | string-literal) `=` attribute
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.L_BRACE:
+            return None
+        param = DictionaryAttr.parse_parameter(self)
+        return DictionaryAttr(param)
+
+    def _parse_builtin_dict_attr(self) -> DictionaryAttr:
+        """
+        Parse a dictionary attribute with format:
         `dictionary-attr ::= `{` ( attribute-entry (`,` attribute-entry)* )? `}`
         `attribute-entry` := (bare-id | string-literal) `=` attribute
         """
@@ -2468,7 +2395,7 @@ class Parser(ABC):
         if self.parse_optional_keyword("attributes") is None:
             return None
         self._synchronize_lexer_and_tokenizer()
-        attr = self.parse_builtin_dict_attr()
+        attr = self._parse_builtin_dict_attr()
         for reserved_name in reserved_attr_names:
             if reserved_name in attr.data:
                 self.raise_error(
@@ -2515,22 +2442,80 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return punctuation
 
-    def try_parse_builtin_type(self) -> Attribute | None:
-        """
-        parse a builtin-type like i32, index, vector<i32> etc.
-        """
-        with self.backtracking("builtin type"):
-            # Check the function type separately, it is the only
-            # case of a type starting with a symbol
-            next_token = self.tokenizer.next_token(peek=True)
-            if next_token.text == "(":
-                return self.try_parse_function_type()
+    _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
+    _builtin_float_type_regex = re.compile(r"^f(\d+)$")
 
-            name = self.tokenizer.next_token_of_pattern(ParserCommons.builtin_type)
-            if name is None:
-                return None
+    def _parse_optional_integer_or_float_type(self) -> Attribute | None:
+        """
+        Parse as integer or float type, if present.
+          integer-or-float-type ::= index-type | integer-type | float-type
+          index-type            ::= `index`
+          integer-type          ::= (`i` | `si` | `ui`) decimal-literal
+          float-type            ::= `f16` | `f32` | `f64` | `f80` | `f128` | `bf16`
+        """
+        self._synchronize_lexer_and_tokenizer()
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+        name = self._current_token.text
 
-            return self._parse_builtin_type_with_name(name)
+        # Index type
+        if name == "index":
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return IndexType()
+
+        # Integer type
+        if (match := self._builtin_integer_type_regex.match(name)) is not None:
+            signedness = {
+                "s": Signedness.SIGNED,
+                "u": Signedness.UNSIGNED,
+                "i": Signedness.SIGNLESS,
+            }
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return IntegerType(int(match.group(1)), signedness[name[0]])
+
+        # bf16 type
+        if name == "bf16":
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return BFloat16Type()
+
+        # Float type
+        if (re_match := self._builtin_float_type_regex.match(name)) is not None:
+            width = int(re_match.group(1))
+            type = {
+                16: Float16Type,
+                32: Float32Type,
+                64: Float64Type,
+                80: Float80Type,
+                128: Float128Type,
+            }.get(width, None)
+            if type is None:
+                self.raise_error("Unsupported floating point width: {}".format(width))
+            self._consume_token()
+            self._synchronize_lexer_and_tokenizer()
+            return type()
+
+        return None
+
+    def _parse_optional_builtin_type(self) -> Attribute | None:
+        """
+        parse a builtin-type, like i32, index, vector<i32>, if present.
+        """
+        self._synchronize_lexer_and_tokenizer()
+
+        # Check for a function type
+        if (function_type := self._parse_optional_function_type()) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return function_type
+
+        # Check for an integer or float type
+        if (number_type := self._parse_optional_integer_or_float_type()) is not None:
+            self._synchronize_lexer_and_tokenizer()
+            return number_type
+
+        return self._parse_optional_builtin_parametrized_type()
 
     def parse_optional_operation(self) -> Operation | None:
         """
@@ -2689,7 +2674,7 @@ class Parser(ABC):
         func_type_pos = self._current_token.span.start
 
         # Parse function type
-        func_type = self.parse_function_type()
+        func_type = self._parse_function_type()
 
         if len(args) != len(func_type.inputs):
             self.raise_error(
