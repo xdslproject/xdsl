@@ -33,7 +33,7 @@ builtin.module {
 builtin.module {
   %0 = "test.op"() : () -> ()
 }
-// CHECK: Operation has 0 results, but were given 1 to bind.
+// CHECK: Operation has 0 results, but was given 1 to bind.
 
 // -----
 
@@ -43,7 +43,7 @@ builtin.module {
   %0 = "test.op"() : () -> (!test.type<"foo">, !test.type<"bar">)
 }
 
-// CHECK: Operation has 2 results, but were given 1 to bind.
+// CHECK: Operation has 2 results, but was given 1 to bind.
 
 // -----
 

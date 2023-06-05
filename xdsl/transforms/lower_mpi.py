@@ -1,6 +1,9 @@
 from abc import ABC
 from typing import TypeVar, cast
 from dataclasses import dataclass
+
+from math import prod
+
 from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
@@ -211,7 +214,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         if not all(dim.value.data >= 0 for dim in ssa_val.typ.shape.data):
             raise RuntimeError("MPI lowering does not support unknown-size memrefs!")
 
-        size = sum(dim.value.data for dim in ssa_val.typ.shape.data)
+        size = prod(dim.value.data for dim in ssa_val.typ.shape.data)
 
         literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result
