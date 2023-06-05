@@ -1563,16 +1563,24 @@ class Region(IRNode):
         if block_mapper is None:
             block_mapper = {}
 
+        new_blocks: list[Block] = []
+
+        # Clone all blocks without their contents, and register the block mapping
+        # This ensures that operations can refer to blocks that are not yet cloned
         for block in self.blocks:
             new_block = Block()
+            new_blocks.append(new_block)
             block_mapper[block] = new_block
+
+        dest.insert_block(new_blocks, insert_index)
+
+        # Populate the blocks with the cloned operations
+        for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
                 new_block.insert_arg(block_arg.typ, idx)
                 value_mapper[block_arg] = new_block.args[idx]
             for op in block.ops:
                 new_block.add_op(op.clone(value_mapper, block_mapper))
-            dest.insert_block(new_block, insert_index)
-            insert_index += 1
 
     def walk(self) -> Iterator[Operation]:
         """Call a function on all operations contained in the region."""

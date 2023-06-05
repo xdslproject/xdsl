@@ -141,6 +141,27 @@ def test_op_clone_with_regions():
     assert if2.false_region.op is not if_.false_region.op
 
 
+def test_region_clone_into_circular_blocks():
+    """
+    Test that cloning a region with circular block dependency works.
+    """
+    region_str = """
+    {
+    ^0:
+        "test.op"() [^1] : () -> ()
+    ^1:
+        "test.op"() [^0] : () -> ()
+    }
+    """
+    ctx = MLContext()
+    region = Parser(ctx, region_str, allow_unregistered_dialect=True).parse_region()
+
+    region2 = Region()
+    region.clone_into(region2)
+
+    assert region.is_structurally_equivalent(region2)
+
+
 ##################### Testing is_structurally_equal #####################
 
 program_region = """
