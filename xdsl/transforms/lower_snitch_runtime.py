@@ -10,6 +10,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     GreedyRewritePatternApplier,
 )
+from xdsl.dialects.snitch_runtime import tx_id
 
 
 class LowerGetInfoOpToFunc(RewritePattern, ABC):
@@ -54,6 +55,27 @@ class LowerBarrierOpToFunc(RewritePattern, ABC):
         return func.Call.get("snrt_" + op.name[5:], [], []), []
 
 
+class LowerDma1DOpToFunc(RewritePattern, ABC):
+    """
+    Rewrite pattern that matches on DmaStart1DOp instances and lowers to external
+    function calls
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.DmaStart1DOp, rewriter: PatternRewriter, /
+    ):
+        rewriter.replace_matched_op(*self.lower(op))
+
+    def lower(
+        self, op: snitch_runtime.DmaStart1DOp
+    ) -> tuple[Operation, list[SSAValue]]:
+        # Get all function inputs types
+        return func.Call.get(
+            "snrt_" + op.name[5:], [op.src, op.dst, op.size], [tx_id]
+        ), [op.transfer_id]
+
+
 class AddExternalFuncs(RewritePattern, ABC):
     """
     Looks for snrt ops and adds an external func call to it for LLVM to link in
@@ -86,7 +108,7 @@ class LowerSnitchRuntimePass(ModulePass):
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker1 = PatternRewriteWalker(
             GreedyRewritePatternApplier(
-                [LowerGetInfoOpToFunc(), LowerBarrierOpToFunc()]
+                [LowerGetInfoOpToFunc(), LowerBarrierOpToFunc(), LowerDma1DOpToFunc()]
             ),
             apply_recursively=True,
         )
