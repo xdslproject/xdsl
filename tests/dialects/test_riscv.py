@@ -141,3 +141,101 @@ def test_return_op():
 
     code = riscv_code(ModuleOp([return_op]))
     assert code == "    ebreak                                       # my comment\n"
+
+
+def test_immediate_i_inst():
+    # I-Type - 12-bits immediate
+    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+
+    with pytest.raises(VerifyException):
+        riscv.AddiOp(a1, 1 << 11, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        riscv.AddiOp(a1, -(1 << 11) - 2, rd=riscv.Registers.A0)
+
+    riscv.AddiOp(a1, -(1 << 11), rd=riscv.Registers.A0)
+
+    riscv.AddiOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
+
+    """
+    Special handling for signed immediates for I- and S-Type instructions
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
+    """
+
+    riscv.AddiOp(a1, 0xFFFFFFFFFFFFF800, rd=riscv.Registers.A0)
+    riscv.AddiOp(a1, 0xFFFFFFFFFFFFFFFF, rd=riscv.Registers.A0)
+    riscv.AddiOp(a1, 0xFFFFF800, rd=riscv.Registers.A0)
+    riscv.AddiOp(a1, 0xFFFFFFFF, rd=riscv.Registers.A0)
+
+
+def test_immediate_s_inst():
+    # S-Type - 12-bits immediate
+    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+    a2 = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
+
+    with pytest.raises(VerifyException):
+        riscv.SwOp(a1, a2, 1 << 11)
+
+    with pytest.raises(VerifyException):
+        riscv.SwOp(a1, a2, -(1 << 11) - 2)
+
+    riscv.SwOp(a1, a2, -(1 << 11))
+    riscv.SwOp(a1, a2, (1 << 11) - 1)
+
+    """
+    Special handling for signed immediates for I- and S-Type instructions
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
+    """
+
+    riscv.SwOp(a1, a2, 0xFFFFFFFFFFFFF800)
+    riscv.SwOp(a1, a2, 0xFFFFFFFFFFFFFFFF)
+    riscv.SwOp(a1, a2, 0xFFFFF800)
+    riscv.SwOp(a1, a2, 0xFFFFFFFF)
+
+
+def test_immediate_u_j_inst():
+    # U-Type and J-Type - 20-bits immediate
+    with pytest.raises(VerifyException):
+        riscv.LuiOp(1 << 20)
+
+    with pytest.raises(VerifyException):
+        riscv.LuiOp(-(1 << 20) - 2)
+
+    riscv.LuiOp((1 << 20) - 1)
+
+
+def test_immediate_jalr_inst():
+    # Jalr - 12-bits immediate
+    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+
+    with pytest.raises(VerifyException):
+        riscv.JalrOp(a1, 1 << 12, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        riscv.JalrOp(a1, -(1 << 12) - 2, rd=riscv.Registers.A0)
+
+    riscv.JalrOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
+
+
+def test_immediate_pseudo_inst():
+    # Pseudo-Instruction with custom handling
+    with pytest.raises(VerifyException):
+        riscv.LiOp(-(1 << 31) - 1, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        riscv.LiOp(1 << 32, rd=riscv.Registers.A0)
+
+    riscv.LiOp((1 << 31) - 1, rd=riscv.Registers.A0)
+
+
+def test_immediate_shift_inst():
+    # Shift instructions (SLLI, SRLI, SRAI) - 5-bits immediate
+    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+
+    with pytest.raises(VerifyException):
+        riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        riscv.SlliOp(a1, -1, rd=riscv.Registers.A0)
+
+    riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
