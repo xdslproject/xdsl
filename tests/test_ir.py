@@ -162,6 +162,39 @@ def test_region_clone_into_circular_blocks():
     assert region.is_structurally_equivalent(region2)
 
 
+def test_non_empty_block_with_parent_region_requires_terminator():
+    """
+    Tests that an empty block belonging to a single-block region with parent
+    operation requires terminator operation.
+    """
+    block0 = Block([])
+    block1 = Block([TestOp.create(successors=[block0])])
+    region0 = Region([block0, block1])
+    op0 = TestOp.create(regions=[region0])
+
+    with pytest.raises(
+        Exception, match="Operation terminates block with no terminator"
+    ):
+        op0.verify()
+
+
+def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op():
+    """
+    Tests that an empty block belonging to a single-block region with parent
+    operation requires terminator operation.
+    """
+    block0 = Block([])
+    block1 = Block([TestOp.create(successors=[block0]), TestOp.create()])
+    region0 = Region([block0, block1])
+    op0 = TestOp.create(regions=[region0])
+
+    with pytest.raises(
+        Exception,
+        match="Operation with block successors must terminate its parent block",
+    ):
+        op0.verify()
+
+
 ##################### Testing is_structurally_equal #####################
 
 program_region = """
