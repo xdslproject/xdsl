@@ -1,7 +1,7 @@
 """Definition of the IRDL dialect."""
 
 from __future__ import annotations
-from typing import Annotated, Sequence
+from typing import Sequence
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import (
     Attribute,
@@ -21,6 +21,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     result_def,
+    var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -132,7 +133,7 @@ class ParametersOp(IRDLOperation):
 
     name = "irdl.parameters"
 
-    args: Annotated[VarOperand, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
 
     traits = frozenset([HasParent((TypeOp, AttributeOp))])
 
@@ -188,7 +189,7 @@ class OperandsOp(IRDLOperation):
 
     name = "irdl.operands"
 
-    args: Annotated[VarOperand, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
 
     traits = frozenset([HasParent(OperationOp)])
 
@@ -214,7 +215,7 @@ class ResultsOp(IRDLOperation):
 
     name = "irdl.results"
 
-    args: Annotated[VarOperand, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
 
     traits = frozenset([HasParent(OperationOp)])
 
@@ -270,7 +271,7 @@ class ParametricOp(IRDLOperation):
     name = "irdl.parametric"
 
     base_type: OpAttr[SymbolRefAttr]
-    args: Annotated[VarOperand, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
     output: OpResult = result_def(AttributeType)
 
     def __init__(
@@ -327,7 +328,7 @@ class AnyOfOp(IRDLOperation):
 
     name = "irdl.any_of"
 
-    args: Annotated[VarOperand, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
     output: OpResult = result_def(AttributeType)
 
     def __init__(self, args: Sequence[SSAValue]):
@@ -352,7 +353,7 @@ class AllOfOp(IRDLOperation):
 
     name = "irdl.all_of"
 
-    args: Annotated[VarOperand, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
     output: OpResult = result_def(AttributeType)
 
     def __init__(self, args: Sequence[SSAValue]):

@@ -1,11 +1,17 @@
 from __future__ import annotations
 
-from typing import Annotated, TypeVar
+from typing import TypeVar
 from xdsl.dialects.builtin import IntAttr
 
 from xdsl.dialects.experimental.stencil import FieldType, StencilBoundsAttr
 from xdsl.ir import OpResult, SSAValue, Operation, Attribute, Dialect
-from xdsl.irdl import irdl_op_definition, IRDLOperation, Operand, result_def
+from xdsl.irdl import (
+    irdl_op_definition,
+    IRDLOperation,
+    Operand,
+    operand_def,
+    result_def,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -23,7 +29,7 @@ class CastOp(IRDLOperation):
     """
 
     name = "stencil.cast"
-    field: Annotated[Operand, FieldType]
+    field: Operand = operand_def(FieldType)
     result: OpResult = result_def(FieldType)
 
     @staticmethod

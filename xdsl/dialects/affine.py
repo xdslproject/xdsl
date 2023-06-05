@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Sequence
+from typing import Sequence
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
 from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
@@ -11,6 +11,8 @@ from xdsl.irdl import (
     VarOperand,
     AnyAttr,
     IRDLOperation,
+    var_operand_def,
+    var_result_def,
 )
 
 
@@ -18,8 +20,8 @@ from xdsl.irdl import (
 class For(IRDLOperation):
     name = "affine.for"
 
-    arguments: Annotated[VarOperand, AnyAttr()]
-    res: Annotated[VarOpResult, AnyAttr()]
+    arguments: VarOperand = var_operand_def(AnyAttr())
+    res: VarOpResult = var_result_def(AnyAttr())
 
     # TODO the bounds are in fact affine_maps
     # TODO support dynamic bounds as soon as maps are here
@@ -95,7 +97,7 @@ class For(IRDLOperation):
 @irdl_op_definition
 class Yield(IRDLOperation):
     name = "affine.yield"
-    arguments: Annotated[VarOperand, AnyAttr()]
+    arguments: VarOperand = var_operand_def(AnyAttr())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:

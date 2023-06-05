@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Sequence
+from typing import Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
@@ -13,6 +13,9 @@ from xdsl.irdl import (
     VarOpResult,
     irdl_op_definition,
     IRDLOperation,
+    operand_def,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -20,8 +23,8 @@ from xdsl.utils.exceptions import VerifyException
 @irdl_op_definition
 class If(IRDLOperation):
     name = "scf.if"
-    output: Annotated[VarOpResult, AnyAttr()]
-    cond: Annotated[Operand, IntegerType(1)]
+    output: VarOpResult = var_result_def(AnyAttr())
+    cond: Operand = operand_def(IntegerType(1))
 
     true_region: Region
     # TODO this should be optional under certain conditions
@@ -47,7 +50,7 @@ class If(IRDLOperation):
 @irdl_op_definition
 class Yield(IRDLOperation):
     name = "scf.yield"
-    arguments: Annotated[VarOperand, AnyAttr()]
+    arguments: VarOperand = var_operand_def(AnyAttr())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
@@ -57,8 +60,8 @@ class Yield(IRDLOperation):
 @irdl_op_definition
 class Condition(IRDLOperation):
     name = "scf.condition"
-    cond: Annotated[Operand, IntegerType(1)]
-    arguments: Annotated[VarOperand, AnyAttr()]
+    cond: Operand = operand_def(IntegerType(1))
+    arguments: VarOperand = var_operand_def(AnyAttr())
 
     @staticmethod
     def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:
@@ -69,13 +72,13 @@ class Condition(IRDLOperation):
 class For(IRDLOperation):
     name = "scf.for"
 
-    lb: Annotated[Operand, IndexType]
-    ub: Annotated[Operand, IndexType]
-    step: Annotated[Operand, IndexType]
+    lb: Operand = operand_def(IndexType)
+    ub: Operand = operand_def(IndexType)
+    step: Operand = operand_def(IndexType)
 
-    iter_args: Annotated[VarOperand, AnyAttr()]
+    iter_args: VarOperand = var_operand_def(AnyAttr())
 
-    res: Annotated[VarOpResult, AnyAttr()]
+    res: VarOpResult = var_result_def(AnyAttr())
 
     body: SingleBlockRegion
 
@@ -137,11 +140,11 @@ class For(IRDLOperation):
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     name = "scf.parallel"
-    lowerBound: Annotated[VarOperand, IndexType]
-    upperBound: Annotated[VarOperand, IndexType]
-    step: Annotated[VarOperand, IndexType]
-    initVals: Annotated[VarOperand, AnyAttr()]
-    res: Annotated[VarOpResult, AnyAttr()]
+    lowerBound: VarOperand = var_operand_def(IndexType)
+    upperBound: VarOperand = var_operand_def(IndexType)
+    step: VarOperand = var_operand_def(IndexType)
+    initVals: VarOperand = var_operand_def(AnyAttr())
+    res: VarOpResult = var_result_def(AnyAttr())
 
     body: SingleBlockRegion
 
@@ -270,7 +273,7 @@ class ParallelOp(IRDLOperation):
 @irdl_op_definition
 class ReduceOp(IRDLOperation):
     name = "scf.reduce"
-    argument: Annotated[Operand, AnyAttr()]
+    argument: Operand = operand_def(AnyAttr())
 
     body: SingleBlockRegion
 
@@ -318,7 +321,7 @@ class ReduceOp(IRDLOperation):
 @irdl_op_definition
 class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
-    result: Annotated[Operand, AnyAttr()]
+    result: Operand = operand_def(AnyAttr())
 
     @staticmethod
     def get(
@@ -343,9 +346,9 @@ class ReduceReturnOp(IRDLOperation):
 @irdl_op_definition
 class While(IRDLOperation):
     name = "scf.while"
-    arguments: Annotated[VarOperand, AnyAttr()]
+    arguments: VarOperand = var_operand_def(AnyAttr())
 
-    res: Annotated[VarOpResult, AnyAttr()]
+    res: VarOpResult = var_result_def(AnyAttr())
     before_region: Region
     after_region: Region
 

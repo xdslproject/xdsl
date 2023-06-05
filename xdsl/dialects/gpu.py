@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Generic, Sequence, TypeVar
+from typing import Generic, Sequence, TypeVar
 
 from xdsl.ir import (
     Attribute,
@@ -24,8 +24,11 @@ from xdsl.irdl import (
     SingleBlockRegion,
     OpAttr,
     IRDLOperation,
+    operand_def,
+    opt_operand_def,
     result_def,
     opt_result_def,
+    var_operand_def,
 )
 from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
 from xdsl.dialects import memref
@@ -127,13 +130,13 @@ _Element = TypeVar("_Element", bound=Attribute, covariant=True)
 class AllocOp(IRDLOperation):
     name = "gpu.alloc"
     hostShared: OptOpAttr[UnitAttr]
-    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
-    dynamicSizes: Annotated[VarOperand, IndexType]
-    symbolOperands: Annotated[VarOperand, IndexType]
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    dynamicSizes: VarOperand = var_operand_def(IndexType)
+    symbolOperands: VarOperand = var_operand_def(IndexType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    result: Annotated[OpResult, memref.MemRefType[Attribute]]
+    result: OpResult = result_def(memref.MemRefType[Attribute])
     asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
 
     def verify_(self) -> None:
@@ -177,7 +180,7 @@ class AllReduceOp(IRDLOperation):
     name = "gpu.all_reduce"
     op: OptOpAttr[AllReduceOperationAttr]
     uniform: OptOpAttr[UnitAttr]
-    operand: Annotated[Operand, Attribute]
+    operand: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
     body: Region
 
@@ -277,8 +280,8 @@ class BlockIdOp(IRDLOperation):
 class DeallocOp(IRDLOperation):
     name = "gpu.dealloc"
 
-    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
-    buffer: Annotated[Operand, memref.MemRefType]
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    buffer: Operand = operand_def(memref.MemRefType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -300,9 +303,9 @@ class DeallocOp(IRDLOperation):
 class MemcpyOp(IRDLOperation):
     name = "gpu.memcpy"
 
-    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
-    src: Annotated[Operand, memref.MemRefType]
-    dst: Annotated[Operand, memref.MemRefType]
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    src: Operand = operand_def(memref.MemRefType)
+    dst: Operand = operand_def(memref.MemRefType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -385,7 +388,7 @@ class HostRegisterOp(IRDLOperation):
 
     name = "gpu.host_register"
 
-    value: Annotated[Operand, memref.UnrankedMemrefType]
+    value: Operand = operand_def(memref.UnrankedMemrefType)
 
     @staticmethod
     def from_memref(memref: SSAValue | Operation):
@@ -405,14 +408,14 @@ class LaneIdOp(IRDLOperation):
 @irdl_op_definition
 class LaunchOp(IRDLOperation):
     name = "gpu.launch"
-    asyncDependencies: Annotated[VarOperand, AsyncTokenType]
-    gridSizeX: Annotated[Operand, IndexType]
-    gridSizeY: Annotated[Operand, IndexType]
-    gridSizeZ: Annotated[Operand, IndexType]
-    blockSizeX: Annotated[Operand, IndexType]
-    blockSizeY: Annotated[Operand, IndexType]
-    blockSizeZ: Annotated[Operand, IndexType]
-    dynamicSharedMemorySize: Annotated[OptOperand, i32]
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    gridSizeX: Operand = operand_def(IndexType)
+    gridSizeY: Operand = operand_def(IndexType)
+    gridSizeZ: Operand = operand_def(IndexType)
+    blockSizeX: Operand = operand_def(IndexType)
+    blockSizeY: Operand = operand_def(IndexType)
+    blockSizeZ: Operand = operand_def(IndexType)
+    dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
     asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
     body: Region
     irdl_options = [AttrSizedOperandSegments()]
@@ -484,7 +487,7 @@ class NumSubgroupsOp(IRDLOperation):
 @irdl_op_definition
 class SetDefaultDeviceOp(IRDLOperation):
     name = "gpu.set_default_device"
-    devIndex: Annotated[Operand, i32]
+    devIndex: Operand = operand_def(i32)
 
     @staticmethod
     def get(devIndex: SSAValue | Operation) -> SetDefaultDeviceOp:
@@ -546,7 +549,7 @@ class ThreadIdOp(IRDLOperation):
 @irdl_op_definition
 class YieldOp(IRDLOperation):
     name = "gpu.yield"
-    values: Annotated[VarOperand, Attribute]
+    values: VarOperand = var_operand_def(Attribute)
 
     @staticmethod
     def get(operands: Sequence[SSAValue | Operation]) -> YieldOp:

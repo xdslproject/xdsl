@@ -5,11 +5,11 @@ from xdsl.irdl import (
     Operand,
     Operation,
     SSAValue,
+    operand_def,
     result_def,
 )
 from xdsl.ir import OpResult, Dialect
 from xdsl.dialects.builtin import IntegerType, Signedness, IndexType
-from typing import Annotated
 
 u32 = IntegerType(data=32, signedness=Signedness.UNSIGNED)
 u64 = IntegerType(data=64, signedness=Signedness.UNSIGNED)
@@ -78,10 +78,10 @@ class DmaStart1DWideptrOp(SnitchRuntimeBaseOp):
     """
 
     name = "snrt.dma_start_1d_wideptr"
-    src: Annotated[Operand, u64]
-    dst: Annotated[Operand, u64]
-    size: Annotated[Operand, IndexType]
-    transfer_id: Annotated[OpResult, tx_id]
+    src: Operand = operand_def(u64)
+    dst: Operand = operand_def(u64)
+    size: Operand = operand_def(IndexType)
+    transfer_id: OpResult = result_def(tx_id)
 
     def __init__(
         self,
@@ -99,10 +99,10 @@ class DmaStart1DOp(SnitchRuntimeBaseOp):
     """
 
     name = "snrt.dma_start_1d"
-    dst: Annotated[Operand, u32]
-    src: Annotated[Operand, u32]
-    size: Annotated[Operand, IndexType]
-    transfer_id: Annotated[OpResult, tx_id]
+    dst: Operand = operand_def(u32)
+    src: Operand = operand_def(u32)
+    size: Operand = operand_def(IndexType)
+    transfer_id: OpResult = result_def(tx_id)
 
     def __init__(
         self,
@@ -120,13 +120,13 @@ class DmaStart2DWideptrOp(SnitchRuntimeBaseOp):
     """
 
     name = "snrt.dma_start_2d_wideptr"
-    dst: Annotated[Operand, u64]
-    src: Annotated[Operand, u64]
-    dst_stride: Annotated[Operand, IndexType]
-    src_stride: Annotated[Operand, IndexType]
-    size: Annotated[Operand, IndexType]
-    repeat: Annotated[Operand, IndexType]
-    transfer_id: Annotated[OpResult, tx_id]
+    dst: Operand = operand_def(u64)
+    src: Operand = operand_def(u64)
+    dst_stride: Operand = operand_def(IndexType)
+    src_stride: Operand = operand_def(IndexType)
+    size: Operand = operand_def(IndexType)
+    repeat: Operand = operand_def(IndexType)
+    transfer_id: OpResult = result_def(tx_id)
 
     def __init__(
         self,
@@ -150,13 +150,13 @@ class DmaStart2DOp(SnitchRuntimeBaseOp):
     """
 
     name = "snrt.dma_start_2d"
-    dst: Annotated[Operand, u32]
-    src: Annotated[Operand, u32]
-    dst_stride: Annotated[Operand, IndexType]
-    src_stride: Annotated[Operand, IndexType]
-    size: Annotated[Operand, IndexType]
-    repeat: Annotated[Operand, IndexType]
-    transfer_id: Annotated[OpResult, tx_id]
+    dst: Operand = operand_def(u32)
+    src: Operand = operand_def(u32)
+    dst_stride: Operand = operand_def(IndexType)
+    src_stride: Operand = operand_def(IndexType)
+    size: Operand = operand_def(IndexType)
+    repeat: Operand = operand_def(IndexType)
+    transfer_id: OpResult = result_def(tx_id)
 
     def __init__(
         self,
@@ -180,7 +180,7 @@ class DmaWaitOp(SnitchRuntimeBaseOp):
     """
 
     name = "snrt.dma_wait"
-    transfer_id: Annotated[Operand, tx_id]
+    transfer_id: Operand = operand_def(tx_id)
 
     def __init__(self, transfer_id: Operation | SSAValue):
         super().__init__(operands=[transfer_id], result_types=[])

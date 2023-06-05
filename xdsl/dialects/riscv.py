@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import IO, Annotated, Iterable, TypeAlias, Sequence
+from typing import IO, Iterable, TypeAlias, Sequence
 
 
 from xdsl.ir import (
@@ -27,6 +27,7 @@ from xdsl.irdl import (
     Operand,
     OpAttr,
     OptOpAttr,
+    operand_def,
     result_def,
 )
 
@@ -322,8 +323,8 @@ class RdRsRsOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(RegisterType)
-    rs1: Annotated[Operand, RegisterType]
-    rs2: Annotated[Operand, RegisterType]
+    rs1: Operand = operand_def(RegisterType)
+    rs2: Operand = operand_def(RegisterType)
 
     def __init__(
         self,
@@ -442,7 +443,7 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(RegisterType)
-    rs1: Annotated[Operand, RegisterType]
+    rs1: Operand = operand_def(RegisterType)
     immediate: OpAttr[AnyIntegerAttr | LabelAttr]
 
     def __init__(
@@ -518,7 +519,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rs1: Annotated[Operand, RegisterType]
+    rs1: Operand = operand_def(RegisterType)
     rd: OptOpAttr[RegisterType]
     """
     The rd register here is not a register storing the result, rather the register where
@@ -565,7 +566,7 @@ class RdRsOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(RegisterType)
-    rs: Annotated[Operand, RegisterType]
+    rs: Operand = operand_def(RegisterType)
 
     def __init__(
         self,
@@ -598,8 +599,8 @@ class RsRsOffOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called B-Type in the RISC-V specification.
     """
 
-    rs1: Annotated[Operand, RegisterType]
-    rs2: Annotated[Operand, RegisterType]
+    rs1: Operand = operand_def(RegisterType)
+    rs2: Operand = operand_def(RegisterType)
     offset: OpAttr[AnyIntegerAttr | LabelAttr]
 
     def __init__(
@@ -637,8 +638,8 @@ class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called S-Type in the RISC-V specification.
     """
 
-    rs1: Annotated[Operand, RegisterType]
-    rs2: Annotated[Operand, RegisterType]
+    rs1: Operand = operand_def(RegisterType)
+    rs2: Operand = operand_def(RegisterType)
     immediate: OpAttr[AnyIntegerAttr]
 
     def __init__(
@@ -674,8 +675,8 @@ class RsRsOperation(IRDLOperation, RISCVInstruction, ABC):
     registers.
     """
 
-    rs1: Annotated[Operand, RegisterType]
-    rs2: Annotated[Operand, RegisterType]
+    rs1: Operand = operand_def(RegisterType)
+    rs2: Operand = operand_def(RegisterType)
 
     def __init__(self, rs1: Operation | SSAValue, rs2: Operation | SSAValue):
         super().__init__(
@@ -721,7 +722,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(RegisterType)
-    rs1: Annotated[Operand, RegisterType]
+    rs1: Operand = operand_def(RegisterType)
     csr: OpAttr[AnyIntegerAttr]
     writeonly: OptOpAttr[UnitAttr]
 
@@ -779,7 +780,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(RegisterType)
-    rs1: Annotated[Operand, RegisterType]
+    rs1: Operand = operand_def(RegisterType)
     csr: OpAttr[AnyIntegerAttr]
     readonly: OptOpAttr[UnitAttr]
 

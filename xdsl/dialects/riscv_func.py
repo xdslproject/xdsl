@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Sequence
+from typing import Sequence
 
 from xdsl.ir import Operation, SSAValue, Dialect, Attribute, Region
 from xdsl.traits import HasParent
@@ -15,6 +15,9 @@ from xdsl.irdl import (
     irdl_op_definition,
     SingleBlockRegion,
     OpAttr,
+    opt_result_def,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IntegerType, StringAttr
 from xdsl.dialects import riscv
@@ -23,9 +26,9 @@ from xdsl.dialects import riscv
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args: Annotated[VarOperand, riscv.RegisterType]
+    args: VarOperand = var_operand_def(riscv.RegisterType)
     syscall_num: OpAttr[IntegerAttr[IntegerType]]
-    result: Annotated[OptOpResult, riscv.RegisterType]
+    result: OptOpResult = opt_result_def(riscv.RegisterType)
 
     def __init__(
         self,
@@ -57,9 +60,9 @@ class CallOp(IRDLOperation):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args: Annotated[VarOperand, riscv.RegisterType]
+    args: VarOperand = var_operand_def(riscv.RegisterType)
     func_name: OpAttr[StringAttr]
-    ress: Annotated[VarOpResult, riscv.RegisterType]
+    ress: VarOpResult = var_result_def(riscv.RegisterType)
 
     def __init__(
         self,
@@ -108,7 +111,7 @@ class ReturnOp(IRDLOperation):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values: Annotated[VarOperand, riscv.RegisterType]
+    values: VarOperand = var_operand_def(riscv.RegisterType)
     comment: OptOpAttr[StringAttr]
 
     traits = frozenset([HasParent(FuncOp)])

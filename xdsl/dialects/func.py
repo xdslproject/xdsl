@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Union, Sequence, cast
+from typing import Union, Sequence, cast
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -23,6 +23,8 @@ from xdsl.irdl import (
     OpAttr,
     OptOpAttr,
     IRDLOperation,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -291,11 +293,11 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class Call(IRDLOperation):
     name = "func.call"
-    arguments: Annotated[VarOperand, AnyAttr()]
+    arguments: VarOperand = var_operand_def(AnyAttr())
     callee: OpAttr[SymbolRefAttr]
 
     # Note: naming this results triggers an ArgumentError
-    res: Annotated[VarOpResult, AnyAttr()]
+    res: VarOpResult = var_result_def(AnyAttr())
     # TODO how do we verify that the types are correct?
 
     @staticmethod
@@ -316,7 +318,7 @@ class Call(IRDLOperation):
 @irdl_op_definition
 class Return(IRDLOperation):
     name = "func.return"
-    arguments: Annotated[VarOperand, AnyAttr()]
+    arguments: VarOperand = var_operand_def(AnyAttr())
 
     traits = frozenset([HasParent(FuncOp)])
 

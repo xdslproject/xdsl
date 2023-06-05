@@ -30,6 +30,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     OptOpAttr,
     IRDLOperation,
+    operand_def,
     result_def,
 )
 from xdsl.parser import Parser
@@ -116,7 +117,7 @@ class FastMathFlagsAttr(Data[FastMathFlags]):
 @irdl_op_definition
 class Constant(IRDLOperation):
     name = "arith.constant"
-    result: Annotated[OpResult, AnyAttr()]
+    result: OpResult = result_def(AnyAttr())
     value: OpAttr[Attribute]
 
     @staticmethod
@@ -397,9 +398,9 @@ class Cmpi(IRDLOperation, ComparisonOperation):
 
     name = "arith.cmpi"
     predicate: OpAttr[AnyIntegerAttr]
-    lhs: Annotated[Operand, IntegerType]
-    rhs: Annotated[Operand, IntegerType]
-    result: Annotated[OpResult, IntegerType(1)]
+    lhs: Operand = operand_def(IntegerType)
+    rhs: Operand = operand_def(IntegerType)
+    result: OpResult = result_def(IntegerType(1))
 
     @staticmethod
     def get(
@@ -461,9 +462,9 @@ class Cmpf(IRDLOperation, ComparisonOperation):
 
     name = "arith.cmpf"
     predicate: OpAttr[AnyIntegerAttr]
-    lhs: Annotated[Operand, floatingPointLike]
-    rhs: Annotated[Operand, floatingPointLike]
-    result: Annotated[OpResult, IntegerType(1)]
+    lhs: Operand = operand_def(floatingPointLike)
+    rhs: Operand = operand_def(floatingPointLike)
+    result: OpResult = result_def(IntegerType(1))
 
     @staticmethod
     def get(
@@ -512,9 +513,9 @@ class Select(IRDLOperation):
     """
 
     name = "arith.select"
-    cond: Annotated[Operand, IntegerType(1)]  # should be unsigned
-    lhs: Annotated[Operand, Attribute]
-    rhs: Annotated[Operand, Attribute]
+    cond: Operand = operand_def(IntegerType(1))  # should be unsigned
+    lhs: Operand = operand_def(Attribute)
+    rhs: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
 
     # TODO replace with trait
@@ -560,7 +561,7 @@ class Divf(FloatingPointLikeBinaryOp):
 class Negf(IRDLOperation):
     name = "arith.negf"
     fastmath: OptOpAttr[FastMathFlagsAttr]
-    operand: Annotated[Operand, floatingPointLike]
+    operand: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(floatingPointLike)
 
     @staticmethod
@@ -602,7 +603,7 @@ class IndexCastOp(IRDLOperation):
 class FPToSIOp(IRDLOperation):
     name = "arith.fptosi"
 
-    input: Annotated[Operand, AnyFloat]
+    input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
@@ -614,7 +615,7 @@ class FPToSIOp(IRDLOperation):
 class SIToFPOp(IRDLOperation):
     name = "arith.sitofp"
 
-    input: Annotated[Operand, IntegerType]
+    input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(AnyFloat)
 
     @staticmethod
@@ -626,7 +627,7 @@ class SIToFPOp(IRDLOperation):
 class ExtFOp(IRDLOperation):
     name = "arith.extf"
 
-    input: Annotated[Operand, AnyFloat]
+    input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
     @staticmethod
@@ -638,7 +639,7 @@ class ExtFOp(IRDLOperation):
 class TruncFOp(IRDLOperation):
     name = "arith.truncf"
 
-    input: Annotated[Operand, AnyFloat]
+    input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
     @staticmethod

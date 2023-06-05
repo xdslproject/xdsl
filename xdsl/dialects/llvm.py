@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Sequence
+from typing import Sequence
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -38,7 +38,9 @@ from xdsl.irdl import (
     VarOperand,
     OptOpAttr,
     IRDLOperation,
+    operand_def,
     result_def,
+    var_operand_def,
 )
 
 from xdsl.utils.exceptions import VerifyException
@@ -401,8 +403,8 @@ class GEPOp(IRDLOperation):
 
     name = "llvm.getelementptr"
 
-    ptr: Annotated[Operand, LLVMPointerType]
-    ssa_indices: Annotated[VarOperand, IntegerType]
+    ptr: Operand = operand_def(LLVMPointerType)
+    ssa_indices: VarOperand = var_operand_def(IntegerType)
     elem_type: OptOpAttr[Attribute]
 
     result: OpResult = result_def(LLVMPointerType)
@@ -497,7 +499,7 @@ class GEPOp(IRDLOperation):
 class AllocaOp(IRDLOperation):
     name = "llvm.alloca"
 
-    size: Annotated[Operand, IntegerType]
+    size: Operand = operand_def(IntegerType)
 
     alignment: OpAttr[AnyIntegerAttr]
 
@@ -528,7 +530,7 @@ class AllocaOp(IRDLOperation):
 class IntToPtrOp(IRDLOperation):
     name = "llvm.inttoptr"
 
-    input: Annotated[Operand, IntegerType]
+    input: Operand = operand_def(IntegerType)
 
     output: OpResult = result_def(LLVMPointerType)
 
@@ -545,7 +547,7 @@ class IntToPtrOp(IRDLOperation):
 class PtrToIntOp(IRDLOperation):
     name = "llvm.ptrtoint"
 
-    input: Annotated[Operand, LLVMPointerType]
+    input: Operand = operand_def(LLVMPointerType)
 
     output: OpResult = result_def(IntegerType)
 
@@ -558,7 +560,7 @@ class PtrToIntOp(IRDLOperation):
 class LoadOp(IRDLOperation):
     name = "llvm.load"
 
-    ptr: Annotated[Operand, LLVMPointerType]
+    ptr: Operand = operand_def(LLVMPointerType)
 
     dereferenced_value: OpResult
 
@@ -582,7 +584,7 @@ class StoreOp(IRDLOperation):
     name = "llvm.store"
 
     value: Operand
-    ptr: Annotated[Operand, LLVMPointerType]
+    ptr: Operand = operand_def(LLVMPointerType)
 
     alignment: OptOpAttr[IntegerAttr[IntegerType]]
     ordering: OptOpAttr[IntegerAttr[IntegerType]]
@@ -636,9 +638,9 @@ class LLVMExtractValue(IRDLOperation):
     name = "llvm.extractvalue"
 
     position: OpAttr[DenseArrayBase]
-    container: Annotated[Operand, AnyAttr()]
+    container: Operand = operand_def(AnyAttr())
 
-    res: Annotated[OpResult, AnyAttr()]
+    res: OpResult = result_def(AnyAttr())
 
 
 @irdl_op_definition
@@ -646,17 +648,17 @@ class LLVMInsertValue(IRDLOperation):
     name = "llvm.insertvalue"
 
     position: OpAttr[DenseArrayBase]
-    container: Annotated[Operand, AnyAttr()]
-    value: Annotated[Operand, AnyAttr()]
+    container: Operand = operand_def(AnyAttr())
+    value: Operand = operand_def(AnyAttr())
 
-    res: Annotated[OpResult, AnyAttr()]
+    res: OpResult = result_def(AnyAttr())
 
 
 @irdl_op_definition
 class LLVMMLIRUndef(IRDLOperation):
     name = "llvm.mlir.undef"
 
-    res: Annotated[OpResult, AnyAttr()]
+    res: OpResult = result_def(AnyAttr())
 
 
 @irdl_op_definition

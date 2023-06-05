@@ -19,7 +19,6 @@ from xdsl.dialects.experimental import stencil
 from xdsl.ir import Operation, SSAValue, ParametrizedAttribute, Attribute, Dialect
 from xdsl.irdl import (
     OptOpAttr,
-    Annotated,
     Operand,
     irdl_op_definition,
     irdl_attr_definition,
@@ -27,6 +26,7 @@ from xdsl.irdl import (
     IRDLOperation,
     OpAttr,
     SingleBlockRegion,
+    operand_def,
 )
 from xdsl.dialects import builtin, memref
 
@@ -382,7 +382,7 @@ class HaloSwapOp(IRDLOperation):
 
     name = "dmp.swap"
 
-    input_stencil: Annotated[Operand, stencil.TempType | memref.MemRefType]
+    input_stencil: Operand = operand_def(stencil.TempType | memref.MemRefType)
 
     # shape: OptOpAttr[HaloShapeInformation]
     swaps: OptOpAttr[builtin.ArrayAttr[HaloExchangeDecl]]
@@ -401,9 +401,9 @@ class GatherOp(IRDLOperation):
 
     name = "dmp.gather"
 
-    local_field: Annotated[Operand, memref.MemRefType]
+    local_field: Operand = operand_def(memref.MemRefType)
 
-    my_rank: Annotated[Operand, builtin.IndexType]
+    my_rank: Operand = operand_def(builtin.IndexType)
 
     root_rank: OpAttr[builtin.IntegerAttr[builtin.IntegerType]]
 
@@ -465,9 +465,9 @@ class GatherOp(IRDLOperation):
 class ScatterOp(IRDLOperation):
     name = "dmp.scatter"
 
-    global_field: Annotated[Operand, memref.MemRefType]
+    global_field: Operand = operand_def(memref.MemRefType)
 
-    my_rank: Annotated[Operand, builtin.IndexType]
+    my_rank: Operand = operand_def(builtin.IndexType)
 
     global_shape: OpAttr[HaloShapeInformation]
 

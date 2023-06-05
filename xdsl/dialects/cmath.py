@@ -19,6 +19,7 @@ from xdsl.irdl import (
     AnyOf,
     VerifyException,
     IRDLOperation,
+    result_def,
 )
 
 
@@ -35,7 +36,7 @@ class Norm(IRDLOperation):
     op: Annotated[
         Operand, ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
     ]
-    res: Annotated[OpResult, AnyOf([Float32Type, Float64Type])]
+    res: OpResult = result_def(AnyOf([Float32Type, Float64Type]))
 
     # TODO replace with trait
     def verify_(self) -> None:
