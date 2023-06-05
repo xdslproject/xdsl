@@ -71,8 +71,8 @@ class DmaStart1DWideptrOp(SnitchRuntimeBaseOp):
     """
 
     name = "snrt.dma_start_1d_wideptr"
-    src: Annotated[Operand, u64]
     dst: Annotated[Operand, u64]
+    src: Annotated[Operand, u64]
     size: Annotated[Operand, IndexType]
     transfer_id: Annotated[OpResult, tx_id]
 
@@ -82,7 +82,7 @@ class DmaStart1DWideptrOp(SnitchRuntimeBaseOp):
         dst: Operation | SSAValue,
         size: Operation | SSAValue,
     ):
-        super().__init__(operands=[src, dst, size], result_types=[tx_id])
+        super().__init__(operands=[dst, src, size], result_types=[tx_id])
 
 
 @irdl_op_definition

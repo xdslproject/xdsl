@@ -58,17 +58,18 @@ class LowerBarrierOpToFunc(RewritePattern, ABC):
 class LowerDma1DOpToFunc(RewritePattern, ABC):
     """
     Rewrite pattern that matches on DmaStart1DOp instances and lowers to external
-    function calls
+    function calls.
+    Works on both DmaStart1DOp and DmaStart1DWideptrOp.
     """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: snitch_runtime.DmaStart1DOp, rewriter: PatternRewriter, /
+        self, op: snitch_runtime.DmaStart1DOp | snitch_runtime.DmaStart1DWideptrOp, rewriter: PatternRewriter, /
     ):
         rewriter.replace_matched_op(*self.lower(op))
 
     def lower(
-        self, op: snitch_runtime.DmaStart1DOp
+        self, op: snitch_runtime.DmaStart1DOp | snitch_runtime.DmaStart1DWideptrOp
     ) -> tuple[Operation, list[SSAValue]]:
         # Get all function inputs types
         return func.Call.get(
@@ -84,12 +85,12 @@ class LowerDma2DOpToFunc(RewritePattern, ABC):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: snitch_runtime.DmaStart2DOp, rewriter: PatternRewriter, /
+        self, op: snitch_runtime.DmaStart2DOp | snitch_runtime.DmaStart2DWideptrOp, rewriter: PatternRewriter, /
     ):
         rewriter.replace_matched_op(*self.lower(op))
 
     def lower(
-        self, op: snitch_runtime.DmaStart2DOp
+        self, op: snitch_runtime.DmaStart2DOp | snitch_runtime.DmaStart2DWideptrOp
     ) -> tuple[Operation, list[SSAValue]]:
         # Get all function inputs types
         return func.Call.get(
