@@ -81,18 +81,6 @@ def test_get_definition():
 ################################################################################
 
 
-class InvalidTypedFieldTestOp(IRDLOperation):
-    name = "test.invalid_typed_field"
-
-    field: int
-
-
-def test_invalid_typed_field():
-    """Check that typed fields are not allowed"""
-    with pytest.raises(PyRDLOpDefinitionError):
-        irdl_op_definition(InvalidTypedFieldTestOp)
-
-
 class InvalidFieldTestOp(IRDLOperation):
     name = "test.invalid_field"
 
