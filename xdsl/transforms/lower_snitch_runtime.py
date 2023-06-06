@@ -1,5 +1,5 @@
 from abc import ABC
-from xdsl.ir import Operation, SSAValue, MLContext, Attribute
+from xdsl.ir import MLContext, Attribute
 from xdsl.dialects.builtin import i32, ModuleOp
 from xdsl.dialects import snitch_runtime, func
 from xdsl.passes import ModulePass
@@ -26,12 +26,8 @@ class LowerGetInfoOpToFunc(RewritePattern, ABC):
     def match_and_rewrite(
         self, op: snitch_runtime.SnitchRuntimeGetInfo, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_matched_op(*self.lower(op))
-
-    def lower(
-        self, op: snitch_runtime.SnitchRuntimeGetInfo
-    ) -> tuple[Operation, list[SSAValue]]:
-        return func.Call.get("snrt_" + op.name[5:], [], [i32]), [op.result]
+        func_call = func.Call.get("snrt_" + op.name[5:], [], [i32])
+        rewriter.replace_matched_op(func_call)
 
 
 class LowerBarrierOpToFunc(RewritePattern, ABC):
@@ -47,12 +43,8 @@ class LowerBarrierOpToFunc(RewritePattern, ABC):
     def match_and_rewrite(
         self, op: snitch_runtime.SnitchRuntimeBarrier, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_matched_op(*self.lower(op))
-
-    def lower(
-        self, op: snitch_runtime.SnitchRuntimeBarrier
-    ) -> tuple[Operation, list[SSAValue]]:
-        return func.Call.get("snrt_" + op.name[5:], [], []), []
+        func_call = func.Call.get("snrt_" + op.name[5:], [], [])
+        rewriter.replace_matched_op(func_call)
 
 
 class LowerDma1DOpToFunc(RewritePattern, ABC):
@@ -64,17 +56,14 @@ class LowerDma1DOpToFunc(RewritePattern, ABC):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: snitch_runtime.DmaStart1DOp | snitch_runtime.DmaStart1DWideptrOp, rewriter: PatternRewriter, /
+        self,
+        op: snitch_runtime.DmaStart1DOp | snitch_runtime.DmaStart1DWideptrOp,
+        rewriter: PatternRewriter,
     ):
-        rewriter.replace_matched_op(*self.lower(op))
-
-    def lower(
-        self, op: snitch_runtime.DmaStart1DOp | snitch_runtime.DmaStart1DWideptrOp
-    ) -> tuple[Operation, list[SSAValue]]:
-        # Get all function inputs types
-        return func.Call.get(
+        func_call = func.Call.get(
             "snrt_" + op.name[5:], [op.dst, op.src, op.size], [tx_id]
-        ), [op.transfer_id]
+        )
+        rewriter.replace_matched_op(func_call)
 
 
 class LowerDma2DOpToFunc(RewritePattern, ABC):
@@ -85,18 +74,16 @@ class LowerDma2DOpToFunc(RewritePattern, ABC):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: snitch_runtime.DmaStart2DOp | snitch_runtime.DmaStart2DWideptrOp, rewriter: PatternRewriter, /
+        self,
+        op: snitch_runtime.DmaStart2DOp | snitch_runtime.DmaStart2DWideptrOp,
+        rewriter: PatternRewriter,
     ):
-        rewriter.replace_matched_op(*self.lower(op))
-
-    def lower(
-        self, op: snitch_runtime.DmaStart2DOp | snitch_runtime.DmaStart2DWideptrOp
-    ) -> tuple[Operation, list[SSAValue]]:
-        # Get all function inputs types
-        return func.Call.get(
-            "snrt_" + op.name[5:], [op.dst, op.src, op.dst_stride, op.src_stride, op.size, op.repeat], [tx_id]
-        ), [op.transfer_id]
-
+        func_call = func.Call.get(
+            "snrt_" + op.name[5:],
+            [op.dst, op.src, op.dst_stride, op.src_stride, op.size, op.repeat],
+            [tx_id],
+        )
+        rewriter.replace_matched_op(func_call)
 
 
 class AddExternalFuncs(RewritePattern, ABC):
@@ -105,7 +92,7 @@ class AddExternalFuncs(RewritePattern, ABC):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, module: ModuleOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, module: ModuleOp, rewriter: PatternRewriter):
         funcs_to_emit: dict[str, tuple[list[Attribute], list[Attribute]]] = dict()
         for op in module.walk():
             if not isinstance(op, func.Call):
@@ -131,7 +118,12 @@ class LowerSnitchRuntimePass(ModulePass):
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker1 = PatternRewriteWalker(
             GreedyRewritePatternApplier(
-                [LowerGetInfoOpToFunc(), LowerBarrierOpToFunc(), LowerDma1DOpToFunc(), LowerDma2DOpToFunc()]
+                [
+                    LowerGetInfoOpToFunc(),
+                    LowerBarrierOpToFunc(),
+                    LowerDma1DOpToFunc(),
+                    LowerDma2DOpToFunc(),
+                ]
             ),
             apply_recursively=True,
         )
