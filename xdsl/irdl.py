@@ -727,16 +727,29 @@ Successor: TypeAlias = Block
 OptSuccessor: TypeAlias = Block | None
 VarSuccessor: TypeAlias = list[Block]
 
+_ClsT = TypeVar("_ClsT")
+_ParamT = TypeVar("_ParamT")
 
-class OpDefField:
-    cls: type
-    param: AttrConstraint | Attribute | type[Attribute] | TypeVar
 
-    def __init__(
-        self, cls: type, param: AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ):
+class OpDefField(Generic[_ClsT, _ParamT]):
+    cls: type[_ClsT]
+    param: _ParamT
+
+    def __init__(self, cls: type[_ClsT], param: _ParamT):
         self.cls = cls
         self.param = param
+
+
+class OperandFieldDef(
+    OpDefField[OperandDef, AttrConstraint | Attribute | type[Attribute] | TypeVar]
+):
+    pass
+
+
+class ResultFieldDef(
+    OpDefField[ResultDef, AttrConstraint | Attribute | type[Attribute] | TypeVar]
+):
+    pass
 
 
 def result_def(
@@ -746,7 +759,7 @@ def result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OpResult:
-    return cast(OpResult, OpDefField(ResultDef, constraint))
+    return cast(OpResult, ResultFieldDef(ResultDef, constraint))
 
 
 def var_result_def(
@@ -756,7 +769,7 @@ def var_result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarOpResult:
-    return cast(VarOpResult, OpDefField(VarResultDef, constraint))
+    return cast(VarOpResult, ResultFieldDef(VarResultDef, constraint))
 
 
 def opt_result_def(
@@ -766,7 +779,7 @@ def opt_result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptOpResult:
-    return cast(OptOpResult, OpDefField(OptResultDef, constraint))
+    return cast(OptOpResult, ResultFieldDef(OptResultDef, constraint))
 
 
 def operand_def(
@@ -776,7 +789,7 @@ def operand_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> Operand:
-    return cast(Operand, OpDefField(OperandDef, constraint))
+    return cast(Operand, OperandFieldDef(OperandDef, constraint))
 
 
 def var_operand_def(
@@ -786,7 +799,7 @@ def var_operand_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarOperand:
-    return cast(VarOperand, OpDefField(VarOperandDef, constraint))
+    return cast(VarOperand, OperandFieldDef(VarOperandDef, constraint))
 
 
 def opt_operand_def(
@@ -796,7 +809,7 @@ def opt_operand_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptOperand:
-    return cast(OptOperand, OpDefField(OptOperandDef, constraint))
+    return cast(OptOperand, OperandFieldDef(OptOperandDef, constraint))
 
 
 @dataclass(kw_only=True)
@@ -906,18 +919,18 @@ class OpDef:
             if field_name in clsdict:
                 field_value = clsdict[field_name]
 
-                if isinstance(field_value, OpDefField):
-                    if field_value.cls in (ResultDef, VarResultDef, OptResultDef):
+                match field_value:
+                    case ResultFieldDef():
                         constraint = get_constraint((field_value.param,))
                         result_def = field_value.cls(constraint)
                         op_def.results.append((field_name, result_def))
                         continue
-                    elif field_value.cls in (OperandDef, VarOperandDef, OptOperandDef):
+                    case OperandFieldDef():
                         constraint = get_constraint((field_value.param,))
                         operand_def = field_value.cls(constraint)
                         op_def.operands.append((field_name, operand_def))
                         continue
-                    else:
+                    case _:
                         assert False
 
             # If the field type is an Annotated, separate the origin
