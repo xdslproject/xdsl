@@ -42,21 +42,8 @@ def test_multiply_add():
     @ModuleOp
     @Builder.implicit_region
     def module():
-        riscv.DirectiveOp(".bss", "")
-        riscv.LabelOp("heap")
-        riscv.DirectiveOp(".space", "1024")
-        riscv.DirectiveOp(".text", "")
-
         @Builder.implicit_region
         def main():
-            heap = riscv.LiOp("heap").rd
-            riscv.AddiOp(
-                heap,
-                1020,
-                rd=riscv.Registers.SP,
-                comment="stack grows from the top of the heap",
-            )
-
             riscv.LiOp(3, rd=riscv.Registers.A0)
             riscv.LiOp(2, rd=riscv.Registers.A1)
             riscv.LiOp(1, rd=riscv.Registers.A2)

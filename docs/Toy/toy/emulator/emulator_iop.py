@@ -43,6 +43,7 @@ def run_riscv(
     )
 
     cpu = UserModeCPU([RV32I, RV32M, RV_Debug, *extensions], cfg)
+    cpu.setup_stack()
 
     io = StringIO(code)
 
