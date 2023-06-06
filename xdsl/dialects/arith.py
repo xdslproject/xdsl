@@ -23,8 +23,8 @@ from xdsl.ir import Operation, SSAValue, Dialect, OpResult, Data
 from xdsl.irdl import (
     AnyOf,
     ConstraintVar,
+    attr_def,
     irdl_op_definition,
-    OpAttr,
     AnyAttr,
     Operand,
     irdl_attr_definition,
@@ -118,7 +118,7 @@ class FastMathFlagsAttr(Data[FastMathFlags]):
 class Constant(IRDLOperation):
     name = "arith.constant"
     result: OpResult = result_def(AnyAttr())
-    value: OpAttr[Attribute]
+    value: Attribute = attr_def(Attribute)
 
     @staticmethod
     def from_attr(attr: Attribute, typ: Attribute) -> Constant:
@@ -397,7 +397,7 @@ class Cmpi(IRDLOperation, ComparisonOperation):
     """
 
     name = "arith.cmpi"
-    predicate: OpAttr[AnyIntegerAttr]
+    predicate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
     lhs: Operand = operand_def(IntegerType)
     rhs: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType(1))
@@ -461,7 +461,7 @@ class Cmpf(IRDLOperation, ComparisonOperation):
     """
 
     name = "arith.cmpf"
-    predicate: OpAttr[AnyIntegerAttr]
+    predicate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
     lhs: Operand = operand_def(floatingPointLike)
     rhs: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(IntegerType(1))

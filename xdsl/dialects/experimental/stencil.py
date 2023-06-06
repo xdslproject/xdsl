@@ -17,6 +17,7 @@ from xdsl.ir import Attribute, Operation, Dialect, TypeAttribute
 from xdsl.ir import SSAValue
 
 from xdsl.irdl import (
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     ParameterDef,
@@ -25,7 +26,6 @@ from xdsl.irdl import (
     VerifyException,
     Generic,
     Operand,
-    OpAttr,
     OpResult,
     VarOperand,
     operand_def,
@@ -342,8 +342,8 @@ class IndexOp(IRDLOperation):
     """
 
     name = "stencil.index"
-    dim: OpAttr[AnyIntegerAttr]
-    offset: OpAttr[IndexAttr]
+    dim: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    offset: IndexAttr = attr_def(IndexAttr)
     idx: OpResult = result_def(builtin.IndexType)
 
 
@@ -359,7 +359,7 @@ class AccessOp(IRDLOperation):
 
     name = "stencil.access"
     temp: Operand = operand_def(TempType)
-    offset: OpAttr[IndexAttr]
+    offset: IndexAttr = attr_def(IndexAttr)
     res: OpResult = result_def(Attribute)
 
     @staticmethod
@@ -456,8 +456,8 @@ class StoreOp(IRDLOperation):
     name = "stencil.store"
     temp: Operand = operand_def(TempType)
     field: Operand = operand_def(FieldType)
-    lb: OpAttr[IndexAttr]
-    ub: OpAttr[IndexAttr]
+    lb: IndexAttr = attr_def(IndexAttr)
+    ub: IndexAttr = attr_def(IndexAttr)
 
     @staticmethod
     def get(

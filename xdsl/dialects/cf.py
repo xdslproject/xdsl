@@ -6,7 +6,7 @@ from typing import Union, Sequence
 from xdsl.dialects.builtin import IntegerType, StringAttr
 from xdsl.ir import SSAValue, Operation, Block, Dialect
 from xdsl.irdl import (
-    OpAttr,
+    attr_def,
     irdl_op_definition,
     VarOperand,
     AnyAttr,
@@ -24,7 +24,7 @@ from xdsl.irdl import (
 class Assert(IRDLOperation):
     name = "cf.assert"
     arg: Operand = operand_def(IntegerType(1))
-    msg: OpAttr[StringAttr]
+    msg: StringAttr = attr_def(StringAttr)
 
     @staticmethod
     def get(arg: Operation | SSAValue, msg: str | StringAttr) -> Assert:

@@ -18,7 +18,7 @@ from xdsl.dialects.builtin import AnyIntegerAttr
 
 from xdsl.ir import Dialect, Operation, SSAValue
 
-from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand, OpAttr, operand_def
+from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, Operand, operand_def
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -41,7 +41,7 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
 
     stream: Operand = operand_def(RegisterType)
     value: Operand = operand_def(RegisterType)
-    dimension: OpAttr[AnyIntegerAttr]
+    dimension: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     def __init__(
         self,

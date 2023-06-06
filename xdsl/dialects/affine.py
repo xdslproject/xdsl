@@ -5,8 +5,8 @@ from typing import Sequence
 from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
 from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
 from xdsl.irdl import (
-    OpAttr,
     VarOpResult,
+    attr_def,
     irdl_op_definition,
     VarOperand,
     AnyAttr,
@@ -26,9 +26,9 @@ class For(IRDLOperation):
 
     # TODO the bounds are in fact affine_maps
     # TODO support dynamic bounds as soon as maps are here
-    lower_bound: OpAttr[AnyIntegerAttr]
-    upper_bound: OpAttr[AnyIntegerAttr]
-    step: OpAttr[AnyIntegerAttr]
+    lower_bound: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    upper_bound: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    step: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     body: Region = region_def()
 

@@ -19,11 +19,11 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.irdl import (
-    OpAttr,
     Operand,
     OptOpAttr,
     OptOperand,
     VarOpResult,
+    attr_def,
     region_def,
     var_operand_def,
     var_result_def,
@@ -70,7 +70,7 @@ class ConstantOp(IRDLOperation):
     """
 
     name = "toy.constant"
-    value: OpAttr[DenseIntOrFPElementsAttr]
+    value: DenseIntOrFPElementsAttr = attr_def(DenseIntOrFPElementsAttr)
     res: OpResult = result_def(TensorTypeF64)
 
     traits = frozenset((Pure(),))
@@ -178,8 +178,8 @@ class FuncOp(IRDLOperation):
 
     name = "toy.func"
     body: Region = region_def()
-    sym_name: OpAttr[StringAttr]
-    function_type: OpAttr[FunctionType]
+    sym_name: StringAttr = attr_def(StringAttr)
+    function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: OptOpAttr[StringAttr]
 
     def __init__(
@@ -258,7 +258,7 @@ class FuncOp(IRDLOperation):
 class GenericCallOp(IRDLOperation):
     name = "toy.generic_call"
     arguments: VarOperand = var_operand_def(AnyAttr())
-    callee: OpAttr[SymbolRefAttr]
+    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
     res: VarOpResult = var_result_def(AnyTensorTypeF64)

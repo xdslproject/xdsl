@@ -15,8 +15,8 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    OpAttr,
     VarOperand,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     region_def,
@@ -45,7 +45,7 @@ class DialectOp(IRDLOperation):
 
     name = "irdl.dialect"
 
-    sym_name: OpAttr[StringAttr]
+    sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
     def __init__(self, name: str | StringAttr, body: Region):
@@ -73,7 +73,7 @@ class TypeOp(IRDLOperation):
 
     name = "irdl.type"
 
-    sym_name: OpAttr[StringAttr]
+    sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
     traits = frozenset([HasParent(DialectOp)])
@@ -103,7 +103,7 @@ class AttributeOp(IRDLOperation):
 
     name = "irdl.attribute"
 
-    sym_name: OpAttr[StringAttr]
+    sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
     traits = frozenset([HasParent(DialectOp)])
@@ -159,7 +159,7 @@ class OperationOp(IRDLOperation):
 
     name = "irdl.operation"
 
-    sym_name: OpAttr[StringAttr]
+    sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
     traits = frozenset([HasParent(DialectOp)])
@@ -246,7 +246,7 @@ class IsOp(IRDLOperation):
 
     name = "irdl.is"
 
-    expected: OpAttr[Attribute]
+    expected: Attribute = attr_def(Attribute)
     output: OpResult = result_def(AttributeType)
 
     def __init__(self, expected: Attribute):
@@ -270,7 +270,7 @@ class ParametricOp(IRDLOperation):
 
     name = "irdl.parametric"
 
-    base_type: OpAttr[SymbolRefAttr]
+    base_type: SymbolRefAttr = attr_def(SymbolRefAttr)
     args: VarOperand = var_operand_def(AttributeType)
     output: OpResult = result_def(AttributeType)
 

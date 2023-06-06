@@ -21,6 +21,7 @@ from xdsl.irdl import (
     VarOpResult,
     VarOperand,
     VarRegion,
+    attr_def,
     irdl_op_definition,
     OperandDef,
     ResultDef,
@@ -28,7 +29,6 @@ from xdsl.irdl import (
     AnyAttr,
     OpDef,
     RegionDef,
-    OpAttr,
     IRDLOperation,
     operand_def,
     opt_operand_def,
@@ -57,7 +57,7 @@ class OpDefTestOp(IRDLOperation):
 
     operand: Operand = operand_def()
     result: OpResult = result_def()
-    attr: OpAttr[Attribute]
+    attr: Attribute = attr_def(Attribute)
     region: Region = region_def()
 
     # Check that we can define methods in operation definitions
@@ -113,7 +113,7 @@ def test_invalid_field():
 @irdl_op_definition
 class AttrOp(IRDLOperation):
     name = "test.two_var_result_op"
-    attr: OpAttr[StringAttr]
+    attr: StringAttr = attr_def(StringAttr)
 
 
 def test_attr_verify():
@@ -132,7 +132,7 @@ class ConstraintVarOp(IRDLOperation):
 
     operand: Operand = operand_def(T)
     result: OpResult = result_def(T)
-    attribute: OpAttr[T]
+    attribute: T = attr_def(T)
 
 
 def test_constraint_var():
@@ -290,7 +290,7 @@ def test_opresult_accessors():
 class AttributeOp(IRDLOperation):
     name = "test.attribute_op"
 
-    attr: OpAttr[StringAttr]
+    attr: StringAttr = attr_def(StringAttr)
     opt_attr: OptOpAttr[StringAttr]
 
 
@@ -338,7 +338,7 @@ _Result = TypeVar("_Result", bound=FooType | BarType)
 class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
     name = "test.string_or_int_generic"
 
-    attr: OpAttr[_Attr]
+    attr: _Attr = attr_def(_Attr)
     operand: Operand = operand_def(_Operand)
     result: OpResult = result_def(_Result)
 

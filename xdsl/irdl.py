@@ -762,6 +762,14 @@ class ResultFieldDef(
     pass
 
 
+class AttributeFieldDef(
+    ConstrainedOpDefField[
+        AttributeDef, AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ]
+):
+    pass
+
+
 class RegionFieldDef(OpDefField[RegionDef]):
     pass
 
@@ -798,6 +806,26 @@ def opt_result_def(
     init: Literal[False] = False,
 ) -> OptOpResult:
     return cast(OptOpResult, ResultFieldDef(OptResultDef, constraint))
+
+
+def attr_def(
+    constraint: type[_AttrT] | TypeVar,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> _AttrT:
+    return cast(_AttrT, AttributeFieldDef(AttributeDef, constraint))
+
+
+def opt_attr_def(
+    constraint: type[_AttrT] | TypeVar,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> _AttrT | None:
+    return cast(_AttrT, AttributeFieldDef(OptAttributeDef, constraint))
 
 
 def operand_def(
@@ -1005,8 +1033,13 @@ class OpDef:
                         continue
                     case OperandFieldDef():
                         constraint = get_constraint((field_value.param,))
-                        operand_def = field_value.cls(constraint)
-                        op_def.operands.append((field_name, operand_def))
+                        attribute_def = field_value.cls(constraint)
+                        op_def.operands.append((field_name, attribute_def))
+                        continue
+                    case AttributeFieldDef():
+                        constraint = get_constraint((field_value.param,))
+                        attribute_def = field_value.cls(constraint)
+                        op_def.attributes[field_name] = attribute_def
                         continue
                     case RegionFieldDef():
                         successor_def = field_value.cls()

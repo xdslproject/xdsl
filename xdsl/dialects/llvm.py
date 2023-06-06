@@ -29,10 +29,10 @@ from xdsl.ir import (
     Region,
 )
 from xdsl.irdl import (
-    OpAttr,
     Operand,
     ParameterDef,
     AnyAttr,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     VarOperand,
@@ -410,7 +410,7 @@ class GEPOp(IRDLOperation):
 
     result: OpResult = result_def(LLVMPointerType)
 
-    rawConstantIndices: OpAttr[DenseArrayBase]
+    rawConstantIndices: DenseArrayBase = attr_def(DenseArrayBase)
     inbounds: OptOpAttr[UnitAttr]
 
     @staticmethod
@@ -502,7 +502,7 @@ class AllocaOp(IRDLOperation):
 
     size: Operand = operand_def(IntegerType)
 
-    alignment: OpAttr[AnyIntegerAttr]
+    alignment: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     res: OpResult = result_def()
 
@@ -638,7 +638,7 @@ class NullOp(IRDLOperation):
 class LLVMExtractValue(IRDLOperation):
     name = "llvm.extractvalue"
 
-    position: OpAttr[DenseArrayBase]
+    position: DenseArrayBase = attr_def(DenseArrayBase)
     container: Operand = operand_def(AnyAttr())
 
     res: OpResult = result_def(AnyAttr())
@@ -648,7 +648,7 @@ class LLVMExtractValue(IRDLOperation):
 class LLVMInsertValue(IRDLOperation):
     name = "llvm.insertvalue"
 
-    position: OpAttr[DenseArrayBase]
+    position: DenseArrayBase = attr_def(DenseArrayBase)
     container: Operand = operand_def(AnyAttr())
     value: Operand = operand_def(AnyAttr())
 
@@ -666,15 +666,15 @@ class LLVMMLIRUndef(IRDLOperation):
 class GlobalOp(IRDLOperation):
     name = "llvm.mlir.global"
 
-    global_type: OpAttr[Attribute]
+    global_type: Attribute = attr_def(Attribute)
     constant: OptOpAttr[UnitAttr]
-    sym_name: OpAttr[StringAttr]
-    linkage: OpAttr[LinkageAttr]
+    sym_name: StringAttr = attr_def(StringAttr)
+    linkage: LinkageAttr = attr_def(LinkageAttr)
     dso_local: OptOpAttr[UnitAttr]
     thread_local_: OptOpAttr[UnitAttr]
     value: OptOpAttr[Attribute]
     alignment: OptOpAttr[AnyIntegerAttr]
-    addr_space: OpAttr[AnyIntegerAttr]
+    addr_space: AnyIntegerAttr = attr_def(AnyIntegerAttr)
     unnamed_addr: OptOpAttr[AnyIntegerAttr]
     section: OptOpAttr[StringAttr]
 
@@ -738,7 +738,7 @@ class GlobalOp(IRDLOperation):
 class AddressOfOp(IRDLOperation):
     name = "llvm.mlir.addressof"
 
-    global_name: OpAttr[SymbolRefAttr]
+    global_name: SymbolRefAttr = attr_def(SymbolRefAttr)
     result: OpResult = result_def(LLVMPointerType)
 
     @staticmethod

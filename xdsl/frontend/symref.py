@@ -2,8 +2,8 @@ from __future__ import annotations
 from xdsl.ir import Attribute, Dialect, OpResult, SSAValue
 from xdsl.irdl import (
     Operand,
+    attr_def,
     irdl_op_definition,
-    OpAttr,
     AnyAttr,
     Operation,
     IRDLOperation,
@@ -16,7 +16,7 @@ from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 @irdl_op_definition
 class Declare(IRDLOperation):
     name = "symref.declare"
-    sym_name: OpAttr[StringAttr]
+    sym_name: StringAttr = attr_def(StringAttr)
 
     @staticmethod
     def get(sym_name: str | StringAttr) -> Declare:
@@ -29,7 +29,7 @@ class Declare(IRDLOperation):
 class Fetch(IRDLOperation):
     name = "symref.fetch"
     value: OpResult = result_def(AnyAttr())
-    symbol: OpAttr[SymbolRefAttr]
+    symbol: SymbolRefAttr = attr_def(SymbolRefAttr)
 
     @staticmethod
     def get(symbol: str | SymbolRefAttr, result_type: Attribute) -> Fetch:
@@ -42,7 +42,7 @@ class Fetch(IRDLOperation):
 class Update(IRDLOperation):
     name = "symref.update"
     value: Operand = operand_def(AnyAttr())
-    symbol: OpAttr[SymbolRefAttr]
+    symbol: SymbolRefAttr = attr_def(SymbolRefAttr)
 
     @staticmethod
     def get(symbol: str | SymbolRefAttr, value: Operation | SSAValue) -> Update:

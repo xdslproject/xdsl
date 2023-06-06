@@ -22,12 +22,12 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    OpAttr,
     Operand,
     OptOpAttr,
     OptOperand,
     OptRegion,
     ParameterDef,
+    attr_def,
     operand_def,
     opt_operand_def,
     opt_region_def,
@@ -127,7 +127,7 @@ class ApplyNativeConstraintOp(IRDLOperation):
 
     name = "pdl.apply_native_constraint"
     # https://github.com/xdslproject/xdsl/issues/98
-    # name: OpAttr[StringAttr]
+    # name: StringAttr = attr_def(StringAttr)
     args: VarOperand = var_operand_def(AnyPDLType)
 
     @property
@@ -178,7 +178,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
 
     name = "pdl.apply_native_rewrite"
     # https://github.com/xdslproject/xdsl/issues/98
-    # name: OpAttr[StringAttr]
+    # name: StringAttr = attr_def(StringAttr)
     args: VarOperand = var_operand_def(AnyPDLType)
     res: VarOpResult = var_result_def(AnyPDLType)
 
@@ -365,7 +365,7 @@ class OperationOp(IRDLOperation):
 
     name = "pdl.operation"
     opName: OptOpAttr[StringAttr]
-    attributeValueNames: OpAttr[ArrayAttr[StringAttr]]
+    attributeValueNames: ArrayAttr[StringAttr] = attr_def(ArrayAttr[StringAttr])
 
     operand_values: VarOperand = var_operand_def(ValueType | RangeType[ValueType])
     attribute_values: VarOperand = var_operand_def(AttributeType)
@@ -469,7 +469,9 @@ class PatternOp(IRDLOperation):
     """
 
     name = "pdl.pattern"
-    benefit: OpAttr[IntegerAttr[Annotated[IntegerType, IntegerType(16)]]]
+    benefit: IntegerAttr[Annotated[IntegerType, IntegerType(16)]] = attr_def(
+        IntegerAttr[Annotated[IntegerType, IntegerType(16)]]
+    )
     sym_name: OptOpAttr[StringAttr]
     body: Region = region_def()
 
@@ -658,7 +660,9 @@ class ResultOp(IRDLOperation):
     """
 
     name = "pdl.result"
-    index: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
+    index: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
+        IntegerAttr[Annotated[IntegerType, i32]]
+    )
     parent_: Operand = operand_def(OperationType)
     val: OpResult = result_def(ValueType)
 

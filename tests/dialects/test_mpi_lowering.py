@@ -1,6 +1,12 @@
 from xdsl.dialects import mpi, func, llvm, builtin, arith
 from xdsl.ir import Operation, Attribute, OpResult
-from xdsl.irdl import irdl_op_definition, var_result_def, IRDLOperation, Operand
+from xdsl.irdl import (
+    VarOpResult,
+    irdl_op_definition,
+    var_result_def,
+    IRDLOperation,
+    Operand,
+)
 from xdsl.transforms import lower_mpi
 from xdsl.pattern_rewriter import PatternRewriteWalker
 from xdsl.dialects.builtin import i32, i64
@@ -409,6 +415,7 @@ def test_lower_mpi_vec_get():
     ops, res = lower_mpi.LowerMpiVectorGet(info).lower(get)
 
     assert len(res) == 1
+    assert res[0] is not None
     assert isinstance(res[0].typ, llvm.LLVMPointerType)
     assert len(ops) > 0
 

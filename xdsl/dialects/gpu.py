@@ -19,9 +19,9 @@ from xdsl.irdl import (
     OptOperand,
     ParameterDef,
     VarOperand,
+    attr_def,
     irdl_op_definition,
     irdl_attr_definition,
-    OpAttr,
     IRDLOperation,
     operand_def,
     opt_operand_def,
@@ -253,7 +253,7 @@ class BarrierOp(IRDLOperation):
 @irdl_op_definition
 class BlockDimOp(IRDLOperation):
     name = "gpu.block_dim"
-    dimension: OpAttr[DimensionAttr]
+    dimension: DimensionAttr = attr_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
     @staticmethod
@@ -266,7 +266,7 @@ class BlockDimOp(IRDLOperation):
 @irdl_op_definition
 class BlockIdOp(IRDLOperation):
     name = "gpu.block_id"
-    dimension: OpAttr[DimensionAttr]
+    dimension: DimensionAttr = attr_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
     @staticmethod
@@ -336,7 +336,7 @@ class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
     body: Region = region_def("single_block")
-    sym_name: OpAttr[StringAttr]
+    sym_name: StringAttr = attr_def(StringAttr)
 
     @staticmethod
     def get(name: SymbolRefAttr, ops: Sequence[Operation]) -> ModuleOp:
@@ -351,7 +351,7 @@ class ModuleOp(IRDLOperation):
 @irdl_op_definition
 class GlobalIdOp(IRDLOperation):
     name = "gpu.global_id"
-    dimension: OpAttr[DimensionAttr]
+    dimension: DimensionAttr = attr_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
     @staticmethod
@@ -364,7 +364,7 @@ class GlobalIdOp(IRDLOperation):
 @irdl_op_definition
 class GridDimOp(IRDLOperation):
     name = "gpu.grid_dim"
-    dimension: OpAttr[DimensionAttr]
+    dimension: DimensionAttr = attr_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
     @staticmethod
@@ -536,7 +536,7 @@ class TerminatorOp(IRDLOperation):
 @irdl_op_definition
 class ThreadIdOp(IRDLOperation):
     name = "gpu.thread_id"
-    dimension: OpAttr[DimensionAttr]
+    dimension: DimensionAttr = attr_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
     @staticmethod

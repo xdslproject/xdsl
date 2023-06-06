@@ -27,11 +27,11 @@ from xdsl.ir import (
 from xdsl.irdl import (
     OptOpAttr,
     Operand,
+    attr_def,
     irdl_op_definition,
     irdl_attr_definition,
     ParameterDef,
     IRDLOperation,
-    OpAttr,
     operand_def,
     region_def,
 )
@@ -412,9 +412,11 @@ class GatherOp(IRDLOperation):
 
     my_rank: Operand = operand_def(builtin.IndexType)
 
-    root_rank: OpAttr[builtin.IntegerAttr[builtin.IntegerType]]
+    root_rank: builtin.IntegerAttr[builtin.IntegerType] = attr_def(
+        builtin.IntegerAttr[builtin.IntegerType]
+    )
 
-    global_shape: OpAttr[HaloShapeInformation]
+    global_shape: HaloShapeInformation = attr_def(HaloShapeInformation)
 
     when_root_block: Region = region_def("single_block")
     """
@@ -476,7 +478,7 @@ class ScatterOp(IRDLOperation):
 
     my_rank: Operand = operand_def(builtin.IndexType)
 
-    global_shape: OpAttr[HaloShapeInformation]
+    global_shape: HaloShapeInformation = attr_def(HaloShapeInformation)
 
     def __init__(self, ref: SSAValue | Operand, shape: HaloShapeInformation):
         super().__init__(operands=[ref], attributes={"global_shape": shape})

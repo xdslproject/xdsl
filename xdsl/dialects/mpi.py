@@ -19,9 +19,9 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     Operand,
+    attr_def,
     irdl_op_definition,
     irdl_attr_definition,
-    OpAttr,
     OptOpResult,
     ParameterDef,
     OptOperand,
@@ -170,7 +170,7 @@ class Reduce(MPIBaseOp):
     recv_buffer: Operand = operand_def(Attribute)
     count: Operand = operand_def(i32)
     datatype: Operand = operand_def(DataType)
-    operationtype: OpAttr[OperationType]
+    operationtype: OperationType = attr_def(OperationType)
     root: Operand = operand_def(i32)
 
     @staticmethod
@@ -219,7 +219,7 @@ class Allreduce(MPIBaseOp):
     recv_buffer: Operand = operand_def(Attribute)
     count: Operand = operand_def(i32)
     datatype: Operand = operand_def(DataType)
-    operationtype: OpAttr[OperationType]
+    operationtype: OperationType = attr_def(OperationType)
 
     @staticmethod
     def get(
@@ -582,7 +582,7 @@ class GetStatusField(MPIBaseOp):
 
     status: Operand = operand_def(StatusType)
 
-    field: OpAttr[StringAttr]
+    field: StringAttr = attr_def(StringAttr)
 
     result: OpResult = result_def(i32)
 
@@ -692,7 +692,7 @@ class GetDtypeOp(MPIBaseOp):
 
     name = "mpi.get_dtype"
 
-    dtype: OpAttr[Attribute]
+    dtype: Attribute = attr_def(Attribute)
 
     result: OpResult = result_def(DataType)
 
@@ -716,7 +716,7 @@ class AllocateTypeOp(MPIBaseOp):
     name = "mpi.allocate"
 
     bindc_name: OptOpAttr[StringAttr]
-    dtype: OpAttr[VectorWrappable]
+    dtype: VectorWrappable = attr_def(VectorWrappable)
     count: Operand = operand_def(i32)
 
     result: OpResult = result_def(VectorType)

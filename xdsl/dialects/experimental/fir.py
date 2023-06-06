@@ -3,12 +3,12 @@ from xdsl.irdl import (
     Operand,
     OpResult,
     AnyAttr,
-    Annotated,
     OptOpResult,
     VarOperand,
     ParameterDef,
     OptOperand,
     VarRegion,
+    attr_def,
     irdl_op_definition,
     irdl_attr_definition,
     OpAttr,
@@ -17,6 +17,13 @@ from xdsl.irdl import (
     Attribute,
     AttrSizedOperandSegments,
     IRDLOperation,
+    operand_def,
+    opt_operand_def,
+    opt_result_def,
+    result_def,
+    var_operand_def,
+    var_region_def,
+    var_result_def,
 )
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -363,17 +370,17 @@ class Absent(IRDLOperation):
     """
 
     name = "fir.absent"
-    intype: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    intype: OpResult = result_def()
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
 class Addc(IRDLOperation):
     name = "fir.addc"
-    lhs: Annotated[Operand, AnyAttr()]
-    rhs: Annotated[Operand, AnyAttr()]
-    result: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    lhs: Operand = operand_def(AnyAttr())
+    rhs: Operand = operand_def(AnyAttr())
+    result: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -387,9 +394,9 @@ class AddressOf(IRDLOperation):
     """
 
     name = "fir.address_of"
-    symbol: OpAttr[SymbolRefAttr]
-    resTy: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    symbol: SymbolRefAttr = attr_def(SymbolRefAttr)
+    resTy: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -405,13 +412,13 @@ class Allocmem(IRDLOperation):
     """
 
     name = "fir.allocmem"
-    in_type: OpAttr[Attribute]
+    in_type: Attribute = attr_def(Attribute)
     uniq_name: OptOpAttr[StringAttr]
-    typeparams: Annotated[VarOperand, AnyAttr()]
-    shape: Annotated[VarOperand, AnyAttr()]
+    typeparams: VarOperand = var_operand_def(AnyAttr())
+    shape: VarOperand = var_operand_def(AnyAttr())
 
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -478,13 +485,13 @@ class Alloca(IRDLOperation):
     """
 
     name = "fir.alloca"
-    in_type: OpAttr[Attribute]
+    in_type: Attribute = attr_def(Attribute)
     uniq_name: OptOpAttr[StringAttr]
     bindc_name: OptOpAttr[StringAttr]
-    typeparams: Annotated[VarOperand, AnyAttr()]
-    shape: Annotated[VarOperand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    typeparams: VarOperand = var_operand_def(AnyAttr())
+    shape: VarOperand = var_operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
     valuebyref: OptOpAttr[UnitAttr]
 
     irdl_options = [AttrSizedOperandSegments()]
@@ -531,11 +538,11 @@ class ArrayAccess(IRDLOperation):
     """
 
     name = "fir.array_access"
-    sequence: Annotated[Operand, AnyAttr()]
-    indices: Annotated[Operand, AnyAttr()]
-    typeparams: Annotated[Operand, AnyAttr()]
-    element: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    sequence: Operand = operand_def(AnyAttr())
+    indices: Operand = operand_def(AnyAttr())
+    typeparams: Operand = operand_def(AnyAttr())
+    element: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -558,10 +565,10 @@ class ArrayAmend(IRDLOperation):
     """
 
     name = "fir.array_amend"
-    sequence: Annotated[Operand, AnyAttr()]
-    memref: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    sequence: Operand = operand_def(AnyAttr())
+    memref: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -585,13 +592,13 @@ class ArrayCoor(IRDLOperation):
     """
 
     name = "fir.array_coor"
-    memref: Annotated[Operand, AnyAttr()]
-    shape: Annotated[Operand, AnyAttr()]
-    slice: Annotated[Operand, AnyAttr()]
-    indices: Annotated[Operand, AnyAttr()]
-    typeparams: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    memref: Operand = operand_def(AnyAttr())
+    shape: Operand = operand_def(AnyAttr())
+    slice: Operand = operand_def(AnyAttr())
+    indices: Operand = operand_def(AnyAttr())
+    typeparams: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -618,11 +625,11 @@ class ArrayFetch(IRDLOperation):
     """
 
     name = "fir.array_fetch"
-    sequence: Annotated[Operand, AnyAttr()]
-    indices: Annotated[Operand, AnyAttr()]
-    typeparams: Annotated[Operand, AnyAttr()]
-    element: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    sequence: Operand = operand_def(AnyAttr())
+    indices: Operand = operand_def(AnyAttr())
+    typeparams: Operand = operand_def(AnyAttr())
+    element: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -658,12 +665,12 @@ class ArrayLoad(IRDLOperation):
     """
 
     name = "fir.array_load"
-    memref: Annotated[Operand, AnyAttr()]
-    shape: Annotated[Operand, AnyAttr()]
-    slice: Annotated[Operand, AnyAttr()]
-    typeparams: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    memref: Operand = operand_def(AnyAttr())
+    shape: Operand = operand_def(AnyAttr())
+    slice: Operand = operand_def(AnyAttr())
+    typeparams: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -687,12 +694,12 @@ class ArrayMergeStore(IRDLOperation):
     """
 
     name = "fir.array_merge_store"
-    original: Annotated[Operand, AnyAttr()]
-    sequence: Annotated[Operand, AnyAttr()]
-    memref: Annotated[Operand, AnyAttr()]
-    slice: Annotated[Operand, AnyAttr()]
-    typeparams: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    original: Operand = operand_def(AnyAttr())
+    sequence: Operand = operand_def(AnyAttr())
+    memref: Operand = operand_def(AnyAttr())
+    slice: Operand = operand_def(AnyAttr())
+    typeparams: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -727,12 +734,12 @@ class ArrayModify(IRDLOperation):
     """
 
     name = "fir.array_modify"
-    sequence: Annotated[Operand, AnyAttr()]
-    indices: Annotated[Operand, AnyAttr()]
-    typeparams: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    result_1: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    sequence: Operand = operand_def(AnyAttr())
+    indices: Operand = operand_def(AnyAttr())
+    typeparams: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    result_1: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -764,12 +771,12 @@ class ArrayUpdate(IRDLOperation):
     """
 
     name = "fir.array_update"
-    sequence: Annotated[Operand, AnyAttr()]
-    merge: Annotated[Operand, AnyAttr()]
-    indices: Annotated[Operand, AnyAttr()]
-    typeparams: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    sequence: Operand = operand_def(AnyAttr())
+    merge: Operand = operand_def(AnyAttr())
+    indices: Operand = operand_def(AnyAttr())
+    typeparams: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -786,9 +793,9 @@ class BoxAddr(IRDLOperation):
     """
 
     name = "fir.box_addr"
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -801,9 +808,9 @@ class BoxcharLen(IRDLOperation):
     """
 
     name = "fir.boxchar_len"
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -823,12 +830,12 @@ class BoxDims(IRDLOperation):
     """
 
     name = "fir.box_dims"
-    val: Annotated[Operand, AnyAttr()]
-    dim: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    result_1: Annotated[OpResult, AnyAttr()]
-    result_2: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    dim: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    result_1: OpResult = result_def(AnyAttr())
+    result_2: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -845,9 +852,9 @@ class BoxElesize(IRDLOperation):
     """
 
     name = "fir.box_elesize"
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -866,9 +873,9 @@ class BoxIsalloc(IRDLOperation):
     """
 
     name = "fir.box_isalloc"
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -886,9 +893,9 @@ class BoxIsarray(IRDLOperation):
     """
 
     name = "fir.box_isarray"
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -902,9 +909,9 @@ class BoxIsptr(IRDLOperation):
     """
 
     name = "fir.box_isptr"
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -922,9 +929,9 @@ class BoxprocHost(IRDLOperation):
     """
 
     name = "fir.boxproc_host"
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -942,9 +949,9 @@ class BoxRank(IRDLOperation):
     """
 
     name = "fir.box_rank"
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -958,9 +965,9 @@ class BoxTdesc(IRDLOperation):
     """
 
     name = "fir.box_tdesc"
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -973,10 +980,10 @@ class Call(IRDLOperation):
     """
 
     name = "fir.call"
-    callee: OpAttr[Attribute]
-    result_0: Annotated[OptOpResult, AnyAttr()]
-    args: Annotated[VarOperand, AnyAttr()]
-    regs: VarRegion
+    callee: Attribute = attr_def(Attribute)
+    result_0: OptOpResult = opt_result_def(AnyAttr())
+    args: VarOperand = var_operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1001,10 +1008,10 @@ class CharConvert(IRDLOperation):
     """
 
     name = "fir.char_convert"
-    _from: Annotated[Operand, AnyAttr()]
-    count: Annotated[Operand, AnyAttr()]
-    to: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    _from: Operand = operand_def(AnyAttr())
+    count: Operand = operand_def(AnyAttr())
+    to: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1014,10 +1021,10 @@ class Cmpc(IRDLOperation):
     """
 
     name = "fir.cmpc"
-    lhs: Annotated[Operand, AnyAttr()]
-    rhs: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    lhs: Operand = operand_def(AnyAttr())
+    rhs: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1029,8 +1036,8 @@ class Constc(IRDLOperation):
     """
 
     name = "fir.constc"
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1048,9 +1055,9 @@ class Convert(IRDLOperation):
     """
 
     name = "fir.convert"
-    value: Annotated[Operand, AnyAttr()]
-    res: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    value: Operand = operand_def(AnyAttr())
+    res: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1075,11 +1082,11 @@ class CoordinateOf(IRDLOperation):
     """
 
     name = "fir.coordinate_of"
-    baseType: OpAttr[Attribute]
-    ref: Annotated[Operand, AnyAttr()]
-    coor: Annotated[VarOperand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    baseType: Attribute = attr_def(Attribute)
+    ref: Operand = operand_def(AnyAttr())
+    coor: VarOperand = var_operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1095,7 +1102,7 @@ class DtEntry(IRDLOperation):
     """
 
     name = "fir.dt_entry"
-    regs: VarRegion
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1115,10 +1122,10 @@ class Dispatch(IRDLOperation):
 
     name = "fir.dispatch"
     pass_arg_pos: OptOpAttr[AnyIntegerAttr]
-    object: Annotated[Operand, AnyAttr()]
-    args: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    object: Operand = operand_def(AnyAttr())
+    args: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1138,16 +1145,16 @@ class DispatchTable(IRDLOperation):
     """
 
     name = "fir.dispatch_table"
-    regs: VarRegion
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
 class Divc(IRDLOperation):
     name = "fir.divc"
-    lhs: Annotated[Operand, AnyAttr()]
-    rhs: Annotated[Operand, AnyAttr()]
-    result: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    lhs: Operand = operand_def(AnyAttr())
+    rhs: Operand = operand_def(AnyAttr())
+    result: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1171,13 +1178,13 @@ class DoLoop(IRDLOperation):
     """
 
     name = "fir.do_loop"
-    lowerBound: Annotated[Operand, AnyAttr()]
-    upperBound: Annotated[Operand, AnyAttr()]
-    step: Annotated[Operand, AnyAttr()]
+    lowerBound: Operand = operand_def(AnyAttr())
+    upperBound: Operand = operand_def(AnyAttr())
+    step: Operand = operand_def(AnyAttr())
     finalValue: OptOpAttr[Attribute]
-    initArgs: Annotated[Operand, AnyAttr()]
-    _results: Annotated[VarOpResult, AnyAttr()]
-    regs: VarRegion
+    initArgs: Operand = operand_def(AnyAttr())
+    _results: VarOpResult = var_result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1199,10 +1206,10 @@ class Emboxchar(IRDLOperation):
     """
 
     name = "fir.emboxchar"
-    memref: Annotated[Operand, AnyAttr()]
-    len: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    memref: Operand = operand_def(AnyAttr())
+    len: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1229,13 +1236,13 @@ class Embox(IRDLOperation):
     """
 
     name = "fir.embox"
-    memref: Annotated[Operand, AnyAttr()]
-    shape: Annotated[Operand, AnyAttr()]
-    slice: Annotated[VarOperand, AnyAttr()]
-    typeparams: Annotated[VarOperand, AnyAttr()]
-    sourceBox: Annotated[VarOperand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    memref: Operand = operand_def(AnyAttr())
+    shape: Operand = operand_def(AnyAttr())
+    slice: VarOperand = var_operand_def(AnyAttr())
+    typeparams: VarOperand = var_operand_def(AnyAttr())
+    sourceBox: VarOperand = var_operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -1263,10 +1270,10 @@ class Emboxproc(IRDLOperation):
     """
 
     name = "fir.emboxproc"
-    func: Annotated[Operand, AnyAttr()]
-    host: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    func: Operand = operand_def(AnyAttr())
+    host: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1287,9 +1294,9 @@ class ExtractValue(IRDLOperation):
     """
 
     name = "fir.extract_value"
-    adt: Annotated[Operand, AnyAttr()]
-    res: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    adt: Operand = operand_def(AnyAttr())
+    res: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1306,9 +1313,9 @@ class FieldIndex(IRDLOperation):
     """
 
     name = "fir.field_index"
-    typeparams: Annotated[Operand, AnyAttr()]
-    res: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    typeparams: Operand = operand_def(AnyAttr())
+    res: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1321,7 +1328,7 @@ class End(IRDLOperation):
     """
 
     name = "fir.end"
-    regs: VarRegion
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1339,8 +1346,8 @@ class Freemem(IRDLOperation):
     """
 
     name = "fir.freemem"
-    heapref: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    heapref: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1355,8 +1362,8 @@ class Gentypedesc(IRDLOperation):
     """
 
     name = "fir.gentypedesc"
-    res: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    res: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1374,7 +1381,7 @@ class GlobalLen(IRDLOperation):
     """
 
     name = "fir.global_len"
-    regs: VarRegion
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1399,9 +1406,9 @@ class Global(IRDLOperation):
     """
 
     name = "fir.global"
-    regs: VarRegion
-    sym_name: OpAttr[StringAttr]
-    symref: OpAttr[SymbolRefAttr]
+    regs: VarRegion = var_region_def()
+    sym_name: StringAttr = attr_def(StringAttr)
+    symref: SymbolRefAttr = attr_def(SymbolRefAttr)
     type: OpAttr[
         IntegerType | AnyFloat | SequenceType | BoxType | CharacterType | ReferenceType
     ]
@@ -1427,8 +1434,8 @@ class HasValue(IRDLOperation):
     """
 
     name = "fir.has_value"
-    resval: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    resval: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1447,8 +1454,8 @@ class If(IRDLOperation):
     """
 
     name = "fir.if"
-    condition: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    condition: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1470,10 +1477,10 @@ class InsertOnRange(IRDLOperation):
     """
 
     name = "fir.insert_on_range"
-    seq: Annotated[Operand, AnyAttr()]
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    seq: Operand = operand_def(AnyAttr())
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1496,10 +1503,10 @@ class InsertValue(IRDLOperation):
     """
 
     name = "fir.insert_value"
-    adt: Annotated[Operand, AnyAttr()]
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    adt: Operand = operand_def(AnyAttr())
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1514,9 +1521,9 @@ class IsPresent(IRDLOperation):
     """
 
     name = "fir.is_present"
-    val: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1547,13 +1554,13 @@ class IterateWhile(IRDLOperation):
     """
 
     name = "fir.iterate_while"
-    lowerBound: Annotated[Operand, AnyAttr()]
-    upperBound: Annotated[Operand, AnyAttr()]
-    step: Annotated[Operand, AnyAttr()]
-    iterateIn: Annotated[Operand, AnyAttr()]
-    initArgs: Annotated[Operand, AnyAttr()]
-    _results: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    lowerBound: Operand = operand_def(AnyAttr())
+    upperBound: Operand = operand_def(AnyAttr())
+    step: Operand = operand_def(AnyAttr())
+    iterateIn: Operand = operand_def(AnyAttr())
+    initArgs: Operand = operand_def(AnyAttr())
+    _results: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1570,9 +1577,9 @@ class LenParamIndex(IRDLOperation):
     """
 
     name = "fir.len_param_index"
-    typeparams: Annotated[Operand, AnyAttr()]
-    res: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    typeparams: Operand = operand_def(AnyAttr())
+    res: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1590,26 +1597,26 @@ class Load(IRDLOperation):
     """
 
     name = "fir.load"
-    memref: Annotated[Operand, AnyAttr()]
-    res: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    memref: Operand = operand_def(AnyAttr())
+    res: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
 class Mulc(IRDLOperation):
     name = "fir.mulc"
-    lhs: Annotated[Operand, AnyAttr()]
-    rhs: Annotated[Operand, AnyAttr()]
-    result: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    lhs: Operand = operand_def(AnyAttr())
+    rhs: Operand = operand_def(AnyAttr())
+    result: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
 class Negc(IRDLOperation):
     name = "fir.negc"
-    operand: Annotated[Operand, AnyAttr()]
-    result: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    operand: Operand = operand_def(AnyAttr())
+    result: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1629,9 +1636,9 @@ class NoReassoc(IRDLOperation):
     """
 
     name = "fir.no_reassoc"
-    val: Annotated[Operand, AnyAttr()]
-    res: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    val: Operand = operand_def(AnyAttr())
+    res: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1667,11 +1674,11 @@ class Rebox(IRDLOperation):
     """
 
     name = "fir.rebox"
-    box: Annotated[Operand, AnyAttr()]
-    shape: Annotated[Operand, AnyAttr()]
-    slice: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    box: Operand = operand_def(AnyAttr())
+    shape: Operand = operand_def(AnyAttr())
+    slice: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1684,8 +1691,8 @@ class Result(IRDLOperation):
     """
 
     name = "fir.result"
-    regs: VarRegion
-    _results: Annotated[OptOperand, AnyAttr()]
+    regs: VarRegion = var_region_def()
+    _results: OptOperand = opt_operand_def(AnyAttr())
 
 
 @irdl_op_definition
@@ -1719,11 +1726,11 @@ class SaveResult(IRDLOperation):
     """
 
     name = "fir.save_result"
-    value: Annotated[Operand, AnyAttr()]
-    memref: Annotated[Operand, AnyAttr()]
-    shape: Annotated[Operand, AnyAttr()]
-    typeparams: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    value: Operand = operand_def(AnyAttr())
+    memref: Operand = operand_def(AnyAttr())
+    shape: Operand = operand_def(AnyAttr())
+    typeparams: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1744,10 +1751,10 @@ class SelectCase(IRDLOperation):
     """
 
     name = "fir.select_case"
-    selector: Annotated[Operand, AnyAttr()]
-    compareArgs: Annotated[Operand, AnyAttr()]
-    targetArgs: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    selector: Operand = operand_def(AnyAttr())
+    compareArgs: Operand = operand_def(AnyAttr())
+    targetArgs: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1768,10 +1775,10 @@ class Select(IRDLOperation):
     """
 
     name = "fir.select"
-    selector: Annotated[Operand, AnyAttr()]
-    compareArgs: Annotated[Operand, AnyAttr()]
-    targetArgs: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    selector: Operand = operand_def(AnyAttr())
+    compareArgs: Operand = operand_def(AnyAttr())
+    targetArgs: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1791,10 +1798,10 @@ class SelectRank(IRDLOperation):
     """
 
     name = "fir.select_rank"
-    selector: Annotated[Operand, AnyAttr()]
-    compareArgs: Annotated[Operand, AnyAttr()]
-    targetArgs: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    selector: Operand = operand_def(AnyAttr())
+    compareArgs: Operand = operand_def(AnyAttr())
+    targetArgs: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1815,10 +1822,10 @@ class SelectType(IRDLOperation):
     """
 
     name = "fir.select_type"
-    selector: Annotated[Operand, AnyAttr()]
-    compareArgs: Annotated[Operand, AnyAttr()]
-    targetArgs: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    selector: Operand = operand_def(AnyAttr())
+    compareArgs: Operand = operand_def(AnyAttr())
+    targetArgs: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1834,8 +1841,8 @@ class Shape(IRDLOperation):
     """
 
     name = "fir.shape"
-    extents: Annotated[VarOperand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
+    extents: VarOperand = var_operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
 
 
 @irdl_op_definition
@@ -1852,9 +1859,9 @@ class ShapeShift(IRDLOperation):
     """
 
     name = "fir.shape_shift"
-    pairs: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    pairs: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1870,9 +1877,9 @@ class Shift(IRDLOperation):
     """
 
     name = "fir.shift"
-    origins: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    origins: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1904,11 +1911,11 @@ class Slice(IRDLOperation):
     """
 
     name = "fir.slice"
-    triples: Annotated[Operand, AnyAttr()]
-    fields: Annotated[Operand, AnyAttr()]
-    substr: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    triples: Operand = operand_def(AnyAttr())
+    fields: Operand = operand_def(AnyAttr())
+    substr: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1928,9 +1935,9 @@ class Store(IRDLOperation):
     """
 
     name = "fir.store"
-    value: Annotated[Operand, AnyAttr()]
-    memref: Annotated[Operand, AnyAttr()]
-    regs: VarRegion
+    value: Operand = operand_def(AnyAttr())
+    memref: Operand = operand_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1945,18 +1952,18 @@ class StringLit(IRDLOperation):
     """
 
     name = "fir.string_lit"
-    size: OpAttr[IntegerAttr[IntegerType]]
-    value: OpAttr[StringAttr]
-    result_0: Annotated[OpResult, AnyAttr()]
+    size: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
+    value: StringAttr = attr_def(StringAttr)
+    result_0: OpResult = result_def(AnyAttr())
 
 
 @irdl_op_definition
 class Subc(IRDLOperation):
     name = "fir.subc"
-    lhs: Annotated[Operand, AnyAttr()]
-    rhs: Annotated[Operand, AnyAttr()]
-    result: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    lhs: Operand = operand_def(AnyAttr())
+    rhs: Operand = operand_def(AnyAttr())
+    result: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1970,10 +1977,10 @@ class Unboxchar(IRDLOperation):
     """
 
     name = "fir.unboxchar"
-    boxchar: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    result_1: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    boxchar: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    result_1: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -1987,10 +1994,10 @@ class Unboxproc(IRDLOperation):
     """
 
     name = "fir.unboxproc"
-    boxproc: Annotated[Operand, AnyAttr()]
-    result_0: Annotated[OpResult, AnyAttr()]
-    refTuple: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    boxproc: Operand = operand_def(AnyAttr())
+    result_0: OpResult = result_def(AnyAttr())
+    refTuple: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -2007,8 +2014,8 @@ class Undefined(IRDLOperation):
     """
 
     name = "fir.undefined"
-    intype: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    intype: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -2024,7 +2031,7 @@ class Unreachable(IRDLOperation):
     """
 
     name = "fir.unreachable"
-    regs: VarRegion
+    regs: VarRegion = var_region_def()
 
 
 @irdl_op_definition
@@ -2039,8 +2046,8 @@ class ZeroBits(IRDLOperation):
     """
 
     name = "fir.zero_bits"
-    intype: Annotated[OpResult, AnyAttr()]
-    regs: VarRegion
+    intype: OpResult = result_def(AnyAttr())
+    regs: VarRegion = var_region_def()
 
 
 FIR = Dialect(

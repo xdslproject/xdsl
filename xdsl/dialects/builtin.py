@@ -38,10 +38,10 @@ from xdsl.ir import (
 
 from xdsl.irdl import (
     AllOf,
-    OpAttr,
     VarOpResult,
     VarOperand,
     VarRegion,
+    attr_def,
     irdl_attr_definition,
     attr_constr_coercion,
     irdl_data_definition,
@@ -1164,7 +1164,7 @@ class UnregisteredOp(IRDLOperation, ABC):
 
     name = "builtin.unregistered"
 
-    op_name__: OpAttr[StringAttr]
+    op_name__: StringAttr = attr_def(StringAttr)
     args: VarOperand = var_operand_def()
     res: VarOpResult = var_result_def()
     regs: VarRegion = var_region_def()

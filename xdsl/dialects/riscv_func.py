@@ -12,8 +12,8 @@ from xdsl.irdl import (
     OptOpResult,
     VarOpResult,
     VarOperand,
+    attr_def,
     irdl_op_definition,
-    OpAttr,
     opt_result_def,
     region_def,
     var_operand_def,
@@ -27,7 +27,7 @@ from xdsl.dialects import riscv
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
     args: VarOperand = var_operand_def(riscv.RegisterType)
-    syscall_num: OpAttr[IntegerAttr[IntegerType]]
+    syscall_num: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
     result: OptOpResult = opt_result_def(riscv.RegisterType)
 
     def __init__(
@@ -61,7 +61,7 @@ class CallOp(IRDLOperation):
 
     name = "riscv_func.call"
     args: VarOperand = var_operand_def(riscv.RegisterType)
-    func_name: OpAttr[StringAttr]
+    func_name: StringAttr = attr_def(StringAttr)
     ress: VarOpResult = var_result_def(riscv.RegisterType)
 
     def __init__(
@@ -97,7 +97,7 @@ class FuncOp(IRDLOperation):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    func_name: OpAttr[StringAttr]
+    func_name: StringAttr = attr_def(StringAttr)
     func_body: Region = region_def("single_block")
 
     def __init__(self, name: str, region: Region):

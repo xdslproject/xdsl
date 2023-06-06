@@ -38,6 +38,7 @@ from xdsl.ir import (
     OpResult,
 )
 from xdsl.irdl import (
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     ParameterDef,
@@ -47,7 +48,6 @@ from xdsl.irdl import (
     Operand,
     VarOperand,
     AttrSizedOperandSegments,
-    OpAttr,
     IRDLOperation,
     OptOpAttr,
     operand_def,
@@ -274,7 +274,7 @@ class Alloca(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: OpAttr[AnyIntegerAttr]
+    alignment: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -334,10 +334,10 @@ class GetGlobal(IRDLOperation):
 class Global(IRDLOperation):
     name = "memref.global"
 
-    sym_name: OpAttr[StringAttr]
-    sym_visibility: OpAttr[StringAttr]
-    type: OpAttr[Attribute]
-    initial_value: OpAttr[Attribute]
+    sym_name: StringAttr = attr_def(StringAttr)
+    sym_visibility: StringAttr = attr_def(StringAttr)
+    type: Attribute = attr_def(Attribute)
+    initial_value: Attribute = attr_def(Attribute)
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):
@@ -418,9 +418,9 @@ class Subview(IRDLOperation):
     offsets: VarOperand = var_operand_def(IndexType)
     sizes: VarOperand = var_operand_def(IndexType)
     strides: VarOperand = var_operand_def(IndexType)
-    static_offsets: OpAttr[DenseArrayBase]
-    static_sizes: OpAttr[DenseArrayBase]
-    static_strides: OpAttr[DenseArrayBase]
+    static_offsets: DenseArrayBase = attr_def(DenseArrayBase)
+    static_sizes: DenseArrayBase = attr_def(DenseArrayBase)
+    static_strides: DenseArrayBase = attr_def(DenseArrayBase)
     result: OpResult = result_def(MemRefType)
 
     irdl_options = [AttrSizedOperandSegments()]

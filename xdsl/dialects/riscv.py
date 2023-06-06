@@ -22,11 +22,11 @@ from xdsl.irdl import (
     OptRegion,
     OptSingleBlockRegion,
     VarOpResult,
+    attr_def,
     irdl_op_definition,
     irdl_attr_definition,
     VarOperand,
     Operand,
-    OpAttr,
     OptOpAttr,
     operand_def,
     opt_region_def,
@@ -364,7 +364,7 @@ class RdImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(RegisterType)
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
@@ -409,7 +409,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
@@ -448,7 +448,7 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rd: OpResult = result_def(RegisterType)
     rs1: Operand = operand_def(RegisterType)
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
@@ -529,7 +529,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
@@ -605,7 +605,7 @@ class RsRsOffOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rs1: Operand = operand_def(RegisterType)
     rs2: Operand = operand_def(RegisterType)
-    offset: OpAttr[AnyIntegerAttr | LabelAttr]
+    offset: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
@@ -644,7 +644,7 @@ class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rs1: Operand = operand_def(RegisterType)
     rs2: Operand = operand_def(RegisterType)
-    immediate: OpAttr[AnyIntegerAttr]
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -727,7 +727,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rd: OpResult = result_def(RegisterType)
     rs1: Operand = operand_def(RegisterType)
-    csr: OpAttr[AnyIntegerAttr]
+    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
     writeonly: OptOpAttr[UnitAttr]
 
     def __init__(
@@ -785,7 +785,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rd: OpResult = result_def(RegisterType)
     rs1: Operand = operand_def(RegisterType)
-    csr: OpAttr[AnyIntegerAttr]
+    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
     readonly: OptOpAttr[UnitAttr]
 
     def __init__(
@@ -840,7 +840,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(RegisterType)
-    csr: OpAttr[AnyIntegerAttr]
+    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
     writeonly: OptOpAttr[UnitAttr]
     immediate: OptOpAttr[AnyIntegerAttr]
 
@@ -898,8 +898,8 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(RegisterType)
-    csr: OpAttr[AnyIntegerAttr]
-    immediate: OpAttr[AnyIntegerAttr]
+    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -1836,7 +1836,7 @@ class LabelOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.label"
-    label: OpAttr[LabelAttr]
+    label: LabelAttr = attr_def(LabelAttr)
     comment: OptOpAttr[StringAttr]
     data: OptRegion = opt_region_def("single_block")
 
@@ -1876,7 +1876,7 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.directive"
-    directive: OpAttr[StringAttr]
+    directive: StringAttr = attr_def(StringAttr)
     value: OptOpAttr[StringAttr]
     data: OptRegion = opt_region_def("single_block")
 
@@ -1932,7 +1932,7 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
     name = "riscv.custom_assembly_instruction"
     inputs: VarOperand = var_operand_def()
     outputs: VarOpResult = var_result_def()
-    instruction_name: OpAttr[StringAttr]
+    instruction_name: StringAttr = attr_def(StringAttr)
     comment: OptOpAttr[StringAttr]
 
     def __init__(
@@ -1967,7 +1967,7 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
 @irdl_op_definition
 class CommentOp(IRDLOperation, RISCVOp):
     name = "riscv.comment"
-    comment: OpAttr[StringAttr]
+    comment: StringAttr = attr_def(StringAttr)
 
     def __init__(self, comment: str | StringAttr):
         if isinstance(comment, str):

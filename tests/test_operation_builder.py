@@ -17,11 +17,11 @@ from xdsl.irdl import (
     VarOpResult,
     VarRegion,
     VarSuccessor,
+    attr_def,
     irdl_op_definition,
     AttrSizedResultSegments,
     VarOperand,
     AttrSizedOperandSegments,
-    OpAttr,
     OptOpAttr,
     IRDLOperation,
     OptOpResult,
@@ -294,7 +294,7 @@ def test_two_var_operand_builder2():
 @irdl_op_definition
 class AttrOp(IRDLOperation):
     name = "test.two_var_result_op"
-    attr: OpAttr[StringAttr]
+    attr: StringAttr = attr_def(StringAttr)
 
 
 def test_attr_op():
