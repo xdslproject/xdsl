@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 
 class _AffineExprKind(Enum):
+    """Enum for the kind of storage node used in AffineExpr."""
+
     Add = auto()
     Mul = auto()
     Mod = auto()
@@ -14,6 +16,7 @@ class _AffineExprKind(Enum):
     SymbolId = auto()
 
     def get_token(self):
+        """Get the token corresponding to the node kind."""
         match self:
             case _AffineExprKind.Add:
                 return "+"
@@ -35,11 +38,15 @@ class _AffineExprKind(Enum):
 
 @dataclass
 class _AffineExprStorage:
+    """Base class for affine expression storage nodes."""
+
     kind: _AffineExprKind
 
 
 @dataclass
 class _AffineBinaryOpExprStorage(_AffineExprStorage):
+    """An affine expression storage node representing a binary operation."""
+
     lhs: AffineExpr
     rhs: AffineExpr
 
@@ -59,7 +66,15 @@ class _AffineBinaryOpExprStorage(_AffineExprStorage):
 
 @dataclass
 class _AffineDimExprStorage(_AffineExprStorage):
+    """An affine expression storage node representing a dimension or symbol."""
+
     position: int
+    """
+    The position of the dimension or symbol. Position of dimension and symbol
+    starts from 0 and is independent of each other. For example, if there are 2
+    dimensions and 3 symbols, then the positions of the dimensions are 0 and 1,
+    and the positions of the symbols are 0, 1, and 2.
+    """
 
     def __post_init__(self) -> None:
         if self.kind != _AffineExprKind.DimId and self.kind != _AffineExprKind.SymbolId:
@@ -73,6 +88,8 @@ class _AffineDimExprStorage(_AffineExprStorage):
 
 @dataclass
 class _AffineConstantExprStorage(_AffineExprStorage):
+    """An affine expression storage node representing a constant."""
+
     value: int
 
     def __init__(self, value: int) -> None:
@@ -100,6 +117,7 @@ class AffineExpr:
         return AffineExpr(_AffineDimExprStorage(_AffineExprKind.SymbolId, position))
 
     def eval(self, dims: list[int], symbols: list[int]) -> int:
+        """Evaluate the affine expression with the given dimension and symbol values."""
         if isinstance(self._impl, _AffineConstantExprStorage):
             return self._impl.value
 
@@ -208,11 +226,17 @@ class AffineExpr:
 
 @dataclass
 class AffineMap:
+    """
+    AffineMap represents a map from a set of dimensions and symbols to a
+    multi-dimensional affine expression.
+    """
+
     num_dims: int
     num_symbols: int
     results: list[AffineExpr]
 
     def eval(self, dims: list[int], symbols: list[int]) -> list[int]:
+        """Evaluate the AffineMap given the values of dimensions and symbols."""
         assert len(dims) == self.num_dims
         assert len(symbols) == self.num_symbols
         return [expr.eval(dims, symbols) for expr in self.results]
