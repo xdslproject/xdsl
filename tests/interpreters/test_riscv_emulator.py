@@ -7,8 +7,7 @@ from xdsl.ir import MLContext
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 
-from ..emulator.emulator_iop import RV_Debug, run_riscv
-from .utils import riscv_code
+from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv, riscv_code
 
 
 ctx = MLContext()
@@ -25,6 +24,7 @@ def test_simple():
         riscv.CustomAssemblyInstructionOp("print", inputs=[forty_two], result_types=[])
 
     RISCVRegisterAllocation().apply(ctx, module)
+
     code = riscv_code(module)
 
     stream = StringIO()
