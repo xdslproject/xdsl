@@ -65,11 +65,11 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
         # This is complicated by the fact we need to parse tuple
         # here also as the buildin dialect does not support this
         # yet
-        parser.parse_char("<")
+        parser.parse_characters("<")
         has_tuple = parser.parse_optional_keyword("tuple")
         if has_tuple is None:
             typ = parser.parse_type()
-            parser.parse_char(">")
+            parser.parse_characters(">")
             return [typ]
         else:
             # If its a tuple then there are any number of types
@@ -79,7 +79,7 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
             values = parser.parse_comma_separated_list(
                 parser.Delimiter.ANGLE, parse_types
             )
-            parser.parse_char(">")
+            parser.parse_characters(">")
             return [TupleType(values)]
 
 
@@ -196,21 +196,23 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
 
         shape: list[IntegerAttr[IntegerType] | DeferredAttr] = []
         type2 = NoneType()
-        parser.parse_char("<")
-        has_tuple = parser.try_parse_characters("0xtuple<")
+        parser.parse_characters("<")
+        has_tuple = parser.parse_optional_characters("0")
         if has_tuple is not None:
+            parser.parse_characters("xtuple")
+            parser.parse_characters("<")
             type1 = parser.parse_type()
-            parser.parse_char(",")
+            parser.parse_characters(",")
             type2 = parser.parse_type()
-            parser.parse_char(">")
+            parser.parse_characters(">")
             shape.append(IntegerAttr[IntegerType](1, 32))
         else:
             type1 = parser.parse_optional_type()
             while type1 is None:
                 shape.append(parse_interval())
-                parser.parse_char("x")
+                parser.parse_characters("x")
                 type1 = parser.parse_optional_type()
-        parser.parse_char(">")
+        parser.parse_characters(">")
         return [ArrayAttr(shape), type1, type2]
 
     def hasDeferredShape(self):
@@ -260,11 +262,11 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
             else:
                 return IntAttr(parser.parse_integer(allow_boolean=False))
 
-        parser.parse_char("<")
+        parser.parse_characters("<")
         lower = parse_value()
-        parser.parse_char(",")
+        parser.parse_characters(",")
         upper = parse_value()
-        parser.parse_char(">")
+        parser.parse_characters(">")
         return [lower, upper]
 
 
@@ -287,9 +289,9 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_char("<")
+        parser.parse_characters("<")
         s = parser.parse_integer(allow_boolean=False)
-        parser.parse_char(">")
+        parser.parse_characters(">")
         return [IntAttr(s)]
 
 
@@ -339,9 +341,9 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_char("<")
+        parser.parse_characters("<")
         s = parser.parse_integer(allow_boolean=False)
-        parser.parse_char(">")
+        parser.parse_characters(">")
         return [IntAttr(s)]
 
 

@@ -1297,7 +1297,7 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         return res
 
-    def _parse_shape_dimension(self, allow_dynamic: bool = True) -> int:
+    def parse_shape_dimension(self, allow_dynamic: bool = True) -> int:
         """
         Parse a single shape dimension, which is a decimal literal or `?`.
         `?` is interpreted as -1. Note that if the integer literal is in
@@ -1333,7 +1333,7 @@ class Parser(ABC):
 
         return int_token.get_int_value()
 
-    def _parse_shape_delimiter(self) -> None:
+    def parse_shape_delimiter(self) -> None:
         """
         Parse 'x', a shape delimiter. Note that if 'x' is followed by other
         characters, it will split the token. For instance, 'x1' will be split
@@ -1363,9 +1363,9 @@ class Parser(ABC):
         self._synchronize_lexer_and_tokenizer()
         dims: list[int] = []
         while self._current_token.kind in (Token.Kind.INTEGER_LIT, Token.Kind.QUESTION):
-            dim = self._parse_shape_dimension()
+            dim = self.parse_shape_dimension()
             dims.append(dim)
-            self._parse_shape_delimiter()
+            self.parse_shape_delimiter()
 
         self._synchronize_lexer_and_tokenizer()
         type = self.expect(self.parse_optional_type, "Expected shape type.")
@@ -1384,7 +1384,7 @@ class Parser(ABC):
         """
         self._synchronize_lexer_and_tokenizer()
         if self.parse_optional_punctuation("*") is not None:
-            self._parse_shape_delimiter()
+            self.parse_shape_delimiter()
             type = self.expect(self.parse_optional_type, "Expected shape type.")
             self._synchronize_lexer_and_tokenizer()
             return None, type
@@ -1462,22 +1462,22 @@ class Parser(ABC):
         num_scalable_dims = 0
         # First, parse the static dimensions
         while self._current_token.kind == Token.Kind.INTEGER_LIT:
-            dims.append(self._parse_shape_dimension(allow_dynamic=False))
-            self._parse_shape_delimiter()
+            dims.append(self.parse_shape_dimension(allow_dynamic=False))
+            self.parse_shape_delimiter()
 
         # Then, parse the scalable dimensions, if any
         if self.parse_optional_punctuation("[") is not None:
             # Parse the scalable dimensions
-            dims.append(self._parse_shape_dimension(allow_dynamic=False))
+            dims.append(self.parse_shape_dimension(allow_dynamic=False))
             num_scalable_dims += 1
 
             while self.parse_optional_punctuation("]") is None:
-                self._parse_shape_delimiter()
-                dims.append(self._parse_shape_dimension(allow_dynamic=False))
+                self.parse_shape_delimiter()
+                dims.append(self.parse_shape_dimension(allow_dynamic=False))
                 num_scalable_dims += 1
 
             # Parse the `x` between the scalable dimensions and the type
-            self._parse_shape_delimiter()
+            self.parse_shape_delimiter()
 
         self._synchronize_lexer_and_tokenizer()
         type = self.parse_optional_type()
@@ -1553,13 +1553,27 @@ class Parser(ABC):
 
         raise ParseError(at_position, msg, self.tokenizer.history)
 
-    def try_parse_characters(self, text: str) -> Span | None:
-        return self.tokenizer.next_token_of_pattern(text)
+    def parse_optional_characters(self, text: str) -> str | None:
+        """
+        Parse a given token text, if present.
+        If the given text is the beginning of the next token, this will still
+        return None.
+        """
+        if self._current_token.text == text:
+            self._consume_token()
+            return text
+        return None
 
-    def parse_characters(self, text: str, msg: str) -> Span:
-        if (match := self.try_parse_characters(text)) is None:
-            self.raise_error(msg)
-        return match
+    def parse_characters(self, text: str, context_msg: str = "") -> str:
+        """
+        Parse a given token text.
+        The context message is appended to the error message if the parsing fails.
+        If the given text is the start of the next token, this will still raise
+        an error.
+        """
+        if (res := self.parse_optional_characters(text)) is not None:
+            return res
+        self.raise_error(f"'{text}' expected" + context_msg)
 
     def _register_ssa_definition(
         self, name: str, values: Sequence[SSAValue], span: Span
@@ -1797,13 +1811,8 @@ class Parser(ABC):
         """
         Parses `:` type and returns the type
         """
-        self.parse_characters(
-            ":", "Expected attribute type definition here ( `:` type )"
-        )
-        return self.expect(
-            self.parse_optional_type,
-            "Expected attribute type definition here ( `:` type )",
-        )
+        self.parse_characters(":", " in attribute type")
+        return self.parse_type()
 
     def _parse_optional_builtin_attr(self) -> Attribute | None:
         """
@@ -1984,8 +1993,7 @@ class Parser(ABC):
             self.raise_error("Opaque expects 2 string literal parameters!")
 
         type = NoneAttr()
-        if self.tokenizer.starts_with(":"):
-            self.parse_characters(":", "opaque attribute must be typed!")
+        if self.parse_optional_punctuation(":") is not None:
             type = self.expect(
                 self.parse_optional_type, "opaque attribute must be typed!"
             )
@@ -1993,25 +2001,15 @@ class Parser(ABC):
         return OpaqueAttr.from_strings(*str_lit_list, type=type)
 
     def _parse_builtin_dense_resource_attr(self, _name: Span) -> DenseResourceAttr:
-        err_msg = (
-            "Malformed dense_resource attribute, format must be "
-            "(`dense_resource` `<` resource-handle `>`)"
-        )
-        self.parse_characters("<", err_msg)
+        self.parse_characters("<", " in dense_resource attribute")
         resource_handle = self.parse_identifier(" for resource handle")
-        self.parse_characters(">", err_msg)
-        self.parse_characters(":", err_msg)
-        type = self.expect(
-            self.parse_optional_type, "Dense resource attribute must be typed!"
-        )
+        self.parse_characters(">", " in dense_resource attribute")
+        self.parse_characters(":", " in dense_resource attribute")
+        type = self.parse_type()
         return DenseResourceAttr.from_params(resource_handle, type)
 
     def _parse_builtin_densearray_attr(self, name: Span) -> DenseArrayBase | None:
-        err_msg = (
-            "Malformed dense array, format must be "
-            "`array` `<` (integer-type | float-type) (`:` tensor-literal)? `>`"
-        )
-        self.parse_characters("<", err_msg)
+        self.parse_characters("<", " in dense array")
         element_type = self.parse_attribute()
 
         if not isinstance(element_type, IntegerType | AnyFloat):
@@ -2021,13 +2019,13 @@ class Parser(ABC):
             )
 
         # Empty array
-        if self.try_parse_characters(">"):
+        if self.parse_optional_punctuation(">"):
             return DenseArrayBase.from_list(element_type, [])
 
-        self.parse_characters(":", err_msg)
+        self.parse_characters(":", " in dense array")
 
         values = self.parse_comma_separated_list(self.Delimiter.NONE, self.parse_number)
-        self.parse_characters(">", err_msg)
+        self.parse_characters(">", " in dense array")
 
         return DenseArrayBase.from_list(element_type, values)
 
@@ -2351,9 +2349,6 @@ class Parser(ABC):
             self.Delimiter.ANGLE, self.parse_attribute
         )
         return res
-
-    def parse_char(self, text: str):
-        self.parse_characters(text, "Expected '{}' here!".format(text))
 
     def parse_op(self) -> Operation:
         return self.parse_operation()
