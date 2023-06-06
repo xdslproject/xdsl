@@ -65,13 +65,13 @@ class FastMathFlags:
 
     @staticmethod
     def try_parse(parser: Parser) -> Optional[FastMathFlags]:
-        if parser.try_parse_characters("none") is not None:
+        if parser.parse_optional_characters("none") is not None:
             return FastMathFlags(set())
-        if parser.try_parse_characters("fast") is not None:
+        if parser.parse_optional_characters("fast") is not None:
             return FastMathFlags(set(FastMathFlag))
 
         for option in FastMathFlag:
-            if parser.try_parse_characters(option.value) is not None:
+            if parser.parse_optional_characters(option.value) is not None:
                 return FastMathFlags({option})
 
         return None
