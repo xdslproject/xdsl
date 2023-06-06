@@ -945,52 +945,10 @@ class OpDef:
                 continue
             clsdict = {**clsdict, **parent_cls.__dict__}
 
-        type_hints = get_type_hints(pyrdl_def, include_extras=True)
-
         # Get all fields of the Operation class, including their parents classes
         opdict: dict[str, Any] = dict()
         for parent_cls in Operation.mro()[::-1]:
             opdict = {**opdict, **parent_cls.__dict__}
-
-        def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
-            raise PyRDLOpDefinitionError(
-                f"{pyrdl_def.__name__}.{field_name} is neither a function, or an "
-                "operand, result, region, or attribute definition. "
-                "Operands should be defined with type hints of "
-                "Annotated[Operand, <Constraint>], results with "
-                "Annotated[OpResult, <Constraint>], regions with "
-                "Region, and attributes with "
-                "OpAttr[<Constraint>]"
-            )
-
-        # Check that all fields of the operation definition are either already
-        # in Operation, or are class functions or methods.
-        for field_name, value in clsdict.items():
-            # Fields that are already in Operation (i.e. operands, results, ...)
-            if field_name in opdict:
-                continue
-            # IRDLOperation ClassVar fields are allowed
-            if field_name in ["irdl_options", "traits", "name"]:
-                continue
-            # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
-            # They are used by Python to store information about the class, so they
-            # should not be considered as part of the operation definition.
-            # Also, they can provide a possiblea escape hatch.
-            if field_name[:2] == "__" and field_name[-2:] == "__":
-                continue
-            # Methods, properties, and functions are allowed
-            if isinstance(
-                value, (FunctionType, PropertyType, classmethod, staticmethod)
-            ):
-                continue
-            # Constraint variables are allowed
-            if get_origin(value) is Annotated:
-                if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
-                    continue
-            # OpDefField are allowed
-            if isinstance(value, OpDefField):
-                continue
-            raise wrong_field_exception(field_name)
 
         if "name" not in clsdict:
             raise Exception(
@@ -1009,10 +967,48 @@ class OpDef:
                 for k, v in get_type_var_mapping(pyrdl_def)[1].items()
             }
 
+        def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
+            raise PyRDLOpDefinitionError(
+                f"{pyrdl_def.__name__}.{field_name} is neither a function, or an "
+                "operand, result, region, or attribute definition. "
+                "Operands should be defined with type hints of "
+                "Annotated[Operand, <Constraint>], results with "
+                "Annotated[OpResult, <Constraint>], regions with "
+                "Region, and attributes with "
+                "OpAttr[<Constraint>]"
+            )
+
         op_def = OpDef(clsdict["name"])
-        for field_name, _field_type in type_hints.items():
+
+        # Check that all fields of the operation definition are either already
+        # in Operation, or are class functions or methods.
+        for field_name, value in clsdict.items():
+            # Fields that are already in Operation (i.e. operands, results, ...)
+            if field_name in opdict:
+                continue
+            # IRDLOperation ClassVar fields are allowed
+            if field_name in ["irdl_options", "traits", "name"]:
+                continue
+
             if field_name in operation_fields:
                 continue
+
+            # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
+            # They are used by Python to store information about the class, so they
+            # should not be considered as part of the operation definition.
+            # Also, they can provide a possiblea escape hatch.
+            if field_name.startswith("__") and field_name.endswith("__"):
+                continue
+
+            # Methods, properties, and functions are allowed
+            if isinstance(
+                value, (FunctionType, PropertyType, classmethod, staticmethod)
+            ):
+                continue
+            # Constraint variables are allowed
+            if get_origin(value) is Annotated:
+                if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
+                    continue
 
             # Get attribute constraints from a list of pyrdl constraints
             def get_constraint(pyrdl_constrs: tuple[Any, ...]) -> AttrConstraint:
@@ -1022,35 +1018,32 @@ class OpDef:
                     type_var_mapping=type_var_mapping,
                 )
 
-            if field_name in clsdict:
-                field_value = clsdict[field_name]
-
-                match field_value:
-                    case ResultFieldDef():
-                        constraint = get_constraint((field_value.param,))
-                        result_def = field_value.cls(constraint)
-                        op_def.results.append((field_name, result_def))
-                        continue
-                    case OperandFieldDef():
-                        constraint = get_constraint((field_value.param,))
-                        attribute_def = field_value.cls(constraint)
-                        op_def.operands.append((field_name, attribute_def))
-                        continue
-                    case AttributeFieldDef():
-                        constraint = get_constraint((field_value.param,))
-                        attribute_def = field_value.cls(constraint)
-                        op_def.attributes[field_name] = attribute_def
-                        continue
-                    case RegionFieldDef():
-                        successor_def = field_value.cls()
-                        op_def.regions.append((field_name, successor_def))
-                        continue
-                    case SuccessorFieldDef():
-                        successor_def = field_value.cls()
-                        op_def.successors.append((field_name, successor_def))
-                        continue
-                    case _:
-                        assert False
+            match value:
+                case ResultFieldDef():
+                    constraint = get_constraint((value.param,))
+                    result_def = value.cls(constraint)
+                    op_def.results.append((field_name, result_def))
+                    continue
+                case OperandFieldDef():
+                    constraint = get_constraint((value.param,))
+                    attribute_def = value.cls(constraint)
+                    op_def.operands.append((field_name, attribute_def))
+                    continue
+                case AttributeFieldDef():
+                    constraint = get_constraint((value.param,))
+                    attribute_def = value.cls(constraint)
+                    op_def.attributes[field_name] = attribute_def
+                    continue
+                case RegionFieldDef():
+                    successor_def = value.cls()
+                    op_def.regions.append((field_name, successor_def))
+                    continue
+                case SuccessorFieldDef():
+                    successor_def = value.cls()
+                    op_def.successors.append((field_name, successor_def))
+                    continue
+                case _:
+                    pass
 
             raise wrong_field_exception(field_name)
 
