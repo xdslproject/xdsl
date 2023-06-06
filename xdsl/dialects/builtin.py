@@ -1164,7 +1164,7 @@ class UnregisteredOp(IRDLOperation, ABC):
     name = "builtin.unregistered"
 
     op_name__: OpAttr[StringAttr]
-    args: VarOperand
+    args: VarOperand = var_operand_def()
     res: VarOpResult = var_result_def()
     regs: VarRegion
 

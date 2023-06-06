@@ -31,8 +31,10 @@ from xdsl.irdl import (
     OpAttr,
     IRDLOperation,
     operand_def,
+    opt_operand_def,
     opt_result_def,
     result_def,
+    var_operand_def,
     var_result_def,
 )
 from xdsl.utils.exceptions import (
@@ -232,9 +234,9 @@ class OperandOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    operand: Operand
-    opt_operand: OptOperand
-    var_operand: VarOperand
+    operand: Operand = operand_def()
+    opt_operand: OptOperand = opt_operand_def()
+    var_operand: VarOperand = var_operand_def()
 
 
 def test_operand_accessors():

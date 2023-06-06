@@ -657,7 +657,7 @@ class ResultOp(IRDLOperation):
 
     name = "pdl.result"
     index: OpAttr[IntegerAttr[Annotated[IntegerType, i32]]]
-    parent_: Annotated[Operand, OperationType]
+    parent_: Operand = operand_def(OperationType)
     val: OpResult = result_def(ValueType)
 
     def __init__(self, index: int | IntegerAttr[IntegerType], parent: SSAValue) -> None:
@@ -686,7 +686,7 @@ class ResultsOp(IRDLOperation):
 
     name = "pdl.results"
     index: OptOpAttr[IntegerAttr[IntegerType]]
-    parent_: Annotated[Operand, OperationType]
+    parent_: Operand = operand_def(OperationType)
     val: OpResult = result_def(ValueType | RangeType[ValueType])
 
     def __init__(

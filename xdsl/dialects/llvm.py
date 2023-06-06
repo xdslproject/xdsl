@@ -583,7 +583,7 @@ class LoadOp(IRDLOperation):
 class StoreOp(IRDLOperation):
     name = "llvm.store"
 
-    value: Operand
+    value: Operand = operand_def()
     ptr: Operand = operand_def(LLVMPointerType)
 
     alignment: OptOpAttr[IntegerAttr[IntegerType]]

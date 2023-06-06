@@ -947,19 +947,8 @@ class OpDef:
             # and otherwise the Annotated origin (if it is an Annotated) gives
             # the Region definition (required, optional, or variadic).
 
-            # Operand annotation
-            if args[0] == Operand:
-                constraint = get_constraint(args[1:])
-                op_def.operands.append((field_name, OperandDef(constraint)))
-            elif args[0] == list[Operand]:
-                constraint = get_constraint(args[1:])
-                op_def.operands.append((field_name, VarOperandDef(constraint)))
-            elif args[0] == (Operand | None):
-                constraint = get_constraint(args[1:])
-                op_def.operands.append((field_name, OptOperandDef(constraint)))
-
             # Attribute annotation
-            elif IRDLAnnotations.AttributeDefAnnot in args:
+            if IRDLAnnotations.AttributeDefAnnot in args:
                 constraint = get_constraint(args)
                 op_def.attributes[field_name] = AttributeDef(constraint)
             elif IRDLAnnotations.OptAttributeDefAnnot in args:

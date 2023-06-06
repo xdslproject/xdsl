@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Union
+from typing import Union
 
 from xdsl.dialects.builtin import Float32Type, Float64Type
 from xdsl.ir import (
@@ -19,6 +19,7 @@ from xdsl.irdl import (
     AnyOf,
     VerifyException,
     IRDLOperation,
+    operand_def,
     result_def,
 )
 
@@ -33,9 +34,9 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 class Norm(IRDLOperation):
     name = "cmath.norm"
 
-    op: Annotated[
-        Operand, ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
-    ]
+    op: Operand = operand_def(
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
+    )
     res: OpResult = result_def(AnyOf([Float32Type, Float64Type]))
 
     # TODO replace with trait
@@ -50,12 +51,12 @@ class Norm(IRDLOperation):
 class Mul(IRDLOperation):
     name = "cmath.mul"
 
-    lhs: Annotated[
-        Operand, ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
-    ]
-    rhs: Annotated[
-        Operand, ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
-    ]
+    lhs: Operand = operand_def(
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
+    )
+    rhs: Operand = operand_def(
+        ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
+    )
     result: OpResult = result_def(
         ParamAttrConstraint(ComplexType, [AnyOf([Float32Type, Float64Type])])
     )
