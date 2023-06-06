@@ -93,7 +93,7 @@ class ConstantOp(IRDLOperation):
         return cast(TensorTypeF64, self.value.type)
 
     def get_shape(self) -> list[int]:
-        return self.get_type().get_shape()
+        return list(self.get_type().get_shape())
 
     def get_data(self) -> list[float]:
         return [float(el.value.data) for el in self.value.data.data]
@@ -177,12 +177,19 @@ class FuncOp(IRDLOperation):
     sym_visibility: OptOpAttr[StringAttr]
 
     def __init__(
-        self, name: str, ftype: FunctionType, region: Region, /, private: bool = False
+        self,
+        name: str,
+        ftype: FunctionType,
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        /,
+        private: bool = False,
     ):
         attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(name),
             "function_type": ftype,
         }
+        if not isinstance(region, Region):
+            region = Region(Block(arg_types=ftype.inputs))
         if private:
             attributes["sym_visibility"] = StringAttr("private")
 
@@ -212,7 +219,7 @@ class FuncOp(IRDLOperation):
 
         block = self.body.blocks[0]
 
-        if block.is_empty:
+        if not block.ops:
             raise VerifyException("Expected FuncOp to not be empty")
 
         last_op = block.last_op

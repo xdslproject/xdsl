@@ -1,5 +1,4 @@
 from __future__ import annotations
-import re
 from typing import Annotated, Union, Sequence, cast
 
 from xdsl.dialects.builtin import (
@@ -30,7 +29,6 @@ from xdsl.printer import Printer
 from xdsl.traits import HasParent
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.lexer import Span
 
 
 @irdl_op_definition
@@ -41,6 +39,27 @@ class FuncOp(IRDLOperation):
     sym_name: OpAttr[StringAttr]
     function_type: OpAttr[FunctionType]
     sym_visibility: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        name: str,
+        function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        visibility: StringAttr | str | None = None,
+    ):
+        if isinstance(visibility, str):
+            visibility = StringAttr(visibility)
+        if isinstance(function_type, tuple):
+            inputs, outputs = function_type
+            function_type = FunctionType.from_lists(inputs, outputs)
+        if not isinstance(region, Region):
+            region = Region(Block(arg_types=function_type.inputs))
+        attributes: dict[str, Attribute | None] = {
+            "sym_name": StringAttr(name),
+            "function_type": function_type,
+            "sym_visibility": visibility,
+        }
+        super().__init__(attributes=attributes, regions=[region])
 
     def verify_(self) -> None:
         # If this is an empty region (external function), then return
@@ -59,11 +78,14 @@ class FuncOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         # Parse visibility keyword if present
-        visibility = parser.tokenizer.next_token_of_pattern(
-            re.compile("public|nested|private")
-        )
-        if isinstance(visibility, Span):
-            visibility = visibility.text
+        if parser.parse_optional_keyword("public"):
+            visibility = "public"
+        elif parser.parse_optional_keyword("nested"):
+            visibility = "nested"
+        elif parser.parse_optional_keyword("private"):
+            visibility = "private"
+        else:
+            visibility = None
 
         # Parse function name
         name = parser.parse_symbol_name().data
@@ -96,13 +118,16 @@ class FuncOp(IRDLOperation):
 
         # Parse return type
         if parser.parse_optional_punctuation("->"):
-            return_types = parser.parse_optional_type()
-            if return_types:
-                return_types = [return_types]
+            if parser.parse_optional_punctuation("(") is not None:
+                if parser.parse_optional_punctuation(")") is not None:
+                    return_types = []
+                else:
+                    return_types = parser.parse_comma_separated_list(
+                        parser.Delimiter.NONE, parser.parse_type
+                    )
+                    parser.parse_punctuation(")")
             else:
-                return_types = parser.parse_comma_separated_list(
-                    parser.Delimiter.PAREN, parser.parse_type
-                )
+                return_types = [parser.parse_type()]
         else:
             return_types = []
 
@@ -161,49 +186,34 @@ class FuncOp(IRDLOperation):
         return_types: Sequence[Attribute],
         func: Block.BlockCallback,
     ) -> FuncOp:
-        type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes: dict[str, Attribute] = {
-            "sym_name": StringAttr(name),
-            "function_type": type_attr,
-            "sym_visibility": StringAttr("private"),
-        }
-        op = FuncOp.build(
-            attributes=attributes,
-            regions=[Region(Block.from_callable(input_types, func))],
-        )
-        return op
+        region = Region(Block.from_callable(input_types, func))
+        return FuncOp(name, (input_types, return_types), region, "private")
 
     @staticmethod
     def external(
         name: str, input_types: Sequence[Attribute], return_types: Sequence[Attribute]
     ) -> FuncOp:
-        type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes: dict[str, Attribute] = {
-            "sym_name": StringAttr(name),
-            "function_type": type_attr,
-            "sym_visibility": StringAttr("private"),
-        }
-        op = FuncOp.build(attributes=attributes, regions=[Region()])
-        return op
+        return FuncOp(
+            name=name,
+            function_type=(input_types, return_types),
+            region=Region(),
+            visibility="private",
+        )
 
     @staticmethod
     def from_region(
         name: str,
         input_types: Sequence[Attribute],
         return_types: Sequence[Attribute],
-        region: Region,
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
         visibility: StringAttr | str | None = None,
     ) -> FuncOp:
-        if isinstance(visibility, str):
-            visibility = StringAttr(visibility)
-        type_attr = FunctionType.from_lists(input_types, return_types)
-        attributes: dict[str, Attribute | None] = {
-            "sym_name": StringAttr(name),
-            "function_type": type_attr,
-            "sym_visibility": visibility,
-        }
-        op = FuncOp.build(attributes=attributes, regions=[region])
-        return op
+        return FuncOp(
+            name=name,
+            function_type=(input_types, return_types),
+            region=region,
+            visibility=visibility,
+        )
 
     def replace_argument_type(self, arg: int | BlockArgument, new_type: Attribute):
         """

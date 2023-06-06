@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import IO, Annotated, Iterable, TypeAlias
+from typing import IO, Annotated, Iterable, TypeAlias, Sequence
+
 
 from xdsl.ir import (
     Dialect,
     Operation,
     Region,
     SSAValue,
+    Attribute,
     Data,
     OpResult,
     TypeAttribute,
@@ -17,8 +19,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     OptSingleBlockRegion,
+    VarOpResult,
     irdl_op_definition,
     irdl_attr_definition,
+    VarOperand,
     Operand,
     OpAttr,
     OptOpAttr,
@@ -28,7 +32,9 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    IntegerType,
     ModuleOp,
+    Signedness,
     UnitAttr,
     IntegerAttr,
     StringAttr,
@@ -138,17 +144,46 @@ class RegisterType(Data[Register], TypeAttribute):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> Register:
-        name = parser.try_parse_bare_id()
+        name = parser.parse_optional_identifier()
         if name is None:
             return Register()
-        text = name.text
-        return Register(text)
+        return Register(name)
 
     def print_parameter(self, printer: Printer) -> None:
         name = self.data.name
         if name is None:
             return
         printer.print_string(name)
+
+
+@irdl_attr_definition
+class SImm12Attr(IntegerAttr[IntegerType]):
+    """
+    A 12-bit immediate signed value.
+    """
+
+    name = "riscv.simm12"
+
+    def __init__(self, value: int) -> None:
+        super().__init__(value, IntegerType(12, Signedness.SIGNED))
+
+    def verify(self) -> None:
+        """
+        All I- and S-type instructions with 12-bit signed immediates --- e.g., addi but not slli ---
+        accept their immediate argument as an integer in the interval [-2048, 2047]. Integers in the subinterval [-2048, -1]
+        can also be passed by their (unsigned) associates in the interval [0xfffff800, 0xffffffff] on RV32I,
+        and in [0xfffffffffffff800, 0xffffffffffffffff] on both RV32I and RV64I.
+
+        https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
+        """
+
+        if 0xFFFFFFFFFFFFF800 <= self.value.data <= 0xFFFFFFFFFFFFFFFF:
+            return
+
+        if 0xFFFFF800 <= self.value.data <= 0xFFFFFFFF:
+            return
+
+        super().verify()
 
 
 @irdl_attr_definition
@@ -326,7 +361,7 @@ class RdImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr.from_int_and_width(immediate, 32)
+            immediate = IntegerAttr(immediate, IntegerType(20, Signedness.UNSIGNED))
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
@@ -371,7 +406,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr.from_int_and_width(immediate, 32)
+            immediate = IntegerAttr(immediate, IntegerType(20, Signedness.SIGNED))
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(rd, Register):
@@ -411,7 +446,7 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, 32)
+            immediate = SImm12Attr(immediate)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -432,6 +467,34 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
+
+
+class RdRsImmShiftOperation(RdRsImmOperation):
+    """
+    A base class for RISC-V operations that have one destination register, one source
+    register and one immediate operand.
+
+    This is called I-Type in the RISC-V specification.
+
+    Shifts by a constant are encoded as a specialization of the I-type format.
+    The shift amount is encoded in the lower 5 bits of the I-immediate field for RV32
+
+    For RV32I, SLLI, SRLI, and SRAI generate an illegal instruction exception if
+    imm[5] 6 != 0 but the shift amount is encoded in the lower 6 bits of the I-immediate field for RV64I.
+    """
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        *,
+        rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, IntegerType(5, Signedness.UNSIGNED))
+
+        super().__init__(rs1, immediate, rd=rd, comment=comment)
 
 
 class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -464,7 +527,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, 32)
+            immediate = IntegerAttr(immediate, IntegerType(12, Signedness.SIGNED))
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -540,7 +603,7 @@ class RsRsOffOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(offset, int):
-            offset = IntegerAttr.from_int_and_width(offset, 32)
+            offset = IntegerAttr(offset, 12)
         if isinstance(offset, str):
             offset = LabelAttr(offset)
         if isinstance(comment, str):
@@ -579,7 +642,7 @@ class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr.from_int_and_width(immediate, 32)
+            immediate = SImm12Attr(immediate)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
@@ -944,7 +1007,7 @@ class XoriOp(RdRsImmOperation):
 
 
 @irdl_op_definition
-class SlliOp(RdRsImmOperation):
+class SlliOp(RdRsImmShiftOperation):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of the immediate.
@@ -958,7 +1021,7 @@ class SlliOp(RdRsImmOperation):
 
 
 @irdl_op_definition
-class SrliOp(RdRsImmOperation):
+class SrliOp(RdRsImmShiftOperation):
     """
     Performs logical right shift on the value in register rs1 by the shift amount held
     in the lower 5 bits of the immediate.
@@ -972,7 +1035,7 @@ class SrliOp(RdRsImmOperation):
 
 
 @irdl_op_definition
-class SraiOp(RdRsImmOperation):
+class SraiOp(RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of the immediate.
@@ -1701,6 +1764,18 @@ class LiOp(RdImmOperation):
 
     name = "riscv.li"
 
+    def __init__(
+        self,
+        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        *,
+        rd: RegisterType | Register | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, IntegerType(32, Signedness.SIGNED))
+
+        super().__init__(immediate, rd=rd, comment=comment)
+
 
 @irdl_op_definition
 class EcallOp(NullaryOperation):
@@ -1820,6 +1895,60 @@ class DirectiveOp(IRDLOperation, RISCVOp):
             value = None
 
         return _assembly_line(self.directive.data, (value,), is_indented=False)
+
+
+@irdl_op_definition
+class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
+    """
+    An instruction with unspecified semantics, that can be printed during assembly
+    emission.
+
+    During assembly emission, the results are printed before the operands:
+
+    ``` python
+    s0 = riscv.GetRegisterOp(Registers.s0).res
+    s1 = riscv.GetRegisterOp(Registers.s1).res
+    rs2 = riscv.RegisterType(Registers.s2)
+    rs3 = riscv.RegisterType(Registers.s3)
+    op = CustomAssemblyInstructionOp("my_instr", (s0, s1), (rs2, rs3))
+
+    op.assembly_line()   # "my_instr s2, s3, s0, s1"
+    ```
+    """
+
+    name = "riscv.custom_assembly_instruction"
+    inputs: VarOperand
+    outputs: VarOpResult
+    instruction_name: OpAttr[StringAttr]
+    comment: OptOpAttr[StringAttr]
+
+    def __init__(
+        self,
+        instruction_name: str | StringAttr,
+        inputs: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(instruction_name, str):
+            instruction_name = StringAttr(instruction_name)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[inputs],
+            result_types=[result_types],
+            attributes={
+                "instruction_name": instruction_name,
+                "comment": comment,
+            },
+        )
+
+    def assembly_instruction_name(self) -> str:
+        return self.instruction_name.data
+
+    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+        return *self.results, *self.operands
 
 
 @irdl_op_definition
@@ -1992,6 +2121,7 @@ RISCV = Dialect(
         DirectiveOp,
         EbreakOp,
         WfiOp,
+        CustomAssemblyInstructionOp,
         CommentOp,
         GetRegisterOp,
         ScfgwOp,

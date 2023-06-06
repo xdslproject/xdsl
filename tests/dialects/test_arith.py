@@ -49,7 +49,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 
-_BinOpT = TypeVar("_BinOpT", bound=Attribute)
+_BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
 
 
 class Test_integer_arith_construction:
@@ -82,12 +82,16 @@ class Test_integer_arith_construction:
         ],
     )
     @pytest.mark.parametrize("return_typ", [None, operand_typ])
-    def test_arith_ops_init(self, OpClass: type[_BinOpT], return_typ: Attribute):
+    def test_arith_ops_init(
+        self,
+        OpClass: type[BinaryOperation[_BinOpArgT]],
+        return_typ: Attribute,
+    ):
         op = OpClass(self.a, self.b)
 
         assert isinstance(op, OpClass)
-        assert op.lhs.op is self.a
-        assert op.rhs.op is self.b
+        assert op.lhs.owner is self.a
+        assert op.rhs.owner is self.b
         assert op.result.typ == self.operand_typ
 
     def test_Cmpi(self):
@@ -97,7 +101,7 @@ class Test_integer_arith_construction:
         "input",
         ["eq", "ne", "slt", "sle", "ult", "ule", "ugt", "uge"],
     )
-    def test_Cmpi_from_mnemonic(self, input):
+    def test_Cmpi_from_mnemonic(self, input: str):
         _ = Cmpi.get(self.a, self.b, input)
 
 
@@ -109,10 +113,10 @@ class Test_float_arith_construction:
         "func",
         [Addf, Subf, Mulf, Divf, Maxf, Minf],
     )
-    def test_arith_ops(self, func):
+    def test_arith_ops(self, func: type[BinaryOperation[_BinOpArgT]]):
         op = func(self.a, self.b)
-        assert op.operands[0].op is self.a
-        assert op.operands[1].op is self.b
+        assert op.operands[0].owner is self.a
+        assert op.operands[1].owner is self.b
 
 
 def test_index_cast_op():
@@ -121,7 +125,7 @@ def test_index_cast_op():
 
     assert cast.result.typ == IndexType()
     assert cast.input.typ == i32
-    assert cast.input.op == a
+    assert cast.input.owner == a
 
 
 def test_cast_fp_and_si_ops():
@@ -179,10 +183,7 @@ def test_cmpf_from_mnemonic():
         "uno",
         "true",
     ]
-    cmpf_ops = [None] * len(operations)
-
-    for i in range(len(operations)):
-        cmpf_ops[i] = Cmpf.get(a, b, operations[i])
+    cmpf_ops = [Cmpf.get(a, b, operations[i]) for i in range(len(operations))]
 
     for index, op in enumerate(cmpf_ops):
         assert op.lhs.typ == f64
@@ -206,19 +207,19 @@ def test_cmpf_missmatch_type():
     b = Constant.from_float_and_width(2.0, f64)
 
     with pytest.raises(TypeError) as e:
-        cmpf_op = Cmpf.get(a, b, 1)
+        _cmpf_op = Cmpf.get(a, b, 1)
     assert (
         e.value.args[0]
         == "Comparison operands must have same type, but provided f32 and f64"
     )
 
 
-def test_cmpi_missmatch_type():
-    a = Constant.from_float_and_width(1, i32)
-    b = Constant.from_float_and_width(2, i64)
+def test_cmpi_mismatch_type():
+    a = Constant.from_int_and_width(1, i32)
+    b = Constant.from_int_and_width(2, i64)
 
     with pytest.raises(TypeError) as e:
-        cmpi_op = Cmpi.get(a, b, 1)
+        _cmpi_op = Cmpi.get(a, b, 1)
     assert (
         e.value.args[0]
         == "Comparison operands must have same type, but provided i32 and i64"
@@ -231,15 +232,15 @@ def test_cmpf_incorrect_comparison():
 
     with pytest.raises(VerifyException) as e:
         # 'eq' is a comparison op for cmpi but not cmpf
-        cmpf_op = Cmpf.get(a, b, "eq")
+        _cmpf_op = Cmpf.get(a, b, "eq")
     assert e.value.args[0] == "Unknown comparison mnemonic: eq"
 
 
-def test_cmpf_incorrect_comparison():
-    a = Constant.from_float_and_width(1, i32)
-    b = Constant.from_float_and_width(2, i32)
+def test_cmpi_incorrect_comparison():
+    a = Constant.from_int_and_width(1, i32)
+    b = Constant.from_int_and_width(2, i32)
 
     with pytest.raises(VerifyException) as e:
         # 'oeq' is a comparison op for cmpf but not cmpi
-        cmpi_op = Cmpi.get(a, b, "oeq")
+        _cmpi_op = Cmpi.get(a, b, "oeq")
     assert e.value.args[0] == "Unknown comparison mnemonic: oeq"

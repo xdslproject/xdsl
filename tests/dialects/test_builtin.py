@@ -101,11 +101,11 @@ def test_array_len_and_iter_attr():
 @pytest.mark.parametrize(
     "attr, dims, num_scalable_dims",
     (
-        (i32, [1, 2], 0),
-        (i32, [1, 2], 1),
-        (i32, [1, 1, 3], 0),
-        (i64, [1, 1, 3], 2),
-        (i64, [], 0),
+        (i32, (1, 2), 0),
+        (i32, (1, 2), 1),
+        (i32, (1, 1, 3), 0),
+        (i64, (1, 1, 3), 2),
+        (i64, (), 0),
     ),
 )
 def test_vector_constructor(attr: Attribute, dims: list[int], num_scalable_dims: int):

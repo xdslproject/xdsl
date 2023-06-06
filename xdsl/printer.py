@@ -74,12 +74,6 @@ class Printer:
     print_generic_format: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
-    print_unknown_value_error: bool = field(default=True, kw_only=True)
-    """
-    If this option is set, printing an operand that was not already given a name will
-    not print an error message.
-    """
-
     _indent: int = field(default=0, init=False)
     _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
     """
@@ -209,55 +203,36 @@ class Printer:
         self._next_valid_block_id += 1
         return self._next_valid_block_id - 1
 
-    def _print_result_value(self, op: Operation, idx: int) -> None:
-        val = op.results[idx]
-        self.print("%")
-        if val in self._ssa_values:
-            name = self._ssa_values[val]
-        elif val.name_hint:
-            curr_ind = self._ssa_names.get(val.name_hint, 0)
-            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{val.name_hint}{suffix}"
-            self._ssa_values[val] = name
-            self._ssa_names[val.name_hint] = curr_ind + 1
-        else:
-            name = self._get_new_valid_name_id()
-            self._ssa_values[val] = name
-        self.print("%s" % name)
-
     def _print_results(self, op: Operation) -> None:
         results = op.results
         # No results
         if len(results) == 0:
             return
 
-        # One result
-        if len(results) == 1:
-            self._print_result_value(op, 0)
-            self.print(" = ")
-            return
-
         # Multiple results
-        self._print_result_value(op, 0)
-        for idx in range(1, len(results)):
-            self.print(", ")
-            self._print_result_value(op, idx)
+        self.print_list(op.results, self.print)
         self.print(" = ")
 
     def print_ssa_value(self, value: SSAValue) -> None:
-        if ssa_val := self._ssa_values.get(value):
-            self.print(f"%{ssa_val}")
+        """
+        Print an SSA value in the printer. This assigns a name to the value if the value
+        does not have one in the current printing context.
+        If the value has a name hint, it will use it as a prefix, and otherwise assign
+        a number as the name. Numbers are assigned in order.
+        """
+        if value in self._ssa_values:
+            name = self._ssa_values[value]
+        elif value.name_hint:
+            curr_ind = self._ssa_names.get(value.name_hint, 0)
+            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+            name = f"{value.name_hint}{suffix}"
+            self._ssa_values[value] = name
+            self._ssa_names[value.name_hint] = curr_ind + 1
         else:
-            begin_pos = self._current_column
-            self.print("%<UNKNOWN>")
-            end_pos = self._current_column
-            if self.print_unknown_value_error:
-                self._add_message_on_next_line(
-                    "ERROR: SSAValue is not part of the IR, are you sure all operations "
-                    "are added before their uses?",
-                    begin_pos,
-                    end_pos,
-                )
+            name = self._get_new_valid_name_id()
+            self._ssa_values[value] = name
+
+        self.print(f"%{name}")
 
     def _print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
@@ -273,8 +248,6 @@ class Printer:
         Print a block with syntax `(<caret-ident>`(` <block-args> `)`)? ops* )`
         * If `print_block_args` is False, the label and arguments are not printed.
         """
-        if not isinstance(block, Block):
-            raise TypeError("Expected a Block; got %s" % type(block).__name__)
 
         if print_block_args:
             self._print_new_line()
@@ -296,15 +269,7 @@ class Printer:
         Print a block argument with its type, e.g. `%arg : i32`
         Optionally, do not print the type.
         """
-
-        if arg.name_hint and arg.name_hint not in self._ssa_values.values():
-            name = arg.name_hint
-            self._ssa_names[arg.name_hint] = self._ssa_names.get(arg.name_hint, 0) + 1
-        else:
-            name = self._get_new_valid_name_id()
-        self._ssa_values[arg] = name
-
-        self.print(f"%{name}")
+        self.print(arg)
         if print_type:
             self.print(" : ", arg.typ)
 
@@ -320,8 +285,6 @@ class Printer:
           are not printed.
         * If `print_empty_block` is False, empty entry blocks are not printed.
         """
-        if not isinstance(region, Region):
-            raise TypeError("Expected a Region; got %s" % type(region).__name__)
 
         # Empty region
         self.print("{")
@@ -332,8 +295,8 @@ class Printer:
 
         entry_block = region.blocks[0]
         print_entry_block_args = (
-            len(entry_block.args) != 0 and print_entry_block_args
-        ) or (entry_block.is_empty and print_empty_block)
+            bool(entry_block.args) and print_entry_block_args
+        ) or (not entry_block.ops and print_empty_block)
         self.print_block(entry_block, print_block_args=print_entry_block_args)
         for block in region.blocks[1:]:
             self.print_block(block)
@@ -500,7 +463,7 @@ class Printer:
 
             def print_dense_list(
                 array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
-                shape: List[int],
+                shape: Sequence[int],
             ):
                 self.print("[")
                 if len(shape) > 1:
@@ -515,7 +478,9 @@ class Printer:
 
             self.print("dense<")
             data = attribute.data.data
-            shape = attribute.shape if attribute.shape_is_complete else [len(data)]
+            shape = (
+                attribute.get_shape() if attribute.shape_is_complete else (len(data),)
+            )
             assert shape is not None, "If shape is complete, then it cannot be None"
             if len(data) == 0:
                 pass
@@ -558,7 +523,7 @@ class Printer:
             # Separate the dimensions between the static and the scalable ones
             if attribute.get_num_scalable_dims() == 0:
                 static_dimensions = shape
-                scalable_dimensions = []
+                scalable_dimensions = ()
             else:
                 static_dimensions = shape[: -attribute.get_num_scalable_dims()]
                 scalable_dimensions = shape[-attribute.get_num_scalable_dims() :]
@@ -712,8 +677,6 @@ class Printer:
             self.print(")")
 
     def print_op(self, op: Operation) -> None:
-        if not isinstance(op, Operation):
-            raise TypeError("Expected an Operation; got %s" % type(op).__name__)
         begin_op_pos = self._current_column
         self._print_results(op)
         use_custom_format = False

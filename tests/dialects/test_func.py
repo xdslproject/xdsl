@@ -92,13 +92,13 @@ def test_func_II():
 def test_wrong_blockarg_types():
     r = Region(Block.from_callable([i32], lambda *x: [Addi(x[0], x[0])]))
     f = FuncOp.from_region("f", [i32, i32], [], r)
-    with pytest.raises(VerifyException) as e:
-        f.verify()
 
-    assert e.value.args[0] == (
-        "Expected entry block arguments to have the same "
-        "types as the function input types"
+    message = (
+        "Expected entry block arguments to have the "
+        "same types as the function input types"
     )
+    with pytest.raises(VerifyException, match=message):
+        f.verify()
 
 
 def test_func_rewriting_helpers():
@@ -153,7 +153,7 @@ def test_func_get_return_op():
 def test_callable_constructor():
     f = FuncOp.from_callable("f", [], [], lambda *args: [])
     assert f.sym_name.data == "f"
-    assert f.body.block.is_empty
+    assert not f.body.block.ops
 
 
 def test_call():

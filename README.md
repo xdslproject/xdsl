@@ -93,7 +93,7 @@ To automate the formatting, we use pre-commit hooks from the
 
 ```bash
 # Install pre-commit version in the optional requirement files
-pip install --requirement requirement-optional.txt
+pip install --requirement requirements-optional.txt
 
 # Install the pre-commit on your `.git` folder
 # Be sure to run this in your virtual environment

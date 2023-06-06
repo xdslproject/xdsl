@@ -1,5 +1,5 @@
 from __future__ import annotations
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from dataclasses import dataclass
 from enum import Enum
@@ -16,7 +16,10 @@ from typing import (
     TypeVar,
     overload,
     Iterator,
+    Generic,
 )
+
+from math import prod
 
 from xdsl.ir import (
     Block,
@@ -57,8 +60,31 @@ from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
-    from utils.exceptions import ParseError
     from xdsl.printer import Printer
+
+
+class ShapedType(ABC):
+    @abstractmethod
+    def get_num_dims(self) -> int:
+        ...
+
+    @abstractmethod
+    def get_shape(self) -> tuple[int, ...]:
+        ...
+
+    def element_count(self) -> int:
+        return prod(self.get_shape())
+
+
+_ContainerElementTypeT = TypeVar(
+    "_ContainerElementTypeT", bound=Attribute | None, covariant=True
+)
+
+
+class ContainerType(Generic[_ContainerElementTypeT], ABC):
+    @abstractmethod
+    def get_element_type(self) -> _ContainerElementTypeT:
+        pass
 
 
 @irdl_attr_definition
@@ -120,12 +146,6 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         )
 
     def verify(self) -> None:
-        if not isinstance(self.data, tuple):
-            raise VerifyException(
-                f"Wrong type given to attribute {self.name}: got"
-                f" {type(self.data)}, but expected list of"
-                " attributes"
-            )
         for idx, val in enumerate(self.data):
             if not isinstance(val, Attribute):
                 raise VerifyException(
@@ -154,8 +174,7 @@ class StringAttr(Data[str]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> str:
-        data = parser.parse_str_literal()
-        return data
+        return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f'"{self.data}"')
@@ -264,16 +283,13 @@ class SignednessAttr(Data[Signedness]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> Signedness:
-        value = parser.expect(
-            parser.try_parse_bare_id, "Expected `signless`, `signed`, or `unsigned`."
-        )
-        if value.text == "signless":
+        if parser.parse_optional_keyword("signless") is not None:
             return Signedness.SIGNLESS
-        elif value.text == "signed":
+        if parser.parse_optional_keyword("signed") is not None:
             return Signedness.SIGNED
-        elif value.text == "unsigned":
+        if parser.parse_optional_keyword("unsigned") is not None:
             return Signedness.UNSIGNED
-        raise ParseError(value, "Expected signedness")
+        parser.raise_error("`signless`, `signed`, or `unsigned` expected")
 
     def print_parameter(self, printer: Printer) -> None:
         data = self.data
@@ -345,22 +361,6 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     typ: ParameterDef[_IntegerAttrTyp]
 
     @overload
-    def __new__(
-        cls,
-        value: int | IntAttr,
-        typ: _IntegerAttrTyp,
-    ) -> IntegerAttr[_IntegerAttrTyp]:
-        ...
-
-    @overload
-    def __new__(cls, value: int | IntAttr, typ: int) -> IntegerAttr[IntegerType]:
-        ...
-
-    # These overloads are required to make pyright infer the correct result type.
-    def __new__(cls, *args: Any, **kwargs: Any) -> IntegerAttr[Any]:
-        return super().__new__(cls)
-
-    @overload
     def __init__(
         self: IntegerAttr[_IntegerAttrTyp], value: int | IntAttr, typ: _IntegerAttrTyp
     ) -> None:
@@ -388,6 +388,28 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     @staticmethod
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr(value, IndexType())
+
+    def verify(self) -> None:
+        if isinstance(self.typ, IntegerType):
+            match self.typ.signedness.data:
+                case Signedness.SIGNLESS:
+                    min_value = -(1 << self.typ.width.data)
+                    max_value = 1 << self.typ.width.data
+                case Signedness.SIGNED:
+                    min_value = -(1 << (self.typ.width.data - 1))
+                    max_value = (1 << (self.typ.width.data - 1)) - 1
+                case Signedness.UNSIGNED:
+                    min_value = 0
+                    max_value = (1 << self.typ.width.data) - 1
+                case _:
+                    assert False, "unreachable"
+
+            if not (min_value <= self.value.data <= max_value):
+                raise VerifyException(
+                    f"Integer value {self.value.data} is out of range for "
+                    f"type {self.typ} which supports values in the "
+                    f"range [{min_value}, {max_value}]"
+                )
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -434,8 +456,7 @@ class FloatData(Data[float]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> float:
-        span = parser.expect(parser.try_parse_float_literal, "Expect float literal")
-        return float(span.text)
+        return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
@@ -528,25 +549,6 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
         raise Exception(f"Unsupported operation on {DictionaryAttr.name}")
 
-    def verify(self) -> None:
-        if not isinstance(self.data, dict):
-            raise VerifyException(
-                f"Wrong type given to attribute {self.name}: got"
-                f" {type(self.data)}, but expected dictionary of"
-                " attributes"
-            )
-        for key, val in self.data.items():
-            if not isinstance(key, str):
-                raise VerifyException(
-                    f"{self.name} key expects str, but {key} "
-                    f"element is of type {type(key)}"
-                )
-            if not isinstance(val, Attribute):
-                raise VerifyException(
-                    f"{self.name} key expects attribute, but {val} "
-                    f"element is of type {type(val)}"
-                )
-
     @staticmethod
     @deprecated_constructor
     def from_dict(data: dict[str | StringAttr, Attribute]) -> DictionaryAttr:
@@ -555,14 +557,11 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
             # try to coerce keys into StringAttr
             if isinstance(k, StringAttr):
                 k = k.data
-            # if coercion fails, raise KeyError!
-            if not isinstance(k, str):
-                raise TypeError(
-                    f"DictionaryAttr.from_dict expects keys to"
-                    f" be of type str or StringAttr, but {type(k)} provided"
-                )
             to_add_data[k] = v
         return DictionaryAttr(to_add_data)
+
+    def verify(self) -> None:
+        return super().verify()
 
 
 @irdl_attr_definition
@@ -583,7 +582,13 @@ class TupleType(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
+class VectorType(
+    Generic[AttributeCovT],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ShapedType,
+    ContainerType[AttributeCovT],
+):
     name = "vector"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -596,8 +601,11 @@ class VectorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     def get_num_scalable_dims(self) -> int:
         return self.num_scalable_dims.data
 
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
+    def get_shape(self) -> tuple[int, ...]:
+        return tuple(i.value.data for i in self.shape.data)
+
+    def get_element_type(self) -> AttributeCovT:
+        return self.element_type
 
     def verify(self):
         if self.get_num_scalable_dims() < 0:
@@ -650,7 +658,13 @@ AnyVectorType: TypeAlias = VectorType[Attribute]
 
 
 @irdl_attr_definition
-class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
+class TensorType(
+    Generic[AttributeCovT],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ShapedType,
+    ContainerType[AttributeCovT],
+):
     name = "tensor"
 
     shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
@@ -660,8 +674,11 @@ class TensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
-    def get_shape(self) -> List[int]:
-        return [i.value.data for i in self.shape.data]
+    def get_shape(self) -> tuple[int, ...]:
+        return tuple(i.value.data for i in self.shape.data)
+
+    def get_element_type(self) -> AttributeCovT:
+        return self.element_type
 
     @staticmethod
     def from_type_and_list(
@@ -800,7 +817,9 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class DenseIntOrFPElementsAttr(ParametrizedAttribute):
+class DenseIntOrFPElementsAttr(
+    ParametrizedAttribute, ContainerType[IntegerType | IndexType | AnyFloat]
+):
     name = "dense"
     type: ParameterDef[
         RankedVectorOrTensorOf[IntegerType]
@@ -810,15 +829,17 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
-    @property
-    def shape(self) -> List[int] | None:
+    def get_shape(self) -> tuple[int] | None:
         if isinstance(self.type, UnrankedTensorType):
             return None
         return self.type.get_shape()
 
+    def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
+        return self.type.get_element_type()
+
     @property
     def shape_is_complete(self) -> bool:
-        shape = self.shape
+        shape = self.get_shape()
         if shape is None or not len(shape):
             return False
 
@@ -899,20 +920,22 @@ class DenseIntOrFPElementsAttr(ParametrizedAttribute):
         type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
         data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
-        if isinstance(type.element_type, IntegerType):
-            new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]], data)
-            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
-        elif isinstance(type.element_type, IndexType):
-            new_type = cast(RankedVectorOrTensorOf[IndexType], type)
-            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
-            return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
-        elif isinstance(type.element_type, AnyFloat):
+        if isinstance(type.element_type, AnyFloat):
             new_type = cast(RankedVectorOrTensorOf[AnyFloat], type)
             new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
-        else:
-            raise TypeError(f"Unsupported element type {type.element_type}")
+
+        match type.element_type:
+            case IntegerType():
+                new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
+                new_data = cast(
+                    Sequence[int] | Sequence[IntegerAttr[IntegerType]], data
+                )
+                return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
+            case IndexType():
+                new_type = cast(RankedVectorOrTensorOf[IndexType], type)
+                new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
+                return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
 
     @staticmethod
     def vector_from_list(
@@ -1283,7 +1306,7 @@ class ModuleOp(IRDLOperation):
             printer.print_dictionary(self.attributes, printer.print, printer.print)
             printer.print("}")
 
-        if self.body.block.is_empty:
+        if not self.body.block.ops:
             # Do not print the entry block if the region has an empty block
             printer.print(" {\n")
             printer.print("}")
@@ -1298,14 +1321,6 @@ f32 = Float32Type()
 f64 = Float64Type()
 f80 = Float64Type()
 f128 = Float64Type()
-
-
-class ShapeType(ABC):
-    def get_num_dims(self) -> int:
-        ...
-
-    def get_shape(self) -> tuple[int]:
-        ...
 
 
 Builtin = Dialect(

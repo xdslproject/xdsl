@@ -12,7 +12,7 @@
       ^1(%9 : f64, %10 : f64):
         %11 = "arith.addf"(%9, %10) : (f64, f64) -> f64
         "scf.reduce.return"(%11) : (f64) -> ()
-      }) : (f64) -> ()
+      }) : (f32) -> ()
       "scf.yield"() : () -> ()
     }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f32
 }) : () -> ()
