@@ -122,7 +122,6 @@ class MemRefType(
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser._synchronize_lexer_and_tokenizer()  # pyright: ignore[reportPrivateUsage]
         parser.parse_punctuation("<", " in memref attribute")
         shape = parser.parse_attribute()
         parser.parse_punctuation(",", " between shape and element type parameters")
@@ -135,7 +134,6 @@ class MemRefType(
         parser.parse_punctuation(",", " between layout and memory space")
         memory_space = parser.parse_attribute()
         parser.parse_punctuation(">", " at end of memref attribute")
-        parser._synchronize_lexer_and_tokenizer()  # pyright: ignore[reportPrivateUsage]
 
         return [shape, type, layout, memory_space]
 
