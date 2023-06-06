@@ -21,3 +21,7 @@ s/(.+): OptRegion$/\1: OptRegion = opt_region_def()/g
 s/(.+): SingleBlockRegion$/\1: Region = region_def("single_block")/g
 s/(.+): VarSingleBlockRegion$/\1: VarRegion = var_region_def("single_block")/g
 s/(.+): OptSingleBlockRegion$/\1: OptRegion = opt_region_def("single_block")/g
+
+s/(.+): Successor$/\1: Successor = successor_def()/g
+s/(.+): VarSuccessor$/\1: VarSuccessor = var_successor_def()/g
+s/(.+): OptSuccessor$/\1: OptSuccessor = opt_successor_def()/g

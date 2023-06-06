@@ -26,14 +26,17 @@ from xdsl.irdl import (
     IRDLOperation,
     OptOpResult,
     opt_region_def,
+    opt_successor_def,
     region_def,
     result_def,
     opt_result_def,
+    successor_def,
     var_region_def,
     var_result_def,
     operand_def,
     opt_operand_def,
     var_operand_def,
+    var_successor_def,
 )
 
 #  ____                 _ _
@@ -499,7 +502,7 @@ def test_two_var_operand_builder3():
 class SuccessorOp(IRDLOperation):
     name = "test.successor_op"
 
-    successor: Successor
+    successor: Successor = successor_def()
 
 
 def test_successor_op_successor():
@@ -513,7 +516,7 @@ def test_successor_op_successor():
 class OptSuccessorOp(IRDLOperation):
     name = "test.opt_successora_op"
 
-    successor: OptSuccessor
+    successor: OptSuccessor = opt_successor_def()
 
 
 def test_opt_successor_builder():
@@ -528,7 +531,7 @@ def test_opt_successor_builder():
 class VarSuccessorOp(IRDLOperation):
     name = "test.var_succesor_op"
 
-    successor: VarSuccessor
+    successor: VarSuccessor = var_successor_def()
 
 
 def test_var_successor_builder():
@@ -542,8 +545,8 @@ def test_var_successor_builder():
 class TwoVarSuccessorOp(IRDLOperation):
     name = "test.two_var_successor_op"
 
-    res1: VarSuccessor
-    res2: VarSuccessor
+    res1: VarSuccessor = var_successor_def()
+    res2: VarSuccessor = var_successor_def()
     irdl_options = [AttrSizedSuccessorSegments()]
 
 

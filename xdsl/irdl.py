@@ -766,6 +766,10 @@ class RegionFieldDef(OpDefField[RegionDef]):
     pass
 
 
+class SuccessorFieldDef(OpDefField[SuccessorDef]):
+    pass
+
+
 def result_def(
     constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
@@ -857,6 +861,33 @@ def opt_region_def(
 ) -> OptRegion:
     cls = OptRegionDef if single_block is None else OptSingleBlockRegionDef
     return cast(OptRegion, RegionFieldDef(cls))
+
+
+def successor_def(
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> Successor:
+    return cast(Successor, SuccessorFieldDef(SuccessorDef))
+
+
+def var_successor_def(
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> VarSuccessor:
+    return cast(VarSuccessor, SuccessorFieldDef(VarSuccessorDef))
+
+
+def opt_successor_def(
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> OptSuccessor:
+    return cast(OptSuccessor, SuccessorFieldDef(OptSuccessorDef))
 
 
 @dataclass(kw_only=True)
@@ -978,8 +1009,12 @@ class OpDef:
                         op_def.operands.append((field_name, operand_def))
                         continue
                     case RegionFieldDef():
-                        region_def = field_value.cls()
-                        op_def.regions.append((field_name, region_def))
+                        successor_def = field_value.cls()
+                        op_def.regions.append((field_name, successor_def))
+                        continue
+                    case SuccessorFieldDef():
+                        successor_def = field_value.cls()
+                        op_def.successors.append((field_name, successor_def))
                         continue
                     case _:
                         assert False
@@ -1020,14 +1055,6 @@ class OpDef:
                 args = (reduce(lambda x, y: x | y, get_args(args[0])[:-1]), *args[1:])
                 constraint = get_constraint(args)
                 op_def.attributes[field_name] = OptAttributeDef(constraint)
-
-            # Successor annotation
-            elif args[0] == Successor:
-                op_def.successors.append((field_name, SuccessorDef()))
-            elif args[0] == VarSuccessor:
-                op_def.successors.append((field_name, VarSuccessorDef()))
-            elif args[0] == OptSuccessor:
-                op_def.successors.append((field_name, OptSuccessorDef()))
 
             else:
                 raise wrong_field_exception(field_name)
