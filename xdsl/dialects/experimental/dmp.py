@@ -25,7 +25,6 @@ from xdsl.ir import (
     Dialect,
 )
 from xdsl.irdl import (
-    OptOpAttr,
     Operand,
     attr_def,
     irdl_op_definition,
@@ -33,6 +32,7 @@ from xdsl.irdl import (
     ParameterDef,
     IRDLOperation,
     operand_def,
+    opt_attr_def,
     region_def,
 )
 from xdsl.dialects import builtin, memref
@@ -391,9 +391,11 @@ class HaloSwapOp(IRDLOperation):
 
     input_stencil: Operand = operand_def(stencil.TempType | memref.MemRefType)
 
-    # shape: OptOpAttr[HaloShapeInformation]
-    swaps: OptOpAttr[builtin.ArrayAttr[HaloExchangeDecl]]
-    nodes: OptOpAttr[NodeGrid]
+    # shape: HaloShapeInformation| None = opt_attr_def(HaloShapeInformation)
+    swaps: builtin.ArrayAttr[HaloExchangeDecl] | None = opt_attr_def(
+        builtin.ArrayAttr[HaloExchangeDecl]
+    )
+    nodes: NodeGrid | None = opt_attr_def(NodeGrid)
 
     @staticmethod
     def get(input_stencil: SSAValue | Operation):
@@ -423,7 +425,7 @@ class GatherOp(IRDLOperation):
     Contains code to be executed as root rank
     """
 
-    retain_order: OptOpAttr[builtin.UnitAttr]
+    retain_order: builtin.UnitAttr | None = opt_attr_def(builtin.UnitAttr)
     """
     A normal mpi.gather() will result in a reordering of the data, where each
     nodes data will be placed sequentially into the buffer, without any

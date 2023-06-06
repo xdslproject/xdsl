@@ -23,12 +23,12 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Operand,
-    OptOpAttr,
     OptOperand,
     OptRegion,
     ParameterDef,
     attr_def,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
     opt_region_def,
     region_def,
@@ -240,7 +240,7 @@ class AttributeOp(IRDLOperation):
     """
 
     name = "pdl.attribute"
-    value: OptOpAttr[Attribute]
+    value: Attribute | None = opt_attr_def(Attribute)
     value_type: OptOperand = opt_operand_def(TypeType)
     output: OpResult = result_def(AttributeType)
 
@@ -364,7 +364,7 @@ class OperationOp(IRDLOperation):
     """
 
     name = "pdl.operation"
-    opName: OptOpAttr[StringAttr]
+    opName: StringAttr | None = opt_attr_def(StringAttr)
     attributeValueNames: ArrayAttr[StringAttr] = attr_def(ArrayAttr[StringAttr])
 
     operand_values: VarOperand = var_operand_def(ValueType | RangeType[ValueType])
@@ -472,7 +472,7 @@ class PatternOp(IRDLOperation):
     benefit: IntegerAttr[Annotated[IntegerType, IntegerType(16)]] = attr_def(
         IntegerAttr[Annotated[IntegerType, IntegerType(16)]]
     )
-    sym_name: OptOpAttr[StringAttr]
+    sym_name: StringAttr | None = opt_attr_def(StringAttr)
     body: Region = region_def()
 
     def __init__(
@@ -691,7 +691,7 @@ class ResultsOp(IRDLOperation):
     """
 
     name = "pdl.results"
-    index: OptOpAttr[IntegerAttr[IntegerType]]
+    index: IntegerAttr[IntegerType] | None = opt_attr_def(IntegerAttr[IntegerType])
     parent_: Operand = operand_def(OperationType)
     val: OpResult = result_def(ValueType | RangeType[ValueType])
 
@@ -738,7 +738,7 @@ class RewriteOp(IRDLOperation):
     root: OptOperand = opt_operand_def(OperationType)
     # name of external rewriter function
     # https://github.com/xdslproject/xdsl/issues/98
-    # name: OptOpAttr[StringAttr]
+    # name: StringAttr| None = opt_attr_def(StringAttr)
     # parameters of external rewriter function
     external_args: VarOperand = var_operand_def(AnyPDLType)
     # body of inline rewriter function
@@ -831,7 +831,7 @@ class TypeOp(IRDLOperation):
     """
 
     name = "pdl.type"
-    constantType: OptOpAttr[Attribute]
+    constantType: Attribute | None = opt_attr_def(Attribute)
     result: OpResult = result_def(TypeType)
 
     def __init__(self, constant_type: Attribute | None = None) -> None:
@@ -858,7 +858,7 @@ class TypesOp(IRDLOperation):
     """
 
     name = "pdl.types"
-    constantTypes: OptOpAttr[AnyArrayAttr]
+    constantTypes: AnyArrayAttr | None = opt_attr_def(AnyArrayAttr)
     result: OpResult = result_def(RangeType[TypeType])
 
     def __init__(self, constant_types: Iterable[Attribute] | None = None) -> None:

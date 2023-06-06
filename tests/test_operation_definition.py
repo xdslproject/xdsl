@@ -14,7 +14,6 @@ from xdsl.irdl import (
     AttrSizedResultSegments,
     ConstraintVar,
     Operand,
-    OptOpAttr,
     OptOpResult,
     OptOperand,
     OptRegion,
@@ -31,6 +30,7 @@ from xdsl.irdl import (
     RegionDef,
     IRDLOperation,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
     opt_region_def,
     opt_result_def,
@@ -291,7 +291,7 @@ class AttributeOp(IRDLOperation):
     name = "test.attribute_op"
 
     attr: StringAttr = attr_def(StringAttr)
-    opt_attr: OptOpAttr[StringAttr]
+    opt_attr: StringAttr | None = opt_attr_def(StringAttr)
 
 
 def test_attribute_accessors():

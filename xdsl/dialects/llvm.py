@@ -36,9 +36,9 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     VarOperand,
-    OptOpAttr,
     IRDLOperation,
     operand_def,
+    opt_attr_def,
     region_def,
     result_def,
     var_operand_def,
@@ -406,12 +406,12 @@ class GEPOp(IRDLOperation):
 
     ptr: Operand = operand_def(LLVMPointerType)
     ssa_indices: VarOperand = var_operand_def(IntegerType)
-    elem_type: OptOpAttr[Attribute]
+    elem_type: Attribute | None = opt_attr_def(Attribute)
 
     result: OpResult = result_def(LLVMPointerType)
 
     rawConstantIndices: DenseArrayBase = attr_def(DenseArrayBase)
-    inbounds: OptOpAttr[UnitAttr]
+    inbounds: UnitAttr | None = opt_attr_def(UnitAttr)
 
     @staticmethod
     def get(
@@ -587,10 +587,10 @@ class StoreOp(IRDLOperation):
     value: Operand = operand_def()
     ptr: Operand = operand_def(LLVMPointerType)
 
-    alignment: OptOpAttr[IntegerAttr[IntegerType]]
-    ordering: OptOpAttr[IntegerAttr[IntegerType]]
-    volatile_: OptOpAttr[UnitAttr]
-    nontemporal: OptOpAttr[UnitAttr]
+    alignment: IntegerAttr[IntegerType] | None = opt_attr_def(IntegerAttr[IntegerType])
+    ordering: IntegerAttr[IntegerType] | None = opt_attr_def(IntegerAttr[IntegerType])
+    volatile_: UnitAttr | None = opt_attr_def(UnitAttr)
+    nontemporal: UnitAttr | None = opt_attr_def(UnitAttr)
 
     @staticmethod
     def get(
@@ -667,16 +667,16 @@ class GlobalOp(IRDLOperation):
     name = "llvm.mlir.global"
 
     global_type: Attribute = attr_def(Attribute)
-    constant: OptOpAttr[UnitAttr]
+    constant: UnitAttr | None = opt_attr_def(UnitAttr)
     sym_name: StringAttr = attr_def(StringAttr)
     linkage: LinkageAttr = attr_def(LinkageAttr)
-    dso_local: OptOpAttr[UnitAttr]
-    thread_local_: OptOpAttr[UnitAttr]
-    value: OptOpAttr[Attribute]
-    alignment: OptOpAttr[AnyIntegerAttr]
+    dso_local: UnitAttr | None = opt_attr_def(UnitAttr)
+    thread_local_: UnitAttr | None = opt_attr_def(UnitAttr)
+    value: Attribute | None = opt_attr_def(Attribute)
+    alignment: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
     addr_space: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    unnamed_addr: OptOpAttr[AnyIntegerAttr]
-    section: OptOpAttr[StringAttr]
+    unnamed_addr: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    section: StringAttr | None = opt_attr_def(StringAttr)
 
     # This always needs an empty region as it is in the top level module definition
     body: Region = region_def()

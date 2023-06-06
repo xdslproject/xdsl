@@ -25,9 +25,9 @@ from xdsl.irdl import (
     OptOpResult,
     ParameterDef,
     OptOperand,
-    OptOpAttr,
     IRDLOperation,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
     result_def,
     opt_result_def,
@@ -715,7 +715,7 @@ class AllocateTypeOp(MPIBaseOp):
 
     name = "mpi.allocate"
 
-    bindc_name: OptOpAttr[StringAttr]
+    bindc_name: StringAttr | None = opt_attr_def(StringAttr)
     dtype: VectorWrappable = attr_def(VectorWrappable)
     count: Operand = operand_def(i32)
 

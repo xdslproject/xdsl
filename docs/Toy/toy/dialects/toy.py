@@ -20,10 +20,10 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.irdl import (
     Operand,
-    OptOpAttr,
     OptOperand,
     VarOpResult,
     attr_def,
+    opt_attr_def,
     region_def,
     var_operand_def,
     var_result_def,
@@ -180,7 +180,7 @@ class FuncOp(IRDLOperation):
     body: Region = region_def()
     sym_name: StringAttr = attr_def(StringAttr)
     function_type: FunctionType = attr_def(FunctionType)
-    sym_visibility: OptOpAttr[StringAttr]
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
     def __init__(
         self,

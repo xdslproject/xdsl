@@ -7,10 +7,10 @@ from xdsl.dialects.builtin import IntegerType, AnyFloat
 from xdsl.ir import Operation, SSAValue, OpResult, Dialect
 from xdsl.irdl import (
     irdl_op_definition,
-    OptOpAttr,
     Operand,
     IRDLOperation,
     operand_def,
+    opt_attr_def,
     result_def,
 )
 
@@ -29,7 +29,7 @@ class AbsFOp(IRDLOperation):
     """
 
     name = "math.absf"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -92,7 +92,7 @@ class Atan2Op(IRDLOperation):
     """
 
     name = "math.atan2"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     lhs: Operand = operand_def(AnyFloat)
     rhs: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
@@ -129,7 +129,7 @@ class AtanOp(IRDLOperation):
     """
 
     name = "math.atan"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -161,7 +161,7 @@ class CbrtOp(IRDLOperation):
     """
 
     name = "math.cbrt"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -194,7 +194,7 @@ class CeilOp(IRDLOperation):
     """
 
     name = "math.ceil"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -228,7 +228,7 @@ class CopySignOp(IRDLOperation):
     """
 
     name = "math.copysign"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     lhs: Operand = operand_def(AnyFloat)
     rhs: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
@@ -265,7 +265,7 @@ class CosOp(IRDLOperation):
     """
 
     name = "math.cos"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -366,7 +366,7 @@ class ErfOp(IRDLOperation):
     """
 
     name = "math.erf"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -399,7 +399,7 @@ class Exp2Op(IRDLOperation):
     """
 
     name = "math.exp2"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -434,7 +434,7 @@ class ExpM1Op(IRDLOperation):
     """
 
     name = "math.expm1"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -467,7 +467,7 @@ class ExpOp(IRDLOperation):
     """
 
     name = "math.exp"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -508,7 +508,7 @@ class FPowIOp(IRDLOperation):
     """
 
     name = "math.fpowi"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     lhs: Operand = operand_def(AnyFloat)
     rhs: Operand = operand_def(IntegerType)
     result: OpResult = result_def(AnyFloat)
@@ -545,7 +545,7 @@ class FloorOp(IRDLOperation):
     """
 
     name = "math.floor"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -583,7 +583,7 @@ class FmaOp(IRDLOperation):
     """
 
     name = "math.fma"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     a: Operand = operand_def(AnyFloat)
     b: Operand = operand_def(AnyFloat)
     c: Operand = operand_def(AnyFloat)
@@ -649,7 +649,7 @@ class Log10Op(IRDLOperation):
     """
 
     name = "math.log10"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -681,7 +681,7 @@ class Log1pOp(IRDLOperation):
     """
 
     name = "math.log1p"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -711,7 +711,7 @@ class Log2Op(IRDLOperation):
     """
 
     name = "math.log2"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -741,7 +741,7 @@ class LogOp(IRDLOperation):
     """
 
     name = "math.log"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -774,7 +774,7 @@ class PowFOp(IRDLOperation):
     """
 
     name = "math.powf"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     lhs: Operand = operand_def(AnyFloat)
     rhs: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
@@ -814,7 +814,7 @@ class RoundEvenOp(IRDLOperation):
     """
 
     name = "math.roundeven"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -850,7 +850,7 @@ class RoundOp(IRDLOperation):
     """
 
     name = "math.round"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -879,7 +879,7 @@ class RsqrtOp(IRDLOperation):
     """
 
     name = "math.rsqrt"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -912,7 +912,7 @@ class SinOp(IRDLOperation):
     """
 
     name = "math.sin"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -941,7 +941,7 @@ class SqrtOp(IRDLOperation):
     """
 
     name = "math.sqrt"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -971,7 +971,7 @@ class TanOp(IRDLOperation):
     """
 
     name = "math.tan"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -1001,7 +1001,7 @@ class TanhOp(IRDLOperation):
     """
 
     name = "math.tanh"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
@@ -1036,7 +1036,7 @@ class TruncOp(IRDLOperation):
     """
 
     name = "math.trunc"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 

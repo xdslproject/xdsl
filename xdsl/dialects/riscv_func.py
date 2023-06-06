@@ -8,12 +8,12 @@ from xdsl.utils.exceptions import VerifyException
 
 from xdsl.irdl import (
     IRDLOperation,
-    OptOpAttr,
     OptOpResult,
     VarOpResult,
     VarOperand,
     attr_def,
     irdl_op_definition,
+    opt_attr_def,
     opt_result_def,
     region_def,
     var_operand_def,
@@ -112,7 +112,7 @@ class ReturnOp(IRDLOperation):
 
     name = "riscv_func.return"
     values: VarOperand = var_operand_def(riscv.RegisterType)
-    comment: OptOpAttr[StringAttr]
+    comment: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = frozenset([HasParent(FuncOp)])
 

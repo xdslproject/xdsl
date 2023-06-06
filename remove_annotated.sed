@@ -15,6 +15,7 @@ s/(.+): VarOperand$/\1: VarOperand = var_operand_def()/g
 s/(.+): OptOperand$/\1: OptOperand = opt_operand_def()/g
 
 s/(.+): OpAttr\[(.+)\]$/\1: \2 = attr_def(\2)/g
+s/(.+): OptOpAttr\[(.+)\]$/\1: \2 | None = opt_attr_def(\2)/g
 
 s/(.+): Region$/\1: Region = region_def()/g
 s/(.+): VarRegion$/\1: VarRegion = var_region_def()/g

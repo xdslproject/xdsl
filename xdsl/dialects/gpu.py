@@ -14,7 +14,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Operand,
-    OptOpAttr,
     OptOpResult,
     OptOperand,
     ParameterDef,
@@ -24,6 +23,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     IRDLOperation,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
     region_def,
     result_def,
@@ -129,7 +129,7 @@ _Element = TypeVar("_Element", bound=Attribute, covariant=True)
 @irdl_op_definition
 class AllocOp(IRDLOperation):
     name = "gpu.alloc"
-    hostShared: OptOpAttr[UnitAttr]
+    hostShared: UnitAttr | None = opt_attr_def(UnitAttr)
     asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
     dynamicSizes: VarOperand = var_operand_def(IndexType)
     symbolOperands: VarOperand = var_operand_def(IndexType)
@@ -178,8 +178,8 @@ class AllocOp(IRDLOperation):
 @irdl_op_definition
 class AllReduceOp(IRDLOperation):
     name = "gpu.all_reduce"
-    op: OptOpAttr[AllReduceOperationAttr]
-    uniform: OptOpAttr[UnitAttr]
+    op: AllReduceOperationAttr | None = opt_attr_def(AllReduceOperationAttr)
+    uniform: UnitAttr | None = opt_attr_def(UnitAttr)
     operand: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
     body: Region = region_def()

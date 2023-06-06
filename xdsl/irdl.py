@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from functools import reduce
+
 from inspect import isclass
 from typing import (
     Annotated,
@@ -1010,7 +1010,7 @@ class OpDef:
             }
 
         op_def = OpDef(clsdict["name"])
-        for field_name, field_type in type_hints.items():
+        for field_name, _field_type in type_hints.items():
             if field_name in operation_fields:
                 continue
 
@@ -1052,45 +1052,7 @@ class OpDef:
                     case _:
                         assert False
 
-            # If the field type is an Annotated, separate the origin
-            # from the arguments.
-            # If the field type is not an Annotated, then the arguments should
-            # just be the field itself.
-            origin: Any | None = cast(Any | None, get_origin(field_type))
-            args: tuple[Any, ...]
-            if origin is None:
-                args = (field_type,)
-            elif origin == Annotated:
-                args = get_args(field_type)
-            else:
-                args = (field_type,)
-            args = cast(tuple[Any, ...], args)
-
-            # Get the operand, result, attribute, or region definition, from
-            # the pyrdl description.
-
-            # For operands and results, constrants are encoded as arguments of
-            # an Annotated, where the origin is the definition type (operand,
-            # optional result, etc...).
-            # For Attributes, constraints are encoded in the origin and the
-            # args of the Annotated, and the definition type (required or
-            # optional) is given in the Annotated arguments.
-            # For Regions, SingleBlock regions are given as Annotated arguments,
-            # and otherwise the Annotated origin (if it is an Annotated) gives
-            # the Region definition (required, optional, or variadic).
-
-            # Attribute annotation
-            if IRDLAnnotations.AttributeDefAnnot in args:
-                constraint = get_constraint(args)
-                op_def.attributes[field_name] = AttributeDef(constraint)
-            elif IRDLAnnotations.OptAttributeDefAnnot in args:
-                assert get_origin(args[0]) in [UnionType, Union]
-                args = (reduce(lambda x, y: x | y, get_args(args[0])[:-1]), *args[1:])
-                constraint = get_constraint(args)
-                op_def.attributes[field_name] = OptAttributeDef(constraint)
-
-            else:
-                raise wrong_field_exception(field_name)
+            raise wrong_field_exception(field_name)
 
         op_def.options = clsdict.get("irdl_options", [])
         traits = clsdict.get("traits", frozenset[OpTrait]())

@@ -22,9 +22,9 @@ from xdsl.irdl import (
     AttrSizedResultSegments,
     VarOperand,
     AttrSizedOperandSegments,
-    OptOpAttr,
     IRDLOperation,
     OptOpResult,
+    opt_attr_def,
     opt_region_def,
     opt_successor_def,
     region_def,
@@ -314,7 +314,7 @@ def test_attr_new_attr_op():
 class OptionalAttrOp(IRDLOperation):
     name = "test.opt_attr_op"
 
-    opt_attr: OptOpAttr[StringAttr]
+    opt_attr: StringAttr | None = opt_attr_def(StringAttr)
 
 
 def test_optional_attr_op_empty():

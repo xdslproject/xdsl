@@ -18,7 +18,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     Operand,
-    OptOpAttr,
     ParameterDef,
     VarOpResult,
     VarOperand,
@@ -26,6 +25,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     IRDLOperation,
     operand_def,
+    opt_attr_def,
     result_def,
     var_operand_def,
     var_result_def,
@@ -57,7 +57,7 @@ def test_simple_forgotten_op():
 class UnitAttrOp(IRDLOperation):
     name = "unit_attr_op"
 
-    parallelize: OptOpAttr[UnitAttr]
+    parallelize: UnitAttr | None = opt_attr_def(UnitAttr)
 
 
 def test_unit_attr():

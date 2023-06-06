@@ -49,8 +49,8 @@ from xdsl.irdl import (
     VarOperand,
     AttrSizedOperandSegments,
     IRDLOperation,
-    OptOpAttr,
     operand_def,
+    opt_attr_def,
     result_def,
     var_operand_def,
 )
@@ -241,7 +241,7 @@ class Alloc(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: OptOpAttr[AnyIntegerAttr]
+    alignment: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
 
     irdl_options = [AttrSizedOperandSegments()]
 

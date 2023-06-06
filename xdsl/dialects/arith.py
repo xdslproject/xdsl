@@ -28,9 +28,9 @@ from xdsl.irdl import (
     AnyAttr,
     Operand,
     irdl_attr_definition,
-    OptOpAttr,
     IRDLOperation,
     operand_def,
+    opt_attr_def,
     result_def,
 )
 from xdsl.parser import Parser
@@ -560,7 +560,7 @@ class Divf(FloatingPointLikeBinaryOp):
 @irdl_op_definition
 class Negf(IRDLOperation):
     name = "arith.negf"
-    fastmath: OptOpAttr[FastMathFlagsAttr]
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
     operand: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(floatingPointLike)
 
