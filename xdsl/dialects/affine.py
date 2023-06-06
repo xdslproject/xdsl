@@ -11,6 +11,7 @@ from xdsl.irdl import (
     VarOperand,
     AnyAttr,
     IRDLOperation,
+    region_def,
     var_operand_def,
     var_result_def,
 )
@@ -29,7 +30,7 @@ class For(IRDLOperation):
     upper_bound: OpAttr[AnyIntegerAttr]
     step: OpAttr[AnyIntegerAttr]
 
-    body: Region
+    body: Region = region_def()
 
     def verify_(self) -> None:
         if len(self.operands) != len(self.results):

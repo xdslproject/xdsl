@@ -13,9 +13,9 @@ from xdsl.irdl import (
     VarOpResult,
     VarOperand,
     irdl_op_definition,
-    SingleBlockRegion,
     OpAttr,
     opt_result_def,
+    region_def,
     var_operand_def,
     var_result_def,
 )
@@ -98,7 +98,7 @@ class FuncOp(IRDLOperation):
 
     name = "riscv_func.func"
     func_name: OpAttr[StringAttr]
-    func_body: SingleBlockRegion
+    func_body: Region = region_def("single_block")
 
     def __init__(self, name: str, region: Region):
         attributes: dict[str, Attribute] = {"func_name": StringAttr(name)}

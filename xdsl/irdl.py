@@ -731,24 +731,38 @@ _ClsT = TypeVar("_ClsT")
 _ParamT = TypeVar("_ParamT")
 
 
-class OpDefField(Generic[_ClsT, _ParamT]):
+class OpDefField(Generic[_ClsT]):
     cls: type[_ClsT]
+
+    def __init__(self, cls: type[_ClsT]):
+        self.cls = cls
+
+
+class ConstrainedOpDefField(Generic[_ClsT, _ParamT], OpDefField[_ClsT]):
     param: _ParamT
 
     def __init__(self, cls: type[_ClsT], param: _ParamT):
-        self.cls = cls
+        super().__init__(cls)
         self.param = param
 
 
 class OperandFieldDef(
-    OpDefField[OperandDef, AttrConstraint | Attribute | type[Attribute] | TypeVar]
+    ConstrainedOpDefField[
+        OperandDef, AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ]
 ):
     pass
 
 
 class ResultFieldDef(
-    OpDefField[ResultDef, AttrConstraint | Attribute | type[Attribute] | TypeVar]
+    ConstrainedOpDefField[
+        ResultDef, AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ]
 ):
+    pass
+
+
+class RegionFieldDef(OpDefField[RegionDef]):
     pass
 
 
@@ -810,6 +824,39 @@ def opt_operand_def(
     init: Literal[False] = False,
 ) -> OptOperand:
     return cast(OptOperand, OperandFieldDef(OptOperandDef, constraint))
+
+
+def region_def(
+    single_block: Literal["single_block"] | None = None,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> Region:
+    cls = RegionDef if single_block is None else SingleBlockRegionDef
+    return cast(Region, RegionFieldDef(cls))
+
+
+def var_region_def(
+    single_block: Literal["single_block"] | None = None,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> VarRegion:
+    cls = VarRegionDef if single_block is None else VarSingleBlockRegionDef
+    return cast(VarRegion, RegionFieldDef(cls))
+
+
+def opt_region_def(
+    single_block: Literal["single_block"] | None = None,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> OptRegion:
+    cls = OptRegionDef if single_block is None else OptSingleBlockRegionDef
+    return cast(OptRegion, RegionFieldDef(cls))
 
 
 @dataclass(kw_only=True)
@@ -930,6 +977,10 @@ class OpDef:
                         operand_def = field_value.cls(constraint)
                         op_def.operands.append((field_name, operand_def))
                         continue
+                    case RegionFieldDef():
+                        region_def = field_value.cls()
+                        op_def.regions.append((field_name, region_def))
+                        continue
                     case _:
                         assert False
 
@@ -969,23 +1020,6 @@ class OpDef:
                 args = (reduce(lambda x, y: x | y, get_args(args[0])[:-1]), *args[1:])
                 constraint = get_constraint(args)
                 op_def.attributes[field_name] = OptAttributeDef(constraint)
-
-            # Region annotation
-            elif args[0] == Region:
-                if len(args) > 1 and args[1] == IRDLAnnotations.SingleBlockRegionAnnot:
-                    op_def.regions.append((field_name, SingleBlockRegionDef()))
-                else:
-                    op_def.regions.append((field_name, RegionDef()))
-            elif args[0] == VarRegion:
-                if len(args) > 1 and args[1] == IRDLAnnotations.SingleBlockRegionAnnot:
-                    op_def.regions.append((field_name, VarSingleBlockRegionDef()))
-                else:
-                    op_def.regions.append((field_name, VarRegionDef()))
-            elif args[0] == OptRegion:
-                if len(args) > 1 and args[1] == IRDLAnnotations.SingleBlockRegionAnnot:
-                    op_def.regions.append((field_name, OptSingleBlockRegionDef()))
-                else:
-                    op_def.regions.append((field_name, OptRegionDef()))
 
             # Successor annotation
             elif args[0] == Successor:

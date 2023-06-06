@@ -29,6 +29,7 @@ from xdsl.irdl import (
     OpResult,
     VarOperand,
     operand_def,
+    region_def,
     var_operand_def,
     var_result_def,
     Block,
@@ -490,7 +491,7 @@ class ApplyOp(IRDLOperation):
 
     name = "stencil.apply"
     args: VarOperand = var_operand_def(Attribute)
-    region: Region
+    region: Region = region_def()
     res: VarOpResult = var_result_def(TempType)
 
     @staticmethod

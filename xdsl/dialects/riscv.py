@@ -19,6 +19,7 @@ from xdsl.ir import (
 
 from xdsl.irdl import (
     IRDLOperation,
+    OptRegion,
     OptSingleBlockRegion,
     VarOpResult,
     irdl_op_definition,
@@ -28,6 +29,7 @@ from xdsl.irdl import (
     OpAttr,
     OptOpAttr,
     operand_def,
+    opt_region_def,
     result_def,
     var_operand_def,
     var_result_def,
@@ -1836,7 +1838,7 @@ class LabelOp(IRDLOperation, RISCVOp):
     name = "riscv.label"
     label: OpAttr[LabelAttr]
     comment: OptOpAttr[StringAttr]
-    data: OptSingleBlockRegion
+    data: OptRegion = opt_region_def("single_block")
 
     def __init__(
         self,
@@ -1876,7 +1878,7 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     name = "riscv.directive"
     directive: OpAttr[StringAttr]
     value: OptOpAttr[StringAttr]
-    data: OptSingleBlockRegion
+    data: OptRegion = opt_region_def("single_block")
 
     def __init__(
         self,

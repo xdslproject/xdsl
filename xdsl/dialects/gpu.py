@@ -21,11 +21,11 @@ from xdsl.irdl import (
     VarOperand,
     irdl_op_definition,
     irdl_attr_definition,
-    SingleBlockRegion,
     OpAttr,
     IRDLOperation,
     operand_def,
     opt_operand_def,
+    region_def,
     result_def,
     opt_result_def,
     var_operand_def,
@@ -182,7 +182,7 @@ class AllReduceOp(IRDLOperation):
     uniform: OptOpAttr[UnitAttr]
     operand: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
-    body: Region
+    body: Region = region_def()
 
     @staticmethod
     def from_op(
@@ -335,7 +335,7 @@ class MemcpyOp(IRDLOperation):
 class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
-    body: SingleBlockRegion
+    body: Region = region_def("single_block")
     sym_name: OpAttr[StringAttr]
 
     @staticmethod
@@ -417,7 +417,7 @@ class LaunchOp(IRDLOperation):
     blockSizeZ: Operand = operand_def(IndexType)
     dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
     asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
-    body: Region
+    body: Region = region_def()
     irdl_options = [AttrSizedOperandSegments()]
 
     @staticmethod

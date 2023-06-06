@@ -5,7 +5,7 @@ Test the usage of builtin traits.
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.irdl import IRDLOperation, irdl_op_definition
+from xdsl.irdl import IRDLOperation, irdl_op_definition, region_def
 from xdsl.ir import Region
 from xdsl.traits import HasParent
 from xdsl.utils.exceptions import VerifyException
@@ -15,14 +15,14 @@ from xdsl.utils.exceptions import VerifyException
 class ParentOp(IRDLOperation):
     name = "test.parent"
 
-    region: Region
+    region: Region = region_def()
 
 
 @irdl_op_definition
 class Parent2Op(IRDLOperation):
     name = "test.parent2"
 
-    region: Region
+    region: Region = region_def()
 
 
 @irdl_op_definition

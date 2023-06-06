@@ -9,6 +9,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     IRDLOperation,
     var_operand_def,
+    var_region_def,
     var_result_def,
 )
 from xdsl.parser import Parser
@@ -28,7 +29,7 @@ class TestOp(IRDLOperation):
 
     res: VarOpResult = var_result_def()
     ops: VarOperand = var_operand_def()
-    regs: VarRegion
+    regs: VarRegion = var_region_def()
 
 
 @irdl_attr_definition

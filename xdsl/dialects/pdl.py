@@ -30,6 +30,8 @@ from xdsl.irdl import (
     ParameterDef,
     operand_def,
     opt_operand_def,
+    opt_region_def,
+    region_def,
     var_operand_def,
     var_result_def,
     VarOperand,
@@ -469,7 +471,7 @@ class PatternOp(IRDLOperation):
     name = "pdl.pattern"
     benefit: OpAttr[IntegerAttr[Annotated[IntegerType, IntegerType(16)]]]
     sym_name: OptOpAttr[StringAttr]
-    body: Region
+    body: Region = region_def()
 
     def __init__(
         self,
@@ -736,7 +738,7 @@ class RewriteOp(IRDLOperation):
     # parameters of external rewriter function
     external_args: VarOperand = var_operand_def(AnyPDLType)
     # body of inline rewriter function
-    body: OptRegion
+    body: OptRegion = opt_region_def()
 
     irdl_options = [AttrSizedOperandSegments()]
 

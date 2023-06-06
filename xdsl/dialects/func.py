@@ -23,6 +23,7 @@ from xdsl.irdl import (
     OpAttr,
     OptOpAttr,
     IRDLOperation,
+    region_def,
     var_operand_def,
     var_result_def,
 )
@@ -37,7 +38,7 @@ from xdsl.utils.hints import isa
 class FuncOp(IRDLOperation):
     name = "func.func"
 
-    body: Region
+    body: Region = region_def()
     sym_name: OpAttr[StringAttr]
     function_type: OpAttr[FunctionType]
     sym_visibility: OptOpAttr[StringAttr]

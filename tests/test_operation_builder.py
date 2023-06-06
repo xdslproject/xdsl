@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from typing import Annotated
-
 from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.arith import Constant
 
@@ -13,14 +11,11 @@ from xdsl.irdl import (
     AttrSizedSuccessorSegments,
     OptOperand,
     OptRegion,
-    OptSingleBlockRegion,
     Operand,
     OptSuccessor,
-    SingleBlockRegion,
     Successor,
     VarOpResult,
     VarRegion,
-    VarSingleBlockRegion,
     VarSuccessor,
     irdl_op_definition,
     AttrSizedResultSegments,
@@ -30,8 +25,11 @@ from xdsl.irdl import (
     OptOpAttr,
     IRDLOperation,
     OptOpResult,
+    opt_region_def,
+    region_def,
     result_def,
     opt_result_def,
+    var_region_def,
     var_result_def,
     operand_def,
     opt_operand_def,
@@ -335,7 +333,7 @@ def test_optional_attr_op_empty():
 class RegionOp(IRDLOperation):
     name = "test.region_op"
 
-    region: Region
+    region: Region = region_def()
 
 
 def test_region_op_region():
@@ -375,7 +373,7 @@ def test_singleop_region():
 class SBRegionOp(IRDLOperation):
     name = "test.sbregion_op"
 
-    region: SingleBlockRegion
+    region: Region = region_def("single_block")
 
 
 def test_sbregion_one_block():
@@ -388,7 +386,7 @@ def test_sbregion_one_block():
 class OptRegionOp(IRDLOperation):
     name = "test.opt_region_op"
 
-    reg: OptRegion
+    reg: OptRegion = opt_region_def()
 
 
 def test_opt_region_builder():
@@ -409,7 +407,7 @@ def test_opt_region_builder_two_args():
 class OptSBRegionOp(IRDLOperation):
     name = "test.sbregion_op"
 
-    region: OptSingleBlockRegion
+    region: OptRegion = opt_region_def("single_block")
 
 
 def test_opt_sbregion_one_block():
@@ -426,7 +424,7 @@ def test_opt_sbregion_one_block():
 class VarRegionOp(IRDLOperation):
     name = "test.var_operand_op"
 
-    regs: VarRegion
+    regs: VarRegion = var_region_def()
 
 
 def test_var_region_builder():
@@ -440,7 +438,7 @@ def test_var_region_builder():
 class VarSBRegionOp(IRDLOperation):
     name = "test.sbregion_op"
 
-    regs: VarSingleBlockRegion
+    regs: VarRegion = var_region_def("single_block")
 
 
 def test_var_sbregion_one_block():
@@ -458,8 +456,8 @@ def test_var_sbregion_one_block():
 class TwoVarRegionOp(IRDLOperation):
     name = "test.two_var_region_op"
 
-    res1: Annotated[VarRegion, StringAttr]
-    res2: Annotated[VarRegion, StringAttr]
+    res1: VarRegion = var_region_def()
+    res2: VarRegion = var_region_def()
     irdl_options = [AttrSizedRegionSegments()]
 
 

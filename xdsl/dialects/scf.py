@@ -8,12 +8,12 @@ from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     Operand,
-    SingleBlockRegion,
     VarOperand,
     VarOpResult,
     irdl_op_definition,
     IRDLOperation,
     operand_def,
+    region_def,
     var_operand_def,
     var_result_def,
 )
@@ -26,9 +26,9 @@ class If(IRDLOperation):
     output: VarOpResult = var_result_def(AnyAttr())
     cond: Operand = operand_def(IntegerType(1))
 
-    true_region: Region
+    true_region: Region = region_def()
     # TODO this should be optional under certain conditions
-    false_region: Region
+    false_region: Region = region_def()
 
     @staticmethod
     def get(
@@ -80,7 +80,7 @@ class For(IRDLOperation):
 
     res: VarOpResult = var_result_def(AnyAttr())
 
-    body: SingleBlockRegion
+    body: Region = region_def("single_block")
 
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.block.args):
@@ -146,7 +146,7 @@ class ParallelOp(IRDLOperation):
     initVals: VarOperand = var_operand_def(AnyAttr())
     res: VarOpResult = var_result_def(AnyAttr())
 
-    body: SingleBlockRegion
+    body: Region = region_def("single_block")
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -275,7 +275,7 @@ class ReduceOp(IRDLOperation):
     name = "scf.reduce"
     argument: Operand = operand_def(AnyAttr())
 
-    body: SingleBlockRegion
+    body: Region = region_def("single_block")
 
     @staticmethod
     def get(
@@ -349,8 +349,8 @@ class While(IRDLOperation):
     arguments: VarOperand = var_operand_def(AnyAttr())
 
     res: VarOpResult = var_result_def(AnyAttr())
-    before_region: Region
-    after_region: Region
+    before_region: Region = region_def()
+    after_region: Region = region_def()
 
     # TODO verify dependencies between scf.condition, scf.yield and the regions
     def verify_(self):

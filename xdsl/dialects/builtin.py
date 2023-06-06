@@ -48,13 +48,14 @@ from xdsl.irdl import (
     irdl_to_attr_constraint,
     irdl_op_definition,
     ParameterDef,
-    SingleBlockRegion,
     Generic,
     GenericData,
     AttrConstraint,
     AnyAttr,
     IRDLOperation,
+    region_def,
     var_operand_def,
+    var_region_def,
     var_result_def,
 )
 from xdsl.utils.deprecation import deprecated_constructor
@@ -1166,7 +1167,7 @@ class UnregisteredOp(IRDLOperation, ABC):
     op_name__: OpAttr[StringAttr]
     args: VarOperand = var_operand_def()
     res: VarOpResult = var_result_def()
-    regs: VarRegion
+    regs: VarRegion = var_region_def()
 
     @property
     def op_name(self) -> StringAttr:
@@ -1270,7 +1271,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 class ModuleOp(IRDLOperation):
     name = "builtin.module"
 
-    body: SingleBlockRegion
+    body: Region = region_def("single_block")
 
     def __init__(
         self,

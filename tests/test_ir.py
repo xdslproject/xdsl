@@ -11,7 +11,14 @@ from xdsl.dialects.test import TestOp
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import Parser
-from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand, operand_def
+from xdsl.irdl import (
+    IRDLOperation,
+    VarRegion,
+    irdl_op_definition,
+    Operand,
+    operand_def,
+    var_region_def,
+)
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -350,7 +357,7 @@ ModuleOp(
 @irdl_op_definition
 class CustomOpWithMultipleRegions(IRDLOperation):
     name = "test.custom_op_with_multiple_regions"
-    region: VarRegion
+    region: VarRegion = var_region_def()
 
 
 def test_region_index_fetch():

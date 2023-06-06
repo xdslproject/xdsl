@@ -32,9 +32,12 @@ from xdsl.irdl import (
     IRDLOperation,
     operand_def,
     opt_operand_def,
+    opt_region_def,
     opt_result_def,
+    region_def,
     result_def,
     var_operand_def,
+    var_region_def,
     var_result_def,
 )
 from xdsl.utils.exceptions import (
@@ -55,7 +58,7 @@ class OpDefTestOp(IRDLOperation):
     operand: Operand = operand_def()
     result: OpResult = result_def()
     attr: OpAttr[Attribute]
-    region: Region
+    region: Region = region_def()
 
     # Check that we can define methods in operation definitions
     def test(self):
@@ -202,9 +205,9 @@ class RegionOp(IRDLOperation):
 
     irdl_options = [AttrSizedRegionSegments()]
 
-    region: Region
-    opt_region: OptRegion
-    var_region: VarRegion
+    region: Region = region_def()
+    opt_region: OptRegion = opt_region_def()
+    var_region: VarRegion = var_region_def()
 
 
 def test_region_accessors():

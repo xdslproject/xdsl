@@ -39,6 +39,7 @@ from xdsl.irdl import (
     OptOpAttr,
     IRDLOperation,
     operand_def,
+    region_def,
     result_def,
     var_operand_def,
 )
@@ -678,7 +679,7 @@ class GlobalOp(IRDLOperation):
     section: OptOpAttr[StringAttr]
 
     # This always needs an empty region as it is in the top level module definition
-    body: Region
+    body: Region = region_def()
 
     @staticmethod
     def get(

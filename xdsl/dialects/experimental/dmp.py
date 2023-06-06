@@ -16,7 +16,14 @@ from xdsl.printer import Printer
 from xdsl.parser import Parser
 from xdsl.utils.hints import isa
 from xdsl.dialects.experimental import stencil
-from xdsl.ir import Operation, SSAValue, ParametrizedAttribute, Attribute, Dialect
+from xdsl.ir import (
+    Operation,
+    Region,
+    SSAValue,
+    ParametrizedAttribute,
+    Attribute,
+    Dialect,
+)
 from xdsl.irdl import (
     OptOpAttr,
     Operand,
@@ -25,8 +32,8 @@ from xdsl.irdl import (
     ParameterDef,
     IRDLOperation,
     OpAttr,
-    SingleBlockRegion,
     operand_def,
+    region_def,
 )
 from xdsl.dialects import builtin, memref
 
@@ -409,7 +416,7 @@ class GatherOp(IRDLOperation):
 
     global_shape: OpAttr[HaloShapeInformation]
 
-    when_root_block: SingleBlockRegion
+    when_root_block: Region = region_def("single_block")
     """
     Contains code to be executed as root rank
     """

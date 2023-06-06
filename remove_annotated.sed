@@ -13,3 +13,11 @@ s/(.+): Annotated\[OptOperand, (.+)\]/\1: OptOperand = opt_operand_def(\2)/g
 s/(.+): Operand$/\1: Operand = operand_def()/g
 s/(.+): VarOperand$/\1: VarOperand = var_operand_def()/g
 s/(.+): OptOperand$/\1: OptOperand = opt_operand_def()/g
+
+s/(.+): Region$/\1: Region = region_def()/g
+s/(.+): VarRegion$/\1: VarRegion = var_region_def()/g
+s/(.+): OptRegion$/\1: OptRegion = opt_region_def()/g
+
+s/(.+): SingleBlockRegion$/\1: Region = region_def("single_block")/g
+s/(.+): VarSingleBlockRegion$/\1: VarRegion = var_region_def("single_block")/g
+s/(.+): OptSingleBlockRegion$/\1: OptRegion = opt_region_def("single_block")/g
