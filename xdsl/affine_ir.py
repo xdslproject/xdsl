@@ -102,6 +102,18 @@ class _AffineConstantExprStorage(_AffineExprStorage):
 
 @dataclass()
 class AffineExpr:
+    """
+    An AffineExpr models an affine expression, which is a linear combination of
+    dimensions with integer coefficients. For example, 2 * d0 + 3 * d1 is an
+    affine expression, where d0, d1 are dimensions. An AffineExpr can be
+    parameterized by symbols. AffineExpr also allows further extensions of an
+    affine expression. Quasi-affine expressions, i.e. Integer division and
+    modulo with a constant are allowed. For example, 2 * d0 + 3 * d1 + 4
+    floordiv 5 is a quasi-affine expression. Semi-affine expressions i.e.
+    Integer division and modulo with a symbol are also allowed. For example, 2
+    * d0 + 3 * d1 + 4 floordiv s0 is a semi-affine expression.
+    """
+
     _impl: _AffineExprStorage
 
     @staticmethod
