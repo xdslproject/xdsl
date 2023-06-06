@@ -1775,11 +1775,6 @@ _PAttrT = TypeVar("_PAttrT", bound=ParametrizedAttribute)
 def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     """Decorator used on classes to define a new attribute definition."""
 
-    # Get the fields from the class and its parents
-    clsdict = dict[str, Any]()
-    for parent_cls in cls.mro()[::-1]:
-        clsdict = {**clsdict, **parent_cls.__dict__}
-
     attr_def = ParamAttrDef.from_pyrdl(cls)
 
     # New fields and methods added to the attribute
