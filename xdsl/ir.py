@@ -1656,13 +1656,13 @@ class _AffineBinaryOpExprStorage(_AffineExprStorage):
     rhs: AffineExpr
 
     def __post_init__(self) -> None:
-        if self.kind not in [
+        if self.kind not in {
             _AffineExprKind.Add,
             _AffineExprKind.Mul,
             _AffineExprKind.Mod,
             _AffineExprKind.FloorDiv,
             _AffineExprKind.CeilDiv,
-        ]:
+        }:
             raise ValueError(f"Invalid kind {self.kind} for _AffineBinaryOpExprStorage")
 
     def __str__(self) -> str:
@@ -1744,7 +1744,7 @@ class AffineExpr:
     def __add__(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
-        # TODO: Simplify addition here before returning.
+        # TODO (#1086): Simplify addition here before returning.
         return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Add, self, other))
 
     def __radd__(self, other: AffineExpr | int) -> AffineExpr:
@@ -1763,12 +1763,12 @@ class AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
         if other._impl.kind != _AffineExprKind.Constant:
-            # TODO: MLIR also supports multiplication by symbols also, making
+            # TODO (#1087): MLIR also supports multiplication by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
             raise NotImplementedError(
                 "Multiplication with non-constant (semi-affine) is not supported yet"
             )
-        # TODO: Simplify multiplication here before returning.
+        # TODO (#1086): Simplify multiplication here before returning.
         return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Mul, self, other))
 
     def __rmul__(self, other: AffineExpr | int) -> AffineExpr:
@@ -1778,12 +1778,12 @@ class AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
         if other._impl.kind != _AffineExprKind.Constant:
-            # TODO: MLIR also supports floor-division by symbols also, making
+            # TODO (#1087): MLIR also supports floor-division by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
             raise NotImplementedError(
                 "Floor division with non-constant (semi-affine) is not supported yet"
             )
-        # TODO: Simplify floor division here before returning.
+        # TODO (#1086): Simplify floor division here before returning.
         return AffineExpr(
             _AffineBinaryOpExprStorage(_AffineExprKind.FloorDiv, self, other)
         )
@@ -1792,12 +1792,12 @@ class AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
         if other._impl.kind != _AffineExprKind.Constant:
-            # TODO: MLIR also supports ceil-division by symbols also, making
+            # TODO (#1087): MLIR also supports ceil-division by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
             raise NotImplementedError(
                 "Ceil division with non-constant (semi-affine) is not supported yet"
             )
-        # TODO: Simplify ceil division here before returning.
+        # TODO (#1086): Simplify ceil division here before returning.
         return AffineExpr(
             _AffineBinaryOpExprStorage(_AffineExprKind.CeilDiv, self, other)
         )
@@ -1806,12 +1806,12 @@ class AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
         if other._impl.kind != _AffineExprKind.Constant:
-            # TODO: MLIR also supports Mod by symbols also, making maps
+            # TODO (#1087): MLIR also supports Mod by symbols also, making maps
             # semi-affine. Currently, we do not implement semi-affine maps.
             raise NotImplementedError(
                 "Mod with non-constant (semi-affine) is not supported yet"
             )
-        # TODO: Simplify modulo here before returning.
+        # TODO (#1086): Simplify modulo here before returning.
         return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Mod, self, other))
 
     def __str__(self) -> str:
@@ -1842,6 +1842,6 @@ class AffineMap:
         ]
         syms = ", ".join(syms)
         # Create comma seperated list of results.
-        results = ", ".join([str(expr) for expr in self.results])
+        results = ", ".join(str(expr) for expr in self.results)
 
         return f"({dims})[{syms}] -> ({results})"
