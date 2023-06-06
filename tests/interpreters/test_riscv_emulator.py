@@ -7,7 +7,7 @@ from xdsl.ir import MLContext
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 
-from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv, riscv_code
+from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
 
 
 ctx = MLContext()
@@ -25,7 +25,7 @@ def test_simple():
 
     RISCVRegisterAllocation().apply(ctx, module)
 
-    code = riscv_code(module)
+    code = riscv.riscv_code(module)
 
     stream = StringIO()
     RV_Debug.stream = stream
@@ -128,7 +128,7 @@ def test_multiply_add():
 
     RISCVRegisterAllocation().apply(ctx, module)
 
-    code = riscv_code(module)
+    code = riscv.riscv_code(module)
 
     stream = StringIO()
     RV_Debug.stream = stream

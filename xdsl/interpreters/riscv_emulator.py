@@ -10,9 +10,6 @@ from riscemu.types.instruction import Instruction
 
 from io import StringIO
 
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects import riscv
-
 
 class RV_Debug(InstructionSet):
     stream: ClassVar[IO[str] | None] = None
@@ -30,12 +27,6 @@ class RV_Debug(InstructionSet):
 
     def __hash__(self) -> int:
         return hash(id(self.stream))
-
-
-def riscv_code(module: ModuleOp) -> str:
-    stream = StringIO()
-    riscv.print_assembly(module, stream)
-    return stream.getvalue()
 
 
 def run_riscv(
