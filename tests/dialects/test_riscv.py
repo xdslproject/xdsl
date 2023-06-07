@@ -1,4 +1,3 @@
-from io import StringIO
 from xdsl.builder import Builder
 from xdsl.utils.test_value import TestSSAValue
 from xdsl.dialects import riscv
@@ -81,18 +80,12 @@ def test_csr_op():
     ).verify()
 
 
-def riscv_code(module: ModuleOp) -> str:
-    stream = StringIO()
-    riscv.print_assembly(module, stream)
-    return stream.getvalue()
-
-
 def test_comment_op():
     comment_op = riscv.CommentOp("my comment")
 
     assert comment_op.comment.data == "my comment"
 
-    code = riscv_code(ModuleOp([comment_op]))
+    code = riscv.riscv_code(ModuleOp([comment_op]))
     assert code == "    # my comment\n"
 
 
@@ -102,7 +95,7 @@ def test_label_op_without_comment():
 
     assert label_op.label.data == label_str
 
-    code = riscv_code(ModuleOp([label_op]))
+    code = riscv.riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:\n"
 
 
@@ -112,7 +105,7 @@ def test_label_op_with_comment():
 
     assert label_op.label.data == label_str
 
-    code = riscv_code(ModuleOp([label_op]))
+    code = riscv.riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:                                         # my label\n"
 
 
@@ -128,7 +121,7 @@ def test_label_op_with_region():
 
     assert label_op.label.data == label_str
 
-    code = riscv_code(ModuleOp([label_op]))
+    code = riscv.riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:\n    add a0, a1, a2\n"
 
 
@@ -139,7 +132,7 @@ def test_return_op():
 
     assert return_op.comment.data == "my comment"
 
-    code = riscv_code(ModuleOp([return_op]))
+    code = riscv.riscv_code(ModuleOp([return_op]))
     assert code == "    ebreak                                       # my comment\n"
 
 
