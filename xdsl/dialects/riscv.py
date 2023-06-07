@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from io import StringIO
 from typing import IO, Annotated, Iterable, TypeAlias, Sequence
 
 
@@ -298,6 +299,12 @@ def print_assembly(module: ModuleOp, output: IO[str]) -> None:
         asm = op.assembly_line()
         if asm is not None:
             print(asm, file=output)
+
+
+def riscv_code(module: ModuleOp) -> str:
+    stream = StringIO()
+    print_assembly(module, stream)
+    return stream.getvalue()
 
 
 # endregion
