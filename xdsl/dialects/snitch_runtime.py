@@ -9,12 +9,10 @@ from xdsl.irdl import (
     Attribute,
 )
 from xdsl.ir import OpResult, Dialect
-from xdsl.dialects.builtin import IntegerType, Signedness, IndexType
+from xdsl.dialects.builtin import i32, i64, IndexType
 from typing import Annotated, Generic, TypeVar
 
-u32 = IntegerType(data=32, signedness=Signedness.UNSIGNED)
-u64 = IntegerType(data=64, signedness=Signedness.UNSIGNED)
-tx_id = u32
+tx_id = i32
 
 
 class SnitchRuntimeBaseOp(IRDLOperation, ABC):
@@ -35,12 +33,12 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOp, ABC):
     A base class for snitch runtime functions that get a certain value at runtime
     """
 
-    result: Annotated[OpResult, u32]
+    result: Annotated[OpResult, i32]
 
     def __init__(
         self,
     ):
-        super().__init__(operands=[], result_types=[u32])
+        super().__init__(operands=[], result_types=[i32])
 
 
 class SnitchRuntimeBarrier(SnitchRuntimeBaseOp, ABC):
@@ -125,7 +123,7 @@ class DmaStart2DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
 
 
 @irdl_op_definition
-class DmaStart1DOp(DmaStart1DBaseOp[Annotated[Attribute, u32]]):
+class DmaStart1DOp(DmaStart1DBaseOp[Annotated[Attribute, i32]]):
     """
     Initiate an asynchronous 1D DMA transfer with 32-bits pointers
     """
@@ -134,7 +132,7 @@ class DmaStart1DOp(DmaStart1DBaseOp[Annotated[Attribute, u32]]):
 
 
 @irdl_op_definition
-class DmaStart1DWideptrOp(DmaStart1DBaseOp[Annotated[Attribute, u64]]):
+class DmaStart1DWideptrOp(DmaStart1DBaseOp[Annotated[Attribute, i64]]):
     """
     Initiate an asynchronous 1D DMA transfer with 64-bits wide pointers
     """
@@ -143,7 +141,7 @@ class DmaStart1DWideptrOp(DmaStart1DBaseOp[Annotated[Attribute, u64]]):
 
 
 @irdl_op_definition
-class DmaStart2DOp(DmaStart2DBaseOp[Annotated[Attribute, u32]]):
+class DmaStart2DOp(DmaStart2DBaseOp[Annotated[Attribute, i32]]):
     """
     Initiate an asynchronous 2D DMA transfer with 32-bits pointers
     """
@@ -152,7 +150,7 @@ class DmaStart2DOp(DmaStart2DBaseOp[Annotated[Attribute, u32]]):
 
 
 @irdl_op_definition
-class DmaStart2DWideptrOp(DmaStart2DBaseOp[Annotated[Attribute, u64]]):
+class DmaStart2DWideptrOp(DmaStart2DBaseOp[Annotated[Attribute, i64]]):
     """
     Initiate an asynchronous 2D DMA transfer with 64-bits wide pointers
     """
