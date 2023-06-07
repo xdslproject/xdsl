@@ -75,7 +75,7 @@ class ClusterHwBarrierOp(SnitchRuntimeBarrier):
 _T = TypeVar("_T", bound=Attribute)
 
 
-class DmaStart1DBaseOp(SnitchRuntimeBaseOp, Generic[_T]):
+class DmaStart1DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
     """
     Initiate an asynchronous 1D DMA transfer
     """
@@ -95,7 +95,7 @@ class DmaStart1DBaseOp(SnitchRuntimeBaseOp, Generic[_T]):
         super().__init__(operands=[dst, src, size], result_types=[tx_id])
 
 
-class DmaStart2DBaseOp(SnitchRuntimeBaseOp, Generic[_T]):
+class DmaStart2DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
     """
     Generic base class for starting asynchronous 2D DMA transfers
     """
@@ -124,14 +124,8 @@ class DmaStart2DBaseOp(SnitchRuntimeBaseOp, Generic[_T]):
         )
 
 
-Dma1DWideptrOp = DmaStart1DBaseOp[Annotated[Attribute, u64]]
-Dma1DOp = DmaStart1DBaseOp[Annotated[Attribute, u32]]
-Dma2DWideptrOp = DmaStart2DBaseOp[Annotated[Attribute, u64]]
-Dma2DOp = DmaStart2DBaseOp[Annotated[Attribute, u32]]
-
-
 @irdl_op_definition
-class DmaStart1DOp(Dma1DOp):
+class DmaStart1DOp(DmaStart1DBaseOp[Annotated[Attribute, u32]]):
     """
     Initiate an asynchronous 1D DMA transfer with 32-bits pointers
     """
@@ -140,7 +134,7 @@ class DmaStart1DOp(Dma1DOp):
 
 
 @irdl_op_definition
-class DmaStart1DWideptrOp(Dma1DWideptrOp):
+class DmaStart1DWideptrOp(DmaStart1DBaseOp[Annotated[Attribute, u64]]):
     """
     Initiate an asynchronous 1D DMA transfer with 64-bits wide pointers
     """
@@ -149,7 +143,7 @@ class DmaStart1DWideptrOp(Dma1DWideptrOp):
 
 
 @irdl_op_definition
-class DmaStart2DOp(Dma2DOp):
+class DmaStart2DOp(DmaStart2DBaseOp[Annotated[Attribute, u32]]):
     """
     Initiate an asynchronous 2D DMA transfer with 32-bits pointers
     """
@@ -158,7 +152,7 @@ class DmaStart2DOp(Dma2DOp):
 
 
 @irdl_op_definition
-class DmaStart2DWideptrOp(Dma2DWideptrOp):
+class DmaStart2DWideptrOp(DmaStart2DBaseOp[Annotated[Attribute, u64]]):
     """
     Initiate an asynchronous 2D DMA transfer with 64-bits wide pointers
     """

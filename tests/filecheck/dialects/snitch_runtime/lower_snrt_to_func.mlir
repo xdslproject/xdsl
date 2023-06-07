@@ -10,6 +10,7 @@
         // CHECK: "func.call"() {"callee" = @snrt_cluster_hw_barrier} : () -> ()
         // DMA functions
         "snrt.dma_wait_all"() : () -> ()
+        // CHECK: "func.call"() {"callee" = @snrt_dma_wait_all} : () -> ()
 
         %dst_64 = "arith.constant"() {"value" = 100 : ui64} : () -> ui64
         %src_64 = "arith.constant"() {"value" = 0 : ui64} : () -> ui64
