@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import pytest
 from io import StringIO
 from typing import Annotated
@@ -584,13 +583,12 @@ class CustomFormatAttr(ParametrizedAttribute):
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_char("<")
-        value = parser.tokenizer.next_token_of_pattern(re.compile("(zero|one)"))
-        if value and value.text == "zero":
-            parser.parse_char(">")
+        parser.parse_characters("<")
+        if parser.parse_optional_keyword("zero") is not None:
+            parser.parse_characters(">")
             return [IntAttr(0)]
-        if value and value.text == "one":
-            parser.parse_char(">")
+        if parser.parse_optional_keyword("one") is not None:
+            parser.parse_characters(">")
             return [IntAttr(1)]
         assert False
 

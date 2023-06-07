@@ -539,10 +539,8 @@ def test_get_punctuation_kind(punctuation: Token.Kind):
 def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
     parser = Parser(MLContext(), punctuation)
 
-    parser._synchronize_lexer_and_tokenizer()
     res = parser.parse_punctuation(punctuation)
     assert res == punctuation
-    parser._synchronize_lexer_and_tokenizer()
     assert parser._parse_token(Token.Kind.EOF, "").kind == Token.Kind.EOF
 
 
@@ -551,7 +549,6 @@ def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
 )
 def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
     parser = Parser(MLContext(), "e +")
-    parser._synchronize_lexer_and_tokenizer()
     with pytest.raises(ParseError) as e:
         parser.parse_punctuation(punctuation, " in test")
     assert e.value.span.text == "e"
@@ -563,10 +560,8 @@ def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
 )
 def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
     parser = Parser(MLContext(), punctuation)
-    parser._synchronize_lexer_and_tokenizer()
     res = parser.parse_optional_punctuation(punctuation)
     assert res == punctuation
-    parser._synchronize_lexer_and_tokenizer()
     assert parser._parse_token(Token.Kind.EOF, "").kind == Token.Kind.EOF
 
 
@@ -575,7 +570,6 @@ def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
 )
 def test_parse_optional_punctuation_fail(punctuation: Token.PunctuationSpelling):
     parser = Parser(MLContext(), "e +")
-    parser._synchronize_lexer_and_tokenizer()
     assert parser.parse_optional_punctuation(punctuation) is None
 
 

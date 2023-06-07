@@ -300,27 +300,25 @@ class HaloShapeInformation(ParametrizedAttribute):
 
         This decision was made to improve readability.
         """
-        parser.parse_char("<")
+        parser.parse_characters("<")
         buff_lb: list[int] = []
         buff_ub: list[int] = []
         core_lb: list[int] = []
         core_ub: list[int] = []
 
         while True:
-            parser.parse_char("[")
+            parser.parse_characters("[")
             buff_lb.append(parser.parse_integer())
-            parser.parse_char(",")
+            parser.parse_characters(",")
             core_lb.append(parser.parse_integer())
-            parser.parse_char(",")
+            parser.parse_characters(",")
             core_ub.append(parser.parse_integer())
-            parser.parse_char(",")
+            parser.parse_characters(",")
             buff_ub.append(parser.parse_integer())
-            parser.parse_char("]")
-            if parser.tokenizer.starts_with("x"):
-                parser.parse_char("x")
-            else:
+            parser.parse_characters("]")
+            if parser.parse_optional_characters("x") is None:
                 break
-        parser.parse_char(">")
+        parser.parse_characters(">")
 
         typ = builtin.i64
         return [
@@ -359,14 +357,14 @@ class NodeGrid(ParametrizedAttribute):
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_char("<")
+        parser.parse_characters("<")
 
         shape: list[int] = [parser.parse_integer(allow_negative=False)]
 
-        while parser.try_parse_characters("x") is not None:
+        while parser.parse_optional_characters("x") is not None:
             shape.append(parser.parse_integer(allow_negative=False))
 
-        parser.parse_char(">")
+        parser.parse_characters(">")
 
         return [builtin.DenseArrayBase.from_list(builtin.i64, shape)]
 
