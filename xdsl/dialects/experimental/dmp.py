@@ -316,9 +316,7 @@ class HaloShapeInformation(ParametrizedAttribute):
             parser.parse_characters(",")
             buff_ub.append(parser.parse_integer())
             parser.parse_characters("]")
-            if parser.tokenizer.starts_with("x"):
-                parser.parse_characters("x")
-            else:
+            if parser.parse_optional_characters("x") is None:
                 break
         parser.parse_characters(">")
 

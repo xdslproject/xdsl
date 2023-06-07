@@ -1695,6 +1695,17 @@ def irdl_param_attr_get_param_type_hints(cls: type[_PAttrT]) -> list[tuple[str, 
     return res
 
 
+_PARAMETRIZED_ATTRIBUTE_DICT_KEYS = set(
+    key
+    for dict_seq in (
+        (cls.__dict__ for cls in ParametrizedAttribute.mro()[::-1]),
+        (Generic.__dict__, GenericData.__dict__),
+    )
+    for dict in dict_seq
+    for key in dict
+)
+
+
 @dataclass
 class ParamAttrDef:
     """The IRDL definition of a parametrized attribute."""
@@ -1705,21 +1716,17 @@ class ParamAttrDef:
     @staticmethod
     def from_pyrdl(pyrdl_def: type[ParametrizedAttribute]) -> ParamAttrDef:
         # Get the fields from the class and its parents
-        clsdict = dict[str, Any]()
-        for parent_cls in pyrdl_def.mro()[::-1]:
-            clsdict = {**clsdict, **parent_cls.__dict__}
-
-        # Get all fields of the ParametrizedAttribute class, including their
-        # parents classes
-        attrdict: dict[str, Any] = dict()
-        for parent_cls in ParametrizedAttribute.mro()[::-1]:
-            attrdict = {**attrdict, **parent_cls.__dict__}
-        attrdict = {**attrdict, **Generic.__dict__, **GenericData.__dict__}
+        clsdict = {
+            key: value
+            for parent_cls in pyrdl_def.mro()[::-1]
+            for key, value in parent_cls.__dict__.items()
+            if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS
+        }
 
         # Check that all fields of the attribute definition are either already
         # in ParametrizedAttribute, or are class functions or methods.
         for field_name, value in clsdict.items():
-            if field_name in attrdict or field_name == "name":
+            if field_name == "name":
                 continue
             if isinstance(
                 value, (FunctionType, PropertyType, classmethod, staticmethod)
@@ -1771,11 +1778,6 @@ _PAttrT = TypeVar("_PAttrT", bound=ParametrizedAttribute)
 
 def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     """Decorator used on classes to define a new attribute definition."""
-
-    # Get the fields from the class and its parents
-    clsdict = dict[str, Any]()
-    for parent_cls in cls.mro()[::-1]:
-        clsdict = {**clsdict, **parent_cls.__dict__}
 
     attr_def = ParamAttrDef.from_pyrdl(cls)
 
