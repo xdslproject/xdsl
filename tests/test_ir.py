@@ -163,10 +163,11 @@ def test_region_clone_into_circular_blocks():
     assert region.is_structurally_equivalent(region2)
 
 
-def test_non_empty_block_with_parent_region_requires_terminator():
+def test_non_empty_block_with_parent_region_requires_terminator_with_successors():
     """
-    Tests that an empty block belonging to a multi-block region with parent
+    Tests that an non-empty block belonging to a multi-block region with parent
     operation requires terminator operation.
+    The terminator operation may have successors.
     """
     block0 = Block([])
     block1 = Block([TestOp.create(successors=[block0])])
