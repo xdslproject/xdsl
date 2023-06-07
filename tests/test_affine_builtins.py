@@ -1,4 +1,4 @@
-from xdsl.affine_ir import AffineExpr, AffineMap
+from xdsl.ir import AffineExpr, AffineMap
 
 
 def test_simple_map():

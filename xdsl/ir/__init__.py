@@ -27,6 +27,9 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
     from xdsl.irdl import ParamAttrDef
 
+from .affine_expr import *
+from .affine_map import *
+
 OpT = TypeVar("OpT", bound="Operation")
 
 
