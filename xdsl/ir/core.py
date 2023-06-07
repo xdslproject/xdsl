@@ -764,7 +764,8 @@ class Operation(IRNode):
         if (parent_block := self.parent) is not None and (
             parent_region := parent_block.parent
         ) is not None:
-            # TODO single-block regions dealt when the NoTerminator trait is implemented
+            # TODO single-block regions dealt when the NoTerminator trait is
+            # implemented (https://github.com/xdslproject/xdsl/issues/1093)
             if len(parent_region.blocks) > 1:
                 if self.successors:
                     if parent_block.last_op != self:
