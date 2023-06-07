@@ -2,7 +2,6 @@ from xdsl.ir import ParametrizedAttribute, TypeAttribute, Dialect, Attribute
 from xdsl.irdl import (
     Operand,
     OpResult,
-    AnyAttr,
     OptOpResult,
     VarOperand,
     ParameterDef,
