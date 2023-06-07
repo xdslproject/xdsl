@@ -126,3 +126,18 @@ def test_is_terminator_verify():
     op0 = TestOp.create(regions=[region0])
 
     op0.verify()
+
+
+def test_is_terminator_fails_if_not_last_operation_parent_block():
+    """
+    Test that an operation with an IsTerminator trait fails if it is not the
+    last operation in its parent block.
+    """
+    block0 = Block([IsTerminatorOp.create(), TestOp.create()])
+    region0 = Region([block0])
+    op0 = TestOp.create(regions=[region0])
+
+    with pytest.raises(
+        VerifyException, match="must be the last operation in the parent block"
+    ):
+        op0.verify()
