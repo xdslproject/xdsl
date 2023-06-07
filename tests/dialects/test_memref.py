@@ -1,7 +1,9 @@
 import pytest
+from xdsl.builder import Builder
+from xdsl.ir.core import BlockArgument
 
 from xdsl.utils.exceptions import VerifyException
-from xdsl.ir import Attribute, Block, OpResult
+from xdsl.ir import Attribute, OpResult
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
     StridedLayoutAttr,
@@ -168,46 +170,62 @@ def test_memref_matmul_verify():
         builtin.f64, [-1, -1]
     )
 
-    # fmt: off
-    module = builtin.ModuleOp([
-        func.FuncOp.from_callable(
-            'matmul',
-            [memref_f64_rank2, memref_f64_rank2],
-            [memref_f64_rank2],
-            lambda a, b: [
-                lit0 := arith.Constant.from_int_and_width(0, builtin.IndexType()),
-                lit1 := arith.Constant.from_int_and_width(1, builtin.IndexType()),
-                dim_a0 := memref.Dim.from_source_and_index(a, lit0),
-                dim_a1 := memref.Dim.from_source_and_index(a, lit1),
-                dim_b0 := memref.Dim.from_source_and_index(b, lit0),
-                dim_b1 := memref.Dim.from_source_and_index(b, lit1),
-                out := memref.Alloca.get(builtin.f64, 0, [-1, -1], [dim_a0, dim_b1]),
-                # TODO: assert dim_a0 == dim_b1
-                lit0_f := arith.Constant.from_float_and_width(0.0, builtin.f64),
-                scf.For.get(lit0, dim_a0, lit1, [], Block.from_callable([builtin.IndexType()], lambda i: [
-                    # outer loop start, loop_var = i
-                    scf.For.get(lit0, dim_b0, lit1, [], Block.from_callable([builtin.IndexType()], lambda j: [
-                        # mid loop start, loop_var = j
-                        memref.Store.get(lit0_f, out, [i, j]),
-                        scf.For.get(lit0, dim_a1, lit1, [], Block.from_callable([builtin.IndexType()], lambda k: [
-                            # inner loop, loop_var = k
-                            elem_a_i_k := memref.Load.get(a, [i, k]),
-                            elem_b_k_j := memref.Load.get(b, [k, j]),
-                            mul := arith.Mulf(elem_a_i_k, elem_b_k_j),
-                            out_i_j := memref.Load.get(out, [i, j]),
-                            new_out_val := arith.Addf(out_i_j, mul),
-                            memref.Store.get(new_out_val, out, [i, j]),
-                            scf.Yield.get()
-                        ])),
+    @builtin.ModuleOp
+    @Builder.implicit_region
+    def module():
+        @Builder.implicit_region((memref_f64_rank2, memref_f64_rank2))
+        def matmul(args: tuple[BlockArgument, ...]) -> None:
+            a, b = args
+
+            lit0 = arith.Constant.from_int_and_width(0, builtin.IndexType())
+            lit1 = arith.Constant.from_int_and_width(1, builtin.IndexType())
+            dim_a0 = memref.Dim.from_source_and_index(a, lit0)
+            dim_a1 = memref.Dim.from_source_and_index(a, lit1)
+            dim_b0 = memref.Dim.from_source_and_index(b, lit0)
+            dim_b1 = memref.Dim.from_source_and_index(b, lit1)
+            out = memref.Alloca.get(builtin.f64, 0, [-1, -1], [dim_a0, dim_b1])
+            # TODO: assert dim_a0 == dim_b1
+            lit0_f = arith.Constant.from_float_and_width(0.0, builtin.f64)
+
+            @Builder.implicit_region((builtin.IndexType(),))
+            def outer_loop(args: tuple[BlockArgument, ...]):
+                (i,) = args
+
+                # outer loop start, loop_var = i
+
+                @Builder.implicit_region((builtin.IndexType(),))
+                def mid_loop(args: tuple[BlockArgument, ...]):
+                    (j,) = args
+                    # mid loop start, loop_var = j
+                    memref.Store.get(lit0_f, out, [i, j])
+
+                    @Builder.implicit_region((builtin.IndexType(),))
+                    def inner_loop(args: tuple[BlockArgument, ...]):
+                        (k,) = args
+                        # inner loop, loop_var = k
+                        elem_a_i_k = memref.Load.get(a, [i, k])
+                        elem_b_k_j = memref.Load.get(b, [k, j])
+                        mul = arith.Mulf(elem_a_i_k, elem_b_k_j)
+                        out_i_j = memref.Load.get(out, [i, j])
+                        new_out_val = arith.Addf(out_i_j, mul)
+                        memref.Store.get(new_out_val, out, [i, j])
                         scf.Yield.get()
-                    ])),
+
+                    scf.For.get(lit0, dim_a1, lit1, [], inner_loop)
                     scf.Yield.get()
-                ])),
-                func.Return.get(out)
-            ]
+
+                scf.For.get(lit0, dim_b0, lit1, [], mid_loop)
+                scf.Yield.get()
+
+            scf.For.get(lit0, dim_a0, lit1, [], outer_loop)
+
+            func.Return.get(out)
+
+        func.FuncOp(
+            "matmul",
+            ((memref_f64_rank2, memref_f64_rank2), (memref_f64_rank2,)),
+            matmul,
         )
-    ])
-    # fmt: on
 
     # check that it verifies correctly
     module.verify()
