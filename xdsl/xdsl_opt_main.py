@@ -56,8 +56,6 @@ from xdsl.transforms.experimental.dmp.scatter_gather import (
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
-from xdsl.interpreters.riscv_emulator import run_riscv, RV_Debug
-
 from typing import IO, Dict, Callable, List, Sequence, Type
 
 
@@ -313,6 +311,13 @@ class xDSLOptMain:
             print_assembly(prog, output)
 
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
+            # import only if running riscv emulation
+            try:
+                from xdsl.interpreters.riscv_emulator import run_riscv, RV_Debug
+            except ImportError:
+                print("Please install optional dependencies to run riscv emulation")
+                return
+
             code = riscv_code(prog)
             RV_Debug.stream = output
             run_riscv(code, unlimited_regs=True, verbosity=0)
