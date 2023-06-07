@@ -1005,32 +1005,34 @@ class OpDef:
                     continue
 
             # Get attribute constraints from a list of pyrdl constraints
-            def get_constraint(pyrdl_constrs: tuple[Any, ...]) -> AttrConstraint:
+            def get_constraint(
+                pyrdl_constr: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+            ) -> AttrConstraint:
                 return _irdl_list_to_attr_constraint(
-                    pyrdl_constrs,
+                    (pyrdl_constr,),
                     allow_type_var=True,
                     type_var_mapping=type_var_mapping,
                 )
 
             match value:
                 case ResultFieldDef():
-                    constraint = get_constraint((value.param,))
+                    constraint = get_constraint(value.param)
                     result_def = value.cls(constraint)
                     op_def.results.append((field_name, result_def))
                     continue
                 case OperandFieldDef():
-                    constraint = get_constraint((value.param,))
+                    constraint = get_constraint(value.param)
                     attribute_def = value.cls(constraint)
                     op_def.operands.append((field_name, attribute_def))
                     continue
                 case AttributeFieldDef():
-                    constraint = get_constraint((value.param,))
+                    constraint = get_constraint(value.param)
                     attribute_def = value.cls(constraint)
                     op_def.attributes[field_name] = attribute_def
                     continue
                 case RegionFieldDef():
-                    successor_def = value.cls()
-                    op_def.regions.append((field_name, successor_def))
+                    region_def = value.cls()
+                    op_def.regions.append((field_name, region_def))
                     continue
                 case SuccessorFieldDef():
                     successor_def = value.cls()
