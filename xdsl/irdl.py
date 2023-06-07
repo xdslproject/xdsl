@@ -702,12 +702,6 @@ class OptAttributeDef(AttributeDef):
         super().__init__(typ)
 
 
-_OpAttrT = TypeVar("_OpAttrT", bound=Attribute)
-
-OpAttr: TypeAlias = Annotated[_OpAttrT, IRDLAnnotations.AttributeDefAnnot]
-OptOpAttr: TypeAlias = Annotated[_OpAttrT | None, IRDLAnnotations.OptAttributeDefAnnot]
-
-
 operation_fields = get_type_hints(Operation).keys()
 
 
