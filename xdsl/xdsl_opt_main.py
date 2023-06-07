@@ -312,7 +312,11 @@ class xDSLOptMain:
 
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
-            from xdsl.interpreters.riscv_emulator import run_riscv, RV_Debug
+            try:
+                from xdsl.interpreters.riscv_emulator import run_riscv, RV_Debug
+            except ImportError:
+                print("Please install optional dependencies to run riscv emulation")
+                return
 
             code = riscv_code(prog)
             RV_Debug.stream = output
