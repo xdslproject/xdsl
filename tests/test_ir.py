@@ -197,7 +197,7 @@ def test_non_empty_block_with_parent_region_requires_terminator_without_successo
 
 def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op():
     """
-    Tests that an empty block belonging to a single-block region with parent
+    Tests that an non-empty block belonging to a multi-block region with parent
     operation requires terminator operation.
     """
     block0 = Block([])
