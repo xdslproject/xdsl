@@ -18,7 +18,7 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
 from xdsl.dialects.stencil import CastOp
-from xdsl.dialects.experimental.stencil import (
+from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
     FieldType,

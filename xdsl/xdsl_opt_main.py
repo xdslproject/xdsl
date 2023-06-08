@@ -30,7 +30,6 @@ from xdsl.dialects.riscv import RISCV, print_assembly, riscv_code
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
 
-from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
 from xdsl.dialects.experimental.fir import FIR
 from xdsl.dialects.experimental.dmp import DMP
@@ -242,7 +241,6 @@ class xDSLOptMain:
         self.ctx.register_dialect(Vector)
         self.ctx.register_dialect(MPI)
         self.ctx.register_dialect(GPU)
-        self.ctx.register_dialect(StencilExp)
         self.ctx.register_dialect(Stencil)
         self.ctx.register_dialect(PDL)
         self.ctx.register_dialect(Symref)
