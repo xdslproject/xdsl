@@ -3,6 +3,7 @@ from typing import List
 from xdsl.builder import Builder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
 from xdsl.ir import MLContext
 
 from xdsl.transforms.riscv_register_allocation import (
@@ -11,6 +12,10 @@ from xdsl.transforms.riscv_register_allocation import (
     RegisterSet,
 )
 from xdsl.utils.test_value import TestSSAValue
+
+import pytest
+
+pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 
 
 def context() -> MLContext:
@@ -79,6 +84,7 @@ def simple_linear_riscv():
             v16 = riscv.AddOp(v14, v15).rd
 
             riscv.MVOp(v16, rd=riscv.Registers.A0)
+            riscv.CustomAssemblyInstructionOp("print", [v16], [])
             riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
             riscv.EcallOp()
 
@@ -117,6 +123,7 @@ def simple_linear_riscv_allocated():
             v16 = riscv.AddOp(v14, v15, rd=riscv.Registers.A6).rd
 
             riscv.MVOp(v16, rd=riscv.Registers.A0)
+            riscv.CustomAssemblyInstructionOp("print", [v16], [])
             riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
             riscv.EcallOp()
 
@@ -125,17 +132,30 @@ def simple_linear_riscv_allocated():
     riscv.DirectiveOp(".text", None, text_region)
 
 
-def test_allocate_simple_linear():
+def test_block_simple_linear():
     linear = simple_linear_riscv.clone()
     RISCVRegisterAllocation("BlockNaive").apply(context(), linear)
+    code = riscv_code(linear)
 
-    assert riscv_code(linear) == riscv_code(simple_linear_riscv_allocated)
+    assert code == riscv_code(simple_linear_riscv_allocated)
 
+    stream = StringIO()
+    RV_Debug.stream = stream
+    run_riscv(
+        code,
+        extensions=[RV_Debug],
+        unlimited_regs=True,
+        verbosity=1,
+    )
 
-# Check that the linear scan register allocator is able to allocate given hardcodded live ranges
+    assert "12\n" == stream.getvalue()
 
 
 def test_dummy_linear_scan_allocator():
+    """
+    Check that the linear scan register allocator is able to allocate given hard-coded intervals.
+    """
+
     def get_test_variable() -> TestSSAValue:
         return TestSSAValue(riscv.RegisterType(riscv.Register()))
 
@@ -202,5 +222,15 @@ def test_linear_scan_simple_linear():
         context(), linear, None, AVAILABLE_REGISTERS
     )
 
-    # TO:DO: check that the registers are allocated correctly
-    assert True
+    code = riscv_code(linear)
+
+    stream = StringIO()
+    RV_Debug.stream = stream
+    run_riscv(
+        code,
+        extensions=[RV_Debug],
+        unlimited_regs=True,
+        verbosity=1,
+    )
+
+    assert "12\n" == stream.getvalue()
