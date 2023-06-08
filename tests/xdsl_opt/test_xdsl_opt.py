@@ -7,7 +7,12 @@ from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import DiagnosticException
-from xdsl.xdsl_opt_main import xDSLOptMain
+from xdsl.xdsl_opt_main import get_all_dialects, get_all_passes, xDSLOptMain
+
+
+def test_dialects_and_passes():
+    assert len(get_all_dialects()) > 0
+    assert len(get_all_passes()) > 0
 
 
 def test_opt():
