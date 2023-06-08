@@ -311,10 +311,10 @@ def test_memref_cast():
 
 def test_dma_start():
     src_type = MemRefType.from_element_type_and_shape(
-        i64, [4, 512], memory_space=NoneAttr()
+        i64, [4, 512], memory_space=IntAttr(1)
     )
     dest_type = MemRefType.from_element_type_and_shape(
-        i64, [4 * 512], memory_space=NoneAttr()
+        i64, [4 * 512], memory_space=IntAttr(2)
     )
 
     tag_type = MemRefType.from_element_type_and_shape(i32, [4])
