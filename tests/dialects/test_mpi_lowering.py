@@ -409,6 +409,7 @@ def test_lower_mpi_vec_get():
     ops, res = lower_mpi.LowerMpiVectorGet(info).lower(get)
 
     assert len(res) == 1
+    assert res[0] is not None
     assert isinstance(res[0].typ, llvm.LLVMPointerType)
     assert len(ops) > 0
 
