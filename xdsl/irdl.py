@@ -991,7 +991,7 @@ class OpDef:
             # They are used by Python to store information about the class, so they
             # should not be considered as part of the operation definition.
             # Also, they can provide a possiblea escape hatch.
-            if field_name.startswith("__") and field_name.endswith("__"):
+            if field_name[:2] == "__" and field_name[-2:] == "__":
                 continue
 
             # Methods, properties, and functions are allowed
