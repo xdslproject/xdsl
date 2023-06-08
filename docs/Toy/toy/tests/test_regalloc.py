@@ -1,5 +1,4 @@
 from io import StringIO
-from typing import List
 from xdsl.builder import Builder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
@@ -29,7 +28,6 @@ def riscv_code(module: ModuleOp) -> str:
     return stream.getvalue()
 
 
-# Handwritten riscv dialect code to test register allocation
 RESERVERD_REGISTERS = set(["zero", "sp", "gp", "tp", "fp", "s0"])
 AVAILABLE_REGISTERS = RegisterSet(
     [
@@ -132,7 +130,7 @@ def simple_linear_riscv_allocated():
     riscv.DirectiveOp(".text", None, text_region)
 
 
-def test_block_simple_linear():
+def test_block_naive_simple_linear():
     linear = simple_linear_riscv.clone()
     RISCVRegisterAllocation("BlockNaive").apply(context(), linear)
     code = riscv_code(linear)
@@ -179,14 +177,16 @@ def test_dummy_linear_scan_allocator():
                    00  01  02  03  04  05  06  07  08  09  10  11
     """
 
-    intervals: List[LiveInterval] = [a, b, c, d, e, f, g]
+    intervals: list[LiveInterval] = [a, b, c, d, e, f, g]
+
+    # we can actually test this on an empty module since we've computed live ranges manually
 
     @ModuleOp
     @Builder.implicit_region
     def empty_module():
         pass
 
-    # create the condition for spilling
+    # create the condition for spilling using only three registers
 
     AVAILABLE_REGISTERS.reset()
     AVAILABLE_REGISTERS.limit_free_registers(3)
@@ -219,6 +219,7 @@ def test_linear_scan_simple_linear():
     AVAILABLE_REGISTERS.reset()
     AVAILABLE_REGISTERS.limit_free_registers(3)
 
+    # hardcoded intervals
     ranges = [
         (1, 10),
         (1, 4),
