@@ -1624,11 +1624,6 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
         cls, IRDLOperation
     ), f"class {cls.__name__} should be a subclass of IRDLOperation"
 
-    # Get all fields of the class, including the parent classes
-    clsdict = dict[str, Any]()
-    for parent_cls in cls.mro()[::-1]:
-        clsdict = {**clsdict, **parent_cls.__dict__}
-
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = dict[str, Any]()
 
