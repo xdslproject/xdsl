@@ -6,6 +6,9 @@ from xdsl.dialects import riscv
 from xdsl.ir import MLContext
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
+import pytest
+
+pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 
 from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
 
