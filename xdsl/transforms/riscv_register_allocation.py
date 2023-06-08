@@ -140,9 +140,7 @@ class LiveInterval:
     abstract_stack_location: int | None
     end: int
 
-    def __init__(
-        self, ssa_value: SSAValue, start: int | None = None, end: int | None = None
-    ) -> None:
+    def __init__(self, ssa_value: SSAValue, start: int, end: int) -> None:
         self.ssa_value = ssa_value
 
         if (
@@ -155,34 +153,8 @@ class LiveInterval:
 
         self.abstract_stack_location = None
 
-        if start is not None and end is not None:
-            self.start = start
-            self.end = end
-        else:
-            if not ssa_value.owner:
-                raise InvalidIRException(
-                    "Cannot calculate live range for value not belonging to a block"
-                )
-            if isinstance(ssa_value.owner, Block):
-                raise NotImplementedError("Not support block arguments yet")
-
-            owner = ssa_value.owner
-
-            if isinstance(ssa_value, OpResult) and isinstance(owner.parent, Block):
-                self.ssa_value = ssa_value
-                self.start = owner.parent.get_operation_index(ssa_value.owner)
-                self.end = self.start
-
-                for use in ssa_value.uses:
-                    if parent_block := use.operation.parent:
-                        self.end = max(
-                            self.end,
-                            parent_block.get_operation_index(use.operation),
-                        )
-                    else:
-                        raise NotImplementedError(
-                            "Cannot calculate live range for value across blocks"
-                        )
+        self.start = start
+        self.end = end
 
     def regalloc(self, register: Register) -> None:
         self.abstract_stack_location = None
@@ -215,18 +187,19 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
 
     def __init__(
         self,
-        intervals: list[LiveInterval] | None = None,
+        intervals: list[LiveInterval],
         register_set: RegisterSet = _DEFAULT_REGISTER_SET,
     ) -> None:
         self.active = OrderedDict()
         self.register_set = register_set
-        self.intervals = intervals or []
+        self.intervals = intervals
         self.abstract_stack_location = 0
 
     # TO:DO - Refactor the following methods to use a proper SortedSet (C++ fashion)
     # This requires an extra dependency, so right now stick with this subpar implementation
 
     ###
+
     def insert_active_interval(self, interval: LiveInterval) -> None:
         self.active[interval] = None
         self.sort_active_intervals()
@@ -240,40 +213,14 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
 
     ###
 
-    def verbose_debug_intervals(self) -> None:
-        steps = 0
-        index = 0
-        for interval in self.intervals:
-            print(f"r{index:02} {'':{len(self.intervals) - 1}} │ ", end="")
-            for _ in range(interval.start):
-                print("    ", end="")
-            print("●━━━", end="")
-            for _ in range(interval.start + 1, interval.end):
-                print("━━━━", end="")
-            print("●")
-            if interval.end > steps:
-                steps = interval.end + 1
-            index += 1
-        print(f"   {'':{len(self.intervals)}} ┕━{'':━>{(steps * 4) + 2}}")
-        print(f"   {'':{len(self.intervals)}}   ", end="")
-        for i in range(steps + 1):
-            print(f"{i:02}  ", end="")
-
     def allocate_registers(self, module: ModuleOp) -> None:
         """
         Allocates unallocated registers in the module.
         """
 
-        # collect all live intervals if not already done
-        if not self.intervals:
-            for op in module.walk():
-                if isinstance(op, RISCVOp):
-                    for result in op.results:
-                        self.intervals.append(LiveInterval(result))
-
         self.intervals = sorted(self.intervals, key=lambda x: x.start)
 
-        # already registers are removed from the available registers
+        # already allocated registers are removed from the available registers set (conservative approach)
         for interval in self.intervals:
             if interval.register is not None and interval.register.name is not None:
                 if self.register_set.is_free(interval.register.name):
@@ -332,6 +279,7 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
             elif iv.ssa_value.typ.data.name is None:
                 iv.ssa_value.typ = RegisterType(iv.register)
             else:
+                # do nothing, register is already assigned
                 pass
 
         return

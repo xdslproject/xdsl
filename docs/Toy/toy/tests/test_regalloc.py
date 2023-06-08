@@ -168,13 +168,15 @@ def test_dummy_linear_scan_allocator():
     g = LiveInterval(get_test_variable(), 4, 8)
 
     """
-    a: 1 2 3 4 5 6 7 8 9 10
-    b: 1 2 3 4
-    c: 1 2 3
-    d:   2 3 4 5 6 7 8
-    e:     3 4 5 6
-    f:     3 4 5 6 7 8 9 10
-    g:       4 5 6 7 8
+        a        │     ●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━●
+        b        │     ●━━━━━━━━━━━●
+        c        │     ●━━━━━━━●
+        d        │         ●━━━━━━━━━━━━━━━━━━━━━━━●
+        e        │             ●━━━━━━━━━━━●
+        f        │             ●━━━━━━━━━━━━━━━━━━━━━━━━━━━●
+        g        │                 ●━━━━━━━━━━━━━━━●
+                 ┕━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                   00  01  02  03  04  05  06  07  08  09  10  11
     """
 
     intervals: List[LiveInterval] = [a, b, c, d, e, f, g]
@@ -217,9 +219,48 @@ def test_linear_scan_simple_linear():
     AVAILABLE_REGISTERS.reset()
     AVAILABLE_REGISTERS.limit_free_registers(3)
 
+    ranges = [
+        (1, 10),
+        (1, 4),
+        (1, 3),
+        (2, 8),
+        (3, 6),
+        (3, 10),
+        (4, 8),
+        (0, 19),
+        (1, 13),
+        (2, 9),
+        (3, 10),
+        (4, 13),
+        (5, 14),
+        (6, 7),
+        (7, 8),
+        (8, 15),
+        (9, 11),
+        (10, 11),
+        (11, 12),
+        (12, 15),
+        (13, 14),
+        (14, 16),
+        (15, 16),
+        (16, 18),
+        (17, 17),
+        (19, 19),
+    ]
+    intervals: list[LiveInterval] = []
     linear = simple_linear_riscv.clone()
+
+    # assign manually computed intervals to each ssa variable
+    range_idx = 0
+    for op in linear.walk():
+        if isinstance(op, riscv.RISCVOp):
+            for result in op.results:
+                start, end = ranges[range_idx]
+                intervals.append(LiveInterval(result, start, end))
+                range_idx += 1
+
     RISCVRegisterAllocation("LinearScan").apply(
-        context(), linear, None, AVAILABLE_REGISTERS
+        context(), linear, intervals, AVAILABLE_REGISTERS
     )
 
     code = riscv_code(linear)
