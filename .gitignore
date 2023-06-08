@@ -156,4 +156,4 @@ docs/out.mlir
 docs/ret.xdsl
 
 # asv
-.asv/html
+.asv

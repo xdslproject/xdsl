@@ -1,9 +1,0 @@
-{
-    "arch": "x86_64",
-    "cpu": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
-    "machine": "Sasha's 2019 MBP",
-    "num_cpu": "8",
-    "os": "macOS 12.6 (21G115)",
-    "ram": "32GB",
-    "version": 1
-}
