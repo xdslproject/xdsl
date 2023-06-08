@@ -62,7 +62,6 @@ from typing import IO, Dict, Callable, List, Sequence, Type
 
 def get_all_dialects() -> list[Dialect]:
     """Return the list of all available dialects."""
-    # Please keep that list sorted alphabetically.
     return [
         Affine,
         Arith,
@@ -94,7 +93,6 @@ def get_all_dialects() -> list[Dialect]:
 
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
-    # Please keep that list sorted alphabetically.
     return [
         ConvertStencilToLLMLIRPass,
         DeadCodeElimination,
