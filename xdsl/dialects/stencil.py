@@ -495,6 +495,23 @@ class BufferOp(IRDLOperation):
     temp: Annotated[Operand, TempType]
     res: Annotated[OpResult, TempType]
 
+    def verify_(self) -> None:
+        if self.temp.typ != self.res.typ:
+            raise VerifyException(
+                f"Expected operand and result type to be equal, got ({self.temp.typ}) "
+                f"-> {self.res.typ}"
+            )
+        if not isinstance(self.temp.owner, ApplyOp):
+            raise VerifyException(
+                f"Expected stencil.buffer to buffer a stencil.apply's output, got "
+                f"{self.temp.owner}"
+            )
+        if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
+            raise VerifyException(
+                f"A stencil.buffer's operand temp should only be buffered. You can use "
+                f"stencil.buffer's output instead!"
+            )
+
 
 @irdl_op_definition
 class StoreOp(IRDLOperation):
