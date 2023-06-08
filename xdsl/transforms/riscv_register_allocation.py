@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import Any, List, Set
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import Register, RegisterType, RISCVOp
-from xdsl.ir import MLContext, SSAValue
+from xdsl.ir import Block, MLContext, OpResult, Operation, SSAValue
 from xdsl.passes import ModulePass
+from xdsl.utils.exceptions import InvalidIRException
 
 
 class RegisterSet:
@@ -30,6 +31,9 @@ class RegisterSet:
         assert reg in self.free
         self.free.remove(reg)
         self.occupied.add(reg)
+
+    def is_free(self, reg: str) -> bool:
+        return reg in self.free
 
     def reset(self) -> None:
         self.free = list(self.registers)
@@ -136,7 +140,7 @@ class LiveInterval:
     abstract_stack_location: int | None
     end: int
 
-    def __init__(self, ssa_value: SSAValue, start: int, end: int) -> None:
+    def __init__(self, ssa_value: SSAValue, start: int | None = None, end: int | None = None) -> None:
         self.ssa_value = ssa_value
 
         if (
@@ -148,8 +152,36 @@ class LiveInterval:
             self.register = None
 
         self.abstract_stack_location = None
-        self.start = start
-        self.end = end
+
+        if start is not None and end is not None:
+            self.start = start
+            self.end = end
+        else:
+            if not ssa_value.owner:
+                raise InvalidIRException(
+                    "Cannot calculate live range for value not belonging to a block"
+                )
+            if isinstance(ssa_value.owner, Block):
+                raise NotImplementedError("Not support block arguments yet")
+
+            owner = ssa_value.owner
+
+            if isinstance(ssa_value, OpResult) and isinstance(owner.parent, Block):
+                self.ssa_value = ssa_value
+                self.start = owner.parent.get_operation_index(ssa_value.owner)
+                self.end = self.start
+
+                for use in ssa_value.uses:
+                    if parent_block := use.operation.parent:
+                        self.end = max(
+                            self.end,
+                            parent_block.get_operation_index(use.operation),
+                        )
+                    else:
+                        raise NotImplementedError(
+                            "Cannot calculate live range for value across blocks"
+                        )
+                    
 
     def regalloc(self, register: Register) -> None:
         self.abstract_stack_location = None
@@ -166,11 +198,6 @@ class LiveInterval:
     def __repr__(self) -> str:
         return f"LiveInterval({self.ssa_value}, {self.start}, {self.end}) -> Register: {self.register}, Stack Location: {self.abstract_stack_location}"
 
-
-class SSAValueInfo:
-    register: Register | None
-
-
 class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
     """
     Linear scan register allocation strategy.
@@ -186,18 +213,12 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
 
     def __init__(
         self,
-        intervals: list[LiveInterval],
+        intervals: list[LiveInterval] | None = None,
         register_set: RegisterSet = _DEFAULT_REGISTER_SET,
     ) -> None:
         self.active = OrderedDict()
-        self.intervals = sorted(intervals, key=lambda x: x.start)
         self.register_set = register_set
-
-        # already registers are removed from the available registers
-        for interval in self.intervals:
-            if interval.register is not None and interval.register.name is not None:
-                self.register_set.set_occupied(interval.register.name)
-
+        self.intervals = intervals or []
         self.abstract_stack_location = 0
 
     # TO:DO - Refactor the following methods to use a proper SortedSet (C++ fashion)
@@ -214,13 +235,46 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
 
     def sort_active_intervals(self) -> None:
         self.active = OrderedDict(sorted(self.active.items(), key=lambda x: x[0].end))
-
     ###
+
+    def verbose_debug_intervals(self) -> None:
+        steps = 0
+        index = 0
+        for interval in self.intervals:
+            print(f"r{index:02} {'':{len(self.intervals) - 1}} │ ", end="")
+            for _ in range(interval.start):
+                print("    ", end="")
+            print("●━━━", end="")
+            for _ in range(interval.start + 1, interval.end):
+                print("━━━━", end="")
+            print("●")
+            if interval.end > steps:
+                steps = interval.end + 1
+            index += 1
+        print(f"   {'':{len(self.intervals)}} ┕━{'':━>{(steps * 4) + 2}}")
+        print(f"   {'':{len(self.intervals)}}   ", end="")
+        for i in range(steps + 1):
+            print(f"{i:02}  ", end="")
 
     def allocate_registers(self, module: ModuleOp) -> None:
         """
         Allocates unallocated registers in the module.
         """
+
+        # collect all live intervals if not already done
+        if not self.intervals:
+            for op in module.walk():
+                if isinstance(op, RISCVOp):
+                    for result in op.results:
+                        self.intervals.append(LiveInterval(result))
+
+        self.intervals = sorted(self.intervals, key=lambda x: x.start)
+        
+        # already registers are removed from the available registers
+        for interval in self.intervals:
+            if interval.register is not None and interval.register.name is not None:
+                if self.register_set.is_free(interval.register.name):
+                    self.register_set.set_occupied(interval.register.name)
 
         def expire_old_intervals(i: LiveInterval) -> None:
             for j in list(filter(lambda j: j.end < i.start, self.active.keys())):
@@ -275,7 +329,7 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
             elif iv.ssa_value.typ.data.name is None:
                 iv.ssa_value.typ = RegisterType(iv.register)
             else:
-                raise ValueError("Register already allocated")
+                pass
 
         return
 

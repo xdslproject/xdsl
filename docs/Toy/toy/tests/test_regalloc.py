@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from io import StringIO
 from typing import List
 from xdsl.builder import Builder
@@ -127,9 +126,10 @@ def simple_linear_riscv_allocated():
 
 
 def test_allocate_simple_linear():
-    RISCVRegisterAllocation("BlockNaive").apply(context(), simple_linear_riscv)
+    linear = simple_linear_riscv.clone()
+    RISCVRegisterAllocation("BlockNaive").apply(context(), linear)
 
-    assert riscv_code(simple_linear_riscv) == riscv_code(simple_linear_riscv_allocated)
+    assert riscv_code(linear) == riscv_code(simple_linear_riscv_allocated)
 
 
 # Check that the linear scan register allocator is able to allocate given hardcodded live ranges
@@ -191,3 +191,20 @@ def test_dummy_linear_scan_allocator():
     assert e.allocated() == riscv.RegisterType(riscv.Registers.T1)
     assert f.allocated() == riscv.RegisterType(riscv.Register("j2"))
     assert g.allocated() == riscv.RegisterType(riscv.Registers.RA)
+
+
+def test_linear_scan_simple_linear():
+    AVAILABLE_REGISTERS.reset()
+    AVAILABLE_REGISTERS.limit_free_registers(3)
+
+    linear = simple_linear_riscv.clone()
+    RISCVRegisterAllocation("LinearScan").apply(context(), linear, None, AVAILABLE_REGISTERS)
+
+    # TO:DO: check that the registers are allocated correctly
+    assert True
+
+        
+
+
+
+
