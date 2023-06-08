@@ -140,7 +140,9 @@ class LiveInterval:
     abstract_stack_location: int | None
     end: int
 
-    def __init__(self, ssa_value: SSAValue, start: int | None = None, end: int | None = None) -> None:
+    def __init__(
+        self, ssa_value: SSAValue, start: int | None = None, end: int | None = None
+    ) -> None:
         self.ssa_value = ssa_value
 
         if (
@@ -181,7 +183,6 @@ class LiveInterval:
                         raise NotImplementedError(
                             "Cannot calculate live range for value across blocks"
                         )
-                    
 
     def regalloc(self, register: Register) -> None:
         self.abstract_stack_location = None
@@ -197,6 +198,7 @@ class LiveInterval:
 
     def __repr__(self) -> str:
         return f"LiveInterval({self.ssa_value}, {self.start}, {self.end}) -> Register: {self.register}, Stack Location: {self.abstract_stack_location}"
+
 
 class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
     """
@@ -235,6 +237,7 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
 
     def sort_active_intervals(self) -> None:
         self.active = OrderedDict(sorted(self.active.items(), key=lambda x: x[0].end))
+
     ###
 
     def verbose_debug_intervals(self) -> None:
@@ -269,7 +272,7 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
                         self.intervals.append(LiveInterval(result))
 
         self.intervals = sorted(self.intervals, key=lambda x: x.start)
-        
+
         # already registers are removed from the available registers
         for interval in self.intervals:
             if interval.register is not None and interval.register.name is not None:

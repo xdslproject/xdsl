@@ -198,13 +198,9 @@ def test_linear_scan_simple_linear():
     AVAILABLE_REGISTERS.limit_free_registers(3)
 
     linear = simple_linear_riscv.clone()
-    RISCVRegisterAllocation("LinearScan").apply(context(), linear, None, AVAILABLE_REGISTERS)
+    RISCVRegisterAllocation("LinearScan").apply(
+        context(), linear, None, AVAILABLE_REGISTERS
+    )
 
     # TO:DO: check that the registers are allocated correctly
     assert True
-
-        
-
-
-
-
