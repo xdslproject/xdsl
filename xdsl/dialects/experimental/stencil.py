@@ -43,7 +43,6 @@ _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True
 
 @irdl_attr_definition
 class IndexAttr(ParametrizedAttribute, Iterable[int]):
-    # TODO: can you have an attr and an op with the same name?
     name = "stencil.index"
 
     array: ParameterDef[ArrayAttr[IntAttr]]
@@ -138,7 +137,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
         if bounds:
             lb, ub = zip(*bounds)
         else:
-            lb = ub = ()
+            lb, ub = (), ()
         super().__init__(
             [
                 IndexAttr.get(*lb),
@@ -191,15 +190,15 @@ class StencilType(
             parser.parse_punctuation("]")
             return (l, u)
 
-        parser.parse_char("<")
+        parser.parse_characters("<")
         bounds = [parse_interval()]
-        parser.parse_char("x")
+        parser.parse_shape_delimiter()
         typ = parser.parse_optional_type()
         while typ is None:
             bounds.append(parse_interval())
-            parser.parse_char("x")
+            parser.parse_shape_delimiter()
             typ = parser.parse_optional_type()
-        parser.parse_char(">")
+        parser.parse_characters(">")
         if isa(bounds, list[tuple[int, int]]):
             bounds = StencilBoundsAttr(bounds)
         elif isa(bounds, list[int]):

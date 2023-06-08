@@ -26,7 +26,7 @@ from xdsl.dialects.test import Test
 from xdsl.dialects.stencil import Stencil
 from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.irdl import IRDL
-from xdsl.dialects.riscv import RISCV, print_assembly
+from xdsl.dialects.riscv import RISCV, print_assembly, riscv_code
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
 
@@ -310,8 +310,21 @@ class xDSLOptMain:
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
             print_assembly(prog, output)
 
+        def _emulate_riscv(prog: ModuleOp, output: IO[str]):
+            # import only if running riscv emulation
+            try:
+                from xdsl.interpreters.riscv_emulator import run_riscv, RV_Debug
+            except ImportError:
+                print("Please install optional dependencies to run riscv emulation")
+                return
+
+            code = riscv_code(prog)
+            RV_Debug.stream = output
+            run_riscv(code, unlimited_regs=True, verbosity=0)
+
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
+        self.available_targets["riscemu"] = _emulate_riscv
 
     def setup_pipeline(self):
         """

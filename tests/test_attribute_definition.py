@@ -39,12 +39,11 @@ class BoolData(Data[bool]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> bool:
-        val = parser.tokenizer.next_token_of_pattern("(True|False)")
-        if val is None or val.text not in ("True", "False"):
-            parser.raise_error("Expected True or False literal")
-        if val.text == "True":
+        if parser.parse_optional_keyword("True"):
             return True
-        return False
+        if parser.parse_optional_keyword("False"):
+            return False
+        parser.raise_error("Expected True or False literal")
 
     def print_parameter(self, printer: Printer):
         printer.print_string(str(self.data))
