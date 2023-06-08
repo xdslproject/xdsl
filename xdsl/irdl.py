@@ -722,7 +722,6 @@ OptSuccessor: TypeAlias = Block | None
 VarSuccessor: TypeAlias = list[Block]
 
 _ClsT = TypeVar("_ClsT")
-_ParamT = TypeVar("_ParamT")
 
 
 class OpDefField(Generic[_ClsT]):
@@ -732,35 +731,27 @@ class OpDefField(Generic[_ClsT]):
         self.cls = cls
 
 
-class ConstrainedOpDefField(Generic[_ClsT, _ParamT], OpDefField[_ClsT]):
-    param: _ParamT
+class ConstrainedOpDefField(Generic[_ClsT], OpDefField[_ClsT]):
+    param: AttrConstraint | Attribute | type[Attribute] | TypeVar
 
-    def __init__(self, cls: type[_ClsT], param: _ParamT):
+    def __init__(
+        self,
+        cls: type[_ClsT],
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+    ):
         super().__init__(cls)
         self.param = param
 
 
-class OperandFieldDef(
-    ConstrainedOpDefField[
-        OperandDef, AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ]
-):
+class OperandFieldDef(ConstrainedOpDefField[OperandDef,]):
     pass
 
 
-class ResultFieldDef(
-    ConstrainedOpDefField[
-        ResultDef, AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ]
-):
+class ResultFieldDef(ConstrainedOpDefField[ResultDef]):
     pass
 
 
-class AttributeFieldDef(
-    ConstrainedOpDefField[
-        AttributeDef, AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ]
-):
+class AttributeFieldDef(ConstrainedOpDefField[AttributeDef]):
     pass
 
 
