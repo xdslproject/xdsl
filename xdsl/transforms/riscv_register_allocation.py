@@ -4,9 +4,8 @@ from dataclasses import dataclass
 from typing import Any, List, Set
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import Register, RegisterType, RISCVOp
-from xdsl.ir import Block, MLContext, OpResult, Operation, SSAValue
+from xdsl.ir import MLContext, SSAValue
 from xdsl.passes import ModulePass
-from xdsl.utils.exceptions import InvalidIRException
 
 
 class RegisterSet:
