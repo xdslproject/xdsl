@@ -3,7 +3,7 @@ from xdsl.dialects.riscv import Register, RegisterType, RISCVOp
 from xdsl.dialects.builtin import ModuleOp
 
 
-class AbstractRegisterAllocator(ABC):
+class RegisterAllocator(ABC):
     """
     Base class for register allocation strategies.
     """
@@ -19,7 +19,7 @@ class AbstractRegisterAllocator(ABC):
         raise NotImplementedError()
 
 
-class RegisterAllocatorBlockNaive(AbstractRegisterAllocator):
+class RegisterAllocatorBlockNaive(RegisterAllocator):
     idx: int
 
     def __init__(self) -> None:
@@ -64,7 +64,7 @@ class RegisterAllocatorBlockNaive(AbstractRegisterAllocator):
                                 )
 
 
-class RegisterAllocatorJRegs(AbstractRegisterAllocator):
+class RegisterAllocatorJRegs(RegisterAllocator):
     idx: int
 
     def __init__(self) -> None:
