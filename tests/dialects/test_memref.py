@@ -6,6 +6,7 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.ir import Attribute, OpResult
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
+    NoneAttr,
     StridedLayoutAttr,
     i32,
     i64,
@@ -309,8 +310,12 @@ def test_memref_cast():
 
 
 def test_dma_start():
-    src_type = MemRefType.from_element_type_and_shape(i64, [4, 512], memory_space=1)
-    dest_type = MemRefType.from_element_type_and_shape(i64, [4 * 512], memory_space=2)
+    src_type = MemRefType.from_element_type_and_shape(
+        i64, [4, 512], memory_space=NoneAttr()
+    )
+    dest_type = MemRefType.from_element_type_and_shape(
+        i64, [4 * 512], memory_space=NoneAttr()
+    )
 
     tag_type = MemRefType.from_element_type_and_shape(i32, [4])
 
