@@ -397,5 +397,51 @@ func.func @neg_bounds(%in : !stencil.field<[-32,32]xf64>, %out : !stencil.field<
 // CHECK-NEXT:    "func.return"() : () -> ()
 // CHECK-NEXT:  }
 
+  func.func @stencil_two_stores(%59 : !stencil.field<[-4,68]xf64>, %60 : !stencil.field<[-4,68]xf64>, %61 : !stencil.field<[-4,68]xf64>) {
+    %62 = "stencil.load"(%59) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<[0,64]xf64>
+    %63 = "stencil.apply"(%62) ({
+    ^10(%64 : !stencil.temp<[0,64]xf64>):
+      %65 = "stencil.access"(%64) {"offset" = #stencil.index<-1>} : (!stencil.temp<[0,64]xf64>) -> f64
+      "stencil.return"(%65) : (f64) -> ()
+    }) : (!stencil.temp<[0,64]xf64>) -> !stencil.temp<[1,65]xf64>
+    "stencil.store"(%63, %61) {"lb" = #stencil.index<1>, "ub" = #stencil.index<65>} : (!stencil.temp<[1,65]xf64>, !stencil.field<[-4,68]xf64>) -> ()
+    %66 = "stencil.apply"(%63) ({
+    ^11(%67 : !stencil.temp<[1,65]xf64>):
+      %68 = "stencil.access"(%67) {"offset" = #stencil.index<1>} : (!stencil.temp<[1,65]xf64>) -> f64
+      "stencil.return"(%68) : (f64) -> ()
+    }) : (!stencil.temp<[1,65]xf64>) -> !stencil.temp<[0,64]xf64>
+    "stencil.store"(%66, %60) {"lb" = #stencil.index<0>, "ub" = #stencil.index<64>} : (!stencil.temp<[0,64]xf64>, !stencil.field<[-4,68]xf64>) -> ()
+    "func.return"() : () -> ()
+  }
+
+//CHECK:      func.func @stencil_two_stores(%152 : memref<72xf64>, %153 : memref<72xf64>, %154 : memref<72xf64>) {
+//CHECK-NEXT:   %155 = "memref.subview"(%153) {"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
+//CHECK-NEXT:   %156 = "memref.subview"(%154) {"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
+//CHECK-NEXT:   %157 = "memref.subview"(%152) {"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
+//CHECK-NEXT:   %158 = "arith.constant"() {"value" = 1 : index} : () -> index
+//CHECK-NEXT:   %159 = "arith.constant"() {"value" = 1 : index} : () -> index
+//CHECK-NEXT:   %160 = "arith.constant"() {"value" = 65 : index} : () -> index
+//CHECK-NEXT:   "scf.parallel"(%158, %160, %159) ({
+//CHECK-NEXT:   ^18(%161 : index):
+//CHECK-NEXT:     %162 = "arith.constant"() {"value" = -1 : index} : () -> index
+//CHECK-NEXT:     %163 = arith.addi %161, %162 : index
+//CHECK-NEXT:     %164 = "memref.load"(%157, %163) : (memref<64xf64, strided<[1], offset: 4>>, index) -> f64
+//CHECK-NEXT:     "memref.store"(%164, %156, %161) : (f64, memref<64xf64, strided<[1], offset: 4>>, index) -> ()
+//CHECK-NEXT:     "scf.yield"() : () -> ()
+//CHECK-NEXT:   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
+//CHECK-NEXT:   %165 = "arith.constant"() {"value" = 0 : index} : () -> index
+//CHECK-NEXT:   %166 = "arith.constant"() {"value" = 1 : index} : () -> index
+//CHECK-NEXT:   %167 = "arith.constant"() {"value" = 64 : index} : () -> index
+//CHECK-NEXT:   "scf.parallel"(%165, %167, %166) ({
+//CHECK-NEXT:   ^19(%168 : index):
+//CHECK-NEXT:     %169 = "arith.constant"() {"value" = 1 : index} : () -> index
+//CHECK-NEXT:     %170 = arith.addi %168, %169 : index
+//CHECK-NEXT:     %171 = "memref.load"(%156, %170) : (memref<64xf64, strided<[1], offset: 4>>, index) -> f64
+//CHECK-NEXT:     "memref.store"(%171, %155, %168) : (f64, memref<64xf64, strided<[1], offset: 4>>, index) -> ()
+//CHECK-NEXT:     "scf.yield"() : () -> ()
+//CHECK-NEXT:   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
+//CHECK-NEXT:   "func.return"() : () -> ()
+//CHECK-NEXT: }
+
 }
 // CHECK-NEXT: }

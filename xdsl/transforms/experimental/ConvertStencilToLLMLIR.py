@@ -222,6 +222,10 @@ class ApplyOpToParallel(RewritePattern):
         assert isa(res_typ, TempType[Attribute])
         assert isinstance(res_typ.bounds, StencilBoundsAttr)
 
+        # Get this apply's ReturnOp
+        body_block = op.region.blocks[0]
+        return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
+
         body = prepare_apply_body(op, rewriter)
         body.block.add_op(scf.Yield.get())
         dim = res_typ.get_num_dims()
@@ -262,7 +266,6 @@ class ApplyOpToParallel(RewritePattern):
         )
 
         # Handle returnd values
-        new_results: list[SSAValue] = []
         for result in op.res:
             assert isa(
                 result.typ, TempType[Attribute]
@@ -289,10 +292,7 @@ class ApplyOpToParallel(RewritePattern):
                     [1] * result.typ.get_num_dims(),
                 )
                 rewriter.insert_op_before_matched_op((alloc, view))
-                new_results.append(view.result)
                 update_return_target(self.return_targets, result, view.result)
-            else:
-                new_results.append(result)
 
         deallocs: list[Operation] = []
         # Handle input buffer deallocation
@@ -311,6 +311,9 @@ class ApplyOpToParallel(RewritePattern):
                     # Then deallocate it
                     deallocs.append(memref.Dealloc.get(input))
 
+        # Get the maybe updated results
+        new_results: list[SSAValue | None] = []
+        new_results = self.return_targets[return_op]
         # Replace with the loop and necessary constants.
         rewriter.insert_op_before_matched_op([*lowerBounds, one, *upperBounds, p])
         rewriter.insert_op_after_matched_op([*deallocs])
