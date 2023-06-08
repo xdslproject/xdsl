@@ -724,14 +724,14 @@ VarSuccessor: TypeAlias = list[Block]
 _ClsT = TypeVar("_ClsT")
 
 
-class OpDefField(Generic[_ClsT]):
+class _OpDefField(Generic[_ClsT]):
     cls: type[_ClsT]
 
     def __init__(self, cls: type[_ClsT]):
         self.cls = cls
 
 
-class ConstrainedOpDefField(Generic[_ClsT], OpDefField[_ClsT]):
+class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
     param: AttrConstraint | Attribute | type[Attribute] | TypeVar
 
     def __init__(
@@ -743,23 +743,23 @@ class ConstrainedOpDefField(Generic[_ClsT], OpDefField[_ClsT]):
         self.param = param
 
 
-class OperandFieldDef(ConstrainedOpDefField[OperandDef,]):
+class _OperandFieldDef(_ConstrainedOpDefField[OperandDef,]):
     pass
 
 
-class ResultFieldDef(ConstrainedOpDefField[ResultDef]):
+class _ResultFieldDef(_ConstrainedOpDefField[ResultDef]):
     pass
 
 
-class AttributeFieldDef(ConstrainedOpDefField[AttributeDef]):
+class AttributeFieldDef(_ConstrainedOpDefField[AttributeDef]):
     pass
 
 
-class RegionFieldDef(OpDefField[RegionDef]):
+class _RegionFieldDef(_OpDefField[RegionDef]):
     pass
 
 
-class SuccessorFieldDef(OpDefField[SuccessorDef]):
+class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
     pass
 
 
@@ -770,7 +770,7 @@ def result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OpResult:
-    return cast(OpResult, ResultFieldDef(ResultDef, constraint))
+    return cast(OpResult, _ResultFieldDef(ResultDef, constraint))
 
 
 def var_result_def(
@@ -780,7 +780,7 @@ def var_result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarOpResult:
-    return cast(VarOpResult, ResultFieldDef(VarResultDef, constraint))
+    return cast(VarOpResult, _ResultFieldDef(VarResultDef, constraint))
 
 
 def opt_result_def(
@@ -790,7 +790,7 @@ def opt_result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptOpResult:
-    return cast(OptOpResult, ResultFieldDef(OptResultDef, constraint))
+    return cast(OptOpResult, _ResultFieldDef(OptResultDef, constraint))
 
 
 def attr_def(
@@ -820,7 +820,7 @@ def operand_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> Operand:
-    return cast(Operand, OperandFieldDef(OperandDef, constraint))
+    return cast(Operand, _OperandFieldDef(OperandDef, constraint))
 
 
 def var_operand_def(
@@ -830,7 +830,7 @@ def var_operand_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarOperand:
-    return cast(VarOperand, OperandFieldDef(VarOperandDef, constraint))
+    return cast(VarOperand, _OperandFieldDef(VarOperandDef, constraint))
 
 
 def opt_operand_def(
@@ -840,7 +840,7 @@ def opt_operand_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptOperand:
-    return cast(OptOperand, OperandFieldDef(OptOperandDef, constraint))
+    return cast(OptOperand, _OperandFieldDef(OptOperandDef, constraint))
 
 
 def region_def(
@@ -851,7 +851,7 @@ def region_def(
     init: Literal[False] = False,
 ) -> Region:
     cls = RegionDef if single_block is None else SingleBlockRegionDef
-    return cast(Region, RegionFieldDef(cls))
+    return cast(Region, _RegionFieldDef(cls))
 
 
 def var_region_def(
@@ -862,7 +862,7 @@ def var_region_def(
     init: Literal[False] = False,
 ) -> VarRegion:
     cls = VarRegionDef if single_block is None else VarSingleBlockRegionDef
-    return cast(VarRegion, RegionFieldDef(cls))
+    return cast(VarRegion, _RegionFieldDef(cls))
 
 
 def opt_region_def(
@@ -873,7 +873,7 @@ def opt_region_def(
     init: Literal[False] = False,
 ) -> OptRegion:
     cls = OptRegionDef if single_block is None else OptSingleBlockRegionDef
-    return cast(OptRegion, RegionFieldDef(cls))
+    return cast(OptRegion, _RegionFieldDef(cls))
 
 
 def successor_def(
@@ -882,7 +882,7 @@ def successor_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> Successor:
-    return cast(Successor, SuccessorFieldDef(SuccessorDef))
+    return cast(Successor, _SuccessorFieldDef(SuccessorDef))
 
 
 def var_successor_def(
@@ -891,7 +891,7 @@ def var_successor_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarSuccessor:
-    return cast(VarSuccessor, SuccessorFieldDef(VarSuccessorDef))
+    return cast(VarSuccessor, _SuccessorFieldDef(VarSuccessorDef))
 
 
 def opt_successor_def(
@@ -900,7 +900,7 @@ def opt_successor_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptSuccessor:
-    return cast(OptSuccessor, SuccessorFieldDef(OptSuccessorDef))
+    return cast(OptSuccessor, _SuccessorFieldDef(OptSuccessorDef))
 
 
 @dataclass(kw_only=True)
@@ -1006,12 +1006,12 @@ class OpDef:
                 )
 
             match value:
-                case ResultFieldDef():
+                case _ResultFieldDef():
                     constraint = get_constraint(value.param)
                     result_def = value.cls(constraint)
                     op_def.results.append((field_name, result_def))
                     continue
-                case OperandFieldDef():
+                case _OperandFieldDef():
                     constraint = get_constraint(value.param)
                     attribute_def = value.cls(constraint)
                     op_def.operands.append((field_name, attribute_def))
@@ -1021,11 +1021,11 @@ class OpDef:
                     attribute_def = value.cls(constraint)
                     op_def.attributes[field_name] = attribute_def
                     continue
-                case RegionFieldDef():
+                case _RegionFieldDef():
                     region_def = value.cls()
                     op_def.regions.append((field_name, region_def))
                     continue
-                case SuccessorFieldDef():
+                case _SuccessorFieldDef():
                     successor_def = value.cls()
                     op_def.successors.append((field_name, successor_def))
                     continue
