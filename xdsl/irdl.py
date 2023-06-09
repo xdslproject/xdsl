@@ -34,6 +34,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.ir.core import IRNode
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     PyRDLAttrDefinitionError,
@@ -1005,8 +1006,16 @@ class OpDef:
                 continue
             if parent_cls is Operation:
                 continue
+            if parent_cls is IRNode:
+                continue
 
             clsdict = parent_cls.__dict__
+
+            annotations = parent_cls.__annotations__
+
+            for field_name in annotations:
+                if field_name not in clsdict:
+                    raise wrong_field_exception(field_name)
 
             for field_name in clsdict:
                 if field_name == "name":
