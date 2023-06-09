@@ -15,7 +15,7 @@ from typing import Sequence
 from xdsl.printer import Printer
 from xdsl.parser import Parser
 from xdsl.utils.hints import isa
-from xdsl.dialects.experimental import stencil
+from xdsl.dialects import stencil
 from xdsl.ir import (
     Operation,
     Region,
