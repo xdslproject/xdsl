@@ -236,10 +236,10 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
                     for result in op.results:
                         self.intervals.append(RegisterLiveInterval(result))
 
-        # Algorithm requires values intervals to be sorted by start point
+        # The algorithm requires values intervals to be sorted by their start point
         self.intervals = sorted(self.intervals, key=lambda x: x.start)
 
-        # already registers are removed from set of the available registers
+        # Already allocated registers are removed from the set of free registers
         for interval in self.intervals:
             register = interval.get_riscv_register()
             if register.data.name is not None:
