@@ -10,11 +10,12 @@ from xdsl.transforms.experimental.live_range import LiveRange
 
 
 class RegisterSet:
-    # The complete set of registers
+    """The complete set of registers"""
+
     registers: Sequence[str]
-    # Registers that are free to be allocated
+    """Registers that are free to be allocated"""
     free: list[str]
-    # Registers that are currently used
+    """Registers that are currently used"""
     occupied: set[str]
 
     def __init__(self, registers: Sequence[str], reserved: Sequence[str] = []) -> None:
@@ -168,15 +169,19 @@ class RegisterLiveInterval(LiveRange):
     Represents an enhanced live range with additional information for register allocation.
     """
 
-    # This is a value that is used to represents the stack location of a spilled value (not in a register)
-    # Right now, we use j-regs to represent spilled values so it's a trivial mapping.
-    # At this point, we might not care about various ABI conventions for the stack (e.g. alignment)
-    # Thus, we can just use an index and concretize it later.
+    """
+    This is a value that is used to represents the stack location of a spilled value (not in a register)
+    Right now, we use j-regs to represent spilled values so it's a trivial mapping.
+    At this point, we don't care about various ABI conventions for the stack (e.g. alignment)
+    Thus, we can just use an index and concretize it later when we need to..
+    """
     abstract_stack_location: int | None
 
-    # Indicates whether this register is already used somewhere in the module (e.g. by a callee) or
-    # handallocated by the user. Thus, we should not modify it or spill it because it could have
-    # side effects.
+    """
+    Indicates whether this register is already used somewhere in the module (e.g. by a callee) or
+    handallocated by the user. Thus, we should not modify it or spill it because it could have
+    unintended side effects.
+    """
     used: bool
 
     def __init__(
@@ -215,10 +220,21 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
     21, 5 (Sept. 1999), 895–913. https://doi.org/10.1145/330249.330250", directly
     available at https://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf.
 
+    In summary, the linear scan register allocation algorithm progresses through live intervals
+    by considering their start points in ascending order. It begins by expiring intervals
+    that end before the current start point. When an interval expires, it is removed
+    from the active set, and its associated register is marked as available.
+    If a value is live-in but not live-out, it is considered expired.
+    After freeing any registers, the algorithm selects a register to assign to the interval
+    and activates the interval again.
     """
 
     idx_abstract_stack_location: int
     intervals: list[RegisterLiveInterval]
+    """
+    Set of live intervals that overlap the "current" interval and have been placed in registers.
+    It is sorted on end points in the intervals.
+    """
     active: OrderedDict[RegisterLiveInterval, None]
     register_set: RegisterSet
 
@@ -235,7 +251,6 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
     # TODO: - Refactor the following methods to use a proper SortedSet (C++ fashion)
     # This requires an extra dependency, so right now stick with this subpar implementation
 
-    ###
     def insert_active_interval(self, interval: RegisterLiveInterval) -> None:
         self.active[interval] = None
         self.active = OrderedDict(sorted(self.active.items(), key=lambda x: x[0].end))
@@ -244,14 +259,18 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
         self.active.pop(interval)
         self.active = OrderedDict(sorted(self.active.items(), key=lambda x: x[0].end))
 
-    ###
-
     def fresh_stack_location(self) -> int:
         old_stack_location = self.idx_abstract_stack_location
         self.idx_abstract_stack_location += 1
         return old_stack_location
 
     def expire_old_intervals(self, i: RegisterLiveInterval) -> None:
+        """
+        Expire all intervals whose endpoint is smaller than the start point of the current interval being processed.
+        This means that the current interval can be mapped to a register that was previously assigned
+        to one of the expired intervals, which is no longer needed because it has expired.
+        """
+
         for j in list(filter(lambda j: j.end < i.start, self.active.keys())):
             register = j.get_riscv_register()
             if register.data.name is not None and not j.used:
@@ -259,18 +278,31 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
                 self.register_set.set_free(register.data.name)
 
     def spill_at_interval(self, i: RegisterLiveInterval) -> None:
-        # Spill the interval with the furthest endpoint
+        """
+        Spill the interval with the furthest endpoint.
+
+        The intuition of this heuristic is that it will free up its register for the longest time, so maybe several other intervals
+        can be assigned that register.
+        """
+
+        # Use our invariant that the active set is sorted on end points
         spill = next(reversed(self.active.keys()))
         if spill.end > i.end and not spill.used:
+            # We can reuse the register of the spilled interval
             i.set_riscv_register(spill.get_riscv_register().data)
             self.remove_active_interval(spill)
             spill.spill(self.fresh_stack_location())
             self.insert_active_interval(i)
         else:
+            # We cannot free up a register, so we have to spill the current interval
             i.spill(self.fresh_stack_location())
 
     def prepare_intervals(self, module: ModuleOp) -> None:
-        # Build all live intervals if not already provided
+        """
+        Compute the live ranges for all values in the module and handle the special case of already allocated registers.
+        """
+
+        # Compute the live ranges for all values in the module if not already done
         if not self.intervals:
             for op in module.walk():
                 if isinstance(op, RISCVOp):
@@ -280,7 +312,7 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
         # The algorithm requires values intervals to be sorted by their start point
         self.intervals = sorted(self.intervals, key=lambda x: x.start)
 
-        # Already allocated registers are removed from the set of free registers
+        # Already allocated registers are removed from the set of free registers an marked so that they are not allocated again
         for interval in self.intervals:
             register = interval.get_riscv_register()
             if register.data.name is not None:
@@ -296,23 +328,19 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
         Allocates unallocated registers in the module.
         """
 
-        # Prepare intervals
+        # Prepare intervals for the algorithm
         self.prepare_intervals(module)
 
         num_registers = self.register_set.num_free_registers()
 
         for iv in self.intervals:
-            """
-            Expire all intervals whose endpoint is smaller than the start point of the current interval being processed.
-            This means that the current interval can be mapped to a register that was previously assigned
-            to one of the expired intervals, which is no longer needed because it has expired.
-            """
-
             self.expire_old_intervals(iv)
 
+            # Worst case: all registers are occupied, so we need to spill
             if len(self.active) >= num_registers:
                 self.spill_at_interval(iv)
             else:
+                # Otherwise, assign a register to the current interval if possible
                 if not iv.used:
                     iv.set_riscv_register(Register(self.register_set.get_free()))
                 self.insert_active_interval(iv)
