@@ -20,6 +20,7 @@ from typing import (
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
+from xdsl.traits import OpTrait, IsTerminator, OpTraitInvT
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -515,27 +516,6 @@ class IRNode(ABC):
         ...
 
 
-@dataclass(frozen=True)
-class OpTrait:
-    """
-    A trait attached to an operation definition.
-    Traits can be used to define operation invariants, additional semantic information,
-    or to group operations that have similar properties.
-    Traits have parameters, which by default is just the `None` value. Parameters should
-    always be comparable and hashable.
-    Note that traits are the merge of traits and interfaces in MLIR.
-    """
-
-    parameters: Any = field(default=None)
-
-    def verify(self, op: Operation) -> None:
-        """Check that the operation satisfies the trait requirements."""
-        pass
-
-
-OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
-
-
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -780,6 +760,27 @@ class Operation(IRNode):
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
+
+        if (parent_block := self.parent) is not None and (
+            parent_region := parent_block.parent
+        ) is not None:
+            if self.successors and parent_block.last_op != self:
+                raise VerifyException(
+                    "Operation with block successors must terminate its parent block"
+                )
+
+            # TODO single-block regions dealt when the NoTerminator trait is
+            # implemented (https://github.com/xdslproject/xdsl/issues/1093)
+            if len(parent_region.blocks) > 1:
+                if not self.has_trait(IsTerminator):
+                    raise VerifyException(
+                        "Operation terminates block but is not a terminator"
+                    )
+        else:
+            if self.successors:
+                raise VerifyException(
+                    "Operation with block successors does not belong to a block or a region"
+                )
 
         if verify_nested_ops:
             for region in self.regions:
