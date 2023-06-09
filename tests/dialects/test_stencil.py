@@ -16,7 +16,8 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IndexType,
 )
-from xdsl.dialects.experimental.stencil import (
+from xdsl.dialects.stencil import (
+    CastOp,
     BufferOp,
     ExternalLoadOp,
     ExternalStoreOp,
@@ -34,7 +35,6 @@ from xdsl.dialects.experimental.stencil import (
     AccessOp,
 )
 from xdsl.dialects.memref import MemRefType
-from xdsl.dialects.stencil import CastOp
 from xdsl.ir import Attribute, Block
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
