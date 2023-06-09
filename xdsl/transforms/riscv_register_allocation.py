@@ -1,7 +1,7 @@
 from abc import ABC
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Sequence
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import Register, RegisterType, RISCVOp
 from xdsl.ir import MLContext, SSAValue
@@ -10,10 +10,17 @@ from xdsl.transforms.experimental.live_range import LiveRange
 
 
 class RegisterSet:
-    def __init__(self, registers: list[str], reserved: set[str] = set()) -> None:
+    # The complete set of registers
+    registers: Sequence[str]
+    # Registers that are free to be allocated
+    free: list[str]
+    # Registers that are currently used
+    occupied: set[str]
+
+    def __init__(self, registers: Sequence[str], reserved: Sequence[str] = []) -> None:
         self.registers = registers
         self.free: list[str] = list(registers)
-        self.occupied: set[str] = reserved
+        self.occupied: set[str] = set(reserved)
 
     def get_free(self) -> str | None:
         if not self.free:
@@ -35,6 +42,10 @@ class RegisterSet:
         return reg in self.free
 
     def reset(self) -> None:
+        """
+        Resets the register allocator to its initial state.
+        """
+
         self.free = list(self.registers)
         self.occupied = set()
 
@@ -45,11 +56,17 @@ class RegisterSet:
         return not self.free
 
     def limit_free_registers(self, limit: int) -> None:
+        """
+        Restricts the number of free registers available to the register allocator
+        to the first `limit` registers.
+        Useful for testing spill code.
+        """
+
         self.free = self.free[:limit]
         self.occupied = set(self.registers) - set(self.free)
 
 
-_DEFAULT_RESERVED_REGISTERS = set(["zero", "sp", "gp", "tp", "fp", "s0"])
+_DEFAULT_RESERVED_REGISTERS = list(["zero", "sp", "gp", "tp", "fp", "s0"])
 _DEFAULT_REGISTER_SET = RegisterSet(
     [
         reg
@@ -68,6 +85,13 @@ class AbstractRegisterAllocator(ABC):
     def __init__(self) -> None:
         pass
 
+    def limit_free_registers(self, limit: int) -> None:
+        """
+        Limits the number of free registers available to the register allocator.
+        """
+
+        raise NotImplementedError()
+
     def allocate_registers(self, module: ModuleOp) -> None:
         """
         Allocates unallocated registers in the module.
@@ -83,6 +107,9 @@ class RegisterAllocatorBlockNaive(AbstractRegisterAllocator):
     def __init__(self, register_set: RegisterSet = _DEFAULT_REGISTER_SET) -> None:
         self.idx = 0
         self.register_set = register_set
+
+    def limit_free_registers(self, limit: int) -> None:
+        self.register_set.limit_free_registers(limit)
 
     def allocate_registers(self, module: ModuleOp) -> None:
         """
@@ -117,6 +144,9 @@ class RegisterAllocatorJRegs(AbstractRegisterAllocator):
     def __init__(self) -> None:
         self.idx = 0
 
+    def limit_free_registers(self, limit: int) -> None:
+        pass
+
     def allocate_registers(self, module: ModuleOp) -> None:
         """
         Sets unallocated registers to an infinite set of `j` registers
@@ -138,7 +168,15 @@ class RegisterLiveInterval(LiveRange):
     Represents an enhanced live range with additional information for register allocation.
     """
 
+    # This is a value that is used to represents the stack location of a spilled value (not in a register)
+    # Right now, we use j-regs to represent spilled values so it's a trivial mapping.
+    # At this point, we might not care about various ABI conventions for the stack (e.g. alignment)
+    # Thus, we can just use an index and concretize it later.
     abstract_stack_location: int | None
+
+    # Indicates whether this register is already used somewhere in the module (e.g. by a callee) or
+    # handallocated by the user. Thus, we should not modify it or spill it because it could have
+    # side effects.
     used: bool
 
     def __init__(
@@ -172,8 +210,11 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
     """
     Linear scan register allocation strategy.
 
-    Basic form of the algorithm based on the paper "Linear Scan Register Allocation"
-    by Massimiliano Poletto and Vivek Sarkar.
+    Basic form of the algorithm based on "Massimiliano Poletto and Vivek Sarkar. 1999.
+    Linear scan register allocation. ACM Trans. Program. Lang. Syst.
+    21, 5 (Sept. 1999), 895–913. https://doi.org/10.1145/330249.330250", directly
+    available at https://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf.
+
     """
 
     idx_abstract_stack_location: int
@@ -191,7 +232,7 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
         self.intervals = intervals or []
         self.idx_abstract_stack_location = 0
 
-    # TO:DO - Refactor the following methods to use a proper SortedSet (C++ fashion)
+    # TODO: - Refactor the following methods to use a proper SortedSet (C++ fashion)
     # This requires an extra dependency, so right now stick with this subpar implementation
 
     ###
@@ -247,6 +288,9 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
                     self.register_set.set_occupied(register.data.name)
                 interval.set_used(True)
 
+    def limit_free_registers(self, limit: int) -> None:
+        self.register_set.limit_free_registers(limit)
+
     def allocate_registers(self, module: ModuleOp) -> None:
         """
         Allocates unallocated registers in the module.
@@ -285,6 +329,7 @@ class RISCVRegisterAllocation(ModulePass):
     name = "riscv-allocate-registers"
 
     allocation_strategy: str = "GlobalJRegs"
+    num_registers: int | None = None
 
     def apply(self, ctx: MLContext, op: ModuleOp, *args: Any) -> None:
         allocator_strategies = {
@@ -300,4 +345,6 @@ class RISCVRegisterAllocation(ModulePass):
             )
 
         allocator = allocator_strategies[self.allocation_strategy](*args)
+        if self.num_registers is not None:
+            allocator.limit_free_registers(self.num_registers)
         allocator.allocate_registers(op)
