@@ -521,7 +521,7 @@ def test_opt_successor_builder():
     op1 = OptSuccessorOp.build(successors=[block0])
     op2 = OptSuccessorOp.build(successors=[None])
 
-    block1 = Block([op1, op2])
+    block1 = Block([op2, op1])
     _ = Region([block1])
 
     op1.verify()
