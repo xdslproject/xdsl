@@ -5,7 +5,7 @@ import os
 from io import StringIO
 from xdsl.frontend.symref import Symref
 
-from xdsl.ir import MLContext
+from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser, ParseError
 from xdsl.passes import ModulePass
 from xdsl.printer import Printer
@@ -40,6 +40,7 @@ from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
+from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
     ConvertStencilToLLMLIRPass,
 )
@@ -56,6 +57,54 @@ from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 from typing import IO, Dict, Callable, List, Sequence, Type
+
+
+def get_all_dialects() -> list[Dialect]:
+    """Return the list of all available dialects."""
+    return [
+        Affine,
+        Arith,
+        Builtin,
+        Cf,
+        CMath,
+        DMP,
+        FIR,
+        Func,
+        GPU,
+        IRDL,
+        LLVM,
+        Math,
+        MemRef,
+        MPI,
+        PDL,
+        RISCV,
+        RISCV_Func,
+        Scf,
+        Snitch,
+        SnitchRuntime,
+        Stencil,
+        Symref,
+        Test,
+        Vector,
+    ]
+
+
+def get_all_passes() -> list[type[ModulePass]]:
+    """Return the list of all available passes."""
+    return [
+        ConvertStencilToLLMLIRPass,
+        DeadCodeElimination,
+        DesymrefyPass,
+        DmpScatterGatherTrivialLowering,
+        GlobalStencilToLocalStencil2DHorizontal,
+        LowerHaloToMPI,
+        LowerMPIPass,
+        LowerRISCVFunc,
+        LowerSnitchPass,
+        LowerSnitchRuntimePass,
+        RISCVRegisterAllocation,
+        StencilShapeInferencePass,
+    ]
 
 
 class xDSLOptMain:
@@ -228,30 +277,8 @@ class xDSLOptMain:
 
         Add other/additional dialects by overloading this function.
         """
-        self.ctx.register_dialect(Builtin)
-        self.ctx.register_dialect(Func)
-        self.ctx.register_dialect(Arith)
-        self.ctx.register_dialect(MemRef)
-        self.ctx.register_dialect(Affine)
-        self.ctx.register_dialect(Scf)
-        self.ctx.register_dialect(Cf)
-        self.ctx.register_dialect(CMath)
-        self.ctx.register_dialect(Math)
-        self.ctx.register_dialect(LLVM)
-        self.ctx.register_dialect(Vector)
-        self.ctx.register_dialect(MPI)
-        self.ctx.register_dialect(GPU)
-        self.ctx.register_dialect(Stencil)
-        self.ctx.register_dialect(PDL)
-        self.ctx.register_dialect(Symref)
-        self.ctx.register_dialect(Test)
-        self.ctx.register_dialect(RISCV)
-        self.ctx.register_dialect(Snitch)
-        self.ctx.register_dialect(SnitchRuntime)
-        self.ctx.register_dialect(RISCV_Func)
-        self.ctx.register_dialect(IRDL)
-        self.ctx.register_dialect(FIR)
-        self.ctx.register_dialect(DMP)
+        for dialect in get_all_dialects():
+            self.ctx.register_dialect(dialect)
 
     def register_all_frontends(self):
         """
@@ -279,17 +306,8 @@ class xDSLOptMain:
 
         Add other/additional passes by overloading this function.
         """
-        self.register_pass(LowerMPIPass)
-        self.register_pass(ConvertStencilToLLMLIRPass)
-        self.register_pass(StencilShapeInferencePass)
-        self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
-        self.register_pass(DesymrefyPass)
-        self.register_pass(DeadCodeElimination)
-        self.register_pass(LowerSnitchPass)
-        self.register_pass(RISCVRegisterAllocation)
-        self.register_pass(LowerRISCVFunc)
-        self.register_pass(LowerHaloToMPI)
-        self.register_pass(DmpScatterGatherTrivialLowering)
+        for pass_ in get_all_passes():
+            self.register_pass(pass_)
 
     def register_all_targets(self):
         """
