@@ -25,7 +25,7 @@ def test_live_range_single_use():
 
     block0 = Block([a, b, c, d])
     region0 = Region([block0])
-    op = TestOp.create(regions=[region0])
+    TestOp.create(regions=[region0])
 
     lr0 = LiveRange(SSAValue.get(c))
 
