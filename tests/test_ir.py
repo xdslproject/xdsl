@@ -192,7 +192,11 @@ def test_non_empty_block_with_parent_region_requires_terminator_without_successo
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
 
-    op0.verify()
+    with pytest.raises(
+        VerifyException,
+        match="Operation terminates block but is not a terminator",
+    ):
+        op0.verify()
 
 
 def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op():
