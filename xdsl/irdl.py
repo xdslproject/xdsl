@@ -723,6 +723,11 @@ VarSuccessor: TypeAlias = list[Block]
 
 _ClsT = TypeVar("_ClsT")
 
+# Field definition classes for `@irdl_op_definition`
+# They carry the type information exactly as passed in the argument to `operand_def` etc.
+# We can only convert them to constraints when creating the OpDef to allow for type var
+# mapping.
+
 
 class _OpDefField(Generic[_ClsT]):
     cls: type[_ClsT]
@@ -751,7 +756,7 @@ class _ResultFieldDef(_ConstrainedOpDefField[ResultDef]):
     pass
 
 
-class AttributeFieldDef(_ConstrainedOpDefField[AttributeDef]):
+class _AttributeFieldDef(_ConstrainedOpDefField[AttributeDef]):
     pass
 
 
@@ -770,6 +775,9 @@ def result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OpResult:
+    """
+    Defines a result of an operation.
+    """
     return cast(OpResult, _ResultFieldDef(ResultDef, constraint))
 
 
@@ -780,6 +788,9 @@ def var_result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarOpResult:
+    """
+    Defines a variadic result of an operation.
+    """
     return cast(VarOpResult, _ResultFieldDef(VarResultDef, constraint))
 
 
@@ -790,6 +801,9 @@ def opt_result_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptOpResult:
+    """
+    Defines an optional result of an operation.
+    """
     return cast(OptOpResult, _ResultFieldDef(OptResultDef, constraint))
 
 
@@ -800,7 +814,10 @@ def attr_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> _AttrT:
-    return cast(_AttrT, AttributeFieldDef(AttributeDef, constraint))
+    """
+    Defines an attribute of an operation.
+    """
+    return cast(_AttrT, _AttributeFieldDef(AttributeDef, constraint))
 
 
 def opt_attr_def(
@@ -810,7 +827,10 @@ def opt_attr_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> _AttrT | None:
-    return cast(_AttrT, AttributeFieldDef(OptAttributeDef, constraint))
+    """
+    Defines an optional attribute of an operation.
+    """
+    return cast(_AttrT, _AttributeFieldDef(OptAttributeDef, constraint))
 
 
 def operand_def(
@@ -820,6 +840,9 @@ def operand_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> Operand:
+    """
+    Defines an operand of an operation.
+    """
     return cast(Operand, _OperandFieldDef(OperandDef, constraint))
 
 
@@ -830,6 +853,9 @@ def var_operand_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarOperand:
+    """
+    Defines a variadic operand of an operation.
+    """
     return cast(VarOperand, _OperandFieldDef(VarOperandDef, constraint))
 
 
@@ -840,6 +866,9 @@ def opt_operand_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptOperand:
+    """
+    Defines an optional operand of an operation.
+    """
     return cast(OptOperand, _OperandFieldDef(OptOperandDef, constraint))
 
 
@@ -850,6 +879,9 @@ def region_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> Region:
+    """
+    Defines a region of an operation.
+    """
     cls = RegionDef if single_block is None else SingleBlockRegionDef
     return cast(Region, _RegionFieldDef(cls))
 
@@ -861,6 +893,9 @@ def var_region_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarRegion:
+    """
+    Defines a variadic region of an operation.
+    """
     cls = VarRegionDef if single_block is None else VarSingleBlockRegionDef
     return cast(VarRegion, _RegionFieldDef(cls))
 
@@ -872,6 +907,9 @@ def opt_region_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptRegion:
+    """
+    Defines an optional region of an operation.
+    """
     cls = OptRegionDef if single_block is None else OptSingleBlockRegionDef
     return cast(OptRegion, _RegionFieldDef(cls))
 
@@ -882,6 +920,9 @@ def successor_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> Successor:
+    """
+    Defines a successor of an operation.
+    """
     return cast(Successor, _SuccessorFieldDef(SuccessorDef))
 
 
@@ -891,6 +932,9 @@ def var_successor_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> VarSuccessor:
+    """
+    Defines a variadic successor of an operation.
+    """
     return cast(VarSuccessor, _SuccessorFieldDef(VarSuccessorDef))
 
 
@@ -900,6 +944,9 @@ def opt_successor_def(
     resolver: None = None,
     init: Literal[False] = False,
 ) -> OptSuccessor:
+    """
+    Defines an optional successor of an operation.
+    """
     return cast(OptSuccessor, _SuccessorFieldDef(OptSuccessorDef))
 
 
@@ -957,10 +1004,10 @@ class OpDef:
                 f"{pyrdl_def.__name__}.{field_name} is neither a function, or an "
                 "operand, result, region, or attribute definition. "
                 "Operands should be defined with type hints of "
-                "Annotated[Operand, <Constraint>], results with "
-                "Annotated[OpResult, <Constraint>], regions with "
-                "Region, and attributes with "
-                "OpAttr[<Constraint>]"
+                "operand_def(<Constraint>), results with "
+                "result_def(<Constraint>), regions with "
+                "region_def(), and attributes with "
+                "attr_def(<Constraint>)"
             )
 
         op_def = OpDef(clsdict["name"])
@@ -1016,7 +1063,7 @@ class OpDef:
                     attribute_def = value.cls(constraint)
                     op_def.operands.append((field_name, attribute_def))
                     continue
-                case AttributeFieldDef():
+                case _AttributeFieldDef():
                     constraint = get_constraint(value.param)
                     attribute_def = value.cls(constraint)
                     op_def.attributes[field_name] = attribute_def
