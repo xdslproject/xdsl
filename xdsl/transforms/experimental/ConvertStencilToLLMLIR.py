@@ -464,6 +464,7 @@ def return_target_analysis(module: builtin.ModuleOp):
                 field = None
             elif isinstance(store[0], StoreOp):
                 field = store[0].field
+            # then it's a BufferOp
             else:
                 field = store[0].temp
 
