@@ -773,10 +773,10 @@ class Operation(IRNode):
                             "Operation with block successors must terminate its parent block"
                         )
 
-                    if not self.has_trait(IsTerminator):
-                        raise VerifyException(
-                            "Operation terminates block but is not a terminator"
-                        )
+                if not self.has_trait(IsTerminator):
+                    raise VerifyException(
+                        "Operation terminates block but is not a terminator"
+                    )
 
         if verify_nested_ops:
             for region in self.regions:
