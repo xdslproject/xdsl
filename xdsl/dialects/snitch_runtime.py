@@ -54,6 +54,125 @@ class SnitchRuntimeBarrier(SnitchRuntimeBaseOp, ABC):
 
 
 @irdl_op_definition
+class GlobalCoreBaseHartidOp(SnitchRuntimeGetInfo):
+    """ """
+
+    name = "snrt.global_core_base_hartid"
+
+
+@irdl_op_definition
+class GlobalCoreIdxOp(SnitchRuntimeGetInfo):
+    """
+    Core ID of each core on all clusters
+    """
+
+    name = "snrt.global_core_idx"
+
+
+@irdl_op_definition
+class GlobalCoreNumOp(SnitchRuntimeGetInfo):
+    """
+    Total cores incl. DM core per cluster
+    """
+
+    name = "snrt.global_core_num"
+
+
+@irdl_op_definition
+class GlobalComputeCoreIdxOp(SnitchRuntimeGetInfo):
+    """ """
+
+    name = "snrt.global_compute_core_idx"
+
+
+@irdl_op_definition
+class GlobalComputeCoreNumOp(SnitchRuntimeGetInfo):
+    """ """
+
+    name = "snrt.global_compute_core_num"
+
+
+@irdl_op_definition
+class GlobalDmCoreIdxOp(SnitchRuntimeGetInfo):
+    """ """
+
+    name = "snrt.global_dm_core_idx"
+
+
+@irdl_op_definition
+class GlobalDmCoreNumOp(SnitchRuntimeGetInfo):
+    """ """
+
+    name = "snrt.global_dm_core_num"
+
+
+@irdl_op_definition
+class ClusterCoreBaseHartidOp(SnitchRuntimeGetInfo):
+    """ """
+
+    name = "snrt.cluster_core_base_hartid"
+
+
+@irdl_op_definition
+class ClusterCoreIdxOp(SnitchRuntimeGetInfo):
+    """ """
+
+    name = "snrt.cluster_core_idx"
+
+
+@irdl_op_definition
+class ClusterCoreNumOp(SnitchRuntimeGetInfo):
+    """
+    Total cores per cluster
+    """
+
+    name = "snrt.cluster_core_num"
+
+
+@irdl_op_definition
+class ClusterComputeCoreIdxOp(SnitchRuntimeGetInfo):
+    """
+    Core ID of each compute core
+    """
+
+    name = "snrt.cluster_compute_core_idx"
+
+
+@irdl_op_definition
+class ClusterComputeCoreNumOp(SnitchRuntimeGetInfo):
+    """
+    Number of compute cores per cluster
+    """
+
+    name = "snrt.cluster_compute_core_num"
+
+
+@irdl_op_definition
+class ClusterDmCoreIdxOp(SnitchRuntimeGetInfo):
+    """
+    DM core ID of each cluster
+    """
+
+    name = "snrt.cluster_dm_core_idx"
+
+
+@irdl_op_definition
+class ClusterDmCoreNumOp(SnitchRuntimeGetInfo):
+    """ """
+
+    name = "snrt.cluster_dm_core_num"
+
+
+@irdl_op_definition
+class ClusterIdxOp(SnitchRuntimeGetInfo):
+    """
+    Cluster ID
+    """
+
+    name = "snrt.cluster_idx"
+
+
+@irdl_op_definition
 class ClusterNumOp(SnitchRuntimeGetInfo):
     """
     Probe the amount of clusters
@@ -63,12 +182,44 @@ class ClusterNumOp(SnitchRuntimeGetInfo):
 
 
 @irdl_op_definition
+class IsComputeCoreOp(SnitchRuntimeGetInfo):
+    """ """
+
+    name = "snrt.is_compute_core"
+
+
+@irdl_op_definition
+class IsComputeDmOp(SnitchRuntimeGetInfo):
+    """ """
+
+    name = "snrt.is_dm_core"
+
+
+@irdl_op_definition
 class ClusterHwBarrierOp(SnitchRuntimeBarrier):
     """
     Synchronize cores in a cluster with a hardware barrier
     """
 
     name = "snrt.cluster_hw_barrier"
+
+
+@irdl_op_definition
+class ClusterSwBarrierOp(SnitchRuntimeBarrier):
+    """
+    synchronize with compute cores after loading data
+    """
+
+    name = "snrt.cluster_sw_barrier"
+
+
+@irdl_op_definition
+class GlobalBarrierOp(SnitchRuntimeBarrier):
+    """
+    Synchronize clusters globally with a global software barrier
+    """
+
+    name = "snrt.global_barrier"
 
 
 _T = TypeVar("_T", bound=Attribute)
@@ -183,8 +334,27 @@ class DmaWaitAllOp(SnitchRuntimeBarrier):
 
 SnitchRuntime = Dialect(
     [
+        GlobalCoreBaseHartidOp,
+        GlobalCoreIdxOp,
+        GlobalCoreNumOp,
+        GlobalComputeCoreIdxOp,
+        GlobalComputeCoreNumOp,
+        GlobalDmCoreIdxOp,
+        GlobalDmCoreNumOp,
+        ClusterCoreBaseHartidOp,
+        ClusterCoreIdxOp,
+        ClusterCoreNumOp,
+        ClusterComputeCoreIdxOp,
+        ClusterComputeCoreNumOp,
+        ClusterDmCoreIdxOp,
+        ClusterDmCoreNumOp,
+        ClusterIdxOp,
         ClusterNumOp,
+        IsComputeCoreOp,
+        IsComputeDmOp,
         ClusterHwBarrierOp,
+        ClusterSwBarrierOp,
+        GlobalBarrierOp,
         DmaStart1DWideptrOp,
         DmaStart1DOp,
         DmaStart2DWideptrOp,
