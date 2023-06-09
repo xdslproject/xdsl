@@ -18,7 +18,7 @@ def convert_type_or_attr(op: TypeOp | AttributeOp, dialect_name: str) -> str:
     Convert an IRDL type or attribute to Python code creating
     that type or attribute in xDSL.
     """
-    type_addition = ", MLIRType" if isinstance(op, TypeOp) else ""
+    type_addition = ", TypeAttribute" if isinstance(op, TypeOp) else ""
     res = f"""\
 @irdl_attr_definition
 class {op.sym_name.data}(ParametrizedAttribute{type_addition}):

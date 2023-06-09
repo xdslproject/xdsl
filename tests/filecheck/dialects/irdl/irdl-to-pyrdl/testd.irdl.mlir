@@ -1,0 +1,134 @@
+// RUN: irdl-to-pyrdl %s | filecheck %s
+// RUN: irdl-to-pyrdl %s -o %t.py && cat %t.py | filecheck %s
+// RUN: irdl-to-pyrdl %s -o %t.py && python %t.py
+
+// CHECK:      from xdsl.irdl import *
+// CHECK-NEXT: from xdsl.ir import *
+
+builtin.module {
+  irdl.dialect @testd {
+
+    irdl.type @parametric {
+      %0 = irdl.any
+      irdl.parameters(%0)
+    }
+// CHECK:      @irdl_attr_definition
+// CHECK-NEXT: class parametric(ParametrizedAttribute, TypeAttribute):
+// CHECK-NEXT:     name = "testd.parametric"
+// CHECK-NEXT:     param0: ParameterDef[Attribute]
+
+
+    irdl.attribute @parametric_attr {
+      %0 = irdl.any
+      irdl.parameters(%0)
+    }
+// CHECK:      @irdl_attr_definition
+// CHECK-NEXT: class parametric_attr(ParametrizedAttribute):
+// CHECK-NEXT:     name = "testd.parametric_attr"
+// CHECK-NEXT:     param0: ParameterDef[Attribute]
+
+
+    irdl.type @attr_in_type_out {
+      %0 = irdl.any
+      irdl.parameters(%0)
+    }
+// CHECK:      @irdl_attr_definition
+// CHECK-NEXT: class attr_in_type_out(ParametrizedAttribute, TypeAttribute):
+// CHECK-NEXT:     name = "testd.attr_in_type_out"
+// CHECK-NEXT:     param0: ParameterDef[Attribute]
+
+
+    irdl.operation @eq {
+      %0 = irdl.is i32
+      irdl.results(%0)
+    }
+// CHECK:      @irdl_op_definition
+// CHECK-NEXT: class eq(IRDLOperation):
+// CHECK-NEXT:     name = "testd.eq"
+// CHECK-NEXT:     result0: OpResult
+// CHECK-NEXT:     regs: VarRegion
+// CHECK-NEXT:     succs: VarSuccessor
+
+
+    irdl.operation @anyof {
+      %0 = irdl.is i32
+      %1 = irdl.is i64
+      %2 = irdl.any_of(%0, %1)
+      irdl.results(%2)
+    }
+// CHECK:      @irdl_op_definition
+// CHECK-NEXT: class anyof(IRDLOperation):
+// CHECK-NEXT:     name = "testd.anyof"
+// CHECK-NEXT:     result0: OpResult
+// CHECK-NEXT:     regs: VarRegion
+// CHECK-NEXT:     succs: VarSuccessor
+
+
+    irdl.operation @all_of {
+      %0 = irdl.is i32
+      %1 = irdl.is i64
+      %2 = irdl.any_of(%0, %1)
+      %3 = irdl.all_of(%2, %1)
+      irdl.results(%3)
+    }
+// CHECK:      @irdl_op_definition
+// CHECK-NEXT: class all_of(IRDLOperation):
+// CHECK-NEXT:     name = "testd.all_of"
+// CHECK-NEXT:     result0: OpResult
+// CHECK-NEXT:     regs: VarRegion
+// CHECK-NEXT:     succs: VarSuccessor
+
+
+    irdl.operation @any {
+      %0 = irdl.any
+      irdl.results(%0)
+    }
+// CHECK:      @irdl_op_definition
+// CHECK-NEXT: class any(IRDLOperation):
+// CHECK-NEXT:     name = "testd.any"
+// CHECK-NEXT:     result0: OpResult
+// CHECK-NEXT:     regs: VarRegion
+// CHECK-NEXT:     succs: VarSuccessor
+
+
+    irdl.operation @dynbase {
+      %0 = irdl.any
+      %1 = irdl.parametric @parametric<%0>
+      irdl.results(%1)
+    }
+// CHECK:      @irdl_op_definition
+// CHECK-NEXT: class dynbase(IRDLOperation):
+// CHECK-NEXT:     name = "testd.dynbase"
+// CHECK-NEXT:     result0: OpResult
+// CHECK-NEXT:     regs: VarRegion
+// CHECK-NEXT:     succs: VarSuccessor
+
+    irdl.operation @dynparams {
+      %0 = irdl.is i32
+      %1 = irdl.is i64
+      %2 = irdl.any_of(%0, %1)
+      %3 = irdl.parametric @parametric<%2>
+      irdl.results(%3)
+    }
+// CHECK:      @irdl_op_definition
+// CHECK-NEXT: class dynparams(IRDLOperation):
+// CHECK-NEXT:     name = "testd.dynparams"
+// CHECK-NEXT:     result0: OpResult
+// CHECK-NEXT:     regs: VarRegion
+// CHECK-NEXT:     succs: VarSuccessor
+
+    irdl.operation @constraint_vars {
+      %0 = irdl.is i32
+      %1 = irdl.is i64
+      %2 = irdl.any_of(%0, %1)
+      irdl.results(%2, %2)
+    }
+// CHECK:      @irdl_op_definition
+// CHECK-NEXT: class constraint_vars(IRDLOperation):
+// CHECK-NEXT:     name = "testd.constraint_vars"
+// CHECK-NEXT:     result0: OpResult
+// CHECK-NEXT:     result1: OpResult
+// CHECK-NEXT:     regs: VarRegion
+// CHECK-NEXT:     succs: VarSuccessor
+  }
+}
