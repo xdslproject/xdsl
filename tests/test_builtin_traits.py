@@ -116,12 +116,25 @@ class IsTerminatorOp(IRDLOperation):
     traits = frozenset([IsTerminator()])
 
 
-def test_is_terminator_verify():
+def test_is_terminator_with_successors_verify():
     """
-    Test that an operation with an IsTerminator trait expects successor blocks.
+    Test that an operation with an IsTerminator trait may have successor blocks.
     """
     block0 = Block([])
     block1 = Block([IsTerminatorOp.create(successors=[block0])])
+    region0 = Region([block0, block1])
+    op0 = TestOp.create(regions=[region0])
+
+    op0.verify()
+
+
+def test_is_terminator_without_successors_verify():
+    """
+    Test that an operation with an IsTerminator trait may not have successor
+    blocks.
+    """
+    block0 = Block([])
+    block1 = Block([IsTerminatorOp.create()])
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
 
