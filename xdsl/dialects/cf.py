@@ -5,6 +5,7 @@ from typing import Annotated, Union, Sequence
 
 from xdsl.dialects.builtin import IntegerType, StringAttr
 from xdsl.ir import SSAValue, Operation, Block, Dialect
+from xdsl.traits import IsTerminator
 from xdsl.irdl import (
     OpAttr,
     irdl_op_definition,
@@ -37,6 +38,8 @@ class Branch(IRDLOperation):
     arguments: Annotated[VarOperand, AnyAttr()]
     successor: Successor
 
+    traits = frozenset([IsTerminator()])
+
     @staticmethod
     def get(dest: Block, *ops: Union[Operation, SSAValue]) -> Branch:
         return Branch.build(operands=[[op for op in ops]], successors=[dest])
@@ -54,6 +57,8 @@ class ConditionalBranch(IRDLOperation):
 
     then_block: Successor
     else_block: Successor
+
+    traits = frozenset([IsTerminator()])
 
     @staticmethod
     def get(

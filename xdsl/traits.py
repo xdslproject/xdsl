@@ -1,6 +1,35 @@
-from dataclasses import dataclass
-from xdsl.ir import OpTrait, Operation
+from __future__ import annotations
+from dataclasses import dataclass, field
 from xdsl.utils.exceptions import VerifyException
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    TypeVar,
+)
+
+if TYPE_CHECKING:
+    from xdsl.ir import Operation
+
+
+@dataclass(frozen=True)
+class OpTrait:
+    """
+    A trait attached to an operation definition.
+    Traits can be used to define operation invariants, additional semantic information,
+    or to group operations that have similar properties.
+    Traits have parameters, which by default is just the `None` value. Parameters should
+    always be comparable and hashable.
+    Note that traits are the merge of traits and interfaces in MLIR.
+    """
+
+    parameters: Any = field(default=None)
+
+    def verify(self, op: Operation) -> None:
+        """Check that the operation satisfies the trait requirements."""
+        pass
+
+
+OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 
 
 class Pure(OpTrait):
@@ -30,3 +59,19 @@ class HasParent(OpTrait):
             )
         names = ", ".join([f"'{p.name}'" for p in self.parameters])
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
+
+
+class IsTerminator(OpTrait):
+    """
+    This trait provides verification and functionality for operations that are
+    known to be terminators.
+
+    https://mlir.llvm.org/docs/Traits/#terminator
+    """
+
+    def verify(self, op: Operation) -> None:
+        """Check that the operation satisfies the IsTerminator trait requirements."""
+        if op.parent is not None and op.parent.last_op != op:
+            raise VerifyException(
+                f"'{op.name}' must be the last operation in the parent block"
+            )
