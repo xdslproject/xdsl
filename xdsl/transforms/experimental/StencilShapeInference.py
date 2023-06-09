@@ -1,6 +1,6 @@
 from typing import Iterable, TypeVar, cast
 from xdsl.dialects import builtin
-from xdsl.dialects.experimental.stencil import (
+from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
     FieldType,
