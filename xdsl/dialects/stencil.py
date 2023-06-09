@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from operator import add, lt, neg
-from typing import Mapping, Sequence, TypeVar, cast, Iterable, Iterator, Annotated
+from typing import Sequence, TypeVar, cast, Iterable, Iterator, Annotated
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
