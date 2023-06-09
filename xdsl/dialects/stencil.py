@@ -489,12 +489,12 @@ class AccessOp(IRDLOperation):
 
     def verify_(self) -> None:
         apply = self.parent_op()
-        if apply is None:
-            raise VerifyException(f"stencil.access expects to have a parent operation.")
+        # As promised by HasParent(ApplyOp)
+        assert isinstance(apply, ApplyOp)
+
         # TODO This should be handled by infra, having a way to verify things on ApplyOp
         # **before** its children.
         apply.verify_()
-        assert isinstance(apply, ApplyOp)
 
         temp_typ = self.temp.typ
         assert isa(temp_typ, TempType[Attribute])
