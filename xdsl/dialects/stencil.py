@@ -321,20 +321,11 @@ class ApplyOp(IRDLOperation):
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block,
         result_types: Sequence[TempType[Attribute]],
-        lb: IndexAttr | None = None,
-        ub: IndexAttr | None = None,
     ):
         assert len(result_types) > 0
 
-        attributes = {}
-        if lb is not None:
-            attributes["lb"] = lb
-        if ub is not None:
-            attributes["ub"] = ub
-
         return ApplyOp.build(
             operands=[list(args)],
-            attributes=attributes,
             regions=[Region(body)],
             result_types=[result_types],
         )
