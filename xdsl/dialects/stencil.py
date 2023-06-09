@@ -494,6 +494,7 @@ class AccessOp(IRDLOperation):
 
         # TODO This should be handled by infra, having a way to verify things on ApplyOp
         # **before** its children.
+        # cf https://github.com/xdslproject/xdsl/issues/1112
         apply.verify_()
 
         temp_typ = self.temp.typ
