@@ -10,10 +10,10 @@ from xdsl.transforms.experimental.live_range import LiveRange
 
 
 class RegisterSet:
-    def __init__(self, registers: list[str]) -> None:
+    def __init__(self, registers: list[str], reserved: set[str] = set()) -> None:
         self.registers = registers
         self.free: list[str] = list(registers)
-        self.occupied: set[str] = set()
+        self.occupied: set[str] = reserved
 
     def get_free(self) -> str | None:
         if not self.free:
@@ -28,8 +28,6 @@ class RegisterSet:
         self.free.append(reg)
 
     def set_occupied(self, reg: str) -> None:
-        assert self.is_free(reg)
-
         self.free.remove(reg)
         self.occupied.add(reg)
 
@@ -57,7 +55,8 @@ _DEFAULT_REGISTER_SET = RegisterSet(
         reg
         for reg in list(Register.ABI_INDEX_BY_NAME.keys())
         if reg not in _DEFAULT_RESERVED_REGISTERS
-    ]
+    ],
+    _DEFAULT_RESERVED_REGISTERS,
 )
 
 
@@ -135,16 +134,23 @@ class RegisterAllocatorJRegs(AbstractRegisterAllocator):
 
 
 class RegisterLiveInterval(LiveRange):
+    """
+    Represents an enhanced live range with additional information for register allocation.
+    """
+
     abstract_stack_location: int | None
+    used: bool
 
     def __init__(
         self,
         value: SSAValue,
         start: int | None = None,
         end: int | None = None,
+        used: bool = False,
     ) -> None:
         super().__init__(value, start, end)
         self.abstract_stack_location = None
+        self.used = used
 
     def spill(self, stack_location: int) -> None:
         self.abstract_stack_location = stack_location
@@ -157,6 +163,9 @@ class RegisterLiveInterval(LiveRange):
     def get_riscv_register(self) -> RegisterType:
         assert isinstance(self.value.typ, RegisterType)
         return self.value.typ
+
+    def set_used(self, used: bool) -> None:
+        self.used = used
 
 
 class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
@@ -184,6 +193,7 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
 
     # TO:DO - Refactor the following methods to use a proper SortedSet (C++ fashion)
     # This requires an extra dependency, so right now stick with this subpar implementation
+
     ###
     def insert_active_interval(self, interval: RegisterLiveInterval) -> None:
         self.active[interval] = None
@@ -203,14 +213,14 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
     def expire_old_intervals(self, i: RegisterLiveInterval) -> None:
         for j in list(filter(lambda j: j.end < i.start, self.active.keys())):
             register = j.get_riscv_register()
-            if register.data.name is not None:
+            if register.data.name is not None and not j.used:
                 self.remove_active_interval(j)
                 self.register_set.set_free(register.data.name)
 
     def spill_at_interval(self, i: RegisterLiveInterval) -> None:
         # Spill the interval with the furthest endpoint
         spill = next(reversed(self.active.keys()))
-        if spill.end > i.end:
+        if spill.end > i.end and not spill.used:
             i.set_riscv_register(spill.get_riscv_register().data)
             self.remove_active_interval(spill)
             spill.spill(self.fresh_stack_location())
@@ -235,6 +245,7 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
             if register.data.name is not None:
                 if self.register_set.is_free(register.data.name):
                     self.register_set.set_occupied(register.data.name)
+                interval.set_used(True)
 
     def allocate_registers(self, module: ModuleOp) -> None:
         """
@@ -258,7 +269,8 @@ class RegisterAllocatorLinearScan(AbstractRegisterAllocator):
             if len(self.active) >= num_registers:
                 self.spill_at_interval(iv)
             else:
-                iv.set_riscv_register(Register(self.register_set.get_free()))
+                if not iv.used:
+                    iv.set_riscv_register(Register(self.register_set.get_free()))
                 self.insert_active_interval(iv)
 
         return
