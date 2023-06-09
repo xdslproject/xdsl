@@ -982,13 +982,6 @@ class OpDef:
         for parent_cls in Operation.mro()[::-1]:
             opdict = {**opdict, **parent_cls.__dict__}
 
-        if "name" not in clsdict:
-            raise Exception(
-                f"pyrdl operation definition '{pyrdl_def.__name__}' does not "
-                "define the operation name. The operation name is defined by "
-                "adding a 'name' field."
-            )
-
         type_var_mapping: dict[TypeVar, AttrConstraint] | None = None
 
         # If the operation inherit from `Generic`, this means that it specializes a
@@ -1010,7 +1003,7 @@ class OpDef:
                 "attr_def(<Constraint>)"
             )
 
-        op_def = OpDef(clsdict["name"])
+        op_def = OpDef(pyrdl_def.name)
 
         # Check that all fields of the operation definition are either already
         # in Operation, or are class functions or methods.
