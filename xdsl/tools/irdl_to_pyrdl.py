@@ -44,3 +44,7 @@ def main():
     for op in module.walk():
         if isinstance(op, DialectOp):
             print(convert_dialect(op), file=file)
+
+
+if __name__ == "__main__":
+    main()
