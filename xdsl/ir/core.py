@@ -777,6 +777,11 @@ class Operation(IRNode):
                     raise VerifyException(
                         "Operation terminates block but is not a terminator"
                     )
+        else:
+            if self.successors:
+                raise VerifyException(
+                    "Operation with block successors does not belong to a block or a region"
+                )
 
         if verify_nested_ops:
             for region in self.regions:
