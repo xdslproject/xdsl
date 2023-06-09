@@ -764,15 +764,14 @@ class Operation(IRNode):
         if (parent_block := self.parent) is not None and (
             parent_region := parent_block.parent
         ) is not None:
+            if self.successors and parent_block.last_op != self:
+                raise VerifyException(
+                    "Operation with block successors must terminate its parent block"
+                )
+
             # TODO single-block regions dealt when the NoTerminator trait is
             # implemented (https://github.com/xdslproject/xdsl/issues/1093)
             if len(parent_region.blocks) > 1:
-                if self.successors:
-                    if parent_block.last_op != self:
-                        raise VerifyException(
-                            "Operation with block successors must terminate its parent block"
-                        )
-
                 if not self.has_trait(IsTerminator):
                     raise VerifyException(
                         "Operation terminates block but is not a terminator"
