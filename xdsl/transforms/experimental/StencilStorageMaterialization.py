@@ -1,0 +1,53 @@
+from xdsl.dialects import builtin
+from xdsl.dialects.stencil import (
+    ApplyOp,
+    BufferOp,
+    StoreOp,
+)
+
+from xdsl.ir import MLContext, SSAValue
+from xdsl.ir.core import OpResult
+from xdsl.passes import ModulePass
+from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
+    PatternRewriteWalker,
+    PatternRewriter,
+    RewritePattern,
+    op_type_rewrite_pattern,
+)
+
+
+def should_materialize(temp: SSAValue):
+    return any(isinstance(u.operation, ApplyOp) for u in temp.uses) and not any(
+        isinstance(u.operation, StoreOp | BufferOp) for u in temp.uses
+    )
+
+
+class ApplyOpMaterialization(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
+        clone = op.clone()
+        new_res: list[OpResult] = []
+        buffers: list[BufferOp] = []
+        for i, out in enumerate(op.res):
+            if should_materialize(out):
+                buffer = BufferOp(clone.res[i])
+                buffers.append(buffer)
+                new_res.append(buffer.res)
+            else:
+                new_res.append(out)
+        if buffers:
+            rewriter.replace_matched_op([clone, *buffers], new_res)
+
+
+class StencilStorageMaterializationPass(ModulePass):
+    name = "stencil-storage-materialization"
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    ApplyOpMaterialization(),
+                ]
+            )
+        ).rewrite_module(op)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from operator import add, lt, neg
-from typing import Sequence, TypeVar, cast, Iterable, Iterator, Annotated
+from typing import Mapping, Sequence, TypeVar, cast, Iterable, Iterator, Annotated
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
@@ -13,7 +13,16 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects import memref
 
-from xdsl.ir import OpResult, SSAValue, Operation, Attribute, Dialect, TypeAttribute
+from xdsl.ir import (
+    Block,
+    OpResult,
+    Region,
+    SSAValue,
+    Operation,
+    Attribute,
+    Dialect,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
@@ -494,6 +503,10 @@ class BufferOp(IRDLOperation):
     name = "stencil.buffer"
     temp: Annotated[Operand, TempType]
     res: Annotated[OpResult, TempType]
+
+    def __init__(self: IRDLOperation, temp: SSAValue | Operation):
+        temp = SSAValue.get(temp)
+        super().__init__(operands=[temp], result_types=[temp.typ])
 
     def verify_(self) -> None:
         if self.temp.typ != self.res.typ:
