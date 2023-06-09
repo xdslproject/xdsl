@@ -163,6 +163,29 @@ def test_region_clone_into_circular_blocks():
     assert region.is_structurally_equivalent(region2)
 
 
+def test_op_with_successors_not_in_block():
+    block0 = Block()
+    op0 = TestOp.create(successors=[block0])
+
+    with pytest.raises(
+        VerifyException,
+        match="Operation with block successors does not belong to a block or a region",
+    ):
+        op0.verify()
+
+
+def test_op_with_successors_not_in_region():
+    block0 = Block()
+    op0 = TestOp.create(successors=[block0])
+    _ = Block([op0])
+
+    with pytest.raises(
+        VerifyException,
+        match="Operation with block successors does not belong to a block or a region",
+    ):
+        op0.verify()
+
+
 def test_non_empty_block_with_single_block_parent_region_can_have_terminator():
     """
     Tests that an non-empty block belonging to a single-block region with parent
@@ -182,7 +205,7 @@ def test_non_empty_block_with_parent_region_requires_terminator_with_successors(
     operation requires terminator operation.
     The terminator operation may have successors.
     """
-    block0 = Block([])
+    block0 = Block()
     block1 = Block([TestOp.create(successors=[block0])])
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
@@ -200,7 +223,7 @@ def test_non_empty_block_with_parent_region_requires_terminator_without_successo
     operation requires terminator operation.
     The terminator operation may not have successors.
     """
-    block0 = Block([])
+    block0 = Block()
     block1 = Block([TestOp.create()])
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
@@ -217,7 +240,7 @@ def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op
     Tests that an non-empty block belonging to a multi-block region with parent
     operation requires terminator operation.
     """
-    block0 = Block([])
+    block0 = Block()
     block1 = Block([TestOp.create(successors=[block0]), TestOp.create()])
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
