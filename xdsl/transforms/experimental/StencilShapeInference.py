@@ -3,6 +3,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
+    BufferOp,
     FieldType,
     IndexAttr,
     LoadOp,
@@ -127,9 +128,16 @@ class ApplyOpShapeInference(RewritePattern):
             op.operands[i].typ = arg.typ
 
 
+class BufferOpShapeInference(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
+        op.temp.typ = op.res.typ
+
+
 ShapeInference = GreedyRewritePatternApplier(
     [
         ApplyOpShapeInference(),
+        BufferOpShapeInference(),
         AccessOpShapeInference(),
         LoadOpShapeInference(),
         StoreOpShapeInference(),
