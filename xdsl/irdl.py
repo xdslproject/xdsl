@@ -947,7 +947,7 @@ def opt_successor_def(
     return cast(OptSuccessor, _SuccessorFieldDef(OptSuccessorDef))
 
 
-_OPERATION_DICT_KEYS = set(key for cls in Operation.mro() for key in cls.__dict__)
+_OPERATION_DICT_KEYS = set(key for cls in Operation.mro()[:-1] for key in cls.__dict__)
 
 
 @dataclass(kw_only=True)
@@ -1000,6 +1000,10 @@ class OpDef:
             # IRDL definitions, and contains ClassVar fields that are not
             # allowed in IRDL definitions.
             if parent_cls == Generic:
+                continue
+            if parent_cls is object:
+                continue
+            if parent_cls is Operation:
                 continue
 
             clsdict = parent_cls.__dict__
@@ -1666,7 +1670,7 @@ def irdl_op_arg_definition(
     if previous_variadics > 1 and (arg_size_option not in op_def.options):
         arg_size_option_name = type(arg_size_option).__name__  # type: ignore
         raise Exception(
-            "Operation defines more than two variadic "
+            f"Operation {op_def.name} defines more than two variadic "
             f"{get_construct_name(construct)}s, but do not define the "
             f"{arg_size_option_name} PyRDL option."
         )
