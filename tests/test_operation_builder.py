@@ -92,7 +92,10 @@ class VarResultOp(IRDLOperation):
 def test_var_result_builder():
     op = VarResultOp.build(result_types=[[StringAttr("0"), StringAttr("1")]])
     op.verify()
-    assert [res.typ for res in op.results] == [StringAttr("0"), StringAttr("1")]
+    assert [res.typ for res in op.results] == [
+        StringAttr("0"),
+        StringAttr("1"),
+    ]
 
 
 @irdl_op_definition
@@ -499,6 +502,7 @@ class SuccessorOp(IRDLOperation):
 
 
 def test_successor_op_successor():
+    """Test operation from IRDL operation definition can have successors"""
     block0 = Block()
     op = SuccessorOp.build(successors=[block0])
 
@@ -517,6 +521,10 @@ class OptSuccessorOp(IRDLOperation):
 
 
 def test_opt_successor_builder():
+    """
+    Test operation from IRDL operation definition can optionally have
+    successors
+    """
     block0 = Block()
     op1 = OptSuccessorOp.build(successors=[block0])
     op2 = OptSuccessorOp.build(successors=[None])
@@ -536,6 +544,9 @@ class VarSuccessorOp(IRDLOperation):
 
 
 def test_var_successor_builder():
+    """
+    Test operation from IRDL operation definition can have variadic successors
+    """
     block0 = Block()
     op = VarSuccessorOp.build(successors=[[block0, block0, block0]])
 
@@ -556,6 +567,10 @@ class TwoVarSuccessorOp(IRDLOperation):
 
 
 def test_two_var_successor_builder():
+    """
+    Test operation from IRDL operation definition can have variadic successors
+    along with their sizes as an attribute
+    """
     block1 = Block()
     block2 = Block()
     block3 = Block()
@@ -573,6 +588,10 @@ def test_two_var_successor_builder():
 
 
 def test_two_var_successor_builder2():
+    """
+    Test operation from IRDL operation definition can have variadic successors
+    along with their sizes as an attribute
+    """
     block1 = Block()
     block2 = Block()
     block3 = Block()
