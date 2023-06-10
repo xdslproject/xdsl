@@ -3,6 +3,7 @@ Test the usage of builtin traits.
 """
 
 import pytest
+from xdsl.dialects import arith, builtin
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.irdl import (
@@ -13,7 +14,11 @@ from xdsl.irdl import (
     region_def,
 )
 from xdsl.ir import Region, Block
-from xdsl.traits import HasParent, IsTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    IsolatedFromAbove,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.dialects.test import TestOp
 
@@ -160,3 +165,39 @@ def test_is_terminator_fails_if_not_last_operation_parent_block():
         VerifyException, match="must be the last operation in the parent block"
     ):
         op0.verify()
+
+
+class IsolatedFromAboveOp(IRDLOperation):
+    """
+    An isolated from above operation.
+    """
+
+    name = "test.isolated_from_above"
+
+    region: Region
+
+    traits = frozenset([IsolatedFromAbove()])
+
+
+def test_isolated_from_above():
+    op = IsolatedFromAboveOp(regions=[Region()])
+    op.verify()
+
+    block = Block(arg_types=[builtin.i32])
+    block.add_op(arith.Addi(block.args[0], block.args[0]))
+
+    op = IsolatedFromAboveOp(regions=[Region([block])])
+    op.verify
+
+    out_cst = arith.Constant.from_int_and_width(0, builtin.i32)
+    out_block = Block(
+        [
+            out_cst,
+            IsolatedFromAboveOp(
+                regions=[Region(Block([arith.Addi(out_cst, out_cst)]))]
+            ),
+        ]
+    )
+    message = "Operation using value defined out of its IsolatedFromAbove parent!"
+    with pytest.raises(VerifyException, match=message):
+        out_block.verify()
