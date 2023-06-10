@@ -540,3 +540,33 @@ def test_replace_operand():
 
     with pytest.raises(ValueError):
         add.replace_operand(cst0, new_cst)
+
+
+def test_block_walk():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+    c = Constant.from_int_and_width(3, 32)
+
+    ops = [a, b, c]
+    block = Block(ops)
+
+    ops_after_walk: list[Operation] = []
+    for op in block.walk():
+        ops_after_walk.append(op)
+
+    assert ops == ops_after_walk
+
+
+def test_block_walk_reverse():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+    c = Constant.from_int_and_width(3, 32)
+
+    ops = [a, b, c]
+    block = Block(ops)
+
+    ops_after_walk: list[Operation] = []
+    for op in block.walk_reverse():
+        ops_after_walk.append(op)
+
+    assert ops == list(reversed(ops_after_walk))
