@@ -3,107 +3,258 @@ import sys
 import os
 
 from io import StringIO
-from xdsl.frontend.symref import Symref
 
 from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser, ParseError
 from xdsl.passes import ModulePass
 from xdsl.printer import Printer
-from xdsl.dialects.func import Func
-from xdsl.dialects.scf import Scf
-from xdsl.dialects.affine import Affine
-from xdsl.dialects.arith import Arith
-from xdsl.dialects.builtin import ModuleOp, Builtin
-from xdsl.dialects.cmath import CMath
-from xdsl.dialects.cf import Cf
-from xdsl.dialects.vector import Vector
-from xdsl.dialects.memref import MemRef
-from xdsl.dialects.llvm import LLVM
-from xdsl.dialects.mpi import MPI
-from xdsl.dialects.gpu import GPU
-from xdsl.dialects.pdl import PDL
-from xdsl.dialects.test import Test
-from xdsl.dialects.stencil import Stencil
-from xdsl.dialects.riscv_func import RISCV_Func
-from xdsl.dialects.irdl import IRDL
-from xdsl.dialects.riscv import RISCV, print_assembly, riscv_code
-from xdsl.dialects.snitch import Snitch
-from xdsl.dialects.snitch_runtime import SnitchRuntime
 
-from xdsl.dialects.experimental.math import Math
-from xdsl.dialects.experimental.fir import FIR
-from xdsl.dialects.experimental.dmp import DMP
-
-from xdsl.frontend.passes.desymref import DesymrefyPass
-from xdsl.transforms.dead_code_elimination import DeadCodeElimination
-from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
-from xdsl.transforms.lower_mpi import LowerMPIPass
-from xdsl.transforms.lower_snitch import LowerSnitchPass
-from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
-from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
-    ConvertStencilToLLMLIRPass,
-)
-from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
-from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
-    GlobalStencilToLocalStencil2DHorizontal,
-    LowerHaloToMPI,
-)
-from xdsl.transforms.experimental.dmp.scatter_gather import (
-    DmpScatterGatherTrivialLowering,
-)
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.riscv import print_assembly, riscv_code
 
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
-from typing import IO, Dict, Callable, List, Sequence, Type
+from typing import IO, Dict, Callable, List, Sequence
 
 
-def get_all_dialects() -> list[Dialect]:
+def get_all_dialects() -> list[tuple[str, Callable[[], Dialect]]]:
     """Return the list of all available dialects."""
+
+    def get_affine():
+        from xdsl.dialects.affine import Affine
+
+        return Affine
+
+    def get_arith():
+        from xdsl.dialects.arith import Arith
+
+        return Arith
+
+    def get_builtin():
+        from xdsl.dialects.builtin import Builtin
+
+        return Builtin
+
+    def get_cf():
+        from xdsl.dialects.cf import Cf
+
+        return Cf
+
+    def get_cmath():
+        from xdsl.dialects.cmath import CMath
+
+        return CMath
+
+    def get_dmp():
+        from xdsl.dialects.experimental.dmp import DMP
+
+        return DMP
+
+    def get_fir():
+        from xdsl.dialects.experimental.fir import FIR
+
+        return FIR
+
+    def get_func():
+        from xdsl.dialects.func import Func
+
+        return Func
+
+    def get_gpu():
+        from xdsl.dialects.gpu import GPU
+
+        return GPU
+
+    def get_irdl():
+        from xdsl.dialects.irdl import IRDL
+
+        return IRDL
+
+    def get_llvm():
+        from xdsl.dialects.llvm import LLVM
+
+        return LLVM
+
+    def get_math():
+        from xdsl.dialects.experimental.math import Math
+
+        return Math
+
+    def get_memref():
+        from xdsl.dialects.memref import MemRef
+
+        return MemRef
+
+    def get_mpi():
+        from xdsl.dialects.mpi import MPI
+
+        return MPI
+
+    def get_pdl():
+        from xdsl.dialects.pdl import PDL
+
+        return PDL
+
+    def get_riscv():
+        from xdsl.dialects.riscv import RISCV
+
+        return RISCV
+
+    def get_riscv_func():
+        from xdsl.dialects.riscv_func import RISCV_Func
+
+        return RISCV_Func
+
+    def get_scf():
+        from xdsl.dialects.scf import Scf
+
+        return Scf
+
+    def get_snitch():
+        from xdsl.dialects.snitch import Snitch
+
+        return Snitch
+
+    def get_snitch_runtime():
+        from xdsl.dialects.snitch_runtime import SnitchRuntime
+
+        return SnitchRuntime
+
+    def get_stencil():
+        from xdsl.dialects.stencil import Stencil
+
+        return Stencil
+
+    def get_symref():
+        from xdsl.frontend.symref import Symref
+
+        return Symref
+
+    def get_test():
+        from xdsl.dialects.test import Test
+
+        return Test
+
+    def get_vector():
+        from xdsl.dialects.vector import Vector
+
+        return Vector
+
     return [
-        Affine,
-        Arith,
-        Builtin,
-        Cf,
-        CMath,
-        DMP,
-        FIR,
-        Func,
-        GPU,
-        IRDL,
-        LLVM,
-        Math,
-        MemRef,
-        MPI,
-        PDL,
-        RISCV,
-        RISCV_Func,
-        Scf,
-        Snitch,
-        SnitchRuntime,
-        Stencil,
-        Symref,
-        Test,
-        Vector,
+        ("affine", get_affine),
+        ("arith", get_arith),
+        ("builtin", get_builtin),
+        ("cf", get_cf),
+        ("cmath", get_cmath),
+        ("dmp", get_dmp),
+        ("fir", get_fir),
+        ("func", get_func),
+        ("gpu", get_gpu),
+        ("irdl", get_irdl),
+        ("llvm", get_llvm),
+        ("math", get_math),
+        ("memref", get_memref),
+        ("mpi", get_mpi),
+        ("pdl", get_pdl),
+        ("riscv", get_riscv),
+        ("riscv_func", get_riscv_func),
+        ("scf", get_scf),
+        ("snitch", get_snitch),
+        ("snrt", get_snitch_runtime),
+        ("stencil", get_stencil),
+        ("symref", get_symref),
+        ("test", get_test),
+        ("vector", get_vector),
     ]
 
 
-def get_all_passes() -> list[type[ModulePass]]:
+def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
     """Return the list of all available passes."""
+
+    def get_convert_stencil_to_llmlir():
+        from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
+            ConvertStencilToLLMLIRPass,
+        )
+
+        return ConvertStencilToLLMLIRPass
+
+    def get_dead_code_elimination():
+        from xdsl.transforms.dead_code_elimination import DeadCodeElimination
+
+        return DeadCodeElimination
+
+    def get_desymrefy():
+        from xdsl.frontend.passes.desymref import DesymrefyPass
+
+        return DesymrefyPass
+
+    def get_dmp_scatter_gather():
+        from xdsl.transforms.experimental.dmp.scatter_gather import (
+            DmpScatterGatherTrivialLowering,
+        )
+
+        return DmpScatterGatherTrivialLowering
+
+    def get_dmp_stencil_global_to_local():
+        from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
+            GlobalStencilToLocalStencil2DHorizontal,
+        )
+
+        return GlobalStencilToLocalStencil2DHorizontal
+
+    def get_lower_halo_to_mpi():
+        from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
+            LowerHaloToMPI,
+        )
+
+        return LowerHaloToMPI
+
+    def get_lower_mpi():
+        from xdsl.transforms.lower_mpi import LowerMPIPass
+
+        return LowerMPIPass
+
+    def get_lower_riscv_func():
+        from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
+
+        return LowerRISCVFunc
+
+    def get_lower_snitch():
+        from xdsl.transforms.lower_snitch import LowerSnitchPass
+
+        return LowerSnitchPass
+
+    def get_lower_snitch_runtime():
+        from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
+
+        return LowerSnitchRuntimePass
+
+    def get_riscv_register_allocation():
+        from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
+
+        return RISCVRegisterAllocation
+
+    def get_stencil_shape_inference():
+        from xdsl.transforms.experimental.StencilShapeInference import (
+            StencilShapeInferencePass,
+        )
+
+        return StencilShapeInferencePass
+
     return [
-        ConvertStencilToLLMLIRPass,
-        DeadCodeElimination,
-        DesymrefyPass,
-        DmpScatterGatherTrivialLowering,
-        GlobalStencilToLocalStencil2DHorizontal,
-        LowerHaloToMPI,
-        LowerMPIPass,
-        LowerRISCVFunc,
-        LowerSnitchPass,
-        LowerSnitchRuntimePass,
-        RISCVRegisterAllocation,
-        StencilShapeInferencePass,
+        ("convert-stencil-to-ll-mlir", get_convert_stencil_to_llmlir),
+        ("dce", get_dead_code_elimination),
+        ("frontend-desymrefy", get_desymrefy),
+        ("dmp-setup-and-teardown", get_dmp_scatter_gather),
+        ("dmp-decompose-2d", get_dmp_stencil_global_to_local),
+        ("dmp-to-mpi", get_lower_halo_to_mpi),
+        ("lower-mpi", get_lower_mpi),
+        ("lower-riscv-func", get_lower_riscv_func),
+        ("lower-snitch", get_lower_snitch),
+        ("lower-snrt-to-func", get_lower_snitch_runtime),
+        ("riscv-allocate-registers", get_riscv_register_allocation),
+        ("stencil-shape-inference", get_stencil_shape_inference),
     ]
 
 
@@ -121,7 +272,7 @@ class xDSLOptMain:
     file type.
     """
 
-    available_passes: Dict[str, Type[ModulePass]]
+    available_passes: Dict[str, Callable[[], type[ModulePass]]]
     """
     A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
@@ -277,8 +428,8 @@ class xDSLOptMain:
 
         Add other/additional dialects by overloading this function.
         """
-        for dialect in get_all_dialects():
-            self.ctx.register_dialect(dialect)
+        for dialect_name, dialect_factory in get_all_dialects():
+            self.ctx.register_dialect(dialect_name, dialect_factory)
 
     def register_all_frontends(self):
         """
@@ -297,8 +448,8 @@ class xDSLOptMain:
 
         self.available_frontends["mlir"] = parse_mlir
 
-    def register_pass(self, opPass: Type[ModulePass]):
-        self.available_passes[opPass.name] = opPass
+    def register_pass(self, pass_name: str, opPass: Callable[[], type[ModulePass]]):
+        self.available_passes[pass_name] = opPass
 
     def register_all_passes(self):
         """
@@ -306,8 +457,8 @@ class xDSLOptMain:
 
         Add other/additional passes by overloading this function.
         """
-        for pass_ in get_all_passes():
-            self.register_pass(pass_)
+        for pass_name, pass_ in get_all_passes():
+            self.register_pass(pass_name, pass_)
 
     def register_all_targets(self):
         """
@@ -355,7 +506,7 @@ class xDSLOptMain:
                 raise Exception(f"Unrecognized pass: {p.name}")
 
         self.pipeline = [
-            self.available_passes[p.name].from_pass_spec(p) for p in pipeline
+            self.available_passes[p.name]().from_pass_spec(p) for p in pipeline
         ]
 
     def prepare_input(self) -> tuple[List[IO[str]], str]:
