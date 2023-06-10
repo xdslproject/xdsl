@@ -4,6 +4,7 @@ from typing import Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.traits import IsTerminator
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -51,6 +52,8 @@ class If(IRDLOperation):
 class Yield(IRDLOperation):
     name = "scf.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
+
+    traits = frozenset([IsTerminator()])
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:

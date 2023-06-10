@@ -29,7 +29,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -321,7 +321,7 @@ class Return(IRDLOperation):
     name = "func.return"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(FuncOp)])
+    traits = frozenset([HasParent(FuncOp), IsTerminator()])
 
     def verify_(self) -> None:
         func_op = self.parent_op()
