@@ -34,7 +34,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.core import IRNode
+
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     PyRDLAttrDefinitionError,
