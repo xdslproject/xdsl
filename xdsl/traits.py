@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 from __future__ import annotations
 from dataclasses import dataclass, field
+=======
+from dataclasses import dataclass
+from xdsl.ir import OpTrait, Operation
+from xdsl.ir.core import Region
+>>>>>>> a0f6149b (IsolatedFromAbove)
 from xdsl.utils.exceptions import VerifyException
 from typing import (
     TYPE_CHECKING,
@@ -75,3 +81,23 @@ class IsTerminator(OpTrait):
             raise VerifyException(
                 f"'{op.name}' must be the last operation in the parent block"
             )
+class IsolatedFromAbove(OpTrait):
+    """
+    Constraint the conained operations to use only values defined inside this
+    operation.
+    """
+
+    def verify(self, op: Operation) -> None:
+        regions: list[Region] = op.regions.copy()
+
+        while regions:
+            region = regions.pop()
+            for block in region.blocks:
+                for cop in block.ops:
+                    for v in cop.operands:
+                        if not op.is_ancestor(v.owner):
+                            raise VerifyException(
+                                "Operation using value defined out of its IsolatedFromAbove parent!"
+                            )
+                    if not cop.has_trait(IsolatedFromAbove):
+                        regions += cop.regions
