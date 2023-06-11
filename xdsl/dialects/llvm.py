@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     ContainerType,
 )
 from xdsl.ir import (
-    Block,
     TypeAttribute,
     ParametrizedAttribute,
     Attribute,
@@ -731,7 +730,7 @@ class GlobalOp(IRDLOperation):
                 section = StringAttr(section)
             attrs["section"] = section
 
-        return GlobalOp.build(attributes=attrs, regions=[Region([Block()])])
+        return GlobalOp.build(attributes=attrs, regions=[Region([])])
 
 
 @irdl_op_definition
