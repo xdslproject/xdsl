@@ -67,6 +67,7 @@ setup(
         "console_scripts": [
             "xdsl-opt = xdsl.tools.xdsl_opt:main",
             "irdl-to-pyrdl = xdsl.tools.irdl_to_pyrdl:main",
+            "wgpu-translate = wgpu.wgpu_translate:main",
         ]
     },
     project_urls={
