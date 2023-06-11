@@ -1088,20 +1088,6 @@ class BlockReverseOps:
             result += 1
         return result
 
-    @property
-    def last(self) -> Operation | None:
-        """
-        Last operation in the block, None if block is empty.
-        """
-        return self.block.last_op
-
-    @property
-    def first(self) -> Operation | None:
-        """
-        First operation in the block, None if block is empty.
-        """
-        return self.block.first_op
-
 
 @dataclass(init=False)
 class Block(IRNode):
