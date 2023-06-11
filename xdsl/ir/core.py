@@ -760,7 +760,7 @@ class Operation(IRNode):
         """
         Iterate all operations contained in the operation (including this one) in reverse order.
         """
-        for region in self.regions:
+        for region in self.regions[::-1]:
             yield from region.walk_reverse()
         yield self
 
