@@ -550,9 +550,7 @@ def test_block_walk():
     ops = [a, b, c]
     block = Block(ops)
 
-    ops_after_walk: list[Operation] = []
-    for op in block.walk():
-        ops_after_walk.append(op)
+    ops_after_walk = list(block.walk())
 
     assert ops == ops_after_walk
 
@@ -566,9 +564,7 @@ def test_region_walk():
 
     region = Region([block_a, block_b])
 
-    ops_after_walk: list[Operation] = []
-    for op in region.walk():
-        ops_after_walk.append(op)
+    ops_after_walk = list(region.walk())
 
     assert ops_after_walk == [a, b]
 
@@ -585,9 +581,7 @@ def test_op_walk():
 
     op_multi_region = TestOp.create(regions=[region_a, region_b])
 
-    ops_after_walk: list[Operation] = []
-    for op in op_multi_region.walk():
-        ops_after_walk.append(op)
+    ops_after_walk = list(op_multi_region.walk())
 
     assert ops_after_walk == [op_multi_region, a, b]
 
@@ -600,9 +594,7 @@ def test_block_walk_reverse():
     ops = [a, b, c]
     block = Block(ops)
 
-    ops_after_walk: list[Operation] = []
-    for op in block.walk_reverse():
-        ops_after_walk.append(op)
+    ops_after_walk = list(block.walk_reverse())
 
     assert ops == list(reversed(ops_after_walk))
 
@@ -616,9 +608,7 @@ def test_region_walk_reverse():
 
     region = Region([block_a, block_b])
 
-    ops_after_walk: list[Operation] = []
-    for op in region.walk_reverse():
-        ops_after_walk.append(op)
+    ops_after_walk = list(region.walk_reverse())
 
     assert ops_after_walk == [b, a]
 
@@ -635,9 +625,6 @@ def test_op_walk_reverse():
 
     op_multi_region = TestOp.create(regions=[region_a, region_b])
 
-    ops_after_walk: list[Operation] = []
-    for op in op_multi_region.walk_reverse():
-        print(op)
-        ops_after_walk.append(op)
+    ops_after_walk = list(op_multi_region.walk_reverse())
 
     assert ops_after_walk == [b, a, op_multi_region]
