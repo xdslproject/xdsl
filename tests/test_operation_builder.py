@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from typing import Annotated
-
 from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.arith import Constant
 
@@ -11,25 +9,34 @@ from xdsl.ir import Block, OpResult, Region
 from xdsl.irdl import (
     AttrSizedRegionSegments,
     AttrSizedSuccessorSegments,
-    OptOpResult,
     OptOperand,
     OptRegion,
-    OptSingleBlockRegion,
     Operand,
     OptSuccessor,
-    SingleBlockRegion,
     Successor,
     VarOpResult,
     VarRegion,
-    VarSingleBlockRegion,
     VarSuccessor,
+    attr_def,
     irdl_op_definition,
     AttrSizedResultSegments,
     VarOperand,
     AttrSizedOperandSegments,
-    OpAttr,
-    OptOpAttr,
     IRDLOperation,
+    OptOpResult,
+    opt_attr_def,
+    opt_region_def,
+    opt_successor_def,
+    region_def,
+    result_def,
+    opt_result_def,
+    successor_def,
+    var_region_def,
+    var_result_def,
+    operand_def,
+    opt_operand_def,
+    var_operand_def,
+    var_successor_def,
 )
 
 #  ____                 _ _
@@ -44,7 +51,7 @@ from xdsl.irdl import (
 class ResultOp(IRDLOperation):
     name = "test.result_op"
 
-    res: Annotated[OpResult, StringAttr]
+    res: OpResult = result_def(StringAttr)
 
 
 def test_result_builder():
@@ -62,7 +69,7 @@ def test_result_builder_exception():
 class OptResultOp(IRDLOperation):
     name = "test.opt_result_op"
 
-    res: Annotated[OptOpResult, StringAttr]
+    res: OptOpResult = opt_result_def(StringAttr)
 
 
 def test_opt_result_builder():
@@ -86,7 +93,7 @@ def test_opt_result_builder_two_args():
 class VarResultOp(IRDLOperation):
     name = "test.var_result_op"
 
-    res: Annotated[VarOpResult, StringAttr]
+    res: VarOpResult = var_result_def(StringAttr)
 
 
 def test_var_result_builder():
@@ -102,8 +109,8 @@ def test_var_result_builder():
 class TwoVarResultOp(IRDLOperation):
     name = "test.two_var_result_op"
 
-    res1: Annotated[VarOpResult, StringAttr]
-    res2: Annotated[VarOpResult, StringAttr]
+    res1: VarOpResult = var_result_def(StringAttr)
+    res2: VarOpResult = var_result_def(StringAttr)
     irdl_options = [AttrSizedResultSegments()]
 
 
@@ -150,9 +157,9 @@ def test_two_var_result_builder2():
 class MixedResultOp(IRDLOperation):
     name = "test.mixed"
 
-    res1: Annotated[VarOpResult, StringAttr]
-    res2: Annotated[OpResult, StringAttr]
-    res3: Annotated[VarOpResult, StringAttr]
+    res1: VarOpResult = var_result_def(StringAttr)
+    res2: OpResult = result_def(StringAttr)
+    res3: VarOpResult = var_result_def(StringAttr)
     irdl_options = [AttrSizedResultSegments()]
 
 
@@ -191,7 +198,7 @@ def test_var_mixed_builder():
 class OperandOp(IRDLOperation):
     name = "test.operand_op"
 
-    res: Annotated[Operand, StringAttr]
+    res: Operand = operand_def(StringAttr)
 
 
 def test_operand_builder_operation():
@@ -217,7 +224,7 @@ def test_operand_builder_exception():
 class OptOperandOp(IRDLOperation):
     name = "test.opt_operand_op"
 
-    res: Annotated[OptOperand, StringAttr]
+    res: OptOperand = opt_operand_def(StringAttr)
 
 
 def test_opt_operand_builder():
@@ -240,7 +247,7 @@ def test_opt_operand_builder_two_args():
 class VarOperandOp(IRDLOperation):
     name = "test.var_operand_op"
 
-    res: Annotated[VarOperand, StringAttr]
+    res: VarOperand = var_operand_def(StringAttr)
 
 
 def test_var_operand_builder():
@@ -254,8 +261,8 @@ def test_var_operand_builder():
 class TwoVarOperandOp(IRDLOperation):
     name = "test.two_var_operand_op"
 
-    res1: Annotated[VarOperand, StringAttr]
-    res2: Annotated[VarOperand, StringAttr]
+    res1: VarOperand = var_operand_def(StringAttr)
+    res2: VarOperand = var_operand_def(StringAttr)
     irdl_options = [AttrSizedOperandSegments()]
 
 
@@ -290,7 +297,7 @@ def test_two_var_operand_builder2():
 @irdl_op_definition
 class AttrOp(IRDLOperation):
     name = "test.two_var_result_op"
-    attr: OpAttr[StringAttr]
+    attr: StringAttr = attr_def(StringAttr)
 
 
 def test_attr_op():
@@ -310,7 +317,7 @@ def test_attr_new_attr_op():
 class OptionalAttrOp(IRDLOperation):
     name = "test.opt_attr_op"
 
-    opt_attr: OptOpAttr[StringAttr]
+    opt_attr: StringAttr | None = opt_attr_def(StringAttr)
 
 
 def test_optional_attr_op_empty():
@@ -332,7 +339,7 @@ def test_optional_attr_op_empty():
 class RegionOp(IRDLOperation):
     name = "test.region_op"
 
-    region: Region
+    region: Region = region_def()
 
 
 def test_region_op_region():
@@ -372,7 +379,7 @@ def test_singleop_region():
 class SBRegionOp(IRDLOperation):
     name = "test.sbregion_op"
 
-    region: SingleBlockRegion
+    region: Region = region_def("single_block")
 
 
 def test_sbregion_one_block():
@@ -385,7 +392,7 @@ def test_sbregion_one_block():
 class OptRegionOp(IRDLOperation):
     name = "test.opt_region_op"
 
-    reg: OptRegion
+    reg: OptRegion = opt_region_def()
 
 
 def test_opt_region_builder():
@@ -406,7 +413,7 @@ def test_opt_region_builder_two_args():
 class OptSBRegionOp(IRDLOperation):
     name = "test.sbregion_op"
 
-    region: OptSingleBlockRegion
+    region: OptRegion = opt_region_def("single_block")
 
 
 def test_opt_sbregion_one_block():
@@ -423,7 +430,7 @@ def test_opt_sbregion_one_block():
 class VarRegionOp(IRDLOperation):
     name = "test.var_operand_op"
 
-    regs: VarRegion
+    regs: VarRegion = var_region_def()
 
 
 def test_var_region_builder():
@@ -437,7 +444,7 @@ def test_var_region_builder():
 class VarSBRegionOp(IRDLOperation):
     name = "test.sbregion_op"
 
-    regs: VarSingleBlockRegion
+    regs: VarRegion = var_region_def("single_block")
 
 
 def test_var_sbregion_one_block():
@@ -455,8 +462,8 @@ def test_var_sbregion_one_block():
 class TwoVarRegionOp(IRDLOperation):
     name = "test.two_var_region_op"
 
-    res1: Annotated[VarRegion, StringAttr]
-    res2: Annotated[VarRegion, StringAttr]
+    res1: VarRegion = var_region_def()
+    res2: VarRegion = var_region_def()
     irdl_options = [AttrSizedRegionSegments()]
 
 
@@ -498,7 +505,7 @@ def test_two_var_operand_builder3():
 class SuccessorOp(IRDLOperation):
     name = "test.successor_op"
 
-    successor: Successor
+    successor: Successor = successor_def()
 
 
 def test_successor_op_successor():
@@ -517,7 +524,7 @@ def test_successor_op_successor():
 class OptSuccessorOp(IRDLOperation):
     name = "test.opt_successora_op"
 
-    successor: OptSuccessor
+    successor: OptSuccessor = opt_successor_def()
 
 
 def test_opt_successor_builder():
@@ -540,7 +547,7 @@ def test_opt_successor_builder():
 class VarSuccessorOp(IRDLOperation):
     name = "test.var_succesor_op"
 
-    successor: VarSuccessor
+    successor: VarSuccessor = var_successor_def()
 
 
 def test_var_successor_builder():
@@ -561,8 +568,8 @@ def test_var_successor_builder():
 class TwoVarSuccessorOp(IRDLOperation):
     name = "test.two_var_successor_op"
 
-    res1: VarSuccessor
-    res2: VarSuccessor
+    res1: VarSuccessor = var_successor_def()
+    res2: VarSuccessor = var_successor_def()
     irdl_options = [AttrSizedSuccessorSegments()]
 
 

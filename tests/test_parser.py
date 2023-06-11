@@ -14,7 +14,12 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.test import Test
 from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
-from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
+from xdsl.irdl import (
+    irdl_attr_definition,
+    irdl_op_definition,
+    IRDLOperation,
+    region_def,
+)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
@@ -379,8 +384,8 @@ def test_parse_region_with_args_fail(text: str):
 @irdl_op_definition
 class MultiRegionOp(IRDLOperation):
     name = "test.multi_region"
-    r1: Region
-    r2: Region
+    r1: Region = region_def()
+    r2: Region = region_def()
 
 
 def test_parse_multi_region_mlir():

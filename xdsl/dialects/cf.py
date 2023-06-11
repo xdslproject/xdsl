@@ -1,13 +1,13 @@
 from __future__ import annotations
 from collections.abc import Sequence
 
-from typing import Annotated, Union, Sequence
+from typing import Union, Sequence
 
 from xdsl.dialects.builtin import IntegerType, StringAttr
 from xdsl.ir import SSAValue, Operation, Block, Dialect
 from xdsl.traits import IsTerminator
 from xdsl.irdl import (
-    OpAttr,
+    attr_def,
     irdl_op_definition,
     VarOperand,
     AnyAttr,
@@ -15,14 +15,17 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Successor,
+    operand_def,
+    successor_def,
+    var_operand_def,
 )
 
 
 @irdl_op_definition
 class Assert(IRDLOperation):
     name = "cf.assert"
-    arg: Annotated[Operand, IntegerType(1)]
-    msg: OpAttr[StringAttr]
+    arg: Operand = operand_def(IntegerType(1))
+    msg: StringAttr = attr_def(StringAttr)
 
     @staticmethod
     def get(arg: Operation | SSAValue, msg: str | StringAttr) -> Assert:
@@ -35,8 +38,8 @@ class Assert(IRDLOperation):
 class Branch(IRDLOperation):
     name = "cf.br"
 
-    arguments: Annotated[VarOperand, AnyAttr()]
-    successor: Successor
+    arguments: VarOperand = var_operand_def(AnyAttr())
+    successor: Successor = successor_def()
 
     traits = frozenset([IsTerminator()])
 
@@ -49,14 +52,14 @@ class Branch(IRDLOperation):
 class ConditionalBranch(IRDLOperation):
     name = "cf.cond_br"
 
-    cond: Annotated[Operand, IntegerType(1)]
-    then_arguments: Annotated[VarOperand, AnyAttr()]
-    else_arguments: Annotated[VarOperand, AnyAttr()]
+    cond: Operand = operand_def(IntegerType(1))
+    then_arguments: VarOperand = var_operand_def(AnyAttr())
+    else_arguments: VarOperand = var_operand_def(AnyAttr())
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    then_block: Successor
-    else_block: Successor
+    then_block: Successor = successor_def()
+    else_block: Successor = successor_def()
 
     traits = frozenset([IsTerminator()])
 

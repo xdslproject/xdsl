@@ -5,12 +5,13 @@ from xdsl.irdl import (
     Operand,
     Operation,
     SSAValue,
+    operand_def,
+    result_def,
     ConstraintVar,
-    Attribute,
 )
-from xdsl.ir import OpResult, Dialect
+from xdsl.ir import OpResult, Dialect, Attribute
 from xdsl.dialects.builtin import i32, i64, IndexType
-from typing import Annotated, Generic, TypeVar
+from typing import Generic, TypeVar, Annotated
 
 tx_id = i32
 
@@ -33,7 +34,7 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOp, ABC):
     A base class for snitch runtime functions that get a certain value at runtime
     """
 
-    result: Annotated[OpResult, i32]
+    result: OpResult = result_def(i32)
 
     def __init__(
         self,
@@ -79,10 +80,10 @@ class DmaStart1DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
     """
 
     T = Annotated[Attribute, ConstraintVar("T"), _T]
-    dst: Annotated[Operand, T]
-    src: Annotated[Operand, T]
-    size: Annotated[Operand, IndexType]
-    transfer_id: Annotated[OpResult, tx_id]
+    dst: Operand = operand_def(T)
+    src: Operand = operand_def(T)
+    size: Operand = operand_def(IndexType)
+    transfer_id: OpResult = result_def(tx_id)
 
     def __init__(
         self,
@@ -99,13 +100,13 @@ class DmaStart2DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
     """
 
     T = Annotated[Attribute, ConstraintVar("T"), _T]
-    dst: Annotated[Operand, T]
-    src: Annotated[Operand, T]
-    dst_stride: Annotated[Operand, IndexType]
-    src_stride: Annotated[Operand, IndexType]
-    size: Annotated[Operand, IndexType]
-    repeat: Annotated[Operand, IndexType]
-    transfer_id: Annotated[OpResult, tx_id]
+    dst: Operand = operand_def(T)
+    src: Operand = operand_def(T)
+    dst_stride: Operand = operand_def(IndexType)
+    src_stride: Operand = operand_def(IndexType)
+    size: Operand = operand_def(IndexType)
+    repeat: Operand = operand_def(IndexType)
+    transfer_id: OpResult = result_def(tx_id)
 
     def __init__(
         self,
@@ -165,7 +166,7 @@ class DmaWaitOp(SnitchRuntimeBaseOp):
     """
 
     name = "snrt.dma_wait"
-    transfer_id: Annotated[Operand, tx_id]
+    transfer_id: Operand = operand_def(tx_id)
 
     def __init__(self, transfer_id: Operation | SSAValue):
         super().__init__(operands=[transfer_id], result_types=[])

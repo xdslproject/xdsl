@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Sequence
+from typing import Sequence
 
 from xdsl.dialects.builtin import (
     IndexType,
@@ -11,7 +11,16 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue, Dialect, OpResult
-from xdsl.irdl import AnyAttr, irdl_op_definition, Operand, VarOperand, IRDLOperation
+from xdsl.irdl import (
+    AnyAttr,
+    irdl_op_definition,
+    Operand,
+    VarOperand,
+    IRDLOperation,
+    operand_def,
+    result_def,
+    var_operand_def,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import assert_isa, isa
 
@@ -19,9 +28,9 @@ from xdsl.utils.hints import assert_isa, isa
 @irdl_op_definition
 class Load(IRDLOperation):
     name = "vector.load"
-    memref: Annotated[Operand, MemRefType]
-    indices: Annotated[VarOperand, IndexType]
-    res: Annotated[OpResult, VectorType]
+    memref: Operand = operand_def(MemRefType)
+    indices: VarOperand = var_operand_def(IndexType)
+    res: OpResult = result_def(VectorType)
 
     def verify_(self):
         assert isa(self.memref.typ, MemRefType[Attribute])
@@ -51,9 +60,9 @@ class Load(IRDLOperation):
 @irdl_op_definition
 class Store(IRDLOperation):
     name = "vector.store"
-    vector: Annotated[Operand, VectorType]
-    memref: Annotated[Operand, MemRefType]
-    indices: Annotated[VarOperand, IndexType]
+    vector: Operand = operand_def(VectorType)
+    memref: Operand = operand_def(MemRefType)
+    indices: VarOperand = var_operand_def(IndexType)
 
     def verify_(self):
         assert isa(self.memref.typ, MemRefType[Attribute])
@@ -79,8 +88,8 @@ class Store(IRDLOperation):
 @irdl_op_definition
 class Broadcast(IRDLOperation):
     name = "vector.broadcast"
-    source: Annotated[Operand, AnyAttr()]
-    vector: Annotated[OpResult, VectorType]
+    source: Operand = operand_def(AnyAttr())
+    vector: OpResult = result_def(VectorType)
 
     def verify_(self):
         assert isa(self.vector.typ, VectorType[Attribute])
@@ -103,10 +112,10 @@ class Broadcast(IRDLOperation):
 @irdl_op_definition
 class FMA(IRDLOperation):
     name = "vector.fma"
-    lhs: Annotated[Operand, VectorType]
-    rhs: Annotated[Operand, VectorType]
-    acc: Annotated[Operand, VectorType]
-    res: Annotated[OpResult, VectorType]
+    lhs: Operand = operand_def(VectorType)
+    rhs: Operand = operand_def(VectorType)
+    acc: Operand = operand_def(VectorType)
+    res: OpResult = result_def(VectorType)
 
     def verify_(self):
         assert isa(self.lhs.typ, VectorType[Attribute])
@@ -163,11 +172,11 @@ class FMA(IRDLOperation):
 @irdl_op_definition
 class Maskedload(IRDLOperation):
     name = "vector.maskedload"
-    memref: Annotated[Operand, MemRefType]
-    indices: Annotated[VarOperand, IndexType]
-    mask: Annotated[Operand, VectorBaseTypeAndRankConstraint(i1, 1)]
-    passthrough: Annotated[Operand, VectorType]
-    res: Annotated[OpResult, VectorRankConstraint(1)]
+    memref: Operand = operand_def(MemRefType)
+    indices: VarOperand = var_operand_def(IndexType)
+    mask: Operand = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
+    passthrough: Operand = operand_def(VectorType)
+    res: OpResult = result_def(VectorRankConstraint(1))
 
     def verify_(self):
         memref_typ = self.memref.typ
@@ -217,10 +226,10 @@ class Maskedload(IRDLOperation):
 @irdl_op_definition
 class Maskedstore(IRDLOperation):
     name = "vector.maskedstore"
-    memref: Annotated[Operand, MemRefType]
-    indices: Annotated[VarOperand, IndexType]
-    mask: Annotated[Operand, VectorBaseTypeAndRankConstraint(i1, 1)]
-    value_to_store: Annotated[Operand, VectorRankConstraint(1)]
+    memref: Operand = operand_def(MemRefType)
+    indices: VarOperand = var_operand_def(IndexType)
+    mask: Operand = operand_def(VectorBaseTypeAndRankConstraint(i1, 1))
+    value_to_store: Operand = operand_def(VectorRankConstraint(1))
 
     def verify_(self):
         memref_typ = self.memref.typ
@@ -259,7 +268,7 @@ class Maskedstore(IRDLOperation):
 @irdl_op_definition
 class Print(IRDLOperation):
     name = "vector.print"
-    source: Annotated[Operand, AnyAttr()]
+    source: Operand = operand_def(AnyAttr())
 
     @staticmethod
     def get(source: Operation | SSAValue) -> Print:
@@ -269,8 +278,8 @@ class Print(IRDLOperation):
 @irdl_op_definition
 class Createmask(IRDLOperation):
     name = "vector.create_mask"
-    mask_operands: Annotated[VarOperand, IndexType]
-    mask_vector: Annotated[OpResult, VectorBaseTypeConstraint(i1)]
+    mask_operands: VarOperand = var_operand_def(IndexType)
+    mask_vector: OpResult = result_def(VectorBaseTypeConstraint(i1))
 
     def verify_(self):
         assert isa(self.mask_vector.typ, VectorType[Attribute])
