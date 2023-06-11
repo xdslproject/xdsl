@@ -547,3 +547,44 @@ def test_replace_operand():
 
     with pytest.raises(ValueError):
         add.replace_operand(cst0, new_cst)
+
+
+def test_block_walk():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+    c = Constant.from_int_and_width(3, 32)
+
+    ops = [a, b, c]
+    block = Block(ops)
+
+    assert list(block.walk()) == [a, b, c]
+    assert list(block.walk_reverse()) == [c, b, a]
+
+
+def test_region_walk():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+
+    block_a = Block([a])
+    block_b = Block([b])
+
+    region = Region([block_a, block_b])
+
+    assert list(region.walk()) == [a, b]
+    assert list(region.walk_reverse()) == [b, a]
+
+
+def test_op_walk():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+
+    block_a = Block([a])
+    block_b = Block([b])
+
+    region_a = Region(block_a)
+    region_b = Region(block_b)
+
+    op_multi_region = TestOp.create(regions=[region_a, region_b])
+
+    assert list(op_multi_region.walk()) == [op_multi_region, a, b]
+    assert list(op_multi_region.walk_reverse()) == [b, a, op_multi_region]
