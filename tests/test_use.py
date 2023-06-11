@@ -13,8 +13,8 @@ test_prog = """
 
 def test_main():
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Test)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
 
     parser = Parser(ctx, test_prog)
     module = parser.parse_op()

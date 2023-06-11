@@ -87,10 +87,10 @@ program_successors = """
 )
 def test_immutable_ir(program_str: str):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Cf)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Cf)
 
     parser = Parser(ctx, program_str)
     program: Operation = parser.parse_op()

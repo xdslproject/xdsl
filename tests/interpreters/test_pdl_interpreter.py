@@ -45,7 +45,7 @@ def test_rewrite_swap_inputs_pdl():
     stream = StringIO()
     interpreter = Interpreter(rewrite_module, file=stream)
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
+    ctx.load_dialect(arith.Arith)
 
     pdl_ft = PDLFunctions(ctx, input_module)
     interpreter.register_implementations(pdl_ft)
@@ -153,7 +153,7 @@ def test_rewrite_add_zero_pdl():
     stream = StringIO()
     interpreter = Interpreter(rewrite_module, file=stream)
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
+    ctx.load_dialect(arith.Arith)
 
     pdl_ft = PDLFunctions(ctx, input_module)
     interpreter.register_implementations(pdl_ft)

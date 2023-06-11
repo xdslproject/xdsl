@@ -41,7 +41,7 @@ from xdsl.utils.exceptions import ParseError
 def test_simple_forgotten_op():
     """Test that the parsing of an undefined operand gives it a name."""
     ctx = MLContext()
-    ctx.register_dialect(Arith)
+    ctx.load_dialect(Arith)
 
     lit = Constant.from_int_and_width(42, 32)
     add = Addi(lit, lit)
@@ -114,8 +114,8 @@ def test_op_message():
 """
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
@@ -149,8 +149,8 @@ def test_two_different_op_messages():
 }) : () -> ()"""
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
@@ -184,8 +184,8 @@ def test_two_same_op_messages():
 }) : () -> ()"""
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
@@ -217,8 +217,8 @@ def test_op_message_with_region():
 }) : () -> ()"""
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -250,8 +250,8 @@ def test_op_message_with_region_and_overflow():
 }) : () -> ()"""
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -273,8 +273,8 @@ def test_diagnostic():
 }) : () -> ()"""
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -314,8 +314,8 @@ def test_print_custom_name():
 """
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -481,9 +481,9 @@ builtin.module {
 """
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
-    ctx.register_op(PlusCustomFormatOp)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
+    ctx.load_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -510,9 +510,9 @@ builtin.module {
 """
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
-    ctx.register_op(PlusCustomFormatOp)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
+    ctx.load_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -539,9 +539,9 @@ def test_custom_format_II():
 """
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
-    ctx.register_op(PlusCustomFormatOp)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
+    ctx.load_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -569,9 +569,9 @@ def test_missing_custom_format():
 """
 
     ctx = MLContext()
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Builtin)
-    ctx.register_op(PlusCustomFormatOp)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
+    ctx.load_op(PlusCustomFormatOp)
 
     parser = Parser(ctx, prog)
     with pytest.raises(ParseError):
@@ -620,9 +620,9 @@ def test_custom_format_attr():
 }) : () -> ()"""
 
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_op(AnyOp)
-    ctx.register_attr(CustomFormatAttr)
+    ctx.load_dialect(Builtin)
+    ctx.load_op(AnyOp)
+    ctx.load_attr(CustomFormatAttr)
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
@@ -638,8 +638,8 @@ def test_dictionary_attr():
     """
 
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
 
     parser = Parser(ctx, prog)
     parsed = parser.parse_op()

@@ -17,9 +17,9 @@ from xdsl.utils.hints import isa
 
 def rewrite_and_compare(prog: str, expected_prog: str, walker: PatternRewriteWalker):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Scf)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Scf)
 
     parser = Parser(ctx, prog, allow_unregistered_dialect=True)
     module = parser.parse_module()
@@ -466,8 +466,8 @@ def test_operation_deletion_failure():
     """Test rewrites where SSA values are deleted with still uses."""
 
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Arith)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
 
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
