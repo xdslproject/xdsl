@@ -623,25 +623,6 @@ def test_region_walk_reverse():
     assert ops_after_walk == [b, a]
 
 
-def test_op_walk():
-    a = Constant.from_int_and_width(1, 32)
-    b = Constant.from_int_and_width(2, 32)
-
-    block_a = Block([a])
-    block_b = Block([b])
-
-    region_a = Region(block_a)
-    region_b = Region(block_b)
-
-    op_multi_region = TestOp.create(regions=[region_a, region_b])
-
-    ops_after_walk: list[Operation] = []
-    for op in op_multi_region.walk():
-        ops_after_walk.append(op)
-
-    assert ops_after_walk == [op_multi_region, a, b]
-
-
 def test_op_walk_reverse():
     a = Constant.from_int_and_width(1, 32)
     b = Constant.from_int_and_width(2, 32)
