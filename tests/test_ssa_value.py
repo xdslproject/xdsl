@@ -1,19 +1,17 @@
 import pytest
 
-from typing import Annotated
-
 from xdsl.dialects.builtin import i32, StringAttr
 
 from xdsl.ir import Block, OpResult, BlockArgument, SSAValue
-from xdsl.irdl import irdl_op_definition, IRDLOperation
+from xdsl.irdl import irdl_op_definition, IRDLOperation, result_def
 
 
 @irdl_op_definition
 class TwoResultOp(IRDLOperation):
     name = "test.tworesults"
 
-    res1: Annotated[OpResult, StringAttr]
-    res2: Annotated[OpResult, StringAttr]
+    res1: OpResult = result_def(StringAttr)
+    res2: OpResult = result_def(StringAttr)
 
 
 def test_var_mixed_builder():

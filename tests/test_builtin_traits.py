@@ -5,7 +5,13 @@ Test the usage of builtin traits.
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.irdl import IRDLOperation, OptSuccessor, irdl_op_definition
+from xdsl.irdl import (
+    IRDLOperation,
+    OptSuccessor,
+    irdl_op_definition,
+    opt_successor_def,
+    region_def,
+)
 from xdsl.ir import Region, Block
 from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -16,14 +22,14 @@ from xdsl.dialects.test import TestOp
 class ParentOp(IRDLOperation):
     name = "test.parent"
 
-    region: Region
+    region: Region = region_def()
 
 
 @irdl_op_definition
 class Parent2Op(IRDLOperation):
     name = "test.parent2"
 
-    region: Region
+    region: Region = region_def()
 
 
 @irdl_op_definition
@@ -111,7 +117,7 @@ class IsTerminatorOp(IRDLOperation):
 
     name = "test.is_terminator"
 
-    successor: OptSuccessor
+    successor: OptSuccessor = opt_successor_def()
 
     traits = frozenset([IsTerminator()])
 
