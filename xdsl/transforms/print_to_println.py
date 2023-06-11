@@ -1,12 +1,16 @@
 from typing import Iterable
 
-from xdsl.ir import SSAValue, Attribute
+from xdsl.ir import SSAValue, Attribute, MLContext, Operation
 from xdsl.dialects import func, print, builtin, arith, llvm
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
+    PatternRewriteWalker,
+    GreedyRewritePatternApplier,
 )
+
+from xdsl.passes import ModulePass
 
 
 i8 = builtin.IntegerType.from_width(8)
@@ -28,7 +32,7 @@ def _format_string_spec_from_print_op(op: print.PrintLnOp) -> Iterable[str | SSA
     for part in format_str[:-1]:
         if part != "":
             yield part
-        yield next(args).typ
+        yield next(args)
     if format_str[-1] != "":
         yield format_str[-1]
 
@@ -58,31 +62,50 @@ class PrintlnOpToPrintfCall(RewritePattern):
         return llvm.GlobalOp.get(
             llvm.LLVMArrayType.from_size_and_type(len(data), i8),
             f"{self.printf_prefix}_data_{self.printf_count}",
-            constant=builtin.UnitAttr(),
+            constant=True,
+            linkage="internal",
             value=builtin.DenseArrayBase.create_dense_int_or_index(i8, data),
         )
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: print.PrintLnOp, rewriter: PatternRewriter, /):
         format_str = ""
-        args = []
-        casts = []
+        args: list[SSAValue] = []
+        casts: list[Operation] = []
         for part in _format_string_spec_from_print_op(op):
             if isinstance(part, str):
                 format_str += part
             elif isinstance(part.typ, builtin.IndexType):
                 # index must be cast to fixed bitwidth (I think) before printing
                 casts.append(new_val := arith.IndexCastOp.get(part, builtin.i64))
-                args.append(new_val)
+                args.append(new_val.result)
                 format_str += "%li"
-            elif isinstance(part.typ, builtin.f32):
+            elif part.typ == builtin.f32:
                 # f32 must be promoted to f64 before printing
                 casts.append(new_val := arith.ExtFOp.get(part, builtin.f64))
-                args.append(new_val)
+                args.append(new_val.result)
                 format_str += "%f"
             else:
-                args.append(part),
+                args.append(part)
                 format_str += _format_str_for_typ(part.typ)
 
         # TODO: create the global thingy and load the address here
-        rewriter.replace_matched_op(casts + [func.Call.get("printf", args)])
+        rewriter.replace_matched_op(
+            casts
+            + [
+                str_data := self._construct_global(format_str + "\n"),
+                ptr := llvm.AddressOfOp.get(
+                    str_data.sym_name, llvm.LLVMPointerType.typed(str_data.global_type)
+                ),
+                func.Call.get("printf", [ptr.result, *args], []),
+            ]
+        )
+
+
+class PrintToPintf(ModulePass):
+    name = "print-to-printf"
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier([PrintlnOpToPrintfCall()])
+        ).rewrite_module(op)
