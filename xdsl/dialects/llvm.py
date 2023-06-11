@@ -685,7 +685,7 @@ class GlobalOp(IRDLOperation):
         global_type: Attribute,
         sym_name: str | StringAttr,
         linkage: str | LinkageAttr,
-        addr_space: int,
+        addr_space: int = 0,
         constant: bool | None = None,
         dso_local: bool | None = None,
         thread_local_: bool | None = None,
