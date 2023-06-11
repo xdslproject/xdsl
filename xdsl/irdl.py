@@ -948,7 +948,6 @@ def opt_successor_def(
     return cast(OptSuccessor, _SuccessorFieldDef(OptSuccessorDef))
 
 
-_OPERATION_MRO = Operation.mro()
 # Exclude `object`
 _OPERATION_DICT_KEYS = set(key for cls in Operation.mro()[:-1] for key in cls.__dict__)
 
@@ -1004,7 +1003,7 @@ class OpDef:
             # allowed in IRDL definitions.
             if parent_cls == Generic:
                 continue
-            if parent_cls in _OPERATION_MRO:
+            if parent_cls in Operation.mro():
                 continue
 
             clsdict = parent_cls.__dict__
