@@ -756,6 +756,14 @@ class Operation(IRNode):
         for region in self.regions:
             yield from region.walk()
 
+    def walk_reverse(self) -> Iterator[Operation]:
+        """
+        Iterate all operations contained in the operation (including this one) in reverse order.
+        """
+        for region in reversed(self.regions):
+            yield from region.walk_reverse()
+        yield self
+
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
@@ -1006,6 +1014,26 @@ class _BlockOpsIterator:
 
 
 @dataclass
+class _BlockOpsReverseIterator:
+    """
+    Single-pass iterable of the operations in a block. Follows the prev_op for
+    each operation.
+    """
+
+    prev_op: Operation | None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        prev_op = self.prev_op
+        if prev_op is None:
+            raise StopIteration
+        self.prev_op = prev_op.prev_op
+        return prev_op
+
+
+@dataclass
 class BlockOps:
     """
     Multi-pass iterable of the operations in a block. Follows the next_op for
@@ -1042,6 +1070,25 @@ class BlockOps:
         return self.block.last_op
 
 
+@dataclass
+class BlockReverseOps:
+    """
+    Multi-pass iterable of the operations in a block. Follows the prev_op for
+    each operation.
+    """
+
+    block: Block
+
+    def __iter__(self):
+        return _BlockOpsReverseIterator(self.block.last_op)
+
+    def __len__(self):
+        result = 0
+        for _ in self:
+            result += 1
+        return result
+
+
 @dataclass(init=False)
 class Block(IRNode):
     """A sequence of operations"""
@@ -1076,6 +1123,11 @@ class Block(IRNode):
     def ops(self) -> BlockOps:
         """Returns a multi-pass Iterable of this block's operations."""
         return BlockOps(self)
+
+    @property
+    def ops_reverse(self) -> BlockReverseOps:
+        """Returns a multi-pass Iterable of this block's operations."""
+        return BlockReverseOps(self)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1302,6 +1354,11 @@ class Block(IRNode):
         """Call a function on all operations contained in the block."""
         for op in self.ops:
             yield from op.walk()
+
+    def walk_reverse(self) -> Iterable[Operation]:
+        """Call a function on all operations contained in the block in reverse order."""
+        for op in self.ops_reverse:
+            yield from op.walk_reverse()
 
     def verify(self) -> None:
         for operation in self.ops:
@@ -1587,6 +1644,11 @@ class Region(IRNode):
         """Call a function on all operations contained in the region."""
         for block in self.blocks:
             yield from block.walk()
+
+    def walk_reverse(self) -> Iterator[Operation]:
+        """Call a function on all operations contained in the region in reverse order."""
+        for block in reversed(self.blocks):
+            yield from block.walk_reverse()
 
     def verify(self) -> None:
         for block in self.blocks:
