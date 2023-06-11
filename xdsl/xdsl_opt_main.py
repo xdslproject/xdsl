@@ -10,7 +10,6 @@ from xdsl.passes import ModulePass
 from xdsl.printer import Printer
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import print_assembly, riscv_code
 
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
@@ -475,6 +474,8 @@ class xDSLOptMain:
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
+            from xdsl.dialects.riscv import print_assembly
+
             print_assembly(prog, output)
 
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
@@ -484,6 +485,7 @@ class xDSLOptMain:
             except ImportError:
                 print("Please install optional dependencies to run riscv emulation")
                 return
+            from xdsl.dialects.riscv import riscv_code
 
             code = riscv_code(prog)
             RV_Debug.stream = output
