@@ -1080,7 +1080,7 @@ class BlockReverseOps:
     block: Block
 
     def __iter__(self):
-        return _BlockOpsReverseIterator(self.last)
+        return _BlockOpsReverseIterator(self.block.last_op)
 
     def __len__(self):
         result = 0
