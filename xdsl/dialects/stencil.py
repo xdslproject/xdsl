@@ -35,6 +35,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.traits import IsolatedFromAbove
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.parser import Parser
@@ -566,6 +567,8 @@ class ApplyOp(IRDLOperation):
     args: VarOperand = var_operand_def(Attribute)
     region: Region = region_def()
     res: VarOpResult = var_result_def(TempType)
+
+    traits = frozenset([IsolatedFromAbove()])
 
     @staticmethod
     def get(
