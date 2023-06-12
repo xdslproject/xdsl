@@ -312,6 +312,8 @@ class ApplyOp(IRDLOperation):
     region: Region = region_def()
     res: VarOpResult = var_result_def(TempType)
 
+    traits = frozenset([IsolatedFromAbove()])
+
     @staticmethod
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
