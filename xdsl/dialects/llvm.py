@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from types import EllipsisType
 from typing import Sequence
 
 from xdsl.utils.hints import isa
@@ -249,24 +251,20 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         # save pos before args for error message printing
         pos = parser.pos
 
-        def _parse_attr_or_variadic() -> Attribute | None:
+        def _parse_attr_or_variadic() -> Attribute | EllipsisType:
             """
-            This returns either an attribute, or None if a
+            This returns either an attribute, or Ellipsis if a
             varargs specifier (`...`) was parsed.
-
-            I haven't found a better way to signal the ellipsis,
-            as pyright is not happy to have the function signature
-            be Attribute | Ellipsis.
             """
             if parser.parse_optional_characters("...") is not None:
-                return None
+                return ...
             return parser.parse_attribute()
 
         inputs = parser.parse_comma_separated_list(
             Parser.Delimiter.PAREN, _parse_attr_or_variadic
         )
         is_varargs: NoneAttr | UnitAttr = NoneAttr()
-        if inputs and inputs[-1] is None:
+        if inputs and inputs[-1] is Ellipsis:
             is_varargs = UnitAttr()
             inputs = inputs[:-1]
 
