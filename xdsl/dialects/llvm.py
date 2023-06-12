@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Sequence
 
+from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
     StringAttr,
     ArrayAttr,
@@ -204,17 +205,24 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 
     inputs: ParameterDef[ArrayAttr[Attribute]]
     output: ParameterDef[Attribute]
+    variadic: ParameterDef[UnitAttr | NoneAttr]
 
     def __init__(
         self,
         inputs: Sequence[Attribute] | ArrayAttr[Attribute],
         output: Attribute | None = None,
+        is_variadic: bool = False,
     ) -> None:
         if not isinstance(inputs, ArrayAttr):
             inputs = ArrayAttr(inputs)
         if output is None:
             output = LLVMVoidType()
-        super().__init__([inputs, output])
+        variad_attr = UnitAttr() if is_variadic else NoneAttr()
+        super().__init__([inputs, output, variad_attr])
+
+    @property
+    def is_variadic(self) -> bool:
+        return isinstance(self.variadic, UnitAttr)
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -225,6 +233,9 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 
         printer.print(" (")
         printer.print_list(self.inputs, printer.print_attribute)
+        if self.is_variadic:
+            printer.print(", ...")
+
         printer.print_string(")>")
 
     @staticmethod
@@ -235,12 +246,40 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         else:
             output = parser.parse_attribute()
 
+        # save pos before args for error message printing
+        pos = parser.pos
+
+        def _parse_attr_or_variadic() -> Attribute | None:
+            """
+            This returns either an attribute, or None if a
+            varargs specifier (`...`) was parsed.
+
+            I haven't found a better way to signal the ellipsis,
+            as pyright is not happy to have the function signature
+            be Attribute | Ellipsis.
+            """
+            if parser.parse_optional_characters("...") is not None:
+                return None
+            return parser.parse_attribute()
+
         inputs = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parser.parse_attribute
+            Parser.Delimiter.PAREN, _parse_attr_or_variadic
         )
+        is_varargs: NoneAttr | UnitAttr = NoneAttr()
+        if inputs and inputs[-1] is None:
+            is_varargs = UnitAttr()
+            inputs = inputs[:-1]
+
+        if not isa(inputs, list[Attribute]):
+            parser.raise_error(
+                "Varargs specifier `...` must be at the end of the argument defintiion!",
+                pos,
+                parser.pos,
+            )
+
         parser.parse_characters(">", " in llvm.func parameters")
 
-        return [ArrayAttr(inputs), output]
+        return [ArrayAttr(inputs), output, is_varargs]
 
 
 @irdl_attr_definition
