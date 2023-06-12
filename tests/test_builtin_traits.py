@@ -167,6 +167,7 @@ def test_is_terminator_fails_if_not_last_operation_parent_block():
         op0.verify()
 
 
+@irdl_op_definition
 class IsolatedFromAboveOp(IRDLOperation):
     """
     An isolated from above operation.
@@ -174,7 +175,7 @@ class IsolatedFromAboveOp(IRDLOperation):
 
     name = "test.isolated_from_above"
 
-    region: Region
+    region: Region = region_def()
 
     traits = frozenset([IsolatedFromAbove()])
 

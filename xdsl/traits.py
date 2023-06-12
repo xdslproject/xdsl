@@ -1,11 +1,6 @@
-<<<<<<< HEAD
 from __future__ import annotations
 from dataclasses import dataclass, field
-=======
 from dataclasses import dataclass
-from xdsl.ir import OpTrait, Operation
-from xdsl.ir.core import Region
->>>>>>> a0f6149b (IsolatedFromAbove)
 from xdsl.utils.exceptions import VerifyException
 from typing import (
     TYPE_CHECKING,
@@ -14,7 +9,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from xdsl.ir import Operation
+    from xdsl.ir import Operation, Region
 
 
 @dataclass(frozen=True)
@@ -81,6 +76,8 @@ class IsTerminator(OpTrait):
             raise VerifyException(
                 f"'{op.name}' must be the last operation in the parent block"
             )
+
+
 class IsolatedFromAbove(OpTrait):
     """
     Constraint the conained operations to use only values defined inside this
