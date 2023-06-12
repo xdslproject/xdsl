@@ -35,11 +35,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-<<<<<<< HEAD
-from xdsl.traits import IsolatedFromAbove
-=======
-from xdsl.traits import HasParent
->>>>>>> 0a4a50b6 (Add some verifiers and checks.)
+from xdsl.traits import HasParent, IsolatedFromAbove
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.parser import Parser
