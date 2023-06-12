@@ -895,6 +895,23 @@ class CallOp(IRDLOperation):
     callee: SymbolRefAttr = attr_def(SymbolRefAttr)
     fastmathFlags: FastMathAttr = attr_def(FastMathAttr)
 
+    def __init__(
+        self,
+        callee: str | SymbolRefAttr | StringAttr,
+        *args: SSAValue | Operation,
+        fastmath: FastMathAttr = FastMathAttr(None),
+    ):
+        if isinstance(callee, str):
+            callee = SymbolRefAttr(callee)
+
+        super().__init__(
+            operands=[args],
+            attributes={
+                "callee": callee,
+                "fastmathFlags": fastmath,
+            },
+        )
+
 
 LLVM = Dialect(
     [

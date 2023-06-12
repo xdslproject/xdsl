@@ -83,6 +83,13 @@ class FastMathFlags:
 class FastMathFlagsAttr(Data[FastMathFlags]):
     name = "arith.fastmath"
 
+    def __init__(self, flags: FastMathFlags | None | Set[FastMathFlag]):
+        if flags is None:
+            flags = set()
+        if isinstance(flags, set):
+            flags = FastMathFlags(flags)
+        super().__init__(flags)
+
     @staticmethod
     def parse_parameter(parser: Parser) -> FastMathFlags:
         flag = FastMathFlags.try_parse(parser)
@@ -108,10 +115,6 @@ class FastMathFlagsAttr(Data[FastMathFlags]):
         else:
             # make sure we emit flags in a consistent order
             printer.print(",".join(flag.value for flag in FastMathFlag if flag in data))
-
-    @staticmethod
-    def from_flags(flags: FastMathFlags):
-        return FastMathFlagsAttr(flags)
 
 
 @irdl_op_definition
