@@ -18,6 +18,10 @@ from xdsl.pattern_rewriter import (
 
 
 def should_materialize(temp: SSAValue):
+    """
+    Predicates if a specific stencil.apply output should be buffered.
+    It should if it is used by another stencil.apply and not already buffered or stored.
+    """
     return any(isinstance(u.operation, ApplyOp) for u in temp.uses) and not any(
         isinstance(u.operation, StoreOp | BufferOp) for u in temp.uses
     )
@@ -25,8 +29,8 @@ def should_materialize(temp: SSAValue):
 
 class ApplyOpMaterialization(RewritePattern):
     """
-    Adds stencil.buffer to any output of a stencil.apply that is not otherwised mapped
-    to storage.
+    Adds stencil.buffer to any used output of a stencil.apply that is not otherwised
+    mapped to storage.
     """
 
     @op_type_rewrite_pattern
@@ -48,7 +52,7 @@ class ApplyOpMaterialization(RewritePattern):
 class StencilStorageMaterializationPass(ModulePass):
     """
     Pass adding stencil.buffer whenever necessary to lower a stencil dialect IR,
-    by adding stencil.buffer on any stencil.apply output not otherwise mapped
+    by adding stencil.buffer on any used stencil.apply output not otherwise mapped
     to storage.
     """
 
