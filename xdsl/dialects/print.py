@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.irdl import IRDLOperation, irdl_op_definition, OpAttr, VarOperand
+from xdsl.irdl import (
+    IRDLOperation,
+    irdl_op_definition,
+    VarOperand,
+    attr_def,
+    var_operand_def,
+)
 from xdsl.dialects import builtin
 from xdsl.ir import Dialect, SSAValue, Operation, VerifyException
 
@@ -20,9 +26,8 @@ class PrintLnOp(IRDLOperation):
     """
 
     name = "print.println"
-    format_str: OpAttr[builtin.StringAttr]
-
-    format_vals: VarOperand
+    format_str: builtin.StringAttr = attr_def(builtin.StringAttr)
+    format_vals: VarOperand = var_operand_def()
 
     def __init__(self, format_str: str, *vals: SSAValue | Operation):
         super().__init__(
