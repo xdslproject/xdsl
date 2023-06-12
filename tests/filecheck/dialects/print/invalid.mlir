@@ -10,7 +10,7 @@ builtin.module {
 // CHECK: -----
 
 builtin.module {
-    %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+    %0 = "test.op"() : () -> i32
     print.println "This will fail too {}", %0 : i32, %0 : i32
 }
 
