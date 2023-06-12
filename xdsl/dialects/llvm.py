@@ -793,6 +793,92 @@ class AddressOfOp(IRDLOperation):
         )
 
 
+LLVM_CALLING_CONVS: tuple[str, ...] = (
+    "ccc",
+    "fastcc",
+    "coldcc",
+    "cc 10",
+    "cc 11",
+    "webkit_jscc",
+    "anyregcc",
+    "preserve_mostcc",
+    "preserve_allcc",
+    "cxx_fast_tlscc",
+    "tailcc",
+    "swiftcc",
+    "swifttailcc",
+    "cfguard_checkcc",
+)
+"""
+A list of all valid calling conventions understood by LLVM, see
+https://llvm.org/docs/LangRef.html#calling-conventions
+for more info.
+"""
+
+
+@irdl_attr_definition
+class CallingConventionAttr(ParametrizedAttribute):
+    """
+    LLVM Calling convention, default is ccc.
+    """
+
+    name = "llvm.cconv"
+
+    convention: ParameterDef[StringAttr]
+
+    def __init__(self, conv: str):
+        if conv not in LLVM_CALLING_CONVS:
+            raise ValueError("Invalid calling convention!")
+        super().__init__([StringAttr(conv)])
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<" + self.convention.data + ">")
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_characters("<")
+        for conv in LLVM_CALLING_CONVS:
+            if parser.parse_optional_characters("ccc") is not None:
+                parser.parse_characters(">")
+                return [StringAttr(conv)]
+        parser.raise_error("Unknown calling convention!")
+
+
+@irdl_op_definition
+class FuncOp(IRDLOperation):
+    name = "llvm.func"
+
+    body: Region = region_def()
+    sym_name: StringAttr = attr_def(StringAttr)
+    function_type: LLVMFunctionType = attr_def(LLVMFunctionType)
+    CConv: CallingConventionAttr = attr_def(CallingConventionAttr)
+    linkage: LinkageAttr = attr_def(LinkageAttr)
+    visibility_: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
+
+    def __init__(
+        self,
+        sym_name: str | StringAttr,
+        function_type: LLVMFunctionType,
+        linkage: LinkageAttr = LinkageAttr("internal"),
+        cconv: CallingConventionAttr = CallingConventionAttr("ccc"),
+        visibility: int | IntegerAttr[IntegerType] = 0,
+    ):
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+        if isinstance(visibility, int):
+            visibility = IntegerAttr.from_int_and_width(visibility, 64)
+        super().__init__(
+            operands=[],
+            attributes={
+                "sym_name": sym_name,
+                "function_type": function_type,
+                "CConv": cconv,
+                "linkage": linkage,
+                "visibility_": visibility,
+            },
+        )
+
+
 LLVM = Dialect(
     [
         LLVMExtractValue,
@@ -806,6 +892,7 @@ LLVM = Dialect(
         StoreOp,
         GlobalOp,
         AddressOfOp,
+        FuncOp,
     ],
     [
         LLVMStructType,
@@ -814,5 +901,6 @@ LLVM = Dialect(
         LLVMVoidType,
         LLVMFunctionType,
         LinkageAttr,
+        CallingConventionAttr,
     ],
 )
