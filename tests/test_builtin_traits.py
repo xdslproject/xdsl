@@ -181,15 +181,18 @@ class IsolatedFromAboveOp(IRDLOperation):
 
 
 def test_isolated_from_above():
+    # Empty Isolated is fine
     op = IsolatedFromAboveOp(regions=[Region()])
     op.verify()
 
     block = Block(arg_types=[builtin.i32])
     block.add_op(arith.Addi(block.args[0], block.args[0]))
 
+    # Test a simple, properly Isolated
     op = IsolatedFromAboveOp(regions=[Region([block])])
     op.verify
 
+    # Check a simple isolation violation
     out_cst = arith.Constant.from_int_and_width(0, builtin.i32)
     out_block = Block(
         [
@@ -202,3 +205,37 @@ def test_isolated_from_above():
     message = "Operation using value defined out of its IsolatedFromAbove parent!"
     with pytest.raises(VerifyException, match=message):
         out_block.verify()
+
+    # Check a nested isolation violation
+    out_cst = arith.Constant.from_int_and_width(0, builtin.i32)
+    out_block = Block(
+        [
+            # This one is fine
+            out_isolated := IsolatedFromAboveOp(
+                regions=[
+                    Region(
+                        Block(
+                            [
+                                out_cst,
+                                # This one is not!
+                                in_isolated := IsolatedFromAboveOp(
+                                    regions=[
+                                        Region(Block([arith.Addi(out_cst, out_cst)]))
+                                    ]
+                                ),
+                            ],
+                        )
+                    )
+                ]
+            ),
+        ]
+    )
+    # Check that the IR as a whole is wrong
+    message = "Operation using value defined out of its IsolatedFromAbove parent!"
+    with pytest.raises(VerifyException, match=message):
+        out_block.verify()
+    # Check that the outer one in itself is fine
+    out_isolated.verify(verify_nested_ops=False)
+    # Check that the inner one is indeed failing to verify.
+    with pytest.raises(VerifyException, match=message):
+        in_isolated.verify()
