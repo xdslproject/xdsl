@@ -41,6 +41,15 @@ class SimplifyRedundantTranspose(RewritePattern):
         rewriter.replace_op(op, [], [transpose_input_op.arg])
 
 
+def simplify_redundant_transpose(
+    match: bool, rewriter: PatternRewriter, root: TransposeOp, input: TransposeOp
+):
+    if match:
+        assert root.arg == input.res
+    else:
+        rewriter.replace_matched_op((), (input.arg,))
+
+
 class ReshapeReshapeOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReshapeOp, rewriter: PatternRewriter):
@@ -60,6 +69,17 @@ class ReshapeReshapeOpPattern(RewritePattern):
 
         t = cast(TensorTypeF64, op.res.type)
         new_op = ReshapeOp.from_input_and_type(reshape_input_op.arg, t)
+        rewriter.replace_matched_op(new_op)
+
+
+def reshape_reshape(
+    match: bool, rewriter: PatternRewriter, root: ReshapeOp, input: ReshapeOp
+):
+    if match:
+        assert root.arg == input.res
+    else:
+        t = cast(TensorTypeF64, root.res.type)
+        new_op = ReshapeOp.from_input_and_type(input.arg, t)
         rewriter.replace_matched_op(new_op)
 
 
@@ -86,6 +106,23 @@ class FoldConstantReshapeOpPattern(RewritePattern):
         new_value = DenseIntOrFPElementsAttr.create_dense_float(
             type=op.res.type, data=reshape_input_op.value.data.data
         )
+        new_op = ConstantOp(new_value)
+        rewriter.replace_matched_op(new_op)
+
+
+def fold_constant_reshape(
+    match: bool,
+    rewriter: PatternRewriter,
+    root: ReshapeOp,
+    res_typ: TensorTypeF64,
+    input: ConstantOp,
+):
+    if match:
+        assert root.arg == input.res
+    else:
+        assert isa(root.res.type, TensorTypeF64)
+        assert isa(input.value.data, ArrayAttr[FloatAttr[Float64Type]])
+        new_value = DenseIntOrFPElementsAttr([root.res.type, input.value.data])
         new_op = ConstantOp(new_value)
         rewriter.replace_matched_op(new_op)
 
