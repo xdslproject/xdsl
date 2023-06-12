@@ -20,6 +20,7 @@ from typing import (
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
+from xdsl.traits import OpTrait, IsTerminator, OpTraitInvT
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -515,27 +516,6 @@ class IRNode(ABC):
         ...
 
 
-@dataclass(frozen=True)
-class OpTrait:
-    """
-    A trait attached to an operation definition.
-    Traits can be used to define operation invariants, additional semantic information,
-    or to group operations that have similar properties.
-    Traits have parameters, which by default is just the `None` value. Parameters should
-    always be comparable and hashable.
-    Note that traits are the merge of traits and interfaces in MLIR.
-    """
-
-    parameters: Any = field(default=None)
-
-    def verify(self, op: Operation) -> None:
-        """Check that the operation satisfies the trait requirements."""
-        pass
-
-
-OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
-
-
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -776,10 +756,39 @@ class Operation(IRNode):
         for region in self.regions:
             yield from region.walk()
 
+    def walk_reverse(self) -> Iterator[Operation]:
+        """
+        Iterate all operations contained in the operation (including this one) in reverse order.
+        """
+        for region in reversed(self.regions):
+            yield from region.walk_reverse()
+        yield self
+
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
+
+        if (parent_block := self.parent) is not None and (
+            parent_region := parent_block.parent
+        ) is not None:
+            if self.successors and parent_block.last_op != self:
+                raise VerifyException(
+                    "Operation with block successors must terminate its parent block"
+                )
+
+            # TODO single-block regions dealt when the NoTerminator trait is
+            # implemented (https://github.com/xdslproject/xdsl/issues/1093)
+            if len(parent_region.blocks) > 1:
+                if not self.has_trait(IsTerminator):
+                    raise VerifyException(
+                        "Operation terminates block but is not a terminator"
+                    )
+        else:
+            if self.successors:
+                raise VerifyException(
+                    "Operation with block successors does not belong to a block or a region"
+                )
 
         if verify_nested_ops:
             for region in self.regions:
@@ -1005,6 +1014,26 @@ class _BlockOpsIterator:
 
 
 @dataclass
+class _BlockOpsReverseIterator:
+    """
+    Single-pass iterable of the operations in a block. Follows the prev_op for
+    each operation.
+    """
+
+    prev_op: Operation | None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        prev_op = self.prev_op
+        if prev_op is None:
+            raise StopIteration
+        self.prev_op = prev_op.prev_op
+        return prev_op
+
+
+@dataclass
 class BlockOps:
     """
     Multi-pass iterable of the operations in a block. Follows the next_op for
@@ -1041,6 +1070,25 @@ class BlockOps:
         return self.block.last_op
 
 
+@dataclass
+class BlockReverseOps:
+    """
+    Multi-pass iterable of the operations in a block. Follows the prev_op for
+    each operation.
+    """
+
+    block: Block
+
+    def __iter__(self):
+        return _BlockOpsReverseIterator(self.block.last_op)
+
+    def __len__(self):
+        result = 0
+        for _ in self:
+            result += 1
+        return result
+
+
 @dataclass(init=False)
 class Block(IRNode):
     """A sequence of operations"""
@@ -1075,6 +1123,11 @@ class Block(IRNode):
     def ops(self) -> BlockOps:
         """Returns a multi-pass Iterable of this block's operations."""
         return BlockOps(self)
+
+    @property
+    def ops_reverse(self) -> BlockReverseOps:
+        """Returns a multi-pass Iterable of this block's operations."""
+        return BlockReverseOps(self)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1301,6 +1354,11 @@ class Block(IRNode):
         """Call a function on all operations contained in the block."""
         for op in self.ops:
             yield from op.walk()
+
+    def walk_reverse(self) -> Iterable[Operation]:
+        """Call a function on all operations contained in the block in reverse order."""
+        for op in self.ops_reverse:
+            yield from op.walk_reverse()
 
     def verify(self) -> None:
         for operation in self.ops:
@@ -1586,6 +1644,11 @@ class Region(IRNode):
         """Call a function on all operations contained in the region."""
         for block in self.blocks:
             yield from block.walk()
+
+    def walk_reverse(self) -> Iterator[Operation]:
+        """Call a function on all operations contained in the region in reverse order."""
+        for block in reversed(self.blocks):
+            yield from block.walk_reverse()
 
     def verify(self) -> None:
         for block in self.blocks:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from operator import add, lt, neg
-from typing import Sequence, TypeVar, cast, Iterable, Iterator, Annotated
+from typing import Sequence, TypeVar, cast, Iterable, Iterator
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
@@ -15,6 +15,7 @@ from xdsl.dialects import memref
 
 from xdsl.ir import OpResult, SSAValue, Operation, Attribute, Dialect, TypeAttribute
 from xdsl.irdl import (
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     ParameterDef,
@@ -22,14 +23,17 @@ from xdsl.irdl import (
     Region,
     VerifyException,
     Generic,
-    Annotated,
     Operand,
-    OpAttr,
     OpResult,
     VarOperand,
     VarOpResult,
     Block,
     IRDLOperation,
+    operand_def,
+    region_def,
+    result_def,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -299,8 +303,8 @@ class CastOp(IRDLOperation):
     """
 
     name = "stencil.cast"
-    field: Annotated[Operand, FieldType]
-    result: Annotated[OpResult, FieldType]
+    field: Operand = operand_def(FieldType)
+    result: OpResult = result_def(FieldType)
 
     @staticmethod
     def get(
@@ -357,8 +361,8 @@ class ExternalLoadOp(IRDLOperation):
     """
 
     name = "stencil.external_load"
-    field: Annotated[Operand, Attribute]
-    result: Annotated[OpResult, FieldType | memref.MemRefType]
+    field: Operand = operand_def(Attribute)
+    result: OpResult = result_def(FieldType | memref.MemRefType)
 
     @staticmethod
     def get(
@@ -378,8 +382,8 @@ class ExternalStoreOp(IRDLOperation):
     """
 
     name = "stencil.external_store"
-    temp: Annotated[Operand, FieldType]
-    field: Annotated[Operand, Attribute]
+    temp: Operand = operand_def(FieldType)
+    field: Operand = operand_def(Attribute)
 
 
 @irdl_op_definition
@@ -394,9 +398,9 @@ class IndexOp(IRDLOperation):
     """
 
     name = "stencil.index"
-    dim: OpAttr[AnyIntegerAttr]
-    offset: OpAttr[IndexAttr]
-    idx: Annotated[OpResult, builtin.IndexType]
+    dim: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    offset: IndexAttr = attr_def(IndexAttr)
+    idx: OpResult = result_def(builtin.IndexType)
 
 
 @irdl_op_definition
@@ -410,9 +414,9 @@ class AccessOp(IRDLOperation):
     """
 
     name = "stencil.access"
-    temp: Annotated[Operand, TempType]
-    offset: OpAttr[IndexAttr]
-    res: Annotated[OpResult, Attribute]
+    temp: Operand = operand_def(TempType)
+    offset: IndexAttr = attr_def(IndexAttr)
+    res: OpResult = result_def(Attribute)
 
     @staticmethod
     def get(temp: SSAValue | Operation, offset: Sequence[int]):
@@ -443,8 +447,8 @@ class LoadOp(IRDLOperation):
     """
 
     name = "stencil.load"
-    field: Annotated[Operand, FieldType]
-    res: Annotated[OpResult, TempType]
+    field: Operand = operand_def(FieldType)
+    res: OpResult = result_def(TempType)
 
     @staticmethod
     def get(
@@ -492,8 +496,25 @@ class BufferOp(IRDLOperation):
     """
 
     name = "stencil.buffer"
-    temp: Annotated[Operand, TempType]
-    res: Annotated[OpResult, TempType]
+    temp: Operand = operand_def(TempType)
+    res: OpResult = result_def(TempType)
+
+    def verify_(self) -> None:
+        if self.temp.typ != self.res.typ:
+            raise VerifyException(
+                f"Expected operand and result type to be equal, got ({self.temp.typ}) "
+                f"-> {self.res.typ}"
+            )
+        if not isinstance(self.temp.owner, ApplyOp):
+            raise VerifyException(
+                f"Expected stencil.buffer to buffer a stencil.apply's output, got "
+                f"{self.temp.owner}"
+            )
+        if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
+            raise VerifyException(
+                f"A stencil.buffer's operand temp should only be buffered. You can use "
+                f"stencil.buffer's output instead!"
+            )
 
 
 @irdl_op_definition
@@ -506,10 +527,10 @@ class StoreOp(IRDLOperation):
     """
 
     name = "stencil.store"
-    temp: Annotated[Operand, TempType]
-    field: Annotated[Operand, FieldType]
-    lb: OpAttr[IndexAttr]
-    ub: OpAttr[IndexAttr]
+    temp: Operand = operand_def(TempType)
+    field: Operand = operand_def(FieldType)
+    lb: IndexAttr = attr_def(IndexAttr)
+    ub: IndexAttr = attr_def(IndexAttr)
 
     @staticmethod
     def get(
@@ -542,9 +563,9 @@ class ApplyOp(IRDLOperation):
     """
 
     name = "stencil.apply"
-    args: Annotated[VarOperand, Attribute]
-    region: Region
-    res: Annotated[VarOpResult, TempType]
+    args: VarOperand = var_operand_def(Attribute)
+    region: Region = region_def()
+    res: VarOpResult = var_result_def(TempType)
 
     @staticmethod
     def get(
@@ -581,8 +602,8 @@ class StoreResultOp(IRDLOperation):
     """
 
     name = "stencil.store_result"
-    args: Annotated[VarOperand, Attribute]
-    res: Annotated[OpResult, ResultType]
+    args: VarOperand = var_operand_def(Attribute)
+    res: OpResult = result_def(ResultType)
 
 
 @irdl_op_definition
@@ -601,7 +622,7 @@ class ReturnOp(IRDLOperation):
     """
 
     name = "stencil.return"
-    arg: Annotated[VarOperand, ResultType | AnyFloat]
+    arg: VarOperand = var_operand_def(ResultType | AnyFloat)
 
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):

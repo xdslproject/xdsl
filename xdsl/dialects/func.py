@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Annotated, Union, Sequence, cast
+from typing import Union, Sequence, cast
 
 from xdsl.dialects.builtin import (
     StringAttr,
@@ -17,16 +17,19 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     VarOpResult,
+    attr_def,
     irdl_op_definition,
     VarOperand,
     AnyAttr,
-    OpAttr,
-    OptOpAttr,
     IRDLOperation,
+    opt_attr_def,
+    region_def,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -35,10 +38,10 @@ from xdsl.utils.hints import isa
 class FuncOp(IRDLOperation):
     name = "func.func"
 
-    body: Region
-    sym_name: OpAttr[StringAttr]
-    function_type: OpAttr[FunctionType]
-    sym_visibility: OptOpAttr[StringAttr]
+    body: Region = region_def()
+    sym_name: StringAttr = attr_def(StringAttr)
+    function_type: FunctionType = attr_def(FunctionType)
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -291,11 +294,11 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class Call(IRDLOperation):
     name = "func.call"
-    arguments: Annotated[VarOperand, AnyAttr()]
-    callee: OpAttr[SymbolRefAttr]
+    arguments: VarOperand = var_operand_def(AnyAttr())
+    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
-    res: Annotated[VarOpResult, AnyAttr()]
+    res: VarOpResult = var_result_def(AnyAttr())
     # TODO how do we verify that the types are correct?
 
     @staticmethod
@@ -316,9 +319,9 @@ class Call(IRDLOperation):
 @irdl_op_definition
 class Return(IRDLOperation):
     name = "func.return"
-    arguments: Annotated[VarOperand, AnyAttr()]
+    arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(FuncOp)])
+    traits = frozenset([HasParent(FuncOp), IsTerminator()])
 
     def verify_(self) -> None:
         func_op = self.parent_op()
