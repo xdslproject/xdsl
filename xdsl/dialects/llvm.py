@@ -861,13 +861,17 @@ class FuncOp(IRDLOperation):
         linkage: LinkageAttr = LinkageAttr("internal"),
         cconv: CallingConventionAttr = CallingConventionAttr("ccc"),
         visibility: int | IntegerAttr[IntegerType] = 0,
+        body: Region | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
         if isinstance(visibility, int):
             visibility = IntegerAttr.from_int_and_width(visibility, 64)
+        if body is None:
+            body = Region([])
         super().__init__(
             operands=[],
+            regions=[body],
             attributes={
                 "sym_name": sym_name,
                 "function_type": function_type,
