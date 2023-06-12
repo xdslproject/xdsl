@@ -39,9 +39,15 @@ class PrintLnOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_attribute(self.format_str)
+
+        def print_val_and_type(ssa_val: SSAValue):
+            printer.print_ssa_value(ssa_val)
+            printer.print_string(" : ")
+            printer.print_attribute(ssa_val.typ)
+
         if len(self.format_vals) > 0:
             printer.print_string(", ")
-            printer.print_list(self.operands, printer.print_block_argument)
+            printer.print_list(self.operands, print_val_and_type)
 
         if len(self.attributes) > 1:
             attrs = self.attributes.copy()
