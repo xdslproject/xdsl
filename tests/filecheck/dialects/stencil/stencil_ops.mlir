@@ -46,7 +46,7 @@ builtin.module {
       %ti = "stencil.load"(%fi) : (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> !stencil.temp<?x?x?xf32>
       %tip1 = "stencil.apply"(%ti) ({
       ^1(%ti_ : !stencil.temp<?x?x?xf32>):
-        %v = "stencil.access"(%ti) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<?x?x?xf32>) -> f32
+        %v = "stencil.access"(%ti_) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<?x?x?xf32>) -> f32
         "stencil.return"(%v) : (f32) -> ()
       }) : (!stencil.temp<?x?x?xf32>) -> !stencil.temp<?x?x?xf32>
       "stencil.store"(%tip1, %fip1) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<50, 80, 40>} : (!stencil.temp<?x?x?xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> ()
@@ -68,7 +68,7 @@ builtin.module {
 // CHECK-NEXT:       %ti = "stencil.load"(%fi) : (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> !stencil.temp<?x?x?xf32>
 // CHECK-NEXT:       %tip1 = "stencil.apply"(%ti) ({
 // CHECK-NEXT:       ^1(%ti_ : !stencil.temp<?x?x?xf32>):
-// CHECK-NEXT:         %v = "stencil.access"(%ti) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<?x?x?xf32>) -> f32
+// CHECK-NEXT:         %v = "stencil.access"(%ti_) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<?x?x?xf32>) -> f32
 // CHECK-NEXT:         "stencil.return"(%v) : (f32) -> ()
 // CHECK-NEXT:       }) : (!stencil.temp<?x?x?xf32>) -> !stencil.temp<?x?x?xf32>
 // CHECK-NEXT:       "stencil.store"(%tip1, %fip1) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<50, 80, 40>} : (!stencil.temp<?x?x?xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> ()

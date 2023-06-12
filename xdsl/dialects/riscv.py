@@ -1676,6 +1676,7 @@ class MulOp(RdRsRsOperation):
     name = "riscv.mul"
 
 
+@irdl_op_definition
 class MulhOp(RdRsRsOperation):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
@@ -1688,6 +1689,7 @@ class MulhOp(RdRsRsOperation):
     name = "riscv.mulh"
 
 
+@irdl_op_definition
 class MulhsuOp(RdRsRsOperation):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by unsigned rs2
@@ -1700,6 +1702,7 @@ class MulhsuOp(RdRsRsOperation):
     name = "riscv.mulhsu"
 
 
+@irdl_op_definition
 class MulhuOp(RdRsRsOperation):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of unsigned rs1 by unsigned rs2
@@ -1713,6 +1716,7 @@ class MulhuOp(RdRsRsOperation):
 
 
 ## Division Operations
+@irdl_op_definition
 class DivOp(RdRsRsOperation):
     """
     Perform an XLEN bits by XLEN bits signed integer division of rs1 by rs2,
@@ -1725,6 +1729,7 @@ class DivOp(RdRsRsOperation):
     name = "riscv.div"
 
 
+@irdl_op_definition
 class DivuOp(RdRsRsOperation):
     """
     Perform an XLEN bits by XLEN bits unsigned integer division of rs1 by rs2,
@@ -1737,6 +1742,7 @@ class DivuOp(RdRsRsOperation):
     name = "riscv.divu"
 
 
+@irdl_op_definition
 class RemOp(RdRsRsOperation):
     """
     Perform an XLEN bits by XLEN bits signed integer reminder of rs1 by rs2.
@@ -1748,6 +1754,7 @@ class RemOp(RdRsRsOperation):
     name = "riscv.rem"
 
 
+@irdl_op_definition
 class RemuOp(RdRsRsOperation):
     """
     Perform an XLEN bits by XLEN bits unsigned integer reminder of rs1 by rs2.
