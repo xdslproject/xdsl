@@ -1,4 +1,3 @@
-from io import StringIO
 from xdsl.builder import Builder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
@@ -12,12 +11,6 @@ from xdsl.transforms.riscv_register_allocation import (
 def context() -> MLContext:
     ctx = MLContext()
     return ctx
-
-
-def riscv_code(module: ModuleOp) -> str:
-    stream = StringIO()
-    riscv.print_assembly(module, stream)
-    return stream.getvalue()
 
 
 # Handwritten riscv dialect code to test register allocation
@@ -117,4 +110,6 @@ def simple_linear_riscv_allocated():
 def test_allocate_simple_linear():
     RISCVRegisterAllocation("BlockNaive").apply(context(), simple_linear_riscv)
 
-    assert riscv_code(simple_linear_riscv) == riscv_code(simple_linear_riscv_allocated)
+    assert riscv.riscv_code(simple_linear_riscv) == riscv.riscv_code(
+        simple_linear_riscv_allocated
+    )
