@@ -1,6 +1,5 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from dataclasses import dataclass
 from xdsl.utils.exceptions import VerifyException
 from typing import (
     TYPE_CHECKING,
