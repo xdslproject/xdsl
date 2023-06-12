@@ -80,7 +80,7 @@ class IsTerminator(OpTrait):
 
 class IsolatedFromAbove(OpTrait):
     """
-    Constraint the contained operations to use only values defined inside this
+    Constrains the contained operations to use only values defined inside this
     operation.
 
     This should hopefully be fully compatible with MLIR's Trait:
