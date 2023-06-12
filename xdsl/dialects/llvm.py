@@ -271,7 +271,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 
         if not isa(inputs, list[Attribute]):
             parser.raise_error(
-                "Varargs specifier `...` must be at the end of the argument defintiion!",
+                "Varargs specifier `...` must be at the end of the argument definition",
                 pos,
                 parser.pos,
             )
@@ -837,7 +837,7 @@ class CallingConventionAttr(ParametrizedAttribute):
     def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_characters("<")
         for conv in LLVM_CALLING_CONVS:
-            if parser.parse_optional_characters("ccc") is not None:
+            if parser.parse_optional_characters(conv) is not None:
                 parser.parse_characters(">")
                 return [StringAttr(conv)]
         parser.raise_error("Unknown calling convention!")
