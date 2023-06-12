@@ -28,6 +28,9 @@ xdsl/transforms/*snitch*      @nazavode
 # xDSL frontend
 xdsl/frontend/**              @webmiche
 
+# xDSL RISCV backend
+xdsl/backend/riscv/**         @AntonLydike @superlopuh @compor @nazavode
+
 # xDSL documentation
 docs/**                       @math-fehr @webmiche @superlopuh @compor
 
