@@ -35,7 +35,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import IsolatedFromAbove
+from xdsl.traits import HasParent, IsolatedFromAbove
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.parser import Parser
@@ -295,6 +295,52 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
+class ApplyOp(IRDLOperation):
+    """
+    This operation takes a stencil function plus parameters and applies
+    the stencil function to the output temp.
+
+    Example:
+
+      %0 = stencil.apply (%arg0=%0 : !stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64> {
+        ...
+      }
+    """
+
+    name = "stencil.apply"
+    args: VarOperand = var_operand_def(Attribute)
+    region: Region = region_def()
+    res: VarOpResult = var_result_def(TempType)
+
+    traits = frozenset([IsolatedFromAbove()])
+
+    @staticmethod
+    def get(
+        args: Sequence[SSAValue] | Sequence[Operation],
+        body: Block,
+        result_types: Sequence[TempType[Attribute]],
+    ):
+        assert len(result_types) > 0
+
+        return ApplyOp.build(
+            operands=[list(args)],
+            regions=[Region(body)],
+            result_types=[result_types],
+        )
+
+    def verify_(self) -> None:
+        if len(self.res) < 1:
+            raise VerifyException(
+                f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
+            )
+
+    def get_rank(self) -> int:
+        res_typ = self.res[0].typ
+        assert isa(res_typ, TempType[Attribute])
+        return res_typ.get_num_dims()
+
+
+@irdl_op_definition
 class CastOp(IRDLOperation):
     """
     This operation casts dynamically shaped input fields to statically shaped fields.
@@ -419,6 +465,8 @@ class AccessOp(IRDLOperation):
     offset: IndexAttr = attr_def(IndexAttr)
     res: OpResult = result_def(Attribute)
 
+    traits = frozenset([HasParent(ApplyOp)])
+
     @staticmethod
     def get(temp: SSAValue | Operation, offset: Sequence[int]):
         temp_type = SSAValue.get(temp).typ
@@ -436,6 +484,30 @@ class AccessOp(IRDLOperation):
             },
             result_types=[temp_type.element_type],
         )
+
+    def verify_(self) -> None:
+        apply = self.parent_op()
+        # As promised by HasParent(ApplyOp)
+        assert isinstance(apply, ApplyOp)
+
+        # TODO This should be handled by infra, having a way to verify things on ApplyOp
+        # **before** its children.
+        # cf https://github.com/xdslproject/xdsl/issues/1112
+        apply.verify_()
+
+        temp_typ = self.temp.typ
+        assert isa(temp_typ, TempType[Attribute])
+        if temp_typ.get_num_dims() != apply.get_rank():
+            raise VerifyException(
+                f"Expected stencil.access operand to be of rank {apply.get_rank()} to "
+                f"match its parent apply, got {temp_typ.get_num_dims()}"
+            )
+
+        if len(self.offset) != temp_typ.get_num_dims():
+            raise VerifyException(
+                f"Expected offset's rank to be {temp_typ.get_num_dims()} to match the "
+                f"operand's rank, got {len(self.offset)}"
+            )
 
 
 @irdl_op_definition
@@ -548,50 +620,6 @@ class StoreOp(IRDLOperation):
                 raise VerifyException("Cannot Load and Store the same field!")
             if isa(use.operation, LoadOp) and use.operation is not self:
                 raise VerifyException("Can only store once to a field!")
-
-
-@irdl_op_definition
-class ApplyOp(IRDLOperation):
-    """
-    This operation takes a stencil function plus parameters and applies
-    the stencil function to the output temp.
-
-    Example:
-
-      %0 = stencil.apply (%arg0=%0 : !stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64> {
-        ...
-      }
-    """
-
-    name = "stencil.apply"
-    args: VarOperand = var_operand_def(Attribute)
-    region: Region = region_def()
-    res: VarOpResult = var_result_def(TempType)
-
-    traits = frozenset([IsolatedFromAbove()])
-
-    @staticmethod
-    def get(
-        args: Sequence[SSAValue] | Sequence[Operation],
-        body: Block,
-        result_types: Sequence[TempType[Attribute]],
-        lb: IndexAttr | None = None,
-        ub: IndexAttr | None = None,
-    ):
-        assert len(result_types) > 0
-
-        attributes = {}
-        if lb is not None:
-            attributes["lb"] = lb
-        if ub is not None:
-            attributes["ub"] = ub
-
-        return ApplyOp.build(
-            operands=[list(args)],
-            attributes=attributes,
-            regions=[Region(body)],
-            result_types=[result_types],
-        )
 
 
 @irdl_op_definition
