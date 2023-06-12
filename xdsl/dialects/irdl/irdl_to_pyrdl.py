@@ -44,12 +44,12 @@ class {op.sym_name.data}(IRDLOperation):
     for sub_op in op.body.ops:
         if isinstance(sub_op, OperandsOp):
             for idx, _ in enumerate(sub_op.args):
-                res += f"    operand{idx}: Operand\n"
+                res += f"    operand{idx} = operand_def()\n"
         if isinstance(sub_op, ResultsOp):
             for idx, _ in enumerate(sub_op.args):
-                res += f"    result{idx}: OpResult\n"
-    res += "    regs: VarRegion\n"
-    res += "    succs: VarSuccessor\n"
+                res += f"    result{idx} = result_def()\n"
+    res += "    regs = var_region_def()\n"
+    res += "    succs = var_successor_def()\n"
     return res
 
 

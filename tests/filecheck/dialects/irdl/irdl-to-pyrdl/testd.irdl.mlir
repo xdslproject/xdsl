@@ -45,9 +45,9 @@ builtin.module {
 // CHECK:      @irdl_op_definition
 // CHECK-NEXT: class eq(IRDLOperation):
 // CHECK-NEXT:     name = "testd.eq"
-// CHECK-NEXT:     result0: OpResult
-// CHECK-NEXT:     regs: VarRegion
-// CHECK-NEXT:     succs: VarSuccessor
+// CHECK-NEXT:     result0 = result_def()
+// CHECK-NEXT:     regs = var_region_def()
+// CHECK-NEXT:     succs = var_successor_def()
 
 
     irdl.operation @anyof {
@@ -59,9 +59,9 @@ builtin.module {
 // CHECK:      @irdl_op_definition
 // CHECK-NEXT: class anyof(IRDLOperation):
 // CHECK-NEXT:     name = "testd.anyof"
-// CHECK-NEXT:     result0: OpResult
-// CHECK-NEXT:     regs: VarRegion
-// CHECK-NEXT:     succs: VarSuccessor
+// CHECK-NEXT:     result0 = result_def()
+// CHECK-NEXT:     regs = var_region_def()
+// CHECK-NEXT:     succs = var_successor_def()
 
 
     irdl.operation @all_of {
@@ -74,9 +74,9 @@ builtin.module {
 // CHECK:      @irdl_op_definition
 // CHECK-NEXT: class all_of(IRDLOperation):
 // CHECK-NEXT:     name = "testd.all_of"
-// CHECK-NEXT:     result0: OpResult
-// CHECK-NEXT:     regs: VarRegion
-// CHECK-NEXT:     succs: VarSuccessor
+// CHECK-NEXT:     result0 = result_def()
+// CHECK-NEXT:     regs = var_region_def()
+// CHECK-NEXT:     succs = var_successor_def()
 
 
     irdl.operation @any {
@@ -86,9 +86,9 @@ builtin.module {
 // CHECK:      @irdl_op_definition
 // CHECK-NEXT: class any(IRDLOperation):
 // CHECK-NEXT:     name = "testd.any"
-// CHECK-NEXT:     result0: OpResult
-// CHECK-NEXT:     regs: VarRegion
-// CHECK-NEXT:     succs: VarSuccessor
+// CHECK-NEXT:     result0 = result_def()
+// CHECK-NEXT:     regs = var_region_def()
+// CHECK-NEXT:     succs = var_successor_def()
 
 
     irdl.operation @dynbase {
@@ -99,9 +99,9 @@ builtin.module {
 // CHECK:      @irdl_op_definition
 // CHECK-NEXT: class dynbase(IRDLOperation):
 // CHECK-NEXT:     name = "testd.dynbase"
-// CHECK-NEXT:     result0: OpResult
-// CHECK-NEXT:     regs: VarRegion
-// CHECK-NEXT:     succs: VarSuccessor
+// CHECK-NEXT:     result0 = result_def()
+// CHECK-NEXT:     regs = var_region_def()
+// CHECK-NEXT:     succs = var_successor_def()
 
     irdl.operation @dynparams {
       %0 = irdl.is i32
@@ -113,9 +113,9 @@ builtin.module {
 // CHECK:      @irdl_op_definition
 // CHECK-NEXT: class dynparams(IRDLOperation):
 // CHECK-NEXT:     name = "testd.dynparams"
-// CHECK-NEXT:     result0: OpResult
-// CHECK-NEXT:     regs: VarRegion
-// CHECK-NEXT:     succs: VarSuccessor
+// CHECK-NEXT:     result0 = result_def()
+// CHECK-NEXT:     regs = var_region_def()
+// CHECK-NEXT:     succs = var_successor_def()
 
     irdl.operation @constraint_vars {
       %0 = irdl.is i32
@@ -126,9 +126,11 @@ builtin.module {
 // CHECK:      @irdl_op_definition
 // CHECK-NEXT: class constraint_vars(IRDLOperation):
 // CHECK-NEXT:     name = "testd.constraint_vars"
-// CHECK-NEXT:     result0: OpResult
-// CHECK-NEXT:     result1: OpResult
-// CHECK-NEXT:     regs: VarRegion
-// CHECK-NEXT:     succs: VarSuccessor
+// CHECK-NEXT:     result0 = result_def()
+// CHECK-NEXT:     result1 = result_def()
+// CHECK-NEXT:     regs = var_region_def()
+// CHECK-NEXT:     succs = var_successor_def()
   }
 }
+
+// CHECK: testd = Dialect([parametric, parametric_attr, attr_in_type_out], [eq, anyof, all_of, any, dynbase, dynparams, constraint_vars])
