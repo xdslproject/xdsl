@@ -50,6 +50,7 @@ from xdsl.utils.exceptions import VerifyException
 
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.dialects import arith
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -877,6 +878,20 @@ class FuncOp(IRDLOperation):
         )
 
 
+class FastMathAttr(arith.FastMathFlagsAttr):
+    name = "llvm.fastmath"
+
+
+@irdl_op_definition
+class CallOp(IRDLOperation):
+    name = "llvm.call"
+
+    args: VarOperand = var_operand_def()
+
+    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
+    fastmathFlags: FastMathAttr = attr_def(FastMathAttr)
+
+
 LLVM = Dialect(
     [
         LLVMExtractValue,
@@ -891,6 +906,7 @@ LLVM = Dialect(
         GlobalOp,
         AddressOfOp,
         FuncOp,
+        CallOp,
     ],
     [
         LLVMStructType,
@@ -900,5 +916,6 @@ LLVM = Dialect(
         LLVMFunctionType,
         LinkageAttr,
         CallingConventionAttr,
+        FastMathAttr,
     ],
 )
