@@ -111,7 +111,7 @@ def test_func_rewriting_helpers():
     """
     func = FuncOp("test", ((i32, i32, i32), ()))
     with ImplicitBuilder(func.body):
-        Return()
+        Return.get()
 
     func.replace_argument_type(2, i64)
     assert func.function_type.inputs.data[2] is i64
