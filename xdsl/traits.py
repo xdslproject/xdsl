@@ -80,8 +80,11 @@ class IsTerminator(OpTrait):
 
 class IsolatedFromAbove(OpTrait):
     """
-    Constraint the conained operations to use only values defined inside this
+    Constraint the contained operations to use only values defined inside this
     operation.
+
+    This should hopefully be fully compatible with MLIR's Trait:
+    https://mlir.llvm.org/docs/Traits/#isolatedfromabove
     """
 
     def verify(self, op: Operation) -> None:
