@@ -24,6 +24,11 @@ def should_materialize(temp: SSAValue):
 
 
 class ApplyOpMaterialization(RewritePattern):
+    """
+    Adds stencil.buffer to any output of a stencil.apply that is not otherwised mapped
+    to storage.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         clone = op.clone()
@@ -41,6 +46,12 @@ class ApplyOpMaterialization(RewritePattern):
 
 
 class StencilStorageMaterializationPass(ModulePass):
+    """
+    Pass adding stencil.buffer whenever necessary to lower a stencil dialect IR,
+    by adding stencil.buffer on any stencil.apply output not otherwise mapped
+    to storage.
+    """
+
     name = "stencil-storage-materialization"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
