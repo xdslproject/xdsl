@@ -85,16 +85,26 @@ class IsolatedFromAbove(OpTrait):
     """
 
     def verify(self, op: Operation) -> None:
+        # Start by checking all the passed operation's regions
         regions: list[Region] = op.regions.copy()
 
+        # While regions are left to check
         while regions:
+            # Pop the first one
             region = regions.pop()
+            # Check every block of the region
             for block in region.blocks:
-                for cop in block.ops:
-                    for v in cop.operands:
-                        if not op.is_ancestor(v.owner):
+                # Check every operation of the block
+                for child_op in block.ops:
+                    # Check every operand of the operation
+                    for operand in child_op.operands:
+                        # The operand must not be defined out of the IsolatedFromAbove op.
+                        if not op.is_ancestor(operand.owner):
                             raise VerifyException(
-                                "Operation using value defined out of its IsolatedFromAbove parent!"
+                                "Operation using value defined out of its "
+                                "IsolatedFromAbove parent!"
                             )
-                    if not cop.has_trait(IsolatedFromAbove):
-                        regions += cop.regions
+                    # Check nested regions too; unless the operation is IsolatedFromAbove
+                    # too; in which case it will check itself.
+                    if not child_op.has_trait(IsolatedFromAbove):
+                        regions += child_op.regions
