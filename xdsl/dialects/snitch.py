@@ -12,15 +12,13 @@ from abc import ABC
 
 from dataclasses import dataclass
 
-from typing import Annotated
-
 from xdsl.dialects.riscv import RegisterType
 
 from xdsl.dialects.builtin import AnyIntegerAttr
 
 from xdsl.ir import Dialect, Operation, SSAValue
 
-from xdsl.irdl import IRDLOperation, irdl_op_definition, Operand, OpAttr
+from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, Operand, operand_def
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -41,9 +39,9 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     configuration value for a specific dimension handled by a streamer.
     """
 
-    stream: Annotated[Operand, RegisterType]
-    value: Annotated[Operand, RegisterType]
-    dimension: OpAttr[AnyIntegerAttr]
+    stream: Operand = operand_def(RegisterType)
+    value: Operand = operand_def(RegisterType)
+    dimension: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -72,8 +70,8 @@ class SsrSetStreamConfigOperation(IRDLOperation, ABC):
     configuration value for a streamer.
     """
 
-    stream: Annotated[Operand, RegisterType]
-    value: Annotated[Operand, RegisterType]
+    stream: Operand = operand_def(RegisterType)
+    value: Operand = operand_def(RegisterType)
 
     def __init__(self, stream: Operation | SSAValue, value: Operation | SSAValue):
         super().__init__(operands=[stream, value])

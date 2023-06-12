@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from operator import add, lt, neg
-from typing import Sequence, TypeVar, cast, Iterable, Iterator, Annotated
+from typing import Sequence, TypeVar, cast, Iterable, Iterator
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
@@ -24,6 +24,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     ParameterDef,
@@ -31,15 +32,19 @@ from xdsl.irdl import (
     Region,
     VerifyException,
     Generic,
-    Annotated,
     Operand,
-    OpAttr,
     OpResult,
     VarOperand,
     VarOpResult,
     Block,
     IRDLOperation,
+    operand_def,
+    region_def,
+    result_def,
+    var_operand_def,
+    var_result_def,
 )
+from xdsl.traits import HasParent, IsolatedFromAbove
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.parser import Parser
@@ -299,6 +304,52 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
+class ApplyOp(IRDLOperation):
+    """
+    This operation takes a stencil function plus parameters and applies
+    the stencil function to the output temp.
+
+    Example:
+
+      %0 = stencil.apply (%arg0=%0 : !stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64> {
+        ...
+      }
+    """
+
+    name = "stencil.apply"
+    args: VarOperand = var_operand_def(Attribute)
+    region: Region = region_def()
+    res: VarOpResult = var_result_def(TempType)
+
+    traits = frozenset([IsolatedFromAbove()])
+
+    @staticmethod
+    def get(
+        args: Sequence[SSAValue] | Sequence[Operation],
+        body: Block,
+        result_types: Sequence[TempType[Attribute]],
+    ):
+        assert len(result_types) > 0
+
+        return ApplyOp.build(
+            operands=[list(args)],
+            regions=[Region(body)],
+            result_types=[result_types],
+        )
+
+    def verify_(self) -> None:
+        if len(self.res) < 1:
+            raise VerifyException(
+                f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
+            )
+
+    def get_rank(self) -> int:
+        res_typ = self.res[0].typ
+        assert isa(res_typ, TempType[Attribute])
+        return res_typ.get_num_dims()
+
+
+@irdl_op_definition
 class CastOp(IRDLOperation):
     """
     This operation casts dynamically shaped input fields to statically shaped fields.
@@ -308,8 +359,8 @@ class CastOp(IRDLOperation):
     """
 
     name = "stencil.cast"
-    field: Annotated[Operand, FieldType]
-    result: Annotated[OpResult, FieldType]
+    field: Operand = operand_def(FieldType)
+    result: OpResult = result_def(FieldType)
 
     @staticmethod
     def get(
@@ -366,8 +417,8 @@ class ExternalLoadOp(IRDLOperation):
     """
 
     name = "stencil.external_load"
-    field: Annotated[Operand, Attribute]
-    result: Annotated[OpResult, FieldType | memref.MemRefType]
+    field: Operand = operand_def(Attribute)
+    result: OpResult = result_def(FieldType | memref.MemRefType)
 
     @staticmethod
     def get(
@@ -387,8 +438,8 @@ class ExternalStoreOp(IRDLOperation):
     """
 
     name = "stencil.external_store"
-    temp: Annotated[Operand, FieldType]
-    field: Annotated[Operand, Attribute]
+    temp: Operand = operand_def(FieldType)
+    field: Operand = operand_def(Attribute)
 
 
 @irdl_op_definition
@@ -403,9 +454,9 @@ class IndexOp(IRDLOperation):
     """
 
     name = "stencil.index"
-    dim: OpAttr[AnyIntegerAttr]
-    offset: OpAttr[IndexAttr]
-    idx: Annotated[OpResult, builtin.IndexType]
+    dim: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    offset: IndexAttr = attr_def(IndexAttr)
+    idx: OpResult = result_def(builtin.IndexType)
 
 
 @irdl_op_definition
@@ -419,9 +470,11 @@ class AccessOp(IRDLOperation):
     """
 
     name = "stencil.access"
-    temp: Annotated[Operand, TempType]
-    offset: OpAttr[IndexAttr]
-    res: Annotated[OpResult, Attribute]
+    temp: Operand = operand_def(TempType)
+    offset: IndexAttr = attr_def(IndexAttr)
+    res: OpResult = result_def(Attribute)
+
+    traits = frozenset([HasParent(ApplyOp)])
 
     @staticmethod
     def get(temp: SSAValue | Operation, offset: Sequence[int]):
@@ -441,6 +494,30 @@ class AccessOp(IRDLOperation):
             result_types=[temp_type.element_type],
         )
 
+    def verify_(self) -> None:
+        apply = self.parent_op()
+        # As promised by HasParent(ApplyOp)
+        assert isinstance(apply, ApplyOp)
+
+        # TODO This should be handled by infra, having a way to verify things on ApplyOp
+        # **before** its children.
+        # cf https://github.com/xdslproject/xdsl/issues/1112
+        apply.verify_()
+
+        temp_typ = self.temp.typ
+        assert isa(temp_typ, TempType[Attribute])
+        if temp_typ.get_num_dims() != apply.get_rank():
+            raise VerifyException(
+                f"Expected stencil.access operand to be of rank {apply.get_rank()} to "
+                f"match its parent apply, got {temp_typ.get_num_dims()}"
+            )
+
+        if len(self.offset) != temp_typ.get_num_dims():
+            raise VerifyException(
+                f"Expected offset's rank to be {temp_typ.get_num_dims()} to match the "
+                f"operand's rank, got {len(self.offset)}"
+            )
+
 
 @irdl_op_definition
 class LoadOp(IRDLOperation):
@@ -452,8 +529,8 @@ class LoadOp(IRDLOperation):
     """
 
     name = "stencil.load"
-    field: Annotated[Operand, FieldType]
-    res: Annotated[OpResult, TempType]
+    field: Operand = operand_def(FieldType)
+    res: OpResult = result_def(TempType)
 
     @staticmethod
     def get(
@@ -501,8 +578,8 @@ class BufferOp(IRDLOperation):
     """
 
     name = "stencil.buffer"
-    temp: Annotated[Operand, TempType]
-    res: Annotated[OpResult, TempType]
+    temp: Operand = operand_def(TempType)
+    res: OpResult = result_def(TempType)
 
     def __init__(self: IRDLOperation, temp: SSAValue | Operation):
         temp = SSAValue.get(temp)
@@ -536,10 +613,10 @@ class StoreOp(IRDLOperation):
     """
 
     name = "stencil.store"
-    temp: Annotated[Operand, TempType]
-    field: Annotated[Operand, FieldType]
-    lb: OpAttr[IndexAttr]
-    ub: OpAttr[IndexAttr]
+    temp: Operand = operand_def(TempType)
+    field: Operand = operand_def(FieldType)
+    lb: IndexAttr = attr_def(IndexAttr)
+    ub: IndexAttr = attr_def(IndexAttr)
 
     @staticmethod
     def get(
@@ -559,48 +636,6 @@ class StoreOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ApplyOp(IRDLOperation):
-    """
-    This operation takes a stencil function plus parameters and applies
-    the stencil function to the output temp.
-
-    Example:
-
-      %0 = stencil.apply (%arg0=%0 : !stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64> {
-        ...
-      }
-    """
-
-    name = "stencil.apply"
-    args: Annotated[VarOperand, Attribute]
-    region: Region
-    res: Annotated[VarOpResult, TempType]
-
-    @staticmethod
-    def get(
-        args: Sequence[SSAValue] | Sequence[Operation],
-        body: Block,
-        result_types: Sequence[TempType[Attribute]],
-        lb: IndexAttr | None = None,
-        ub: IndexAttr | None = None,
-    ):
-        assert len(result_types) > 0
-
-        attributes = {}
-        if lb is not None:
-            attributes["lb"] = lb
-        if ub is not None:
-            attributes["ub"] = ub
-
-        return ApplyOp.build(
-            operands=[list(args)],
-            attributes=attributes,
-            regions=[Region(body)],
-            result_types=[result_types],
-        )
-
-
-@irdl_op_definition
 class StoreResultOp(IRDLOperation):
     """
     The store_result operation either stores an operand value or nothing.
@@ -611,8 +646,8 @@ class StoreResultOp(IRDLOperation):
     """
 
     name = "stencil.store_result"
-    args: Annotated[VarOperand, Attribute]
-    res: Annotated[OpResult, ResultType]
+    args: VarOperand = var_operand_def(Attribute)
+    res: OpResult = result_def(ResultType)
 
 
 @irdl_op_definition
@@ -631,7 +666,7 @@ class ReturnOp(IRDLOperation):
     """
 
     name = "stencil.return"
-    arg: Annotated[VarOperand, ResultType | AnyFloat]
+    arg: VarOperand = var_operand_def(ResultType | AnyFloat)
 
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from functools import reduce
+
 from inspect import isclass
 from typing import (
     Annotated,
@@ -34,6 +34,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     PyRDLAttrDefinitionError,
@@ -702,15 +703,6 @@ class OptAttributeDef(AttributeDef):
         super().__init__(typ)
 
 
-_OpAttrT = TypeVar("_OpAttrT", bound=Attribute)
-
-OpAttr: TypeAlias = Annotated[_OpAttrT, IRDLAnnotations.AttributeDefAnnot]
-OptOpAttr: TypeAlias = Annotated[_OpAttrT | None, IRDLAnnotations.OptAttributeDefAnnot]
-
-
-operation_fields = get_type_hints(Operation).keys()
-
-
 class SuccessorDef:
     """An IRDL successor definition."""
 
@@ -726,6 +718,238 @@ class OptSuccessorDef(SuccessorDef, OptionalDef):
 Successor: TypeAlias = Block
 OptSuccessor: TypeAlias = Block | None
 VarSuccessor: TypeAlias = list[Block]
+
+_ClsT = TypeVar("_ClsT")
+
+# Field definition classes for `@irdl_op_definition`
+# They carry the type information exactly as passed in the argument to `operand_def` etc.
+# We can only convert them to constraints when creating the OpDef to allow for type var
+# mapping.
+
+
+class _OpDefField(Generic[_ClsT]):
+    cls: type[_ClsT]
+
+    def __init__(self, cls: type[_ClsT]):
+        self.cls = cls
+
+
+class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
+    param: AttrConstraint | Attribute | type[Attribute] | TypeVar
+
+    def __init__(
+        self,
+        cls: type[_ClsT],
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+    ):
+        super().__init__(cls)
+        self.param = param
+
+
+class _OperandFieldDef(_ConstrainedOpDefField[OperandDef,]):
+    pass
+
+
+class _ResultFieldDef(_ConstrainedOpDefField[ResultDef]):
+    pass
+
+
+class _AttributeFieldDef(_ConstrainedOpDefField[AttributeDef]):
+    pass
+
+
+class _RegionFieldDef(_OpDefField[RegionDef]):
+    pass
+
+
+class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
+    pass
+
+
+def result_def(
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> OpResult:
+    """
+    Defines a result of an operation.
+    """
+    return cast(OpResult, _ResultFieldDef(ResultDef, constraint))
+
+
+def var_result_def(
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> VarOpResult:
+    """
+    Defines a variadic result of an operation.
+    """
+    return cast(VarOpResult, _ResultFieldDef(VarResultDef, constraint))
+
+
+def opt_result_def(
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> OptOpResult:
+    """
+    Defines an optional result of an operation.
+    """
+    return cast(OptOpResult, _ResultFieldDef(OptResultDef, constraint))
+
+
+def attr_def(
+    constraint: type[_AttrT] | TypeVar,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> _AttrT:
+    """
+    Defines an attribute of an operation.
+    """
+    return cast(_AttrT, _AttributeFieldDef(AttributeDef, constraint))
+
+
+def opt_attr_def(
+    constraint: type[_AttrT] | TypeVar,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> _AttrT | None:
+    """
+    Defines an optional attribute of an operation.
+    """
+    return cast(_AttrT, _AttributeFieldDef(OptAttributeDef, constraint))
+
+
+def operand_def(
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> Operand:
+    """
+    Defines an operand of an operation.
+    """
+    return cast(Operand, _OperandFieldDef(OperandDef, constraint))
+
+
+def var_operand_def(
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> VarOperand:
+    """
+    Defines a variadic operand of an operation.
+    """
+    return cast(VarOperand, _OperandFieldDef(VarOperandDef, constraint))
+
+
+def opt_operand_def(
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> OptOperand:
+    """
+    Defines an optional operand of an operation.
+    """
+    return cast(OptOperand, _OperandFieldDef(OptOperandDef, constraint))
+
+
+def region_def(
+    single_block: Literal["single_block"] | None = None,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> Region:
+    """
+    Defines a region of an operation.
+    """
+    cls = RegionDef if single_block is None else SingleBlockRegionDef
+    return cast(Region, _RegionFieldDef(cls))
+
+
+def var_region_def(
+    single_block: Literal["single_block"] | None = None,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> VarRegion:
+    """
+    Defines a variadic region of an operation.
+    """
+    cls = VarRegionDef if single_block is None else VarSingleBlockRegionDef
+    return cast(VarRegion, _RegionFieldDef(cls))
+
+
+def opt_region_def(
+    single_block: Literal["single_block"] | None = None,
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> OptRegion:
+    """
+    Defines an optional region of an operation.
+    """
+    cls = OptRegionDef if single_block is None else OptSingleBlockRegionDef
+    return cast(OptRegion, _RegionFieldDef(cls))
+
+
+def successor_def(
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> Successor:
+    """
+    Defines a successor of an operation.
+    """
+    return cast(Successor, _SuccessorFieldDef(SuccessorDef))
+
+
+def var_successor_def(
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> VarSuccessor:
+    """
+    Defines a variadic successor of an operation.
+    """
+    return cast(VarSuccessor, _SuccessorFieldDef(VarSuccessorDef))
+
+
+def opt_successor_def(
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> OptSuccessor:
+    """
+    Defines an optional successor of an operation.
+    """
+    return cast(OptSuccessor, _SuccessorFieldDef(OptSuccessorDef))
+
+
+# Exclude `object`
+_OPERATION_DICT_KEYS = set(key for cls in Operation.mro()[:-1] for key in cls.__dict__)
 
 
 @dataclass(kw_only=True)
@@ -745,67 +969,6 @@ class OpDef:
     def from_pyrdl(pyrdl_def: type[_OpT]) -> OpDef:
         """Decorator used on classes to define a new operation definition."""
 
-        # Get all fields of the class, including the parent classes
-        clsdict: dict[str, Any] = dict()
-        for parent_cls in pyrdl_def.mro()[::-1]:
-            # Do not collect fields from Generic, as Generic will not contain
-            # IRDL definitions, and contains ClassVar fields that are not
-            # allowed in IRDL definitions.
-            if parent_cls == Generic:
-                continue
-            clsdict = {**clsdict, **parent_cls.__dict__}
-
-        type_hints = get_type_hints(pyrdl_def, include_extras=True)
-
-        # Get all fields of the Operation class, including their parents classes
-        opdict: dict[str, Any] = dict()
-        for parent_cls in Operation.mro()[::-1]:
-            opdict = {**opdict, **parent_cls.__dict__}
-
-        def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
-            raise PyRDLOpDefinitionError(
-                f"{field_name} is neither a function, or an "
-                "operand, result, region, or attribute definition. "
-                "Operands should be defined with type hints of "
-                "Annotated[Operand, <Constraint>], results with "
-                "Annotated[OpResult, <Constraint>], regions with "
-                "Region, and attributes with "
-                "OpAttr[<Constraint>]"
-            )
-
-        # Check that all fields of the operation definition are either already
-        # in Operation, or are class functions or methods.
-        for field_name, value in clsdict.items():
-            # Fields that are already in Operation (i.e. operands, results, ...)
-            if field_name in opdict:
-                continue
-            # IRDLOperation ClassVar fields are allowed
-            if field_name in ["irdl_options", "traits", "name"]:
-                continue
-            # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
-            # They are used by Python to store information about the class, so they
-            # should not be considered as part of the operation definition.
-            # Also, they can provide a possiblea escape hatch.
-            if field_name[:2] == "__" and field_name[-2:] == "__":
-                continue
-            # Methods, properties, and functions are allowed
-            if isinstance(
-                value, (FunctionType, PropertyType, classmethod, staticmethod)
-            ):
-                continue
-            # Constraint variables are allowed
-            if get_origin(value) is Annotated:
-                if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
-                    continue
-            raise wrong_field_exception(field_name)
-
-        if "name" not in clsdict:
-            raise Exception(
-                f"pyrdl operation definition '{pyrdl_def.__name__}' does not "
-                "define the operation name. The operation name is defined by "
-                "adding a 'name' field."
-            )
-
         type_var_mapping: dict[TypeVar, AttrConstraint] | None = None
 
         # If the operation inherit from `Generic`, this means that it specializes a
@@ -816,115 +979,135 @@ class OpDef:
                 for k, v in get_type_var_mapping(pyrdl_def)[1].items()
             }
 
-        op_def = OpDef(clsdict["name"])
-        for field_name, field_type in type_hints.items():
-            if field_name in operation_fields:
+        def wrong_field_exception(field_name: str) -> PyRDLOpDefinitionError:
+            raise PyRDLOpDefinitionError(
+                f"{pyrdl_def.__name__}.{field_name} is neither a function, or an "
+                "operand, result, region, or attribute definition. "
+                "Operands should be defined with type hints of "
+                "operand_def(<Constraint>), results with "
+                "result_def(<Constraint>), regions with "
+                "region_def(), and attributes with "
+                "attr_def(<Constraint>)"
+            )
+
+        op_def = OpDef(pyrdl_def.name)
+
+        # If an operation subclass overrides a superclass field, only keep the definition
+        # of the subclass.
+        field_names = set[str]()
+
+        # Get all fields of the class, including the parent classes
+        for parent_cls in pyrdl_def.mro():
+            # Do not collect fields from Generic, as Generic will not contain
+            # IRDL definitions, and contains ClassVar fields that are not
+            # allowed in IRDL definitions.
+            if parent_cls == Generic:
+                continue
+            if parent_cls in Operation.mro():
                 continue
 
-            # If the field type is an Annotated, separate the origin
-            # from the arguments.
-            # If the field type is not an Annotated, then the arguments should
-            # just be the field itself.
-            origin: Any | None = cast(Any | None, get_origin(field_type))
-            args: tuple[Any, ...]
-            if origin is None:
-                args = (field_type,)
-            elif origin == Annotated:
-                args = get_args(field_type)
-            else:
-                args = (field_type,)
-            args = cast(tuple[Any, ...], args)
+            clsdict = parent_cls.__dict__
 
-            # Get attribute constraints from a list of pyrdl constraints
-            def get_constraint(pyrdl_constrs: tuple[Any, ...]) -> AttrConstraint:
-                return _irdl_list_to_attr_constraint(
-                    pyrdl_constrs,
-                    allow_type_var=True,
-                    type_var_mapping=type_var_mapping,
-                )
+            annotations = parent_cls.__annotations__
 
-            # Get the operand, result, attribute, or region definition, from
-            # the pyrdl description.
+            for field_name in annotations:
+                if field_name not in clsdict:
+                    raise wrong_field_exception(field_name)
 
-            # For operands and results, constrants are encoded as arguments of
-            # an Annotated, where the origin is the definition type (operand,
-            # optional result, etc...).
-            # For Attributes, constraints are encoded in the origin and the
-            # args of the Annotated, and the definition type (required or
-            # optional) is given in the Annotated arguments.
-            # For Regions, SingleBlock regions are given as Annotated arguments,
-            # and otherwise the Annotated origin (if it is an Annotated) gives
-            # the Region definition (required, optional, or variadic).
+            for field_name in clsdict:
+                if field_name == "name":
+                    continue
+                if field_name in _OPERATION_DICT_KEYS:
+                    # Fields that are already in Operation (i.e. operands, results, ...)
+                    continue
+                if field_name in field_names:
+                    # already registered value for field name
+                    continue
 
-            # Operand annotation
-            if args[0] == Operand:
-                constraint = get_constraint(args[1:])
-                op_def.operands.append((field_name, OperandDef(constraint)))
-            elif args[0] == list[Operand]:
-                constraint = get_constraint(args[1:])
-                op_def.operands.append((field_name, VarOperandDef(constraint)))
-            elif args[0] == (Operand | None):
-                constraint = get_constraint(args[1:])
-                op_def.operands.append((field_name, OptOperandDef(constraint)))
+                value = clsdict[field_name]
 
-            # Result annotation
-            elif args[0] == OpResult:
-                constraint = get_constraint(args[1:])
-                op_def.results.append((field_name, ResultDef(constraint)))
-            elif args[0] == list[OpResult]:
-                constraint = get_constraint(args[1:])
-                op_def.results.append((field_name, VarResultDef(constraint)))
-            elif args[0] == (OpResult | None):
-                constraint = get_constraint(args[1:])
-                op_def.results.append((field_name, OptResultDef(constraint)))
+                # Check that all fields of the operation definition are either already
+                # in Operation, or are class functions or methods.
 
-            # Attribute annotation
-            elif IRDLAnnotations.AttributeDefAnnot in args:
-                constraint = get_constraint(args)
-                op_def.attributes[field_name] = AttributeDef(constraint)
-            elif IRDLAnnotations.OptAttributeDefAnnot in args:
-                assert get_origin(args[0]) in [UnionType, Union]
-                args = (reduce(lambda x, y: x | y, get_args(args[0])[:-1]), *args[1:])
-                constraint = get_constraint(args)
-                op_def.attributes[field_name] = OptAttributeDef(constraint)
+                if field_name == "irdl_options":
+                    if not isinstance(value, list):
+                        assert False
+                    op_def.options.extend(cast(list[Any], value))
+                    continue
 
-            # Region annotation
-            elif args[0] == Region:
-                if len(args) > 1 and args[1] == IRDLAnnotations.SingleBlockRegionAnnot:
-                    op_def.regions.append((field_name, SingleBlockRegionDef()))
-                else:
-                    op_def.regions.append((field_name, RegionDef()))
-            elif args[0] == VarRegion:
-                if len(args) > 1 and args[1] == IRDLAnnotations.SingleBlockRegionAnnot:
-                    op_def.regions.append((field_name, VarSingleBlockRegionDef()))
-                else:
-                    op_def.regions.append((field_name, VarRegionDef()))
-            elif args[0] == OptRegion:
-                if len(args) > 1 and args[1] == IRDLAnnotations.SingleBlockRegionAnnot:
-                    op_def.regions.append((field_name, OptSingleBlockRegionDef()))
-                else:
-                    op_def.regions.append((field_name, OptRegionDef()))
+                if field_name == "traits":
+                    traits = value
+                    if not isinstance(traits, frozenset):
+                        raise Exception(
+                            f"pyrdl operation definition '{pyrdl_def.__name__}' "
+                            f"has a 'traits' field of type {type(traits)}, but "
+                            "it should be of type frozenset."
+                        )
+                    op_def.traits = traits
+                    # Only register subclass traits
+                    field_names.add(field_name)
+                    continue
 
-            # Successor annotation
-            elif args[0] == Successor:
-                op_def.successors.append((field_name, SuccessorDef()))
-            elif args[0] == VarSuccessor:
-                op_def.successors.append((field_name, VarSuccessorDef()))
-            elif args[0] == OptSuccessor:
-                op_def.successors.append((field_name, OptSuccessorDef()))
+                # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
+                # They are used by Python to store information about the class, so they
+                # should not be considered as part of the operation definition.
+                # Also, they can provide a possiblea escape hatch.
+                if field_name[:2] == "__" and field_name[-2:] == "__":
+                    continue
 
-            else:
+                # Methods, properties, and functions are allowed
+                if isinstance(
+                    value, (FunctionType, PropertyType, classmethod, staticmethod)
+                ):
+                    continue
+                # Constraint variables are allowed
+                if get_origin(value) is Annotated:
+                    if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
+                        continue
+
+                # Get attribute constraints from a list of pyrdl constraints
+                def get_constraint(
+                    pyrdl_constr: AttrConstraint
+                    | Attribute
+                    | type[Attribute]
+                    | TypeVar,
+                ) -> AttrConstraint:
+                    return _irdl_list_to_attr_constraint(
+                        (pyrdl_constr,),
+                        allow_type_var=True,
+                        type_var_mapping=type_var_mapping,
+                    )
+
+                field_names.add(field_name)
+
+                match value:
+                    case _ResultFieldDef():
+                        constraint = get_constraint(value.param)
+                        result_def = value.cls(constraint)
+                        op_def.results.append((field_name, result_def))
+                        continue
+                    case _OperandFieldDef():
+                        constraint = get_constraint(value.param)
+                        attribute_def = value.cls(constraint)
+                        op_def.operands.append((field_name, attribute_def))
+                        continue
+                    case _AttributeFieldDef():
+                        constraint = get_constraint(value.param)
+                        attribute_def = value.cls(constraint)
+                        op_def.attributes[field_name] = attribute_def
+                        continue
+                    case _RegionFieldDef():
+                        region_def = value.cls()
+                        op_def.regions.append((field_name, region_def))
+                        continue
+                    case _SuccessorFieldDef():
+                        successor_def = value.cls()
+                        op_def.successors.append((field_name, successor_def))
+                        continue
+                    case _:
+                        pass
+
                 raise wrong_field_exception(field_name)
-
-        op_def.options = clsdict.get("irdl_options", [])
-        traits = clsdict.get("traits", frozenset[OpTrait]())
-        if not isinstance(traits, frozenset):
-            raise Exception(
-                f"pyrdl operation definition '{pyrdl_def.__name__}' "
-                f"has a 'traits' field of type {type(traits)}, but "
-                "it should be of type frozenset."
-            )
-        op_def.traits = traits
 
         return op_def
 
@@ -1493,7 +1676,7 @@ def irdl_op_arg_definition(
     if previous_variadics > 1 and (arg_size_option not in op_def.options):
         arg_size_option_name = type(arg_size_option).__name__  # type: ignore
         raise Exception(
-            "Operation defines more than two variadic "
+            f"Operation {op_def.name} defines more than two variadic "
             f"{get_construct_name(construct)}s, but do not define the "
             f"{arg_size_option_name} PyRDL option."
         )
@@ -1505,11 +1688,6 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     assert issubclass(
         cls, IRDLOperation
     ), f"class {cls.__name__} should be a subclass of IRDLOperation"
-
-    # Get all fields of the class, including the parent classes
-    clsdict = dict[str, Any]()
-    for parent_cls in cls.mro()[::-1]:
-        clsdict = {**clsdict, **parent_cls.__dict__}
 
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = dict[str, Any]()

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import IO, Annotated, Iterable, TypeAlias, Sequence
+from typing import IO, Iterable, TypeAlias, Sequence
 
 
 from xdsl.ir import (
@@ -19,14 +19,20 @@ from xdsl.ir import (
 
 from xdsl.irdl import (
     IRDLOperation,
+    OptRegion,
     OptSingleBlockRegion,
     VarOpResult,
+    attr_def,
     irdl_op_definition,
     irdl_attr_definition,
     VarOperand,
     Operand,
-    OpAttr,
-    OptOpAttr,
+    operand_def,
+    opt_attr_def,
+    opt_region_def,
+    result_def,
+    var_operand_def,
+    var_result_def,
 )
 
 from xdsl.parser import Parser
@@ -224,7 +230,7 @@ class RISCVInstruction(RISCVOp):
     The name of the operation will be used as the RISC-V assembly instruction name.
     """
 
-    comment: OptOpAttr[StringAttr]
+    comment: StringAttr | None = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
     """
@@ -320,9 +326,9 @@ class RdRsRsOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called R-Type in the RISC-V specification.
     """
 
-    rd: Annotated[OpResult, RegisterType]
-    rs1: Annotated[Operand, RegisterType]
-    rs2: Annotated[Operand, RegisterType]
+    rd: OpResult = result_def(RegisterType)
+    rs1: Operand = operand_def(RegisterType)
+    rs2: Operand = operand_def(RegisterType)
 
     def __init__(
         self,
@@ -357,8 +363,8 @@ class RdImmOperation(IRDLOperation, RISCVInstruction, ABC):
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
     """
 
-    rd: Annotated[OpResult, RegisterType]
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    rd: OpResult = result_def(RegisterType)
+    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
@@ -398,12 +404,12 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rd: OptOpAttr[RegisterType]
+    rd: RegisterType | None = opt_attr_def(RegisterType)
     """
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
@@ -440,9 +446,9 @@ class RdRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called I-Type in the RISC-V specification.
     """
 
-    rd: Annotated[OpResult, RegisterType]
-    rs1: Annotated[Operand, RegisterType]
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    rd: OpResult = result_def(RegisterType)
+    rs1: Operand = operand_def(RegisterType)
+    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
@@ -517,13 +523,13 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rs1: Annotated[Operand, RegisterType]
-    rd: OptOpAttr[RegisterType]
+    rs1: Operand = operand_def(RegisterType)
+    rd: RegisterType | None = opt_attr_def(RegisterType)
     """
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate: OpAttr[AnyIntegerAttr | LabelAttr]
+    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
@@ -563,8 +569,8 @@ class RdRsOperation(IRDLOperation, RISCVInstruction, ABC):
     source register.
     """
 
-    rd: Annotated[OpResult, RegisterType]
-    rs: Annotated[Operand, RegisterType]
+    rd: OpResult = result_def(RegisterType)
+    rs: Operand = operand_def(RegisterType)
 
     def __init__(
         self,
@@ -597,9 +603,9 @@ class RsRsOffOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called B-Type in the RISC-V specification.
     """
 
-    rs1: Annotated[Operand, RegisterType]
-    rs2: Annotated[Operand, RegisterType]
-    offset: OpAttr[AnyIntegerAttr | LabelAttr]
+    rs1: Operand = operand_def(RegisterType)
+    rs2: Operand = operand_def(RegisterType)
+    offset: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
@@ -636,9 +642,9 @@ class RsRsImmOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called S-Type in the RISC-V specification.
     """
 
-    rs1: Annotated[Operand, RegisterType]
-    rs2: Annotated[Operand, RegisterType]
-    immediate: OpAttr[AnyIntegerAttr]
+    rs1: Operand = operand_def(RegisterType)
+    rs2: Operand = operand_def(RegisterType)
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -673,8 +679,8 @@ class RsRsOperation(IRDLOperation, RISCVInstruction, ABC):
     registers.
     """
 
-    rs1: Annotated[Operand, RegisterType]
-    rs2: Annotated[Operand, RegisterType]
+    rs1: Operand = operand_def(RegisterType)
+    rs2: Operand = operand_def(RegisterType)
 
     def __init__(self, rs1: Operation | SSAValue, rs2: Operation | SSAValue):
         super().__init__(
@@ -719,10 +725,10 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
       returned in rd
     """
 
-    rd: Annotated[OpResult, RegisterType]
-    rs1: Annotated[Operand, RegisterType]
-    csr: OpAttr[AnyIntegerAttr]
-    writeonly: OptOpAttr[UnitAttr]
+    rd: OpResult = result_def(RegisterType)
+    rs1: Operand = operand_def(RegisterType)
+    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    writeonly: UnitAttr | None = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -777,10 +783,10 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
       to writing to a CSR takes place even if the mask in rs has no actual bits set.
     """
 
-    rd: Annotated[OpResult, RegisterType]
-    rs1: Annotated[Operand, RegisterType]
-    csr: OpAttr[AnyIntegerAttr]
-    readonly: OptOpAttr[UnitAttr]
+    rd: OpResult = result_def(RegisterType)
+    rs1: Operand = operand_def(RegisterType)
+    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    readonly: UnitAttr | None = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
@@ -833,10 +839,10 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
       returned in rd
     """
 
-    rd: Annotated[OpResult, RegisterType]
-    csr: OpAttr[AnyIntegerAttr]
-    writeonly: OptOpAttr[UnitAttr]
-    immediate: OptOpAttr[AnyIntegerAttr]
+    rd: OpResult = result_def(RegisterType)
+    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    writeonly: UnitAttr | None = opt_attr_def(UnitAttr)
+    immediate: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -891,9 +897,9 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
       place.
     """
 
-    rd: Annotated[OpResult, RegisterType]
-    csr: OpAttr[AnyIntegerAttr]
-    immediate: OpAttr[AnyIntegerAttr]
+    rd: OpResult = result_def(RegisterType)
+    csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
@@ -1670,6 +1676,7 @@ class MulOp(RdRsRsOperation):
     name = "riscv.mul"
 
 
+@irdl_op_definition
 class MulhOp(RdRsRsOperation):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
@@ -1682,6 +1689,7 @@ class MulhOp(RdRsRsOperation):
     name = "riscv.mulh"
 
 
+@irdl_op_definition
 class MulhsuOp(RdRsRsOperation):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by unsigned rs2
@@ -1694,6 +1702,7 @@ class MulhsuOp(RdRsRsOperation):
     name = "riscv.mulhsu"
 
 
+@irdl_op_definition
 class MulhuOp(RdRsRsOperation):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of unsigned rs1 by unsigned rs2
@@ -1707,6 +1716,7 @@ class MulhuOp(RdRsRsOperation):
 
 
 ## Division Operations
+@irdl_op_definition
 class DivOp(RdRsRsOperation):
     """
     Perform an XLEN bits by XLEN bits signed integer division of rs1 by rs2,
@@ -1719,6 +1729,7 @@ class DivOp(RdRsRsOperation):
     name = "riscv.div"
 
 
+@irdl_op_definition
 class DivuOp(RdRsRsOperation):
     """
     Perform an XLEN bits by XLEN bits unsigned integer division of rs1 by rs2,
@@ -1731,6 +1742,7 @@ class DivuOp(RdRsRsOperation):
     name = "riscv.divu"
 
 
+@irdl_op_definition
 class RemOp(RdRsRsOperation):
     """
     Perform an XLEN bits by XLEN bits signed integer reminder of rs1 by rs2.
@@ -1742,6 +1754,7 @@ class RemOp(RdRsRsOperation):
     name = "riscv.rem"
 
 
+@irdl_op_definition
 class RemuOp(RdRsRsOperation):
     """
     Perform an XLEN bits by XLEN bits unsigned integer reminder of rs1 by rs2.
@@ -1830,9 +1843,9 @@ class LabelOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.label"
-    label: OpAttr[LabelAttr]
-    comment: OptOpAttr[StringAttr]
-    data: OptSingleBlockRegion
+    label: LabelAttr = attr_def(LabelAttr)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
+    data: OptRegion = opt_region_def("single_block")
 
     def __init__(
         self,
@@ -1870,9 +1883,9 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.directive"
-    directive: OpAttr[StringAttr]
-    value: OptOpAttr[StringAttr]
-    data: OptSingleBlockRegion
+    directive: StringAttr = attr_def(StringAttr)
+    value: StringAttr | None = opt_attr_def(StringAttr)
+    data: OptRegion = opt_region_def("single_block")
 
     def __init__(
         self,
@@ -1924,10 +1937,10 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
     """
 
     name = "riscv.custom_assembly_instruction"
-    inputs: VarOperand
-    outputs: VarOpResult
-    instruction_name: OpAttr[StringAttr]
-    comment: OptOpAttr[StringAttr]
+    inputs: VarOperand = var_operand_def()
+    outputs: VarOpResult = var_result_def()
+    instruction_name: StringAttr = attr_def(StringAttr)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -1961,7 +1974,7 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
 @irdl_op_definition
 class CommentOp(IRDLOperation, RISCVOp):
     name = "riscv.comment"
-    comment: OpAttr[StringAttr]
+    comment: StringAttr = attr_def(StringAttr)
 
     def __init__(self, comment: str | StringAttr):
         if isinstance(comment, str):
@@ -2031,7 +2044,7 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.get_register"
-    res: Annotated[OpResult, RegisterType]
+    res: OpResult = result_def(RegisterType)
 
     def __init__(
         self,

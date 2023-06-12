@@ -1,7 +1,7 @@
 """Definition of the IRDL dialect."""
 
 from __future__ import annotations
-from typing import Annotated, Sequence
+from typing import Sequence
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import (
     Attribute,
@@ -15,11 +15,13 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    OpAttr,
-    SingleBlockRegion,
     VarOperand,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
+    region_def,
+    result_def,
+    var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -43,8 +45,8 @@ class DialectOp(IRDLOperation):
 
     name = "irdl.dialect"
 
-    sym_name: OpAttr[StringAttr]
-    body: SingleBlockRegion
+    sym_name: StringAttr = attr_def(StringAttr)
+    body: Region = region_def("single_block")
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -71,8 +73,8 @@ class TypeOp(IRDLOperation):
 
     name = "irdl.type"
 
-    sym_name: OpAttr[StringAttr]
-    body: SingleBlockRegion
+    sym_name: StringAttr = attr_def(StringAttr)
+    body: Region = region_def("single_block")
 
     traits = frozenset([HasParent(DialectOp)])
 
@@ -101,8 +103,8 @@ class AttributeOp(IRDLOperation):
 
     name = "irdl.attribute"
 
-    sym_name: OpAttr[StringAttr]
-    body: SingleBlockRegion
+    sym_name: StringAttr = attr_def(StringAttr)
+    body: Region = region_def("single_block")
 
     traits = frozenset([HasParent(DialectOp)])
 
@@ -131,7 +133,7 @@ class ParametersOp(IRDLOperation):
 
     name = "irdl.parameters"
 
-    args: Annotated[VarOperand, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
 
     traits = frozenset([HasParent((TypeOp, AttributeOp))])
 
@@ -157,8 +159,8 @@ class OperationOp(IRDLOperation):
 
     name = "irdl.operation"
 
-    sym_name: OpAttr[StringAttr]
-    body: SingleBlockRegion
+    sym_name: StringAttr = attr_def(StringAttr)
+    body: Region = region_def("single_block")
 
     traits = frozenset([HasParent(DialectOp)])
 
@@ -187,7 +189,7 @@ class OperandsOp(IRDLOperation):
 
     name = "irdl.operands"
 
-    args: Annotated[VarOperand, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
 
     traits = frozenset([HasParent(OperationOp)])
 
@@ -213,7 +215,7 @@ class ResultsOp(IRDLOperation):
 
     name = "irdl.results"
 
-    args: Annotated[VarOperand, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
 
     traits = frozenset([HasParent(OperationOp)])
 
@@ -244,8 +246,8 @@ class IsOp(IRDLOperation):
 
     name = "irdl.is"
 
-    expected: OpAttr[Attribute]
-    output: Annotated[OpResult, AttributeType]
+    expected: Attribute = attr_def(Attribute)
+    output: OpResult = result_def(AttributeType)
 
     def __init__(self, expected: Attribute):
         super().__init__(
@@ -268,9 +270,9 @@ class ParametricOp(IRDLOperation):
 
     name = "irdl.parametric"
 
-    base_type: OpAttr[SymbolRefAttr]
-    args: Annotated[VarOperand, AttributeType]
-    output: Annotated[OpResult, AttributeType]
+    base_type: SymbolRefAttr = attr_def(SymbolRefAttr)
+    args: VarOperand = var_operand_def(AttributeType)
+    output: OpResult = result_def(AttributeType)
 
     def __init__(
         self, base_type: str | StringAttr | SymbolRefAttr, args: Sequence[SSAValue]
@@ -307,7 +309,7 @@ class AnyOp(IRDLOperation):
 
     name = "irdl.any"
 
-    output: Annotated[OpResult, AttributeType]
+    output: OpResult = result_def(AttributeType)
 
     def __init__(self):
         super().__init__(result_types=[AttributeType()])
@@ -326,8 +328,8 @@ class AnyOfOp(IRDLOperation):
 
     name = "irdl.any_of"
 
-    args: Annotated[VarOperand, AttributeType]
-    output: Annotated[OpResult, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
+    output: OpResult = result_def(AttributeType)
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args], result_types=[AttributeType()])
@@ -351,8 +353,8 @@ class AllOfOp(IRDLOperation):
 
     name = "irdl.all_of"
 
-    args: Annotated[VarOperand, AttributeType]
-    output: Annotated[OpResult, AttributeType]
+    args: VarOperand = var_operand_def(AttributeType)
+    output: OpResult = result_def(AttributeType)
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args], result_types=[AttributeType()])

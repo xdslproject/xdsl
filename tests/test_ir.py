@@ -1,6 +1,6 @@
 import pytest
 
-from typing import cast, Annotated
+from typing import cast
 
 from xdsl.dialects.arith import Arith, Addi, Subi, Constant
 from xdsl.dialects.builtin import Builtin, IntegerType, i32, i64, IntegerAttr, ModuleOp
@@ -11,8 +11,16 @@ from xdsl.dialects.test import TestOp
 
 from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
 from xdsl.parser import Parser
-from xdsl.irdl import IRDLOperation, VarRegion, irdl_op_definition, Operand
+from xdsl.irdl import (
+    IRDLOperation,
+    VarRegion,
+    irdl_op_definition,
+    Operand,
+    operand_def,
+    var_region_def,
+)
 from xdsl.utils.test_value import TestSSAValue
+from xdsl.utils.exceptions import VerifyException
 
 
 def test_ops_accessor():
@@ -160,6 +168,95 @@ def test_region_clone_into_circular_blocks():
     region.clone_into(region2)
 
     assert region.is_structurally_equivalent(region2)
+
+
+def test_op_with_successors_not_in_block():
+    block0 = Block()
+    op0 = TestOp.create(successors=[block0])
+
+    with pytest.raises(
+        VerifyException,
+        match="Operation with block successors does not belong to a block or a region",
+    ):
+        op0.verify()
+
+
+def test_op_with_successors_not_in_region():
+    block0 = Block()
+    op0 = TestOp.create(successors=[block0])
+    _ = Block([op0])
+
+    with pytest.raises(
+        VerifyException,
+        match="Operation with block successors does not belong to a block or a region",
+    ):
+        op0.verify()
+
+
+def test_non_empty_block_with_single_block_parent_region_can_have_terminator():
+    """
+    Tests that an non-empty block belonging to a single-block region with parent
+    operation can have a single terminator operation without the IsTerminator
+    trait.
+    """
+    block1 = Block([TestOp.create()])
+    region0 = Region([block1])
+    op0 = TestOp.create(regions=[region0])
+
+    op0.verify()
+
+
+def test_non_empty_block_with_parent_region_requires_terminator_with_successors():
+    """
+    Tests that an non-empty block belonging to a multi-block region with parent
+    operation requires terminator operation.
+    The terminator operation may have successors.
+    """
+    block0 = Block()
+    block1 = Block([TestOp.create(successors=[block0])])
+    region0 = Region([block0, block1])
+    op0 = TestOp.create(regions=[region0])
+
+    with pytest.raises(
+        VerifyException,
+        match="Operation terminates block but is not a terminator",
+    ):
+        op0.verify()
+
+
+def test_non_empty_block_with_parent_region_requires_terminator_without_successors():
+    """
+    Tests that an non-empty block belonging to a multi-block region with parent
+    operation requires terminator operation.
+    The terminator operation may not have successors.
+    """
+    block0 = Block()
+    block1 = Block([TestOp.create()])
+    region0 = Region([block0, block1])
+    op0 = TestOp.create(regions=[region0])
+
+    with pytest.raises(
+        VerifyException,
+        match="Operation terminates block but is not a terminator",
+    ):
+        op0.verify()
+
+
+def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op():
+    """
+    Tests that an non-empty block belonging to a multi-block region with parent
+    operation requires terminator operation.
+    """
+    block0 = Block()
+    block1 = Block([TestOp.create(successors=[block0]), TestOp.create()])
+    region0 = Region([block0, block1])
+    op0 = TestOp.create(regions=[region0])
+
+    with pytest.raises(
+        VerifyException,
+        match="Operation with block successors must terminate its parent block",
+    ):
+        op0.verify()
 
 
 ##################### Testing is_structurally_equal #####################
@@ -350,7 +447,7 @@ ModuleOp(
 @irdl_op_definition
 class CustomOpWithMultipleRegions(IRDLOperation):
     name = "test.custom_op_with_multiple_regions"
-    region: VarRegion
+    region: VarRegion = var_region_def()
 
 
 def test_region_index_fetch():
@@ -409,7 +506,7 @@ def test_detach_region():
 @irdl_op_definition
 class CustomVerify(IRDLOperation):
     name = "test.custom_verify_op"
-    val: Annotated[Operand, i64]
+    val: Operand = operand_def(i64)
 
     @staticmethod
     def get(val: SSAValue):
@@ -450,3 +547,44 @@ def test_replace_operand():
 
     with pytest.raises(ValueError):
         add.replace_operand(cst0, new_cst)
+
+
+def test_block_walk():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+    c = Constant.from_int_and_width(3, 32)
+
+    ops = [a, b, c]
+    block = Block(ops)
+
+    assert list(block.walk()) == [a, b, c]
+    assert list(block.walk_reverse()) == [c, b, a]
+
+
+def test_region_walk():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+
+    block_a = Block([a])
+    block_b = Block([b])
+
+    region = Region([block_a, block_b])
+
+    assert list(region.walk()) == [a, b]
+    assert list(region.walk_reverse()) == [b, a]
+
+
+def test_op_walk():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+
+    block_a = Block([a])
+    block_b = Block([b])
+
+    region_a = Region(block_a)
+    region_b = Region(block_b)
+
+    op_multi_region = TestOp.create(regions=[region_a, region_b])
+
+    assert list(op_multi_region.walk()) == [op_multi_region, a, b]
+    assert list(op_multi_region.walk_reverse()) == [b, a, op_multi_region]

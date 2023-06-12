@@ -166,7 +166,7 @@ def test_stencil_apply():
     assert len(apply_op.args) == 1
     assert len(apply_op.res) == 1
     assert isinstance(apply_op.res[0].typ, TempType)
-    assert len(apply_op.res[0].typ.get_shape()) == 2
+    assert apply_op.get_rank() == 2
 
 
 def test_stencil_apply_no_args():
@@ -176,7 +176,7 @@ def test_stencil_apply_no_args():
     assert len(apply_op.args) == 0
     assert len(apply_op.res) == 2
     assert isinstance(apply_op.res[0].typ, TempType)
-    assert len(apply_op.res[0].typ.get_shape()) == 1
+    assert apply_op.get_rank() == 1
 
 
 def test_stencil_apply_no_results():

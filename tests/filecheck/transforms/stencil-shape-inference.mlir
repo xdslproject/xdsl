@@ -163,7 +163,7 @@ builtin.module {
       %14 = "stencil.access"(%13) {"offset" = #stencil.index<0>} : (!stencil.temp<?xf64>) -> f64
       "stencil.return"(%14) : (f64) -> ()
     }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
-    "stencil.store"(%12, %1) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<64, 64>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
+    "stencil.store"(%12, %1) {"lb" = #stencil.index<0>, "ub" = #stencil.index<64>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
     "func.return"() : () -> ()
   }
 }
@@ -181,8 +181,8 @@ builtin.module {
 // CHECK-NEXT:     ^1(%8 : !stencil.temp<[0,64]xf64>):
 // CHECK-NEXT:       %9 = "stencil.access"(%8) {"offset" = #stencil.index<0>} : (!stencil.temp<[0,64]xf64>) -> f64
 // CHECK-NEXT:       "stencil.return"(%9) : (f64) -> ()
-// CHECK-NEXT:     }) : (!stencil.temp<[0,64]xf64>) -> !stencil.temp<[0,64]x[0,64]xf64>
-// CHECK-NEXT:     "stencil.store"(%7, %1) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<64, 64>} : (!stencil.temp<[0,64]x[0,64]xf64>, !stencil.field<[-4,68]xf64>) -> ()
+// CHECK-NEXT:     }) : (!stencil.temp<[0,64]xf64>) -> !stencil.temp<[0,64]xf64>
+// CHECK-NEXT:     "stencil.store"(%7, %1) {"lb" = #stencil.index<0>, "ub" = #stencil.index<64>} : (!stencil.temp<[0,64]xf64>, !stencil.field<[-4,68]xf64>) -> ()
 // CHECK-NEXT:     "func.return"() : () -> ()
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
