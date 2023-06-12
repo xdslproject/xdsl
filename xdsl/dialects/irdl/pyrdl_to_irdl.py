@@ -1,12 +1,13 @@
-from xdsl.builder import Builder, ImplicitBuilder
+from xdsl.builder import Builder
 from xdsl.dialects.irdl.irdl import (
     AttributeOp,
+    DialectOp,
     OperandsOp,
     OperationOp,
     ParametersOp,
     ResultsOp,
 )
-from xdsl.ir.core import Block, ParametrizedAttribute, Region, SSAValue
+from xdsl.ir.core import Block, Dialect, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import (
     AttrConstraint,
     IRDLOperation,
@@ -22,8 +23,8 @@ def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue
     Convert an attribute constraint to IRDL.
     This will create new operations at the provided builder location.
     """
-    with ImplicitBuilder(builder):
-        return AnyOp().output
+    any_op = builder.insert(AnyOp())
+    return any_op.output
 
 
 def op_def_to_irdl(op_def: type[IRDLOperation] | OpDef) -> OperationOp:
@@ -38,13 +39,15 @@ def op_def_to_irdl(op_def: type[IRDLOperation] | OpDef) -> OperationOp:
     operand_values: list[SSAValue] = []
     for operand in op_def.operands:
         operand_values.append(constraint_to_irdl(builder, operand[1].constr))
-    builder.insert(OperandsOp(operand_values))
+    if operand_values:
+        builder.insert(OperandsOp(operand_values))
 
     # Results
     result_values: list[SSAValue] = []
     for result in op_def.results:
         result_values.append(constraint_to_irdl(builder, result[1].constr))
-    builder.insert(ResultsOp(result_values))
+    if result_values:
+        builder.insert(ResultsOp(result_values))
 
     return OperationOp(op_def.name, Region([block]))
 
@@ -66,3 +69,23 @@ def attr_def_to_irdl(
     builder.insert(ParametersOp(param_values))
 
     return AttributeOp(attr_def.name, Region([block]))
+
+
+def dialect_to_irdl(dialect: Dialect, name: str) -> DialectOp:
+    """Convert a dialect definition to an IRDL dialect definition."""
+    block = Block()
+    builder = Builder(block)
+
+    for attribute in dialect.attributes:
+        if not issubclass(attribute, ParametrizedAttribute):
+            raise ValueError(
+                "Can only convert ParametrizedAttribute attributes to IRDL"
+            )
+        builder.insert(attr_def_to_irdl(attribute))
+
+    for operation in dialect.operations:
+        if not issubclass(operation, IRDLOperation):
+            raise ValueError("Can only convert IRDLOperations operations to IRDL")
+        builder.insert(op_def_to_irdl(operation))
+
+    return DialectOp(name, Region([block]))
