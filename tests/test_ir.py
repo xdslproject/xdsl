@@ -169,6 +169,11 @@ def test_op_clone_with_regions():
 
 @irdl_op_definition
 class SuccessorOp(IRDLOperation):
+    """
+    Utility operation that requires a successor and has the IsTerminator
+    trait.
+    """
+
     name = "test.successor_op"
 
     successor: Successor = successor_def()
@@ -177,6 +182,10 @@ class SuccessorOp(IRDLOperation):
 
 
 def test_block_branching_to_another_region_wrong():
+    """
+    Tests that an operation cannot have successors that branch to blocks of
+    another region.
+    """
     block1 = Block([TestOp.create(), TestOp.create()])
     region1 = Region([block1])
 
@@ -195,6 +204,10 @@ def test_block_branching_to_another_region_wrong():
 
 
 def test_block_not_branching_to_another_region():
+    """
+    Tests that an operation can have successors that branch to blocks of the
+    same region.
+    """
     block0 = Block()
 
     op0 = SuccessorOp.create(successors=[block0])
