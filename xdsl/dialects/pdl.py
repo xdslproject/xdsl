@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Generic, Iterable, Sequence, TypeVar, cast
+from typing import Annotated, Generic, Iterable, Sequence, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
@@ -479,7 +479,7 @@ class PatternOp(IRDLOperation):
         self,
         benefit: int | IntegerAttr[IntegerType],
         sym_name: str | StringAttr | None,
-        body: Region | Block.BlockCallback | None = None,
+        body: Region | None = None,
     ):
         if isinstance(benefit, int):
             benefit = IntegerAttr(benefit, 16)
@@ -487,8 +487,6 @@ class PatternOp(IRDLOperation):
             sym_name = StringAttr(sym_name)
         if body is None:
             body = Region(Block())
-        elif not isinstance(body, Region):
-            body = Region(Block.from_callable([], body))
         super().__init__(
             attributes={
                 "benefit": benefit,
@@ -754,10 +752,7 @@ class RewriteOp(IRDLOperation):
     def __init__(
         self,
         root: SSAValue | None,
-        body: Region
-        | Block.BlockCallback
-        | type[Region.DEFAULT]
-        | None = Region.DEFAULT,
+        body: Region | type[Region.DEFAULT] | None = Region.DEFAULT,
         name: str | StringAttr | None = None,
         external_args: Sequence[SSAValue] = (),
     ) -> None:
@@ -778,9 +773,6 @@ class RewriteOp(IRDLOperation):
             regions.append(body)
         elif body is None:
             regions.append([])
-        else:
-            body = cast(Block.BlockCallback, body)
-            regions.append(Region(Block.from_callable([], body)))
 
         attributes: dict[str, Attribute] = {}
         if name is not None:

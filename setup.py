@@ -60,7 +60,12 @@ setup(
     description="xDSL",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    entry_points={"console_scripts": ["xdsl-opt = xdsl.tools.xdsl_opt:main"]},
+    entry_points={
+        "console_scripts": [
+            "xdsl-opt = xdsl.tools.xdsl_opt:main",
+            "irdl-to-pyrdl = xdsl.tools.irdl_to_pyrdl:main",
+        ]
+    },
     project_urls={
         "Source Code": "https://github.com/xdslproject/xdsl",
         "Issue Tracker": "https://github.com/xdslproject/xdsl/issues",
