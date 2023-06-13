@@ -785,9 +785,12 @@ class Operation(IRNode):
                 if (
                     parent_op := parent_region.parent
                 ) is not None and not parent_op.has_trait(NoTerminator):
-                    raise VerifyException(
-                        "Operation terminates block in single-block region but is not a terminator"
-                    )
+                    if parent_block.last_op == self and not self.has_trait(
+                        IsTerminator
+                    ):
+                        raise VerifyException(
+                            "Operation terminates block in single-block region but is not a terminator"
+                        )
             elif len(parent_region.blocks) > 1:
                 if not self.has_trait(IsTerminator):
                     raise VerifyException(
