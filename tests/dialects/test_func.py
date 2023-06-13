@@ -1,7 +1,7 @@
 import pytest
 
 from conftest import assert_print_op
-from xdsl.builder import Builder
+from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
 from xdsl.dialects.builtin import (
@@ -90,7 +90,10 @@ def test_func_II():
 
 
 def test_wrong_blockarg_types():
-    r = Region(Block.from_callable([i32], lambda *x: [Addi(x[0], x[0])]))
+    b = Block(arg_types=(i32,))
+    with ImplicitBuilder(b) as (arg0,):
+        Addi(arg0, arg0)
+    r = Region(b)
     f = FuncOp.from_region("f", [i32, i32], [], r)
 
     message = (
@@ -106,9 +109,9 @@ def test_func_rewriting_helpers():
     test replace_argument_type and update_function_type (implicitly)
     :return:
     """
-    func = FuncOp.from_callable(
-        "test", [i32, i32, i32], [], lambda *args: [Return.get()]
-    )
+    func = FuncOp("test", ((i32, i32, i32), ()))
+    with ImplicitBuilder(func.body):
+        Return.get()
 
     func.replace_argument_type(2, i64)
     assert func.function_type.inputs.data[2] is i64
@@ -138,20 +141,19 @@ def test_func_rewriting_helpers():
 
 
 def test_func_get_return_op():
-    # pyright complains about lambda arg types unknown
-    # honestly don't know how to fix
-    func_w_ret = FuncOp.from_callable(
-        "test", [i32, i32, i32], [i32], lambda *args: [Return.get(args[1])]
-    )
+    func_w_ret = FuncOp("test", ((i32, i32, i32), ()))
+    with ImplicitBuilder(func_w_ret.body) as (a, _, _):
+        Return.get(a)
 
-    func = FuncOp.from_callable("test", [i32, i32, i32], [], lambda *args: [])
+    func = FuncOp("test", ((i32, i32, i32), ()))
 
     assert func_w_ret.get_return_op() is not None
     assert func.get_return_op() is None
 
 
 def test_callable_constructor():
-    f = FuncOp.from_callable("f", [], [], lambda *args: [])
+    f = FuncOp("f", ((i32, i32, i32), ()))
+
     assert f.sym_name.data == "f"
     assert not f.body.block.ops
 
