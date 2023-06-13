@@ -338,7 +338,7 @@ class ApplyOp(IRDLOperation):
             )
         res_typ = cast(TempType[Attribute], self.res[0].typ)
         for other in self.res[1:]:
-            other = cast(TempType[Attribute], self.res[0].typ)
+            other = cast(TempType[Attribute], other.typ)
             if res_typ.bounds != other.bounds:
                 raise VerifyException(f"Expected all output types bounds to be equals.")
 
@@ -677,13 +677,13 @@ class ReturnOp(IRDLOperation):
         res_types = [cast(TempType[Attribute], r.typ).element_type for r in apply.res]
         if len(types) != len(res_types):
             raise VerifyException(
-                f"Expected {len(res_types)} operands to match the parent stencil.apply"
-                f"result types, got {len(types)}"
+                f"stencil.return expected {len(res_types)} operands to match the parent "
+                f"stencil.apply result types, got {len(types)}"
             )
         if types != res_types:
             raise VerifyException(
-                f"Expected operand types to match the parent stencil.apply result element"
-                f"types. {types} {res_types}"
+                "stencil.return expected operand types to match the parent "
+                "stencil.apply result element types."
             )
 
 
