@@ -30,12 +30,16 @@ class ParentOp(IRDLOperation):
 
     region: Region = region_def()
 
+    traits = frozenset([NoTerminator()])
+
 
 @irdl_op_definition
 class Parent2Op(IRDLOperation):
     name = "test.parent2"
 
     region: Region = region_def()
+
+    traits = frozenset([NoTerminator()])
 
 
 @irdl_op_definition
@@ -192,7 +196,7 @@ class IsolatedFromAboveOp(IRDLOperation):
 
     region: Region = region_def()
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
 
 
 def test_isolated_from_above():
@@ -205,7 +209,7 @@ def test_isolated_from_above():
 
     # Test a simple, properly Isolated
     op = IsolatedFromAboveOp(regions=[Region([block])])
-    op.verify
+    op.verify()
 
     # Check a simple isolation violation
     out_cst = arith.Constant.from_int_and_width(0, builtin.i32)
