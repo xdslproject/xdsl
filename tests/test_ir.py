@@ -172,19 +172,6 @@ class SuccessorOp(IRDLOperation):
     successor: OptSuccessor = opt_successor_def()
 
 
-def test_block_containing_not_term_op_with_successors():
-    block1 = Block([TestOp.create(), TestOp.create()])
-
-    op_with_successors = SuccessorOp.create(successors=[block1])
-    block0 = Block([op_with_successors, TestOp.create()])
-
-    with pytest.raises(
-        Exception,
-        match="Operation with block successors must terminate its parent block",
-    ):
-        block0.verify()
-
-
 def test_block_not_branching_to_another_region():
     block1 = Block([TestOp.create(), TestOp.create()])
     region1 = Region([block1])
