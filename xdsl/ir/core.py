@@ -1174,6 +1174,7 @@ class Block(IRNode):
         def __call__(self, *args: BlockArgument) -> list[Operation]:
             ...
 
+    @deprecated("Please use Builder instead")
     @staticmethod
     def from_callable(block_arg_types: Iterable[Attribute], f: BlockCallback):
         b = Block(arg_types=block_arg_types)
