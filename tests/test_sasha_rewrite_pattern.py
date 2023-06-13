@@ -47,7 +47,7 @@ def test_match_constant_1():
     root_var = OperationVariable("root")
     constant_constr = OpTypeConstraint(root_var, arith.Constant)
     attr_var = AttributeVariable("attr")
-    property_constraint = PropertyConstraint(root_var, "value", attr_var)
+    property_constraint = OperationAttributeConstraint(root_var, "value", attr_var)
     attribute_value_constraint = AttributeValueConstraint(
         attr_var, IntegerAttr.from_int_and_width(1, 32)
     )
@@ -67,18 +67,21 @@ def test_match_constant_1():
 
 
 def test_add_0():
-    root_var = OperationVariable("root")
-    rhs_var = AnyVariable("rhs")
-    zero_var = OperationVariable("zero")
-    attr_var = AttributeVariable("attr")
     query_constant = Query(
-        [root_var, zero_var, attr_var, rhs_var],
+        [
+            root_var := OperationVariable("root"),
+            rhs_var := SSAValueVariable("rhs"),
+            res_var := OpResultVariable("res"),
+            zero_var := OperationVariable("zero"),
+            attr_var := AttributeVariable("attr"),
+        ],
         [
             OpTypeConstraint(root_var, arith.Addi),
-            PropertyConstraint(root_var, "rhs", rhs_var),
-            PropertyConstraint(rhs_var, "op", zero_var),
+            OperationOperandConstraint(root_var, "rhs", rhs_var),
+            EqConstraint(rhs_var, res_var),
+            OpResultOpConstraint(res_var, zero_var),
             OpTypeConstraint(zero_var, arith.Constant),
-            PropertyConstraint(zero_var, "value", attr_var),
+            OperationAttributeConstraint(zero_var, "value", attr_var),
             AttributeValueConstraint(attr_var, IntegerAttr.from_int_and_width(0, 32)),
         ],
     )

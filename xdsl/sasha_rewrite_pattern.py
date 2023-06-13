@@ -18,7 +18,7 @@ from typing import (
 # cast,
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation
-from xdsl.ir.core import Attribute, IRNode, Operation, OperationInvT
+from xdsl.ir.core import Attribute, IRNode, Operation, OperationInvT, OpResult, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 
 
@@ -40,7 +40,7 @@ class Variable(Generic[_T], abc.ABC):
     def __init__(self, name: str) -> None:
         self.name = name
 
-    def get(self, ctx: MatchContext) -> _T | None:
+    def get(self, ctx: MatchContext) -> _T:
         return ctx.ctx[self.name]
 
     def set(self, ctx: MatchContext, val: _T) -> bool:
@@ -59,7 +59,11 @@ class AttributeVariable(Variable[Attribute]):
     ...
 
 
-class AnyVariable(Variable[Any]):
+class SSAValueVariable(Variable[SSAValue]):
+    ...
+
+
+class OpResultVariable(Variable[OpResult]):
     ...
 
 
@@ -67,6 +71,16 @@ class Constraint(abc.ABC):
     @abc.abstractmethod
     def match(self, ctx: MatchContext) -> bool:
         raise NotImplementedError
+
+
+@dataclass
+class EqConstraint(Constraint):
+    lhs_var: Variable[Any]
+    rhs_var: Variable[Any]
+
+    def match(self, ctx: MatchContext) -> bool:
+        val = self.lhs_var.get(ctx)
+        return self.rhs_var.set(ctx, val)
 
 
 class OpTypeConstraint(Constraint):
@@ -93,15 +107,50 @@ class AttributeValueConstraint(Constraint):
 
 
 @dataclass
-class PropertyConstraint(Constraint):
-    a: Variable[Any]
-    property_name: str
-    b: Variable[Any]
+class OperationAttributeConstraint(Constraint):
+    op_var: OperationVariable
+    attr_name: str
+    attr_var: AttributeVariable
 
     def match(self, ctx: MatchContext) -> bool:
-        a_obj = self.a.get(ctx)
-        b_obj = getattr(a_obj, self.property_name)
-        return self.b.set(ctx, b_obj)
+        a_obj = self.op_var.get(ctx)
+        b_obj = getattr(a_obj, self.attr_name)
+        return self.attr_var.set(ctx, b_obj)
+
+
+@dataclass
+class OperationOperandConstraint(Constraint):
+    op_var: OperationVariable
+    operand_name: str
+    operand_var: Variable[SSAValue]
+
+    def match(self, ctx: MatchContext) -> bool:
+        a_obj = self.op_var.get(ctx)
+        b_obj = getattr(a_obj, self.operand_name)
+        return self.operand_var.set(ctx, b_obj)
+
+
+@dataclass
+class OperationResultConstraint(Constraint):
+    op_var: OperationVariable
+    res_name: str
+    res_var: Variable[OpResult]
+
+    def match(self, ctx: MatchContext) -> bool:
+        a_obj = self.op_var.get(ctx)
+        b_obj = getattr(a_obj, self.res_name)
+        return self.res_var.set(ctx, b_obj)
+
+
+@dataclass
+class OpResultOpConstraint(Constraint):
+    op_var: Variable[OpResult]
+    res_var: Variable[Operation]
+
+    def match(self, ctx: MatchContext) -> bool:
+        op_result = self.op_var.get(ctx)
+        op = op_result.op
+        return self.res_var.set(ctx, op)
 
 
 class Query:
