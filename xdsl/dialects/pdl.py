@@ -126,29 +126,8 @@ class ApplyNativeConstraintOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_constraint"
-    # https://github.com/xdslproject/xdsl/issues/98
-    # name: StringAttr = attr_def(StringAttr)
+    constraint_name: StringAttr = attr_def(StringAttr, attr_name="name")
     args: VarOperand = var_operand_def(AnyPDLType)
-
-    @property
-    def constraint_name(self) -> StringAttr:
-        name = self.attributes.get("name", None)
-        if not isinstance(name, StringAttr):
-            raise VerifyException(
-                f"Operation {self.name} requires a StringAttr 'name' attribute"
-            )
-        return name
-
-    @constraint_name.setter
-    def constraint_name(self, name: StringAttr) -> None:
-        self.attributes["name"] = name
-
-    def verify_(self) -> None:
-        if "name" not in self.attributes:
-            raise VerifyException("ApplyNativeConstraintOp requires a 'name' attribute")
-
-        if not isinstance(self.attributes["name"], StringAttr):
-            raise VerifyException("expected 'name' attribute to be a StringAttr")
 
     def __init__(self, name: str | StringAttr, args: Sequence[SSAValue]) -> None:
         if isinstance(name, str):
@@ -177,23 +156,9 @@ class ApplyNativeRewriteOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_rewrite"
-    # https://github.com/xdslproject/xdsl/issues/98
-    # name: StringAttr = attr_def(StringAttr)
+    constraint_name: StringAttr = attr_def(StringAttr, attr_name="name")
     args: VarOperand = var_operand_def(AnyPDLType)
     res: VarOpResult = var_result_def(AnyPDLType)
-
-    @property
-    def constraint_name(self) -> StringAttr:
-        name = self.attributes.get("name", None)
-        if not isinstance(name, StringAttr):
-            raise VerifyException(
-                f"Operation {self.name} requires a StringAttr 'name' attribute"
-            )
-        return name
-
-    @constraint_name.setter
-    def constraint_name(self, name: StringAttr) -> None:
-        self.attributes["name"] = name
 
     def __init__(
         self,
@@ -735,19 +700,13 @@ class RewriteOp(IRDLOperation):
     name = "pdl.rewrite"
     root: OptOperand = opt_operand_def(OperationType)
     # name of external rewriter function
-    # https://github.com/xdslproject/xdsl/issues/98
-    # name: StringAttr| None = opt_attr_def(StringAttr)
+    name_: StringAttr | None = opt_attr_def(StringAttr, attr_name="name")
     # parameters of external rewriter function
     external_args: VarOperand = var_operand_def(AnyPDLType)
     # body of inline rewriter function
     body: OptRegion = opt_region_def()
 
     irdl_options = [AttrSizedOperandSegments()]
-
-    def verify_(self) -> None:
-        if "name" in self.attributes:
-            if not isinstance(self.attributes["name"], StringAttr):
-                raise Exception("expected 'name' attribute to be a StringAttr")
 
     def __init__(
         self,
@@ -809,7 +768,7 @@ class RewriteOp(IRDLOperation):
             printer.print(" ", self.body)
             return
 
-        printer.print(" with ", self.attributes["name"])
+        printer.print(" with ", self.name_)
         if len(self.external_args) != 0:
             printer.print("(")
             print_operands_with_types(printer, self.external_args)

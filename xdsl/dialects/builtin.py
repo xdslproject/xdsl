@@ -1165,14 +1165,10 @@ class UnregisteredOp(IRDLOperation, ABC):
 
     name = "builtin.unregistered"
 
-    op_name__: StringAttr = attr_def(StringAttr)
+    op_name: StringAttr = attr_def(StringAttr, attr_name="op_name__")
     args: VarOperand = var_operand_def()
     res: VarOpResult = var_result_def()
     regs: VarRegion = var_region_def()
-
-    @property
-    def op_name(self) -> StringAttr:
-        return self.op_name__  # type: ignore
 
     @classmethod
     def with_name(cls, name: str) -> type[Operation]:
