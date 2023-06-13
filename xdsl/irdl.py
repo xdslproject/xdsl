@@ -691,16 +691,28 @@ class AttributeDef:
     constr: AttrConstraint
     """The attribute constraint."""
 
-    def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
+    attr_name: str | None = None
+    """The attribute name, in case it is different from the field name."""
+
+    def __init__(
+        self,
+        typ: Attribute | type[Attribute] | AttrConstraint,
+        attr_name: str | None = None,
+    ):
         self.constr = attr_constr_coercion(typ)
+        self.attr_name = attr_name
 
 
 @dataclass(init=False)
 class OptAttributeDef(AttributeDef):
     """An IRDL attribute definition for an optional attribute."""
 
-    def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
-        super().__init__(typ)
+    def __init__(
+        self,
+        typ: Attribute | type[Attribute] | AttrConstraint,
+        attr_name: str | None = None,
+    ):
+        super().__init__(typ, attr_name=attr_name)
 
 
 class SuccessorDef:
@@ -755,7 +767,17 @@ class _ResultFieldDef(_ConstrainedOpDefField[ResultDef]):
 
 
 class _AttributeFieldDef(_ConstrainedOpDefField[AttributeDef]):
-    pass
+    attr_name: str | None = None
+    """The name of the attribute, in case it is different from the field name."""
+
+    def __init__(
+        self,
+        cls: type[AttributeDef],
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+        attr_name: str | None = None,
+    ):
+        super().__init__(cls, param)
+        self.attr_name = attr_name
 
 
 class _RegionFieldDef(_OpDefField[RegionDef]):
@@ -808,6 +830,7 @@ def opt_result_def(
 def attr_def(
     constraint: type[_AttrT] | TypeVar,
     *,
+    attr_name: str | None = None,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -815,12 +838,13 @@ def attr_def(
     """
     Defines an attribute of an operation.
     """
-    return cast(_AttrT, _AttributeFieldDef(AttributeDef, constraint))
+    return cast(_AttrT, _AttributeFieldDef(AttributeDef, constraint, attr_name))
 
 
 def opt_attr_def(
     constraint: type[_AttrT] | TypeVar,
     *,
+    attr_name: str | None = None,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -828,7 +852,7 @@ def opt_attr_def(
     """
     Defines an optional attribute of an operation.
     """
-    return cast(_AttrT, _AttributeFieldDef(OptAttributeDef, constraint))
+    return cast(_AttrT, _AttributeFieldDef(OptAttributeDef, constraint, attr_name))
 
 
 def operand_def(
@@ -965,6 +989,13 @@ class OpDef:
     options: list[IRDLOption] = field(default_factory=list)
     traits: frozenset[OpTrait] = field(default_factory=frozenset)
 
+    attribute_accessor_names: dict[str, str] = field(default_factory=dict)
+    """
+    Mapping from the accessor name to the attribute name.
+    In some cases, the attribute name is not a valid Python identifier,
+    or is already used by the operation, so we need to use a different name.
+    """
+
     @staticmethod
     def from_pyrdl(pyrdl_def: type[_OpT]) -> OpDef:
         """Decorator used on classes to define a new operation definition."""
@@ -1093,8 +1124,14 @@ class OpDef:
                         continue
                     case _AttributeFieldDef():
                         constraint = get_constraint(value.param)
-                        attribute_def = value.cls(constraint)
-                        op_def.attributes[field_name] = attribute_def
+                        attribute_def = value.cls(constraint, attr_name=value.attr_name)
+                        attr_name = (
+                            field_name
+                            if attribute_def.attr_name is None
+                            else attribute_def.attr_name
+                        )
+                        op_def.attributes[attr_name] = attribute_def
+                        op_def.attribute_accessor_names[field_name] = attr_name
                         continue
                     case _RegionFieldDef():
                         region_def = value.cls()
@@ -1725,11 +1762,12 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
         return property(field_getter, field_setter)
 
-    for attribute_name, attr_def in op_def.attributes.items():
+    for accessor_name, attribute_name in op_def.attribute_accessor_names.items():
+        attr_def = op_def.attributes[attribute_name]
         if isinstance(attr_def, OptAttributeDef):
-            new_attrs[attribute_name] = optional_attribute_field(attribute_name)
+            new_attrs[accessor_name] = optional_attribute_field(attribute_name)
         else:
-            new_attrs[attribute_name] = attribute_field(attribute_name)
+            new_attrs[accessor_name] = attribute_field(attribute_name)
 
     new_attrs["traits"] = op_def.traits
 
