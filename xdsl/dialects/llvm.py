@@ -907,7 +907,7 @@ class FastMathFlag(Enum):
 
 
 @irdl_attr_definition
-class FastMathAttr(Data[set]):
+class FastMathAttr(Data[set[FastMathFlag]]):
     name = "llvm.fastmath"
 
     @property
