@@ -84,6 +84,13 @@ class NoTerminator(OpTrait):
     https://mlir.llvm.org/docs/Traits/#terminator
     """
 
+    def verify(self, op: Operation) -> None:
+        for region in op.regions:
+            if len(region.blocks) > 1:
+                raise VerifyException(
+                    f"'{op.name}' does not contain single-block regions"
+                )
+
 
 class IsolatedFromAbove(OpTrait):
     """
