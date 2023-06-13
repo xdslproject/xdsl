@@ -45,7 +45,7 @@ def test_match_constant():
 
 def test_match_constant_1():
     root_var = OperationVariable("root")
-    constant_constr = OpTypeConstraint(root_var, arith.Constant)
+    constant_constr = TypeConstraint(root_var, arith.Constant)
     attr_var = AttributeVariable("attr")
     property_constraint = OperationAttributeConstraint(root_var, "value", attr_var)
     attribute_value_constraint = AttributeValueConstraint(
@@ -76,11 +76,11 @@ def test_add_0():
             attr_var := AttributeVariable("attr"),
         ],
         [
-            OpTypeConstraint(root_var, arith.Addi),
+            TypeConstraint(root_var, arith.Addi),
             OperationOperandConstraint(root_var, "rhs", rhs_var),
             EqConstraint(rhs_var, res_var),
             OpResultOpConstraint(res_var, zero_var),
-            OpTypeConstraint(zero_var, arith.Constant),
+            TypeConstraint(zero_var, arith.Constant),
             OperationAttributeConstraint(zero_var, "value", attr_var),
             AttributeValueConstraint(attr_var, IntegerAttr.from_int_and_width(0, 32)),
         ],

@@ -83,17 +83,17 @@ class EqConstraint(Constraint):
         return self.rhs_var.set(ctx, val)
 
 
-class OpTypeConstraint(Constraint):
-    op_var: OperationVariable
-    op_type: type[Operation]
+class TypeConstraint(Generic[_T], Constraint):
+    var: Variable[_T]
+    type: type[_T]
 
-    def __init__(self, op_var: OperationVariable, op_type: type[Operation]) -> None:
-        self.op_var = op_var
-        self.op_type = op_type
+    def __init__(self, var: Variable[_T], type: type[_T]) -> None:
+        self.var = var
+        self.type = type
 
     def match(self, ctx: MatchContext) -> bool:
-        op = self.op_var.get(ctx)
-        return isinstance(op, self.op_type)
+        op = self.var.get(ctx)
+        return isinstance(op, self.type)
 
 
 @dataclass
@@ -167,7 +167,7 @@ class Query:
     @staticmethod
     def root(root_type: type[OperationInvT]) -> Query:
         root_var = OperationVariable("root")
-        return Query([root_var], [OpTypeConstraint(root_var, root_type)])
+        return Query([root_var], [TypeConstraint(root_var, root_type)])
 
     def match(self, operation: Operation) -> Match | None:
         """
