@@ -46,9 +46,9 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     if origin is set:
         if not isinstance(arg, set):
             return False
-        arg_list: set[Any] = cast(set[Any], arg)
+        arg_set: set[Any] = cast(set[Any], arg)
         (elem_hint,) = get_args(hint)
-        return all(isa(elem, elem_hint) for elem in arg_list)
+        return all(isa(elem, elem_hint) for elem in arg_set)
 
     if origin is tuple:
         if not isinstance(arg, tuple):
