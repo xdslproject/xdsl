@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from enum import Enum
 from types import EllipsisType
-from typing import Sequence
+from typing import Sequence, Literal
 
 from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
@@ -29,6 +30,7 @@ from xdsl.ir import (
     Operation,
     SSAValue,
     Region,
+    Data,
 )
 from xdsl.irdl import (
     Operand,
@@ -50,7 +52,6 @@ from xdsl.utils.exceptions import VerifyException
 
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.dialects import arith
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -882,8 +883,77 @@ class FuncOp(IRDLOperation):
         )
 
 
-class FastMathAttr(arith.FastMathFlagsAttr):
+class FastMathFlag(Enum):
+    REASSOC = "reassoc"
+    NO_NANS = "nnan"
+    NO_INFS = "ninf"
+    NO_SIGNED_ZEROS = "nsz"
+    ALLOW_RECIP = "arcp"
+    ALLOW_CONTRACT = "contract"
+    APPROX_FUNC = "afn"
+
+    @staticmethod
+    def try_parse(parser: Parser) -> set[FastMathFlag] | None:
+        if parser.parse_optional_characters("none") is not None:
+            return set[FastMathFlag]()
+        if parser.parse_optional_characters("fast") is not None:
+            return set(FastMathFlag)
+
+        for option in FastMathFlag:
+            if parser.parse_optional_characters(option.value) is not None:
+                return {option}
+
+        return None
+
+
+@irdl_attr_definition
+class FastMathAttr(Data[set[FastMathFlag]]):
     name = "llvm.fastmath"
+
+    @property
+    def flags(self) -> set[FastMathFlag]:
+        """
+        Returns a copy of the fast math flags.
+        """
+        return set(self.data)
+
+    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        flags_: set[FastMathFlag]
+        match flags:
+            case "none" | None:
+                flags_ = set()
+            case "fast":
+                flags_ = set(FastMathFlag)
+            case other:
+                flags_ = set(other)
+
+        super().__init__(flags_)
+
+    @staticmethod
+    def parse_parameter(parser: Parser) -> set[FastMathFlag]:
+        flags = FastMathFlag.try_parse(parser)
+        if flags is None:
+            return set()
+
+        while parser.parse_optional_punctuation(",") is not None:
+            flag = parser.expect(
+                lambda: FastMathFlag.try_parse(parser), "fastmath flag expected"
+            )
+            flags.update(flag)
+
+        return flags
+
+    def print_parameter(self, printer: Printer):
+        flags = self.flags
+        if len(flags) == 0:
+            printer.print("none")
+        elif len(flags) == len(FastMathFlag):
+            printer.print("fast")
+        else:
+            # make sure we emit flags in a consistent order
+            printer.print(
+                ",".join(flag.value for flag in FastMathFlag if flag in flags)
+            )
 
 
 @irdl_op_definition
