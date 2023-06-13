@@ -19,15 +19,18 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     Operand,
-    Annotated,
+    attr_def,
     irdl_op_definition,
     irdl_attr_definition,
-    OpAttr,
     OptOpResult,
     ParameterDef,
     OptOperand,
-    OptOpAttr,
     IRDLOperation,
+    operand_def,
+    opt_attr_def,
+    opt_operand_def,
+    result_def,
+    opt_result_def,
 )
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
@@ -163,12 +166,12 @@ class Reduce(MPIBaseOp):
 
     name = "mpi.reduce"
 
-    send_buffer: Annotated[Operand, Attribute]
-    recv_buffer: Annotated[Operand, Attribute]
-    count: Annotated[Operand, i32]
-    datatype: Annotated[Operand, DataType]
-    operationtype: OpAttr[OperationType]
-    root: Annotated[Operand, i32]
+    send_buffer: Operand = operand_def(Attribute)
+    recv_buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    operationtype: OperationType = attr_def(OperationType)
+    root: Operand = operand_def(i32)
 
     @staticmethod
     def get(
@@ -212,11 +215,11 @@ class Allreduce(MPIBaseOp):
 
     name = "mpi.allreduce"
 
-    recv_buffer: Annotated[Operand, Attribute]
-    count: Annotated[Operand, i32]
-    datatype: Annotated[Operand, DataType]
-    send_buffer: Annotated[OptOperand, Attribute]
-    operationtype: OpAttr[OperationType]
+    send_buffer: OptOperand = opt_operand_def(Attribute)
+    recv_buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    operationtype: OperationType = attr_def(OperationType)
 
     @staticmethod
     def get(
@@ -230,9 +233,9 @@ class Allreduce(MPIBaseOp):
             SSAValue | Operation | Sequence[SSAValue | Operation]
         ] = []
         if send_buffer is None:
-            operands_to_add = [recv_buffer, count, datatype, []]
+            operands_to_add = [[], recv_buffer, count, datatype]
         else:
-            operands_to_add = [recv_buffer, count, datatype, [send_buffer]]
+            operands_to_add = [[send_buffer], recv_buffer, count, datatype]
 
         return Allreduce.build(
             operands=operands_to_add,
@@ -266,10 +269,10 @@ class Bcast(MPIBaseOp):
 
     name = "mpi.bcast"
 
-    buffer: Annotated[Operand, Attribute]
-    count: Annotated[Operand, i32]
-    datatype: Annotated[Operand, DataType]
-    root: Annotated[Operand, i32]
+    buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    root: Operand = operand_def(i32)
 
     @staticmethod
     def get(
@@ -310,12 +313,12 @@ class Isend(MPIBaseOp):
 
     name = "mpi.isend"
 
-    buffer: Annotated[Operand, Attribute]
-    count: Annotated[Operand, i32]
-    datatype: Annotated[Operand, DataType]
-    dest: Annotated[Operand, i32]
-    tag: Annotated[Operand, i32]
-    request: Annotated[Operand, RequestType]
+    buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    dest: Operand = operand_def(i32)
+    tag: Operand = operand_def(i32)
+    request: Operand = operand_def(RequestType)
 
     @staticmethod
     def get(
@@ -358,11 +361,11 @@ class Send(MPIBaseOp):
 
     name = "mpi.send"
 
-    buffer: Annotated[Operand, Attribute]
-    count: Annotated[Operand, i32]
-    datatype: Annotated[Operand, DataType]
-    dest: Annotated[Operand, i32]
-    tag: Annotated[Operand, i32]
+    buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    dest: Operand = operand_def(i32)
+    tag: Operand = operand_def(i32)
 
     @staticmethod
     def get(
@@ -404,12 +407,12 @@ class Irecv(MPIBaseOp):
 
     name = "mpi.irecv"
 
-    buffer: Annotated[Operand, Attribute]
-    count: Annotated[Operand, i32]
-    datatype: Annotated[Operand, DataType]
-    source: Annotated[Operand, i32]
-    tag: Annotated[Operand, i32]
-    request: Annotated[Operand, RequestType]
+    buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    source: Operand = operand_def(i32)
+    tag: Operand = operand_def(i32)
+    request: Operand = operand_def(RequestType)
 
     @staticmethod
     def get(
@@ -453,13 +456,13 @@ class Recv(MPIBaseOp):
 
     name = "mpi.recv"
 
-    buffer: Annotated[Operand, Attribute]
-    count: Annotated[Operand, i32]
-    datatype: Annotated[Operand, DataType]
-    source: Annotated[Operand, i32]
-    tag: Annotated[Operand, i32]
+    buffer: Operand = operand_def(Attribute)
+    count: Operand = operand_def(i32)
+    datatype: Operand = operand_def(DataType)
+    source: Operand = operand_def(i32)
+    tag: Operand = operand_def(i32)
 
-    status: Annotated[OptOpResult, StatusType]
+    status: OptOpResult = opt_result_def(StatusType)
 
     @staticmethod
     def get(
@@ -493,10 +496,10 @@ class Test(MPIBaseOp):
 
     name = "mpi.test"
 
-    request: Annotated[Operand, RequestType]
+    request: Operand = operand_def(RequestType)
 
-    flag: Annotated[OpResult, t_bool]
-    status: Annotated[OpResult, StatusType]
+    flag: OpResult = result_def(t_bool)
+    status: OpResult = result_def(StatusType)
 
     @staticmethod
     def get(request: Operand):
@@ -519,8 +522,8 @@ class Wait(MPIBaseOp):
 
     name = "mpi.wait"
 
-    request: Annotated[Operand, RequestType]
-    status: Annotated[OptOpResult, StatusType]
+    request: Operand = operand_def(RequestType)
+    status: OptOpResult = opt_result_def(StatusType)
 
     @staticmethod
     def get(request: Operand, ignore_status: bool = True):
@@ -549,9 +552,9 @@ class Waitall(MPIBaseOp):
 
     name = "mpi.waitall"
 
-    requests: Annotated[Operand, VectorType[RequestType]]
-    count: Annotated[Operand, i32]
-    statuses: Annotated[OptOpResult, VectorType[StatusType]]
+    requests: Operand = operand_def(VectorType[RequestType])
+    count: Operand = operand_def(i32)
+    statuses: OptOpResult = opt_result_def(VectorType[StatusType])
 
     @staticmethod
     def get(requests: Operand, count: Operand, ignore_status: bool = True):
@@ -577,11 +580,11 @@ class GetStatusField(MPIBaseOp):
 
     name = "mpi.status.get"
 
-    status: Annotated[Operand, StatusType]
+    status: Operand = operand_def(StatusType)
 
-    field: OpAttr[StringAttr]
+    field: StringAttr = attr_def(StringAttr)
 
-    result: Annotated[OpResult, i32]
+    result: OpResult = result_def(i32)
 
     @staticmethod
     def get(status_obj: Operand, field: StatusTypeField):
@@ -595,14 +598,15 @@ class GetStatusField(MPIBaseOp):
 @irdl_op_definition
 class CommRank(MPIBaseOp):
     """
-    Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns the rank of the communicator
+    Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns
+    the rank of the communicator
 
     Currently limited to COMM_WORLD
     """
 
     name = "mpi.comm.rank"
 
-    rank: Annotated[OpResult, i32]
+    rank: OpResult = result_def(i32)
 
     @staticmethod
     def get():
@@ -612,14 +616,15 @@ class CommRank(MPIBaseOp):
 @irdl_op_definition
 class CommSize(MPIBaseOp):
     """
-    Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns the size of the communicator
+    Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns
+    the size of the communicator
 
     Currently limited to COMM_WORLD
     """
 
     name = "mpi.comm.size"
 
-    size: Annotated[OpResult, i32]
+    size: OpResult = result_def(i32)
 
     @staticmethod
     def get():
@@ -654,11 +659,11 @@ class UnwrapMemrefOp(MPIBaseOp):
 
     name = "mpi.unwrap_memref"
 
-    ref: Annotated[Operand, MemRefType[AnyNumericType]]
+    ref: Operand = operand_def(MemRefType[AnyNumericType])
 
-    ptr: Annotated[OpResult, llvm.LLVMPointerType]
-    len: Annotated[OpResult, i32]
-    typ: Annotated[OpResult, DataType]
+    ptr: OpResult = result_def(llvm.LLVMPointerType)
+    len: OpResult = result_def(i32)
+    typ: OpResult = result_def(DataType)
 
     @staticmethod
     def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
@@ -687,9 +692,9 @@ class GetDtypeOp(MPIBaseOp):
 
     name = "mpi.get_dtype"
 
-    dtype: OpAttr[Attribute]
+    dtype: Attribute = attr_def(Attribute)
 
-    result: Annotated[OpResult, DataType]
+    result: OpResult = result_def(DataType)
 
     @staticmethod
     def get(typ: Attribute):
@@ -699,22 +704,22 @@ class GetDtypeOp(MPIBaseOp):
 @irdl_op_definition
 class AllocateTypeOp(MPIBaseOp):
     """
-    This op is used to allocate a specific MPI dialect type with a set size, returning this
-    in an MPI vector of that type
+    This op is used to allocate a specific MPI dialect type with a set size,
+    returning this in an MPI vector of that type
 
     This is useful as it means we can, in a self contained manner, store things like
     requests, statuses etc. It accepts the base type that the array will contain, the
-    number of elements and an optional bindc_name which contains the name of the
+    number of elements and an optional 'bindc_name' which contains the name of the
     variable that this is allocating
     """
 
     name = "mpi.allocate"
 
-    bindc_name: OptOpAttr[StringAttr]
-    dtype: OpAttr[VectorWrappable]
-    count: Annotated[Operand, i32]
+    bindc_name: StringAttr | None = opt_attr_def(StringAttr)
+    dtype: VectorWrappable = attr_def(VectorWrappable)
+    count: Operand = operand_def(i32)
 
-    result: Annotated[OpResult, VectorType]
+    result: OpResult = result_def(VectorType)
 
     @staticmethod
     def get(
@@ -741,10 +746,10 @@ class VectorGetOp(MPIBaseOp):
 
     name = "mpi.vector_get"
 
-    vect: Annotated[Operand, VectorType]
-    element: Annotated[Operand, i32]
+    vect: Operand = operand_def(VectorType)
+    element: Operand = operand_def(i32)
 
-    result: Annotated[OpResult, VectorWrappable]
+    result: OpResult = result_def(VectorWrappable)
 
     @staticmethod
     def get(vect: SSAValue | Operation, element: SSAValue | Operation) -> VectorGetOp:
@@ -768,7 +773,7 @@ class NullRequestOp(MPIBaseOp):
 
     name = "mpi.request_null"
 
-    request: Annotated[Operand, RequestType]
+    request: Operand = operand_def(RequestType)
 
     @staticmethod
     def get(req: SSAValue | Operation):
@@ -781,9 +786,9 @@ class GatherOp(MPIBaseOp):
     This is used to gather data into one big buffer.
 
     int MPI_Gather(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
-                    void *recvbuf, int recvcount, MPI_Datatype recvtype,
-                    int root,
-                    MPI_Comm comm)
+                   void *recvbuf, int recvcount, MPI_Datatype recvtype,
+                   int root,
+                   MPI_Comm comm)
 
      - sendbuf, sendcount, sendtype: info on the buffer to be sent
      - recvbuf, recvcount, recvtype: info on the gather buffer
@@ -799,15 +804,15 @@ class GatherOp(MPIBaseOp):
 
     name = "mpi.gather"
 
-    sendbuf: Annotated[Operand, llvm.LLVMPointerType]
-    sendcount: Annotated[Operand, i32]
-    sendtype: Annotated[Operand, DataType]
+    sendbuf: Operand = operand_def(llvm.LLVMPointerType)
+    sendcount: Operand = operand_def(i32)
+    sendtype: Operand = operand_def(DataType)
 
-    recvbuf: Annotated[Operand, llvm.LLVMPointerType]
-    recvcount: Annotated[Operand, i32]
-    recvtype: Annotated[Operand, DataType]
+    recvbuf: Operand = operand_def(llvm.LLVMPointerType)
+    recvcount: Operand = operand_def(i32)
+    recvtype: Operand = operand_def(DataType)
 
-    root: Annotated[Operand, i32]
+    root: Operand = operand_def(i32)
 
     def __init__(
         self,

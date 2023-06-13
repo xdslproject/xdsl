@@ -16,7 +16,11 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IndexType,
 )
-from xdsl.dialects.experimental.stencil import (
+from xdsl.dialects.stencil import (
+    CastOp,
+    BufferOp,
+    ExternalLoadOp,
+    ExternalStoreOp,
     ReturnOp,
     ResultType,
     ApplyOp,
@@ -26,10 +30,11 @@ from xdsl.dialects.experimental.stencil import (
     LoadOp,
     FieldType,
     IndexAttr,
+    StoreResultOp,
     IndexOp,
     AccessOp,
 )
-from xdsl.dialects.stencil import CastOp
+from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Block
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -161,7 +166,7 @@ def test_stencil_apply():
     assert len(apply_op.args) == 1
     assert len(apply_op.res) == 1
     assert isinstance(apply_op.res[0].typ, TempType)
-    assert len(apply_op.res[0].typ.get_shape()) == 2
+    assert apply_op.get_rank() == 2
 
 
 def test_stencil_apply_no_args():
@@ -171,7 +176,7 @@ def test_stencil_apply_no_args():
     assert len(apply_op.args) == 0
     assert len(apply_op.res) == 2
     assert isinstance(apply_op.res[0].typ, TempType)
-    assert len(apply_op.res[0].typ.get_shape()) == 1
+    assert apply_op.get_rank() == 1
 
 
 def test_stencil_apply_no_results():
@@ -195,7 +200,7 @@ def test_stencil_apply_no_results():
         ),
     ),
 )
-def test_create_index_attr_from_int_list(indices: list[int]):
+def test_create_index_attr_from_int_list(indices: list[int | IntAttr]):
     stencil_index_attr = IndexAttr.get(*indices)
     expected_array_attr = ArrayAttr(
         [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
@@ -524,13 +529,11 @@ def test_stencil_store_load_overlap():
     load = LoadOp.get(field_type_ssa_val, lb, ub)
     store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, lb, ub)
 
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
         load.verify()
-    assert exc_info.value.args[0] == "Cannot Load and Store the same field!"
 
-    with pytest.raises(VerifyException) as exc_info:
+    with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
         store.verify()
-    assert exc_info.value.args[0] == "Cannot Load and Store the same field!"
 
 
 def test_stencil_index():
@@ -562,3 +565,50 @@ def test_stencil_access():
     assert isinstance(access, AccessOp)
     assert access.offset == offset_index_attr
     assert access.temp.typ == temp_type
+
+
+def test_store_result():
+    elem = IndexAttr.get(1)
+    elem_ssa_val = TestSSAValue(elem)
+    result_type = ResultType(f32)
+
+    store_result = StoreResultOp.build(
+        operands=[elem_ssa_val], result_types=[result_type]
+    )
+
+    assert isinstance(store_result, StoreResultOp)
+    assert store_result.args[0] == elem_ssa_val
+    assert store_result.res.typ == result_type
+
+
+def test_external_load():
+    memref = TestSSAValue(MemRefType.from_element_type_and_shape(f32, ([5])))
+    field_type = FieldType((5), f32)
+
+    external_load = ExternalLoadOp.get(memref, field_type)
+
+    assert isinstance(external_load, ExternalLoadOp)
+    assert external_load.field == memref
+    assert external_load.result.typ == field_type
+
+
+def test_external_store():
+    field = TestSSAValue(FieldType((5), f32))
+    memref = TestSSAValue(MemRefType.from_element_type_and_shape(f32, ([5])))
+
+    external_store = ExternalStoreOp.build(operands=[field, memref])
+
+    assert isinstance(external_store, ExternalStoreOp)
+    assert external_store.field == memref
+    assert external_store.temp == field
+
+
+def test_buffer():
+    temp = TestSSAValue(TempType((5), f32))
+    res_typ = TempType((5), f32)
+
+    buffer = BufferOp.build(operands=[temp], result_types=[res_typ])
+
+    assert isinstance(buffer, BufferOp)
+    assert buffer.temp == temp
+    assert buffer.res.typ == res_typ

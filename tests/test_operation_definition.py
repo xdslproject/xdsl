@@ -14,13 +14,13 @@ from xdsl.irdl import (
     AttrSizedResultSegments,
     ConstraintVar,
     Operand,
-    OptOpAttr,
     OptOpResult,
     OptOperand,
     OptRegion,
     VarOpResult,
     VarOperand,
     VarRegion,
+    attr_def,
     irdl_op_definition,
     OperandDef,
     ResultDef,
@@ -28,8 +28,17 @@ from xdsl.irdl import (
     AnyAttr,
     OpDef,
     RegionDef,
-    OpAttr,
     IRDLOperation,
+    operand_def,
+    opt_attr_def,
+    opt_operand_def,
+    opt_region_def,
+    opt_result_def,
+    region_def,
+    result_def,
+    var_operand_def,
+    var_region_def,
+    var_result_def,
 )
 from xdsl.utils.exceptions import (
     DiagnosticException,
@@ -46,10 +55,10 @@ from xdsl.utils.exceptions import (
 class OpDefTestOp(IRDLOperation):
     name = "test.op_def_test"
 
-    operand: Operand
-    result: OpResult
-    attr: OpAttr[Attribute]
-    region: Region
+    operand: Operand = operand_def()
+    result: OpResult = result_def()
+    attr: Attribute = attr_def(Attribute)
+    region: Region = region_def()
 
     # Check that we can define methods in operation definitions
     def test(self):
@@ -104,14 +113,15 @@ def test_invalid_field():
 @irdl_op_definition
 class AttrOp(IRDLOperation):
     name = "test.two_var_result_op"
-    attr: OpAttr[StringAttr]
+    attr: StringAttr = attr_def(StringAttr)
 
 
 def test_attr_verify():
     op = AttrOp.create(attributes={"attr": IntAttr(1)})
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(
+        VerifyException, match="#int<1> should be of base attribute string"
+    ):
         op.verify()
-    assert e.value.args[0] == "#int<1> should be of base attribute string"
 
 
 @irdl_op_definition
@@ -120,9 +130,9 @@ class ConstraintVarOp(IRDLOperation):
 
     T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
 
-    operand: Annotated[Operand, T]
-    result: Annotated[OpResult, T]
-    attribute: OpAttr[T]
+    operand: Operand = operand_def(T)
+    result: OpResult = result_def(T)
+    attribute: T = attr_def(T)
 
 
 def test_constraint_var():
@@ -195,9 +205,9 @@ class RegionOp(IRDLOperation):
 
     irdl_options = [AttrSizedRegionSegments()]
 
-    region: Region
-    opt_region: OptRegion
-    var_region: VarRegion
+    region: Region = region_def()
+    opt_region: OptRegion = opt_region_def()
+    var_region: VarRegion = var_region_def()
 
 
 def test_region_accessors():
@@ -227,9 +237,9 @@ class OperandOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    operand: Operand
-    opt_operand: OptOperand
-    var_operand: VarOperand
+    operand: Operand = operand_def()
+    opt_operand: OptOperand = opt_operand_def()
+    var_operand: VarOperand = var_operand_def()
 
 
 def test_operand_accessors():
@@ -257,9 +267,9 @@ class OpResultOp(IRDLOperation):
 
     irdl_options = [AttrSizedResultSegments()]
 
-    result: OpResult
-    opt_result: OptOpResult
-    var_result: VarOpResult
+    result: OpResult = result_def()
+    opt_result: OptOpResult = opt_result_def()
+    var_result: VarOpResult = var_result_def()
 
 
 def test_opresult_accessors():
@@ -280,8 +290,8 @@ def test_opresult_accessors():
 class AttributeOp(IRDLOperation):
     name = "test.attribute_op"
 
-    attr: OpAttr[StringAttr]
-    opt_attr: OptOpAttr[StringAttr]
+    attr: StringAttr = attr_def(StringAttr)
+    opt_attr: StringAttr | None = opt_attr_def(StringAttr)
 
 
 def test_attribute_accessors():
@@ -328,9 +338,9 @@ _Result = TypeVar("_Result", bound=FooType | BarType)
 class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
     name = "test.string_or_int_generic"
 
-    attr: OpAttr[_Attr]
-    operand: Annotated[Operand, _Operand]
-    result: Annotated[OpResult, _Result]
+    attr: _Attr = attr_def(_Attr)
+    operand: Operand = operand_def(_Operand)
+    result: OpResult = result_def(_Result)
 
 
 @irdl_op_definition

@@ -15,17 +15,25 @@ from typing import Sequence
 from xdsl.printer import Printer
 from xdsl.parser import Parser
 from xdsl.utils.hints import isa
-from xdsl.dialects.experimental import stencil
-from xdsl.ir import Operation, SSAValue, ParametrizedAttribute, Attribute, Dialect
+from xdsl.dialects import stencil
+from xdsl.ir import (
+    Operation,
+    Region,
+    SSAValue,
+    ParametrizedAttribute,
+    Attribute,
+    Dialect,
+)
 from xdsl.irdl import (
-    OptOpAttr,
-    Annotated,
     Operand,
+    attr_def,
     irdl_op_definition,
     irdl_attr_definition,
     ParameterDef,
     IRDLOperation,
-    OpAttr,
+    operand_def,
+    opt_attr_def,
+    region_def,
 )
 from xdsl.dialects import builtin, memref
 
@@ -193,7 +201,7 @@ class HaloShapeInformation(ParametrizedAttribute):
         - halo_size(n, end  ) = dn - cn
     """
 
-    name = "dmp.halo_bounds"
+    name = "dmp.shape_with_halo"
 
     buff_lb_: ParameterDef[builtin.DenseArrayBase]
     buff_ub_: ParameterDef[builtin.DenseArrayBase]
@@ -235,11 +243,10 @@ class HaloShapeInformation(ParametrizedAttribute):
         core_ub: stencil.IndexAttr,
         buff_ub: stencil.IndexAttr,
     ):
-        # translate everything to "memref" coordinates
-        buff_lb_tuple = tuple(buff_lb - buff_lb)
-        buff_ub_tuple = tuple(buff_ub - buff_lb)
-        core_lb_tuple = tuple(core_lb - buff_lb)
-        core_ub_tuple = tuple(core_ub - buff_lb)
+        buff_lb_tuple = tuple(buff_lb)
+        buff_ub_tuple = tuple(buff_ub)
+        core_lb_tuple = tuple(core_lb)
+        core_ub_tuple = tuple(core_ub)
 
         typ = builtin.i64
         return HaloShapeInformation(
@@ -259,11 +266,11 @@ class HaloShapeInformation(ParametrizedAttribute):
 
     def buffer_end(self, dim: int) -> int:
         assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.core_ub[dim]
+        return self.buff_ub[dim]
 
     def core_end(self, dim: int) -> int:
         assert dim < self.dims, f"The given DimsHelper only has {self.dims} dimensions"
-        return self.buff_ub[dim]
+        return self.core_ub[dim]
 
     # Helpers for specific sizes:
 
@@ -294,33 +301,31 @@ class HaloShapeInformation(ParametrizedAttribute):
         """
         Parses the attribute, the format of it is:
 
-        #halo.shape_info<[a0,b0,c0,d0]x[a1,b1,c1,d1]x...>
+        #dmp.shape_with_halo<[a0,b0,c0,d0]x[a1,b1,c1,d1]x...>
 
         so different from the way it's stored internally.
 
         This decision was made to improve readability.
         """
-        parser.parse_char("<")
+        parser.parse_characters("<")
         buff_lb: list[int] = []
         buff_ub: list[int] = []
         core_lb: list[int] = []
         core_ub: list[int] = []
 
         while True:
-            parser.parse_char("[")
+            parser.parse_characters("[")
             buff_lb.append(parser.parse_integer())
-            parser.parse_char(",")
+            parser.parse_characters(",")
             core_lb.append(parser.parse_integer())
-            parser.parse_char(",")
+            parser.parse_characters(",")
             core_ub.append(parser.parse_integer())
-            parser.parse_char(",")
+            parser.parse_characters(",")
             buff_ub.append(parser.parse_integer())
-            parser.parse_char("]")
-            if parser.tokenizer.starts_with("x"):
-                parser.parse_char("x")
-            else:
+            parser.parse_characters("]")
+            if parser.parse_optional_characters("x") is None:
                 break
-        parser.parse_char(">")
+        parser.parse_characters(">")
 
         typ = builtin.i64
         return [
@@ -349,7 +354,7 @@ class NodeGrid(ParametrizedAttribute):
             raise ValueError("dmp.grid must have at least one dimension!")
         super().__init__([builtin.DenseArrayBase.from_list(builtin.i64, shape)])
 
-    def as_tuple(self) -> tuple[int]:
+    def as_tuple(self) -> tuple[int, ...]:
         shape = self.shape.as_tuple()
         assert isa(shape, tuple[int, ...])
         return shape
@@ -359,14 +364,14 @@ class NodeGrid(ParametrizedAttribute):
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_char("<")
+        parser.parse_characters("<")
 
         shape: list[int] = [parser.parse_integer(allow_negative=False)]
 
-        while parser.try_parse_characters("x") is not None:
+        while parser.parse_optional_characters("x") is not None:
             shape.append(parser.parse_integer(allow_negative=False))
 
-        parser.parse_char(">")
+        parser.parse_characters(">")
 
         return [builtin.DenseArrayBase.from_list(builtin.i64, shape)]
 
@@ -384,11 +389,13 @@ class HaloSwapOp(IRDLOperation):
 
     name = "dmp.swap"
 
-    input_stencil: Annotated[Operand, stencil.TempType | memref.MemRefType]
+    input_stencil: Operand = operand_def(stencil.TempType | memref.MemRefType)
 
-    # shape: OptOpAttr[HaloShapeInformation]
-    swaps: OptOpAttr[builtin.ArrayAttr[HaloExchangeDecl]]
-    nodes: OptOpAttr[NodeGrid]
+    # shape: HaloShapeInformation| None = opt_attr_def(HaloShapeInformation)
+    swaps: builtin.ArrayAttr[HaloExchangeDecl] | None = opt_attr_def(
+        builtin.ArrayAttr[HaloExchangeDecl]
+    )
+    nodes: NodeGrid | None = opt_attr_def(NodeGrid)
 
     @staticmethod
     def get(input_stencil: SSAValue | Operation):
@@ -401,14 +408,24 @@ class GatherOp(IRDLOperation):
     Gather a scattered array back to one node
     """
 
-    name = "halo.gather"
+    name = "dmp.gather"
 
-    local_field: Annotated[Operand, stencil.FieldType | memref.MemRefType]
-    global_field: Annotated[Operand, stencil.FieldType | memref.MemRefType]
+    local_field: Operand = operand_def(memref.MemRefType)
 
-    root_rank: OpAttr[builtin.IntegerAttr[builtin.IndexType]]
+    my_rank: Operand = operand_def(builtin.IndexType)
 
-    retain_order: OptOpAttr[builtin.UnitAttr]
+    root_rank: builtin.IntegerAttr[builtin.IntegerType] = attr_def(
+        builtin.IntegerAttr[builtin.IntegerType]
+    )
+
+    global_shape: HaloShapeInformation = attr_def(HaloShapeInformation)
+
+    when_root_block: Region = region_def("single_block")
+    """
+    Contains code to be executed as root rank
+    """
+
+    retain_order: builtin.UnitAttr | None = opt_attr_def(builtin.UnitAttr)
     """
     A normal mpi.gather() will result in a reordering of the data, where each
     nodes data will be placed sequentially into the buffer, without any
@@ -439,29 +456,45 @@ class GatherOp(IRDLOperation):
 
     # TODO: implement
 
+    # TODO: fix __init__
     def __init__(
         self,
         local_field: SSAValue | Operation,
-        global_field: SSAValue | Operation,
         root_rank: int = 0,
         retain_order: bool = True,
     ):
         attrs: dict[str, Attribute] = {
-            "root_rank": builtin.IntegerAttr(root_rank, builtin.IndexType()),
+            "root_rank": builtin.IntAttr(root_rank),
         }
         if retain_order:
             attrs["retain_order"] = builtin.UnitAttr()
 
-        super().__init__(operands=[local_field, global_field], attributes=attrs)
+        super().__init__(operands=[local_field], attributes=attrs)
 
 
-Halo = Dialect(
+@irdl_op_definition
+class ScatterOp(IRDLOperation):
+    name = "dmp.scatter"
+
+    global_field: Operand = operand_def(memref.MemRefType)
+
+    my_rank: Operand = operand_def(builtin.IndexType)
+
+    global_shape: HaloShapeInformation = attr_def(HaloShapeInformation)
+
+    def __init__(self, ref: SSAValue | Operand, shape: HaloShapeInformation):
+        super().__init__(operands=[ref], attributes={"global_shape": shape})
+
+
+DMP = Dialect(
     [
         HaloSwapOp,
         GatherOp,
+        ScatterOp,
     ],
     [
         HaloExchangeDecl,
         HaloShapeInformation,
+        NodeGrid,
     ],
 )

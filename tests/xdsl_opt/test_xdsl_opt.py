@@ -7,7 +7,12 @@ from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import DiagnosticException
-from xdsl.xdsl_opt_main import xDSLOptMain
+from xdsl.xdsl_opt_main import get_all_dialects, get_all_passes, xDSLOptMain
+
+
+def test_dialects_and_passes():
+    assert len(get_all_dialects()) > 0
+    assert len(get_all_passes()) > 0
 
 
 def test_opt():
@@ -33,8 +38,7 @@ def test_empty_program():
 @pytest.mark.parametrize(
     "args, expected_error",
     [
-        (["tests/xdsl_opt/not_module.mlir"], "Expected ModuleOp at top level!"),
-        (["tests/xdsl_opt/not_module.mlir"], "Expected ModuleOp at top level!"),
+        (["tests/xdsl_opt/not_module.mlir"], "builtin.module operation expected"),
         (["tests/xdsl_opt/empty_program.wrong"], "Unrecognized file extension 'wrong'"),
     ],
 )
@@ -99,9 +103,8 @@ def test_operation_deletion():
                 name = "remove-constant"
 
                 def apply(self, ctx: MLContext, op: builtin.ModuleOp):
-                    if isinstance(op, builtin.ModuleOp):
-                        if op.ops.first is not None:
-                            op.ops.first.detach()
+                    if op.ops.first is not None:
+                        op.ops.first.detach()
 
             self.register_pass(RemoveConstantPass)
 

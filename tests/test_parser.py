@@ -14,7 +14,12 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.test import Test
 from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
-from xdsl.irdl import irdl_attr_definition, irdl_op_definition, IRDLOperation
+from xdsl.irdl import (
+    irdl_attr_definition,
+    irdl_op_definition,
+    IRDLOperation,
+    region_def,
+)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
@@ -46,15 +51,12 @@ def test_dictionary_attr(data: dict[str, Attribute]):
     ctx.register_dialect(Builtin)
 
     attr1 = Parser(ctx, text).parse_attribute()
-    attr2 = Parser(ctx, text).parse_builtin_dict_attr()
-    attr3 = Parser(ctx, "attributes " + text).parse_optional_attr_dict_with_keyword()
+    attr2 = Parser(ctx, "attributes " + text).parse_optional_attr_dict_with_keyword()
     assert isinstance(attr1, DictionaryAttr)
     assert isinstance(attr2, DictionaryAttr)
-    assert isinstance(attr3, DictionaryAttr)
 
     assert attr1.data == data
     assert attr2.data == data
-    assert attr3.data == data
 
 
 @pytest.mark.parametrize("text", ["{}", "{a = 1}", "attr {}"])
@@ -160,7 +162,7 @@ def test_symref(ref: str, expected: Attribute | None):
     ctx.register_dialect(Builtin)
 
     parser = Parser(ctx, ref)
-    parsed_ref = parser.parse_optional_symref_attr()
+    parsed_ref = parser.parse_attribute()
 
     assert parsed_ref == expected
 
@@ -382,8 +384,8 @@ def test_parse_region_with_args_fail(text: str):
 @irdl_op_definition
 class MultiRegionOp(IRDLOperation):
     name = "test.multi_region"
-    r1: Region
-    r2: Region
+    r1: Region = region_def()
+    r2: Region = region_def()
 
 
 def test_parse_multi_region_mlir():
@@ -542,10 +544,8 @@ def test_get_punctuation_kind(punctuation: Token.Kind):
 def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
     parser = Parser(MLContext(), punctuation)
 
-    parser._synchronize_lexer_and_tokenizer()
     res = parser.parse_punctuation(punctuation)
     assert res == punctuation
-    parser._synchronize_lexer_and_tokenizer()
     assert parser._parse_token(Token.Kind.EOF, "").kind == Token.Kind.EOF
 
 
@@ -554,7 +554,6 @@ def test_parse_punctuation(punctuation: Token.PunctuationSpelling):
 )
 def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
     parser = Parser(MLContext(), "e +")
-    parser._synchronize_lexer_and_tokenizer()
     with pytest.raises(ParseError) as e:
         parser.parse_punctuation(punctuation, " in test")
     assert e.value.span.text == "e"
@@ -566,10 +565,8 @@ def test_parse_punctuation_fail(punctuation: Token.PunctuationSpelling):
 )
 def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
     parser = Parser(MLContext(), punctuation)
-    parser._synchronize_lexer_and_tokenizer()
     res = parser.parse_optional_punctuation(punctuation)
     assert res == punctuation
-    parser._synchronize_lexer_and_tokenizer()
     assert parser._parse_token(Token.Kind.EOF, "").kind == Token.Kind.EOF
 
 
@@ -578,7 +575,6 @@ def test_parse_optional_punctuation(punctuation: Token.PunctuationSpelling):
 )
 def test_parse_optional_punctuation_fail(punctuation: Token.PunctuationSpelling):
     parser = Parser(MLContext(), "e +")
-    parser._synchronize_lexer_and_tokenizer()
     assert parser.parse_optional_punctuation(punctuation) is None
 
 

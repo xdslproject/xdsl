@@ -1,6 +1,9 @@
 from abc import ABC
 from typing import TypeVar, cast
 from dataclasses import dataclass
+
+from math import prod
+
 from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
@@ -145,18 +148,13 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         """
         This function retrieves the data size of a provided MPI type object
         """
-        if isinstance(mpi_dialect_dtype, mpi.RequestType):
-            return self.info.MPI_Request_size
-        elif isinstance(mpi_dialect_dtype, mpi.StatusType):
-            return self.info.MPI_Status_size
-        elif isinstance(mpi_dialect_dtype, mpi.DataType):
-            return self.info.MPI_Datatype_size
-        else:
-            raise ValueError(
-                "MPI internal type size lookup: Unsupported type: {}".format(
-                    mpi_dialect_dtype
-                )
-            )
+        match mpi_dialect_dtype:
+            case mpi.RequestType():
+                return self.info.MPI_Request_size
+            case mpi.StatusType():
+                return self.info.MPI_Status_size
+            case mpi.DataType():
+                return self.info.MPI_Datatype_size
 
     def _emit_mpi_status_objs(
         self, number_to_output: int
@@ -211,7 +209,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         if not all(dim.value.data >= 0 for dim in ssa_val.typ.shape.data):
             raise RuntimeError("MPI lowering does not support unknown-size memrefs!")
 
-        size = sum(dim.value.data for dim in ssa_val.typ.shape.data)
+        size = prod(dim.value.data for dim in ssa_val.typ.shape.data)
 
         literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result

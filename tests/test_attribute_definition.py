@@ -8,7 +8,7 @@ from io import StringIO
 from typing import Any, TypeVar, cast, Annotated, Generic, TypeAlias
 
 import pytest
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
 
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
@@ -39,12 +39,11 @@ class BoolData(Data[bool]):
 
     @staticmethod
     def parse_parameter(parser: Parser) -> bool:
-        val = parser.tokenizer.next_token_of_pattern("(True|False)")
-        if val is None or val.text not in ("True", "False"):
-            parser.raise_error("Expected True or False literal")
-        if val.text == "True":
+        if parser.parse_optional_keyword("True"):
             return True
-        return False
+        if parser.parse_optional_keyword("False"):
+            return False
+        parser.raise_error("Expected True or False literal")
 
     def print_parameter(self, printer: Printer):
         printer.print_string(str(self.data))
@@ -85,18 +84,6 @@ def test_simple_data():
     p = Printer(stream=stream)
     p.print_attribute(b)
     assert stream.getvalue() == "#bool<True>"
-
-
-def test_simple_data_verifier_failure():
-    """
-    Test that the verifier of a data with a class parameter fails when given
-    a parameter of the wrong type.
-    """
-    with pytest.raises(VerifyException) as e:
-        BoolData(2)  # type: ignore
-    assert e.value.args[0] == (
-        "bool data attribute expected type " "<class 'bool'>, but <class 'int'> given."
-    )
 
 
 class IntListMissingVerifierData(Data[list[int]]):
@@ -150,11 +137,9 @@ class IntListData(Data[list[int]]):
         printer.print_string("]")
 
     def verify(self) -> None:
-        if not isinstance(self.data, list):
-            raise VerifyException("int_list data should hold a list.")
-        for elem in self.data:
-            if not isinstance(elem, int):
-                raise VerifyException("int_list list elements should be integers.")
+        # We must override verify on Attribute
+        # https://github.com/xdslproject/xdsl/issues/1075
+        ...
 
 
 def test_non_class_data():
@@ -166,14 +151,44 @@ def test_non_class_data():
     assert stream.getvalue() == "#int_list<[0, 1, 42]>"
 
 
-def test_simple_data_constructor_failure():
-    """
-    Test that the verifier of a Data with a non-class parameter fails when
-    given wrong arguments.
-    """
-    with pytest.raises(VerifyException) as e:
-        IntListData([0, 1, 42, ""])  # type: ignore
-    assert e.value.args[0] == "int_list list elements should be integers."
+################################################################################
+# IntegerAttr
+################################################################################
+
+
+def test_signed_integer_attr():
+    """Test the verification of a signed integer attribute."""
+    with pytest.raises(VerifyException):
+        IntegerAttr(1 << 31, IntegerType(32, Signedness.SIGNED))
+
+    with pytest.raises(VerifyException):
+        IntegerAttr(-(1 << 31) - 1, IntegerType(32, Signedness.SIGNED))
+
+    IntegerAttr((1 << 31) - 1, IntegerType(32, Signedness.SIGNED))
+    IntegerAttr(-(1 << 31), IntegerType(32, Signedness.SIGNED))
+
+
+def test_unsigned_integer_attr():
+    """Test the verification of a unsigned integer attribute."""
+    with pytest.raises(VerifyException):
+        IntegerAttr(1 << 32, IntegerType(32, Signedness.UNSIGNED))
+
+    with pytest.raises(VerifyException):
+        IntegerAttr(-1, IntegerType(32, Signedness.UNSIGNED))
+
+    IntegerAttr((1 << 32) - 1, IntegerType(32, Signedness.UNSIGNED))
+
+
+def test_signless_integer_attr():
+    """Test the verification of a signless integer attribute."""
+    with pytest.raises(VerifyException):
+        IntegerAttr((1 << 32) + 1, IntegerType(32, Signedness.SIGNLESS))
+
+    with pytest.raises(VerifyException):
+        IntegerAttr(-(1 << 32) - 1, IntegerType(32, Signedness.SIGNLESS))
+
+    IntegerAttr(1 << 32, IntegerType(32, Signedness.SIGNLESS))
+    IntegerAttr(-(1 << 32), IntegerType(32, Signedness.SIGNLESS))
 
 
 ################################################################################
@@ -493,12 +508,6 @@ class ListData(GenericData[list[A]]):
         return ListData(data)
 
     def verify(self) -> None:
-        if not isinstance(self.data, list):
-            raise VerifyException(
-                f"Wrong type given to attribute {self.name}: got"
-                f" {type(self.data)}, but expected list of"
-                " attributes."
-            )
         for idx, val in enumerate(self.data):
             if not isinstance(val, Attribute):
                 raise VerifyException(
@@ -520,28 +529,6 @@ class Test_generic_data_verifier:
         p = Printer(stream=stream)
         p.print_attribute(attr)
         assert stream.getvalue() == "#list<[#bool<True>, #list<[#bool<False>]>]>"
-
-    def test_generic_data_verifier_fail(self):
-        """
-        Test that a GenericData verifier fails when given wrong parameters.
-        """
-        with pytest.raises(VerifyException) as e:
-            ListData([0])  # type: ignore
-        assert e.value.args[0] == (
-            "list data expects attribute list, but"
-            " element 0 is of type <class 'int'>."
-        )
-
-    def test_generic_data_verifier_fail_II(self):
-        """
-        Test that a GenericData verifier fails when given wrong parameters.
-        """
-        with pytest.raises(VerifyException) as e:
-            ListData((0))  # type: ignore
-        assert e.value.args[0] == (
-            "Wrong type given to attribute list: "
-            "got <class 'int'>, but expected list of attributes."
-        )
 
 
 @irdl_attr_definition
@@ -651,14 +638,11 @@ class OveriddenInitAttr(ParametrizedAttribute):
     param: ParameterDef[Attribute]
 
     def __init__(self, param: int | str):
-        if isinstance(param, int):
-            super().__init__([IntData(param)])
-        elif isinstance(param, str):
-            super().__init__([StringData(param)])
-        else:
-            raise TypeError(
-                "Expected `int` or `str` type in " "OveriddenInitAttr constructor"
-            )
+        match param:
+            case int():
+                super().__init__([IntData(param)])
+            case str():
+                super().__init__([StringData(param)])
 
 
 def test_generic_constructor():

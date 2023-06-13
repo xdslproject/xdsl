@@ -5,7 +5,7 @@ import os
 from io import StringIO
 from xdsl.frontend.symref import Symref
 
-from xdsl.ir import MLContext
+from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser, ParseError
 from xdsl.passes import ModulePass
 from xdsl.printer import Printer
@@ -26,12 +26,14 @@ from xdsl.dialects.test import Test
 from xdsl.dialects.stencil import Stencil
 from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.irdl import IRDL
-from xdsl.dialects.riscv import RISCV, print_assembly
+from xdsl.dialects.riscv import RISCV, print_assembly, riscv_code
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
+from xdsl.dialects.print import Print
 
-from xdsl.dialects.experimental.stencil import StencilExp
 from xdsl.dialects.experimental.math import Math
+from xdsl.dialects.experimental.fir import FIR
+from xdsl.dialects.experimental.dmp import DMP
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
@@ -39,19 +41,72 @@ from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
+from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
 from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
     ConvertStencilToLLMLIRPass,
 )
 from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
-from xdsl.transforms.experimental.stencil_global_to_local import (
+from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
     GlobalStencilToLocalStencil2DHorizontal,
     LowerHaloToMPI,
+)
+from xdsl.transforms.experimental.dmp.scatter_gather import (
+    DmpScatterGatherTrivialLowering,
 )
 
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 from typing import IO, Dict, Callable, List, Sequence, Type
+
+
+def get_all_dialects() -> list[Dialect]:
+    """Return the list of all available dialects."""
+    return [
+        Affine,
+        Arith,
+        Builtin,
+        Cf,
+        CMath,
+        DMP,
+        FIR,
+        Func,
+        GPU,
+        IRDL,
+        LLVM,
+        Math,
+        MemRef,
+        MPI,
+        PDL,
+        Print,
+        RISCV,
+        RISCV_Func,
+        Scf,
+        Snitch,
+        SnitchRuntime,
+        Stencil,
+        Symref,
+        Test,
+        Vector,
+    ]
+
+
+def get_all_passes() -> list[type[ModulePass]]:
+    """Return the list of all available passes."""
+    return [
+        ConvertStencilToLLMLIRPass,
+        DeadCodeElimination,
+        DesymrefyPass,
+        DmpScatterGatherTrivialLowering,
+        GlobalStencilToLocalStencil2DHorizontal,
+        LowerHaloToMPI,
+        LowerMPIPass,
+        LowerRISCVFunc,
+        LowerSnitchPass,
+        LowerSnitchRuntimePass,
+        RISCVRegisterAllocation,
+        StencilShapeInferencePass,
+    ]
 
 
 class xDSLOptMain:
@@ -224,29 +279,8 @@ class xDSLOptMain:
 
         Add other/additional dialects by overloading this function.
         """
-        self.ctx.register_dialect(Builtin)
-        self.ctx.register_dialect(Func)
-        self.ctx.register_dialect(Arith)
-        self.ctx.register_dialect(MemRef)
-        self.ctx.register_dialect(Affine)
-        self.ctx.register_dialect(Scf)
-        self.ctx.register_dialect(Cf)
-        self.ctx.register_dialect(CMath)
-        self.ctx.register_dialect(Math)
-        self.ctx.register_dialect(LLVM)
-        self.ctx.register_dialect(Vector)
-        self.ctx.register_dialect(MPI)
-        self.ctx.register_dialect(GPU)
-        self.ctx.register_dialect(StencilExp)
-        self.ctx.register_dialect(Stencil)
-        self.ctx.register_dialect(PDL)
-        self.ctx.register_dialect(Symref)
-        self.ctx.register_dialect(Test)
-        self.ctx.register_dialect(RISCV)
-        self.ctx.register_dialect(Snitch)
-        self.ctx.register_dialect(SnitchRuntime)
-        self.ctx.register_dialect(RISCV_Func)
-        self.ctx.register_dialect(IRDL)
+        for dialect in get_all_dialects():
+            self.ctx.register_dialect(dialect)
 
     def register_all_frontends(self):
         """
@@ -274,16 +308,8 @@ class xDSLOptMain:
 
         Add other/additional passes by overloading this function.
         """
-        self.register_pass(LowerMPIPass)
-        self.register_pass(ConvertStencilToLLMLIRPass)
-        self.register_pass(StencilShapeInferencePass)
-        self.register_pass(GlobalStencilToLocalStencil2DHorizontal)
-        self.register_pass(DesymrefyPass)
-        self.register_pass(DeadCodeElimination)
-        self.register_pass(LowerSnitchPass)
-        self.register_pass(RISCVRegisterAllocation)
-        self.register_pass(LowerRISCVFunc)
-        self.register_pass(LowerHaloToMPI)
+        for pass_ in get_all_passes():
+            self.register_pass(pass_)
 
     def register_all_targets(self):
         """
@@ -302,8 +328,21 @@ class xDSLOptMain:
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
             print_assembly(prog, output)
 
+        def _emulate_riscv(prog: ModuleOp, output: IO[str]):
+            # import only if running riscv emulation
+            try:
+                from xdsl.interpreters.riscv_emulator import run_riscv, RV_Debug
+            except ImportError:
+                print("Please install optional dependencies to run riscv emulation")
+                return
+
+            code = riscv_code(prog)
+            RV_Debug.stream = output
+            run_riscv(code, unlimited_regs=True, verbosity=0)
+
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
+        self.available_targets["riscemu"] = _emulate_riscv
 
     def setup_pipeline(self):
         """

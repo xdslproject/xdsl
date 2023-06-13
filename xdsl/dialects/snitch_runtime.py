@@ -1,12 +1,19 @@
 from abc import ABC
-from xdsl.irdl import irdl_op_definition, IRDLOperation, Operand, Operation, SSAValue
-from xdsl.ir import OpResult, Dialect
-from xdsl.dialects.builtin import IntegerType, Signedness, IndexType
-from typing import Annotated
+from xdsl.irdl import (
+    irdl_op_definition,
+    IRDLOperation,
+    Operand,
+    Operation,
+    SSAValue,
+    operand_def,
+    result_def,
+    ConstraintVar,
+)
+from xdsl.ir import OpResult, Dialect, Attribute
+from xdsl.dialects.builtin import i32, i64, IndexType
+from typing import Generic, TypeVar, Annotated
 
-u32 = IntegerType(data=32, signedness=Signedness.UNSIGNED)
-u64 = IntegerType(data=64, signedness=Signedness.UNSIGNED)
-tx_id = u32
+tx_id = i32
 
 
 class SnitchRuntimeBaseOp(IRDLOperation, ABC):
@@ -27,12 +34,12 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOp, ABC):
     A base class for snitch runtime functions that get a certain value at runtime
     """
 
-    result: Annotated[OpResult, u32]
+    result: OpResult = result_def(i32)
 
     def __init__(
         self,
     ):
-        super().__init__(operands=[], result_types=[u32])
+        super().__init__(operands=[], result_types=[i32])
 
 
 class SnitchRuntimeBarrier(SnitchRuntimeBaseOp, ABC):
@@ -64,38 +71,19 @@ class ClusterHwBarrierOp(SnitchRuntimeBarrier):
     name = "snrt.cluster_hw_barrier"
 
 
-@irdl_op_definition
-class DmaStart1DWideptrOp(SnitchRuntimeBaseOp):
-    """
-    Initiate an asynchronous 1D DMA transfer with wide 64-bit pointers
-    """
-
-    name = "snrt.dma_start_1d_wideptr"
-    src: Annotated[Operand, u64]
-    dst: Annotated[Operand, u64]
-    size: Annotated[Operand, IndexType]
-    transfer_id: Annotated[OpResult, tx_id]
-
-    def __init__(
-        self,
-        src: Operation | SSAValue,
-        dst: Operation | SSAValue,
-        size: Operation | SSAValue,
-    ):
-        super().__init__(operands=[src, dst, size], result_types=[tx_id])
+_T = TypeVar("_T", bound=Attribute)
 
 
-@irdl_op_definition
-class DmaStart1DOp(SnitchRuntimeBaseOp):
+class DmaStart1DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
     """
     Initiate an asynchronous 1D DMA transfer
     """
 
-    name = "snrt.dma_start_1d"
-    dst: Annotated[Operand, u32]
-    src: Annotated[Operand, u32]
-    size: Annotated[Operand, IndexType]
-    transfer_id: Annotated[OpResult, tx_id]
+    T = Annotated[Attribute, ConstraintVar("T"), _T]
+    dst: Operand = operand_def(T)
+    src: Operand = operand_def(T)
+    size: Operand = operand_def(IndexType)
+    transfer_id: OpResult = result_def(tx_id)
 
     def __init__(
         self,
@@ -106,20 +94,19 @@ class DmaStart1DOp(SnitchRuntimeBaseOp):
         super().__init__(operands=[dst, src, size], result_types=[tx_id])
 
 
-@irdl_op_definition
-class DmaStart2DWideptrOp(SnitchRuntimeBaseOp):
+class DmaStart2DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
     """
-    Initiate an asynchronous 2D DMA transfer with wide 64-bit pointers
+    Generic base class for starting asynchronous 2D DMA transfers
     """
 
-    name = "snrt.dma_start_2d_wideptr"
-    dst: Annotated[Operand, u64]
-    src: Annotated[Operand, u64]
-    dst_stride: Annotated[Operand, IndexType]
-    src_stride: Annotated[Operand, IndexType]
-    size: Annotated[Operand, IndexType]
-    repeat: Annotated[Operand, IndexType]
-    transfer_id: Annotated[OpResult, tx_id]
+    T = Annotated[Attribute, ConstraintVar("T"), _T]
+    dst: Operand = operand_def(T)
+    src: Operand = operand_def(T)
+    dst_stride: Operand = operand_def(IndexType)
+    src_stride: Operand = operand_def(IndexType)
+    size: Operand = operand_def(IndexType)
+    repeat: Operand = operand_def(IndexType)
+    transfer_id: OpResult = result_def(tx_id)
 
     def __init__(
         self,
@@ -137,33 +124,39 @@ class DmaStart2DWideptrOp(SnitchRuntimeBaseOp):
 
 
 @irdl_op_definition
-class DmaStart2DOp(SnitchRuntimeBaseOp):
+class DmaStart1DOp(DmaStart1DBaseOp[Annotated[Attribute, i32]]):
     """
-    Initiate an asynchronous 2D DMA transfer
+    Initiate an asynchronous 1D DMA transfer with 32-bits pointers
+    """
+
+    name = "snrt.dma_start_1d"
+
+
+@irdl_op_definition
+class DmaStart1DWideptrOp(DmaStart1DBaseOp[Annotated[Attribute, i64]]):
+    """
+    Initiate an asynchronous 1D DMA transfer with 64-bits wide pointers
+    """
+
+    name = "snrt.dma_start_1d_wideptr"
+
+
+@irdl_op_definition
+class DmaStart2DOp(DmaStart2DBaseOp[Annotated[Attribute, i32]]):
+    """
+    Initiate an asynchronous 2D DMA transfer with 32-bits pointers
     """
 
     name = "snrt.dma_start_2d"
-    dst: Annotated[Operand, u32]
-    src: Annotated[Operand, u32]
-    dst_stride: Annotated[Operand, IndexType]
-    src_stride: Annotated[Operand, IndexType]
-    size: Annotated[Operand, IndexType]
-    repeat: Annotated[Operand, IndexType]
-    transfer_id: Annotated[OpResult, tx_id]
 
-    def __init__(
-        self,
-        dst: Operation | SSAValue,
-        src: Operation | SSAValue,
-        dst_stride: Operation | SSAValue,
-        src_stride: Operation | SSAValue,
-        size: Operation | SSAValue,
-        repeat: Operation | SSAValue,
-    ):
-        super().__init__(
-            operands=[dst, src, dst_stride, src_stride, size, repeat],
-            result_types=[tx_id],
-        )
+
+@irdl_op_definition
+class DmaStart2DWideptrOp(DmaStart2DBaseOp[Annotated[Attribute, i64]]):
+    """
+    Initiate an asynchronous 2D DMA transfer with 64-bits wide pointers
+    """
+
+    name = "snrt.dma_start_2d_wideptr"
 
 
 @irdl_op_definition
@@ -173,24 +166,19 @@ class DmaWaitOp(SnitchRuntimeBaseOp):
     """
 
     name = "snrt.dma_wait"
-    transfer_id: Annotated[Operand, tx_id]
+    transfer_id: Operand = operand_def(tx_id)
 
     def __init__(self, transfer_id: Operation | SSAValue):
         super().__init__(operands=[transfer_id], result_types=[])
 
 
 @irdl_op_definition
-class DmaWaitAllOp(SnitchRuntimeBaseOp):
+class DmaWaitAllOp(SnitchRuntimeBarrier):
     """
     Block until all operations on the DMA cease
     """
 
     name = "snrt.dma_wait_all"
-
-    def __init__(
-        self,
-    ):
-        super().__init__(operands=[], result_types=[])
 
 
 SnitchRuntime = Dialect(

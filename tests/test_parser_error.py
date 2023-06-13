@@ -1,5 +1,3 @@
-from typing import Annotated
-
 from pytest import raises
 
 from xdsl.ir import MLContext
@@ -9,6 +7,8 @@ from xdsl.irdl import (
     IRDLOperation,
     VarOperand,
     VarOpResult,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import ParseError
@@ -17,8 +17,8 @@ from xdsl.utils.exceptions import ParseError
 @irdl_op_definition
 class UnkownOp(IRDLOperation):
     name = "unknown"
-    ops: Annotated[VarOperand, AnyAttr()]
-    res: Annotated[VarOpResult, AnyAttr()]
+    ops: VarOperand = var_operand_def(AnyAttr())
+    res: VarOpResult = var_result_def(AnyAttr())
 
 
 def check_error(prog: str, line: int, column: int, message: str):
@@ -26,21 +26,10 @@ def check_error(prog: str, line: int, column: int, message: str):
     ctx.register_op(UnkownOp)
 
     parser = Parser(ctx, prog)
-    with raises(ParseError) as e:
+    with raises(ParseError, match=message) as e:
         parser.parse_operation()
 
-    assert e.value.span
-
-    assert e.value.history is not None
-
-    for err in e.value.history.iterate():
-        if message in err.error.msg:
-            assert err.error.span.get_line_col() == (line, column)
-            break
-    else:
-        assert False, "'{}' not found in an error message {}!".format(
-            message, e.value.args
-        )
+    assert e.value.span.get_line_col() == (line, column)
 
 
 def test_parser_missing_equal():
@@ -53,7 +42,7 @@ def test_parser_missing_equal():
   %0 "unknown"() : () -> !i32
 }) : () -> ()
 """
-    check_error(prog, 3, 5, "Operation definitions expect an `=` after op-result-list!")
+    check_error(prog, 3, 5, "Expected '=' after operation result list")
 
 
 def test_parser_redefined_value():
@@ -80,4 +69,4 @@ def test_parser_missing_operation_name():
   %val =
 }) : () -> ()
 """
-    check_error(prog, 4, 0, "Expected an operation name here")
+    check_error(prog, 4, 0, "operation name expected")

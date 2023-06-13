@@ -18,9 +18,10 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu
 
 from xdsl.dialects.stencil import CastOp
-from xdsl.dialects.experimental.stencil import (
+from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
+    BufferOp,
     FieldType,
     LoadOp,
     ReturnOp,
@@ -90,6 +91,17 @@ def collectBlockArguments(number: int, block: Block):
     return args
 
 
+def update_return_target(
+    return_targets: dict[ReturnOp, list[SSAValue | None]],
+    old_target: SSAValue,
+    new_target: SSAValue,
+):
+    for targets in return_targets.values():
+        for i, target in enumerate(targets):
+            if target == old_target:
+                targets[i] = new_target
+
+
 @dataclass
 class ReturnOpToMemref(RewritePattern):
     return_target: dict[ReturnOp, list[SSAValue | None]]
@@ -107,7 +119,7 @@ class ReturnOpToMemref(RewritePattern):
             if target is None:
                 break
 
-            assert isinstance(target.typ, builtin.ShapeType)
+            assert isinstance(target.typ, builtin.ShapedType)
 
             assert (block := op.parent_block()) is not None
 
@@ -168,8 +180,8 @@ class LoadOpToMemref(RewritePattern):
 
         assert_subset(field, temp)
 
-        offsets = [i for i in temp.bounds.lb - field.bounds.lb]
-        sizes = [i for i in temp.bounds.ub - temp.bounds.lb]
+        offsets = [i for i in -field.bounds.lb]
+        sizes = [i for i in temp.get_shape()]
         strides = [1] * len(sizes)
 
         subview = memref.Subview.from_static_parameters(
@@ -200,23 +212,33 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
     return rewriter.move_region_contents_to_new_regions(op.region)
 
 
+@dataclass
 class ApplyOpToParallel(RewritePattern):
+    return_targets: dict[ReturnOp, list[SSAValue | None]]
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         res_typ = op.res[0].typ
         assert isa(res_typ, TempType[Attribute])
         assert isinstance(res_typ.bounds, StencilBoundsAttr)
 
+        # Get this apply's ReturnOp
+        body_block = op.region.blocks[0]
+        return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
+
         body = prepare_apply_body(op, rewriter)
         body.block.add_op(scf.Yield.get())
         dim = res_typ.get_num_dims()
 
         # Then create the corresponding scf.parallel
-        dims = res_typ.get_shape()
-        zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
+        lowerBounds = [
+            arith.Constant.from_int_and_width(x, builtin.IndexType())
+            for x in res_typ.bounds.lb
+        ]
         one = arith.Constant.from_int_and_width(1, builtin.IndexType())
         upperBounds = [
-            arith.Constant.from_int_and_width(x, builtin.IndexType()) for x in dims
+            arith.Constant.from_int_and_width(x, builtin.IndexType())
+            for x in res_typ.bounds.ub
         ]
 
         # Generate an outer parallel loop as well as two inner sequential
@@ -225,7 +247,11 @@ class ApplyOpToParallel(RewritePattern):
         current_region = body
         for i in range(1, dim):
             for_op = scf.For.get(
-                lb=zero, ub=upperBounds[-i], step=one, iter_args=[], body=current_region
+                lb=lowerBounds[-i],
+                ub=upperBounds[-i],
+                step=one,
+                iter_args=[],
+                body=current_region,
             )
             block = Block(
                 ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
@@ -233,15 +259,65 @@ class ApplyOpToParallel(RewritePattern):
             current_region = Region(block)
 
         p = scf.ParallelOp.get(
-            lowerBounds=[zero],
+            lowerBounds=[lowerBounds[0]],
             upperBounds=[upperBounds[0]],
             steps=[one],
             body=current_region,
         )
 
+        # Handle returnd values
+        for result in op.res:
+            assert isa(
+                result.typ, TempType[Attribute]
+            ), f"Expected return value to be a !{TempType.name}"
+            assert isinstance(
+                result.typ.bounds, StencilBoundsAttr
+            ), f"Expected output to be sized before lowering. {result.typ}"
+            shape = result.typ.get_shape()
+            element_type = result.typ.element_type
+
+            # If it is buffered, allocate the buffer
+            if any(isinstance(use.operation, BufferOp) for use in result.uses):
+                alloc = memref.Alloc.get(element_type, shape=shape)
+                alloc_type = alloc.memref.typ
+                assert isa(alloc_type, MemRefType[Attribute])
+
+                offset = list(-result.typ.bounds.lb)
+
+                view = memref.Subview.from_static_parameters(
+                    alloc,
+                    alloc_type,
+                    offset,
+                    shape,
+                    [1] * result.typ.get_num_dims(),
+                )
+                rewriter.insert_op_before_matched_op((alloc, view))
+                update_return_target(self.return_targets, result, view.result)
+
+        deallocs: list[Operation] = []
+        # Handle input buffer deallocation
+        for input in op.args:
+            # Is this input a temp buffer?
+            if isinstance(input.typ, TempType) and isinstance(input.owner, BufferOp):
+                block = op.parent_block()
+                assert block is not None
+                self_index = block.get_operation_index(op)
+                # Is it its last use?
+                if not any(
+                    use.operation.parent_block() is block
+                    and block.get_operation_index(use.operation) > self_index
+                    for use in input.uses
+                ):
+                    # Then deallocate it
+                    deallocs.append(memref.Dealloc.get(input))
+
+        # Get the maybe updated results
+        new_results: list[SSAValue | None] = []
+        new_results = self.return_targets[return_op]
         # Replace with the loop and necessary constants.
-        rewriter.insert_op_before_matched_op([zero, one, *upperBounds, p])
-        rewriter.erase_matched_op()
+        rewriter.insert_op_before_matched_op([*lowerBounds, one, *upperBounds, p])
+        rewriter.insert_op_after_matched_op([*deallocs])
+        rewriter.replace_matched_op([], new_results)
 
 
 class AccessOpToMemref(RewritePattern):
@@ -255,7 +331,7 @@ class AccessOpToMemref(RewritePattern):
         # a block.
         assert (block := op.parent_block()) is not None
 
-        memref_offset = op.offset - temp.bounds.lb
+        memref_offset = op.offset
         off_const_ops = [
             arith.Constant.from_int_and_width(x, builtin.IndexType())
             for x in memref_offset
@@ -314,8 +390,10 @@ class StencilStoreToSubview(RewritePattern):
             field = store.field
             assert isa(field.typ, FieldType[Attribute])
             assert isa(field.typ.bounds, StencilBoundsAttr)
-            offsets = [i for i in store.lb - field.typ.bounds.lb]
-            sizes = [i for i in store.ub - store.lb]
+            temp = store.temp
+            assert isa(temp.typ, TempType[Attribute])
+            offsets = [i for i in -field.typ.bounds.lb]
+            sizes = [i for i in temp.typ.get_shape()]
             subview = memref.Subview.from_static_parameters(
                 field,
                 StencilToMemRefType(field.typ),
@@ -334,10 +412,13 @@ class StencilStoreToSubview(RewritePattern):
 
             rewriter.erase_op(store)
 
-            for r, c in self.return_targets.items():
-                for i in range(len(c)):
-                    if c[i] == field:
-                        self.return_targets[r][i] = subview.result
+            update_return_target(self.return_targets, field, subview.result)
+
+
+class BufferOpCleanUp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
+        rewriter.replace_matched_op([], [op.temp])
 
 
 class TrivialExternalLoadOpCleanup(RewritePattern):
@@ -372,14 +453,20 @@ def return_target_analysis(module: builtin.ModuleOp):
             store = [
                 use.operation
                 for use in list(res.uses)
-                if isinstance(use.operation, StoreOp)
+                if isinstance(use.operation, StoreOp | BufferOp)
             ]
 
             if len(store) > 1:
                 warn("Each stencil result should be stored only once.")
                 continue
 
-            field = None if len(store) == 0 else store[0].field
+            elif len(store) == 0:
+                field = None
+            elif isinstance(store[0], StoreOp):
+                field = store[0].field
+            # then it's a BufferOp
+            else:
+                field = store[0].temp
 
             return_targets[op].append(field)
 
@@ -400,8 +487,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ApplyOpToParallel(),
-                    StencilTypeConversionFuncOp(),
+                    ApplyOpToParallel(return_targets),
                     StencilStoreToSubview(return_targets),
                     CastOpToMemref(gpu=(self.target == "gpu")),
                     LoadOpToMemref(),
@@ -417,6 +503,12 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         )
         the_one_pass.rewrite_module(op)
         type_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([UpdateLoopCarriedVarTypes()])
+            GreedyRewritePatternApplier(
+                [
+                    UpdateLoopCarriedVarTypes(),
+                    StencilTypeConversionFuncOp(),
+                    BufferOpCleanUp(),
+                ]
+            )
         )
         type_pass.rewrite_module(op)

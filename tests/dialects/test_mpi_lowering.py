@@ -1,9 +1,15 @@
-from xdsl.dialects import mpi, func, llvm, builtin
+from xdsl.dialects import mpi, func, llvm, builtin, arith
 from xdsl.ir import Operation, Attribute, OpResult
-from xdsl.irdl import irdl_op_definition, VarOpResult, IRDLOperation
+from xdsl.irdl import (
+    VarOpResult,
+    irdl_op_definition,
+    var_result_def,
+    IRDLOperation,
+    Operand,
+)
 from xdsl.transforms import lower_mpi
 from xdsl.pattern_rewriter import PatternRewriteWalker
-from xdsl.dialects.builtin import i32
+from xdsl.dialects.builtin import i32, i64
 
 info = lower_mpi.MpiLibraryInfo()
 
@@ -33,7 +39,7 @@ def check_emitted_function_signature(
 @irdl_op_definition
 class CreateTestValsOp(IRDLOperation):
     name = "testing.test"
-    result: VarOpResult
+    result: VarOpResult = var_result_def()
 
     @staticmethod
     def get(*types: Attribute):
@@ -308,7 +314,7 @@ def test_lower_mpi_reduce():
     )
 
 
-def test_lower_mpi_all_reduce():
+def test_lower_mpi_all_reduce_no_send_buffer():
     ptr, count, dtype = CreateTestValsOp.get(
         llvm.LLVMPointerType.opaque(), i32, mpi.DataType()
     ).results
@@ -318,7 +324,7 @@ def test_lower_mpi_all_reduce():
     """
 
     ops, result = lower_mpi.LowerMpiAllreduce(info).lower(
-        mpi.Allreduce.get(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM)
+        mpi.Allreduce.get(None, ptr, count, dtype, mpi.MpiOp.MPI_SUM)
     )
 
     # allreduce has no results
@@ -328,7 +334,7 @@ def test_lower_mpi_all_reduce():
         ops,
         "MPI_Allreduce",
         (
-            llvm.LLVMPointerType,
+            type(i64),
             llvm.LLVMPointerType,
             type(i32),
             None,
@@ -336,6 +342,22 @@ def test_lower_mpi_all_reduce():
             None,
         ),
     )
+
+
+def test_mpi_waitall():
+    _, count, _ = CreateTestValsOp.get(
+        llvm.LLVMPointerType.opaque(), i32, mpi.DataType()
+    ).results
+
+    dummy = arith.Constant.from_int_and_width(4, 32)
+    alloc_request_op = mpi.AllocateTypeOp.get(mpi.RequestType, dummy)
+    req_op: Operand = alloc_request_op.results[0]
+    waitall = mpi.Waitall.get(req_op, count)
+
+    assert waitall.operands[0] == req_op
+    assert waitall.operands[1] == count
+    assert len(waitall.results) == 0
+    # TODO: enhance this test with a lowering
 
 
 def test_lower_mpi_bcast():
@@ -374,9 +396,7 @@ def test_lower_mpi_allocate():
     ops, res = lower_mpi.LowerMpiAllocateType(info).lower(op)
 
     assert len(res) == 1
-
     assert len(ops) == 1
-
     assert isinstance(ops[0], llvm.AllocaOp)
 
 
@@ -395,6 +415,7 @@ def test_lower_mpi_vec_get():
     ops, res = lower_mpi.LowerMpiVectorGet(info).lower(get)
 
     assert len(res) == 1
+    assert res[0] is not None
     assert isinstance(res[0].typ, llvm.LLVMPointerType)
     assert len(ops) > 0
 
@@ -467,5 +488,5 @@ def test_mpi_type_conversion():
             checks.append((typ, getattr(info, f"MPI_{sign_str}{name}")))
 
     for type, target in checks:
-        # we test a private member function here, so we need to tell pyright that that's okay
+        # we test a private member function here, so we ignore pyright
         assert lowering._translate_to_mpi_type(type) == target  # type: ignore

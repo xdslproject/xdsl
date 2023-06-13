@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import re
 import pytest
 from io import StringIO
-from typing import Annotated
 
 from xdsl.dialects.arith import Arith, Addi, Constant
-from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, ModuleOp, UnitAttr, i32
+from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, UnitAttr, i32
 from xdsl.dialects.func import Func
 from xdsl.dialects.test import TestOp
 from xdsl.ir import (
@@ -20,13 +18,17 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     Operand,
-    OptOpAttr,
     ParameterDef,
     VarOpResult,
     VarOperand,
     irdl_attr_definition,
     irdl_op_definition,
     IRDLOperation,
+    operand_def,
+    opt_attr_def,
+    result_def,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -51,50 +53,11 @@ def test_simple_forgotten_op():
     assert_print_op(add, expected, None)
 
 
-def test_unordered_ops():
-    """Test that the printing of unordered ops works."""
-
-    ctx = MLContext()
-    ctx.register_dialect(Arith)
-
-    lit = Constant.from_int_and_width(42, 32)
-    add = Addi(lit, lit)
-
-    expected = """
-"builtin.module"() ({
-  %0 = "arith.addi"(%1, %1) : (i32, i32) -> i32
-  %1 = "arith.constant"() {"value" = 42 : i32} : () -> i32
-}) : () -> ()
-"""
-
-    assert_print_op(ModuleOp([add, lit]), expected, None)
-
-
-def test_cyclic_ops():
-    """Test that the printing of ops with cyclic dependencies works."""
-
-    ctx = MLContext()
-    ctx.register_dialect(Arith)
-
-    op1 = TestOp(result_types=[i32], operands=[[]], regions=[[]])
-    op2 = TestOp(result_types=[i32], operands=[op1], regions=[[]])
-    op1.operands = [op2.results[0]]
-
-    expected = """
-"builtin.module"() ({
-  %0 = "test.op"(%1) : (i32) -> i32
-  %1 = "test.op"(%0) : (i32) -> i32
-}) : () -> ()
-"""
-
-    assert_print_op(ModuleOp([op1, op2]), expected, None)
-
-
 @irdl_op_definition
 class UnitAttrOp(IRDLOperation):
     name = "unit_attr_op"
 
-    parallelize: OptOpAttr[UnitAttr]
+    parallelize: UnitAttr | None = opt_attr_def(UnitAttr)
 
 
 def test_unit_attr():
@@ -482,9 +445,9 @@ def test_print_region_empty_block_with_args():
 @irdl_op_definition
 class PlusCustomFormatOp(IRDLOperation):
     name = "test.add"
-    lhs: Annotated[Operand, IntegerType]
-    rhs: Annotated[Operand, IntegerType]
-    res: Annotated[OpResult, IntegerType]
+    lhs: Operand = operand_def(IntegerType)
+    rhs: Operand = operand_def(IntegerType)
+    res: OpResult = result_def(IntegerType)
 
     @classmethod
     def parse(cls, parser: Parser) -> PlusCustomFormatOp:
@@ -590,8 +553,8 @@ def test_custom_format_II():
 class NoCustomFormatOp(IRDLOperation):
     name = "test.no_custom_format"
 
-    ops: VarOperand
-    res: VarOpResult
+    ops: VarOperand = var_operand_def()
+    res: VarOpResult = var_result_def()
 
 
 def test_missing_custom_format():
@@ -623,13 +586,12 @@ class CustomFormatAttr(ParametrizedAttribute):
 
     @staticmethod
     def parse_parameters(parser: Parser) -> list[Attribute]:
-        parser.parse_char("<")
-        value = parser.tokenizer.next_token_of_pattern(re.compile("(zero|one)"))
-        if value and value.text == "zero":
-            parser.parse_char(">")
+        parser.parse_characters("<")
+        if parser.parse_optional_keyword("zero") is not None:
+            parser.parse_characters(">")
             return [IntAttr(0)]
-        if value and value.text == "one":
-            parser.parse_char(">")
+        if parser.parse_optional_keyword("one") is not None:
+            parser.parse_characters(">")
             return [IntAttr(1)]
         assert False
 

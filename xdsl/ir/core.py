@@ -10,6 +10,7 @@ from typing import (
     Any,
     Generic,
     Iterable,
+    NoReturn,
     Protocol,
     Sequence,
     TypeVar,
@@ -18,6 +19,8 @@ from typing import (
     ClassVar,
 )
 from xdsl.utils.deprecation import deprecated
+from xdsl.utils.exceptions import VerifyException
+from xdsl.traits import OpTrait, IsTerminator, OpTraitInvT
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -215,15 +218,15 @@ class SSAValue(ABC):
     @staticmethod
     def get(arg: SSAValue | Operation) -> SSAValue:
         "Get a new SSAValue from either a SSAValue, or an operation with a single result."
-        if isinstance(arg, SSAValue):
-            return arg
-        if isinstance(arg, Operation):
-            if len(arg.results) == 1:
-                return arg.results[0]
-            raise ValueError("SSAValue.build: expected operation with a single result.")
-        raise TypeError(
-            f"Expected SSAValue or Operation for SSAValue.get, but got {arg}"
-        )
+        match arg:
+            case SSAValue():
+                return arg
+            case Operation():
+                if len(arg.results) == 1:
+                    return arg.results[0]
+                raise ValueError(
+                    "SSAValue.build: expected operation with a single result."
+                )
 
     def add_use(self, use: Use):
         """Add a new use of the value."""
@@ -513,27 +516,6 @@ class IRNode(ABC):
         ...
 
 
-@dataclass(frozen=True)
-class OpTrait:
-    """
-    A trait attached to an operation definition.
-    Traits can be used to define operation invariants, additional semantic information,
-    or to group operations that have similar properties.
-    Traits have parameters, which by default is just the `None` value. Parameters should
-    always be comparable and hashable.
-    Note that traits are the merge of traits and interfaces in MLIR.
-    """
-
-    parameters: Any = field(default=None)
-
-    def verify(self, op: Operation) -> None:
-        """Check that the operation satisfies the trait requirements."""
-        pass
-
-
-OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
-
-
 @dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -774,17 +756,49 @@ class Operation(IRNode):
         for region in self.regions:
             yield from region.walk()
 
+    def walk_reverse(self) -> Iterator[Operation]:
+        """
+        Iterate all operations contained in the operation (including this one) in reverse order.
+        """
+        for region in reversed(self.regions):
+            yield from region.walk_reverse()
+        yield self
+
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
+
+        if (parent_block := self.parent) is not None and (
+            parent_region := parent_block.parent
+        ) is not None:
+            if self.successors and parent_block.last_op != self:
+                raise VerifyException(
+                    "Operation with block successors must terminate its parent block"
+                )
+
+            # TODO single-block regions dealt when the NoTerminator trait is
+            # implemented (https://github.com/xdslproject/xdsl/issues/1093)
+            if len(parent_region.blocks) > 1:
+                if not self.has_trait(IsTerminator):
+                    raise VerifyException(
+                        "Operation terminates block but is not a terminator"
+                    )
+        else:
+            if self.successors:
+                raise VerifyException(
+                    "Operation with block successors does not belong to a block or a region"
+                )
 
         if verify_nested_ops:
             for region in self.regions:
                 region.verify()
 
         # Custom verifier
-        self.verify_()
+        try:
+            self.verify_()
+        except VerifyException as err:
+            self.emit_error("Operation does not verify: " + str(err))
 
     def verify_(self) -> None:
         pass
@@ -942,6 +956,16 @@ class Operation(IRNode):
 
         return True
 
+    def emit_error(
+        self, message: str, exception_type: type[Exception] = VerifyException
+    ) -> NoReturn:
+        """Emit an error with the given message."""
+        from xdsl.utils.diagnostic import Diagnostic
+
+        diagnostic = Diagnostic()
+        diagnostic.add_message(self, message)
+        diagnostic.raise_exception(message, self, exception_type)
+
     def __eq__(self, other: object) -> bool:
         return self is other
 
@@ -990,6 +1014,26 @@ class _BlockOpsIterator:
 
 
 @dataclass
+class _BlockOpsReverseIterator:
+    """
+    Single-pass iterable of the operations in a block. Follows the prev_op for
+    each operation.
+    """
+
+    prev_op: Operation | None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        prev_op = self.prev_op
+        if prev_op is None:
+            raise StopIteration
+        self.prev_op = prev_op.prev_op
+        return prev_op
+
+
+@dataclass
 class BlockOps:
     """
     Multi-pass iterable of the operations in a block. Follows the next_op for
@@ -1026,6 +1070,25 @@ class BlockOps:
         return self.block.last_op
 
 
+@dataclass
+class BlockReverseOps:
+    """
+    Multi-pass iterable of the operations in a block. Follows the prev_op for
+    each operation.
+    """
+
+    block: Block
+
+    def __iter__(self):
+        return _BlockOpsReverseIterator(self.block.last_op)
+
+    def __len__(self):
+        result = 0
+        for _ in self:
+            result += 1
+        return result
+
+
 @dataclass(init=False)
 class Block(IRNode):
     """A sequence of operations"""
@@ -1060,6 +1123,11 @@ class Block(IRNode):
     def ops(self) -> BlockOps:
         """Returns a multi-pass Iterable of this block's operations."""
         return BlockOps(self)
+
+    @property
+    def ops_reverse(self) -> BlockReverseOps:
+        """Returns a multi-pass Iterable of this block's operations."""
+        return BlockReverseOps(self)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1287,6 +1355,11 @@ class Block(IRNode):
         for op in self.ops:
             yield from op.walk()
 
+    def walk_reverse(self) -> Iterable[Operation]:
+        """Call a function on all operations contained in the block in reverse order."""
+        for op in self.ops_reverse:
+            yield from op.walk_reverse()
+
     @staticmethod
     def _may_be_valid_without_terminator(block: Block) -> bool:
         parent_region = block.parent
@@ -1391,6 +1464,12 @@ class Block(IRNode):
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
+    class DEFAULT:
+        """
+        A marker to be used as a default parameter to functions when a default
+        single-block region should be constructed.
+        """
+
     blocks: list[Block] = field(default_factory=list)
     """Blocks contained in the region. The first block is the entry block."""
 
@@ -1439,13 +1518,16 @@ class Region(IRNode):
     def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
         if isinstance(arg, Region):
             return arg
-        if isinstance(arg, list):
-            if len(arg) == 0:
-                return Region([Block()])
-            if isinstance(arg[0], Block):
+
+        if len(arg) == 0:
+            return Region([Block()])
+
+        match arg[0]:
+            case Block():
                 return Region(cast(list[Block], arg))
-            if isinstance(arg[0], Operation):
+            case Operation():
                 return Region([Block(cast(list[Operation], arg))])
+
         raise TypeError(f"Can't build a region with argument {arg}")
 
     @property
@@ -1571,21 +1653,34 @@ class Region(IRNode):
         if block_mapper is None:
             block_mapper = {}
 
+        new_blocks: list[Block] = []
+
+        # Clone all blocks without their contents, and register the block mapping
+        # This ensures that operations can refer to blocks that are not yet cloned
         for block in self.blocks:
             new_block = Block()
+            new_blocks.append(new_block)
             block_mapper[block] = new_block
+
+        dest.insert_block(new_blocks, insert_index)
+
+        # Populate the blocks with the cloned operations
+        for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
                 new_block.insert_arg(block_arg.typ, idx)
                 value_mapper[block_arg] = new_block.args[idx]
             for op in block.ops:
                 new_block.add_op(op.clone(value_mapper, block_mapper))
-            dest.insert_block(new_block, insert_index)
-            insert_index += 1
 
     def walk(self) -> Iterator[Operation]:
         """Call a function on all operations contained in the region."""
         for block in self.blocks:
             yield from block.walk()
+
+    def walk_reverse(self) -> Iterator[Operation]:
+        """Call a function on all operations contained in the region in reverse order."""
+        for block in reversed(self.blocks):
+            yield from block.walk_reverse()
 
     def verify(self) -> None:
         for block in self.blocks:
