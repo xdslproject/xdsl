@@ -326,6 +326,8 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result: Operand = operand_def(AnyAttr())
 
+    traits = frozenset([IsTerminator()])
+
     @staticmethod
     def get(
         result: SSAValue | Operation,
