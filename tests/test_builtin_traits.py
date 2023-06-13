@@ -178,12 +178,12 @@ def test_is_terminator_fails_if_not_last_operation_parent_block():
     """
     block0 = Block([IsTerminatorOp.create(), TestOp.create()])
     region0 = Region([block0])
-    op0 = TestOp.create(regions=[region0])
+    module0 = ModuleOp(region0)
 
     with pytest.raises(
         VerifyException, match="must be the last operation in the parent block"
     ):
-        op0.verify()
+        module0.verify()
 
 
 @irdl_op_definition
