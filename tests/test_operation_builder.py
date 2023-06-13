@@ -4,6 +4,7 @@ import pytest
 
 from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.arith import Constant
+from xdsl.dialects.test import TestTermOp
 
 from xdsl.ir import Block, OpResult, Region
 from xdsl.traits import IsTerminator
@@ -359,10 +360,10 @@ def test_region_op_blocks():
 def test_region_op_ops():
     op1 = RegionOp.build(regions=[[Block()]])
     op2 = RegionOp.build(regions=[[Block()]])
-    op = RegionOp.build(regions=[[op1, op2]])
+    op = RegionOp.build(regions=[[op1, op2, TestTermOp.create()]])
     op.verify()
     assert len(op.region.blocks) == 1
-    assert len(op.region.blocks[0].ops) == 2
+    assert len(op.region.blocks[0].ops) == 3
 
 
 def test_noop_region():
