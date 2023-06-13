@@ -20,7 +20,7 @@ from typing import (
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
-from xdsl.traits import OpTrait, IsTerminator, OpTraitInvT
+from xdsl.traits import OpTrait, OpTraitInvT, IsTerminator, NoTerminator
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -781,9 +781,14 @@ class Operation(IRNode):
                 if succ.parent != parent_region:
                     raise VerifyException("Branching to a block of a different region")
 
-            # TODO single-block regions dealt when the NoTerminator trait is
-            # implemented (https://github.com/xdslproject/xdsl/issues/1093)
-            if len(parent_region.blocks) > 1:
+            if len(parent_region.blocks) == 1:
+                if (
+                    parent_op := parent_region.parent
+                ) is not None and not parent_op.has_trait(NoTerminator):
+                    raise VerifyException(
+                        "Operation terminates block in single-block region but is not a terminator"
+                    )
+            elif len(parent_region.blocks) > 1:
                 if not self.has_trait(IsTerminator):
                     raise VerifyException(
                         "Operation terminates block but is not a terminator"
