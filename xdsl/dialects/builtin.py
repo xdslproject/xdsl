@@ -44,7 +44,6 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     attr_constr_coercion,
-    irdl_data_definition,
     irdl_to_attr_constraint,
     irdl_op_definition,
     ParameterDef,
@@ -281,7 +280,7 @@ class Signedness(Enum):
     UNSIGNED = 2
 
 
-@irdl_data_definition
+@irdl_attr_definition
 class SignednessAttr(Data[Signedness]):
     name = "signedness"
 
