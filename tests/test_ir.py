@@ -24,6 +24,7 @@ from xdsl.ir import (
     ErasedSSAValue,
     SSAValue,
 )
+from xdsl.traits import IsTerminator
 from xdsl.parser import Parser
 from xdsl.irdl import (
     IRDLOperation,
@@ -32,8 +33,8 @@ from xdsl.irdl import (
     Operand,
     operand_def,
     var_region_def,
-    OptSuccessor,
-    opt_successor_def,
+    Successor,
+    successor_def,
 )
 from xdsl.utils.test_value import TestSSAValue
 from xdsl.utils.exceptions import VerifyException
@@ -169,25 +170,38 @@ def test_op_clone_with_regions():
 class SuccessorOp(IRDLOperation):
     name = "test.successor_op"
 
-    successor: OptSuccessor = opt_successor_def()
+    successor: Successor = successor_def()
+
+    traits = frozenset([IsTerminator()])
 
 
-def test_block_not_branching_to_another_region():
+def test_block_branching_to_another_region_wrong():
     block1 = Block([TestOp.create(), TestOp.create()])
     region1 = Region([block1])
 
-    op_with_successors = SuccessorOp.create(successors=[block1])
-    block0 = Block([op_with_successors])
+    op0 = TestOp.create(successors=[block1])
+    block0 = Block([op0])
     region0 = Region([block0])
-    reg_op0 = TestOp.create(regions=[region0, region1])
+    region0 = TestOp.create(regions=[region0, region1])
 
-    outer_block = Block([reg_op0])
+    outer_block = Block([region0])
 
     with pytest.raises(
-        Exception,
+        VerifyException,
         match="Branching to a block of a different region",
     ):
         outer_block.verify()
+
+
+def test_block_not_branching_to_another_region():
+    block0 = Block()
+
+    op0 = SuccessorOp.create(successors=[block0])
+    block1 = Block([op0])
+
+    _ = Region([block0, block1])
+
+    op0.verify()
 
 
 def test_empty_block_with_no_parent_region_requires_no_terminator():
