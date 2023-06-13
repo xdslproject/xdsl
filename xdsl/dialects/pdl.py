@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Generic, Iterable, Sequence, TypeVar
 
+from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
     ArrayAttr,
@@ -707,6 +708,8 @@ class RewriteOp(IRDLOperation):
     body: OptRegion = opt_region_def()
 
     irdl_options = [AttrSizedOperandSegments()]
+
+    traits = frozenset([NoTerminator(), IsTerminator()])
 
     def __init__(
         self,
