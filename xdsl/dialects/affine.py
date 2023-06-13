@@ -77,23 +77,6 @@ class For(IRDLOperation):
             regions=[region],
         )
 
-    @staticmethod
-    def from_callable(
-        operands: Sequence[Operation | SSAValue],
-        lower_bound: int | AnyIntegerAttr,
-        upper_bound: int | AnyIntegerAttr,
-        body: Block.BlockCallback,
-        step: int | AnyIntegerAttr = 1,
-    ) -> For:
-        arg_types = [IndexType()] + [SSAValue.get(op).typ for op in operands]
-        return For.from_region(
-            operands,
-            lower_bound,
-            upper_bound,
-            Region(Block.from_callable(arg_types, body)),
-            step,
-        )
-
 
 @irdl_op_definition
 class Yield(IRDLOperation):
