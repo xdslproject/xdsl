@@ -1378,27 +1378,12 @@ class Block(IRNode):
         return False
 
     def verify(self) -> None:
-        last_op = self.last_op
-        if not last_op:
-            if not self._may_be_valid_without_terminator(self):
-                raise Exception("Empty block expects at least a terminator")
-        else:
-            for operation in self.ops:
-                if operation.parent != self:
-                    raise Exception(
-                        "Parent pointer of operation does not refer to containing region"
-                    )
-                if len(operation.successors) and operation != last_op:
-                    raise Exception(
-                        "Operation with block successors must terminate its parent block"
-                    )
-                operation.verify()
-
-            for succ in last_op.successors:
-                if succ.parent != self.parent:
-                    raise Exception("Branching to a block of a different region")
-
-            # TODO missing further check requiring `IsTerminator` trait (when implemented) here
+        for operation in self.ops:
+            if operation.parent != self:
+                raise Exception(
+                    "Parent pointer of operation does not refer to containing region"
+                )
+            operation.verify()
 
     def drop_all_references(self) -> None:
         """
