@@ -14,7 +14,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.func import Func
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.scf import If
-from xdsl.dialects.test import TestOp
+from xdsl.dialects.test import TestOp, TestTermOp
 
 from xdsl.ir import (
     MLContext,
@@ -302,14 +302,29 @@ def test_op_with_successors_not_in_region():
         op0.verify()
 
 
-def test_non_empty_block_with_single_block_parent_region_can_have_terminator():
+def test_non_empty_block_with_single_block_parent_region_must_have_terminator():
     """
     Tests that an non-empty block belonging to a single-block region with parent
-    operation can have a single terminator operation without the IsTerminator
-    trait.
+    operation cannot have an operation that is not a terminator.
     """
     block1 = Block([TestOp.create()])
     region0 = Region([block1])
+    op0 = TestOp.create(regions=[region0])
+
+    with pytest.raises(
+        VerifyException,
+        match="Operation terminates block in single-block region but is not a terminator",
+    ):
+        op0.verify()
+
+
+def test_non_empty_block_with_single_block_parent_region_with_terminator():
+    """
+    Tests that an non-empty block belonging to a single-block region with parent
+    operation must have at least a terminator operation.
+    """
+    block0 = Block([TestTermOp.create()])
+    region0 = Region([block0])
     op0 = TestOp.create(regions=[region0])
 
     op0.verify()
