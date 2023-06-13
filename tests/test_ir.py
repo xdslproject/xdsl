@@ -328,7 +328,7 @@ def test_non_empty_block_with_parent_region_requires_terminator_with_successors(
 
     with pytest.raises(
         VerifyException,
-        match="Operation terminates block but is not a terminator",
+        match="Operation terminates block in multi-block region but is not a terminator",
     ):
         op0.verify()
 
@@ -346,7 +346,7 @@ def test_non_empty_block_with_parent_region_requires_terminator_without_successo
 
     with pytest.raises(
         VerifyException,
-        match="Operation terminates block but is not a terminator",
+        match="Operation terminates block in multi-block region but is not a terminator",
     ):
         op0.verify()
 

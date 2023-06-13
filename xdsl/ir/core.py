@@ -794,7 +794,7 @@ class Operation(IRNode):
             elif len(parent_region.blocks) > 1:
                 if not self.has_trait(IsTerminator):
                     raise VerifyException(
-                        "Operation terminates block but is not a terminator"
+                        "Operation terminates block in multi-block region but is not a terminator"
                     )
         else:
             if self.successors:
