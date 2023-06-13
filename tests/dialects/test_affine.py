@@ -6,7 +6,7 @@ from xdsl.ir import Attribute, Region, Block
 
 
 def test_simple_for():
-    f = For.from_callable([], 0, 5, lambda *args: [])
+    f = For.from_region([], 0, 5, Region())
     assert f.lower_bound.value.data == 0
     assert f.upper_bound.value.data == 5
 
@@ -60,7 +60,7 @@ def test_for_mismatch_blockargs():
     inp = b.args[0]
     f = For.create(
         operands=[inp],
-        regions=[Region(Block.from_callable([], lambda *args: []))],
+        regions=[Region(Block())],
         attributes=attributes,
         result_types=[IndexType()],
     )
