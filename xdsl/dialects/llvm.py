@@ -915,6 +915,7 @@ class FastMathAttr(Data[set]):
         """
         Returns a copy of the fast math flags.
         """
+        assert isa(self.data, set[FastMathFlag])
         return set(self.data)
 
     def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
