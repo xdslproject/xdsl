@@ -13,4 +13,4 @@ builtin.module {
     %cc = "test.op"() {"cconv" = #llvm.cconv<invalid>} : () -> ()
 }
 
-// CHECK: Unknown calling convention!
+// CHECK: Unknown calling convention

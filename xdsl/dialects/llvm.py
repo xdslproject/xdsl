@@ -793,7 +793,7 @@ class AddressOfOp(IRDLOperation):
         )
 
 
-LLVM_CALLING_CONVS: tuple[str, ...] = (
+LLVM_CALLING_CONVS: set[str] = {
     "ccc",
     "fastcc",
     "coldcc",
@@ -808,7 +808,7 @@ LLVM_CALLING_CONVS: tuple[str, ...] = (
     "swiftcc",
     "swifttailcc",
     "cfguard_checkcc",
-)
+}
 """
 A list of all valid calling conventions understood by LLVM, see
 https://llvm.org/docs/LangRef.html#calling-conventions
@@ -826,10 +826,16 @@ class CallingConventionAttr(ParametrizedAttribute):
 
     convention: ParameterDef[StringAttr]
 
+    @property
+    def cconv_name(self) -> str:
+        return self.convention.data
+
     def __init__(self, conv: str):
-        if conv not in LLVM_CALLING_CONVS:
-            raise ValueError("Invalid calling convention!")
         super().__init__([StringAttr(conv)])
+
+    def _verify(self):
+        if self.cconv_name not in LLVM_CALLING_CONVS:
+            raise VerifyException(f'Invalid calling convention "{self.cconv_name}"')
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<" + self.convention.data + ">")
@@ -841,7 +847,7 @@ class CallingConventionAttr(ParametrizedAttribute):
             if parser.parse_optional_characters(conv) is not None:
                 parser.parse_characters(">")
                 return [StringAttr(conv)]
-        parser.raise_error("Unknown calling convention!")
+        parser.raise_error(f"Unknown calling convention")
 
 
 @irdl_op_definition
