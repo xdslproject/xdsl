@@ -49,29 +49,6 @@ class If(IRDLOperation):
 
 
 @irdl_op_definition
-class Yield(IRDLOperation):
-    name = "scf.yield"
-    arguments: VarOperand = var_operand_def(AnyAttr())
-
-    traits = frozenset([IsTerminator()])
-
-    @staticmethod
-    def get(*operands: SSAValue | Operation) -> Yield:
-        return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
-
-
-@irdl_op_definition
-class Condition(IRDLOperation):
-    name = "scf.condition"
-    cond: Operand = operand_def(IntegerType(1))
-    arguments: VarOperand = var_operand_def(AnyAttr())
-
-    @staticmethod
-    def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:
-        return Condition.build(operands=[cond, [output for output in output_ops]])
-
-
-@irdl_op_definition
 class For(IRDLOperation):
     name = "scf.for"
 
@@ -364,6 +341,31 @@ class While(IRDLOperation):
             operands=operands, result_types=result_types, regions=[before, after]
         )
         return op
+
+
+@irdl_op_definition
+class Condition(IRDLOperation):
+    name = "scf.condition"
+    cond: Operand = operand_def(IntegerType(1))
+    arguments: VarOperand = var_operand_def(AnyAttr())
+
+    traits = frozenset([HasParent(While), IsTerminator()])
+
+    @staticmethod
+    def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:
+        return Condition.build(operands=[cond, [output for output in output_ops]])
+
+
+@irdl_op_definition
+class Yield(IRDLOperation):
+    name = "scf.yield"
+    arguments: VarOperand = var_operand_def(AnyAttr())
+
+    traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
+
+    @staticmethod
+    def get(*operands: SSAValue | Operation) -> Yield:
+        return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
 Scf = Dialect(
