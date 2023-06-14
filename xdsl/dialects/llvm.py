@@ -907,7 +907,7 @@ class FastMathFlag(Enum):
 
 
 @irdl_attr_definition
-class FastMathAttr(Data[set[FastMathFlag]]):
+class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
     name = "llvm.fastmath"
 
     @property
@@ -915,7 +915,6 @@ class FastMathAttr(Data[set[FastMathFlag]]):
         """
         Returns a copy of the fast math flags.
         """
-        assert isa(self.data, set[FastMathFlag])
         return set(self.data)
 
     def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
@@ -928,13 +927,13 @@ class FastMathAttr(Data[set[FastMathFlag]]):
             case other:
                 flags_ = set(other)
 
-        super().__init__(flags_)
+        super().__init__(tuple(flags_))
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> set[FastMathFlag]:
+    def parse_parameter(parser: Parser) -> tuple[FastMathFlag, ...]:
         flags = FastMathFlag.try_parse(parser)
         if flags is None:
-            return set()
+            return tuple()
 
         while parser.parse_optional_punctuation(",") is not None:
             flag = parser.expect(
@@ -942,10 +941,10 @@ class FastMathAttr(Data[set[FastMathFlag]]):
             )
             flags.update(flag)
 
-        return flags
+        return tuple(flags)
 
     def print_parameter(self, printer: Printer):
-        flags = self.flags
+        flags = self.data
         if len(flags) == 0:
             printer.print("none")
         elif len(flags) == len(FastMathFlag):
