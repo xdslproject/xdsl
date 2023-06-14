@@ -39,7 +39,7 @@ def test_alloc():
     typ = memref.MemRefType.from_element_type_and_shape(
         builtin.Float32Type(), [10, 10, 10]
     )
-    alloc = AllocOp.get(typ, is_async=True)
+    alloc = AllocOp(typ, is_async=True)
 
     assert isinstance(alloc, AllocOp)
     assert alloc.result.typ is typ
@@ -56,7 +56,7 @@ def test_alloc():
     dynamic_sizes = [ten, ten, ten]
     token = alloc.asyncToken
 
-    full_alloc = AllocOp.get(
+    full_alloc = AllocOp(
         return_type=dyntyp,
         dynamic_sizes=dynamic_sizes,
         host_shared=True,
@@ -98,7 +98,7 @@ def test_all_reduce():
     @Builder.implicit_region
     def body():
         sum = Operation.clone(arith.Addi(body_block.args[0], body_block.args[1]))
-        YieldOp.get([sum])
+        YieldOp([sum])
 
     all_reduce_body = AllReduceOp.from_body(body, init)
 
@@ -110,7 +110,7 @@ def test_all_reduce():
 
 
 def test_barrier():
-    barrier = BarrierOp.get()
+    barrier = BarrierOp()
 
     assert isinstance(barrier, BarrierOp)
 
@@ -118,7 +118,7 @@ def test_barrier():
 def test_block_dim():
     dim = DimensionAttr.from_dimension("x")
 
-    block_dim = BlockDimOp.get(dim)
+    block_dim = BlockDimOp(dim)
 
     assert isinstance(block_dim, BlockDimOp)
     assert block_dim.dimension is dim
@@ -127,7 +127,7 @@ def test_block_dim():
 def test_block_id():
     dim = DimensionAttr.from_dimension("x")
 
-    block_id = BlockIdOp.get(dim)
+    block_id = BlockIdOp(dim)
 
     assert isinstance(block_id, BlockIdOp)
     assert block_id.dimension is dim
@@ -137,11 +137,11 @@ def test_dealloc():
     typ = memref.MemRefType.from_element_type_and_shape(
         builtin.Float32Type(), [10, 10, 10]
     )
-    alloc = AllocOp.get(typ, is_async=True)
+    alloc = AllocOp(typ, is_async=True)
 
     assert alloc.asyncToken is not None  # For pyright
 
-    dealloc = DeallocOp.get(
+    dealloc = DeallocOp(
         buffer=alloc.result, async_dependencies=[alloc.asyncToken], is_async=True
     )
 
@@ -150,8 +150,8 @@ def test_dealloc():
     assert dealloc.buffer is alloc.result
     assert dealloc.asyncDependencies == tuple([alloc.asyncToken])
 
-    alloc2 = AllocOp.get(typ, is_async=True)
-    sync_dealloc = DeallocOp.get(buffer=alloc2.result)
+    alloc2 = AllocOp(typ, is_async=True)
+    sync_dealloc = DeallocOp(buffer=alloc2.result)
 
     assert sync_dealloc.asyncToken is None
     assert sync_dealloc.buffer is alloc2.result
@@ -161,9 +161,9 @@ def test_dealloc():
 def test_gpu_module():
     name = builtin.SymbolRefAttr("gpu")
 
-    ops: list[Operation] = [ModuleEndOp.get()]
+    ops: list[Operation] = [ModuleEndOp()]
 
-    gpu_module = ModuleOp.get(name, ops)
+    gpu_module = ModuleOp(name, ops)
 
     assert isinstance(gpu_module, ModuleOp)
     assert list(gpu_module.body.ops) == ops
@@ -171,7 +171,7 @@ def test_gpu_module():
 
 
 def test_gpu_module_end():
-    module_end = ModuleEndOp.get()
+    module_end = ModuleEndOp()
 
     assert isinstance(module_end, ModuleEndOp)
 
@@ -179,7 +179,7 @@ def test_gpu_module_end():
 def test_global_id():
     dim = DimensionAttr.from_dimension("x")
 
-    global_id = GlobalIdOp.get(dim)
+    global_id = GlobalIdOp(dim)
 
     assert isinstance(global_id, GlobalIdOp)
     assert global_id.dimension is dim
@@ -188,7 +188,7 @@ def test_global_id():
 def test_grid_dim():
     dim = DimensionAttr.from_dimension("x")
 
-    grid_dim = GridDimOp.get(dim)
+    grid_dim = GridDimOp(dim)
 
     assert isinstance(grid_dim, GridDimOp)
     assert grid_dim.dimension is dim
@@ -202,14 +202,14 @@ def test_host_register():
         operands=[ref], result_types=[memref.UnrankedMemrefType.from_type(builtin.i32)]
     )
 
-    register = HostRegisterOp.from_memref(unranked)
+    register = HostRegisterOp(unranked)
 
     assert isinstance(register, HostRegisterOp)
     assert register.value is unranked.results[0]
 
 
 def test_lane_id():
-    lane_id = LaneIdOp.get()
+    lane_id = LaneIdOp()
 
     assert isinstance(lane_id, LaneIdOp)
 
@@ -219,7 +219,7 @@ def test_launch():
     ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
     gridSize: list[Operation | SSAValue] = [ten, ten, ten]
     blockSize: list[Operation | SSAValue] = [ten, ten, ten]
-    launch = LaunchOp.get(body, gridSize, blockSize)
+    launch = LaunchOp(body, gridSize, blockSize)
 
     assert isinstance(launch, LaunchOp)
     assert launch.body is body
@@ -237,7 +237,7 @@ def test_launch():
 
     body2 = Region()
 
-    nd_launch = LaunchOp.get(body2, gridSize, blockSize, True, asyncDependencies, ten)
+    nd_launch = LaunchOp(body2, gridSize, blockSize, True, asyncDependencies, ten)
 
     assert isinstance(launch, LaunchOp)
     assert nd_launch.body is body2
@@ -258,11 +258,11 @@ def test_memcpy():
         builtin.Float32Type(), [10, 10, 10]
     )
     host_alloc = memref.Alloc.get(builtin.Float32Type(), 0, [10, 10, 10])
-    alloc = AllocOp.get(typ, is_async=True)
+    alloc = AllocOp(typ, is_async=True)
 
     assert alloc.asyncToken is not None  # for Pyright
 
-    memcpy = MemcpyOp.get(host_alloc, alloc.result, [alloc.asyncToken])
+    memcpy = MemcpyOp(host_alloc, alloc.result, [alloc.asyncToken])
 
     assert isinstance(memcpy, MemcpyOp)
     assert memcpy.src is host_alloc.memref
@@ -270,7 +270,7 @@ def test_memcpy():
     assert memcpy.asyncDependencies == tuple([alloc.asyncToken])
     assert memcpy.asyncToken is None
 
-    memcpy2 = MemcpyOp.get(
+    memcpy2 = MemcpyOp(
         alloc.result, host_alloc.memref, [alloc.asyncToken], is_async=True
     )
 
@@ -283,7 +283,7 @@ def test_memcpy():
 
 
 def test_num_subgroups():
-    num_subgroups = NumSubgroupsOp.get()
+    num_subgroups = NumSubgroupsOp()
 
     assert isinstance(num_subgroups, NumSubgroupsOp)
 
@@ -291,20 +291,20 @@ def test_num_subgroups():
 def test_set_default_device():
     devIndex = arith.Constant.from_int_and_width(0, builtin.i32)
 
-    set_default_device = SetDefaultDeviceOp.get(devIndex)
+    set_default_device = SetDefaultDeviceOp(devIndex)
 
     assert isinstance(set_default_device, SetDefaultDeviceOp)
     assert set_default_device.devIndex is devIndex.result
 
 
 def test_subgroup_id():
-    subgroup_id = SubgroupIdOp.get()
+    subgroup_id = SubgroupIdOp()
 
     assert isinstance(subgroup_id, SubgroupIdOp)
 
 
 def test_subgroup_size():
-    subgroup_size = SubgroupSizeOp.get()
+    subgroup_size = SubgroupSizeOp()
 
     assert isinstance(subgroup_size, SubgroupSizeOp)
 
@@ -312,14 +312,14 @@ def test_subgroup_size():
 def test_thread_id():
     dim = DimensionAttr.from_dimension("x")
 
-    thread_id = ThreadIdOp.get(dim)
+    thread_id = ThreadIdOp(dim)
 
     assert isinstance(thread_id, ThreadIdOp)
     assert thread_id.dimension is dim
 
 
 def test_terminator():
-    terminator = TerminatorOp.get()
+    terminator = TerminatorOp()
 
     assert isinstance(terminator, TerminatorOp)
 
@@ -333,7 +333,7 @@ def test_yield():
             arith.Constant.from_int_and_width(84, builtin.i64),
         ]
     ]
-    yield_op = YieldOp.get(operands)
+    yield_op = YieldOp(operands)
 
     assert isinstance(yield_op, YieldOp)
     assert yield_op.operands == tuple([SSAValue.get(o) for o in operands])

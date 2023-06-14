@@ -69,7 +69,7 @@ class CastOpToMemref(RewritePattern):
                 cast.dest,
                 memref.UnrankedMemrefType.from_type(op.result.typ.element_type),
             )
-            register = gpu.HostRegisterOp.from_memref(unranked.dest)
+            register = gpu.HostRegisterOp(unranked.dest)
             rewriter.insert_op_after_matched_op([unranked, register])
         rewriter.replace_matched_op(cast)
 
