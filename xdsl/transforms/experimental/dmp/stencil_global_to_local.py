@@ -147,6 +147,28 @@ def _generate_single_axis_calc_and_check(
     )
 
 
+def _grid_coords_from_rank(
+    my_rank: SSAValue, grid: dmp.NodeGrid
+) -> tuple[list[Operation], list[SSAValue]]:
+    """
+    Takes a rank and a dmp.grid, and returns operations to calculate
+    the grid coordinates of the rank.
+    """
+    # a collection of all ops we want to return
+    ret_ops: list[Operation] = []
+    # the nodes coordinates in grid-space
+    node_pos_nd: list[SSAValue] = []
+
+    # first we translate the mpi rank into grid coordinates
+    # (reversing the row major mapping)
+    divide_by = 1
+    for size in grid.as_tuple():
+        ret_ops.extend(_div_mod(my_rank, divide_by, size))
+        divide_by *= size
+        node_pos_nd.append(ret_ops[-1].results[0])
+    return ret_ops, node_pos_nd
+
+
 def _generate_dest_rank_computation(
     my_rank: SSAValue,
     offsets: tuple[int, ...],
@@ -161,18 +183,8 @@ def _generate_dest_rank_computation(
 
     Returns ([ops], dest_rank, is_in_bounds)
     """
-    # a collection of all ops we want to return
-    ret_ops: list[Operation] = []
-    # the nodes coordinates in grid-space
-    node_pos_nd: list[SSAValue] = []
-
-    # first we translate the mpi rank into grid coordinates
-    # (reversing the row major mapping)
-    divide_by = 1
-    for size in grid.as_tuple():
-        ret_ops.extend(_div_mod(my_rank, divide_by, size))
-        divide_by *= size
-        node_pos_nd.append(ret_ops[-1].results[0])
+    # calc grid coordinates
+    ret_ops, node_pos_nd = _grid_coords_from_rank(my_rank, grid)
 
     # then we calculate the new coordinates:
     # save the condition vals somewhere
