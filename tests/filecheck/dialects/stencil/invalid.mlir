@@ -52,12 +52,33 @@ builtin.module {
     "stencil.apply"(%int) ({
     ^0(%intb : !stencil.temp<?xf64>):
       %v = "stencil.access"(%intb) {"offset" = #stencil.index<-1>} : (!stencil.temp<?xf64>) -> f64
+      "stencil.return"() : () -> ()
     }) : (!stencil.temp<?xf64>) -> ()
     "func.return"() : () -> ()
   }
 }
 
 // CHECK: Expected stencil.apply to have at least 1 result, got 0
+
+// -----
+
+builtin.module {
+  func.func @stencil_copy_wrong_return(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {
+    %2 = "stencil.cast"(%0) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+    %3 = "stencil.cast"(%1) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+    %4 = "stencil.load"(%2) : (!stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
+    %5 = "stencil.apply"(%4) ({
+    ^0(%6 : !stencil.temp<[0,64]x[0,64]x[0,64]xf64>):
+      %7 = "stencil.access"(%6) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>) -> f64
+      "stencil.return"(%8) : (!stencil.result<f64>) -> ()
+      %8 = "stencil.store_result"(%7) : (f64) -> !stencil.result<f64>
+    }) : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
+    "stencil.store"(%5, %3) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 64>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
+    "func.return"() : () -> ()
+  }
+}
+
+// CHECK: 'stencil.return' must be the last operation in its parent block
 
 // -----
 
