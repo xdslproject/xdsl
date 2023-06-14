@@ -35,18 +35,19 @@ class MatchContext:
 Match: TypeAlias = dict[str, IRNode]
 
 _T = TypeVar("_T")
+_TCov = TypeVar("_TCov", covariant=True)
 
 
-class Variable(Generic[_T], abc.ABC):
+class Variable(Generic[_TCov], abc.ABC):
     name: str
 
     def __init__(self, name: str) -> None:
         self.name = name
 
-    def get(self, ctx: MatchContext) -> _T:
+    def get(self, ctx: MatchContext) -> _TCov:
         return ctx.ctx[self.name]
 
-    def set(self, ctx: MatchContext, val: _T) -> bool:
+    def set(self: Variable[_T], ctx: MatchContext, val: _T) -> bool:
         if self.name in ctx.ctx:
             return val == ctx.ctx[self.name]
         else:
@@ -157,23 +158,29 @@ class OperationResultConstraint(Constraint):
 
 @dataclass
 class OpResultOpConstraint(Constraint):
-    op_result_var: Variable[OpResult]
+    op_result_var: Variable[SSAValue]
     op_var: Variable[Operation]
 
     def match(self, ctx: MatchContext) -> bool:
         op_result = self.op_result_var.get(ctx)
+        assert isinstance(op_result, OpResult)
         op = op_result.op
         return self.op_var.set(ctx, op)
 
 
 class Query:
+    match_variable_names: tuple[str, ...]
     variables: OrderedDict[str, Variable[Any]]
     constraints: list[Constraint]
     var_id: int = 0
 
     def __init__(
-        self, variables: Iterable[Variable[Any]], constraints: Iterable[Constraint]
+        self,
+        match_variable_names: tuple[str, ...],
+        variables: Iterable[Variable[Any]],
+        constraints: Iterable[Constraint],
     ):
+        self.match_variable_names = match_variable_names
         self.variables = OrderedDict()
         self.constraints = list(constraints)
 
@@ -187,7 +194,9 @@ class Query:
     @staticmethod
     def root(root_type: type[OperationInvT]) -> Query:
         root_var = OperationVariable("root")
-        return Query([root_var], [TypeConstraint(root_var, root_type)])
+        return Query(
+            (root_var.name,), [root_var], [TypeConstraint(root_var, root_type)]
+        )
 
     def match(self, operation: Operation) -> Match | None:
         """
@@ -201,9 +210,9 @@ class Query:
 
         # all variables must have a value associated
 
-        match = {name: ctx.ctx[name] for name in self.variables}
+        match = {name: ctx.ctx[name] for name in self.match_variable_names}
 
-        assert set(self.variables) == set(match)
+        assert set(self.match_variable_names) == set(match)
 
         return match
 
@@ -354,12 +363,19 @@ class _IRDLOperationQBVC(_OperationQBVC):
             return _QueryBuilderVariable(new_qbvc)
         elif name in dict(self.op_def.results):
             assert False
+        elif name in dict(self.op_def.attributes):
+            new_var = AttributeVariable(self.query.next_var_id())
+            new_qbvc = _AttributeQBVC(new_var, self.query, {})
+            self.query.constraints.append(
+                OperationAttributeConstraint(self.var, name, new_var)
+            )
+            return _QueryBuilderVariable(new_qbvc)
         else:
             assert False
 
 
 class _SSAValueQBVC(_QBVC):
-    var: OpResultVariable
+    var: SSAValueVariable
 
     def get_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
         if name == "op":
@@ -369,6 +385,15 @@ class _SSAValueQBVC(_QBVC):
             new_var = _QueryBuilderVariable(new_qbvc)
             self.query.constraints.append(OpResultOpConstraint(self.var, new_qbvc.var))
             return new_var
+
+
+class _AttributeQBVC(_QBVC):
+    var: AttributeVariable
+
+    def eq(self, self_variable: _QueryBuilderVariable[_QBVC], value: Any) -> bool:
+        assert isinstance(value, Attribute)
+        self.query.constraints.append(AttributeValueConstraint(self.var, value))
+        return True
 
 
 _P = ParamSpec("_P")
@@ -383,7 +408,7 @@ def rewrite_pattern_query(func: Callable[_P, None]) -> PatternQuery[_P]:
 
     assert "root" in (name for name, _ in params)
 
-    query = PatternQuery((), ())
+    query = PatternQuery(tuple(name for name, _ in params), (), ())
     fake_vars: dict[str, _QueryBuilderVariable[_QBVC]] = {}
 
     for name, param in params:
