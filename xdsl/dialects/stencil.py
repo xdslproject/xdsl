@@ -13,7 +13,16 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects import memref
 
-from xdsl.ir import OpResult, SSAValue, Operation, Attribute, Dialect, TypeAttribute
+from xdsl.ir import (
+    Block,
+    OpResult,
+    Region,
+    SSAValue,
+    Operation,
+    Attribute,
+    Dialect,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
@@ -579,6 +588,10 @@ class BufferOp(IRDLOperation):
     name = "stencil.buffer"
     temp: Operand = operand_def(TempType)
     res: OpResult = result_def(TempType)
+
+    def __init__(self: IRDLOperation, temp: SSAValue | Operation):
+        temp = SSAValue.get(temp)
+        super().__init__(operands=[temp], result_types=[temp.typ])
 
     def verify_(self) -> None:
         if self.temp.typ != self.res.typ:
