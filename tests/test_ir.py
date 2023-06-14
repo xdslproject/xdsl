@@ -228,17 +228,6 @@ def test_empty_block_with_no_parent_region_requires_no_terminator():
     block0.verify()
 
 
-def test_empty_block_with_single_block_parent_region_requires_no_terminator():
-    """
-    Tests that an empty block belonging to a single-block region with no parent
-    operation requires no terminator operation.
-    """
-    block0 = Block([])
-    _ = Region([block0])
-
-    block0.verify()
-
-
 def test_empty_block_with_orphan_single_block_parent_region_requires_no_terminator():
     """
     Tests that an empty block belonging to a single-block region with no parent
