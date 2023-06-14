@@ -47,7 +47,7 @@ class HorizontalSlices2D(DomainDecompositionStrategy):
             shape[1] % self.slices == 0
         ), "HorizontalSlices2D expects second dim to be divisible by number of slices!"
 
-        return shape[0], shape[1] // self.slices
+        return shape[0] // self.slices, shape[1]
 
     def halo_exchange_defs(
         self, dims: dmp.HaloShapeInformation

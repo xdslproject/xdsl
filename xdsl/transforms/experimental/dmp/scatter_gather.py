@@ -57,6 +57,7 @@ class LowerDmpScatter(RewritePattern):
 
         grid_coord_ops, grid_coords = _grid_coords_from_rank(op.my_rank, grid)
 
+        # pad grid to 2d
         if len(grid_coords) == 1:
             cst0_ = arith.Constant.from_int_and_width(0, idx)
             grid_coord_ops.append(cst0_)
@@ -100,7 +101,7 @@ class LowerDmpScatter(RewritePattern):
 
         @Builder.implicit_region([idx, idx])
         def lööp_body(args: tuple[BlockArgument, ...]):
-            y, x = args
+            x, y = args
             x.name_hint = "x"
             y.name_hint = "y"
             val = memref.Load.get(op.global_field, [x, y])

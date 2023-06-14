@@ -213,6 +213,7 @@ def _generate_dest_rank_computation(
     multiply_by = grid.as_tuple()[0]
     carry: SSAValue = dest_pos_nd[0]
 
+    # dest rank: x * 1 + y * size[x] + z * size[x] * size[y] ...
     for pos, size in zip(dest_pos_nd[1:], grid.as_tuple()[1:]):
         fac = arith.Constant.from_int_and_width(multiply_by, _rank_dtype)
         val = arith.Muli(pos, fac)
