@@ -312,13 +312,7 @@ class Dealloc(IRDLOperation):
 class GetGlobal(IRDLOperation):
     name = "memref.get_global"
     memref: OpResult = result_def(MemRefType[Attribute])
-
-    def verify_(self) -> None:
-        if "name" not in self.attributes:
-            raise VerifyException("GetGlobal requires a 'name' attribute")
-
-        if not isinstance(self.attributes["name"], SymbolRefAttr):
-            raise VerifyException("expected 'name' attribute to be a SymbolRefAttr")
+    name_: SymbolRefAttr = attr_def(SymbolRefAttr, attr_name="name")
 
     @staticmethod
     def get(name: str, return_type: Attribute) -> GetGlobal:

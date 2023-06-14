@@ -29,7 +29,11 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    IsolatedFromAbove,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -42,6 +46,8 @@ class FuncOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
+
+    traits = frozenset([IsolatedFromAbove()])
 
     def __init__(
         self,
@@ -181,16 +187,6 @@ class FuncOp(IRDLOperation):
 
         if len(self.body.blocks) > 0:
             printer.print_region(self.body, False, False)
-
-    @staticmethod
-    def from_callable(
-        name: str,
-        input_types: Sequence[Attribute],
-        return_types: Sequence[Attribute],
-        func: Block.BlockCallback,
-    ) -> FuncOp:
-        region = Region(Block.from_callable(input_types, func))
-        return FuncOp(name, (input_types, return_types), region, "private")
 
     @staticmethod
     def external(

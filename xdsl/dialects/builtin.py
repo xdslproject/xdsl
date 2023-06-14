@@ -44,7 +44,6 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     attr_constr_coercion,
-    irdl_data_definition,
     irdl_to_attr_constraint,
     irdl_op_definition,
     ParameterDef,
@@ -58,6 +57,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
+from xdsl.traits import IsolatedFromAbove
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
@@ -280,7 +280,7 @@ class Signedness(Enum):
     UNSIGNED = 2
 
 
-@irdl_data_definition
+@irdl_attr_definition
 class SignednessAttr(Data[Signedness]):
     name = "signedness"
 
@@ -1164,14 +1164,10 @@ class UnregisteredOp(IRDLOperation, ABC):
 
     name = "builtin.unregistered"
 
-    op_name__: StringAttr = attr_def(StringAttr)
+    op_name: StringAttr = attr_def(StringAttr, attr_name="op_name__")
     args: VarOperand = var_operand_def()
     res: VarOpResult = var_result_def()
     regs: VarRegion = var_region_def()
-
-    @property
-    def op_name(self) -> StringAttr:
-        return self.op_name__  # type: ignore
 
     @classmethod
     def with_name(cls, name: str) -> type[Operation]:
@@ -1272,6 +1268,8 @@ class ModuleOp(IRDLOperation):
     name = "builtin.module"
 
     body: Region = region_def("single_block")
+
+    traits = frozenset([IsolatedFromAbove()])
 
     def __init__(
         self,

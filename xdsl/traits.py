@@ -8,7 +8,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from xdsl.ir import Operation
+    from xdsl.ir import Operation, Region
 
 
 @dataclass(frozen=True)
@@ -75,3 +75,38 @@ class IsTerminator(OpTrait):
             raise VerifyException(
                 f"'{op.name}' must be the last operation in the parent block"
             )
+
+
+class IsolatedFromAbove(OpTrait):
+    """
+    Constrains the contained operations to use only values defined inside this
+    operation.
+
+    This should be fully compatible with MLIR's Trait:
+    https://mlir.llvm.org/docs/Traits/#isolatedfromabove
+    """
+
+    def verify(self, op: Operation) -> None:
+        # Start by checking all the passed operation's regions
+        regions: list[Region] = op.regions.copy()
+
+        # While regions are left to check
+        while regions:
+            # Pop the first one
+            region = regions.pop()
+            # Check every block of the region
+            for block in region.blocks:
+                # Check every operation of the block
+                for child_op in block.ops:
+                    # Check every operand of the operation
+                    for operand in child_op.operands:
+                        # The operand must not be defined out of the IsolatedFromAbove op.
+                        if not op.is_ancestor(operand.owner):
+                            raise VerifyException(
+                                "Operation using value defined out of its "
+                                "IsolatedFromAbove parent!"
+                            )
+                    # Check nested regions too; unless the operation is IsolatedFromAbove
+                    # too; in which case it will check itself.
+                    if not child_op.has_trait(IsolatedFromAbove):
+                        regions += child_op.regions

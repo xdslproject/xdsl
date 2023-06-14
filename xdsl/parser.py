@@ -178,6 +178,22 @@ class UnresolvedOperand:
         return self.span.text[1:]
 
 
+@dataclass(init=False)
+class ParserState:
+    """
+    The parser state. It contains the lexer, and the next token to parse.
+    The parser state should be shared between all parsers, so parsers can
+    share the same position.
+    """
+
+    lexer: Lexer
+    current_token: Token
+
+    def __init__(self, lexer: Lexer):
+        self.lexer = lexer
+        self.current_token = lexer.lex()
+
+
 class Parser(ABC):
     """
     Basic recursive descent parser.
@@ -212,10 +228,7 @@ class Parser(ABC):
     This field map a name and a tuple index to the forward declared SSA value.
     """
 
-    lexer: Lexer
-
-    _current_token: Token
-    """Token at the current location"""
+    parser_state: ParserState
 
     T_ = TypeVar("T_")
     """
@@ -231,9 +244,8 @@ class Parser(ABC):
         input: str,
         name: str = "<unknown>",
         allow_unregistered_dialect: bool = False,
-    ):
-        self.lexer = Lexer(Input(input, name))
-        self._current_token = self.lexer.lex()
+    ) -> None:
+        self.parser_state = ParserState(Lexer(Input(input, name)))
         self.ctx = ctx
         self.ssa_values = dict()
         self.blocks = dict()
@@ -247,6 +259,18 @@ class Parser(ABC):
         """
         self.lexer.pos = pos
         self._current_token = self.lexer.lex()
+
+    @property
+    def _current_token(self) -> Token:
+        return self.parser_state.current_token
+
+    @_current_token.setter
+    def _current_token(self, token: Token):
+        self.parser_state.current_token = token
+
+    @property
+    def lexer(self) -> Lexer:
+        return self.parser_state.lexer
 
     @property
     def pos(self) -> Position:
