@@ -342,12 +342,6 @@ class ModuleOp(IRDLOperation):
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
         return super().__init__(attributes={"sym_name": name}, regions=[ops])
 
-    def verify_(
-        self,
-    ):
-        if not isinstance(self.body.block.last_op, ModuleEndOp):
-            raise VerifyException("gpu.module must end with gpu.module_end")
-
 
 @irdl_op_definition
 class GlobalIdOp(IRDLOperation):
