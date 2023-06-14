@@ -9,6 +9,7 @@ from xdsl.transforms.experimental.dmp.decompositions import (
 )
 from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
     DmpDecompositionPass,
+    _grid_coords_from_rank,  # type: ignore[reportPrivateUsage]
 )
 from xdsl.pattern_rewriter import (
     RewritePattern,
@@ -18,6 +19,8 @@ from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
 )
 from xdsl.builder import Builder
+
+idx = builtin.IndexType()
 
 
 @dataclass
@@ -47,31 +50,36 @@ class LowerDmpScatter(RewritePattern):
         # assert that we are only in 2d for now
         # TODO: write the rank->node coords mapping for n-dims
         assert len(core_size) == 2
-        # calc offset
+        grid_tuple = grid.as_tuple()
+        if len(grid_tuple) == 1:
+            grid_tuple = (grid_tuple[0], 1)
+        assert len(grid_tuple) == 2
 
-        idx = builtin.IndexType()
+        grid_coord_ops, grid_coords = _grid_coords_from_rank(op.my_rank, grid)
+
+        # pad grid to 2d
+        if len(grid_coords) == 1:
+            cst0_ = arith.Constant.from_int_and_width(0, idx)
+            grid_coord_ops.append(cst0_)
+            grid_coords.append(cst0_.result)
+
+        node_id_x, node_id_y = grid_coords
 
         ops = [
-            # number of "rows" in the node topology
-            node_topo_width := arith.Constant.from_int_and_width(
-                grid.as_tuple()[0], idx
-            ),
-            # linearize node
-            node_id_x := arith.DivUI(op.my_rank, node_topo_width),
-            node_id_y := arith.RemUI(op.my_rank, node_topo_width),
+            *grid_coord_ops,
             # get local domain sizes
-            local_domain_width := arith.Constant.from_int_and_width(
+            local_domain_height := arith.Constant.from_int_and_width(
                 local_domain[0], idx
             ),
-            local_domain_height := arith.Constant.from_int_and_width(
+            local_domain_width := arith.Constant.from_int_and_width(
                 local_domain[1], idx
             ),
             # calculate the offset of our local domain to the core
             # (lower and upper bounds)
-            offset_x := arith.Muli(node_id_x, local_domain_width),
-            offset_y := arith.Muli(node_id_y, local_domain_height),
-            offset_x_ub := arith.Addi(offset_x, local_domain_width),
-            offset_y_ub := arith.Addi(offset_y, local_domain_height),
+            offset_x := arith.Muli(node_id_x, local_domain_height),
+            offset_y := arith.Muli(node_id_y, local_domain_width),
+            offset_x_ub := arith.Addi(offset_x, local_domain_height),
+            offset_y_ub := arith.Addi(offset_y, local_domain_width),
             # get the halo size
             halo_x := arith.Constant.from_int_and_width(
                 shape_info.halo_size(0) * 2, idx
@@ -94,6 +102,8 @@ class LowerDmpScatter(RewritePattern):
         @Builder.implicit_region([idx, idx])
         def lööp_body(args: tuple[BlockArgument, ...]):
             x, y = args
+            x.name_hint = "x"
+            y.name_hint = "y"
             val = memref.Load.get(op.global_field, [x, y])
             x_dest = arith.Subi(x, offset_x)
             y_dest = arith.Subi(y, offset_y)
@@ -130,8 +140,6 @@ class LowerDmpGather(RewritePattern):
         # Step 1: Copy local data into separate buffer
 
         # calc offset
-
-        idx = builtin.IndexType()
 
         assert isa(op.local_field.typ, memref.MemRefType[Attribute])
         el_typ = op.local_field.typ.element_type
