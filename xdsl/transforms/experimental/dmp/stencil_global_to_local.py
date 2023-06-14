@@ -26,7 +26,9 @@ from xdsl.irdl import Attribute
 from xdsl.dialects import builtin, mpi, memref, arith, scf, func, stencil
 from xdsl.dialects.experimental import dmp
 
-from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
+from xdsl.transforms.experimental.stencil_shape_inference import (
+    StencilShapeInferencePass,
+)
 
 from xdsl.transforms.experimental.dmp.decompositions import (
     DomainDecompositionStrategy,
