@@ -856,6 +856,8 @@ MPI = Dialect(
         GetDtypeOp,
         AllocateTypeOp,
         VectorGetOp,
+        NullRequestOp,
+        GatherOp,
     ],
     [
         OperationType,
