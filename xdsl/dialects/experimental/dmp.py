@@ -243,16 +243,11 @@ class HaloShapeInformation(ParametrizedAttribute):
         core_ub: stencil.IndexAttr,
         buff_ub: stencil.IndexAttr,
     ):
-        buff_lb_tuple = tuple(buff_lb)
-        buff_ub_tuple = tuple(buff_ub)
-        core_lb_tuple = tuple(core_lb)
-        core_ub_tuple = tuple(core_ub)
-
         typ = builtin.i64
         return HaloShapeInformation(
             [
-                builtin.DenseArrayBase.from_list(typ, data)
-                for data in (buff_lb_tuple, buff_ub_tuple, core_lb_tuple, core_ub_tuple)
+                builtin.DenseArrayBase.from_list(typ, tuple(data))
+                for data in (buff_lb, buff_ub, core_lb, core_ub)
             ]
         )
 
