@@ -285,8 +285,10 @@ class ApplyOpToParallel(RewritePattern):
                     1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
                 )
                 p = scf.ParallelOp.get(
-                    lowerBounds=list(reversed(lowerBounds)) + [zero] * (3 - stencil_rank),
-                    upperBounds=list(reversed(upperBounds)) + [one] * (3 - stencil_rank),
+                    lowerBounds=list(reversed(lowerBounds))
+                    + [zero] * (3 - stencil_rank),
+                    upperBounds=list(reversed(upperBounds))
+                    + [one] * (3 - stencil_rank),
                     steps=[one] * 3,
                     body=body,
                 )
