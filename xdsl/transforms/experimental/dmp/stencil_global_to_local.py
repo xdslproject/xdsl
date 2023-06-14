@@ -52,7 +52,7 @@ class ChangeStoreOpSizes(RewritePattern):
             (integer_attr.data for integer_attr in op.ub.array.data)
         )
         new_shape = self.strategy.calc_resize(shape)
-        op.ub = stencil.IndexAttr.get(*reversed(new_shape))
+        op.ub = stencil.IndexAttr.get(*new_shape)
 
 
 @dataclass
@@ -422,9 +422,9 @@ def generate_memcpy(
 
         if reverse:
             load = memref.Load.get(dest, [linearized_idx])
-            memref.Store.get(load, source, [y, x])
+            memref.Store.get(load, source, [x, y])
         else:
-            load = memref.Load.get(source, [y, x])
+            load = memref.Load.get(source, [x, y])
             memref.Store.get(load, dest, [linearized_idx])
 
         scf.Yield.get()

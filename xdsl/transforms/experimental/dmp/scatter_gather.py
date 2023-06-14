@@ -68,18 +68,18 @@ class LowerDmpScatter(RewritePattern):
         ops = [
             *grid_coord_ops,
             # get local domain sizes
-            local_domain_width := arith.Constant.from_int_and_width(
+            local_domain_height := arith.Constant.from_int_and_width(
                 local_domain[0], idx
             ),
-            local_domain_height := arith.Constant.from_int_and_width(
+            local_domain_width := arith.Constant.from_int_and_width(
                 local_domain[1], idx
             ),
             # calculate the offset of our local domain to the core
             # (lower and upper bounds)
-            offset_x := arith.Muli(node_id_x, local_domain_width),
-            offset_y := arith.Muli(node_id_y, local_domain_height),
-            offset_x_ub := arith.Addi(offset_x, local_domain_width),
-            offset_y_ub := arith.Addi(offset_y, local_domain_height),
+            offset_x := arith.Muli(node_id_x, local_domain_height),
+            offset_y := arith.Muli(node_id_y, local_domain_width),
+            offset_x_ub := arith.Addi(offset_x, local_domain_height),
+            offset_y_ub := arith.Addi(offset_y, local_domain_width),
             # get the halo size
             halo_x := arith.Constant.from_int_and_width(
                 shape_info.halo_size(0) * 2, idx
