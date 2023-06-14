@@ -848,6 +848,7 @@ MPI = Dialect(
         Allreduce,
         Bcast,
         Wait,
+        Waitall,
         GetStatusField,
         Init,
         Finalize,
