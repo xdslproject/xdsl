@@ -47,7 +47,7 @@ class HorizontalSlices2D(DomainDecompositionStrategy):
             shape[1] % self.slices == 0
         ), "HorizontalSlices2D expects second dim to be divisible by number of slices!"
 
-        return shape[0], shape[1] // self.slices
+        return shape[0] // self.slices, shape[1]
 
     def halo_exchange_defs(
         self, dims: dmp.HaloShapeInformation
@@ -55,32 +55,32 @@ class HorizontalSlices2D(DomainDecompositionStrategy):
         # upper halo exchange:
         yield dmp.HaloExchangeDecl(
             offset=(
-                dims.core_start(dmp.DIM_X),
-                dims.buffer_start(dmp.DIM_Y),
+                dims.buffer_start(dmp.DIM_X),
+                dims.core_start(dmp.DIM_Y),
             ),
             size=(
-                dims.core_size(dmp.DIM_X),
-                dims.halo_size(dmp.DIM_Y),
+                dims.halo_size(dmp.DIM_X),
+                dims.core_size(dmp.DIM_Y),
             ),
             source_offset=(
+                dims.halo_size(dmp.DIM_X),
                 0,
-                dims.halo_size(dmp.DIM_Y),
             ),
             neighbor=[-1],
         )
         # lower halo exchange:
         yield dmp.HaloExchangeDecl(
             offset=(
-                dims.core_start(dmp.DIM_X),
-                dims.core_end(dmp.DIM_Y),
+                dims.core_end(dmp.DIM_X),
+                dims.core_start(dmp.DIM_Y),
             ),
             size=(
-                dims.core_size(dmp.DIM_X),
-                dims.halo_size(dmp.DIM_Y),
+                dims.halo_size(dmp.DIM_X),
+                dims.core_size(dmp.DIM_Y),
             ),
             source_offset=(
+                -dims.halo_size(dmp.DIM_X),
                 0,
-                -dims.halo_size(dmp.DIM_Y),
             ),
             neighbor=[1],
         )
