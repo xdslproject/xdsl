@@ -257,40 +257,41 @@ class ApplyOpToParallel(RewritePattern):
         # Generate an outer parallel loop as well as two inner sequential
         # loops. The inner sequential loops ensure that the computational
         # kernel itself is not slowed down by the OpenMP runtime.
-        if self.target == "cpu":
-            current_region = body
-            for i in range(1, dim):
-                for_op = scf.For.get(
-                    lb=lowerBounds[-i],
-                    ub=upperBounds[-i],
-                    step=one,
-                    iter_args=[],
+        match self.target:
+            case "cpu":
+                current_region = body
+                for i in range(1, dim):
+                    for_op = scf.For.get(
+                        lb=lowerBounds[-i],
+                        ub=upperBounds[-i],
+                        step=one,
+                        iter_args=[],
+                        body=current_region,
+                    )
+                    block = Block(
+                        ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
+                    )
+                    current_region = Region(block)
+
+                p = scf.ParallelOp.get(
+                    lowerBounds=[lowerBounds[0]],
+                    upperBounds=[upperBounds[0]],
+                    steps=[one],
                     body=current_region,
                 )
-                block = Block(
-                    ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
+            case "gpu":
+                stencil_rank = len(upperBounds)
+                boilerplate_ops.insert(
+                    1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
                 )
-                current_region = Region(block)
-
-            p = scf.ParallelOp.get(
-                lowerBounds=[lowerBounds[0]],
-                upperBounds=[upperBounds[0]],
-                steps=[one],
-                body=current_region,
-            )
-        if self.target == "gpu":
-            stencil_rank = len(upperBounds)
-            boilerplate_ops.insert(
-                1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
-            )
-            p = scf.ParallelOp.get(
-                lowerBounds=list(reversed(lowerBounds)) + [zero] * (3 - stencil_rank),
-                upperBounds=list(reversed(upperBounds)) + [one] * (3 - stencil_rank),
-                steps=[one] * 3,
-                body=body,
-            )
-            for _ in range(3 - 1):
-                rewriter.insert_block_argument(p.body.block, 0, builtin.IndexType())
+                p = scf.ParallelOp.get(
+                    lowerBounds=list(reversed(lowerBounds)) + [zero] * (3 - stencil_rank),
+                    upperBounds=list(reversed(upperBounds)) + [one] * (3 - stencil_rank),
+                    steps=[one] * 3,
+                    body=body,
+                )
+                for _ in range(3 - 1):
+                    rewriter.insert_block_argument(p.body.block, 0, builtin.IndexType())
 
         # Handle returnd values
         for result in op.res:
