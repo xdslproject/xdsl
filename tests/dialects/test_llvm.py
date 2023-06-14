@@ -187,3 +187,12 @@ def test_implicit_void_func_return():
     func_type = llvm.LLVMFunctionType([])
 
     assert isinstance(func_type.output, llvm.LLVMVoidType)
+
+
+def test_calling_conv():
+    cconv = llvm.CallingConventionAttr("cc 11")
+    cconv.verify()
+    assert cconv.cconv_name == "cc 11"
+
+    with pytest.raises(VerifyException, match='Invalid calling convention "nooo"'):
+        llvm.CallingConventionAttr("nooo").verify()
