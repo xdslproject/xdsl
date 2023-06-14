@@ -20,4 +20,4 @@
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
-// CHECK: A gpu.terminator must terminate its parent block
+// CHECK: 'gpu.terminator' must be the last operation in the parent block
