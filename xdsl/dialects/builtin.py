@@ -38,23 +38,26 @@ from xdsl.ir import (
 
 from xdsl.irdl import (
     AllOf,
-    OpAttr,
     VarOpResult,
     VarOperand,
     VarRegion,
+    attr_def,
     irdl_attr_definition,
     attr_constr_coercion,
-    irdl_data_definition,
     irdl_to_attr_constraint,
     irdl_op_definition,
     ParameterDef,
-    SingleBlockRegion,
     Generic,
     GenericData,
     AttrConstraint,
     AnyAttr,
     IRDLOperation,
+    region_def,
+    var_operand_def,
+    var_region_def,
+    var_result_def,
 )
+from xdsl.traits import IsolatedFromAbove
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
@@ -277,7 +280,7 @@ class Signedness(Enum):
     UNSIGNED = 2
 
 
-@irdl_data_definition
+@irdl_attr_definition
 class SignednessAttr(Data[Signedness]):
     name = "signedness"
 
@@ -1140,8 +1143,8 @@ class StridedLayoutAttr(ParametrizedAttribute):
 class UnrealizedConversionCastOp(IRDLOperation):
     name = "builtin.unrealized_conversion_cast"
 
-    inputs: VarOperand
-    outputs: VarOpResult
+    inputs: VarOperand = var_operand_def()
+    outputs: VarOpResult = var_result_def()
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
@@ -1161,14 +1164,10 @@ class UnregisteredOp(IRDLOperation, ABC):
 
     name = "builtin.unregistered"
 
-    op_name__: OpAttr[StringAttr]
-    args: VarOperand
-    res: VarOpResult
-    regs: VarRegion
-
-    @property
-    def op_name(self) -> StringAttr:
-        return self.op_name__  # type: ignore
+    op_name: StringAttr = attr_def(StringAttr, attr_name="op_name__")
+    args: VarOperand = var_operand_def()
+    res: VarOpResult = var_result_def()
+    regs: VarRegion = var_region_def()
 
     @classmethod
     def with_name(cls, name: str) -> type[Operation]:
@@ -1268,7 +1267,9 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 class ModuleOp(IRDLOperation):
     name = "builtin.module"
 
-    body: SingleBlockRegion
+    body: Region = region_def("single_block")
+
+    traits = frozenset([IsolatedFromAbove()])
 
     def __init__(
         self,

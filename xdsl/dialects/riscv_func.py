@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Sequence
+from typing import Sequence
 
 from xdsl.ir import Operation, SSAValue, Dialect, Attribute, Region
 from xdsl.traits import HasParent
@@ -8,13 +8,16 @@ from xdsl.utils.exceptions import VerifyException
 
 from xdsl.irdl import (
     IRDLOperation,
-    OptOpAttr,
     OptOpResult,
     VarOpResult,
     VarOperand,
+    attr_def,
     irdl_op_definition,
-    SingleBlockRegion,
-    OpAttr,
+    opt_attr_def,
+    opt_result_def,
+    region_def,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IntegerType, StringAttr
 from xdsl.dialects import riscv
@@ -23,9 +26,9 @@ from xdsl.dialects import riscv
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args: Annotated[VarOperand, riscv.RegisterType]
-    syscall_num: OpAttr[IntegerAttr[IntegerType]]
-    result: Annotated[OptOpResult, riscv.RegisterType]
+    args: VarOperand = var_operand_def(riscv.RegisterType)
+    syscall_num: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
+    result: OptOpResult = opt_result_def(riscv.RegisterType)
 
     def __init__(
         self,
@@ -57,9 +60,9 @@ class CallOp(IRDLOperation):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args: Annotated[VarOperand, riscv.RegisterType]
-    func_name: OpAttr[StringAttr]
-    ress: Annotated[VarOpResult, riscv.RegisterType]
+    args: VarOperand = var_operand_def(riscv.RegisterType)
+    func_name: StringAttr = attr_def(StringAttr)
+    ress: VarOpResult = var_result_def(riscv.RegisterType)
 
     def __init__(
         self,
@@ -94,8 +97,8 @@ class FuncOp(IRDLOperation):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    func_name: OpAttr[StringAttr]
-    func_body: SingleBlockRegion
+    func_name: StringAttr = attr_def(StringAttr)
+    func_body: Region = region_def("single_block")
 
     def __init__(self, name: str, region: Region):
         attributes: dict[str, Attribute] = {"func_name": StringAttr(name)}
@@ -108,8 +111,8 @@ class ReturnOp(IRDLOperation):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values: Annotated[VarOperand, riscv.RegisterType]
-    comment: OptOpAttr[StringAttr]
+    values: VarOperand = var_operand_def(riscv.RegisterType)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = frozenset([HasParent(FuncOp)])
 

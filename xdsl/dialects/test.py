@@ -1,6 +1,6 @@
 from __future__ import annotations
 from xdsl.ir import Data, Dialect, TypeAttribute
-
+from xdsl.traits import IsTerminator
 from xdsl.irdl import (
     VarOpResult,
     VarOperand,
@@ -8,6 +8,9 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     IRDLOperation,
+    var_operand_def,
+    var_region_def,
+    var_result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -24,9 +27,25 @@ class TestOp(IRDLOperation):
 
     name = "test.op"
 
-    res: VarOpResult
-    ops: VarOperand
-    regs: VarRegion
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
+
+
+@irdl_op_definition
+class TestTermOp(TestOp):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    Its main difference from TestOp is that it satisfies the IsTerminator trait
+    and can be used as a block terminator operation.
+    """
+
+    name = "test.termop"
+
+    traits = frozenset([IsTerminator()])
 
 
 @irdl_attr_definition
@@ -47,4 +66,4 @@ class TestType(Data[str], TypeAttribute):
         printer.print_string_literal(self.data)
 
 
-Test = Dialect([TestOp], [TestType])
+Test = Dialect([TestOp, TestTermOp], [TestType])

@@ -8,10 +8,15 @@ import pytest
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import Annotated
 
 from xdsl.ir import OpResult, OpTrait, Operation
-from xdsl.irdl import Operand, irdl_op_definition, IRDLOperation
+from xdsl.irdl import (
+    Operand,
+    irdl_op_definition,
+    IRDLOperation,
+    operand_def,
+    result_def,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.dialects.builtin import IntegerType, i1, i32, i64
 from xdsl.utils.test_value import TestSSAValue
@@ -78,8 +83,8 @@ class TestOp(IRDLOperation):
     name = "test.test"
     traits = frozenset([LargerOperandTrait(), BitwidthSumLessThanTrait(64)])
 
-    ops: Annotated[Operand, IntegerType]
-    res: Annotated[OpResult, IntegerType]
+    ops: Operand = operand_def(IntegerType)
+    res: OpResult = result_def(IntegerType)
 
 
 def test_has_trait_object():
@@ -208,7 +213,7 @@ class OpWithInterface(IRDLOperation):
     name = "test.op_with_interface"
     traits = frozenset([GetNumResultsTraitForOpWithOneResult()])
 
-    res: Annotated[OpResult, IntegerType]
+    res: OpResult = result_def(IntegerType)
 
 
 def test_interface():

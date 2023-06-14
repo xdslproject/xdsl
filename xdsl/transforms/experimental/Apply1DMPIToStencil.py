@@ -10,7 +10,7 @@ from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
 )
 from xdsl.dialects import builtin, llvm, arith, mpi, memref, scf
-from xdsl.dialects.experimental import stencil
+from xdsl.dialects import stencil
 
 AnyNumericType = builtin.AnyFloat | builtin.IntegerType
 

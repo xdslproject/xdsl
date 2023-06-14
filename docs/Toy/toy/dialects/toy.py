@@ -5,7 +5,7 @@ Toy language dialect from MLIR tutorial.
 from __future__ import annotations
 from abc import ABC, abstractmethod
 
-from typing import Annotated, TypeAlias, cast
+from typing import TypeAlias, cast
 
 from xdsl.ir import Dialect, Operation, SSAValue, Attribute, Block, Region, OpResult
 from xdsl.dialects.builtin import (
@@ -19,15 +19,21 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.irdl import (
-    OpAttr,
     Operand,
-    OptOpAttr,
     OptOperand,
     VarOpResult,
+    attr_def,
+    opt_attr_def,
+    region_def,
+    var_operand_def,
+    var_result_def,
     VarOperand,
     irdl_op_definition,
     AnyAttr,
     IRDLOperation,
+    result_def,
+    operand_def,
+    opt_operand_def,
 )
 
 from xdsl.utils.exceptions import VerifyException
@@ -64,8 +70,8 @@ class ConstantOp(IRDLOperation):
     """
 
     name = "toy.constant"
-    value: OpAttr[DenseIntOrFPElementsAttr]
-    res: Annotated[OpResult, TensorTypeF64]
+    value: DenseIntOrFPElementsAttr = attr_def(DenseIntOrFPElementsAttr)
+    res: OpResult = result_def(TensorTypeF64)
 
     traits = frozenset((Pure(),))
 
@@ -123,9 +129,9 @@ class AddOp(IRDLOperation):
     """
 
     name = "toy.add"
-    lhs: Annotated[Operand, AnyTensorTypeF64]
-    rhs: Annotated[Operand, AnyTensorTypeF64]
-    res: Annotated[OpResult, AnyTensorTypeF64]
+    lhs: Operand = operand_def(AnyTensorTypeF64)
+    rhs: Operand = operand_def(AnyTensorTypeF64)
+    res: OpResult = result_def(AnyTensorTypeF64)
 
     traits = frozenset((Pure(), InferAddOpShapeTrait()))
 
@@ -171,10 +177,10 @@ class FuncOp(IRDLOperation):
     """
 
     name = "toy.func"
-    body: Region
-    sym_name: OpAttr[StringAttr]
-    function_type: OpAttr[FunctionType]
-    sym_visibility: OptOpAttr[StringAttr]
+    body: Region = region_def()
+    sym_name: StringAttr = attr_def(StringAttr)
+    function_type: FunctionType = attr_def(FunctionType)
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
     def __init__(
         self,
@@ -194,23 +200,6 @@ class FuncOp(IRDLOperation):
             attributes["sym_visibility"] = StringAttr("private")
 
         return super().__init__(attributes=attributes, regions=[region])
-
-    @staticmethod
-    def from_callable(
-        name: str,
-        input_types: list[Attribute],
-        return_types: list[Attribute],
-        func: Block.BlockCallback,
-        /,
-        private: bool = False,
-    ):
-        ftype = FunctionType.from_lists(input_types, return_types)
-        return FuncOp(
-            name,
-            ftype,
-            Region([Block.from_callable(input_types, func)]),
-            private=private,
-        )
 
     def verify_(self):
         # Check that the returned value matches the type of the function
@@ -251,11 +240,11 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class GenericCallOp(IRDLOperation):
     name = "toy.generic_call"
-    arguments: Annotated[VarOperand, AnyAttr()]
-    callee: OpAttr[SymbolRefAttr]
+    arguments: VarOperand = var_operand_def(AnyAttr())
+    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
-    res: Annotated[VarOpResult, AnyTensorTypeF64]
+    res: VarOpResult = var_result_def(AnyTensorTypeF64)
 
     def __init__(
         self,
@@ -299,9 +288,9 @@ class MulOp(IRDLOperation):
     """
 
     name = "toy.mul"
-    lhs: Annotated[Operand, AnyTensorTypeF64]
-    rhs: Annotated[Operand, AnyTensorTypeF64]
-    res: Annotated[OpResult, AnyTensorTypeF64]
+    lhs: Operand = operand_def(AnyTensorTypeF64)
+    rhs: Operand = operand_def(AnyTensorTypeF64)
+    res: OpResult = result_def(AnyTensorTypeF64)
 
     traits = frozenset((Pure(), InferMulOpShapeTrait()))
 
@@ -336,7 +325,7 @@ class PrintOp(IRDLOperation):
     """
 
     name = "toy.print"
-    input: Annotated[Operand, AnyAttr()]
+    input: Operand = operand_def(AnyAttr())
 
     def __init__(self, input: SSAValue):
         return super().__init__(operands=[input])
@@ -359,7 +348,7 @@ class ReturnOp(IRDLOperation):
     """
 
     name = "toy.return"
-    input: Annotated[OptOperand, AnyTensorTypeF64]
+    input: OptOperand = opt_operand_def(AnyTensorTypeF64)
 
     def __init__(self, input: SSAValue | None = None):
         return super().__init__(operands=[input])
@@ -377,9 +366,9 @@ class ReshapeOp(IRDLOperation):
     """
 
     name = "toy.reshape"
-    arg: Annotated[Operand, AnyTensorTypeF64]
+    arg: Operand = operand_def(AnyTensorTypeF64)
     # We expect that the reshape operation returns a statically shaped tensor.
-    res: Annotated[OpResult, TensorTypeF64]
+    res: OpResult = result_def(TensorTypeF64)
 
     traits = frozenset((Pure(),))
 
@@ -430,8 +419,8 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
     name = "toy.transpose"
-    arg: Annotated[Operand, AnyTensorTypeF64]
-    res: Annotated[OpResult, AnyTensorTypeF64]
+    arg: Operand = operand_def(AnyTensorTypeF64)
+    res: OpResult = result_def(AnyTensorTypeF64)
 
     traits = frozenset((Pure(), InferTransposeOpShapeTrait()))
 
@@ -473,8 +462,8 @@ class InferCastOpShapeTrait(ToyShapeInferenceTrait):
 @irdl_op_definition
 class CastOp(IRDLOperation):
     name = "toy.cast"
-    arg: Annotated[Operand, AnyTensorTypeF64]
-    res: Annotated[OpResult, AnyTensorTypeF64]
+    arg: Operand = operand_def(AnyTensorTypeF64)
+    res: OpResult = result_def(AnyTensorTypeF64)
 
     traits = frozenset((Pure(), InferCastOpShapeTrait()))
 

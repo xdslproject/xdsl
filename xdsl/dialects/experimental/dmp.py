@@ -15,18 +15,25 @@ from typing import Sequence
 from xdsl.printer import Printer
 from xdsl.parser import Parser
 from xdsl.utils.hints import isa
-from xdsl.dialects.experimental import stencil
-from xdsl.ir import Operation, SSAValue, ParametrizedAttribute, Attribute, Dialect
+from xdsl.dialects import stencil
+from xdsl.ir import (
+    Operation,
+    Region,
+    SSAValue,
+    ParametrizedAttribute,
+    Attribute,
+    Dialect,
+)
 from xdsl.irdl import (
-    OptOpAttr,
-    Annotated,
     Operand,
+    attr_def,
     irdl_op_definition,
     irdl_attr_definition,
     ParameterDef,
     IRDLOperation,
-    OpAttr,
-    SingleBlockRegion,
+    operand_def,
+    opt_attr_def,
+    region_def,
 )
 from xdsl.dialects import builtin, memref
 
@@ -382,11 +389,13 @@ class HaloSwapOp(IRDLOperation):
 
     name = "dmp.swap"
 
-    input_stencil: Annotated[Operand, stencil.TempType | memref.MemRefType]
+    input_stencil: Operand = operand_def(stencil.TempType | memref.MemRefType)
 
-    # shape: OptOpAttr[HaloShapeInformation]
-    swaps: OptOpAttr[builtin.ArrayAttr[HaloExchangeDecl]]
-    nodes: OptOpAttr[NodeGrid]
+    # shape: HaloShapeInformation| None = opt_attr_def(HaloShapeInformation)
+    swaps: builtin.ArrayAttr[HaloExchangeDecl] | None = opt_attr_def(
+        builtin.ArrayAttr[HaloExchangeDecl]
+    )
+    nodes: NodeGrid | None = opt_attr_def(NodeGrid)
 
     @staticmethod
     def get(input_stencil: SSAValue | Operation):
@@ -401,20 +410,22 @@ class GatherOp(IRDLOperation):
 
     name = "dmp.gather"
 
-    local_field: Annotated[Operand, memref.MemRefType]
+    local_field: Operand = operand_def(memref.MemRefType)
 
-    my_rank: Annotated[Operand, builtin.IndexType]
+    my_rank: Operand = operand_def(builtin.IndexType)
 
-    root_rank: OpAttr[builtin.IntegerAttr[builtin.IntegerType]]
+    root_rank: builtin.IntegerAttr[builtin.IntegerType] = attr_def(
+        builtin.IntegerAttr[builtin.IntegerType]
+    )
 
-    global_shape: OpAttr[HaloShapeInformation]
+    global_shape: HaloShapeInformation = attr_def(HaloShapeInformation)
 
-    when_root_block: SingleBlockRegion
+    when_root_block: Region = region_def("single_block")
     """
     Contains code to be executed as root rank
     """
 
-    retain_order: OptOpAttr[builtin.UnitAttr]
+    retain_order: builtin.UnitAttr | None = opt_attr_def(builtin.UnitAttr)
     """
     A normal mpi.gather() will result in a reordering of the data, where each
     nodes data will be placed sequentially into the buffer, without any
@@ -465,11 +476,11 @@ class GatherOp(IRDLOperation):
 class ScatterOp(IRDLOperation):
     name = "dmp.scatter"
 
-    global_field: Annotated[Operand, memref.MemRefType]
+    global_field: Operand = operand_def(memref.MemRefType)
 
-    my_rank: Annotated[Operand, builtin.IndexType]
+    my_rank: Operand = operand_def(builtin.IndexType)
 
-    global_shape: OpAttr[HaloShapeInformation]
+    global_shape: HaloShapeInformation = attr_def(HaloShapeInformation)
 
     def __init__(self, ref: SSAValue | Operand, shape: HaloShapeInformation):
         super().__init__(operands=[ref], attributes={"global_shape": shape})

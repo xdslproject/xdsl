@@ -23,8 +23,8 @@ from xdsl.ir import (
     OpResult,
 )
 from xdsl.irdl import Attribute
-from xdsl.dialects import builtin, mpi, memref, arith, scf, func
-from xdsl.dialects.experimental import stencil, dmp
+from xdsl.dialects import builtin, mpi, memref, arith, scf, func, stencil
+from xdsl.dialects.experimental import dmp
 
 from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
 

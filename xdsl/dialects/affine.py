@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-from typing import Annotated, Sequence
+from typing import Sequence
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
 from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
 from xdsl.irdl import (
-    OpAttr,
     VarOpResult,
+    attr_def,
     irdl_op_definition,
     VarOperand,
     AnyAttr,
     IRDLOperation,
+    region_def,
+    var_operand_def,
+    var_result_def,
 )
 
 
@@ -18,16 +21,16 @@ from xdsl.irdl import (
 class For(IRDLOperation):
     name = "affine.for"
 
-    arguments: Annotated[VarOperand, AnyAttr()]
-    res: Annotated[VarOpResult, AnyAttr()]
+    arguments: VarOperand = var_operand_def(AnyAttr())
+    res: VarOpResult = var_result_def(AnyAttr())
 
     # TODO the bounds are in fact affine_maps
     # TODO support dynamic bounds as soon as maps are here
-    lower_bound: OpAttr[AnyIntegerAttr]
-    upper_bound: OpAttr[AnyIntegerAttr]
-    step: OpAttr[AnyIntegerAttr]
+    lower_bound: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    upper_bound: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    step: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
-    body: Region
+    body: Region = region_def()
 
     def verify_(self) -> None:
         if len(self.operands) != len(self.results):
@@ -74,28 +77,11 @@ class For(IRDLOperation):
             regions=[region],
         )
 
-    @staticmethod
-    def from_callable(
-        operands: Sequence[Operation | SSAValue],
-        lower_bound: int | AnyIntegerAttr,
-        upper_bound: int | AnyIntegerAttr,
-        body: Block.BlockCallback,
-        step: int | AnyIntegerAttr = 1,
-    ) -> For:
-        arg_types = [IndexType()] + [SSAValue.get(op).typ for op in operands]
-        return For.from_region(
-            operands,
-            lower_bound,
-            upper_bound,
-            Region(Block.from_callable(arg_types, body)),
-            step,
-        )
-
 
 @irdl_op_definition
 class Yield(IRDLOperation):
     name = "affine.yield"
-    arguments: Annotated[VarOperand, AnyAttr()]
+    arguments: VarOperand = var_operand_def(AnyAttr())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
