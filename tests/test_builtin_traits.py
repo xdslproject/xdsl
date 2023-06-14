@@ -181,7 +181,7 @@ def test_is_terminator_fails_if_not_last_operation_parent_block():
     module0 = ModuleOp(region0)
 
     with pytest.raises(
-        VerifyException, match="must be the last operation in the parent block"
+        VerifyException, match="must be the last operation in its parent block"
     ):
         module0.verify()
 

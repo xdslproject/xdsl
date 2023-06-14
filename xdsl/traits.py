@@ -73,7 +73,7 @@ class IsTerminator(OpTrait):
         """Check that the operation satisfies the IsTerminator trait requirements."""
         if op.parent is not None and op.parent.last_op != op:
             raise VerifyException(
-                f"'{op.name}' must be the last operation in the parent block"
+                f"'{op.name}' must be the last operation in its parent block"
             )
 
 
