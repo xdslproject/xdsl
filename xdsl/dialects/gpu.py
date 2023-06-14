@@ -34,7 +34,7 @@ from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr
 from xdsl.dialects import memref
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent
+from xdsl.traits import HasParent, IsTerminator, IsolatedFromAbove
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -150,14 +150,14 @@ class AllocOp(IRDLOperation):
                 "dynamic sizes need to be set in the alloc operation."
             )
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         return_type: memref.MemRefType[_Element],
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         host_shared: bool = False,
         async_dependencies: Sequence[SSAValue | Operation] | None = None,
         is_async: bool = False,
-    ) -> AllocOp:
+    ):
         token_return = [AsyncTokenType()] if is_async else []
         dynamic_sizes_vals: list[SSAValue] = (
             [SSAValue.get(e) for e in dynamic_sizes] if dynamic_sizes else []
@@ -168,7 +168,7 @@ class AllocOp(IRDLOperation):
         attributes: dict[str, Attribute] = (
             {"hostShared": UnitAttr()} if host_shared else {}
         )
-        return AllocOp.build(
+        return super().__init__(
             operands=[async_dependencies_vals, dynamic_sizes_vals, []],
             result_types=[return_type, token_return],
             attributes=attributes,
@@ -183,6 +183,8 @@ class AllReduceOp(IRDLOperation):
     operand: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
     body: Region = region_def()
+
+    traits = frozenset([IsolatedFromAbove()])
 
     @staticmethod
     def from_op(
@@ -245,9 +247,8 @@ class AllReduceOp(IRDLOperation):
 class BarrierOp(IRDLOperation):
     name = "gpu.barrier"
 
-    @staticmethod
-    def get() -> BarrierOp:
-        return BarrierOp.build()
+    def __init__(self):
+        return super().__init__()
 
 
 @irdl_op_definition
@@ -256,9 +257,8 @@ class BlockDimOp(IRDLOperation):
     dimension: DimensionAttr = attr_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get(dim: DimensionAttr) -> BlockDimOp:
-        return BlockDimOp.build(
+    def __init__(self, dim: DimensionAttr):
+        return super().__init__(
             result_types=[IndexType()], attributes={"dimension": dim}
         )
 
@@ -269,9 +269,8 @@ class BlockIdOp(IRDLOperation):
     dimension: DimensionAttr = attr_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get(dim: DimensionAttr) -> BlockIdOp:
-        return BlockIdOp.build(
+    def __init__(self, dim: DimensionAttr):
+        return super().__init__(
             result_types=[IndexType()], attributes={"dimension": dim}
         )
 
@@ -287,13 +286,13 @@ class DeallocOp(IRDLOperation):
 
     asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         buffer: SSAValue | Operation,
         async_dependencies: Sequence[SSAValue | Operation] | None = None,
         is_async: bool = False,
-    ) -> DeallocOp:
-        return DeallocOp.build(
+    ):
+        return super().__init__(
             operands=[async_dependencies, buffer],
             result_types=[[AsyncTokenType()] if is_async else []],
         )
@@ -311,14 +310,14 @@ class MemcpyOp(IRDLOperation):
 
     asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         source: SSAValue | Operation,
         destination: SSAValue | Operation,
         async_dependencies: Sequence[SSAValue | Operation] | None = None,
         is_async: bool = False,
-    ) -> MemcpyOp:
-        return MemcpyOp.build(
+    ):
+        return super().__init__(
             operands=[async_dependencies, source, destination],
             result_types=[[AsyncTokenType()] if is_async else []],
         )
@@ -338,14 +337,10 @@ class ModuleOp(IRDLOperation):
     body: Region = region_def("single_block")
     sym_name: StringAttr = attr_def(StringAttr)
 
-    @staticmethod
-    def get(name: SymbolRefAttr, ops: Sequence[Operation]) -> ModuleOp:
-        op = ModuleOp.build(attributes={"sym_name": name}, regions=[ops])
-        return op
+    traits = frozenset([IsolatedFromAbove()])
 
-    def verify_(self):
-        if not isinstance(self.body.block.last_op, ModuleEndOp):
-            raise VerifyException("gpu.module must end with gpu.module_end")
+    def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
+        return super().__init__(attributes={"sym_name": name}, regions=[ops])
 
 
 @irdl_op_definition
@@ -354,9 +349,8 @@ class GlobalIdOp(IRDLOperation):
     dimension: DimensionAttr = attr_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get(dim: DimensionAttr) -> GlobalIdOp:
-        return GlobalIdOp.build(
+    def __init__(self, dim: DimensionAttr):
+        return super().__init__(
             result_types=[IndexType()], attributes={"dimension": dim}
         )
 
@@ -367,9 +361,8 @@ class GridDimOp(IRDLOperation):
     dimension: DimensionAttr = attr_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get(dim: DimensionAttr) -> GridDimOp:
-        return GridDimOp.build(
+    def __init__(self, dim: DimensionAttr):
+        return super().__init__(
             result_types=[IndexType()], attributes={"dimension": dim}
         )
 
@@ -390,9 +383,8 @@ class HostRegisterOp(IRDLOperation):
 
     value: Operand = operand_def(memref.UnrankedMemrefType)
 
-    @staticmethod
-    def from_memref(memref: SSAValue | Operation):
-        return HostRegisterOp.build(operands=[SSAValue.get(memref)])
+    def __init__(self, memref: SSAValue | Operation):
+        return super().__init__(operands=[SSAValue.get(memref)])
 
 
 @irdl_op_definition
@@ -400,9 +392,8 @@ class LaneIdOp(IRDLOperation):
     name = "gpu.lane_id"
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get() -> LaneIdOp:
-        return LaneIdOp.build(result_types=[IndexType()])
+    def __init__(self):
+        return super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
@@ -420,15 +411,15 @@ class LaunchOp(IRDLOperation):
     body: Region = region_def()
     irdl_options = [AttrSizedOperandSegments()]
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         body: Region,
         gridSize: Sequence[SSAValue | Operation],
         blockSize: Sequence[SSAValue | Operation],
         async_launch: bool = False,
         asyncDependencies: Sequence[SSAValue | Operation] | None = None,
         dynamicSharedMemorySize: SSAValue | Operation | None = None,
-    ) -> LaunchOp:
+    ):
         if len(gridSize) != 3:
             raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
@@ -446,7 +437,7 @@ class LaunchOp(IRDLOperation):
             if dynamicSharedMemorySize is None
             else [SSAValue.get(dynamicSharedMemorySize)]
         ]
-        return LaunchOp.build(
+        return super().__init__(
             operands=operands,
             result_types=[[AsyncTokenType()] if async_launch else []],
             regions=[body],
@@ -469,9 +460,10 @@ class LaunchOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    @staticmethod
-    def get() -> ModuleEndOp:
-        return ModuleEndOp.build()
+    traits = frozenset([HasParent(ModuleOp), IsTerminator()])
+
+    def __init__(self):
+        return super().__init__()
 
 
 @irdl_op_definition
@@ -479,9 +471,8 @@ class NumSubgroupsOp(IRDLOperation):
     name = "gpu.num_subgroups"
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get() -> NumSubgroupsOp:
-        return NumSubgroupsOp.build(result_types=[IndexType()])
+    def __init__(self):
+        return super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
@@ -489,9 +480,8 @@ class SetDefaultDeviceOp(IRDLOperation):
     name = "gpu.set_default_device"
     devIndex: Operand = operand_def(i32)
 
-    @staticmethod
-    def get(devIndex: SSAValue | Operation) -> SetDefaultDeviceOp:
-        return SetDefaultDeviceOp.build(operands=[SSAValue.get(devIndex)])
+    def __init__(self, devIndex: SSAValue | Operation):
+        return super().__init__(operands=[SSAValue.get(devIndex)])
 
 
 @irdl_op_definition
@@ -499,9 +489,8 @@ class SubgroupIdOp(IRDLOperation):
     name = "gpu.subgroup_id"
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get() -> SubgroupIdOp:
-        return SubgroupIdOp.build(result_types=[IndexType()])
+    def __init__(self):
+        return super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
@@ -509,28 +498,18 @@ class SubgroupSizeOp(IRDLOperation):
     name = "gpu.subgroup_size"
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get() -> SubgroupSizeOp:
-        return SubgroupSizeOp.build(result_types=[IndexType()])
+    def __init__(self):
+        return super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
 class TerminatorOp(IRDLOperation):
     name = "gpu.terminator"
 
-    traits = frozenset([HasParent(LaunchOp)])
+    traits = frozenset([HasParent(LaunchOp), IsTerminator()])
 
-    @staticmethod
-    def get() -> TerminatorOp:
-        return TerminatorOp.build()
-
-    def verify_(self) -> None:
-        block = self.parent_block()
-        if block is not None:
-            if self is not block.last_op:
-                raise VerifyException(
-                    "A gpu.terminator must terminate its parent block"
-                )
+    def __init__(self):
+        return super().__init__()
 
 
 @irdl_op_definition
@@ -539,9 +518,8 @@ class ThreadIdOp(IRDLOperation):
     dimension: DimensionAttr = attr_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get(dim: DimensionAttr) -> ThreadIdOp:
-        return ThreadIdOp.build(
+    def __init__(self, dim: DimensionAttr):
+        return super().__init__(
             result_types=[IndexType()], attributes={"dimension": dim}
         )
 
@@ -551,16 +529,13 @@ class YieldOp(IRDLOperation):
     name = "gpu.yield"
     values: VarOperand = var_operand_def(Attribute)
 
-    @staticmethod
-    def get(operands: Sequence[SSAValue | Operation]) -> YieldOp:
-        return YieldOp.build([operands])
+    def __init__(self, operands: Sequence[SSAValue | Operation]):
+        return super().__init__([operands])
+
+    traits = frozenset([IsTerminator()])
 
     def verify_(self) -> None:
-        block = self.parent_block()
         op = self.parent_op()
-        if block is not None:
-            if self is not block.last_op:
-                raise VerifyException("A gpu.yield must terminate its parent block")
         if op is not None:
             yield_type = [o.typ for o in self.values]
             result_type = [r.typ for r in op.results]
