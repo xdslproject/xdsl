@@ -35,7 +35,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsolatedFromAbove
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.parser import Parser
@@ -654,6 +654,8 @@ class ReturnOp(IRDLOperation):
 
     name = "stencil.return"
     arg: VarOperand = var_operand_def(ResultType | AnyFloat)
+
+    traits = frozenset([IsTerminator()])
 
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):
