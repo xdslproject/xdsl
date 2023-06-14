@@ -1,5 +1,7 @@
 // RUN: xdsl-opt %s -p stencil-storage-materialization | filecheck %s
 
+// This should not change with the pass applied.
+
 builtin.module{
   func.func @copy(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
@@ -22,6 +24,8 @@ builtin.module{
 // CHECK-NEXT:   "stencil.store"(%outt, %out) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
 // CHECK-NEXT:   "func.return"() : () -> ()
 // CHECK-NEXT: }
+
+ // Here we want to see a buffer added after the first apply.
 
   func.func @buffer_copy(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
@@ -55,6 +59,8 @@ builtin.module{
   //CHECK-NEXT:   "stencil.store"(%outt_1, %out_1) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
   //CHECK-NEXT:   "func.return"() : () -> ()
   //CHECK-NEXT: }
+
+  // Here we don't want to see a buffer added after the apply, because the result is stored.
 
   func.func @stored_copy(%in : !stencil.field<[-4,68]xf64>, %midout : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
