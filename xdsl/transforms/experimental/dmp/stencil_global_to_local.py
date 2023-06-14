@@ -422,9 +422,9 @@ def generate_memcpy(
 
         if reverse:
             load = memref.Load.get(dest, [linearized_idx])
-            memref.Store.get(load, source, [x, y])
+            memref.Store.get(load, source, [y, x])
         else:
-            load = memref.Load.get(source, [x, y])
+            load = memref.Load.get(source, [y, x])
             memref.Store.get(load, dest, [linearized_idx])
 
         scf.Yield.get()
