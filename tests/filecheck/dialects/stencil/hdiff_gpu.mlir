@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p stencil-shape-inference,convert-stencil-to-ll-mlir{target=gpu} --print-op-generic | filecheck %s
+// RUN: xdsl-opt %s -p stencil-shape-inference,convert-stencil-to-ll-mlir{target=gpu} | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({
@@ -26,9 +26,8 @@
   }) {"function_type" = (!stencil.field<?x?x?xf64>, !stencil.field<?x?x?xf64>) -> (), "sym_name" = "stencil_hdiff"} : () -> ()
 }) : () -> ()
 
-// CHECK:      "builtin.module"() ({
-// CHECK-NEXT:   "func.func"() ({
-// CHECK-NEXT:   ^0(%0 : memref<?x?x?xf64>, %1 : memref<?x?x?xf64>):
+// CHECK:      builtin.module {
+// CHECK-NEXT:   func.func @stencil_hdiff(%0 : memref<?x?x?xf64>, %1 : memref<?x?x?xf64>) {
 // CHECK-NEXT:     %2 = "memref.cast"(%0) : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
 // CHECK-NEXT:     %3 = "memref.cast"(%2) : (memref<72x72x72xf64>) -> memref<*xf64>
 // CHECK-NEXT:     "gpu.host_register"(%3) : (memref<*xf64>) -> ()
@@ -40,64 +39,57 @@
 // CHECK-NEXT:     %8 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:     %9 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:     %10 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:     %11 = "arith.constant"() {"value" = 1 : index} : () -> index
-// CHECK-NEXT:     %12 = "arith.constant"() {"value" = 64 : index} : () -> index
+// CHECK-NEXT:     %11 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:     %12 = "arith.constant"() {"value" = 1 : index} : () -> index
 // CHECK-NEXT:     %13 = "arith.constant"() {"value" = 64 : index} : () -> index
 // CHECK-NEXT:     %14 = "arith.constant"() {"value" = 64 : index} : () -> index
-// CHECK-NEXT:     "scf.parallel"(%8, %12, %11) ({
-// CHECK-NEXT:     ^1(%15 : index):
-// CHECK-NEXT:       "scf.for"(%9, %13, %11) ({
-// CHECK-NEXT:       ^2(%16 : index):
-// CHECK-NEXT:         "scf.for"(%10, %14, %11) ({
-// CHECK-NEXT:         ^3(%17 : index):
-// CHECK-NEXT:           %18 = "arith.constant"() {"value" = -1 : index} : () -> index
-// CHECK-NEXT:           %19 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %20 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %21 = "arith.addi"(%15, %18) : (index, index) -> index
-// CHECK-NEXT:           %22 = "arith.addi"(%16, %19) : (index, index) -> index
-// CHECK-NEXT:           %23 = "arith.addi"(%17, %20) : (index, index) -> index
-// CHECK-NEXT:           %24 = "memref.load"(%7, %21, %22, %23) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
-// CHECK-NEXT:           %25 = "arith.constant"() {"value" = 1 : index} : () -> index
-// CHECK-NEXT:           %26 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %27 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %28 = "arith.addi"(%15, %25) : (index, index) -> index
-// CHECK-NEXT:           %29 = "arith.addi"(%16, %26) : (index, index) -> index
-// CHECK-NEXT:           %30 = "arith.addi"(%17, %27) : (index, index) -> index
-// CHECK-NEXT:           %31 = "memref.load"(%7, %28, %29, %30) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
-// CHECK-NEXT:           %32 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %33 = "arith.constant"() {"value" = 1 : index} : () -> index
-// CHECK-NEXT:           %34 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %35 = "arith.addi"(%15, %32) : (index, index) -> index
-// CHECK-NEXT:           %36 = "arith.addi"(%16, %33) : (index, index) -> index
-// CHECK-NEXT:           %37 = "arith.addi"(%17, %34) : (index, index) -> index
-// CHECK-NEXT:           %38 = "memref.load"(%7, %35, %36, %37) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
-// CHECK-NEXT:           %39 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %40 = "arith.constant"() {"value" = -1 : index} : () -> index
-// CHECK-NEXT:           %41 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %42 = "arith.addi"(%15, %39) : (index, index) -> index
-// CHECK-NEXT:           %43 = "arith.addi"(%16, %40) : (index, index) -> index
-// CHECK-NEXT:           %44 = "arith.addi"(%17, %41) : (index, index) -> index
-// CHECK-NEXT:           %45 = "memref.load"(%7, %42, %43, %44) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
-// CHECK-NEXT:           %46 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %47 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %48 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:           %49 = "arith.addi"(%15, %46) : (index, index) -> index
-// CHECK-NEXT:           %50 = "arith.addi"(%16, %47) : (index, index) -> index
-// CHECK-NEXT:           %51 = "arith.addi"(%17, %48) : (index, index) -> index
-// CHECK-NEXT:           %52 = "memref.load"(%7, %49, %50, %51) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
-// CHECK-NEXT:           %53 = "arith.addf"(%24, %31) : (f64, f64) -> f64
-// CHECK-NEXT:           %54 = "arith.addf"(%38, %45) : (f64, f64) -> f64
-// CHECK-NEXT:           %55 = "arith.addf"(%53, %54) : (f64, f64) -> f64
-// CHECK-NEXT:           %cst = "arith.constant"() {"value" = -4.0 : f64} : () -> f64
-// CHECK-NEXT:           %56 = "arith.mulf"(%52, %cst) : (f64, f64) -> f64
-// CHECK-NEXT:           %57 = "arith.addf"(%56, %55) : (f64, f64) -> f64
-// CHECK-NEXT:           "memref.store"(%57, %6, %15, %16, %17) : (f64, memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> ()
-// CHECK-NEXT:           "scf.yield"() : () -> ()
-// CHECK-NEXT:         }) : (index, index, index) -> ()
-// CHECK-NEXT:         "scf.yield"() : () -> ()
-// CHECK-NEXT:       }) : (index, index, index) -> ()
+// CHECK-NEXT:     %15 = "arith.constant"() {"value" = 64 : index} : () -> index
+// CHECK-NEXT:     "scf.parallel"(%11, %10, %8, %15, %14, %13, %12, %12, %12) ({
+// CHECK-NEXT:     ^0(%16 : index, %17 : index, %18 : index):
+// CHECK-NEXT:       %19 = "arith.constant"() {"value" = -1 : index} : () -> index
+// CHECK-NEXT:       %20 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %21 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %22 = arith.addi %18, %19 : index
+// CHECK-NEXT:       %23 = arith.addi %17, %20 : index
+// CHECK-NEXT:       %24 = arith.addi %16, %21 : index
+// CHECK-NEXT:       %25 = "memref.load"(%7, %22, %23, %24) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:       %26 = "arith.constant"() {"value" = 1 : index} : () -> index
+// CHECK-NEXT:       %27 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %28 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %29 = arith.addi %18, %26 : index
+// CHECK-NEXT:       %30 = arith.addi %17, %27 : index
+// CHECK-NEXT:       %31 = arith.addi %16, %28 : index
+// CHECK-NEXT:       %32 = "memref.load"(%7, %29, %30, %31) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:       %33 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %34 = "arith.constant"() {"value" = 1 : index} : () -> index
+// CHECK-NEXT:       %35 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %36 = arith.addi %18, %33 : index
+// CHECK-NEXT:       %37 = arith.addi %17, %34 : index
+// CHECK-NEXT:       %38 = arith.addi %16, %35 : index
+// CHECK-NEXT:       %39 = "memref.load"(%7, %36, %37, %38) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:       %40 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %41 = "arith.constant"() {"value" = -1 : index} : () -> index
+// CHECK-NEXT:       %42 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %43 = arith.addi %18, %40 : index
+// CHECK-NEXT:       %44 = arith.addi %17, %41 : index
+// CHECK-NEXT:       %45 = arith.addi %16, %42 : index
+// CHECK-NEXT:       %46 = "memref.load"(%7, %43, %44, %45) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:       %47 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %48 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %49 = "arith.constant"() {"value" = 0 : index} : () -> index
+// CHECK-NEXT:       %50 = arith.addi %18, %47 : index
+// CHECK-NEXT:       %51 = arith.addi %17, %48 : index
+// CHECK-NEXT:       %52 = arith.addi %16, %49 : index
+// CHECK-NEXT:       %53 = "memref.load"(%7, %50, %51, %52) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:       %54 = arith.addf %25, %32 : f64
+// CHECK-NEXT:       %55 = arith.addf %39, %46 : f64
+// CHECK-NEXT:       %56 = arith.addf %54, %55 : f64
+// CHECK-NEXT:       %cst = "arith.constant"() {"value" = -4.0 : f64} : () -> f64
+// CHECK-NEXT:       %57 = arith.mulf %53, %cst : f64
+// CHECK-NEXT:       %58 = arith.addf %57, %56 : f64
+// CHECK-NEXT:       "memref.store"(%58, %6, %18, %17, %16) : (f64, memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> ()
 // CHECK-NEXT:       "scf.yield"() : () -> ()
-// CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
+// CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:     "func.return"() : () -> ()
-// CHECK-NEXT:   }) {"function_type" = (memref<?x?x?xf64>, memref<?x?x?xf64>) -> (), "sym_name" = "stencil_hdiff"} : () -> ()
-// CHECK-NEXT: }) : () -> ()
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
