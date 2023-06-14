@@ -36,6 +36,8 @@ from xdsl.transforms.experimental.dmp.decompositions import (
 
 _T = TypeVar("_T", bound=Attribute)
 
+_rank_dtype = builtin.i32
+
 
 @dataclass
 class ChangeStoreOpSizes(RewritePattern):
@@ -94,6 +96,142 @@ class LowerHaloExchangeToMpi(RewritePattern):
         )
 
 
+def _generate_single_axis_calc_and_check(
+    pos_in_axis: SSAValue,
+    offset_in_axis: int,
+    axis_size: int,
+) -> tuple[list[Operation], SSAValue, SSAValue]:
+    """
+    Given a position (in SSA), aand compile time known offset/size, generate the
+    following operations:
+
+    dest = pos_in_axis + offset_in_axis
+    is_valid_axsis = (0 <= dest && dest < axis_size)
+
+    Since we know the offset at compile time, we can skip one of the calculations.
+
+    Returns the ops, and the ssa values that contain dest and is_valid_axis
+    Return is ([ops], dest, is_valid)
+    """
+    # if the offset is zero, we can skip the comparison and just return true
+    # because my_pos + 0 is always inbounds!
+    if offset_in_axis == 0:
+        return (
+            [true := arith.Constant.from_int_and_width(1, 1)],
+            pos_in_axis,
+            true.result,
+        )
+
+    # check if we are decrementing or increment the position here
+    is_decrement = offset_in_axis < 0
+    # very important that we use signed arithmetic here!
+    # find the correct comparison for
+    # is_valid_axsis = (0 <= dest && dest < axis_size)
+    # since we know if we will be incrementing or decrementing, we can skip one of the
+    # checks
+    comparison = "sge" if is_decrement else "slt"
+
+    return (
+        [
+            offset_v := arith.Constant.from_int_and_width(offset_in_axis, _rank_dtype),
+            dest := arith.Addi(pos_in_axis, offset_v),
+            # get the bound we need to check:
+            bound := arith.Constant.from_int_and_width(
+                0 if is_decrement else axis_size, _rank_dtype
+            ),
+            # comparison == true <=> we have a valid dest positon
+            cond_val := arith.Cmpi.get(dest, bound, comparison),
+        ],
+        dest.result,
+        cond_val.result,
+    )
+
+
+def _generate_dest_rank_computation(
+    my_rank: SSAValue,
+    offsets: tuple[int, ...],
+    grid: dmp.NodeGrid,
+) -> tuple[list[Operation], SSAValue, SSAValue]:
+    """
+    Takes the current rank, a tuple of offsets in grid coords, and a dmp.grid
+
+    Calculates the dest rank, and comparisons if communication is in-bounds
+
+    Returns a list of ops, the dest rank, and if it's in-bounds.
+
+    Returns ([ops], dest_rank, is_in_bounds)
+    """
+    # a collection of all ops we want to return
+    ret_ops: list[Operation] = []
+    # the nodes coordinates in grid-space
+    node_pos_nd: list[SSAValue] = []
+
+    # first we translate the mpi rank into grid coordinates
+    # (reversing the row major mapping)
+    divide_by = 1
+    for size in grid.as_tuple():
+        ret_ops.extend(_div_mod(my_rank, divide_by, size))
+        divide_by *= size
+        node_pos_nd.append(ret_ops[-1].results[0])
+
+    # then we calculate the new coordinates:
+    # save the condition vals somewhere
+    condition_vals: list[SSAValue] = []
+    # save the grid-coordinates of the destination rank
+    dest_pos_nd: list[SSAValue] = []
+    for pos_in_axis, offset_in_axis, axis_size in zip(
+        node_pos_nd, offsets, grid.as_tuple()
+    ):
+        ops, dest, is_valid = _generate_single_axis_calc_and_check(
+            pos_in_axis, offset_in_axis, axis_size
+        )
+        ret_ops.extend(ops)
+        dest_pos_nd.append(dest)
+        condition_vals.append(is_valid)
+
+    # "and" all the condition vals
+    accumulated_cond_val: SSAValue = condition_vals[0]
+    for val in condition_vals[1:]:
+        cmp = arith.AndI(accumulated_cond_val, val)
+        ret_ops.append(cmp)
+        accumulated_cond_val = cmp.result
+
+    # calculate rank of destination node from grid coords
+
+    multiply_by = grid.as_tuple()[0]
+    carry: SSAValue = dest_pos_nd[0]
+
+    for pos, size in zip(dest_pos_nd[1:], grid.as_tuple()[1:]):
+        fac = arith.Constant.from_int_and_width(multiply_by, _rank_dtype)
+        val = arith.Muli(pos, fac)
+        new_carry = arith.Addi(carry, val)
+        carry = new_carry.result
+        multiply_by *= size
+        ret_ops.extend([fac, val, new_carry])
+
+    return ret_ops, carry, accumulated_cond_val
+
+
+def _div_mod(i: SSAValue, div: int, mod: int) -> list[Operation]:
+    """
+    Given (i, div, mod), generate ops that calculate (i / div) % mod
+
+    The last returned operation has the final value as it's single result.
+    """
+    # these asserts should never trigger, but I'd rather have the compiler yell at me
+    # when something goes wrong than see a spectacular runtime crash :D
+    assert div > 0, "cannot work with negatives here!"
+    assert mod > 0, "cannot work with negatives here!"
+    # we can use unsigned arithmetic here, because all we do is divide by positive
+    # numbers and modulo positive numbers
+    return [
+        div_v := arith.Constant.from_int_and_width(div, _rank_dtype),
+        div_res := arith.DivUI(i, div_v),
+        mod_v := arith.Constant.from_int_and_width(mod, _rank_dtype),
+        arith.RemUI(div_res, mod_v),
+    ]
+
+
 def generate_mpi_calls_for(
     source: SSAValue,
     exchanges: list[dmp.HaloExchangeDecl],
@@ -120,11 +258,6 @@ def generate_mpi_calls_for(
     recv_buffers: list[tuple[dmp.HaloExchangeDecl, memref.Alloc, SSAValue]] = []
 
     for i, ex in enumerate(exchanges):
-        # TODO: handle multi-d grids
-        neighbor_offset = arith.Constant.from_int_and_width(ex.neighbor[0], builtin.i32)
-        neighbor_rank = arith.Addi(rank, neighbor_offset)
-        yield from (neighbor_offset, neighbor_rank)
-
         # generate a temp buffer to store the data in
         alloc_outbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
         alloc_outbound.memref.name_hint = f"send_buff_ex{i}"
@@ -132,19 +265,13 @@ def generate_mpi_calls_for(
         alloc_inbound.memref.name_hint = f"recv_buff_ex{i}"
         yield from (alloc_outbound, alloc_inbound)
 
-        # boundary condition:
-        # TODO: handle non-1d layouts
-        assert len(ex.neighbor) == 1
-        bound = arith.Constant.from_int_and_width(
-            0 if ex.neighbor[0] < 0 else grid.as_tuple()[0], builtin.i32
+        # calc dest rank and check if it's in-bounds
+        ops, dest_rank, is_in_bounds = _generate_dest_rank_computation(
+            rank.rank, ex.neighbor, grid
         )
-        # comparison == true <=> we have a valid dest rank
-        comparison = "sge" if ex.neighbor[0] < 0 else "slt"
+        yield from ops
 
-        cond_val = arith.Cmpi.get(neighbor_rank, bound, comparison)
-        yield from (bound, cond_val)
-
-        recv_buffers.append((ex, alloc_inbound, cond_val.result))
+        recv_buffers.append((ex, alloc_inbound, is_in_bounds))
 
         # get two unique indices
         cst_i = arith.Constant.from_int_and_width(i, builtin.i32)
@@ -168,7 +295,7 @@ def generate_mpi_calls_for(
                 unwrap_out.ptr,
                 unwrap_out.len,
                 unwrap_out.typ,
-                neighbor_rank,
+                dest_rank,
                 tag,
                 req_send,
             )
@@ -182,7 +309,7 @@ def generate_mpi_calls_for(
                 unwrap_in.ptr,
                 unwrap_in.len,
                 unwrap_in.typ,
-                neighbor_rank,
+                dest_rank,
                 tag,
                 req_recv,
             )
@@ -196,7 +323,7 @@ def generate_mpi_calls_for(
             yield scf.Yield.get()
 
         yield scf.If.get(
-            cond_val,
+            is_in_bounds,
             [],
             Region([Block(then())]),
             Region([Block(else_())]),
