@@ -188,7 +188,7 @@ def test_block_branching_to_another_region_wrong():
 
     with pytest.raises(
         VerifyException,
-        match="Branching to a block of a different region",
+        match="is branching to a block of a different region",
     ):
         outer_block.verify()
 
@@ -285,7 +285,7 @@ def test_op_with_successors_not_in_block():
 
     with pytest.raises(
         VerifyException,
-        match="Operation with block successors does not belong to a block or a region",
+        match="with block successors does not belong to a block or a region",
     ):
         op0.verify()
 
@@ -297,7 +297,7 @@ def test_op_with_successors_not_in_region():
 
     with pytest.raises(
         VerifyException,
-        match="Operation with block successors does not belong to a block or a region",
+        match="with block successors does not belong to a block or a region",
     ):
         op0.verify()
 
@@ -313,7 +313,7 @@ def test_non_empty_block_with_single_block_parent_region_must_have_terminator():
 
     with pytest.raises(
         VerifyException,
-        match="Operation terminates block in single-block region but is not a terminator",
+        match="terminates block in single-block region but is not a terminator",
     ):
         op0.verify()
 
@@ -343,7 +343,7 @@ def test_non_empty_block_with_parent_region_requires_terminator_with_successors(
 
     with pytest.raises(
         VerifyException,
-        match="Operation terminates block in multi-block region but is not a terminator",
+        match="terminates block in multi-block region but is not a terminator",
     ):
         op0.verify()
 
@@ -361,7 +361,7 @@ def test_non_empty_block_with_parent_region_requires_terminator_without_successo
 
     with pytest.raises(
         VerifyException,
-        match="Operation terminates block in multi-block region but is not a terminator",
+        match="terminates block in multi-block region but is not a terminator",
     ):
         op0.verify()
 
@@ -378,7 +378,7 @@ def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op
 
     with pytest.raises(
         VerifyException,
-        match="Operation with block successors must terminate its parent block",
+        match="with block successors must terminate its parent block",
     ):
         op0.verify()
 

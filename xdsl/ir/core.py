@@ -774,12 +774,14 @@ class Operation(IRNode):
         ) is not None:
             if self.successors and parent_block.last_op != self:
                 raise VerifyException(
-                    "Operation with block successors must terminate its parent block"
+                    f"Operation {self.name} with block successors must terminate its parent block"
                 )
 
             for succ in self.successors:
                 if succ.parent != parent_region:
-                    raise VerifyException("Branching to a block of a different region")
+                    raise VerifyException(
+                        f"Operation {self.name} is branching to a block of a different region"
+                    )
 
             if len(parent_region.blocks) == 1:
                 if (
@@ -789,17 +791,17 @@ class Operation(IRNode):
                         IsTerminator
                     ):
                         raise VerifyException(
-                            "Operation terminates block in single-block region but is not a terminator"
+                            f"Operation {self.name} terminates block in single-block region but is not a terminator"
                         )
             elif len(parent_region.blocks) > 1:
                 if not self.has_trait(IsTerminator):
                     raise VerifyException(
-                        "Operation terminates block in multi-block region but is not a terminator"
+                        f"Operation {self.name} terminates block in multi-block region but is not a terminator"
                     )
         else:
             if self.successors:
                 raise VerifyException(
-                    "Operation with block successors does not belong to a block or a region"
+                    f"Operation {self.name} with block successors does not belong to a block or a region"
                 )
 
         if verify_nested_ops:
