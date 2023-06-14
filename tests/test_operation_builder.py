@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.arith import Constant
 
 from xdsl.ir import Block, OpResult, Region
+from xdsl.traits import IsTerminator
 from xdsl.irdl import (
     AttrSizedRegionSegments,
     AttrSizedSuccessorSegments,
@@ -507,14 +508,17 @@ class SuccessorOp(IRDLOperation):
 
     successor: Successor = successor_def()
 
+    traits = frozenset([IsTerminator()])
+
 
 def test_successor_op_successor():
     """Test operation from IRDL operation definition can have successors"""
     block0 = Block()
-    op = SuccessorOp.build(successors=[block0])
 
+    op = SuccessorOp.build(successors=[block0])
     block1 = Block([op])
-    _ = Region([block1])
+
+    _ = Region([block0, block1])
 
     op.verify()
     assert len(op.successors) == 1
@@ -526,6 +530,8 @@ class OptSuccessorOp(IRDLOperation):
 
     successor: OptSuccessor = opt_successor_def()
 
+    traits = frozenset([IsTerminator()])
+
 
 def test_opt_successor_builder():
     """
@@ -533,11 +539,14 @@ def test_opt_successor_builder():
     successors
     """
     block0 = Block()
-    op1 = OptSuccessorOp.build(successors=[block0])
-    op2 = OptSuccessorOp.build(successors=[None])
 
-    block1 = Block([op2, op1])
-    _ = Region([block1])
+    op1 = OptSuccessorOp.build(successors=[block0])
+    block1 = Block([op1])
+
+    op2 = OptSuccessorOp.build(successors=[None])
+    block2 = Block([op2])
+
+    _ = Region([block0, block1, block2])
 
     op1.verify()
     op2.verify()
@@ -549,6 +558,8 @@ class VarSuccessorOp(IRDLOperation):
 
     successor: VarSuccessor = var_successor_def()
 
+    traits = frozenset([IsTerminator()])
+
 
 def test_var_successor_builder():
     """
@@ -558,7 +569,7 @@ def test_var_successor_builder():
     op = VarSuccessorOp.build(successors=[[block0, block0, block0]])
 
     block1 = Block([op])
-    _ = Region([block1])
+    _ = Region([block0, block1])
 
     op.verify()
     assert len(op.successors) == 3
@@ -572,6 +583,8 @@ class TwoVarSuccessorOp(IRDLOperation):
     res2: VarSuccessor = var_successor_def()
     irdl_options = [AttrSizedSuccessorSegments()]
 
+    traits = frozenset([IsTerminator()])
+
 
 def test_two_var_successor_builder():
     """
@@ -582,10 +595,11 @@ def test_two_var_successor_builder():
     block2 = Block()
     block3 = Block()
     block4 = Block()
-    op2 = TwoVarSuccessorOp.build(successors=[[block1, block2], [block3, block4]])
 
+    op2 = TwoVarSuccessorOp.build(successors=[[block1, block2], [block3, block4]])
     block0 = Block([op2])
-    _ = Region([block0])
+
+    _ = Region([block0, block1, block2, block3, block4])
 
     op2.verify()
     assert op2.successors == [block1, block2, block3, block4]
@@ -603,10 +617,11 @@ def test_two_var_successor_builder2():
     block2 = Block()
     block3 = Block()
     block4 = Block()
-    op2 = TwoVarSuccessorOp.build(successors=[[block1], [block2, block3, block4]])
 
+    op2 = TwoVarSuccessorOp.build(successors=[[block1], [block2, block3, block4]])
     block0 = Block([op2])
-    _ = Region([block0])
+
+    _ = Region([block0, block1, block2, block3, block4])
 
     op2.verify()
     assert op2.successors == [block1, block2, block3, block4]

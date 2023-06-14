@@ -848,6 +848,7 @@ MPI = Dialect(
         Allreduce,
         Bcast,
         Wait,
+        Waitall,
         GetStatusField,
         Init,
         Finalize,
@@ -856,6 +857,8 @@ MPI = Dialect(
         GetDtypeOp,
         AllocateTypeOp,
         VectorGetOp,
+        NullRequestOp,
+        GatherOp,
     ],
     [
         OperationType,

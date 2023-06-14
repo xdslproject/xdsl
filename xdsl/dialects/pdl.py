@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Generic, Iterable, Sequence, TypeVar, cast
+from typing import Annotated, Generic, Iterable, Sequence, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
@@ -126,29 +126,8 @@ class ApplyNativeConstraintOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_constraint"
-    # https://github.com/xdslproject/xdsl/issues/98
-    # name: StringAttr = attr_def(StringAttr)
+    constraint_name: StringAttr = attr_def(StringAttr, attr_name="name")
     args: VarOperand = var_operand_def(AnyPDLType)
-
-    @property
-    def constraint_name(self) -> StringAttr:
-        name = self.attributes.get("name", None)
-        if not isinstance(name, StringAttr):
-            raise VerifyException(
-                f"Operation {self.name} requires a StringAttr 'name' attribute"
-            )
-        return name
-
-    @constraint_name.setter
-    def constraint_name(self, name: StringAttr) -> None:
-        self.attributes["name"] = name
-
-    def verify_(self) -> None:
-        if "name" not in self.attributes:
-            raise VerifyException("ApplyNativeConstraintOp requires a 'name' attribute")
-
-        if not isinstance(self.attributes["name"], StringAttr):
-            raise VerifyException("expected 'name' attribute to be a StringAttr")
 
     def __init__(self, name: str | StringAttr, args: Sequence[SSAValue]) -> None:
         if isinstance(name, str):
@@ -177,23 +156,9 @@ class ApplyNativeRewriteOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_rewrite"
-    # https://github.com/xdslproject/xdsl/issues/98
-    # name: StringAttr = attr_def(StringAttr)
+    constraint_name: StringAttr = attr_def(StringAttr, attr_name="name")
     args: VarOperand = var_operand_def(AnyPDLType)
     res: VarOpResult = var_result_def(AnyPDLType)
-
-    @property
-    def constraint_name(self) -> StringAttr:
-        name = self.attributes.get("name", None)
-        if not isinstance(name, StringAttr):
-            raise VerifyException(
-                f"Operation {self.name} requires a StringAttr 'name' attribute"
-            )
-        return name
-
-    @constraint_name.setter
-    def constraint_name(self, name: StringAttr) -> None:
-        self.attributes["name"] = name
 
     def __init__(
         self,
@@ -479,7 +444,7 @@ class PatternOp(IRDLOperation):
         self,
         benefit: int | IntegerAttr[IntegerType],
         sym_name: str | StringAttr | None,
-        body: Region | Block.BlockCallback | None = None,
+        body: Region | None = None,
     ):
         if isinstance(benefit, int):
             benefit = IntegerAttr(benefit, 16)
@@ -487,8 +452,6 @@ class PatternOp(IRDLOperation):
             sym_name = StringAttr(sym_name)
         if body is None:
             body = Region(Block())
-        elif not isinstance(body, Region):
-            body = Region(Block.from_callable([], body))
         super().__init__(
             attributes={
                 "benefit": benefit,
@@ -737,8 +700,7 @@ class RewriteOp(IRDLOperation):
     name = "pdl.rewrite"
     root: OptOperand = opt_operand_def(OperationType)
     # name of external rewriter function
-    # https://github.com/xdslproject/xdsl/issues/98
-    # name: StringAttr| None = opt_attr_def(StringAttr)
+    name_: StringAttr | None = opt_attr_def(StringAttr, attr_name="name")
     # parameters of external rewriter function
     external_args: VarOperand = var_operand_def(AnyPDLType)
     # body of inline rewriter function
@@ -746,18 +708,10 @@ class RewriteOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    def verify_(self) -> None:
-        if "name" in self.attributes:
-            if not isinstance(self.attributes["name"], StringAttr):
-                raise Exception("expected 'name' attribute to be a StringAttr")
-
     def __init__(
         self,
         root: SSAValue | None,
-        body: Region
-        | Block.BlockCallback
-        | type[Region.DEFAULT]
-        | None = Region.DEFAULT,
+        body: Region | type[Region.DEFAULT] | None = Region.DEFAULT,
         name: str | StringAttr | None = None,
         external_args: Sequence[SSAValue] = (),
     ) -> None:
@@ -778,9 +732,6 @@ class RewriteOp(IRDLOperation):
             regions.append(body)
         elif body is None:
             regions.append([])
-        else:
-            body = cast(Block.BlockCallback, body)
-            regions.append(Region(Block.from_callable([], body)))
 
         attributes: dict[str, Attribute] = {}
         if name is not None:
@@ -817,7 +768,7 @@ class RewriteOp(IRDLOperation):
             printer.print(" ", self.body)
             return
 
-        printer.print(" with ", self.attributes["name"])
+        printer.print(" with ", self.name_)
         if len(self.external_args) != 0:
             printer.print("(")
             print_operands_with_types(printer, self.external_args)

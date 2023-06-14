@@ -201,23 +201,6 @@ class FuncOp(IRDLOperation):
 
         return super().__init__(attributes=attributes, regions=[region])
 
-    @staticmethod
-    def from_callable(
-        name: str,
-        input_types: list[Attribute],
-        return_types: list[Attribute],
-        func: Block.BlockCallback,
-        /,
-        private: bool = False,
-    ):
-        ftype = FunctionType.from_lists(input_types, return_types)
-        return FuncOp(
-            name,
-            ftype,
-            Region([Block.from_callable(input_types, func)]),
-            private=private,
-        )
-
     def verify_(self):
         # Check that the returned value matches the type of the function
         if len(self.body.blocks) != 1:

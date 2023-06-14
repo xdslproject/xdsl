@@ -189,16 +189,6 @@ class FuncOp(IRDLOperation):
             printer.print_region(self.body, False, False)
 
     @staticmethod
-    def from_callable(
-        name: str,
-        input_types: Sequence[Attribute],
-        return_types: Sequence[Attribute],
-        func: Block.BlockCallback,
-    ) -> FuncOp:
-        region = Region(Block.from_callable(input_types, func))
-        return FuncOp(name, (input_types, return_types), region, "private")
-
-    @staticmethod
     def external(
         name: str, input_types: Sequence[Attribute], return_types: Sequence[Attribute]
     ) -> FuncOp:

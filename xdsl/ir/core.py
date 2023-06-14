@@ -777,6 +777,10 @@ class Operation(IRNode):
                     "Operation with block successors must terminate its parent block"
                 )
 
+            for succ in self.successors:
+                if succ.parent != parent_region:
+                    raise VerifyException("Branching to a block of a different region")
+
             # TODO single-block regions dealt when the NoTerminator trait is
             # implemented (https://github.com/xdslproject/xdsl/issues/1093)
             if len(parent_region.blocks) > 1:
@@ -1170,6 +1174,7 @@ class Block(IRNode):
         def __call__(self, *args: BlockArgument) -> list[Operation]:
             ...
 
+    @deprecated("Please use Builder instead")
     @staticmethod
     def from_callable(block_arg_types: Iterable[Attribute], f: BlockCallback):
         b = Block(arg_types=block_arg_types)
