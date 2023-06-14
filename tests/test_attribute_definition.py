@@ -86,39 +86,6 @@ def test_simple_data():
     assert stream.getvalue() == "#bool<True>"
 
 
-class IntListMissingVerifierData(Data[list[int]]):
-    """
-    An attribute holding a list of integers.
-    The definition should fail, since no verifier is provided, and the Data
-    type parameter is not a class.
-    """
-
-    name = "missing_verifier_data"
-
-    @staticmethod
-    def parse_parameter(parser: Parser) -> list[int]:
-        raise NotImplementedError()
-
-    def print_parameter(self, printer: Printer) -> None:
-        raise NotImplementedError()
-
-
-def test_data_with_non_class_param_missing_verifier_failure():
-    """
-    Test that a non-class Data parameter requires the definition of a verifier.
-    """
-    with pytest.raises(Exception) as e:
-        irdl_attr_definition(IntListMissingVerifierData)
-
-    # Python 3.10 and 3.11 have different error messages
-    assert e.value.args[0] in [
-        "In IntListMissingVerifierData definition: "
-        'Cannot infer "verify" method. Type parameter of Data has type GenericAlias.',
-        "In IntListMissingVerifierData definition: "
-        'Cannot infer "verify" method. Type parameter of Data is not a class.',
-    ]
-
-
 @irdl_attr_definition
 class IntListData(Data[list[int]]):
     """

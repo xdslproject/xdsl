@@ -73,6 +73,7 @@ def test_get_definition():
         results=[("result", ResultDef(AnyAttr()))],
         attributes={"attr": AttributeDef(AnyAttr())},
         regions=[("region", RegionDef())],
+        attribute_accessor_names={"attr": "attr"},
     )
 
 
@@ -320,6 +321,68 @@ def test_attribute_setters():
 
     op.opt_attr = None
     assert op.opt_attr is None
+
+
+################################################################################
+#                            Renamed attributes                                #
+################################################################################
+
+# These tests check that operations that have attributes with names that differ
+# from the attribute accessors can be defined.
+
+
+@irdl_op_definition
+class RenamedAttributeOp(IRDLOperation):
+    """
+    An operation that has attributes with different names than the attribute
+    accessors.
+    """
+
+    name = "test.renamed_attribute_op"
+
+    accessor: StringAttr = attr_def(StringAttr, attr_name="attr_name")
+    opt_accessor: StringAttr | None = opt_attr_def(
+        StringAttr, attr_name="opt_attr_name"
+    )
+
+
+def test_renamed_attributes_verify():
+    op = RenamedAttributeOp.create(
+        attributes={
+            "attr_name": StringAttr("test"),
+            "opt_attr_name": StringAttr("test_opt"),
+        }
+    )
+    op.verify()
+
+    op = RenamedAttributeOp.create(
+        attributes={
+            "accessor": StringAttr("test"),
+        }
+    )
+    with pytest.raises(VerifyException, match="attribute attr_name expected"):
+        op.verify()
+
+    op = RenamedAttributeOp.create(
+        attributes={
+            "attr_name": StringAttr("test"),
+            "opt_attr_name": i32,
+        }
+    )
+    with pytest.raises(VerifyException, match="i32 should be of base attribute string"):
+        op.verify()
+
+
+def test_renamed_attributes_accessors():
+    op = RenamedAttributeOp.create(
+        attributes={
+            "attr_name": StringAttr("test"),
+            "opt_attr_name": StringAttr("test_opt"),
+        }
+    )
+
+    assert op.accessor is op.attributes["attr_name"]
+    assert op.opt_accessor is op.attributes["opt_attr_name"]
 
 
 ################################################################################
