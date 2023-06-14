@@ -4,7 +4,7 @@ from typing import Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.traits import IsTerminator
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -306,13 +306,6 @@ class ReduceOp(IRDLOperation):
                 f" but have {self.body.block.args[0].typ} and {self.argument.typ}"
             )
 
-        if len(self.body.block.ops) == 0 or not isinstance(
-            self.body.block.last_op, ReduceReturnOp
-        ):
-            raise VerifyException(
-                "scf.reduce block must terminate with an scf.reduce.return"
-            )
-
         if self.body.block.last_op.result.typ != self.argument.typ:
             raise VerifyException(
                 "Type of scf.reduce.return result at end of scf.reduce block must "
@@ -326,26 +319,13 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result: Operand = operand_def(AnyAttr())
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([HasParent(ReduceOp), IsTerminator()])
 
     @staticmethod
     def get(
         result: SSAValue | Operation,
     ) -> ReduceReturnOp:
         return ReduceReturnOp.build(operands=[result])
-
-    def verify_(self) -> None:
-        assert isinstance(self.parent, Block)
-        assert isinstance(self.parent.parent, Region)
-        if not isinstance(self.parent.parent.parent, ReduceOp):
-            raise VerifyException(
-                "scf.reduce.return can only be part of an scf.reduce operation"
-            )
-        op_index = self.parent.get_operation_index(self)
-        if op_index != len(self.parent.ops) - 1:
-            raise VerifyException(
-                "scf.reduce.return can only appear at the end of an scf.reduce body"
-            )
 
 
 @irdl_op_definition
