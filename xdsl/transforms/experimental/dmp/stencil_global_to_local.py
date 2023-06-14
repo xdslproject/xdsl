@@ -234,12 +234,14 @@ def _div_mod(i: SSAValue, div: int, mod: int) -> list[Operation]:
     # when something goes wrong than see a spectacular runtime crash :D
     assert div > 0, "cannot work with negatives here!"
     assert mod > 0, "cannot work with negatives here!"
+    # make sure we operate on an integer
+    assert isinstance(i.typ, builtin.IntegerType | builtin.IndexType)
     # we can use unsigned arithmetic here, because all we do is divide by positive
     # numbers and modulo positive numbers
     return [
-        div_v := arith.Constant.from_int_and_width(div, _rank_dtype),
+        div_v := arith.Constant.from_int_and_width(div, i.typ),
         div_res := arith.DivUI(i, div_v),
-        mod_v := arith.Constant.from_int_and_width(mod, _rank_dtype),
+        mod_v := arith.Constant.from_int_and_width(mod, i.typ),
         arith.RemUI(div_res, mod_v),
     ]
 
