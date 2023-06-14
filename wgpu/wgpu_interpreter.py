@@ -7,7 +7,7 @@ from itertools import accumulate
 
 from dataclasses import dataclass
 
-from xdsl.dialects import gpu, func, memref
+from xdsl.dialects import gpu, func, memref, arith
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import TensorType, VectorType, ModuleOp
 
@@ -19,7 +19,7 @@ class WGPUFunctions:
     @singledispatchmethod
     def print(self, op: Operation, out_stream: IO[str]):
         raise NotImplementedError(
-            f"Printing the {op.name} to WGSL is not implemeted yet."
+            f"Printing the {op.name} to WGSL is not implemented yet."
         )
 
     @print.register
@@ -34,10 +34,9 @@ class WGPUFunctions:
         print(f"Thats a func : {op}")
         for arg in op.body.block.args:
             memref_typ = cast(MemRefType, arg.typ)
+            auth = "read"
             for use in arg.uses:
                 match use.operation:
-                    case memref.Load():
-                        auth = "read"
                     case memref.Store():
                         auth = "read_write"
                 arguments = f"""
@@ -86,8 +85,6 @@ class WGPUFunctions:
 
     @print.register
     def _(self, op: memref.Store, out_stream: IO[str]):
-        load_ref = op.value.index
-        data_load = f"""data{load_ref + 1}"""
         value = op.value.name_hint
         store_ref = op.memref.index
         data_store = f"""data{store_ref + 1}"""
@@ -108,3 +105,42 @@ class WGPUFunctions:
         # Just print the content
         for o in op.ops:
             self.print(o, out_stream)
+
+    @print.register
+    def _(self, op: arith.Constant, out_stream: IO[str]):
+        # Just print the content
+        value = int(str(op.attributes.get('value')).split()[0])
+        cons_type = op.result.typ
+        if op.result.typ.name == 'index':
+            cons_type = 'u32'
+        name_hint = op.result.name_hint
+        out_stream.write(f"""
+        const {name_hint} : {cons_type} = {value};
+        """)
+
+    @print.register
+    def _(self, op: arith.Addi, out_stream: IO[str]):
+        # Just print the content
+        op_name_hint = op.result.name_hint
+        lhs = op.lhs.name_hint
+        rhs = op.rhs.name_hint
+        out_stream.write(f"""
+        let {op_name_hint} = {lhs} + {rhs}""")
+
+    @print.register
+    def _(self, op: arith.Muli, out_stream: IO[str]):
+        # Just print the content
+        op_name_hint = op.result.name_hint
+        lhs = op.lhs.name_hint
+        rhs = op.rhs.name_hint
+        out_stream.write(f"""
+                let {op_name_hint} = {lhs} * {rhs}""")
+
+    @print.register
+    def _(self, op: arith.Subi, out_stream: IO[str]):
+        # Just print the content
+        op_name_hint = op.result.name_hint
+        lhs = op.lhs.name_hint
+        rhs = op.rhs.name_hint
+        out_stream.write(f"""
+                let {op_name_hint} = {lhs} - {rhs}""")
