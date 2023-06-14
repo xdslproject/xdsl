@@ -80,7 +80,7 @@ def collectBlockArguments(number: int, block: Block):
     args = []
 
     while len(args) < number:
-        args = list(block.args) + args
+        args = list(block.args[0 : number - len(args)]) + args
 
         parent = block.parent_block()
         if parent is None:
@@ -106,6 +106,8 @@ def update_return_target(
 class ReturnOpToMemref(RewritePattern):
     return_target: dict[ReturnOp, list[SSAValue | None]]
 
+    target: Literal["cpu", "gpu"] = "cpu"
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
         store_list: list[memref.Store] = []
@@ -126,6 +128,9 @@ class ReturnOpToMemref(RewritePattern):
             dims = target.typ.get_num_dims()
 
             args = collectBlockArguments(dims, block)
+
+            if self.target == "gpu":
+                args = list(reversed(args))
 
             store_list.append(memref.Store.get(op.arg[j], target, args))
 
@@ -237,6 +242,7 @@ class ApplyOpToParallel(RewritePattern):
             arith.Constant.from_int_and_width(x, builtin.IndexType())
             for x in res_typ.bounds.lb
         ]
+        zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
         one = arith.Constant.from_int_and_width(1, builtin.IndexType())
         upperBounds = [
             arith.Constant.from_int_and_width(x, builtin.IndexType())
@@ -269,13 +275,16 @@ class ApplyOpToParallel(RewritePattern):
                     body=current_region,
                 )
             case "gpu":
+                stencil_rank = len(upperBounds)
                 p = scf.ParallelOp.get(
-                    lowerBounds=lowerBounds,
-                    upperBounds=upperBounds,
-                    steps=[one] * len(upperBounds),
+                    lowerBounds=list(reversed(lowerBounds))
+                    + [zero] * (3 - stencil_rank),
+                    upperBounds=list(reversed(upperBounds))
+                    + [one] * (3 - stencil_rank),
+                    steps=[one] * 3,
                     body=body,
                 )
-                for _ in range(len(upperBounds) - 1):
+                for _ in range(3 - 1):
                     rewriter.insert_block_argument(p.body.block, 0, builtin.IndexType())
 
         # Handle returnd values
@@ -328,12 +337,15 @@ class ApplyOpToParallel(RewritePattern):
         new_results: list[SSAValue | None] = []
         new_results = self.return_targets[return_op]
         # Replace with the loop and necessary constants.
-        rewriter.insert_op_before_matched_op([*lowerBounds, one, *upperBounds, p])
+        rewriter.insert_op_before_matched_op([*lowerBounds, zero, one, *upperBounds, p])
         rewriter.insert_op_after_matched_op([*deallocs])
         rewriter.replace_matched_op([], new_results)
 
 
+@dataclass
 class AccessOpToMemref(RewritePattern):
+    target: Literal["cpu", "gpu"] = "cpu"
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.typ
@@ -351,6 +363,8 @@ class AccessOpToMemref(RewritePattern):
         ]
 
         args = collectBlockArguments(len(memref_offset), block)
+        if self.target == "gpu":
+            args = reversed(args)
 
         off_sum_ops = [arith.Addi(i, x) for i, x in zip(args, off_const_ops)]
 
@@ -504,8 +518,8 @@ class ConvertStencilToLLMLIRPass(ModulePass):
                     StencilStoreToSubview(return_targets),
                     CastOpToMemref(self.target),
                     LoadOpToMemref(),
-                    AccessOpToMemref(),
-                    ReturnOpToMemref(return_targets),
+                    AccessOpToMemref(self.target),
+                    ReturnOpToMemref(return_targets, self.target),
                     IndexOpToLoopSSA(),
                     TrivialExternalLoadOpCleanup(),
                     TrivialExternalStoreOpCleanup(),
