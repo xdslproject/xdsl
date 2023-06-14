@@ -34,7 +34,7 @@ from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr
 from xdsl.dialects import memref
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent
+from xdsl.traits import HasParent, IsTerminator, IsolatedFromAbove
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -183,6 +183,8 @@ class AllReduceOp(IRDLOperation):
     operand: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
     body: Region = region_def()
+
+    traits = frozenset([IsolatedFromAbove()])
 
     @staticmethod
     def from_op(
@@ -338,6 +340,8 @@ class ModuleOp(IRDLOperation):
     body: Region = region_def("single_block")
     sym_name: StringAttr = attr_def(StringAttr)
 
+    traits = frozenset([IsolatedFromAbove()])
+
     @staticmethod
     def get(name: SymbolRefAttr, ops: Sequence[Operation]) -> ModuleOp:
         op = ModuleOp.build(attributes={"sym_name": name}, regions=[ops])
@@ -469,6 +473,8 @@ class LaunchOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
+    traits = frozenset([HasParent(ModuleOp), IsTerminator()])
+
     @staticmethod
     def get() -> ModuleEndOp:
         return ModuleEndOp.build()
@@ -518,19 +524,11 @@ class SubgroupSizeOp(IRDLOperation):
 class TerminatorOp(IRDLOperation):
     name = "gpu.terminator"
 
-    traits = frozenset([HasParent(LaunchOp)])
+    traits = frozenset([HasParent(LaunchOp), IsTerminator()])
 
     @staticmethod
     def get() -> TerminatorOp:
         return TerminatorOp.build()
-
-    def verify_(self) -> None:
-        block = self.parent_block()
-        if block is not None:
-            if self is not block.last_op:
-                raise VerifyException(
-                    "A gpu.terminator must terminate its parent block"
-                )
 
 
 @irdl_op_definition
@@ -555,12 +553,10 @@ class YieldOp(IRDLOperation):
     def get(operands: Sequence[SSAValue | Operation]) -> YieldOp:
         return YieldOp.build([operands])
 
+    traits = frozenset([IsTerminator()])
+
     def verify_(self) -> None:
-        block = self.parent_block()
         op = self.parent_op()
-        if block is not None:
-            if self is not block.last_op:
-                raise VerifyException("A gpu.yield must terminate its parent block")
         if op is not None:
             yield_type = [o.typ for o in self.values]
             result_type = [r.typ for r in op.results]
