@@ -213,9 +213,9 @@ def test_block_not_branching_to_another_region():
     op0 = SuccessorOp.create(successors=[block0])
     block1 = Block([op0])
 
-    _ = Region([block0, block1])
+    region0 = Region([block0, block1])
 
-    op0.verify()
+    region0.verify()
 
 
 def test_empty_block_with_no_parent_region_requires_no_terminator():
@@ -234,9 +234,9 @@ def test_empty_block_with_orphan_single_block_parent_region_requires_no_terminat
     operation requires no terminator operation.
     """
     block0 = Block([])
-    _ = Region([block0])
+    region0 = Region([block0])
 
-    block0.verify()
+    region0.verify()
 
 
 def test_region_clone_into_circular_blocks():
@@ -272,15 +272,16 @@ def test_op_with_successors_not_in_block():
 
 
 def test_op_with_successors_not_in_region():
-    block0 = Block()
-    op0 = TestOp.create(successors=[block0])
-    _ = Block([op0])
+    block1 = Block()
+
+    op0 = TestOp.create(successors=[block1])
+    block0 = Block([op0])
 
     with pytest.raises(
         VerifyException,
         match="Operation with block successors does not belong to a block or a region",
     ):
-        op0.verify()
+        block0.verify()
 
 
 def test_non_empty_block_with_single_block_parent_region_can_have_terminator():
