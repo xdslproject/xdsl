@@ -42,6 +42,7 @@ from xdsl.transforms.experimental.stencil_storage_materialization import (
 )
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
+from xdsl.transforms.cf_to_riscv import CfToRISCV
 from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
@@ -100,6 +101,7 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
+        CfToRISCV,
         ConvertStencilToLLMLIRPass,
         DeadCodeElimination,
         DesymrefyPass,
