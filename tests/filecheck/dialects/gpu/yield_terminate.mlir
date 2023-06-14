@@ -14,4 +14,4 @@
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
-// CHECK: A gpu.yield must terminate its parent block
+// CHECK: 'gpu.yield' must be the last operation in its parent block

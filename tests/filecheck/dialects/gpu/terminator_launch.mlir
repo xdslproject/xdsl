@@ -13,6 +13,7 @@
             %sum = "gpu.all_reduce"(%tx) ({
             }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
             %final = "arith.muli"(%sum, %one) : (index, index) -> index
+            "gpu.terminator"() : () -> ()
         }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
 
         "gpu.module_end"() : () -> ()

@@ -34,7 +34,7 @@ from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr
 from xdsl.dialects import memref
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -344,6 +344,8 @@ class ModuleOp(IRDLOperation):
         return op
 
     def verify_(self):
+        # TODO revisit this terminator requirement once
+        # SingleBlockImplicitTerminator is implemented
         if not isinstance(self.body.block.last_op, ModuleEndOp):
             raise VerifyException("gpu.module must end with gpu.module_end")
 
@@ -469,6 +471,8 @@ class LaunchOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
+    traits = frozenset([HasParent(ModuleOp), IsTerminator()])
+
     @staticmethod
     def get() -> ModuleEndOp:
         return ModuleEndOp.build()
@@ -518,19 +522,11 @@ class SubgroupSizeOp(IRDLOperation):
 class TerminatorOp(IRDLOperation):
     name = "gpu.terminator"
 
-    traits = frozenset([HasParent(LaunchOp)])
+    traits = frozenset([IsTerminator(), HasParent(LaunchOp)])
 
     @staticmethod
     def get() -> TerminatorOp:
         return TerminatorOp.build()
-
-    def verify_(self) -> None:
-        block = self.parent_block()
-        if block is not None:
-            if self is not block.last_op:
-                raise VerifyException(
-                    "A gpu.terminator must terminate its parent block"
-                )
 
 
 @irdl_op_definition
@@ -551,16 +547,14 @@ class YieldOp(IRDLOperation):
     name = "gpu.yield"
     values: VarOperand = var_operand_def(Attribute)
 
+    traits = frozenset([IsTerminator()])
+
     @staticmethod
     def get(operands: Sequence[SSAValue | Operation]) -> YieldOp:
         return YieldOp.build([operands])
 
     def verify_(self) -> None:
-        block = self.parent_block()
         op = self.parent_op()
-        if block is not None:
-            if self is not block.last_op:
-                raise VerifyException("A gpu.yield must terminate its parent block")
         if op is not None:
             yield_type = [o.typ for o in self.values]
             result_type = [r.typ for r in op.results]
