@@ -31,6 +31,11 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
 
     origin = get_origin(hint)
 
+    # For Query building
+    if hasattr(arg, "qbvc__"):
+        qbvc__ = getattr(arg, "qbvc__")
+        return qbvc__.constrain_type(hint)
+
     # get_origin checks that hint is not a parametrized generic
     if isclass(hint) and (origin is None):
         return isinstance(arg, hint)
