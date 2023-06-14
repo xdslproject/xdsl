@@ -53,7 +53,7 @@ def StencilToMemRefType(
 
 @dataclass
 class CastOpToMemref(RewritePattern):
-    gpu: bool = False
+    target: Literal["cpu", "gpu"] = "cpu"
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
@@ -64,7 +64,7 @@ class CastOpToMemref(RewritePattern):
 
         cast = memref.Cast.get(op.field, result_typ)
 
-        if self.gpu:
+        if self.target == "gpu":
             unranked = memref.Cast.get(
                 cast.dest,
                 memref.UnrankedMemrefType.from_type(op.result.typ.element_type),
@@ -216,6 +216,8 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
 class ApplyOpToParallel(RewritePattern):
     return_targets: dict[ReturnOp, list[SSAValue | None]]
 
+    target: Literal["cpu", "gpu"] = "cpu"
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         res_typ = op.res[0].typ
@@ -244,26 +246,37 @@ class ApplyOpToParallel(RewritePattern):
         # Generate an outer parallel loop as well as two inner sequential
         # loops. The inner sequential loops ensure that the computational
         # kernel itself is not slowed down by the OpenMP runtime.
-        current_region = body
-        for i in range(1, dim):
-            for_op = scf.For.get(
-                lb=lowerBounds[-i],
-                ub=upperBounds[-i],
-                step=one,
-                iter_args=[],
-                body=current_region,
-            )
-            block = Block(
-                ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
-            )
-            current_region = Region(block)
+        match self.target:
+            case "cpu":
+                current_region = body
+                for i in range(1, dim):
+                    for_op = scf.For.get(
+                        lb=lowerBounds[-i],
+                        ub=upperBounds[-i],
+                        step=one,
+                        iter_args=[],
+                        body=current_region,
+                    )
+                    block = Block(
+                        ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
+                    )
+                    current_region = Region(block)
 
-        p = scf.ParallelOp.get(
-            lowerBounds=[lowerBounds[0]],
-            upperBounds=[upperBounds[0]],
-            steps=[one],
-            body=current_region,
-        )
+                p = scf.ParallelOp.get(
+                    lowerBounds=[lowerBounds[0]],
+                    upperBounds=[upperBounds[0]],
+                    steps=[one],
+                    body=current_region,
+                )
+            case "gpu":
+                p = scf.ParallelOp.get(
+                    lowerBounds=lowerBounds,
+                    upperBounds=upperBounds,
+                    steps=[one] * len(upperBounds),
+                    body=body,
+                )
+                for _ in range(len(upperBounds) - 1):
+                    rewriter.insert_block_argument(p.body.block, 0, builtin.IndexType())
 
         # Handle returnd values
         for result in op.res:
@@ -487,9 +500,9 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ApplyOpToParallel(return_targets),
+                    ApplyOpToParallel(return_targets, self.target),
                     StencilStoreToSubview(return_targets),
-                    CastOpToMemref(gpu=(self.target == "gpu")),
+                    CastOpToMemref(self.target),
                     LoadOpToMemref(),
                     AccessOpToMemref(),
                     ReturnOpToMemref(return_targets),
