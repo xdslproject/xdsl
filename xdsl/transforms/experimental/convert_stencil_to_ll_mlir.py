@@ -238,54 +238,59 @@ class ApplyOpToParallel(RewritePattern):
         dim = res_typ.get_num_dims()
 
         # Then create the corresponding scf.parallel
-        lowerBounds = [
-            arith.Constant.from_int_and_width(x, builtin.IndexType())
-            for x in res_typ.bounds.lb
-        ]
-        zero = arith.Constant.from_int_and_width(0, builtin.IndexType())
-        one = arith.Constant.from_int_and_width(1, builtin.IndexType())
-        upperBounds = [
-            arith.Constant.from_int_and_width(x, builtin.IndexType())
-            for x in res_typ.bounds.ub
+        boilerplate_ops = [
+            *(
+                lowerBounds := [
+                    arith.Constant.from_int_and_width(x, builtin.IndexType())
+                    for x in res_typ.bounds.lb
+                ]
+            ),
+            one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
+            *(
+                upperBounds := [
+                    arith.Constant.from_int_and_width(x, builtin.IndexType())
+                    for x in res_typ.bounds.ub
+                ]
+            ),
         ]
 
         # Generate an outer parallel loop as well as two inner sequential
         # loops. The inner sequential loops ensure that the computational
         # kernel itself is not slowed down by the OpenMP runtime.
-        match self.target:
-            case "cpu":
-                current_region = body
-                for i in range(1, dim):
-                    for_op = scf.For.get(
-                        lb=lowerBounds[-i],
-                        ub=upperBounds[-i],
-                        step=one,
-                        iter_args=[],
-                        body=current_region,
-                    )
-                    block = Block(
-                        ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
-                    )
-                    current_region = Region(block)
-
-                p = scf.ParallelOp.get(
-                    lowerBounds=[lowerBounds[0]],
-                    upperBounds=[upperBounds[0]],
-                    steps=[one],
+        if self.target == "cpu":
+            current_region = body
+            for i in range(1, dim):
+                for_op = scf.For.get(
+                    lb=lowerBounds[-i],
+                    ub=upperBounds[-i],
+                    step=one,
+                    iter_args=[],
                     body=current_region,
                 )
-            case "gpu":
-                stencil_rank = len(upperBounds)
-                p = scf.ParallelOp.get(
-                    lowerBounds=list(reversed(lowerBounds))
-                    + [zero] * (3 - stencil_rank),
-                    upperBounds=list(reversed(upperBounds))
-                    + [one] * (3 - stencil_rank),
-                    steps=[one] * 3,
-                    body=body,
+                block = Block(
+                    ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
                 )
-                for _ in range(3 - 1):
-                    rewriter.insert_block_argument(p.body.block, 0, builtin.IndexType())
+                current_region = Region(block)
+
+            p = scf.ParallelOp.get(
+                lowerBounds=[lowerBounds[0]],
+                upperBounds=[upperBounds[0]],
+                steps=[one],
+                body=current_region,
+            )
+        if self.target == "gpu":
+            stencil_rank = len(upperBounds)
+            boilerplate_ops.insert(
+                1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
+            )
+            p = scf.ParallelOp.get(
+                lowerBounds=list(reversed(lowerBounds)) + [zero] * (3 - stencil_rank),
+                upperBounds=list(reversed(upperBounds)) + [one] * (3 - stencil_rank),
+                steps=[one] * 3,
+                body=body,
+            )
+            for _ in range(3 - 1):
+                rewriter.insert_block_argument(p.body.block, 0, builtin.IndexType())
 
         # Handle returnd values
         for result in op.res:
@@ -337,7 +342,7 @@ class ApplyOpToParallel(RewritePattern):
         new_results: list[SSAValue | None] = []
         new_results = self.return_targets[return_op]
         # Replace with the loop and necessary constants.
-        rewriter.insert_op_before_matched_op([*lowerBounds, zero, one, *upperBounds, p])
+        rewriter.insert_op_before_matched_op([*boilerplate_ops, p])
         rewriter.insert_op_after_matched_op([*deallocs])
         rewriter.replace_matched_op([], new_results)
 
