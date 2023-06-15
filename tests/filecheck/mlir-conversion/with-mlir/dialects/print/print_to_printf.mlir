@@ -1,5 +1,5 @@
 // RUN: xdsl-opt %s -p print-to-printf | mlir-opt --test-lower-to-llvm | mlir-translate --mlir-to-llvmir | filecheck %s
-// this tests straight to llvmir, because I feel that that's a reasonable thing to do.
+// this tests straight to llvmir to verify intended target compatibility
 
 builtin.module {
     "func.func"() ({

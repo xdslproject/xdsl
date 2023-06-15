@@ -111,7 +111,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
             if isinstance(part, str):
                 format_str += part
             elif isinstance(part.typ, builtin.IndexType):
-                # index must be cast to fixed bitwidth (I think) before printing
+                # index must be cast to fixed bitwidth before printing
                 casts.append(new_val := arith.IndexCastOp.get(part, builtin.i64))
                 args.append(new_val.result)
                 format_str += "%li"
@@ -165,7 +165,7 @@ class PrintToPintf(ModulePass):
 
         PatternRewriteWalker(add_printf_call).rewrite_module(op)
 
-        # TODO: is this a "nice" thing to do or big doo doo?
+        # TODO: is this a "nice" thing to do or big no-no?
         op.body.block.add_ops(
             [
                 llvm.FuncOp(
