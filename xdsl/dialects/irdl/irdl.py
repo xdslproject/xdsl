@@ -25,7 +25,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent
+from xdsl.traits import HasParent, IsTerminator, NoTerminator
 
 ################################################################################
 # Dialect, Operation, and Attribute definitions                                #
@@ -47,6 +47,8 @@ class DialectOp(IRDLOperation):
 
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
+
+    traits = frozenset([NoTerminator()])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -76,7 +78,7 @@ class TypeOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([HasParent(DialectOp)])
+    traits = frozenset([NoTerminator(), HasParent(DialectOp)])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -106,7 +108,7 @@ class AttributeOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([HasParent(DialectOp)])
+    traits = frozenset([NoTerminator(), HasParent(DialectOp)])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -162,7 +164,7 @@ class OperationOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([HasParent(DialectOp)])
+    traits = frozenset([NoTerminator(), HasParent(DialectOp)])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -217,7 +219,7 @@ class ResultsOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
-    traits = frozenset([HasParent(OperationOp)])
+    traits = frozenset([IsTerminator(), HasParent(OperationOp)])
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])
