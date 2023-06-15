@@ -58,7 +58,7 @@ from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
 from xdsl.transforms.experimental.dmp.scatter_gather import (
     DmpScatterGatherTrivialLowering,
 )
-from xdsl.transforms.print_to_println import PrintToPrintf
+from xdsl.transforms.print_to_println import PrintToPrintf, PrintToPucharPass
 
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
@@ -111,6 +111,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         LowerSnitchPass,
         LowerSnitchRuntimePass,
         PrintToPrintf,
+        PrintToPucharPass,
         RISCVRegisterAllocation,
         StencilShapeInferencePass,
         StencilStorageMaterializationPass,

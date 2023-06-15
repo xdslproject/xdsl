@@ -3,6 +3,7 @@ from typing import Iterable, Sequence
 import hashlib
 import re
 
+from utils.hints import isa
 from xdsl.ir import SSAValue, Attribute, MLContext, Operation
 from xdsl.dialects import print, builtin, arith, llvm
 from xdsl.pattern_rewriter import (
@@ -176,5 +177,85 @@ class PrintToPrintf(ModulePass):
                     linkage=llvm.LinkageAttr("external"),
                 ),
                 *add_printf_call.collected_global_symbs.values(),
+            ]
+        )
+
+
+def _emit_putch_for_str(string: str) -> Iterable[Operation]:
+    for c in string.encode():
+        val = arith.Constant.from_int_and_width(c, 32)
+        yield val
+        yield llvm.CallOp("putchar", val)
+
+
+def _emit_itoa_inline(number: SSAValue) -> Iterable[Operation]:
+    """
+    Emit the equivalent of:
+    def itoa_inline(num: int):
+        if num == 0:
+            putchar("0")
+            return
+
+        if num < 0:
+            putchar("-")
+            itoa_inline(-num)
+            return
+
+        size = ceil(log10(num + 1))
+
+        for i in range(size):
+            pos = size - i - 1
+            digit = (num // (10**pos)) % 10
+            putchar(digit)
+
+    """
+    return []
+
+
+class PrintToPutchar(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: print.PrintLnOp, rewriter: PatternRewriter, /):
+        parts = _format_string_spec_from_print_op(op)
+
+        new_ops: list[Operation] = []
+
+        for part in parts:
+            if isinstance(part, str):
+                new_ops.extend(_emit_putch_for_str(part))
+                continue
+            assert isinstance(part, SSAValue)
+
+            if isinstance(part.owner, arith.Constant):
+                if isa(part.owner.value, builtin.IntegerAttr | builtin.FloatAttr):
+                    new_ops.extend(
+                        _emit_putch_for_str(str(part.owner.value.value.data))
+                    )
+                    continue
+
+            if isinstance(part.typ, builtin.IntegerType):
+                new_ops.extend(_emit_itoa_inline(part))
+
+            raise ValueError("Cannot putchar {}".format(part))
+
+        # add the newline
+        new_ops.extend(_emit_putch_for_str("\n"))
+
+        rewriter.replace_matched_op(new_ops)
+
+
+class PrintToPucharPass(ModulePass):
+    name = "print-to-putchar"
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(PrintToPutchar()).rewrite_module(op)
+
+        # TODO: is this a "nice" thing to do or big no-no?
+        op.body.block.add_ops(
+            [
+                llvm.FuncOp(
+                    "putchar",
+                    llvm.LLVMFunctionType([builtin.i32]),
+                    linkage=llvm.LinkageAttr("external"),
+                ),
             ]
         )
