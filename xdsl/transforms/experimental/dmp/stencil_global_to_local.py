@@ -1,3 +1,4 @@
+from abc import ABC
 from dataclasses import dataclass, field
 from typing import TypeVar, Iterable, Callable, cast, ClassVar
 
@@ -678,7 +679,7 @@ class DmpSwapShapeInference:
 
 
 @dataclass
-class DmpDecompositionPass(ModulePass):
+class DmpDecompositionPass(ModulePass, ABC):
     """
     Represents a pass that takes a strategy as input
     """
@@ -687,8 +688,6 @@ class DmpDecompositionPass(ModulePass):
         "2d-horizontal": HorizontalSlices2D,
         "2d-grid": GridSlice2d,
     }
-
-    name = "dmp-decompose-2d"
 
     strategy: str
 
@@ -712,16 +711,22 @@ class GlobalStencilToLocalStencil2DHorizontal(DmpDecompositionPass):
     pass pipeline!
     """
 
+    name = "dmp-decompose-2d"
+
+    restrict_domain: bool = True
+
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         strategy = self.get_strategy()
 
+        rewrites: list[RewritePattern] = [
+            AddHaloExchangeOps(strategy),
+        ]
+
+        if self.restrict_domain:
+            rewrites.append(ChangeStoreOpSizes(strategy))
+
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    ChangeStoreOpSizes(strategy),
-                    AddHaloExchangeOps(strategy),
-                ]
-            ),
+            GreedyRewritePatternApplier(rewrites),
             apply_recursively=False,
         ).rewrite_module(op)
 
