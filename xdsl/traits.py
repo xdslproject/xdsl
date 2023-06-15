@@ -5,10 +5,12 @@ from typing import (
     TYPE_CHECKING,
     Any,
     TypeVar,
+    cast,
 )
 
 if TYPE_CHECKING:
     from xdsl.ir import Operation, Region
+    from xdsl.dialects.builtin import StringAttr
 
 
 @dataclass(frozen=True)
@@ -110,3 +112,27 @@ class IsolatedFromAbove(OpTrait):
                     # too; in which case it will check itself.
                     if not child_op.has_trait(IsolatedFromAbove):
                         regions += child_op.regions
+
+
+class SymbolOpInterface(OpTrait):
+    @staticmethod
+    def get_sym_name(op: Operation) -> StringAttr:
+        """
+        Returns the symbol of the operation
+        """
+        return cast(StringAttr, op.attributes["sym_name"])
+
+    def verify(self, op: Operation) -> None:
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr
+
+        if "sym_name" not in op.attributes:
+            raise VerifyException(
+                f"Operation {op.name} must have sym_name to conform to {SymbolOpInterface.__name__}"
+            )
+
+        sym_name = op.attributes["sym_name"]
+        if not isinstance(sym_name, StringAttr):
+            raise VerifyException(
+                f"Operation {op.name} sym_name is not a StringAttr to conform to {SymbolOpInterface.__name__}"
+            )

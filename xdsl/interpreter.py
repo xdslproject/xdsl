@@ -5,6 +5,7 @@ from typing import IO, Any, Callable, Generator, Iterable, TypeAlias, TypeVar, P
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
+from xdsl.traits import SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -208,6 +209,18 @@ class Interpreter:
         default_factory=lambda: InterpreterContext(name="root")
     )
     file: IO[str] | None = field(default=None)
+    _symbol_table: dict[str, Operation] | None = None
+
+    @property
+    def symbol_table(self) -> dict[str, Operation]:
+        if self._symbol_table is None:
+            self._symbol_table = {}
+
+            for op in self.module.walk():
+                if op.has_trait(SymbolOpInterface):
+                    symbol = SymbolOpInterface.get_sym_name(op)
+                    self._symbol_table[symbol.data] = op
+        return self._symbol_table
 
     def get_values(self, values: Iterable[SSAValue]) -> tuple[Any, ...]:
         """
@@ -252,22 +265,33 @@ class Interpreter:
         """
         self._impls.register_from(impls, override=override)
 
-    def run(self, op: Operation):
+    def run(self, op: Operation | str):
         """
         Fetches the implemetation for the given op, passes it the Python values
         associated with the SSA operands, and assigns the results to the
         operation's results.
         """
+        if isinstance(op, str):
+            op = self.get_op_for_symbol(op)
+
         inputs = self.get_values(op.operands)
-        results = self._impls.run(self, op, inputs)
+        results = self.call(op, *inputs)
         self.interpreter_assert(
             len(op.results) == len(results), "Incorrect number of results"
         )
         self.set_values(zip(op.results, results))
 
-    def run_module(self):
-        """Starts execution of `self.module`"""
-        self.run(self.module)
+    def call(self, op: Operation | str, *args: Any) -> tuple[Any, ...]:
+        if isinstance(op, str):
+            op = self.get_op_for_symbol(op)
+        results = self._impls.run(self, op, args)
+        return results
+
+    def get_op_for_symbol(self, symbol: str) -> Operation:
+        if symbol in self.symbol_table:
+            return self.symbol_table[symbol]
+        else:
+            raise InterpretationError(f'Could not find symbol "{symbol}"')
 
     def print(self, *args: Any, **kwargs: Any):
         """Print to current file."""

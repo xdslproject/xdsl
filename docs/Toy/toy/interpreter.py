@@ -6,9 +6,8 @@ from itertools import accumulate
 
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import TensorType, VectorType, ModuleOp
+from xdsl.dialects.builtin import TensorType, VectorType
 from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
-from xdsl.utils.exceptions import InterpretationError
 
 from .dialects import toy as toy
 
@@ -37,15 +36,6 @@ class Tensor:
 
 @register_impls
 class ToyFunctions(InterpreterFunctions):
-    def run_toy_func(
-        self, interpreter: Interpreter, name: str, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        for op in interpreter.module.ops:
-            if isinstance(op, toy.FuncOp) and op.sym_name.data == name:
-                return self.run_func(interpreter, op, args)
-
-        raise InterpretationError(f"Could not find toy function with name: {name}")
-
     @impl(toy.PrintOp)
     def run_print(
         self, interpreter: Interpreter, op: toy.PrintOp, args: tuple[Any, ...]
@@ -123,7 +113,7 @@ class ToyFunctions(InterpreterFunctions):
     def run_generic_call(
         self, interpreter: Interpreter, op: toy.GenericCallOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        return self.run_toy_func(interpreter, op.callee.string_value(), args)
+        return interpreter.call(op.callee.string_value(), *args)
 
     @impl(toy.TransposeOp)
     def run_transpose(
@@ -143,9 +133,3 @@ class ToyFunctions(InterpreterFunctions):
         result = Tensor(new_data, arg.shape[::-1])
 
         return (result,)
-
-    @impl(ModuleOp)
-    def run_module(
-        self, interpreter: Interpreter, op: ModuleOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        return self.run_toy_func(interpreter, "main", args)
