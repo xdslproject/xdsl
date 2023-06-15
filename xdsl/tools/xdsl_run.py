@@ -6,6 +6,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.runner.arith import ArithFunctions
 from xdsl.runner.builtin import BuiltinFunctions
 from xdsl.runner.func import FuncFunctions
+from xdsl.runner.print import PrintFunctions
 from xdsl.utils.hints import isa
 from xdsl.xdsl_opt_main import xDSLOptMain
 
@@ -27,6 +28,7 @@ class xDSLRunMain(xDSLOptMain):
                     interpreter.register_implementations(BuiltinFunctions())
                     interpreter.register_implementations(FuncFunctions())
                     interpreter.register_implementations(ArithFunctions())
+                    interpreter.register_implementations(PrintFunctions())
                     interpreter.run(module)
                     for f in module.walk():
                         if isinstance(f, FuncOp) and f.sym_name == StringAttr("main"):
@@ -41,7 +43,7 @@ class xDSLRunMain(xDSLOptMain):
                             ), f"Expected main symbol's terminator to have an index operand"
                             for ins in f.body.ops:
                                 interpreter.run(ins)
-                            return interpreter.get_values(last.operands)[0]
+                            return interpreter.get_values(last.operands[0:])[0]
         finally:
             if input is not sys.stdout:
                 input.close()

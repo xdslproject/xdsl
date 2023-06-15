@@ -18,13 +18,22 @@ class FuncFunctions(InterpreterFunctions):
     def run_call(
         self, interpreter: Interpreter, op: Call, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        assert (parent := op.parent_op()) is not None
-        for f in parent.walk():
-            if isinstance(f, FuncOp) and f.sym_name == StringAttr("main"):
-                for instruction in f.body.ops:
-                    interpreter.run(instruction)
-                return interpreter.get_values(cast(Return, f.body.ops.last).operands)
-        raise InterpretationError(f"Didn't find @{op.callee.string_value}")
+        root = op.parent_op()
+        while (nroot := root.parent_op()) is not None:
+            root = nroot
+        for f in root.walk():
+            if isinstance(f, FuncOp):
+                if f.sym_name.data == op.callee.root_reference.data:
+                    interpreter.push_scope()
+                    interpreter.set_values(zip(f.body.blocks[0].args, args))
+                    for instruction in f.body.ops:
+                        interpreter.run(instruction)
+                    return interpreter.get_values(
+                        cast(Return, f.body.ops.last).operands
+                    )
+                else:
+                    print(f.sym_name, op.callee.root_reference)
+        raise InterpretationError(f"Didn't find @{op.callee.string_value()}")
 
     @impl(Return)
     def run_return(
