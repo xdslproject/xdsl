@@ -1384,6 +1384,17 @@ class Block(IRNode):
                 )
             operation.verify()
 
+        if len(self.ops) == 0:
+            if (region_parent := self.parent) is not None and (
+                parent_op := region_parent.parent
+            ) is not None:
+                if len(region_parent.blocks) == 1 and not parent_op.has_trait(
+                    NoTerminator
+                ):
+                    raise VerifyException(
+                        f"Operation {parent_op.name} contains empty block in single-block region that expects at least a terminator"
+                    )
+
     def drop_all_references(self) -> None:
         """
         Drop all references to other operations.
