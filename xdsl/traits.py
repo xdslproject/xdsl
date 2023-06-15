@@ -116,7 +116,7 @@ class IsolatedFromAbove(OpTrait):
 
 class SymbolOpInterface(OpTrait):
     @staticmethod
-    def get_sym_name(op: Operation) -> StringAttr:
+    def get_sym_attr_name(op: Operation) -> StringAttr:
         """
         Returns the symbol of the operation
         """
