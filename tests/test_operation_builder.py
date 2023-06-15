@@ -358,8 +358,8 @@ def test_region_op_blocks():
 
 
 def test_region_op_ops():
-    op1 = RegionOp.build(regions=[[Block()]])
-    op2 = RegionOp.build(regions=[[Block()]])
+    op1 = RegionOp.build(regions=[[Block([TestTermOp.create()])]])
+    op2 = RegionOp.build(regions=[[Block([TestTermOp.create()])]])
     op = RegionOp.build(regions=[[op1, op2, TestTermOp.create()]])
     op.verify()
     assert len(op.region.blocks) == 1
@@ -385,7 +385,7 @@ class SBRegionOp(IRDLOperation):
 
 
 def test_sbregion_one_block():
-    op = SBRegionOp.build(regions=[[Block()]])
+    op = SBRegionOp.build(regions=[[Block([TestTermOp.create()])]])
     op.verify()
     assert len(op.region.blocks) == 1
 
@@ -419,7 +419,7 @@ class OptSBRegionOp(IRDLOperation):
 
 
 def test_opt_sbregion_one_block():
-    op1 = OptSBRegionOp.build(regions=[[[Block()]]])
+    op1 = OptSBRegionOp.build(regions=[[[Block([TestTermOp.create()])]]])
     op2 = OptSBRegionOp.build(regions=[[]])
     op1.verify()
     op2.verify()
@@ -450,7 +450,7 @@ class VarSBRegionOp(IRDLOperation):
 
 
 def test_var_sbregion_one_block():
-    op1 = VarSBRegionOp.build(regions=[[[Block()]]])
+    op1 = VarSBRegionOp.build(regions=[[[Block([TestTermOp.create()])]]])
     op2 = VarSBRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op1.verify()
     op2.verify()
