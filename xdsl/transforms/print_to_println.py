@@ -29,7 +29,7 @@ def legalize_str(val: str):
     The resulting string consists only of ascii letters, underscores and digits
     """
     val = re.sub(r"(\s+|\.)", "_", val)
-    val = re.sub(r"[^A-Za-z0-9_]+", "", val).rstrip("_")
+    val = re.sub(r"[^A-Za-z0-9_]+", "", val).strip("_")
     return val
 
 
