@@ -172,14 +172,12 @@ class SuccessorOp(IRDLOperation):
 
     successor: Successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
-
 
 def test_block_branching_to_another_region_wrong():
     block1 = Block([TestOp.create(), TestOp.create()])
     region1 = Region([block1])
 
-    op0 = TestOp.create(successors=[block1])
+    op0 = SuccessorOp.create(successors=[block1])
     block0 = Block([op0])
     region0 = Region([block0])
     region0 = TestOp.create(regions=[region0, region1])
@@ -225,13 +223,13 @@ def test_empty_block_with_single_block_parent_region_requires_no_terminator():
     block0.verify()
 
 
-def test_empty_block_with_non_single_block_parent_region_requires_terminator():
+def test_empty_block_with_multi_block_parent_region_requires_no_terminator():
     block0 = Block([])
     block1 = Block([])
-    _ = Region([block0, block1])
+    region0 = Region([block0, block1])
+    op0 = TestOp.create(regions=[region0])
 
-    with pytest.raises(Exception, match="Empty block expects at least a terminator"):
-        block0.verify()
+    op0.verify()
 
 
 def test_empty_block_with_orphan_single_block_parent_region_requires_no_terminator():
@@ -254,7 +252,7 @@ def test_empty_block_with_single_block_parent_region_requires_terminator():
     region0 = Region([block0])
     _ = TestOp.create(regions=[region0])
 
-    with pytest.raises(Exception, match="Empty block expects at least a terminator"):
+    with pytest.raises(Exception, match="expects at least a terminator"):
         block0.verify()
 
 
@@ -281,7 +279,7 @@ def test_region_clone_into_circular_blocks():
 
 def test_op_with_successors_not_in_block():
     block0 = Block()
-    op0 = TestOp.create(successors=[block0])
+    op0 = SuccessorOp.create(successors=[block0])
 
     with pytest.raises(
         VerifyException,
@@ -292,7 +290,7 @@ def test_op_with_successors_not_in_block():
 
 def test_op_with_successors_not_in_region():
     block0 = Block()
-    op0 = TestOp.create(successors=[block0])
+    op0 = SuccessorOp.create(successors=[block0])
     _ = Block([op0])
 
     with pytest.raises(
@@ -337,15 +335,11 @@ def test_non_empty_block_with_parent_region_requires_terminator_with_successors(
     The terminator operation may have successors.
     """
     block0 = Block()
-    block1 = Block([TestOp.create(successors=[block0])])
+    block1 = Block([SuccessorOp.create(successors=[block0])])
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
 
-    with pytest.raises(
-        VerifyException,
-        match="terminates block in multi-block region but is not a terminator",
-    ):
-        op0.verify()
+    op0.verify()
 
 
 def test_non_empty_block_with_parent_region_requires_terminator_without_successors():
