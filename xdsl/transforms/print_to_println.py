@@ -157,7 +157,7 @@ class AddGlobalSymbols(RewritePattern):
         rewriter.insert_op_at_end(self.symbols, op.body.block)
 
 
-class PrintToPintf(ModulePass):
+class PrintToPrintf(ModulePass):
     name = "print-to-printf"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
