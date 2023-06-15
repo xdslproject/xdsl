@@ -74,7 +74,10 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Data,
 )
+from xdsl.ir.affine import AffineMap
 from xdsl.utils.hints import isa
+
+from . import affine_parser as affine_parser
 
 
 @dataclass
@@ -252,6 +255,12 @@ class Parser(ABC):
         self.forward_block_references = dict()
         self.forward_ssa_references = dict()
         self.allow_unregistered_dialect = allow_unregistered_dialect
+
+    def resume_from_state(self, state: ParserState):
+        """
+        Resume parsing from a given parsing state.
+        """
+        self.parser_state = state
 
     def resume_from(self, pos: Position):
         """
@@ -2324,3 +2333,7 @@ class Parser(ABC):
             self.parse_unresolved_operand,
             " in operation argument list",
         )
+
+    def parse_affine_map(self) -> AffineMap:
+        affp = affine_parser.AffineParser(self.parser_state)
+        return affp.parse_affine_map()

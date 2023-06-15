@@ -732,3 +732,12 @@ def test_parse_number_error(text: str):
     parser = Parser(MLContext(), text)
     with pytest.raises(ParseError):
         parser.parse_number()
+
+
+def test_affine_parser(map: str):
+    parser = Parser(MLContext(), map)
+    affine_map = parser.parse_affine_map()
+    print(affine_map)
+
+
+test_affine_parser("(x, y)[s] -> (x + 1, y - 1)")
