@@ -74,7 +74,8 @@ def _format_str_for_typ(t: Attribute):
             return "%i"
         case builtin.i64:
             return "%li"
-    raise ValueError(f"Cannot find printf code for {t}")
+        case _:
+            raise ValueError(f"Cannot find printf code for {t}")
 
 
 class PrintlnOpToPrintfCall(RewritePattern):
