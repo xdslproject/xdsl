@@ -61,10 +61,10 @@ def convert_dialect(dialect: DialectOp) -> str:
     for op in dialect.body.ops:
         if isinstance(op, TypeOp) or isinstance(op, AttributeOp):
             res += convert_type_or_attr(op, dialect.sym_name.data) + "\n\n"
-            ops += [op.sym_name.data]
+            attrs += [op.sym_name.data]
         if isinstance(op, OperationOp):
             res += convert_op(op, dialect.sym_name.data) + "\n\n"
-            attrs += [op.sym_name.data]
+            ops += [op.sym_name.data]
     op_list = "[" + ", ".join(ops) + "]"
     attr_list = "[" + ", ".join(attrs) + "]"
     return res + dialect.sym_name.data + f" = Dialect({op_list}, {attr_list})"
