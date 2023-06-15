@@ -769,40 +769,41 @@ class Operation(IRNode):
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
 
-        if (parent_block := self.parent) is not None and (
-            parent_region := parent_block.parent
-        ) is not None:
-            if self.successors and parent_block.last_op != self:
+        parent_block = self.parent
+        parent_region = None if parent_block is None else parent_block.parent
+
+        if self.successors:
+            if parent_block is None or parent_region is None:
+                raise VerifyException(
+                    f"Operation {self.name} with block successors does not belong to a block or a region"
+                )
+
+            if parent_block.last_op != self:
                 raise VerifyException(
                     f"Operation {self.name} with block successors must terminate its parent block"
                 )
 
             for succ in self.successors:
-                if succ.parent != parent_region:
+                if succ.parent != parent_block.parent:
                     raise VerifyException(
                         f"Operation {self.name} is branching to a block of a different region"
                     )
 
-            if len(parent_region.blocks) == 1:
-                if (
-                    parent_op := parent_region.parent
-                ) is not None and not parent_op.has_trait(NoTerminator):
-                    if parent_block.last_op == self and not self.has_trait(
-                        IsTerminator
-                    ):
+        if parent_block is not None and parent_region is not None:
+            if parent_block.last_op == self:
+                if len(parent_region.blocks) == 1:
+                    if (
+                        parent_op := parent_region.parent
+                    ) is not None and not parent_op.has_trait(NoTerminator):
+                        if not self.has_trait(IsTerminator):
+                            raise VerifyException(
+                                f"Operation {self.name} terminates block in single-block region but is not a terminator"
+                            )
+                elif len(parent_region.blocks) > 1:
+                    if len(self.successors) == 0 and not self.has_trait(IsTerminator):
                         raise VerifyException(
-                            f"Operation {self.name} terminates block in single-block region but is not a terminator"
+                            f"Operation {self.name} terminates block in multi-block region but is not a terminator"
                         )
-            elif len(parent_region.blocks) > 1:
-                if not self.has_trait(IsTerminator):
-                    raise VerifyException(
-                        f"Operation {self.name} terminates block in multi-block region but is not a terminator"
-                    )
-        else:
-            if self.successors:
-                raise VerifyException(
-                    f"Operation {self.name} with block successors does not belong to a block or a region"
-                )
 
         if verify_nested_ops:
             for region in self.regions:
