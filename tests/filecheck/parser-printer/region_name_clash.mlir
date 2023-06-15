@@ -8,23 +8,23 @@
   // Two operations that share a basic block name and a argument name
   "test.op"() ({
   ^0(%0 : i32):
-    "test.op"(%0) : (i32) -> ()
+    "test.termop"(%0) : (i32) -> ()
   }) : () -> ()
 
   // CHECK:      "test.op"() ({
   // CHECK-NEXT: ^{{.*}}(%{{.*}} : i32):
-  // CHECK-NEXT:   "test.op"(%{{.*}}) : (i32) -> ()
+  // CHECK-NEXT:   "test.termop"(%{{.*}}) : (i32) -> ()
   // CHECK-NEXT: }) : () -> ()
 
 
   "test.op"() ({
   ^0(%0 : i64):
-    "test.op"(%0) : (i64) -> ()
+    "test.termop"(%0) : (i64) -> ()
   }) : () -> ()
 
   // CHECK:      "test.op"() ({
   // CHECK-NEXT: ^{{.*}}(%{{.*}} : i64):
-  // CHECK-NEXT:   "test.op"(%{{.*}}) : (i64) -> ()
+  // CHECK-NEXT:   "test.termop"(%{{.*}}) : (i64) -> ()
   // CHECK-NEXT: }) : () -> ()
 
   // Check that blocks in nested regions can clash names with the outer region blocks
@@ -35,7 +35,7 @@
     }, {
       ^0:
     }) : (i1) -> ()
-    "test.op"(%0) : (i1) -> ()
+    "test.termop"(%0) : (i1) -> ()
   }) : () -> ()
 
   // CHECK:      "test.op"() ({
@@ -45,7 +45,7 @@
   // CHECK-NEXT:   }, {
   // CHECK-NEXT:   ^{{.*}}:
   // CHECK-NEXT:   }) : (i1) -> ()
-  // CHECK-NEXT:   "test.op"(%{{.*}}) : (i1) -> ()
+  // CHECK-NEXT:   "test.termop"(%{{.*}}) : (i1) -> ()
   // CHECK-NEXT: }) : () -> ()
 
 
@@ -53,24 +53,24 @@
   "test.op"() ({
   ^0(%0 : i1):
     "test.op"(%0) ({
-      %1 = "test.op"() : () -> i32
+      %1 = "test.termop"() : () -> i32
     }, {
     ^1:
     }) : (i1) -> ()
     %1 = "test.op"() : () -> i32
-    "test.op"(%0) : (i1) -> ()
+    "test.termop"(%0) : (i1) -> ()
   }): () -> ()
 
 
   // CHECK:      "test.op"() ({
   // CHECK-NEXT: ^{{.*}}(%{{.*}} : i1):
   // CHECK-NEXT:   "test.op"(%{{.*}}) ({
-  // CHECK-NEXT:     %{{.*}} = "test.op"() : () -> i32
+  // CHECK-NEXT:     %{{.*}} = "test.termop"() : () -> i32
   // CHECK-NEXT:   }, {
   // CHECK-NEXT:   ^{{.*}}:
   // CHECK-NEXT:   }) : (i1) -> ()
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
-  // CHECK-NEXT:   "test.op"(%{{.*}}) : (i1) -> ()
+  // CHECK-NEXT:   "test.termop"(%{{.*}}) : (i1) -> ()
   // CHECK-NEXT: }) : () -> ()
 
 
