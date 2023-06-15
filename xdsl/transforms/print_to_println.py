@@ -78,18 +78,15 @@ def _format_str_for_typ(t: Attribute):
 
 
 class PrintlnOpToPrintfCall(RewritePattern):
-    printf_prefix: str
-    printf_count: int
-
     collected_global_symbs: dict[str, llvm.GlobalOp]
 
     def __init__(self):
-        self.printf_prefix = "printf"
-        self.printf_count = 0
         self.collected_global_symbs = dict()
 
     def _construct_global(self, val: str):
-        self.printf_count += 1
+        """
+        Constructs an llvm.global operation containing the string.
+        """
         data = val.encode() + b"\x00"
 
         t_type = builtin.TensorType.from_type_and_list(i8, [len(data)])
@@ -107,6 +104,8 @@ class PrintlnOpToPrintfCall(RewritePattern):
         format_str = ""
         args: list[SSAValue] = []
         casts: list[Operation] = []
+        # make sure all arguments are in the format libc expects them to be
+        # e.g. floats must be promoted to double before calling
         for part in _format_string_spec_from_print_op(op):
             if isinstance(part, str):
                 format_str += part
@@ -165,6 +164,7 @@ class PrintToPintf(ModulePass):
 
         PatternRewriteWalker(add_printf_call).rewrite_module(op)
 
+        # TODO: is this a "nice" thing to do or big doo doo?
         op.body.block.add_ops(
             [
                 llvm.FuncOp(
