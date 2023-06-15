@@ -36,6 +36,13 @@ class Tensor:
 
 @register_impls
 class ToyFunctions(InterpreterFunctions):
+    def run_toy_func(
+        self, interpreter: Interpreter, name: str, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        op = interpreter.get_op_for_symbol(name)
+        assert isinstance(op, toy.FuncOp)
+        return self.run_func(interpreter, op, args)
+
     @impl(toy.PrintOp)
     def run_print(
         self, interpreter: Interpreter, op: toy.PrintOp, args: tuple[Any, ...]
@@ -113,7 +120,7 @@ class ToyFunctions(InterpreterFunctions):
     def run_generic_call(
         self, interpreter: Interpreter, op: toy.GenericCallOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        return interpreter.call(op.callee.string_value(), *args)
+        return self.run_toy_func(interpreter, op.callee.string_value(), args)
 
     @impl(toy.TransposeOp)
     def run_transpose(

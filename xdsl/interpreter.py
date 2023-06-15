@@ -275,17 +275,11 @@ class Interpreter:
             op = self.get_op_for_symbol(op)
 
         inputs = self.get_values(op.operands)
-        results = self.call(op, *inputs)
+        results = self._impls.run(self, op, inputs)
         self.interpreter_assert(
             len(op.results) == len(results), "Incorrect number of results"
         )
         self.set_values(zip(op.results, results))
-
-    def call(self, op: Operation | str, *args: Any) -> tuple[Any, ...]:
-        if isinstance(op, str):
-            op = self.get_op_for_symbol(op)
-        results = self._impls.run(self, op, args)
-        return results
 
     def get_op_for_symbol(self, symbol: str) -> Operation:
         if symbol in self.symbol_table:
