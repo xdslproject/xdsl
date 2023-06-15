@@ -384,7 +384,9 @@ class HaloSwapOp(IRDLOperation):
 
     name = "dmp.swap"
 
-    input_stencil: Operand = operand_def(stencil.TempType | memref.MemRefType)
+    input_stencil: Operand = operand_def(
+        stencil.TempType[Attribute] | memref.MemRefType[Attribute]
+    )
 
     # shape: HaloShapeInformation| None = opt_attr_def(HaloShapeInformation)
     swaps: builtin.ArrayAttr[HaloExchangeDecl] | None = opt_attr_def(

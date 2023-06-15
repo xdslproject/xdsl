@@ -426,7 +426,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field: Operand = operand_def(Attribute)
-    result: OpResult = result_def(FieldType | memref.MemRefType)
+    result: OpResult = result_def(FieldType[Attribute] | memref.MemRefType[Attribute])
 
     @staticmethod
     def get(
