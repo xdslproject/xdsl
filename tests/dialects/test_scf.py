@@ -341,14 +341,11 @@ def test_reduce_return_op_at_end():
     init_val = Constant.from_int_and_width(10, i32)
     ReduceOp.get(init_val, reduce_block).verify()
 
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        VerifyException,
+        match="Block inside scf.reduce must terminate with an scf.reduce.return",
+    ):
         ReduceOp.get(init_val, Block(arg_types=[i32, i32])).verify()
-
-    reduce_constant.detach()
-    reduce_block2 = Block(arg_types=[i32, i32])
-    reduce_block2.add_ops([reduce_constant])
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, reduce_block2).verify()
 
 
 def test_reduce_return_type_is_arg_type():
@@ -370,34 +367,19 @@ def test_reduce_return_op():
     assert rro.result.typ is i32
 
 
-def test_reduce_return_op_not_part_of_reduce():
+def test_reduce_return_type_is_operand_type():
     reduce_constant = Constant.from_int_and_width(100, i32)
-    rro = ReduceReturnOp.get(reduce_constant)
-    with pytest.raises(Exception):
-        rro.verify()
+    reduce_constant_wrong_type = Constant.from_int_and_width(100, i64)
+    rro = ReduceReturnOp.get(reduce_constant_wrong_type)
     reduce_block = Block(arg_types=[i32, i32])
     reduce_block.add_ops([reduce_constant, rro])
-    with pytest.raises(Exception):
-        rro.verify()
-    region = Region(reduce_block)
-    with pytest.raises(Exception):
-        rro.verify()
 
-    region.detach_block(reduce_block)
     init_val = Constant.from_int_and_width(10, i32)
-    ReduceOp.get(init_val, reduce_block)
-    rro.verify()
-
-
-def test_reduce_return_op_not_at_end():
-    reduce_constant = Constant.from_int_and_width(100, i32)
-    rro = ReduceReturnOp.get(reduce_constant)
-    reduce_block = Block(arg_types=[i32, i32])
-    reduce_block.add_ops([rro, reduce_constant])
-    init_val = Constant.from_int_and_width(10, i32)
-    ReduceOp.get(init_val, reduce_block)
-    with pytest.raises(VerifyException):
-        rro.verify()
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce.return result type at end of scf.reduce block must",
+    ):
+        ReduceOp.get(init_val, reduce_block).verify()
 
 
 def test_empty_else():

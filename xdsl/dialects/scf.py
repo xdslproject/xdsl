@@ -283,10 +283,17 @@ class ReduceOp(IRDLOperation):
                 f" but have {self.body.block.args[0].typ} and {self.argument.typ}"
             )
 
-        if self.body.block.last_op.result.typ != self.argument.typ:
+        last_op = self.body.block.last_op
+
+        if last_op is None or not isinstance(last_op, ReduceReturnOp):
             raise VerifyException(
-                "Type of scf.reduce.return result at end of scf.reduce block must "
-                f" match the reduction operand type but have {self.body.block.last_op.result.typ} "
+                "Block inside scf.reduce must terminate with an scf.reduce.return"
+            )
+
+        if last_op.result.typ != self.argument.typ:
+            raise VerifyException(
+                "scf.reduce.return result type at end of scf.reduce block must"
+                f" match the reduction operand type but have {last_op.result.typ} "
                 f"and {self.argument.typ}"
             )
 
