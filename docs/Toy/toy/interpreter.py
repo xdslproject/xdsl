@@ -85,7 +85,7 @@ class ToyFunctions(InterpreterFunctions):
         (arg,) = args
         assert isinstance(arg, Tensor)
         result_typ = op.results[0].typ
-        assert isinstance(result_typ, VectorType | TensorType)
+        assert isinstance(result_typ, (VectorType, TensorType))
         new_shape = list(result_typ.get_shape())
 
         return (Tensor(arg.data, new_shape),)
