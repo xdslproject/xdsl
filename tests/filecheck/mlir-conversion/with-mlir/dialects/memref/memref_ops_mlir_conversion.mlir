@@ -48,8 +48,8 @@
 // CHECK-NEXT: "memref.store"(%3, %5, %3, %4) : (index, memref<10x2xindex>, index, index) -> ()
 // CHECK-NEXT: %6 = "memref.subview"(%5) {"operand_segment_sizes" = array<i32: 1, 0, 0, 0>, "static_offsets" = array<i64: 0, 0>, "static_sizes" = array<i64: 1, 1>, "static_strides" = array<i64: 1, 1>} : (memref<10x2xindex>) -> memref<1x1xindex>
 // CHECK-NEXT: %7 = "memref.cast"(%5) : (memref<10x2xindex>) -> memref<?x?xindex>
-// CHECK-NEXT: %no_align = "memref.alloca"() {"i64", "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<1xindex>
-// CHECK-NEXT: "memref.dealloc"(%no_align) : (memref<1xindex>) -> ()
+// CHECK-NEXT: %8 = "memref.alloca"() {"i64", "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<1xindex>
+// CHECK-NEXT: "memref.dealloc"(%8) : (memref<1xindex>) -> ()
 // CHECK-NEXT: "memref.dealloc"(%2) : (memref<1xindex>) -> ()
 // CHECK-NEXT: "memref.dealloc"(%5) : (memref<10x2xindex>) -> ()
 
