@@ -5,6 +5,7 @@ from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import Region, IndexType, ModuleOp, i32, i64
 from xdsl.dialects.cf import Block
 from xdsl.dialects.scf import For, ParallelOp, If, Yield, ReduceOp, ReduceReturnOp
+from xdsl.dialects.test import TestTermOp
 from xdsl.utils.exceptions import VerifyException, DiagnosticException
 
 
@@ -345,7 +346,9 @@ def test_reduce_return_op_at_end():
         VerifyException,
         match="Block inside scf.reduce must terminate with an scf.reduce.return",
     ):
-        ReduceOp.get(init_val, Block(arg_types=[i32, i32])).verify()
+        ReduceOp.get(
+            init_val, Block([TestTermOp.create()], arg_types=[i32, i32])
+        ).verify()
 
 
 def test_reduce_return_type_is_arg_type():
