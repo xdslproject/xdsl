@@ -34,7 +34,7 @@ class AffineParser(Parser):
         self, dims: list[str], syms: list[str]
     ) -> list[AffineExpr]:
         """
-        multi-dim-affine-expr ::= `(` `)`
+        multi-affine-expr ::= `(` `)`
                                 | `(` affine-expr (`,` affine-expr)* `)`
         """
 
