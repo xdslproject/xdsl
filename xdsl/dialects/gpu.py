@@ -372,8 +372,6 @@ class FuncOp(IRDLOperation):
                 "function input types"
             )
         if (self.kernel is not None) and (len(self.function_type.outputs) != 0):
-            print(self.kernel)
-            print(self.function_type)
             raise VerifyException(f"Expected void return type for kernel function")
 
 
