@@ -783,9 +783,7 @@ class AddressOfOp(IRDLOperation):
     def get(
         global_name: str | StringAttr | SymbolRefAttr, result_type: LLVMPointerType
     ):
-        if isinstance(global_name, str):
-            global_name = StringAttr(global_name)
-        if isinstance(global_name, StringAttr):
+        if isinstance(global_name, (StringAttr, str)):
             global_name = SymbolRefAttr(global_name)
 
         return AddressOfOp.build(

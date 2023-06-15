@@ -1,19 +1,48 @@
-from typing import Iterable
+from dataclasses import dataclass
+from typing import Iterable, Sequence
+import hashlib
+import re
 
 from xdsl.ir import SSAValue, Attribute, MLContext, Operation
-from xdsl.dialects import func, print, builtin, arith, llvm
+from xdsl.dialects import print, builtin, arith, llvm
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
     PatternRewriteWalker,
-    GreedyRewritePatternApplier,
 )
 
 from xdsl.passes import ModulePass
 
 
-i8 = builtin.IntegerType.from_width(8)
+i8 = builtin.IntegerType(8)
+
+
+def legalize_str(val: str):
+    """
+    Takes any string and legalizes it to be a global llvm symbol.
+    (for the strictes possible interpreation of this)
+
+     - Replaces all whitespaces and dots with _
+     - Deletes all non ascii alphanumerical characters
+
+    The resulting string consists only of ascii letters, underscores and digits
+    """
+    val = re.sub(r"(\s+|\.)", "_", val)
+    val = re.sub(r"[^A-Za-z0-9_]+", "", val).rstrip("_")
+    return val
+
+
+def _key_from_str(val: str) -> str:
+    """
+    Generate a symbol name form any given string.
+
+    Takes the first ten letters of the string plus it's sha1 hash to create a
+    (pretty much) globally unique symbol name.
+    """
+    h = hashlib.new("sha1")
+    h.update(val.encode())
+    return f"{legalize_str(val[:10])}_{h.hexdigest()}"
 
 
 def _format_string_spec_from_print_op(op: print.PrintLnOp) -> Iterable[str | SSAValue]:
@@ -52,19 +81,25 @@ class PrintlnOpToPrintfCall(RewritePattern):
     printf_prefix: str
     printf_count: int
 
+    collected_global_symbs: dict[str, llvm.GlobalOp]
+
     def __init__(self):
         self.printf_prefix = "printf"
         self.printf_count = 0
+        self.collected_global_symbs = dict()
 
     def _construct_global(self, val: str):
         self.printf_count += 1
         data = val.encode() + b"\x00"
+
+        t_type = builtin.TensorType.from_type_and_list(i8, [len(data)])
+
         return llvm.GlobalOp.get(
             llvm.LLVMArrayType.from_size_and_type(len(data), i8),
-            f"{self.printf_prefix}_data_{self.printf_count}",
+            _key_from_str(val),
             constant=True,
             linkage="internal",
-            value=builtin.DenseArrayBase.create_dense_int_or_index(i8, data),
+            value=builtin.DenseIntOrFPElementsAttr.from_list(t_type, data),
         )
 
     @op_type_rewrite_pattern
@@ -89,23 +124,56 @@ class PrintlnOpToPrintfCall(RewritePattern):
                 args.append(part)
                 format_str += _format_str_for_typ(part.typ)
 
-        # TODO: create the global thingy and load the address here
+        globl = self._construct_global(format_str + "\n")
+        self.collected_global_symbs[globl.sym_name.data] = globl
+
         rewriter.replace_matched_op(
             casts
             + [
-                str_data := self._construct_global(format_str + "\n"),
                 ptr := llvm.AddressOfOp.get(
-                    str_data.sym_name, llvm.LLVMPointerType.typed(str_data.global_type)
+                    globl.sym_name, llvm.LLVMPointerType.opaque()
                 ),
-                func.Call.get("printf", [ptr.result, *args], []),
+                llvm.CallOp("printf", ptr.result, *args),
             ]
         )
+
+
+@dataclass(frozen=True)
+class AddExternalFunctionDecl(RewritePattern):
+    name: str
+    signature: llvm.LLVMFunctionType
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: builtin.ModuleOp, rewriter: PatternRewriter, /):
+        rewriter.insert_op_at_end(llvm.FuncOp(self.name, self.signature), op.body.block)
+
+
+@dataclass(frozen=True)
+class AddGlobalSymbols(RewritePattern):
+    symbols: Sequence[llvm.GlobalOp]
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: builtin.ModuleOp, rewriter: PatternRewriter, /):
+        rewriter.insert_op_at_end(self.symbols, op.body.block)
 
 
 class PrintToPintf(ModulePass):
     name = "print-to-printf"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier([PrintlnOpToPrintfCall()])
-        ).rewrite_module(op)
+        add_printf_call = PrintlnOpToPrintfCall()
+
+        PatternRewriteWalker(add_printf_call).rewrite_module(op)
+
+        op.body.block.add_ops(
+            [
+                llvm.FuncOp(
+                    "printf",
+                    llvm.LLVMFunctionType(
+                        [llvm.LLVMPointerType.opaque()], is_variadic=True
+                    ),
+                    linkage=llvm.LinkageAttr("external"),
+                ),
+                *add_printf_call.collected_global_symbs.values(),
+            ]
+        )
