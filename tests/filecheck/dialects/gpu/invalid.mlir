@@ -155,3 +155,29 @@
 }) {} : () -> ()
 
 // CHECK: Expected ['index'], got ['f32']. The gpu.yield values types must match its enclosing operation result types.
+
+// -----
+
+"builtin.module"()({
+    "gpu.module"()({
+        "gpu.func"() ({
+        ^bb0(%arg0: index):
+            "gpu.return"() : () -> ()
+        }) {"sym_name" = "foo", "kernel", "function_type" = () -> ()} : () -> ()
+    }) {"sym_name" = "gpu"} : () -> ()
+}) : () -> ()
+
+// CHECK: Expected first entry block arguments to have the same types as the function input types
+
+// -----
+
+"builtin.module"()({
+    "gpu.module"()({
+        "gpu.func"() ({
+        ^bb0(%arg0: index):
+            "gpu.return"(%arg0) : (index) -> ()
+        }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> (index)} : () -> ()
+    }) {"sym_name" = "gpu"} : () -> ()
+}) : () -> ()
+
+// CHECK: Operation does not verify: Expected void return type for kernel function
