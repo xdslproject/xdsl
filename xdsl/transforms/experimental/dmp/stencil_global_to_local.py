@@ -23,7 +23,16 @@ from xdsl.ir import (
     OpResult,
 )
 from xdsl.irdl import Attribute
-from xdsl.dialects import builtin, mpi, memref, arith, scf, func, stencil
+from xdsl.dialects import (
+    builtin,
+    mpi,
+    memref,
+    arith,
+    scf,
+    func,
+    stencil,
+    print as print_dia,
+)
 from xdsl.dialects.experimental import dmp
 
 from xdsl.transforms.experimental.stencil_shape_inference import (
@@ -75,6 +84,7 @@ class AddHaloExchangeOps(RewritePattern):
 @dataclass
 class LowerHaloExchangeToMpi(RewritePattern):
     init: bool
+    debug_prints: bool = False
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.HaloSwapOp, rewriter: PatternRewriter, /):
@@ -92,6 +102,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
                     op.input_stencil.typ.element_type,
                     op.nodes,
                     emit_init=self.init,
+                    emit_debug=self.debug_prints,
                 )
             ),
             [],
@@ -255,6 +266,7 @@ def generate_mpi_calls_for(
     dtype: Attribute,
     grid: dmp.NodeGrid,
     emit_init: bool = True,
+    emit_debug: bool = False,
 ) -> Iterable[Operation]:
     # call mpi init (this will be hoisted to function level)
     if emit_init:
@@ -306,6 +318,10 @@ def generate_mpi_calls_for(
             unwrap_out = mpi.UnwrapMemrefOp.get(alloc_outbound)
             unwrap_out.ptr.name_hint = f"send_buff_ex{i}_ptr"
             yield unwrap_out
+
+            yield print_dia.PrintLnOp(
+                f"Rank {{}}: sending {ex} -> {{}}", rank, dest_rank
+            )
 
             # isend call
             yield mpi.Isend.get(
@@ -737,12 +753,15 @@ class LowerHaloToMPI(ModulePass):
 
     mpi_init: bool = True
 
+    generate_debug_prints: bool = False
+
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
                     LowerHaloExchangeToMpi(
                         self.mpi_init,
+                        self.generate_debug_prints,
                     ),
                 ]
             )
