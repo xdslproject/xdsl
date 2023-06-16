@@ -63,6 +63,7 @@ from xdsl.dialects.builtin import (
     i64,
     StridedLayoutAttr,
     ComplexType,
+    AffineMapAttr,
 )
 from xdsl.ir import (
     SSAValue,
@@ -1542,7 +1543,7 @@ class Parser(ABC):
             "opaque": self._parse_builtin_opaque_attr,
             "dense_resource": self._parse_builtin_dense_resource_attr,
             "array": self._parse_builtin_densearray_attr,
-            "affine_map": self._parse_builtin_affine_attr,
+            "affine_map": self._parse_builtin_affine_map,
             "affine_set": self._parse_builtin_affine_attr,
             "strided": self._parse_strided_layout_attr,
         }
@@ -1653,6 +1654,12 @@ class Parser(ABC):
         self.parse_characters(">", " in dense array")
 
         return DenseArrayBase.from_list(element_type, values)
+
+    def _parse_builtin_affine_map(self, _name: Span) -> AffineMapAttr:
+        self.parse_characters("<", " in affine_map attribute")
+        affine_map = self.parse_affine_map()
+        self.parse_characters(">", " in affine_map attribute")
+        return AffineMapAttr(affine_map)
 
     def _parse_builtin_affine_attr(self, name: Span) -> UnregisteredAttr:
         # First, retrieve the attribute definition.
