@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import sys
 from xdsl.dialects.builtin import IndexType, StringAttr
@@ -51,3 +53,7 @@ class xDSLRunMain(xDSLOptMain):
 
 def main():
     return xDSLRunMain().run()
+
+
+if __name__ == "__main__":
+    main()
