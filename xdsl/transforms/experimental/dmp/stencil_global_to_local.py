@@ -320,9 +320,10 @@ def generate_mpi_calls_for(
             unwrap_out.ptr.name_hint = f"send_buff_ex{i}_ptr"
             yield unwrap_out
 
-            yield print_dia.PrintLnOp(
-                f"Rank {{}}: sending {ex} -> {{}}", rank, dest_rank
-            )
+            if emit_debug:
+                yield print_dia.PrintLnOp(
+                    f"Rank {{}}: sending {ex.source_area()} -> {{}}", rank, dest_rank
+                )
 
             # isend call
             yield mpi.Isend.get(
@@ -382,6 +383,13 @@ def generate_mpi_calls_for(
                                 reverse=True,
                             )
                         )
+                        + [
+                            print_dia.PrintLnOp(
+                                f"Rank {{}} receiving from {ex.neighbor}",
+                                rank,
+                            )
+                        ]
+                        * (1 if emit_debug else 0)
                         + [scf.Yield.get()]
                     )
                 ]
