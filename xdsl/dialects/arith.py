@@ -334,8 +334,8 @@ class Cmpi(IRDLOperation, ComparisonOperation):
 
     name = "arith.cmpi"
     predicate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    lhs: Operand = operand_def(IntegerType)
-    rhs: Operand = operand_def(IntegerType)
+    lhs: Operand = operand_def(signlessIntegerLike)
+    rhs: Operand = operand_def(signlessIntegerLike)
     result: OpResult = result_def(IntegerType(1))
 
     @staticmethod
