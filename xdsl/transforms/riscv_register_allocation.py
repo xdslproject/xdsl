@@ -5,6 +5,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.backend.riscv.register_allocation import (
     RegisterAllocatorBlockNaive,
     RegisterAllocatorJRegs,
+    RegisterAllocatorLivenessBlockNaive,
 )
 
 
@@ -22,6 +23,7 @@ class RISCVRegisterAllocation(ModulePass):
         allocator_strategies = {
             "GlobalJRegs": RegisterAllocatorJRegs,
             "BlockNaive": RegisterAllocatorBlockNaive,
+            "LivenessBlockNaive": RegisterAllocatorLivenessBlockNaive,
         }
 
         if self.allocation_strategy not in allocator_strategies:

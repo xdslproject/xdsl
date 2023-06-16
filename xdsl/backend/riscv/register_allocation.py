@@ -1,11 +1,12 @@
 from abc import ABC
+from xdsl.ir import SSAValue
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import (
     Register,
     RegisterType,
     FloatRegisterType,
     RISCVOp,
 )
-from xdsl.dialects.builtin import ModuleOp
 
 
 class RegisterAllocator(ABC):
@@ -22,6 +23,95 @@ class RegisterAllocator(ABC):
         """
 
         raise NotImplementedError()
+
+
+class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
+    idx: int
+
+    def __init__(self) -> None:
+        self.idx = 0
+
+        """
+        Assume that all the registers are available except the ones explicitly reserved
+        by the default RISCV ABI
+        """
+        self.reserved_registers = set(["zero", "sp", "gp", "tp", "fp", "s0"])
+
+        self.register_sets = {
+            RegisterType: [
+                reg
+                for reg in Register.RV32I_INDEX_BY_NAME
+                if reg not in self.reserved_registers
+            ],
+            FloatRegisterType: list(Register.RV32F_INDEX_BY_NAME.keys()),
+        }
+
+    @staticmethod
+    def _is_allocated(reg: SSAValue) -> bool:
+        return (
+            isinstance(reg.typ, RegisterType | FloatRegisterType)
+            and reg.typ.data.name is not None
+        )
+
+    def _allocate(self, reg: SSAValue) -> bool:
+        if isinstance(reg.typ, RegisterType | FloatRegisterType) and (
+            available_regs := self.register_sets.get(type(reg.typ))
+        ):
+            if reg.typ.data.name is None:
+                # if we run out of real registers, allocate a j register
+                reg_type = type(reg.typ)
+                if not available_regs:
+                    reg.typ = reg_type(Register(f"j{self.idx}"))
+                    self.idx += 1
+                else:
+                    reg.typ = reg_type(Register(available_regs.pop()))
+
+                return True
+
+        return False
+
+    def _free(self, reg: SSAValue) -> None:
+        if isinstance(reg.typ, RegisterType | FloatRegisterType) and (
+            available_regs := self.register_sets.get(type(reg.typ))
+        ):
+            if reg.typ.data.name is not None:
+                if (
+                    not reg.typ.data.name.startswith("j")
+                    and reg.typ.data.name not in self.reserved_registers
+                ):
+                    available_regs.append(reg.typ.data.name)
+
+    def allocate_registers(self, module: ModuleOp) -> None:
+        for region in module.regions:
+            for block in region.blocks:
+                to_free: list[SSAValue] = []
+
+                for op in block.walk_reverse():
+                    for reg in to_free:
+                        self._free(reg)
+                    to_free.clear()
+
+                    if not isinstance(op, RISCVOp):
+                        # do not allocate registers on non-RISCV-ops
+                        continue
+
+                    # allocate registers to operands since they are defined further up
+                    # in the use-def SSA chain
+                    for operand in op.operands:
+                        if not self._is_allocated(operand):
+                            self._allocate(operand)
+
+                    # allocate registers to results if not already allocated,
+                    # otherwise free that register since the SSA value is created here
+                    for result in op.results:
+                        if not self._is_allocated(result):
+                            # results not already allocated, they still need a register,
+                            # so allocate and record them to be freed before processing
+                            # the next instruction
+                            if self._allocate(result):
+                                to_free.append(result)
+                        else:
+                            self._free(result)
 
 
 class RegisterAllocatorBlockNaive(RegisterAllocator):
