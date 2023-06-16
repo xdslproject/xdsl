@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-from typing import Iterable, Sequence
+from typing import Iterable
 import hashlib
 import re
 
@@ -136,25 +135,6 @@ class PrintlnOpToPrintfCall(RewritePattern):
                 llvm.CallOp("printf", ptr.result, *args),
             ]
         )
-
-
-@dataclass(frozen=True)
-class AddExternalFunctionDecl(RewritePattern):
-    name: str
-    signature: llvm.LLVMFunctionType
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: builtin.ModuleOp, rewriter: PatternRewriter, /):
-        rewriter.insert_op_at_end(llvm.FuncOp(self.name, self.signature), op.body.block)
-
-
-@dataclass(frozen=True)
-class AddGlobalSymbols(RewritePattern):
-    symbols: Sequence[llvm.GlobalOp]
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: builtin.ModuleOp, rewriter: PatternRewriter, /):
-        rewriter.insert_op_at_end(self.symbols, op.body.block)
 
 
 class PrintToPrintf(ModulePass):
