@@ -68,6 +68,10 @@
 
             "func.return"() : () -> ()
         }) {"function_type" = () -> (), "sym_name" = "kernel"} : () -> ()
+        "gpu.func"() ({
+        ^bb0(%arg0: index):
+            "gpu.return"() : () -> ()
+        }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> ()} : () -> ()
         "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) : () -> ()
@@ -140,6 +144,10 @@
 
 // CHECK-NEXT:             "func.return"() : () -> ()
 // CHECK-NEXT:         }) {"function_type" = () -> (), "sym_name" = "kernel"} : () -> ()
+// CHECK-NEXT:         "gpu.func"() ({
+// CHECK-NEXT:         ^{{.*}}(%{{.*}}: index):
+// CHECK-NEXT:             "gpu.return"() : () -> ()
+// CHECK-NEXT:         }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> ()} : () -> ()
 // CHECK-NEXT:          "gpu.module_end"() : () -> ()
 // CHECK-NEXT:     }) {"sym_name" = "gpu"} : () -> ()
 

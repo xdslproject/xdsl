@@ -11,6 +11,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.ir.core import Block
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     Operand,
@@ -30,7 +31,14 @@ from xdsl.irdl import (
     opt_result_def,
     var_operand_def,
 )
-from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
+from xdsl.dialects.builtin import (
+    FunctionType,
+    IndexType,
+    StringAttr,
+    SymbolRefAttr,
+    UnitAttr,
+    i32,
+)
 from xdsl.dialects import memref
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -344,6 +352,30 @@ class ModuleOp(IRDLOperation):
 
 
 @irdl_op_definition
+class FuncOp(IRDLOperation):
+    name = "gpu.func"
+
+    body: Region = region_def()
+    sym_name: StringAttr = attr_def(StringAttr)
+    function_type: FunctionType = attr_def(FunctionType)
+    kernel: UnitAttr | None = opt_attr_def(UnitAttr)
+
+    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp)])
+
+    def verify_(self):
+        entry_block: Block = self.body.blocks[0]
+        function_inputs = self.function_type.inputs.data
+        block_arg_types = tuple(a.typ for a in entry_block.args)
+        if function_inputs != block_arg_types:
+            raise VerifyException(
+                "Expected first entry block arguments to have the same types as the "
+                "function input types"
+            )
+        if (self.kernel is not None) and (len(self.function_type.outputs) != 0):
+            raise VerifyException(f"Expected void return type for kernel function")
+
+
+@irdl_op_definition
 class GlobalIdOp(IRDLOperation):
     name = "gpu.global_id"
     dimension: DimensionAttr = attr_def(DimensionAttr)
@@ -476,6 +508,18 @@ class NumSubgroupsOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ReturnOp(IRDLOperation):
+    name = "gpu.return"
+
+    args: VarOperand = var_operand_def()
+
+    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+
+    def __init__(self, operands: Sequence[SSAValue | Operation]):
+        return super().__init__([operands])
+
+
+@irdl_op_definition
 class SetDefaultDeviceOp(IRDLOperation):
     name = "gpu.set_default_device"
     devIndex: Operand = operand_def(i32)
@@ -558,6 +602,7 @@ GPU = Dialect(
         BlockDimOp,
         BlockIdOp,
         DeallocOp,
+        FuncOp,
         GlobalIdOp,
         GridDimOp,
         HostRegisterOp,
@@ -567,6 +612,7 @@ GPU = Dialect(
         ModuleOp,
         ModuleEndOp,
         NumSubgroupsOp,
+        ReturnOp,
         SetDefaultDeviceOp,
         SubgroupIdOp,
         SubgroupSizeOp,
