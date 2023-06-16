@@ -24,7 +24,6 @@ from xdsl.ir import (
     ErasedSSAValue,
     SSAValue,
 )
-from xdsl.traits import IsTerminator
 from xdsl.parser import Parser
 from xdsl.irdl import (
     IRDLOperation,
