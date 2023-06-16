@@ -32,6 +32,14 @@ def test_format_str_from_op():
         a2,
     ]
 
+    op2 = print_dialect.PrintLnOp("{}", a1)
+
+    parts2 = print_to_println._format_string_spec_from_print_op(  # pyright: ignore[reportPrivateUsage]
+        op2
+    )
+
+    assert list(parts2) == [a1]
+
 
 def test_global_symbol_name_generation():
     """
