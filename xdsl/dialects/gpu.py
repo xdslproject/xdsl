@@ -42,7 +42,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects import memref
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, IsolatedFromAbove
+from xdsl.traits import HasParent, IsTerminator, NoTerminator, IsolatedFromAbove
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -345,7 +345,9 @@ class ModuleOp(IRDLOperation):
     body: Region = region_def("single_block")
     sym_name: StringAttr = attr_def(StringAttr)
 
-    traits = frozenset([IsolatedFromAbove()])
+    # TODO this requires the SingleBlockImplicitTerminator trait instead of
+    # NoTerminator
+    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
 
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
         return super().__init__(attributes={"sym_name": name}, regions=[ops])

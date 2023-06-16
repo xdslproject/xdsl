@@ -33,6 +33,9 @@ class For(IRDLOperation):
 
     body: Region = region_def()
 
+    # TODO this requires the ImplicitAffineTerminator trait instead of
+    # NoTerminator
+
     def verify_(self) -> None:
         if len(self.operands) != len(self.results):
             raise Exception("Expected the same amount of operands and results")
