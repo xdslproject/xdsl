@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import (
     TYPE_CHECKING,
     Iterable,
-    Mapping,
     Sequence,
     TypeVar,
     Optional,
@@ -32,8 +31,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    Block,
-    Region,
     TypeAttribute,
     Operation,
     SSAValue,
