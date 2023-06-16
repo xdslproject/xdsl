@@ -1,4 +1,4 @@
-// RUN: xdsl-run %s; echo $? | filecheck %s
+// RUN: xdsl-run %s | filecheck %s
 
 builtin.module {
 
@@ -25,4 +25,4 @@ builtin.module {
   }
 }
 
-// CHECK: 12
+// CHECK: factorial(12)=479001600
