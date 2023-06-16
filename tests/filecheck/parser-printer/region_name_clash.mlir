@@ -31,9 +31,11 @@
   "test.op"() ({
   ^0(%0 : i1):
     "test.op"(%0) ({
-      ^0:
+      ^0(%1 : i32):
+        "test.termop"() : () -> ()
     }, {
-      ^0:
+      ^0(%2 : i32):
+        "test.termop"() : () -> ()
     }) : (i1) -> ()
     "test.termop"(%0) : (i1) -> ()
   }) : () -> ()
@@ -42,8 +44,10 @@
   // CHECK-NEXT: ^{{.*}}(%{{.*}} : i1):
   // CHECK-NEXT:   "test.op"(%{{.*}}) ({
   // CHECK-NEXT:   ^{{.*}}:
+  // CHECK-NEXT:     "test.termop"() : () -> ()
   // CHECK-NEXT:   }, {
   // CHECK-NEXT:   ^{{.*}}:
+  // CHECK-NEXT:     "test.termop"() : () -> ()
   // CHECK-NEXT:   }) : (i1) -> ()
   // CHECK-NEXT:   "test.termop"(%{{.*}}) : (i1) -> ()
   // CHECK-NEXT: }) : () -> ()
@@ -56,6 +60,7 @@
       %1 = "test.termop"() : () -> i32
     }, {
     ^1:
+      "test.termop"() : () -> ()
     }) : (i1) -> ()
     %1 = "test.op"() : () -> i32
     "test.termop"(%0) : (i1) -> ()
@@ -67,7 +72,8 @@
   // CHECK-NEXT:   "test.op"(%{{.*}}) ({
   // CHECK-NEXT:     %{{.*}} = "test.termop"() : () -> i32
   // CHECK-NEXT:   }, {
-  // CHECK-NEXT:   ^{{.*}}:
+  // COM-CHECK-NEXT:   ^{{.*}}:
+  // CHECK-NEXT:     "test.termop"() : () -> ()
   // CHECK-NEXT:   }) : (i1) -> ()
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
   // CHECK-NEXT:   "test.termop"(%{{.*}}) : (i1) -> ()

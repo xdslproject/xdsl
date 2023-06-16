@@ -3,6 +3,7 @@
 "builtin.module"()({
     "gpu.module"()({
     ^0:
+      "test.termop"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
 
