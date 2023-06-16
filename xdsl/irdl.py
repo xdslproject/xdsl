@@ -1966,9 +1966,13 @@ def irdl_attr_definition(cls: type[_AttrT]) -> type[_AttrT]:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
-        return dataclass(frozen=True)(
-            type(cls.__name__, (cls,), dict(cls.__dict__))
-        )  # type: ignore
+        return dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
+            type(
+                cls.__name__,
+                (cls,),  # pyright: ignore[reportUnknownArgumentType]
+                dict(cls.__dict__),
+            )
+        )
     raise Exception(
         f"Class {cls.__name__} should either be a subclass of 'Data' or "
         "'ParametrizedAttribute'"

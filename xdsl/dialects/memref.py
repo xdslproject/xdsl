@@ -470,8 +470,8 @@ class Subview(IRDLOperation):
 class Cast(IRDLOperation):
     name = "memref.cast"
 
-    source: Operand = operand_def(MemRefType | UnrankedMemrefType)
-    dest: OpResult = result_def(MemRefType | UnrankedMemrefType)
+    source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    dest: OpResult = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
 
     @staticmethod
     def get(
