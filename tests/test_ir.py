@@ -177,8 +177,6 @@ class SuccessorOp(IRDLOperation):
 
     successor: Successor = successor_def()
 
-    traits = frozenset([IsTerminator()])
-
 
 def test_block_branching_to_another_region_wrong():
     """
