@@ -1,4 +1,4 @@
-from xdsl.dialects import print, test, builtin
+from xdsl.dialects import print as print_dialect, test, builtin
 from xdsl.transforms import print_to_println
 import pytest
 
@@ -19,9 +19,11 @@ def test_symbol_sanitizer(given: str, expected: str):
 
 def test_format_str_from_op():
     a1, a2 = test.TestOp.create(result_types=[builtin.i32, builtin.f32]).results
-    op = print.PrintLnOp("test {} value {}", a1, a2)
+    op = print_dialect.PrintLnOp("test {} value {}", a1, a2)
 
-    parts = print_to_println._format_string_spec_from_print_op(op)  # type: ignore
+    parts = print_to_println._format_string_spec_from_print_op(  # pyright: ignore[reportPrivateUsage]
+        op
+    )
 
     assert list(parts) == [
         "test ",
@@ -29,3 +31,20 @@ def test_format_str_from_op():
         " value ",
         a2,
     ]
+
+
+def test_global_symbol_name_generation():
+    """
+    Check that two strings that are invalid symbol names still result in two distinct
+    global symbol names.
+
+    Similarly, test that the same string results in the same symbol name.
+    """
+    s1 = print_to_println._key_from_str("(")  # pyright: ignore[reportPrivateUsage]
+    s2 = print_to_println._key_from_str(")")  # pyright: ignore[reportPrivateUsage]
+
+    assert s1 != s2
+
+    s3 = print_to_println._key_from_str(")")  # pyright: ignore[reportPrivateUsage]
+
+    assert s2 == s3
