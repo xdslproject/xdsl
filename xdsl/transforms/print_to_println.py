@@ -145,7 +145,6 @@ class PrintToPrintf(ModulePass):
 
         PatternRewriteWalker(add_printf_call).rewrite_module(op)
 
-        # TODO: is this a "nice" thing to do or big no-no?
         op.body.block.add_ops(
             [
                 llvm.FuncOp(
