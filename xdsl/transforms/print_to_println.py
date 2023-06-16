@@ -90,7 +90,8 @@ class PrintlnOpToPrintfCall(RewritePattern):
 
     def _construct_global(self, val: str):
         """
-        Constructs an llvm.global operation containing the string.
+        Constructs an llvm.global operation containing the string. Assigns a unique
+        symbol name to the value that is derived from the string value.
         """
         data = val.encode() + b"\x00"
 
