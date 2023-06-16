@@ -1,9 +1,6 @@
-from typing import cast
 from traitlets import Any
-from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.func import Call, FuncOp, Return
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
-from xdsl.ir.core import Block
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -15,19 +12,13 @@ class FuncFunctions(InterpreterFunctions):
 
     @impl(Call)
     def run_call(self, interpreter: Interpreter, op: Call, args: tuple[Any, ...]):
-        root = op
-        while (nroot := root.parent_op()) is not None:
-            root = nroot
-        callee_op = None
-        for f in root.walk():
-            if isinstance(f, FuncOp):
-                if f.sym_name.data == op.callee.root_reference.data:
-                    callee_op = f
+        callee_op = interpreter.fetch_symbol(op.callee)
         if callee_op is None:
             raise InterpretationError(f"Didn't find @{op.callee.string_value()}")
-        # print(f"Calling {op.callee}({','.join(str(a) for a in args)})")
+        if not isinstance(callee_op, FuncOp):
+            raise InterpretationError(f"Expected func.call to call a func.func.")
+
         ret = interpreter.run_ssacfg_region(callee_op.body, args)
-        # print(f"Returning {ret}")
         return ret
 
     @impl(Return)
