@@ -1,5 +1,5 @@
 from traitlets import Any
-from xdsl.dialects.arith import Constant, Cmpi
+from xdsl.dialects.arith import Addi, Constant, Cmpi, Muli, Subi
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.utils.exceptions import InterpretationError
@@ -10,14 +10,27 @@ class ArithFunctions(InterpreterFunctions):
     @impl(Constant)
     def run_constant(
         self, interpreter: Interpreter, op: Constant, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    ):
         if isinstance(op.value, IntegerAttr):
-            return (op.value.value.data,)  # type: ignore
+            return (op.value.value.data,)
+        raise InterpretationError(
+            f"arith.constant not implemented for {type(op.value)}"
+        )
+
+    @impl(Subi)
+    def run_subi(self, interpreter: Interpreter, op: Subi, args: tuple[Any, ...]):
+        return (args[0] - args[1],)
+
+    @impl(Addi)
+    def run_addi(self, interpreter: Interpreter, op: Addi, args: tuple[Any, ...]):
+        return (args[0] + args[1],)
+
+    @impl(Muli)
+    def run_muli(self, interpreter: Interpreter, op: Muli, args: tuple[Any, ...]):
+        return (args[0] * args[1],)
 
     @impl(Cmpi)
-    def run_cmpi(
-        self, interpreter: Interpreter, op: Cmpi, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    def run_cmpi(self, interpreter: Interpreter, op: Cmpi, args: tuple[Any, ...]):
         match op.predicate.value.data:
             # "eq"
             case 0:

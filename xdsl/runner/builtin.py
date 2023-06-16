@@ -10,5 +10,5 @@ class BuiltinFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: ModuleOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         for child_op in op.ops:
-            interpreter.run(child_op)
+            interpreter.run_op(child_op)
         return ()

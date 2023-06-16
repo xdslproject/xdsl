@@ -11,13 +11,14 @@ builtin.module {
     },{
       %im1 = "arith.subi"(%i, %one) : (i64, i64) -> i64
       %facrec = "func.call"(%im1) {"callee" = @factorial} : (i64) -> i64
-      "scf.yield"(%facrec) : (i64) -> ()
+      %fac = "arith.muli"(%facrec, %i) : (i64, i64) -> i64
+      "scf.yield"(%fac) : (i64) -> ()
     }) : (i1) -> i64
     "func.return"(%ret) : (i64) -> ()
   }
   func.func @main() -> index {
     %zero = "arith.constant"() {"value" = 0} : () -> index
-    %i = "arith.constant"() {"value" = 3} : () -> i64
+    %i = "arith.constant"() {"value" = 12} : () -> i64
     %fac = "func.call"(%i) {"callee" = @factorial} : (i64) -> i64
     print.println "factorial({})={}", %i : i64, %fac : i64
     "func.return"(%zero) : (index) -> ()
