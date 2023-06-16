@@ -18,10 +18,10 @@ from xdsl.passes import ModulePass
 i8 = builtin.IntegerType(8)
 
 
-def legalize_str(val: str):
+def legalize_str_for_symbol_name(val: str):
     """
     Takes any string and legalizes it to be a global llvm symbol.
-    (for the strictes possible interpreation of this)
+    (for the strictest possible interpretation of this)
 
      - Replaces all whitespaces and dots with _
      - Deletes all non ascii alphanumerical characters
@@ -35,14 +35,14 @@ def legalize_str(val: str):
 
 def _key_from_str(val: str) -> str:
     """
-    Generate a symbol name form any given string.
+    Generate a symbol name from any given string.
 
     Takes the first ten letters of the string plus it's sha1 hash to create a
     (pretty much) globally unique symbol name.
     """
     h = hashlib.new("sha1")
     h.update(val.encode())
-    return f"{legalize_str(val[:10])}_{h.hexdigest()}"
+    return f"{legalize_str_for_symbol_name(val[:10])}_{h.hexdigest()}"
 
 
 def _format_string_spec_from_print_op(op: print.PrintLnOp) -> Iterable[str | SSAValue]:

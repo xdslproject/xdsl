@@ -14,7 +14,7 @@ import pytest
     ),
 )
 def test_symbol_sanitizer(given: str, expected: str):
-    assert print_to_println.legalize_str(given) == expected
+    assert print_to_println.legalize_str_for_symbol_name(given) == expected
 
 
 def test_format_str_from_op():
