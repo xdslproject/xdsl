@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p print-to-printf | mlir-opt --test-lower-to-llvm | mlir-translate --mlir-to-llvmir | filecheck %s
+// RUN: xdsl-opt %s -p print-to-printf | mlir-opt --test-lower-to-llvm  | filecheck %s
 // this tests straight to llvmir to verify intended target compatibility
 
 builtin.module {
@@ -13,8 +13,8 @@ builtin.module {
 }
 
 
-// CHECK: @Hello_f_{{\w+}} = internal constant [14 x i8] c"Hello: %f %i\0A\00"
+// CHECK: llvm.call @printf(%{{\d+}}, %{{\d+}}, %{{\d+}}) : (!llvm.ptr, f64, i32) -> ()
 
-// CHECK: call void (ptr, ...) @printf(ptr @Hello_f_{{\w+}}, double {{\w+}}, i32 12)
+// CHECK: llvm.func @printf(!llvm.ptr, ...)
 
-// CHECK: declare void @printf(ptr, ...)
+// CHECK: llvm.mlir.global internal constant @Hello_f_{{\w+}}(dense<[72, 101, 108, 108, 111, 58, 32, 37, 102, 32, 37, 105, 10, 0]> : tensor<14xi8>) {addr_space = 0 : i32} : !llvm.arr
