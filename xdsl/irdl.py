@@ -1816,69 +1816,6 @@ class GenericData(Data[_DataElement], ABC):
         """
 
 
-_DT = TypeVar("_DT")
-
-
-def irdl_data_verify(data: Data[_DT], typ: type[_DT]) -> None:
-    """Check that the Data has the expected type."""
-    if isinstance(data.data, typ):
-        return
-    raise VerifyException(
-        f"{data.name} data attribute expected type {typ}, but {type(data.data)} given."
-    )
-
-
-T = TypeVar("T", bound=Data[Any])
-
-
-def irdl_data_definition(cls: type[T]) -> type[T]:
-    """Decorator to transform an IRDL Data definition to a Python class."""
-    new_attrs = dict[str, Any]()
-
-    def verify(expected_type: type[Any]):
-        def impl(self: T):
-            return irdl_data_verify(self, expected_type)
-
-        return impl
-
-    # Verify method is added if not redefined by the user.
-    if "verify" not in cls.__dict__:
-        bases = cast(Sequence[Any], cls.__orig_bases__)  # type: ignore
-        for parent in bases:
-            if get_origin(parent) != Data:
-                continue
-            if len(get_args(parent)) != 1:
-                raise Exception(
-                    f"In {cls.__name__} definition: Data expects "
-                    "a single type parameter"
-                )
-            expected_type = get_args(parent)[0]
-            if not isclass(expected_type):
-                raise Exception(
-                    f"In {cls.__name__} definition: Cannot infer "
-                    f'"verify" method. Type parameter of Data is '
-                    f"not a class."
-                )
-            if isinstance(expected_type, GenericAlias):
-                raise Exception(
-                    f"In {cls.__name__} definition: Cannot infer "
-                    f'"verify" method. Type parameter of Data has '
-                    f"type GenericAlias."
-                )
-            new_attrs["verify"] = verify(expected_type)
-            break
-        else:
-            raise Exception(
-                f'Missing method "verify" in {cls.__name__} data '
-                'attribute definition: the "verify" method cannot '
-                "be automatically derived for this definition."
-            )
-
-    return dataclass(frozen=True)(
-        type(cls.__name__, (cls,), {**cls.__dict__, **new_attrs})
-    )  # type: ignore
-
-
 #  ____                              _   _   _
 # |  _ \ __ _ _ __ __ _ _ __ ___    / \ | |_| |_ _ __
 # | |_) / _` | '__/ _` | '_ ` _ \  / _ \| __| __| '__|
@@ -2029,7 +1966,13 @@ def irdl_attr_definition(cls: type[_AttrT]) -> type[_AttrT]:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
-        return irdl_data_definition(cls)  # type: ignore
+        return dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
+            type(
+                cls.__name__,
+                (cls,),  # pyright: ignore[reportUnknownArgumentType]
+                dict(cls.__dict__),
+            )
+        )
     raise Exception(
         f"Class {cls.__name__} should either be a subclass of 'Data' or "
         "'ParametrizedAttribute'"

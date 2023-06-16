@@ -21,7 +21,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.experimental.ConvertStencilToLLMLIR import assert_subset
+from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import assert_subset
 from xdsl.utils.hints import isa
 
 _OpT = TypeVar("_OpT", bound=Operation)
