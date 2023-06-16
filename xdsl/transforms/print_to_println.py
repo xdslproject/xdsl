@@ -24,8 +24,13 @@ def legalize_str_for_symbol_name(val: str):
 
      - Replaces all whitespaces and dots with _
      - Deletes all non ascii alphanumerical characters
+     - Strips all underscores from the start and end of the string
 
-    The resulting string consists only of ascii letters, underscores and digits
+    The resulting string consists only of ascii letters, underscores and digits.
+
+    This is a surjective mapping, meaning that multiple inputs will produce the same
+    output. This function alone cannot be used to get a uniquely identifying global
+    symbol name for a string!
     """
     val = re.sub(r"(\s+|\.)", "_", val)
     val = re.sub(r"[^A-Za-z0-9_]+", "", val).strip("_")
@@ -85,7 +90,8 @@ class PrintlnOpToPrintfCall(RewritePattern):
 
     def _construct_global(self, val: str):
         """
-        Constructs an llvm.global operation containing the string.
+        Constructs an llvm.global operation containing the string. Assigns a unique
+        symbol name to the value that is derived from the string value.
         """
         data = val.encode() + b"\x00"
 

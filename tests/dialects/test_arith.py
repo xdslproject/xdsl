@@ -244,3 +244,10 @@ def test_cmpi_incorrect_comparison():
         # 'oeq' is a comparison op for cmpf but not cmpi
         _cmpi_op = Cmpi.get(a, b, "oeq")
     assert e.value.args[0] == "Unknown comparison mnemonic: oeq"
+
+
+def test_cmpi_index_type():
+    a = Constant.from_int_and_width(1, IndexType())
+    b = Constant.from_int_and_width(2, IndexType())
+
+    Cmpi.get(a, b, "eq").verify()
