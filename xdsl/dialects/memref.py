@@ -281,7 +281,7 @@ class Alloca(IRDLOperation):
     @staticmethod
     def get(
         return_type: Attribute,
-        alignment: Optional[int | AnyIntegerAttr] = None,
+        alignment: int | AnyIntegerAttr | None = None,
         shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
     ) -> Alloca:
