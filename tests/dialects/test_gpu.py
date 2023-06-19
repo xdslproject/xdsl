@@ -12,6 +12,7 @@ from xdsl.dialects.gpu import (
     GlobalIdOp,
     GridDimOp,
     HostRegisterOp,
+    HostUnregisterOp,
     LaneIdOp,
     LaunchFuncOp,
     LaunchOp,
@@ -209,9 +210,9 @@ def test_host_unregister():
     memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [-1])
     unranked = memref.Alloca.get(memref_type, 0)
 
-    unregister = HostRegisterOp(unranked)
+    unregister = HostUnregisterOp(unranked)
 
-    assert isinstance(unregister, HostRegisterOp)
+    assert isinstance(unregister, HostUnregisterOp)
     assert unregister.value is unranked.results[0]
 
 
