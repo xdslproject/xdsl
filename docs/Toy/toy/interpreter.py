@@ -47,7 +47,12 @@ class ToyFunctions(InterpreterFunctions):
     def run_func(
         self, interpreter: Interpreter, op: toy.FuncOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
+        results = interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
+        interpreter.interpreter_assert(
+            results is not None, f"Expected toy.func region to have a terminator"
+        )
+        assert results is not None
+        return results
 
     @impl(toy.ConstantOp)
     def run_const(
@@ -103,7 +108,7 @@ class ToyFunctions(InterpreterFunctions):
     def run_generic_call(
         self, interpreter: Interpreter, op: toy.GenericCallOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        return interpreter.call(op.callee.string_value(), args)
+        return interpreter.run_op(op.callee.string_value(), args)
 
     @impl(toy.TransposeOp)
     def run_transpose(

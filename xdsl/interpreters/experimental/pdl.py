@@ -199,8 +199,7 @@ class InterpreterRewrite(RewritePattern):
         self.interpreter.set_values(matcher.matching_context.items())
         self.functions.rewriter = rewriter
 
-        for rewrite_impl_op in self.pdl_rewrite_op.body.ops:
-            self.interpreter.run(rewrite_impl_op)
+        self.interpreter.run_block(self.pdl_rewrite_op.body.block, ())
 
         self.interpreter.pop_scope()
 
@@ -256,7 +255,7 @@ class PDLFunctions(InterpreterFunctions):
             result = r_op.results[0]
             interpreter.set_values(((result, r_op),))
 
-        interpreter.run(last_op)
+        interpreter.run_op(last_op, ())
 
         return ()
 

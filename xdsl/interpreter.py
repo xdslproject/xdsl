@@ -266,7 +266,7 @@ class Interpreter:
         """
         self._impls.register_from(impls, override=override)
 
-    def run(self, op: Operation | str):
+    def run_op(self, op: Operation | str, inputs: tuple[Any, ...]) -> tuple[Any, ...]:
         """
         Fetches the implemetation for the given op, passes it the Python values
         associated with the SSA operands, and assigns the results to the
@@ -275,18 +275,6 @@ class Interpreter:
         if isinstance(op, str):
             op = self.get_op_for_symbol(op)
 
-        inputs = self.get_values(op.operands)
-        results = self._impls.run(self, op, inputs)
-        self.interpreter_assert(
-            len(op.results) == len(results), "Incorrect number of results"
-        )
-        self.set_values(zip(op.results, results))
-
-    def call(self, sym_name: str, inputs: tuple[Any, ...]) -> tuple[Any, ...]:
-        """
-        Find the op with the relevant name, and execute its implementation.
-        """
-        op = self.get_op_for_symbol(sym_name)
         results = self._impls.run(self, op, inputs)
         return results
 
@@ -315,7 +303,7 @@ class Interpreter:
 
     def run_ssacfg_region(
         self, region: Region, args: tuple[Any, ...], name: str = "unknown"
-    ) -> tuple[Any, ...]:
+    ) -> tuple[Any, ...] | None:
         """
         Interpret an SSACFG-semantic Region.
         Creates a new scope, then executes the first block in the region. The first block
@@ -326,10 +314,6 @@ class Interpreter:
         self.push_scope(name)
         block = region.blocks[0]
         results = self.run_block(block, args)
-        self.interpreter_assert(
-            results is not None, f"Expected region to have a terminator"
-        )
-        assert results is not None
         self.pop_scope()
         return results
 

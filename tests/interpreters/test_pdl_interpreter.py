@@ -50,7 +50,7 @@ def test_rewrite_swap_inputs_pdl():
     pdl_ft = PDLFunctions(ctx, input_module)
     interpreter.register_implementations(pdl_ft)
 
-    interpreter.run(rewrite_module)
+    interpreter.run_op(rewrite_module, ())
 
     assert input_module.is_structurally_equivalent(output_module)
 
@@ -158,7 +158,7 @@ def test_rewrite_add_zero_pdl():
     pdl_ft = PDLFunctions(ctx, input_module)
     interpreter.register_implementations(pdl_ft)
 
-    interpreter.run(interpreter.module)
+    interpreter.run_op(interpreter.module, ())
 
     assert input_module.is_structurally_equivalent(output_module)
 
