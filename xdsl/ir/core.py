@@ -784,7 +784,7 @@ class Operation(IRNode):
             # TODO single-block regions dealt when the NoTerminator trait is
             # implemented (https://github.com/xdslproject/xdsl/issues/1093)
             if len(parent_region.blocks) > 1:
-                if not self.has_trait(IsTerminator):
+                if parent_block.last_op is self and not self.has_trait(IsTerminator):
                     raise VerifyException(
                         "Operation terminates block but is not a terminator"
                     )
