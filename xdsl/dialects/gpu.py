@@ -503,6 +503,53 @@ class LaunchOp(IRDLOperation):
 
 
 @irdl_op_definition
+class LaunchFuncOp(IRDLOperation):
+    name = "gpu.launch_func"
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    gridSizeX: Operand = operand_def(IndexType)
+    gridSizeY: Operand = operand_def(IndexType)
+    gridSizeZ: Operand = operand_def(IndexType)
+    blockSizeX: Operand = operand_def(IndexType)
+    blockSizeY: Operand = operand_def(IndexType)
+    blockSizeZ: Operand = operand_def(IndexType)
+    dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
+    kernelOperands: VarOperand = var_operand_def()
+
+    asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
+
+    kernel: SymbolRefAttr = attr_def(SymbolRefAttr)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    def __init__(
+        self,
+        func: SymbolRefAttr,
+        gridSize: Sequence[SSAValue | Operation],
+        blockSize: Sequence[SSAValue | Operation],
+        kernelOperands: Sequence[SSAValue | Operation] | None = None,
+        async_launch: bool = False,
+        asyncDependencies: Sequence[SSAValue | Operation] | None = None,
+        dynamicSharedMemorySize: SSAValue | Operation | None = None,
+    ):
+        if len(gridSize) != 3:
+            raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
+        if len(blockSize) != 3:
+            raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+
+        return super().__init__(
+            operands=[
+                asyncDependencies,
+                *gridSize,
+                *blockSize,
+                dynamicSharedMemorySize,
+                kernelOperands,
+            ],
+            result_types=[[AsyncTokenType()] if async_launch else []],
+            attributes={"kernel": func},
+        )
+
+
+@irdl_op_definition
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
@@ -620,8 +667,10 @@ GPU = Dialect(
         GlobalIdOp,
         GridDimOp,
         HostRegisterOp,
+        HostUnregisterOp,
         LaneIdOp,
         LaunchOp,
+        LaunchFuncOp,
         MemcpyOp,
         ModuleOp,
         ModuleEndOp,

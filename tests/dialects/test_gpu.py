@@ -13,6 +13,7 @@ from xdsl.dialects.gpu import (
     GridDimOp,
     HostRegisterOp,
     LaneIdOp,
+    LaunchFuncOp,
     LaunchOp,
     MemcpyOp,
     ModuleEndOp,
@@ -257,6 +258,56 @@ def test_launch():
     assert nd_launch.asyncToken.typ == AsyncTokenType()
     assert nd_launch.asyncDependencies == tuple()
     assert nd_launch.dynamicSharedMemorySize is ten.result
+
+
+def test_launchfunc():
+    kernel = builtin.SymbolRefAttr("root", ["gpu", "kernel"])
+    args = [arith.Constant.from_int_and_width(10, builtin.IndexType())]
+    ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
+    gridSize: list[Operation | SSAValue] = [ten, ten, ten]
+    blockSize: list[Operation | SSAValue] = [ten, ten, ten]
+    launch = LaunchFuncOp(kernel, gridSize, blockSize)
+
+    assert isinstance(launch, LaunchFuncOp)
+    assert launch.kernel is kernel
+    assert launch.gridSizeX is ten.result
+    assert launch.gridSizeY is ten.result
+    assert launch.gridSizeZ is ten.result
+    assert launch.blockSizeX is ten.result
+    assert launch.blockSizeY is ten.result
+    assert launch.blockSizeZ is ten.result
+    assert launch.asyncToken is None
+    assert launch.asyncDependencies == ()
+    assert launch.dynamicSharedMemorySize is None
+    assert launch.kernelOperands == ()
+
+    asyncDependencies = []
+
+    kernel = builtin.SymbolRefAttr("root", ["gpu", "kernel"])
+
+    launch = LaunchFuncOp(
+        kernel,
+        gridSize,
+        blockSize,
+        args,
+        True,
+        asyncDependencies,
+        ten,
+    )
+
+    assert isinstance(launch, LaunchFuncOp)
+    assert launch.kernel is kernel
+    assert launch.gridSizeX is ten.result
+    assert launch.gridSizeY is ten.result
+    assert launch.gridSizeZ is ten.result
+    assert launch.blockSizeX is ten.result
+    assert launch.blockSizeY is ten.result
+    assert launch.blockSizeZ is ten.result
+    assert launch.asyncToken is not None
+    assert launch.asyncToken.typ == AsyncTokenType()
+    assert launch.asyncDependencies == tuple()
+    assert launch.dynamicSharedMemorySize is ten.result
+    assert tuple(a.owner for a in launch.kernelOperands) == tuple(args)
 
 
 def test_memcpy():
