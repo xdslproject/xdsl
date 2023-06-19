@@ -10,7 +10,6 @@ from typing import (
     NamedTuple,
     ParamSpec,
     TypeAlias,
-    TypeGuard,
     TypeVar,
 )
 
@@ -536,15 +535,18 @@ class Interpreter:
         if not condition:
             raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
 
-    def interpreter_assert_isa(
-        self, value: Any, hint: type[_T], message: str | None = None
-    ) -> TypeGuard[_T]:
-        """Raise InterpretationError if condition is not satisfied."""
-        # There is no way to declare that the return type is NoReturn if input is false,
-        # so we have to `assert` this function's return value
-        val = isa(value, hint)
-        self.interpreter_assert(val, message)
-        return val
+    def get_arg(
+        self,
+        args: tuple[Any, ...],
+        index: int,
+        type: type[_T],
+        message: str | None = None,
+    ) -> _T:
+        self.interpreter_assert(
+            index < len(args) and isa(args[index], type),
+            f"Expected arg {index} to have type {type}" if message is None else message,
+        )
+        return args[index]
 
 
 PythonValues: TypeAlias = tuple[Any, ...]
