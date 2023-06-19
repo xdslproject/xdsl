@@ -16,7 +16,7 @@ from xdsl.ir import (
     Region,
     OpResult,
 )
-from xdsl.traits import IsTerminator
+
 from xdsl.dialects.builtin import (
     Float64Type,
     FunctionType,
