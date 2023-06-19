@@ -527,7 +527,10 @@ class Interpreter:
     def interpreter_assert(self, condition: bool, message: str | None = None):
         """Raise InterpretationError if condition is not satisfied."""
         if not condition:
-            raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
+            self.interpreter_raise(message)
+
+    def interpreter_raise(self, message: str | None) -> NoReturn:
+        raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
 
 
 PythonValues: TypeAlias = tuple[Any, ...]
