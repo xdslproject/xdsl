@@ -10,9 +10,8 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
     PatternRewriteWalker,
 )
-from xdsl.interpreter import Interpreter
 
-from xdsl.interpreters.experimental.pdl import PDLFunctions
+from xdsl.interpreters.experimental.pdl import InterpreterRewrite
 
 
 class SwapInputs(RewritePattern):
@@ -42,15 +41,19 @@ def test_rewrite_swap_inputs_pdl():
     output_module = swap_arguments_output()
     rewrite_module = swap_arguments_pdl()
 
+    pdl_rewrite_op = next(
+        op for op in rewrite_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
     stream = StringIO()
-    interpreter = Interpreter(rewrite_module, file=stream)
+
     ctx = MLContext()
     ctx.register_dialect(arith.Arith)
 
-    pdl_ft = PDLFunctions(ctx, input_module)
-    interpreter.register_implementations(pdl_ft)
-
-    interpreter.run_op(rewrite_module, ())
+    PatternRewriteWalker(
+        InterpreterRewrite(pdl_rewrite_op, ctx, file=stream),
+        apply_recursively=False,
+    ).rewrite_module(input_module)
 
     assert input_module.is_structurally_equivalent(output_module)
 
@@ -150,15 +153,19 @@ def test_rewrite_add_zero_pdl():
     # output_module.verify()
     rewrite_module.verify()
 
+    pdl_rewrite_op = next(
+        op for op in rewrite_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
     stream = StringIO()
-    interpreter = Interpreter(rewrite_module, file=stream)
+
     ctx = MLContext()
     ctx.register_dialect(arith.Arith)
 
-    pdl_ft = PDLFunctions(ctx, input_module)
-    interpreter.register_implementations(pdl_ft)
-
-    interpreter.run_op(interpreter.module, ())
+    PatternRewriteWalker(
+        InterpreterRewrite(pdl_rewrite_op, ctx, file=stream),
+        apply_recursively=False,
+    ).rewrite_module(input_module)
 
     assert input_module.is_structurally_equivalent(output_module)
 
