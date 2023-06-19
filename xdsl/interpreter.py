@@ -529,7 +529,7 @@ class Interpreter:
         if not condition:
             self.interpreter_raise(message)
 
-    def interpreter_raise(self, message: str | None) -> NoReturn:
+    def interpreter_raise(self, message: str | None = None) -> NoReturn:
         raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
 
 
