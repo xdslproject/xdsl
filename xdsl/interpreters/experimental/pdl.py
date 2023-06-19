@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import IO, Any
 
 from xdsl.ir import Attribute, MLContext, TypeAttribute, OpResult, Operation, SSAValue
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
 from xdsl.pattern_rewriter import (
     PatternRewriter,
-    PatternRewriteWalker,
     RewritePattern,
 )
 from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
@@ -177,10 +176,22 @@ class PDLMatcher:
 
 
 @dataclass
-class InterpreterRewrite(RewritePattern):
+class PDLRewritePattern(RewritePattern):
     functions: PDLFunctions
     pdl_rewrite_op: pdl.RewriteOp
     interpreter: Interpreter
+
+    def __init__(
+        self, pdl_rewrite_op: pdl.RewriteOp, ctx: MLContext, file: IO[str] | None = None
+    ):
+        pdl_pattern = pdl_rewrite_op.parent_op()
+        assert isinstance(pdl_pattern, pdl.PatternOp)
+        pdl_module = pdl_pattern.parent_op()
+        assert isinstance(pdl_module, ModuleOp)
+        self.functions = PDLFunctions(ctx, pdl_module)
+        self.interpreter = Interpreter(pdl_module, file=file)
+        self.interpreter.register_implementations(self.functions)
+        self.pdl_rewrite_op = pdl_rewrite_op
 
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         pdl_op_val = self.pdl_rewrite_op.root
@@ -189,7 +200,9 @@ class InterpreterRewrite(RewritePattern):
             self.pdl_rewrite_op.body is not None
         ), "TODO: handle None body op in pdl.RewriteOp"
 
-        (pdl_op,) = self.interpreter.get_values((pdl_op_val,))
+        assert isinstance(pdl_op_val, OpResult)
+        pdl_op = pdl_op_val.op
+
         assert isinstance(pdl_op, pdl.OperationOp)
         matcher = PDLMatcher()
         if not matcher.match_operation(pdl_op_val, pdl_op, xdsl_op):
@@ -199,8 +212,7 @@ class InterpreterRewrite(RewritePattern):
         self.interpreter.set_values(matcher.matching_context.items())
         self.functions.rewriter = rewriter
 
-        for rewrite_impl_op in self.pdl_rewrite_op.body.ops:
-            self.interpreter.run(rewrite_impl_op)
+        self.interpreter.run(self.pdl_rewrite_op)
 
         self.interpreter.pop_scope()
 
@@ -209,13 +221,7 @@ class InterpreterRewrite(RewritePattern):
 @dataclass
 class PDLFunctions(InterpreterFunctions):
     """
-    Applies the PDL pattern to all ops in the input `ModuleOp`. The rewriter
-    jumps straight to the last operation in the pattern, which is expected to
-    be a rewrite op. It creates an `AnonymousRewriter`, which runs on all
-    operations in the ModuleOp. For each operation, it determines whether the
-    operation fits the specified pattern and, if so, assigns the xDSL values
-    to the corresponding PDL SSA values, and runs the rewrite operations one by
-    one. The implementations in this class are for the RHS of the rewrite.
+    The implementations in this class are for the RHS of the rewrite.
     """
 
     ctx: MLContext
@@ -231,35 +237,6 @@ class PDLFunctions(InterpreterFunctions):
     def rewriter(self, rewriter: PatternRewriter):
         self._rewriter = rewriter
 
-    @impl(pdl.PatternOp)
-    def run_pattern(
-        self, interpreter: Interpreter, op: pdl.PatternOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        block = op.body.block
-
-        if not block.ops:
-            raise InterpretationError("No ops in pattern")
-
-        last_op = block.last_op
-
-        if not isinstance(last_op, pdl.RewriteOp):
-            raise InterpretationError(
-                "Expected pdl.pattern to be terminated by pdl.rewrite"
-            )
-
-        for r_op in block.ops:
-            if r_op is last_op:
-                break
-            # in forward pass, the Python value is the SSA value itself
-            if len(r_op.results) != 1:
-                raise InterpretationError("PDL ops must have one result")
-            result = r_op.results[0]
-            interpreter.set_values(((result, r_op),))
-
-        interpreter.run(last_op)
-
-        return ()
-
     @impl(pdl.RewriteOp)
     def run_rewrite(
         self,
@@ -267,13 +244,9 @@ class PDLFunctions(InterpreterFunctions):
         pdl_rewrite_op: pdl.RewriteOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        input_module = self.module
-
-        PatternRewriteWalker(
-            InterpreterRewrite(self, pdl_rewrite_op, interpreter),
-            apply_recursively=False,
-        ).rewrite_module(input_module)
-
+        assert pdl_rewrite_op.body is not None
+        for op in pdl_rewrite_op.body.ops:
+            interpreter.run(op)
         return ()
 
     @impl(pdl.OperationOp)
@@ -334,13 +307,3 @@ class PDLFunctions(InterpreterFunctions):
             assert False, "Unexpected ReplaceOp"
 
         return ()
-
-    @impl(ModuleOp)
-    def run_module(
-        self, interpreter: Interpreter, op: ModuleOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        ops = op.ops
-        first_op = ops.first
-        if first_op is None or not isinstance(first_op, pdl.PatternOp):
-            raise InterpretationError("Expected single pattern op in pdl module")
-        return self.run_pattern(interpreter, first_op, args)
