@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.memref import (
     Alloc,
     Alloca,
+    CopyOp,
     Dealloc,
     MemRefType,
     Load,
@@ -393,3 +394,37 @@ def test_memref_dma_wait():
         wrong_tag = TestSSAValue(wrong_tag_type)
 
         DmaWaitOp.get(wrong_tag, [index], num_elements).verify()
+
+
+def test_memref_copy():
+    typ = MemRefType.from_element_type_and_shape(i32, [4])
+    typ3 = MemRefType.from_element_type_and_shape(i32, [3])
+    typ64 = MemRefType.from_element_type_and_shape(i64, [4])
+    source = TestSSAValue(typ)
+    destination = TestSSAValue(typ)
+
+    copy = CopyOp(source, destination)
+
+    copy.verify()
+    assert isinstance(copy, CopyOp)
+    assert copy.source.typ == typ
+    assert copy.destination.typ == typ
+
+    destination = TestSSAValue(typ3)
+
+    copy = CopyOp(source, destination)
+
+    with pytest.raises(
+        VerifyException, match="Expected source and destination to have the same shape."
+    ):
+        copy.verify()
+
+    destination = TestSSAValue(typ64)
+
+    copy = CopyOp(source, destination)
+
+    with pytest.raises(
+        VerifyException,
+        match="Expected source and destination to have the same element type.",
+    ):
+        copy.verify()
