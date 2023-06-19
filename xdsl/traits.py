@@ -133,6 +133,9 @@ class SymbolOpInterface(OpTrait):
         """
         Returns the symbol of the operation
         """
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr
+
         return cast(StringAttr, op.attributes["sym_name"])
 
     def verify(self, op: Operation) -> None:
