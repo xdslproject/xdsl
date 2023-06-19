@@ -36,13 +36,6 @@ class Tensor:
 
 @register_impls
 class ToyFunctions(InterpreterFunctions):
-    def run_toy_func(
-        self, interpreter: Interpreter, name: str, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        op = interpreter.get_op_for_symbol(name)
-        assert isinstance(op, toy.FuncOp)
-        return self.run_func(interpreter, op, args)
-
     @impl(toy.PrintOp)
     def run_print(
         self, interpreter: Interpreter, op: toy.PrintOp, args: tuple[Any, ...]
@@ -54,16 +47,7 @@ class ToyFunctions(InterpreterFunctions):
     def run_func(
         self, interpreter: Interpreter, op: toy.FuncOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        interpreter.push_scope(f"ctx_{op.sym_name.data}")
-        block = op.body.blocks[0]
-        interpreter.set_values(zip(block.args, args))
-        for body_op in block.ops:
-            interpreter.run(body_op)
-        last_op = block.last_op
-        assert isinstance(last_op, toy.ReturnOp)
-        results = interpreter.get_values(tuple(last_op.operands))
-        interpreter.pop_scope()
-        return results
+        return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
 
     @impl(toy.ConstantOp)
     def run_const(
@@ -113,14 +97,13 @@ class ToyFunctions(InterpreterFunctions):
     def run_return(
         self, interpreter: Interpreter, op: toy.ReturnOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        assert len(args) < 2
-        return ()
+        return args
 
     @impl(toy.GenericCallOp)
     def run_generic_call(
         self, interpreter: Interpreter, op: toy.GenericCallOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        return self.run_toy_func(interpreter, op.callee.string_value(), args)
+        return interpreter.call(op.callee.string_value(), args)
 
     @impl(toy.TransposeOp)
     def run_transpose(
