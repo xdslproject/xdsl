@@ -7,7 +7,16 @@ from abc import ABC, abstractmethod
 
 from typing import TypeAlias, cast
 
-from xdsl.ir import Dialect, Operation, SSAValue, Attribute, Block, Region, OpResult
+from xdsl.ir import (
+    Dialect,
+    Operation,
+    SSAValue,
+    Attribute,
+    Block,
+    Region,
+    OpResult,
+)
+from xdsl.traits import IsTerminator
 from xdsl.dialects.builtin import (
     Float64Type,
     FunctionType,
@@ -349,6 +358,7 @@ class ReturnOp(IRDLOperation):
 
     name = "toy.return"
     input: OptOperand = opt_operand_def(AnyTensorTypeF64)
+    traits = frozenset([IsTerminator()])
 
     def __init__(self, input: SSAValue | None = None):
         return super().__init__(operands=[input])

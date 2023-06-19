@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import IO, Iterable, TypeAlias, Sequence
 
+from xdsl.traits import IsTerminator
 
 from xdsl.ir import (
     Dialect,
@@ -1322,6 +1323,8 @@ class ReturnOp(NullaryOperation):
     """
 
     name = "riscv.ret"
+
+    traits = frozenset([IsTerminator()])
 
 
 # Conditional Branches

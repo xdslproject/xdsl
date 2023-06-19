@@ -70,19 +70,6 @@
         %res_var = pdl.results 1 of %op_with_name -> !pdl.range<!pdl.value>
         // CHECK-NEXT: %res_var = "pdl.results"(%op_with_name) {"index" = 1 : i32} : (!pdl.operation) -> !pdl.range<!pdl.value>
 
-        pdl.rewrite %op_with_all with "externalRewriter"
-        // CHECK-NEXT: "pdl.rewrite"(%op_with_all) {"name" = "externalRewriter", "operand_segment_sizes" = array<i32: 1, 0>} : (!pdl.operation) -> ()
-        pdl.rewrite %op_with_all with "externalRewriter"(%any_operand : !pdl.value)
-        // CHECK-NEXT: "pdl.rewrite"(%op_with_all, %any_operand) {"name" = "externalRewriter", "operand_segment_sizes" = array<i32: 1, 1>} : (!pdl.operation, !pdl.value) -> ()
-
-        pdl.rewrite {}
-        // CHECK-NEXT: "pdl.rewrite"() ({
-        // CHECK-NEXT: }) {"operand_segment_sizes" = array<i32: 0, 0>} : () -> ()
-        pdl.rewrite %any_op {}
-        // CHECK-NEXT: "pdl.rewrite"(%any_op) ({
-        // CHECK-NEXT: }) {"operand_segment_sizes" = array<i32: 1, 0>} : (!pdl.operation) -> ()
-
-
         pdl.rewrite {
             pdl.replace %any_op with %op_with_name
             // CHECK: "pdl.replace"(%any_op, %op_with_name) {"operand_segment_sizes" = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()

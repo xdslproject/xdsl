@@ -20,7 +20,7 @@ from typing import (
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
-from xdsl.traits import OpTrait, IsTerminator, OpTraitInvT
+from xdsl.traits import OpTrait, OpTraitInvT, IsTerminator
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
