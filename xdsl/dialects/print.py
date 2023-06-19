@@ -59,7 +59,7 @@ class PrintLnOp(IRDLOperation):
             attrs = self.attributes.copy()
             attrs.pop("format_str")
             printer.print_string(" {")
-            printer.print_dictionary(
+            printer.print_attribute_dictionary(
                 attrs, printer.print_string, printer.print_attribute
             )
             printer.print_string("}")
