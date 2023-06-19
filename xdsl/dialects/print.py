@@ -26,6 +26,7 @@ class PrintLnOp(IRDLOperation):
     """
 
     name = "print.println"
+
     format_str: builtin.StringAttr = attr_def(builtin.StringAttr)
     format_vals: VarOperand = var_operand_def()
 

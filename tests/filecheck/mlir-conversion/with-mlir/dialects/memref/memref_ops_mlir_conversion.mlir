@@ -13,6 +13,8 @@
     "memref.store"(%3, %5, %3, %4) : (index, memref<10x2xindex>, index, index) -> ()
     %6 = "memref.subview"(%5) {"operand_segment_sizes" = array<i32: 1, 0, 0, 0>, "static_offsets" = array<i64: 0, 0>, "static_sizes" = array<i64: 1, 1>, "static_strides" = array<i64: 1, 1>} : (memref<10x2xindex>) -> memref<1x1xindex>
     %7 = "memref.cast"(%5) : (memref<10x2xindex>) -> memref<?x?xindex>
+    %no_align = "memref.alloca"() {i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<1xindex>
+    "memref.dealloc"(%no_align) : (memref<1xindex>) -> ()
     "memref.dealloc"(%2) : (memref<1xindex>) -> ()
     "memref.dealloc"(%5) : (memref<10x2xindex>) -> ()
     %m1 = "memref.alloc"() {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 0, 0>}: () -> memref<100xi32, 10>
@@ -46,11 +48,13 @@
 // CHECK-NEXT: "memref.store"(%3, %5, %3, %4) : (index, memref<10x2xindex>, index, index) -> ()
 // CHECK-NEXT: %6 = "memref.subview"(%5) {"operand_segment_sizes" = array<i32: 1, 0, 0, 0>, "static_offsets" = array<i64: 0, 0>, "static_sizes" = array<i64: 1, 1>, "static_strides" = array<i64: 1, 1>} : (memref<10x2xindex>) -> memref<1x1xindex>
 // CHECK-NEXT: %7 = "memref.cast"(%5) : (memref<10x2xindex>) -> memref<?x?xindex>
+// CHECK-NEXT: %8 = "memref.alloca"() {"i64", "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<1xindex>
+// CHECK-NEXT: "memref.dealloc"(%8) : (memref<1xindex>) -> ()
 // CHECK-NEXT: "memref.dealloc"(%2) : (memref<1xindex>) -> ()
 // CHECK-NEXT: "memref.dealloc"(%5) : (memref<10x2xindex>) -> ()
 
-// CHECK:      "memref.dma_start"(%8, %1, %9, %1, %3, %10, %1) {"operand_segment_sizes" = array<i32: 1, 1, 1, 1, 1, 1, 1>} : (memref<100xi32, 10 : i64>, index, memref<100xi32, 9 : i64>, index, index, memref<100xi32>, index) -> ()
-// CHECK-NEXT: "memref.dma_wait"(%10, %1, %3) {"operand_segment_sizes" = array<i32: 1, 1, 1>} : (memref<100xi32>, index, index) -> ()
+// CHECK:      "memref.dma_start"(%9, %1, %10, %1, %3, %11, %1) {"operand_segment_sizes" = array<i32: 1, 1, 1, 1, 1, 1, 1>} : (memref<100xi32, 10 : i64>, index, memref<100xi32, 9 : i64>, index, index, memref<100xi32>, index) -> ()
+// CHECK-NEXT: "memref.dma_wait"(%11, %1, %3) {"operand_segment_sizes" = array<i32: 1, 1, 1>} : (memref<100xi32>, index, index) -> ()
 // CHECK-NEXT: "func.return"() : () -> ()
 // CHECK-NEXT: }) {"function_type" = () -> (), "sym_name" = "memref_test", "sym_visibility" = "private"} : () -> ()
 // CHECK-NEXT: }) : () -> ()
