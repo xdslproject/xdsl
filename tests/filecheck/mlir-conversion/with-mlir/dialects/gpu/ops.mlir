@@ -9,6 +9,7 @@
             %memref = "memref.alloc"() {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<10x10xi32>
             %unranked = "memref.cast"(%memref) : (memref<10x10xi32>) -> memref<*xi32>
             "gpu.host_register"(%unranked) : (memref<*xi32>) -> ()
+            "gpu.host_unregister"(%unranked) : (memref<*xi32>) -> ()
 
             %threadidx = "gpu.thread_id"() {"dimension" = #gpu<dim x>} : () -> index
             %threadidy = "gpu.thread_id"() {"dimension" = #gpu<dim y>} : () -> index

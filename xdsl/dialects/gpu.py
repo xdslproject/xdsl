@@ -420,6 +420,20 @@ class HostRegisterOp(IRDLOperation):
 
 
 @irdl_op_definition
+class HostUnregisterOp(IRDLOperation):
+    """
+    Unregisters a memref for access from device.
+    """
+
+    name = "gpu.host_unregister"
+
+    value: Operand = operand_def(memref.UnrankedMemrefType)
+
+    def __init__(self, memref: SSAValue | Operation):
+        return super().__init__(operands=[SSAValue.get(memref)])
+
+
+@irdl_op_definition
 class LaneIdOp(IRDLOperation):
     name = "gpu.lane_id"
     result: OpResult = result_def(IndexType)

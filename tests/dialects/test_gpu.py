@@ -195,17 +195,23 @@ def test_grid_dim():
 
 
 def test_host_register():
-    memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [10, 10])
-    ref = memref.Alloca.get(memref_type, 0)
-
-    unranked = memref.Cast.build(
-        operands=[ref], result_types=[memref.UnrankedMemrefType.from_type(builtin.i32)]
-    )
+    memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [-1])
+    unranked = memref.Alloca.get(memref_type, 0)
 
     register = HostRegisterOp(unranked)
 
     assert isinstance(register, HostRegisterOp)
     assert register.value is unranked.results[0]
+
+
+def test_host_unregister():
+    memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [-1])
+    unranked = memref.Alloca.get(memref_type, 0)
+
+    unregister = HostRegisterOp(unranked)
+
+    assert isinstance(unregister, HostRegisterOp)
+    assert unregister.value is unranked.results[0]
 
 
 def test_lane_id():
