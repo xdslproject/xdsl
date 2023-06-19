@@ -5,7 +5,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     TypeVar,
-    cast,
 )
 
 if TYPE_CHECKING:
@@ -136,7 +135,9 @@ class SymbolOpInterface(OpTrait):
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
 
-        return cast(StringAttr, op.attributes["sym_name"])
+        attr = op.attributes["sym_name"]
+        assert isinstance(attr, StringAttr)
+        return attr
 
     def verify(self, op: Operation) -> None:
         # import builtin here to avoid circular import
