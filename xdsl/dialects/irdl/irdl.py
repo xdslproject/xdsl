@@ -25,7 +25,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent
+from xdsl.traits import HasParent, IsTerminator
 
 ################################################################################
 # Dialect, Operation, and Attribute definitions                                #
@@ -217,7 +217,7 @@ class ResultsOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
-    traits = frozenset([HasParent(OperationOp)])
+    traits = frozenset([IsTerminator(), HasParent(OperationOp)])
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])
