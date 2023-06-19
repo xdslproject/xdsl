@@ -276,9 +276,10 @@ def generate_mpi_calls_for(
 
     for i, ex in enumerate(exchanges):
         # generate a temp buffer to store the data in
-        alloc_outbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        reduced_size = [i for i in ex.size if i != 1]
+        alloc_outbound = memref.Alloc.get(dtype, 64, reduced_size)
         alloc_outbound.memref.name_hint = f"send_buff_ex{i}"
-        alloc_inbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        alloc_inbound = memref.Alloc.get(dtype, 64, reduced_size)
         alloc_inbound.memref.name_hint = f"recv_buff_ex{i}"
         yield from (alloc_outbound, alloc_inbound)
 
