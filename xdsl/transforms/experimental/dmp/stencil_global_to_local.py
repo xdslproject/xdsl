@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import TypeVar, Iterable, Callable, cast, ClassVar
 
-from xdsl.builder import Builder
 from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
@@ -14,7 +13,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import Rewriter
 from xdsl.ir import (
-    BlockArgument,
     MLContext,
     Operation,
     SSAValue,
