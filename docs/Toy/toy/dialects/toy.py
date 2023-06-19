@@ -48,7 +48,7 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from xdsl.traits import Pure, OpTrait, SymbolOpInterface
+from xdsl.traits import Pure, OpTrait, SymbolOpInterface, IsTerminator
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
@@ -361,6 +361,8 @@ class ReturnOp(IRDLOperation):
     name = "toy.return"
     input: OptOperand = opt_operand_def(AnyTensorTypeF64)
     traits = frozenset([IsTerminator()])
+
+    traits = frozenset((IsTerminator(),))
 
     def __init__(self, input: SSAValue | None = None):
         return super().__init__(operands=[input])
