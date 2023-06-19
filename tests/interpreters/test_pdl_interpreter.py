@@ -11,7 +11,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
 )
 
-from xdsl.interpreters.experimental.pdl import InterpreterRewrite
+from xdsl.interpreters.experimental.pdl import PDLRewritePattern
 
 
 class SwapInputs(RewritePattern):
@@ -51,7 +51,7 @@ def test_rewrite_swap_inputs_pdl():
     ctx.register_dialect(arith.Arith)
 
     PatternRewriteWalker(
-        InterpreterRewrite(pdl_rewrite_op, ctx, file=stream),
+        PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
         apply_recursively=False,
     ).rewrite_module(input_module)
 
@@ -163,7 +163,7 @@ def test_rewrite_add_zero_pdl():
     ctx.register_dialect(arith.Arith)
 
     PatternRewriteWalker(
-        InterpreterRewrite(pdl_rewrite_op, ctx, file=stream),
+        PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
         apply_recursively=False,
     ).rewrite_module(input_module)
 

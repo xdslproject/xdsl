@@ -176,7 +176,7 @@ class PDLMatcher:
 
 
 @dataclass
-class InterpreterRewrite(RewritePattern):
+class PDLRewritePattern(RewritePattern):
     functions: PDLFunctions
     pdl_rewrite_op: pdl.RewriteOp
     interpreter: Interpreter
