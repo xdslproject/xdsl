@@ -384,21 +384,6 @@ def generate_memcpy(
     `field` as specified by `ex`
 
     """
-    assert ex.dim == 2, "Cannot handle non-2d case of memcpy yet!"
-
-    idx = builtin.IndexType()
-
-    x0 = arith.Constant.from_int_and_width(ex.offset[0], idx)
-    x0.result.name_hint = "x0"
-    y0 = arith.Constant.from_int_and_width(ex.offset[1], idx)
-    y0.result.name_hint = "y0"
-    x_len = arith.Constant.from_int_and_width(ex.size[0], idx)
-    x_len.result.name_hint = "x_len"
-    y_len = arith.Constant.from_int_and_width(ex.size[1], idx)
-    y_len.result.name_hint = "y_len"
-    cst0 = arith.Constant.from_int_and_width(0, idx)
-    cst1 = arith.Constant.from_int_and_width(1, idx)
-
     assert isa(field.typ, memref.MemRefType[Attribute])
 
     subview = memref.Subview.from_static_parameters(
