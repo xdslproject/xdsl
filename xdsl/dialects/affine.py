@@ -35,6 +35,7 @@ class For(IRDLOperation):
 
     # TODO this requires the ImplicitAffineTerminator trait instead of
     # NoTerminator
+    # gh issue: https://github.com/xdslproject/xdsl/issues/1149
 
     def verify_(self) -> None:
         if len(self.operands) != len(self.results):

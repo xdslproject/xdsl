@@ -30,6 +30,7 @@ from xdsl.dialects.builtin import (
     ContainerType,
 )
 from xdsl.ir import (
+    Attribute,
     TypeAttribute,
     Operation,
     SSAValue,
@@ -593,12 +594,35 @@ class DmaWaitOp(IRDLOperation):
             raise VerifyException("Expected tag to be a memref of i32")
 
 
+@irdl_op_definition
+class CopyOp(IRDLOperation):
+    name = "memref.copy"
+    source: Operand = operand_def(MemRefType)
+    destination: Operand = operand_def(MemRefType)
+
+    def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
+        super().__init__([source, destination])
+
+    def verify_(self) -> None:
+        source = cast(MemRefType[Attribute], self.source.typ)
+        destination = cast(MemRefType[Attribute], self.destination.typ)
+        if source.get_shape() != destination.get_shape():
+            raise VerifyException(
+                f"Expected source and destination to have the same shape."
+            )
+        if source.get_element_type() != destination.get_element_type():
+            raise VerifyException(
+                f"Expected source and destination to have the same element type."
+            )
+
+
 MemRef = Dialect(
     [
         Load,
         Store,
         Alloc,
         Alloca,
+        CopyOp,
         Dealloc,
         GetGlobal,
         Global,

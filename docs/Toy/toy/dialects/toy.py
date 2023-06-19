@@ -358,6 +358,7 @@ class ReturnOp(IRDLOperation):
 
     name = "toy.return"
     input: OptOperand = opt_operand_def(AnyTensorTypeF64)
+    traits = frozenset([IsTerminator()])
 
     traits = frozenset([IsTerminator()])
 
