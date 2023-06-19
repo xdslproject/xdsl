@@ -10,6 +10,7 @@ from typing import (
     NamedTuple,
     ParamSpec,
     TypeAlias,
+    TypeGuard,
     TypeVar,
 )
 
@@ -18,6 +19,10 @@ from xdsl.ir import Operation, OperationInvT, SSAValue
 from xdsl.ir.core import Attribute, Block, Region
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
+
+
+_T = TypeVar("_T")
 
 
 @dataclass
@@ -524,13 +529,22 @@ class Interpreter:
         """Print to current file."""
         print(*args, **kwargs, file=self.file)
 
-    def interpreter_assert(self, condition: bool, message: str | None = None):
+    def interpreter_assert(
+        self, condition: bool, message: str | None = None
+    ) -> None | NoReturn:
         """Raise InterpretationError if condition is not satisfied."""
         if not condition:
-            self.interpreter_raise(message)
+            raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
 
-    def interpreter_raise(self, message: str | None = None) -> NoReturn:
-        raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
+    def interpreter_assert_isa(
+        self, value: Any, hint: type[_T], message: str | None = None
+    ) -> TypeGuard[_T]:
+        """Raise InterpretationError if condition is not satisfied."""
+        # There is no way to declare that the return type is NoReturn if input is false,
+        # so we have to `assert` this function's return value
+        val = isa(value, hint)
+        self.interpreter_assert(val, message)
+        return val
 
 
 PythonValues: TypeAlias = tuple[Any, ...]
