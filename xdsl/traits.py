@@ -115,6 +115,19 @@ class IsolatedFromAbove(OpTrait):
 
 
 class SymbolOpInterface(OpTrait):
+    """
+    A `Symbol` is a named operation that resides immediately within a region that defines
+    a `SymbolTable` (TODO). A Symbol operation should use the SymbolOpInterface interface to
+    provide the necessary verification and accessors.
+
+    Currently the only requirement is a "sym_name" attribute of type StringAttr.
+
+    Please see MLIR documentation for Symbol and SymbolTable for the requirements that are
+    upcoming in xDSL.
+
+    https://mlir.llvm.org/docs/SymbolsAndSymbolTables/#symbol
+    """
+
     @staticmethod
     def get_sym_attr_name(op: Operation) -> StringAttr:
         """
