@@ -504,6 +504,35 @@ class LaunchOp(IRDLOperation):
 
 @irdl_op_definition
 class LaunchFuncOp(IRDLOperation):
+    """
+    Launch a kernel function on the specified grid of thread blocks. gpu.launch
+    operations are lowered to gpu.launch_func operations by outlining the kernel body
+    into a function in a dedicated module, which reflects the separate compilation
+    process. The kernel function is required to have the gpu.kernel attribute. The
+    module containing the kernel function is required to be a gpu.module. And finally,
+    the module containing the kernel module (which thus cannot be the top-level module)
+    is required to have the gpu.container_module attribute. The gpu.launch_func operation
+    has a symbol attribute named kernel to identify the fully specified kernel function
+    to launch (both the gpu.module and func).
+
+    The gpu.launch_func supports async dependencies: the kernel does not start executing
+    until the ops producing those async dependencies have completed.
+
+    By the default, the host implicitly blocks until kernel execution has completed. If
+    the async keyword is present, the host does not block but instead a !gpu.async.token
+    is returned. Other async GPU ops can take this token as dependency.
+
+    The operation requires at least the grid and block sizes along the x,y,z dimensions
+    as arguments. When a lower-dimensional kernel is required, unused sizes must be
+    explicitly set to 1.
+
+    The remaining operands are optional. The first optional operand corresponds to the
+    amount of dynamic shared memory a kernel's workgroup should be allocated; when this
+    operand is not present, a zero size is assumed.
+
+    The remaining operands if present are passed as arguments to the kernel function.
+    """
+
     name = "gpu.launch_func"
     asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
     gridSizeX: Operand = operand_def(IndexType)
