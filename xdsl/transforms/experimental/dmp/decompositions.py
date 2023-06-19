@@ -112,7 +112,7 @@ class GridSlice2d(DomainDecompositionStrategy):
     def halo_exchange_defs(
         self, dims: dmp.HaloShapeInformation
     ) -> Iterable[dmp.HaloExchangeDecl]:
-        # exchange to node "above" us on Y axis direction
+        # exchange to node "above" us on X axis direction
         yield dmp.HaloExchangeDecl(
             offset=(
                 dims.buffer_start(dmp.DIM_X),
@@ -126,9 +126,9 @@ class GridSlice2d(DomainDecompositionStrategy):
                 0,
                 dims.halo_size(dmp.DIM_Y),
             ),
-            neighbor=(0, -1),
+            neighbor=(-1, 0),
         )
-        # exchange to node "below" us on Y axis direction
+        # exchange to node "below" us on X axis direction
         yield dmp.HaloExchangeDecl(
             offset=(
                 dims.buffer_start(dmp.DIM_X),
@@ -142,9 +142,9 @@ class GridSlice2d(DomainDecompositionStrategy):
                 0,
                 -dims.halo_size(dmp.DIM_Y, at_end=True),
             ),
-            neighbor=(0, 1),
+            neighbor=(1, 0),
         )
-        # exchange to node "left" of us on X axis
+        # exchange to node "left" of us on Y axis
         yield dmp.HaloExchangeDecl(
             offset=(
                 dims.buffer_start(dmp.DIM_X),
@@ -158,9 +158,9 @@ class GridSlice2d(DomainDecompositionStrategy):
                 dims.halo_size(dmp.DIM_X),
                 0,
             ),
-            neighbor=(-1, 0),
+            neighbor=(0, -1),
         )
-        # exchange to node "right" of us on X axis
+        # exchange to node "right" of us on Y axis
         yield dmp.HaloExchangeDecl(
             offset=(
                 dims.core_end(dmp.DIM_X),
@@ -174,7 +174,7 @@ class GridSlice2d(DomainDecompositionStrategy):
                 -dims.halo_size(dmp.DIM_X),
                 0,
             ),
-            neighbor=(1, 0),
+            neighbor=(0, 1),
         )
         # TOOD: add diagonals
         assert not self.diagonals
