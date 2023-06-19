@@ -12,13 +12,23 @@ from dataclasses import dataclass
 from xdsl.ir import OpResult, OpTrait, Operation
 from xdsl.irdl import (
     Operand,
+    attr_def,
     irdl_op_definition,
     IRDLOperation,
     operand_def,
     result_def,
 )
+from xdsl.traits import SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
-from xdsl.dialects.builtin import IntegerType, i1, i32, i64
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    IntegerAttr,
+    IntegerType,
+    StringAttr,
+    i1,
+    i32,
+    i64,
+)
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -240,3 +250,48 @@ def test_get_trait_specialized():
     assert OpWithInterface.get_traits_of_type(GetNumResultsTrait) == [
         GetNumResultsTraitForOpWithOneResult()
     ]
+
+
+def test_symbol_op_interface():
+    """
+    Test that operations that conform to SymbolOpInterface have necessary attributes.
+    """
+
+    @irdl_op_definition
+    class NoSymNameOp(IRDLOperation):
+        name = "no_sym_name"
+        traits = frozenset((SymbolOpInterface(),))
+
+    op0 = NoSymNameOp()
+
+    with pytest.raises(
+        VerifyException, match='Operation no_sym_name must have a "sym_name" attribute'
+    ):
+        op0.verify()
+
+    @irdl_op_definition
+    class SymNameWrongTypeOp(IRDLOperation):
+        name = "wrong_sym_name_type"
+
+        sym_name: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+        traits = frozenset((SymbolOpInterface(),))
+
+    op1 = SymNameWrongTypeOp(
+        attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)}
+    )
+
+    with pytest.raises(
+        VerifyException,
+        match='Operation wrong_sym_name_type must have a "sym_name" attribute',
+    ):
+        op1.verify()
+
+    @irdl_op_definition
+    class SymNameOp(IRDLOperation):
+        name = "sym_name"
+
+        sym_name = attr_def(StringAttr)
+        traits = frozenset((SymbolOpInterface(),))
+
+    op2 = SymNameOp(attributes={"sym_name": StringAttr("symbol_name")})
+    op2.verify()
