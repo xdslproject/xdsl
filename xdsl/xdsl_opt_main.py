@@ -55,9 +55,6 @@ from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
     GlobalStencilToLocalStencil2DHorizontal,
     LowerHaloToMPI,
 )
-from xdsl.transforms.experimental.dmp.scatter_gather import (
-    DmpScatterGatherTrivialLowering,
-)
 from xdsl.transforms.print_to_println import PrintToPrintf
 
 from xdsl.utils.exceptions import DiagnosticException
@@ -103,7 +100,6 @@ def get_all_passes() -> list[type[ModulePass]]:
         ConvertStencilToLLMLIRPass,
         DeadCodeElimination,
         DesymrefyPass,
-        DmpScatterGatherTrivialLowering,
         GlobalStencilToLocalStencil2DHorizontal,
         LowerHaloToMPI,
         LowerMPIPass,
