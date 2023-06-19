@@ -188,7 +188,7 @@ class PDLRewritePattern(RewritePattern):
         assert isinstance(pdl_pattern, pdl.PatternOp)
         pdl_module = pdl_pattern.parent_op()
         assert isinstance(pdl_module, ModuleOp)
-        self.functions = PDLFunctions(ctx, pdl_module)
+        self.functions = PDLFunctions(ctx)
         self.interpreter = Interpreter(pdl_module, file=file)
         self.interpreter.register_implementations(self.functions)
         self.pdl_rewrite_op = pdl_rewrite_op
@@ -225,7 +225,6 @@ class PDLFunctions(InterpreterFunctions):
     """
 
     ctx: MLContext
-    module: ModuleOp
     _rewriter: PatternRewriter | None = field(default=None)
 
     @property
