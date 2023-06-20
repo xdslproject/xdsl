@@ -172,17 +172,27 @@ class IsTerminatorOp(IRDLOperation):
     traits = frozenset([IsTerminator()])
 
 
-def test_is_terminator_without_successors_verify():
+def test_is_terminator_without_successors_multi_block_parent_region_verify():
     """
     Test that an operation with an IsTerminator trait may not have successor
     blocks in a multi-block parent region.
     """
+
     block0 = Block([])
+    # term op is the single op in its block
     block1 = Block([IsTerminatorOp.create()])
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
 
     op0.verify()
+
+    block2 = Block([])
+    # term op with other ops in its block
+    block3 = Block([TestOp.create(), IsTerminatorOp.create()])
+    region1 = Region([block2, block3])
+    op1 = TestOp.create(regions=[region1])
+
+    op1.verify()
 
 
 def test_is_terminator_without_successors_single_block_parent_region_verify():
@@ -190,17 +200,25 @@ def test_is_terminator_without_successors_single_block_parent_region_verify():
     Test that an operation with an IsTerminator trait may not have successor
     blocks in a single-block parent region.
     """
+    # term op is the single op in its block
     block0 = Block([IsTerminatorOp.create()])
     region0 = Region([block0])
     op0 = TestOp.create(regions=[region0])
 
     op0.verify()
 
+    # term op with other ops in its block
+    block1 = Block([TestOp.create(), IsTerminatorOp.create()])
+    region1 = Region([block1])
+    op1 = TestOp.create(regions=[region1])
 
-def test_is_terminator_fails_if_not_last_operation_parent_block():
+    op1.verify()
+
+
+def test_is_terminator_fails_if_not_last_op_parent_block_in_single_block_region():
     """
     Test that an operation with an IsTerminator trait fails if it is not the
-    last operation in its parent block.
+    last operation in its parent block in a single-block region.
     """
     block0 = Block([IsTerminatorOp.create(), TestOp.create()])
     region0 = Region([block0])
@@ -212,17 +230,20 @@ def test_is_terminator_fails_if_not_last_operation_parent_block():
         op0.verify()
 
 
-def test_is_terminator_if_not_last_op_parent_block_in_multi_block_region():
+def test_is_terminator_fails_if_not_last_op_parent_block_in_multi_block_region():
     """
     Test that an operation without an IsTerminator trait verifies if it is not
     the last operation in its parent block in a multi-block region.
     """
-    block0 = Block([TestOp.create(), IsTerminatorOp.create()])
+    block0 = Block([IsTerminatorOp.create(), TestOp.create()])
     block1 = Block([])
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
 
-    op0.verify()
+    with pytest.raises(
+        VerifyException, match="must be the last operation in its parent block"
+    ):
+        op0.verify()
 
 
 @irdl_op_definition
