@@ -145,6 +145,20 @@ def test_has_no_terminator_empty_block_with_single_block_region_requires_no_term
     block0.verify()
 
 
+def test_has_no_terminator_empty_block_with_multi_block_region_fails():
+    """
+    Tests that an empty block belonging to a multi-block region with parent
+    operation fails if it has the NoTerminator trait.
+    """
+    block0 = Block([])
+    block1 = Block([])
+    region0 = Region([block0, block1])
+    op0 = HasNoTerminatorOp.create(regions=[region0])
+
+    with pytest.raises(VerifyException, match="does not contain single-block regions"):
+        op0.verify()
+
+
 @irdl_op_definition
 class IsTerminatorOp(IRDLOperation):
     """
