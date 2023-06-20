@@ -102,7 +102,7 @@ def impl(
         def impl(
             ft: _FT, interpreter: Interpreter, op: OperationInvT, values: PythonValues
         ) -> OpImplResult:
-            return OpImplResult(op.next_op, func(ft, interpreter, op, values), None)
+            return OpImplResult(func(ft, interpreter, op, values), None)
 
         setattr(impl, _IMPL_OP_TYPE, op_type)
         return impl
@@ -133,7 +133,7 @@ def impl_terminator(
             ft: _FT, interpreter: Interpreter, op: OperationInvT, values: PythonValues
         ) -> OpImplResult:
             successor, args = func(ft, interpreter, op, values)
-            return OpImplResult(None, args, successor)
+            return OpImplResult(args, successor)
 
         setattr(impl, _IMPL_OP_TYPE, op_type)
         return impl
@@ -350,11 +350,11 @@ class Interpreter:
             self.set_values(zip(op.results, result.values))
 
             if result.terminator_value is not None:
-                # No successor, end of interpretation
+                # Only support region termination for now
                 return result.terminator_value.values
 
             # Set up next iteration
-            op = result.next
+            op = op.next_op
 
     def run_ssacfg_region(
         self, region: Region, args: PythonValues, name: str = "unknown"
@@ -399,17 +399,14 @@ TerminatorValue: TypeAlias = ReturnedValues
 
 
 class OpImplResult:
-    next: Operation | None
     values: PythonValues
     terminator_value: TerminatorValue | None
 
     def __init__(
         self,
-        next: Operation | None,
         values: PythonValues,
         terminator_value: TerminatorValue | None,
     ):
-        self.next = next
         self.values = values
         self.terminator_value = terminator_value
 
