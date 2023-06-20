@@ -326,7 +326,7 @@ def test_non_empty_block_with_single_block_parent_region_with_terminator():
     op0.verify()
 
 
-def test_non_empty_block_with_parent_region_requires_terminator_with_successors():
+def test_non_empty_block_with_parent_region_can_have_terminator_with_successors():
     """
     Tests that an non-empty block belonging to a multi-block region with parent
     operation requires terminator operation.
