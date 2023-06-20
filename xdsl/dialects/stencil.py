@@ -676,8 +676,6 @@ class ReturnOp(IRDLOperation):
     name = "stencil.return"
     arg: VarOperand = var_operand_def(ResultType | AnyFloat)
 
-    traits = frozenset([IsTerminator()])
-
     traits = frozenset([HasParent(ApplyOp), IsTerminator()])
 
     @staticmethod
