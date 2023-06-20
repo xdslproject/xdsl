@@ -177,7 +177,7 @@ class PDLMatcher:
 
 @dataclass
 class PDLRewritePattern(RewritePattern):
-    functions: PDLFunctions
+    functions: PDLRewriteFunctions
     pdl_rewrite_op: pdl.RewriteOp
     interpreter: Interpreter
 
@@ -188,7 +188,7 @@ class PDLRewritePattern(RewritePattern):
         assert isinstance(pdl_pattern, pdl.PatternOp)
         pdl_module = pdl_pattern.parent_op()
         assert isinstance(pdl_module, ModuleOp)
-        self.functions = PDLFunctions(ctx)
+        self.functions = PDLRewriteFunctions(ctx)
         self.interpreter = Interpreter(pdl_module, file=file)
         self.interpreter.register_implementations(self.functions)
         self.pdl_rewrite_op = pdl_rewrite_op
@@ -219,9 +219,12 @@ class PDLRewritePattern(RewritePattern):
 
 @register_impls
 @dataclass
-class PDLFunctions(InterpreterFunctions):
+class PDLRewriteFunctions(InterpreterFunctions):
     """
-    The implementations in this class are for the RHS of the rewrite.
+    The implementations in this class are for the RHS of the rewrite. The SSA values
+    referenced within the rewrite block are guaranteed to have been matched with the
+    corresponding IR elements. The interpreter context stores the IR elements by SSA
+    values.
     """
 
     ctx: MLContext
