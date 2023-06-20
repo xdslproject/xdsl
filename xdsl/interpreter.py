@@ -1,7 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import IO, Any, Callable, Generator, Iterable, TypeAlias, TypeVar, ParamSpec
+from typing import (
+    IO,
+    Any,
+    Callable,
+    Generator,
+    Iterable,
+    NamedTuple,
+    TypeAlias,
+    TypeVar,
+    ParamSpec,
+)
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
@@ -87,7 +97,7 @@ def impl(
         def impl(
             ft: _FT, interpreter: Interpreter, op: OperationInvT, values: PythonValues
         ) -> OpImplResult:
-            return OpImplResult(op.next_op, func(ft, interpreter, op, values))
+            return OpImplResult(op.next_op, func(ft, interpreter, op, values), None)
 
         setattr(impl, _IMPL_OP_TYPE, op_type)
         return impl
@@ -113,7 +123,7 @@ def impl_terminator(
             ft: _FT, interpreter: Interpreter, op: OperationInvT, values: PythonValues
         ) -> OpImplResult:
             successor, args = func(ft, interpreter, op, values)
-            return OpImplResult(successor, args)
+            return OpImplResult(None, args, successor)
 
         setattr(impl, _IMPL_OP_TYPE, op_type)
         return impl
@@ -323,19 +333,18 @@ class Interpreter:
         while op is not None:
             inputs = self.get_values(op.operands)
             result = self._impls.run(self, op, inputs)
-            match result.next:
-                case None:
-                    # No successor, end of interpretation
-                    return result.values
-                case Operation():
-                    self.interpreter_assert(
-                        len(op.results) == len(result.values),
-                        "Incorrect number of results",
-                    )
-                    self.set_values(zip(op.results, result.values))
+            self.interpreter_assert(
+                len(op.results) == len(result.values),
+                "Incorrect number of results",
+            )
+            self.set_values(zip(op.results, result.values))
 
-                    # Set up next iteration
-                    op = result.next
+            if result.terminator_value is not None:
+                # No successor, end of interpretation
+                return result.terminator_value.values
+
+            # Set up next iteration
+            op = result.next
 
     def run_ssacfg_region(
         self, region: Region, args: PythonValues, name: str = "unknown"
@@ -372,13 +381,27 @@ class Interpreter:
 PythonValues: TypeAlias = tuple[Any, ...]
 
 
+class ReturnedValues(NamedTuple):
+    values: PythonValues
+
+
+TerminatorValue: TypeAlias = ReturnedValues
+
+
 class OpImplResult:
     next: Operation | None
     values: PythonValues
+    terminator_value: TerminatorValue | None
 
-    def __init__(self, next: Operation | None, values: PythonValues):
+    def __init__(
+        self,
+        next: Operation | None,
+        values: PythonValues,
+        terminator_value: TerminatorValue | None,
+    ):
         self.next = next
         self.values = values
+        self.terminator_value = terminator_value
 
 
 NonTerminatorOpImpl: TypeAlias = Callable[
@@ -387,7 +410,7 @@ NonTerminatorOpImpl: TypeAlias = Callable[
 
 TerminatorOpImpl: TypeAlias = Callable[
     [_FT, Interpreter, OperationInvT, PythonValues],
-    tuple[None, PythonValues],
+    tuple[TerminatorValue, PythonValues],
 ]
 
 OpImpl: TypeAlias = Callable[

@@ -11,6 +11,8 @@ from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
     PythonValues,
+    ReturnedValues,
+    TerminatorValue,
     impl_terminator,
     register_impls,
     impl,
@@ -108,9 +110,9 @@ class ToyFunctions(InterpreterFunctions):
     @impl_terminator(toy.ReturnOp)
     def run_return(
         self, interpreter: Interpreter, op: toy.ReturnOp, args: tuple[Any, ...]
-    ) -> tuple[None, PythonValues]:
+    ) -> tuple[TerminatorValue, PythonValues]:
         assert len(args) < 2
-        return None, ()
+        return ReturnedValues(args), ()
 
     @impl(toy.GenericCallOp)
     def run_generic_call(
