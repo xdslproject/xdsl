@@ -16,7 +16,7 @@ from typing import (
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
 from xdsl.ir.core import Block, Region
-from xdsl.traits import SymbolOpInterface
+from xdsl.traits import IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -91,6 +91,11 @@ def impl(
     See `InterpreterFunctions`
     """
 
+    if op_type.has_trait(IsTerminator):
+        raise ValueError(
+            "Operations that are terminators must use `impl_terminator` annotation"
+        )
+
     def annot(
         func: NonTerminatorOpImpl[_FT, OperationInvT]
     ) -> OpImpl[_FT, OperationInvT]:
@@ -117,6 +122,11 @@ def impl_terminator(
 
     See `InterpreterFunctions`
     """
+
+    if not op_type.has_trait(IsTerminator):
+        raise ValueError(
+            "Operations that are not terminators must use `impl` annotation"
+        )
 
     def annot(func: TerminatorOpImpl[_FT, OperationInvT]) -> OpImpl[_FT, OperationInvT]:
         def impl(
