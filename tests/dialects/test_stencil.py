@@ -718,7 +718,7 @@ def test_1d3pt_stencil_construct():
                 stencil_comp0 = Addf(stencil_acs_l, stencil_acs_c)
                 stencil_comp1 = Addf(stencil_comp0, stencil_acs_r)
                 # Define the return operation
-                ReturnOp.get([stencil_comp1]),  # type: ignore
+                _return_op = ReturnOp.get([stencil_comp1])
 
             # Apply the computation to the loaded values
             temp_out = ApplyOp.get([load0], computation_region, [temp0])
