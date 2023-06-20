@@ -5,6 +5,8 @@ from typing import IO, Any, Callable, Generator, Iterable, TypeAlias, TypeVar, P
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
+from xdsl.ir.core import Block, Region
+from xdsl.traits import IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -208,6 +210,18 @@ class Interpreter:
         default_factory=lambda: InterpreterContext(name="root")
     )
     file: IO[str] | None = field(default=None)
+    _symbol_table: dict[str, Operation] | None = None
+
+    @property
+    def symbol_table(self) -> dict[str, Operation]:
+        if self._symbol_table is None:
+            self._symbol_table = {}
+
+            for op in self.module.walk():
+                if op.has_trait(SymbolOpInterface):
+                    symbol = SymbolOpInterface.get_sym_attr_name(op)
+                    self._symbol_table[symbol.data] = op
+        return self._symbol_table
 
     def get_values(self, values: Iterable[SSAValue]) -> tuple[Any, ...]:
         """
@@ -252,22 +266,60 @@ class Interpreter:
         """
         self._impls.register_from(impls, override=override)
 
-    def run(self, op: Operation):
+    def run_op(self, op: Operation | str, inputs: tuple[Any, ...]) -> tuple[Any, ...]:
         """
         Fetches the implemetation for the given op, passes it the Python values
         associated with the SSA operands, and assigns the results to the
         operation's results.
         """
-        inputs = self.get_values(op.operands)
-        results = self._impls.run(self, op, inputs)
-        self.interpreter_assert(
-            len(op.results) == len(results), "Incorrect number of results"
-        )
-        self.set_values(zip(op.results, results))
+        if isinstance(op, str):
+            op = self.get_op_for_symbol(op)
 
-    def run_module(self):
-        """Starts execution of `self.module`"""
-        self.run(self.module)
+        results = self._impls.run(self, op, inputs)
+        return results
+
+    def run_block(self, block: Block, args: tuple[Any, ...]) -> tuple[Any, ...] | None:
+        """
+        Interpret a basic block, using `args` as the block argument values.
+        The terminator of this block is expected either to call its successor or return
+        the results for the region directly.
+        """
+        self.set_values(zip(block.args, args))
+
+        for op in block.ops:
+            inputs = self.get_values(op.operands)
+            results = self._impls.run(self, op, inputs)
+            if op.has_trait(IsTerminator):
+                return results
+            else:
+                self.interpreter_assert(
+                    len(op.results) == len(results), "Incorrect number of results"
+                )
+                self.set_values(zip(op.results, results))
+
+        return None
+
+    def run_ssacfg_region(
+        self, region: Region, args: tuple[Any, ...], name: str = "unknown"
+    ) -> tuple[Any, ...] | None:
+        """
+        Interpret an SSACFG-semantic Region.
+        Creates a new scope, then executes the first block in the region. The first block
+        is expected to return the results of the region directly.
+        """
+        if not region.blocks:
+            return ()
+        self.push_scope(name)
+        block = region.blocks[0]
+        results = self.run_block(block, args)
+        self.pop_scope()
+        return results
+
+    def get_op_for_symbol(self, symbol: str) -> Operation:
+        if symbol in self.symbol_table:
+            return self.symbol_table[symbol]
+        else:
+            raise InterpretationError(f'Could not find symbol "{symbol}"')
 
     def print(self, *args: Any, **kwargs: Any):
         """Print to current file."""

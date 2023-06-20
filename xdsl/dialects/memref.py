@@ -432,6 +432,7 @@ class Subview(IRDLOperation):
         offsets: Sequence[int],
         sizes: Sequence[int],
         strides: Sequence[int],
+        reduce_rank: bool = False,
     ) -> Subview:
         source = SSAValue.get(source)
 
@@ -453,12 +454,27 @@ class Subview(IRDLOperation):
             + source_offset
         )
 
+        if reduce_rank:
+            composed_strides = layout_strides
+            layout_strides: list[int] = []
+            result_sizes: list[int] = []
+
+            for stride, size in zip(composed_strides, sizes):
+                if size == 1:
+                    continue
+                layout_strides.append(stride)
+                result_sizes.append(size)
+
+        else:
+            result_sizes = list(sizes)
+
         layout = StridedLayoutAttr(layout_strides, layout_offset)
 
         return_typ = MemRefType.from_element_type_and_shape(
             source_type.element_type,
-            sizes,
+            result_sizes,
             layout,
+            source_type.memory_space,
         )
 
         return Subview.build(
