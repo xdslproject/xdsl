@@ -1,4 +1,5 @@
 import pytest
+from xdsl.builder import Builder
 
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import (
@@ -696,37 +697,32 @@ def test_1d3pt_stencil_construct():
     # Computational domain shape
     field0 = FieldType([symbolic_shape], f32)
 
-    # The computation block
-    block0 = Block(arg_types=[temp0])
+    @ModuleOp
+    @Builder.implicit_region
+    def module():
+        @Builder.implicit_region([field0, field0])
+        def kernel_body(args: tuple[BlockArgument, ...]):
+            field_in = args[0]
+            field_out = args[1]
 
-    # Stencil computation
-    stencil_ops = [
-        stencil_acs_l := AccessOp.get(block0.args[0], (-1,)),
-        stencil_acs_c := AccessOp.get(block0.args[0], (0,)),
-        stencil_acs_r := AccessOp.get(block0.args[0], (1,)),
-        stencil_comp0 := Addf(stencil_acs_l, stencil_acs_c),
-        stencil_comp1 := Addf(stencil_comp0, stencil_acs_r),
-        # Define the return operation
-        return_op_ := ReturnOp([stencil_comp1]),  # type: ignore
-    ]
+            load0 = LoadOp.get(field_in)
 
-    # Add all ops to a the block
-    block0.add_ops([*stencil_ops])
+            @Builder.implicit_region([temp0])
+            def computation_region(args: tuple[BlockArgument]):
+                temp_in = args[0]
+                stencil_acs_l = AccessOp.get(temp_in, (-1,))
+                stencil_acs_c = AccessOp.get(temp_in, (0,))
+                stencil_acs_r = AccessOp.get(temp_in, (1,))
+                stencil_comp0 = Addf(stencil_acs_l, stencil_acs_c)
+                stencil_comp1 = Addf(stencil_comp0, stencil_acs_r)
+                # Define the return operation
+                ReturnOp.get([stencil_comp1]),  # type: ignore
 
-    # Build computation kernel
-    func0 = FuncOp("kernel", ([field0, field0], []))
+            temp_out = ApplyOp.get([load0], computation_region, [temp0])
+            StoreOp.get(temp_out, field_out, IndexAttr.get(0), IndexAttr.get(6))
 
-    load0 = LoadOp.get(func0.args[0])
-    apply0 = ApplyOp.get([load0], block0, [temp0])
-    store0 = StoreOp.get(
-        apply0.results[0], func0.args[1], IndexAttr.get(0), IndexAttr.get(6)
-    )
-
-    # Add load, apply, store to the body of the kernel
-    func0.body.block.add_ops([load0, apply0, store0])
-
-    # Wrap all in a ModuleOp
-    mod = ModuleOp([func0])
+        # Build computation kernel
+        FuncOp("kernel", ([field0, field0], []), kernel_body)
 
     expected = """
 builtin.module {
@@ -746,4 +742,4 @@ builtin.module {
 }
 """  # noqa
 
-    assert_print_op(mod, expected, None, print_generic_format=False)
+    assert_print_op(module, expected, None, print_generic_format=False)

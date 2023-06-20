@@ -320,14 +320,17 @@ class ApplyOp(IRDLOperation):
     @staticmethod
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
-        body: Block,
+        body: Block | Region,
         result_types: Sequence[TempType[Attribute]],
     ):
         assert len(result_types) > 0
 
+        if isinstance(body, Block):
+            body = Region(body)
+
         return ApplyOp.build(
             operands=[list(args)],
-            regions=[Region(body)],
+            regions=[body],
             result_types=[result_types],
         )
 
