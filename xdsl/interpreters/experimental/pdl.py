@@ -221,7 +221,10 @@ class PDLRewritePattern(RewritePattern):
 @dataclass
 class PDLRewriteFunctions(InterpreterFunctions):
     """
-    The implementations in this class are for the RHS of the rewrite.
+    The implementations in this class are for the RHS of the rewrite. The SSA values
+    referenced within the rewrite block are guaranteed to have been matched with the
+    corresponding IR elements. The interpreter context stores the IR elements by SSA
+    values.
     """
 
     ctx: MLContext
