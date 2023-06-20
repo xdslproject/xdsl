@@ -399,6 +399,11 @@ TerminatorValue: TypeAlias = ReturnedValues
 
 
 class OpImplResult:
+    """
+    The result of interpreting an Operation. If and only if the Operation is a terminator,
+    it must set the terminator_value.
+    """
+
     values: PythonValues
     terminator_value: TerminatorValue | None
 
