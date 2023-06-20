@@ -285,8 +285,6 @@ class Interpreter:
         the results for the region directly.
         """
         self.set_values(zip(block.args, args))
-        if not block.ops:
-            raise InterpretationError(f"Cannot interpret an empty block.")
 
         for op in block.ops:
             inputs = self.get_values(op.operands)
