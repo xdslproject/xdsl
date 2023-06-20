@@ -778,7 +778,7 @@ class Operation(IRNode):
                     f"Operation {self.name} with block successors does not belong to a block or a region"
                 )
 
-            if parent_block.last_op != self:
+            if parent_block.last_op is not self:
                 raise VerifyException(
                     f"Operation {self.name} with block successors must terminate its parent block"
                 )
@@ -800,7 +800,7 @@ class Operation(IRNode):
                                 f"Operation {self.name} terminates block in single-block region but is not a terminator"
                             )
                 elif len(parent_region.blocks) > 1:
-                    if len(self.successors) == 0 and not self.has_trait(IsTerminator):
+                    if not self.has_trait(IsTerminator):
                         raise VerifyException(
                             f"Operation {self.name} terminates block in multi-block region but is not a terminator"
                         )

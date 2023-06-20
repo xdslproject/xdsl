@@ -83,7 +83,7 @@ def main(path: Path, emit: str):
     if emit == "interpret":
         interpreter = Interpreter(module_op)
         interpreter.register_implementations(ToyFunctions())
-        interpreter.run_module()
+        interpreter.run_op("main", ())
         return
 
     print(f"Unknown option {emit}")

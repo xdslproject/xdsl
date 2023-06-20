@@ -24,6 +24,7 @@ from xdsl.ir import (
     ErasedSSAValue,
     SSAValue,
 )
+from xdsl.traits import IsTerminator
 from xdsl.parser import Parser
 from xdsl.irdl import (
     IRDLOperation,
@@ -168,13 +169,14 @@ def test_op_clone_with_regions():
 @irdl_op_definition
 class SuccessorOp(IRDLOperation):
     """
-    Utility operation that requires a successor and has the IsTerminator
-    trait.
+    Utility operation that requires a successor.
     """
 
     name = "test.successor_op"
 
     successor: Successor = successor_def()
+
+    traits = frozenset([IsTerminator()])
 
 
 def test_block_branching_to_another_region_wrong():
@@ -324,7 +326,7 @@ def test_non_empty_block_with_single_block_parent_region_with_terminator():
     op0.verify()
 
 
-def test_non_empty_block_with_parent_region_requires_terminator_with_successors():
+def test_non_empty_block_with_parent_region_can_have_terminator_with_successors():
     """
     Tests that an non-empty block belonging to a multi-block region with parent
     operation requires terminator operation.
@@ -354,6 +356,26 @@ def test_non_empty_block_with_parent_region_requires_terminator_without_successo
         match="terminates block in multi-block region but is not a terminator",
     ):
         op0.verify()
+
+
+def test_non_empty_block_with_parent_region_requires_terminator_with_successors():
+    """
+    Tests that an non-empty block belonging to a multi-block region with parent
+    operation requires terminator operation.
+    The terminator operation may have successors.
+    """
+    block0 = Block()
+
+    op0 = TestOp.create(successors=[block0])
+    block1 = Block([op0])
+
+    region0 = Region([block0, block1])
+
+    with pytest.raises(
+        VerifyException,
+        match="terminates block in multi-block region but is not a terminator",
+    ):
+        region0.verify()
 
 
 def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op():

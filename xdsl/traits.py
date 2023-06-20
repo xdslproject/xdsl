@@ -9,6 +9,7 @@ from typing import (
 
 if TYPE_CHECKING:
     from xdsl.ir import Operation, Region
+    from xdsl.dialects.builtin import StringAttr
 
 
 @dataclass(frozen=True)
@@ -125,3 +126,42 @@ class IsolatedFromAbove(OpTrait):
                     # too; in which case it will check itself.
                     if not child_op.has_trait(IsolatedFromAbove):
                         regions += child_op.regions
+
+
+class SymbolOpInterface(OpTrait):
+    """
+    A `Symbol` is a named operation that resides immediately within a region that defines
+    a `SymbolTable` (TODO). A Symbol operation should use the SymbolOpInterface interface to
+    provide the necessary verification and accessors.
+
+    Currently the only requirement is a "sym_name" attribute of type StringAttr.
+
+    Please see MLIR documentation for Symbol and SymbolTable for the requirements that are
+    upcoming in xDSL.
+
+    https://mlir.llvm.org/docs/SymbolsAndSymbolTables/#symbol
+    """
+
+    @staticmethod
+    def get_sym_attr_name(op: Operation) -> StringAttr:
+        """
+        Returns the symbol of the operation
+        """
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr
+
+        attr = op.attributes["sym_name"]
+        assert isinstance(attr, StringAttr)
+        return attr
+
+    def verify(self, op: Operation) -> None:
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr
+
+        if "sym_name" not in op.attributes or not isinstance(
+            op.attributes["sym_name"], StringAttr
+        ):
+            raise VerifyException(
+                f'Operation {op.name} must have a "sym_name" attribute of type '
+                f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
+            )

@@ -184,6 +184,18 @@ class Printer:
             self.print("=")
             print_value(value)
 
+    def print_attribute_dictionary(
+        self,
+        elems: dict[str, Attribute],
+    ) -> None:
+        for i, (name, attribute) in enumerate(elems.items()):
+            if i:
+                self.print(", ")
+            self.print(name)
+            if not isinstance(attribute, UnitAttr):
+                self.print("=")
+                self.print_attribute(attribute)
+
     def _print_new_line(
         self, indent: int | None = None, print_message: bool = True
     ) -> None:
