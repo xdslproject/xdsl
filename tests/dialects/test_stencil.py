@@ -1,5 +1,5 @@
 import pytest
-from xdsl.builder import Builder
+from xdsl.builder import Builder, ImplicitBuilder
 
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import (
@@ -701,10 +701,9 @@ def test_1d3pt_stencil_construct():
     @Builder.implicit_region
     def module():
         # The kernel body
-        @Builder.implicit_region([field0, field0])
-        def kernel_body(args: tuple[BlockArgument, ...]):
-            field_in = args[0]
-            field_out = args[1]
+        with ImplicitBuilder(func0 := FuncOp("kernel", ([field0, field0], [])).body):
+            field_in = func0.block.args[0]
+            field_out = func0.block.args[1]
             # Load the input field's values
             load0 = LoadOp.get(field_in)
 
@@ -725,9 +724,6 @@ def test_1d3pt_stencil_construct():
             temp_out = ApplyOp.get([load0], computation_region, [temp0])
             # Store the computed values to the output field
             StoreOp.get(temp_out, field_out, IndexAttr.get(0), IndexAttr.get(6))
-
-        # Build computation kernel
-        FuncOp("kernel", ([field0, field0], []), kernel_body)
 
     expected = """
 builtin.module {
