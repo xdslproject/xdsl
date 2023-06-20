@@ -24,6 +24,7 @@ from xdsl.ir import (
     ErasedSSAValue,
     SSAValue,
 )
+from xdsl.traits import IsTerminator
 from xdsl.parser import Parser
 from xdsl.irdl import (
     IRDLOperation,
@@ -174,6 +175,8 @@ class SuccessorOp(IRDLOperation):
     name = "test.successor_op"
 
     successor: Successor = successor_def()
+
+    traits = frozenset([IsTerminator()])
 
 
 def test_block_branching_to_another_region_wrong():
