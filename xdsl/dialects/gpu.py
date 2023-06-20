@@ -518,7 +518,7 @@ class LaunchFuncOp(IRDLOperation):
     The gpu.launch_func supports async dependencies: the kernel does not start executing
     until the ops producing those async dependencies have completed.
 
-    By the default, the host implicitly blocks until kernel execution has completed. If
+    By default, the host implicitly blocks until kernel execution has completed. If
     the async keyword is present, the host does not block but instead a !gpu.async.token
     is returned. Other async GPU ops can take this token as dependency.
 
