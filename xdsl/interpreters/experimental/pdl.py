@@ -212,7 +212,7 @@ class PDLRewritePattern(RewritePattern):
         self.interpreter.set_values(matcher.matching_context.items())
         self.functions.rewriter = rewriter
 
-        self.interpreter.run(self.pdl_rewrite_op)
+        self.interpreter.run_op(self.pdl_rewrite_op, (xdsl_op,))
 
         self.interpreter.pop_scope()
 
@@ -247,8 +247,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert pdl_rewrite_op.body is not None
-        for op in pdl_rewrite_op.body.ops:
-            interpreter.run(op)
+        interpreter.run_block(pdl_rewrite_op.body.block, ())
         return ()
 
     @impl(pdl.OperationOp)

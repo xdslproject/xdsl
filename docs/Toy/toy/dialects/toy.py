@@ -16,7 +16,7 @@ from xdsl.ir import (
     Region,
     OpResult,
 )
-from xdsl.traits import IsTerminator
+
 from xdsl.dialects.builtin import (
     Float64Type,
     FunctionType,
@@ -48,7 +48,7 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from xdsl.traits import Pure, OpTrait, SymbolOpInterface
+from xdsl.traits import Pure, OpTrait, SymbolOpInterface, IsTerminator
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
