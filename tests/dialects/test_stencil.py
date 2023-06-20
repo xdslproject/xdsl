@@ -700,16 +700,19 @@ def test_1d3pt_stencil_construct():
     @ModuleOp
     @Builder.implicit_region
     def module():
+        # The kernel body
         @Builder.implicit_region([field0, field0])
         def kernel_body(args: tuple[BlockArgument, ...]):
             field_in = args[0]
             field_out = args[1]
-
+            # Load the input field's values
             load0 = LoadOp.get(field_in)
 
+            # The computation region
             @Builder.implicit_region([temp0])
             def computation_region(args: tuple[BlockArgument]):
                 temp_in = args[0]
+                # Stencil computation
                 stencil_acs_l = AccessOp.get(temp_in, (-1,))
                 stencil_acs_c = AccessOp.get(temp_in, (0,))
                 stencil_acs_r = AccessOp.get(temp_in, (1,))
@@ -718,7 +721,9 @@ def test_1d3pt_stencil_construct():
                 # Define the return operation
                 ReturnOp.get([stencil_comp1]),  # type: ignore
 
+            # Apply the computation to the loaded values
             temp_out = ApplyOp.get([load0], computation_region, [temp0])
+            # Store the computed values to the output field
             StoreOp.get(temp_out, field_out, IndexAttr.get(0), IndexAttr.get(6))
 
         # Build computation kernel
