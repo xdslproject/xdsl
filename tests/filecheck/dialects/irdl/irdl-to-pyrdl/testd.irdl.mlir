@@ -133,4 +133,4 @@ builtin.module {
   }
 }
 
-// CHECK: testd = Dialect([parametric, parametric_attr, attr_in_type_out], [eq, anyof, all_of, any, dynbase, dynparams, constraint_vars])
+// CHECK: testd = Dialect([eq, anyof, all_of, any, dynbase, dynparams, constraint_vars], [parametric, parametric_attr, attr_in_type_out])

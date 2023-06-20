@@ -13,7 +13,16 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects import memref
 
-from xdsl.ir import OpResult, SSAValue, Operation, Attribute, Dialect, TypeAttribute
+from xdsl.ir import (
+    Block,
+    OpResult,
+    Region,
+    SSAValue,
+    Operation,
+    Attribute,
+    Dialect,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
@@ -35,7 +44,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsolatedFromAbove
+from xdsl.traits import HasParent, IsTerminator, IsolatedFromAbove
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.parser import Parser
@@ -305,6 +314,9 @@ class ApplyOp(IRDLOperation):
       %0 = stencil.apply (%arg0=%0 : !stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64> {
         ...
       }
+
+    The computation bounds are defined by the bounds of the output types, which are
+    constrained to be all equals.
     """
 
     name = "stencil.apply"
@@ -333,6 +345,11 @@ class ApplyOp(IRDLOperation):
             raise VerifyException(
                 f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
             )
+        res_typ = cast(TempType[Attribute], self.res[0].typ)
+        for other in self.res[1:]:
+            other = cast(TempType[Attribute], other.typ)
+            if res_typ.bounds != other.bounds:
+                raise VerifyException(f"Expected all output types bounds to be equals.")
 
     def get_rank(self) -> int:
         res_typ = self.res[0].typ
@@ -409,7 +426,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field: Operand = operand_def(Attribute)
-    result: OpResult = result_def(FieldType | memref.MemRefType)
+    result: OpResult = result_def(FieldType[Attribute] | memref.MemRefType[Attribute])
 
     @staticmethod
     def get(
@@ -572,6 +589,10 @@ class BufferOp(IRDLOperation):
     temp: Operand = operand_def(TempType)
     res: OpResult = result_def(TempType)
 
+    def __init__(self: IRDLOperation, temp: SSAValue | Operation):
+        temp = SSAValue.get(temp)
+        super().__init__(operands=[temp], result_types=[temp.typ])
+
     def verify_(self) -> None:
         if self.temp.typ != self.res.typ:
             raise VerifyException(
@@ -655,9 +676,28 @@ class ReturnOp(IRDLOperation):
     name = "stencil.return"
     arg: VarOperand = var_operand_def(ResultType | AnyFloat)
 
+    traits = frozenset([HasParent(ApplyOp), IsTerminator()])
+
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):
         return ReturnOp.build(operands=[list(res)])
+
+    def verify_(self) -> None:
+        types = [
+            o.typ.elem if isinstance(o.typ, ResultType) else o.typ for o in self.arg
+        ]
+        apply = cast(ApplyOp, self.parent_op())
+        res_types = [cast(TempType[Attribute], r.typ).element_type for r in apply.res]
+        if len(types) != len(res_types):
+            raise VerifyException(
+                f"stencil.return expected {len(res_types)} operands to match the parent "
+                f"stencil.apply result types, got {len(types)}"
+            )
+        if types != res_types:
+            raise VerifyException(
+                "stencil.return expected operand types to match the parent "
+                "stencil.apply result element types."
+            )
 
 
 Stencil = Dialect(

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import functools
 from dataclasses import dataclass
-from enum import Enum
-from typing import Annotated, Generic, TypeVar, Set, Optional
+from typing import Annotated, Generic, TypeVar
 
 from xdsl.dialects.builtin import (
     ContainerOf,
@@ -19,7 +17,8 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     AnyIntegerAttr,
 )
-from xdsl.ir import Operation, SSAValue, Dialect, OpResult, Data
+from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
+from xdsl.ir import Operation, SSAValue, Dialect, OpResult
 from xdsl.irdl import (
     AnyOf,
     ConstraintVar,
@@ -27,7 +26,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     AnyAttr,
     Operand,
-    irdl_attr_definition,
     IRDLOperation,
     operand_def,
     opt_attr_def,
@@ -44,74 +42,12 @@ floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 _FloatTypeT = TypeVar("_FloatTypeT", bound=AnyFloat)
 
 
-class FastMathFlag(Enum):
-    REASSOC = "reassoc"
-    NO_NANS = "nnan"
-    NO_INFS = "ninf"
-    NO_SIGNED_ZEROS = "nsz"
-    ALLOW_RECIP = "arcp"
-    ALLOW_CONTRACT = "contract"
-    APPROX_FUNC = "afn"
+class FastMathFlagsAttr(LLVMFastMathAttr):
+    """
+    arith.fastmath is a mirror of LLVMs fastmath flags.
+    """
 
-
-@dataclass
-class FastMathFlags:
-    flags: Set[FastMathFlag]
-
-    # TODO should we implement all/more set operators?
-    def __or__(self, other: FastMathFlags):
-        return FastMathFlags(self.flags | other.flags)
-
-    def __contains__(self, item: FastMathFlag):
-        return item in self.flags
-
-    @staticmethod
-    def try_parse(parser: Parser) -> Optional[FastMathFlags]:
-        if parser.parse_optional_characters("none") is not None:
-            return FastMathFlags(set())
-        if parser.parse_optional_characters("fast") is not None:
-            return FastMathFlags(set(FastMathFlag))
-
-        for option in FastMathFlag:
-            if parser.parse_optional_characters(option.value) is not None:
-                return FastMathFlags({option})
-
-        return None
-
-
-@irdl_attr_definition
-class FastMathFlagsAttr(Data[FastMathFlags]):
     name = "arith.fastmath"
-
-    @staticmethod
-    def parse_parameter(parser: Parser) -> FastMathFlags:
-        flag = FastMathFlags.try_parse(parser)
-        if flag is None:
-            return FastMathFlags(set())
-
-        flags = [flag]
-        while parser.parse_optional_punctuation(",") is not None:
-            flag = parser.expect(
-                lambda: FastMathFlags.try_parse(parser), "fastmath flag expected"
-            )
-            flags.append(flag)
-
-        result = functools.reduce(FastMathFlags.__or__, flags, FastMathFlags(set()))
-        return result
-
-    def print_parameter(self, printer: Printer):
-        data = self.data
-        if len(data.flags) == 0:
-            printer.print("none")
-        elif len(data.flags) == len(FastMathFlag):
-            printer.print("fast")
-        else:
-            # make sure we emit flags in a consistent order
-            printer.print(",".join(flag.value for flag in FastMathFlag if flag in data))
-
-    @staticmethod
-    def from_flags(flags: FastMathFlags):
-        return FastMathFlagsAttr(flags)
 
 
 @irdl_op_definition
@@ -398,8 +334,8 @@ class Cmpi(IRDLOperation, ComparisonOperation):
 
     name = "arith.cmpi"
     predicate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    lhs: Operand = operand_def(IntegerType)
-    rhs: Operand = operand_def(IntegerType)
+    lhs: Operand = operand_def(signlessIntegerLike)
+    rhs: Operand = operand_def(signlessIntegerLike)
     result: OpResult = result_def(IntegerType(1))
 
     @staticmethod

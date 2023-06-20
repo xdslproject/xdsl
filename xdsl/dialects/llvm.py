@@ -1,6 +1,10 @@
 from __future__ import annotations
-from typing import Sequence
 
+from enum import Enum
+from types import EllipsisType
+from typing import Sequence, Literal
+
+from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
     StringAttr,
     ArrayAttr,
@@ -18,7 +22,6 @@ from xdsl.dialects.builtin import (
     ContainerType,
 )
 from xdsl.ir import (
-    Block,
     TypeAttribute,
     ParametrizedAttribute,
     Attribute,
@@ -27,6 +30,7 @@ from xdsl.ir import (
     Operation,
     SSAValue,
     Region,
+    Data,
 )
 from xdsl.irdl import (
     Operand,
@@ -205,17 +209,24 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 
     inputs: ParameterDef[ArrayAttr[Attribute]]
     output: ParameterDef[Attribute]
+    variadic: ParameterDef[UnitAttr | NoneAttr]
 
     def __init__(
         self,
         inputs: Sequence[Attribute] | ArrayAttr[Attribute],
         output: Attribute | None = None,
+        is_variadic: bool = False,
     ) -> None:
         if not isinstance(inputs, ArrayAttr):
             inputs = ArrayAttr(inputs)
         if output is None:
             output = LLVMVoidType()
-        super().__init__([inputs, output])
+        variad_attr = UnitAttr() if is_variadic else NoneAttr()
+        super().__init__([inputs, output, variad_attr])
+
+    @property
+    def is_variadic(self) -> bool:
+        return isinstance(self.variadic, UnitAttr)
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -226,6 +237,9 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 
         printer.print(" (")
         printer.print_list(self.inputs, printer.print_attribute)
+        if self.is_variadic:
+            printer.print(", ...")
+
         printer.print_string(")>")
 
     @staticmethod
@@ -236,12 +250,36 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         else:
             output = parser.parse_attribute()
 
+        # save pos before args for error message printing
+        pos = parser.pos
+
+        def _parse_attr_or_variadic() -> Attribute | EllipsisType:
+            """
+            This returns either an attribute, or Ellipsis if a
+            varargs specifier (`...`) was parsed.
+            """
+            if parser.parse_optional_characters("...") is not None:
+                return ...
+            return parser.parse_attribute()
+
         inputs = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parser.parse_attribute
+            Parser.Delimiter.PAREN, _parse_attr_or_variadic
         )
+        is_varargs: NoneAttr | UnitAttr = NoneAttr()
+        if inputs and inputs[-1] is Ellipsis:
+            is_varargs = UnitAttr()
+            inputs = inputs[:-1]
+
+        if not isa(inputs, list[Attribute]):
+            parser.raise_error(
+                "Varargs specifier `...` must be at the end of the argument definition",
+                pos,
+                parser.pos,
+            )
+
         parser.parse_characters(">", " in llvm.func parameters")
 
-        return [ArrayAttr(inputs), output]
+        return [ArrayAttr(inputs), output, is_varargs]
 
 
 @irdl_attr_definition
@@ -686,7 +724,7 @@ class GlobalOp(IRDLOperation):
         global_type: Attribute,
         sym_name: str | StringAttr,
         linkage: str | LinkageAttr,
-        addr_space: int,
+        addr_space: int = 0,
         constant: bool | None = None,
         dso_local: bool | None = None,
         thread_local_: bool | None = None,
@@ -731,7 +769,7 @@ class GlobalOp(IRDLOperation):
                 section = StringAttr(section)
             attrs["section"] = section
 
-        return GlobalOp.build(attributes=attrs, regions=[Region([Block()])])
+        return GlobalOp.build(attributes=attrs, regions=[Region([])])
 
 
 @irdl_op_definition
@@ -745,13 +783,207 @@ class AddressOfOp(IRDLOperation):
     def get(
         global_name: str | StringAttr | SymbolRefAttr, result_type: LLVMPointerType
     ):
-        if isinstance(global_name, str):
-            global_name = StringAttr(global_name)
-        if isinstance(global_name, StringAttr):
+        if isinstance(global_name, (StringAttr, str)):
             global_name = SymbolRefAttr(global_name)
 
         return AddressOfOp.build(
             attributes={"global_name": global_name}, result_types=[result_type]
+        )
+
+
+LLVM_CALLING_CONVS: set[str] = {
+    "ccc",
+    "fastcc",
+    "coldcc",
+    "cc 10",
+    "cc 11",
+    "webkit_jscc",
+    "anyregcc",
+    "preserve_mostcc",
+    "preserve_allcc",
+    "cxx_fast_tlscc",
+    "tailcc",
+    "swiftcc",
+    "swifttailcc",
+    "cfguard_checkcc",
+}
+"""
+A list of all valid calling conventions understood by LLVM, see
+https://llvm.org/docs/LangRef.html#calling-conventions
+for more info.
+"""
+
+
+@irdl_attr_definition
+class CallingConventionAttr(ParametrizedAttribute):
+    """
+    LLVM Calling convention, default is ccc.
+    """
+
+    name = "llvm.cconv"
+
+    convention: ParameterDef[StringAttr]
+
+    @property
+    def cconv_name(self) -> str:
+        return self.convention.data
+
+    def __init__(self, conv: str):
+        super().__init__([StringAttr(conv)])
+
+    def _verify(self):
+        if self.cconv_name not in LLVM_CALLING_CONVS:
+            raise VerifyException(f'Invalid calling convention "{self.cconv_name}"')
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<" + self.convention.data + ">")
+
+    @staticmethod
+    def parse_parameters(parser: Parser) -> list[Attribute]:
+        parser.parse_characters("<")
+        for conv in LLVM_CALLING_CONVS:
+            if parser.parse_optional_characters(conv) is not None:
+                parser.parse_characters(">")
+                return [StringAttr(conv)]
+        parser.raise_error(f"Unknown calling convention")
+
+
+@irdl_op_definition
+class FuncOp(IRDLOperation):
+    name = "llvm.func"
+
+    body: Region = region_def()
+    sym_name: StringAttr = attr_def(StringAttr)
+    function_type: LLVMFunctionType = attr_def(LLVMFunctionType)
+    CConv: CallingConventionAttr = attr_def(CallingConventionAttr)
+    linkage: LinkageAttr = attr_def(LinkageAttr)
+    visibility_: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
+
+    def __init__(
+        self,
+        sym_name: str | StringAttr,
+        function_type: LLVMFunctionType,
+        linkage: LinkageAttr = LinkageAttr("internal"),
+        cconv: CallingConventionAttr = CallingConventionAttr("ccc"),
+        visibility: int | IntegerAttr[IntegerType] = 0,
+        body: Region | None = None,
+    ):
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+        if isinstance(visibility, int):
+            visibility = IntegerAttr.from_int_and_width(visibility, 64)
+        if body is None:
+            body = Region([])
+        super().__init__(
+            operands=[],
+            regions=[body],
+            attributes={
+                "sym_name": sym_name,
+                "function_type": function_type,
+                "CConv": cconv,
+                "linkage": linkage,
+                "visibility_": visibility,
+            },
+        )
+
+
+class FastMathFlag(Enum):
+    REASSOC = "reassoc"
+    NO_NANS = "nnan"
+    NO_INFS = "ninf"
+    NO_SIGNED_ZEROS = "nsz"
+    ALLOW_RECIP = "arcp"
+    ALLOW_CONTRACT = "contract"
+    APPROX_FUNC = "afn"
+
+    @staticmethod
+    def try_parse(parser: Parser) -> set[FastMathFlag] | None:
+        if parser.parse_optional_characters("none") is not None:
+            return set[FastMathFlag]()
+        if parser.parse_optional_characters("fast") is not None:
+            return set(FastMathFlag)
+
+        for option in FastMathFlag:
+            if parser.parse_optional_characters(option.value) is not None:
+                return {option}
+
+        return None
+
+
+@irdl_attr_definition
+class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
+    name = "llvm.fastmath"
+
+    @property
+    def flags(self) -> set[FastMathFlag]:
+        """
+        Returns a copy of the fast math flags.
+        """
+        return set(self.data)
+
+    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        flags_: set[FastMathFlag]
+        match flags:
+            case "none" | None:
+                flags_ = set()
+            case "fast":
+                flags_ = set(FastMathFlag)
+            case other:
+                flags_ = set(other)
+
+        super().__init__(tuple(flags_))
+
+    @staticmethod
+    def parse_parameter(parser: Parser) -> tuple[FastMathFlag, ...]:
+        flags = FastMathFlag.try_parse(parser)
+        if flags is None:
+            return tuple()
+
+        while parser.parse_optional_punctuation(",") is not None:
+            flag = parser.expect(
+                lambda: FastMathFlag.try_parse(parser), "fastmath flag expected"
+            )
+            flags.update(flag)
+
+        return tuple(flags)
+
+    def print_parameter(self, printer: Printer):
+        flags = self.data
+        if len(flags) == 0:
+            printer.print("none")
+        elif len(flags) == len(FastMathFlag):
+            printer.print("fast")
+        else:
+            # make sure we emit flags in a consistent order
+            printer.print(
+                ",".join(flag.value for flag in FastMathFlag if flag in flags)
+            )
+
+
+@irdl_op_definition
+class CallOp(IRDLOperation):
+    name = "llvm.call"
+
+    args: VarOperand = var_operand_def()
+
+    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
+    fastmathFlags: FastMathAttr = attr_def(FastMathAttr)
+
+    def __init__(
+        self,
+        callee: str | SymbolRefAttr | StringAttr,
+        *args: SSAValue | Operation,
+        fastmath: FastMathAttr = FastMathAttr(None),
+    ):
+        if isinstance(callee, str):
+            callee = SymbolRefAttr(callee)
+
+        super().__init__(
+            operands=[args],
+            attributes={
+                "callee": callee,
+                "fastmathFlags": fastmath,
+            },
         )
 
 
@@ -768,6 +1000,8 @@ LLVM = Dialect(
         StoreOp,
         GlobalOp,
         AddressOfOp,
+        FuncOp,
+        CallOp,
     ],
     [
         LLVMStructType,
@@ -776,5 +1010,7 @@ LLVM = Dialect(
         LLVMVoidType,
         LLVMFunctionType,
         LinkageAttr,
+        CallingConventionAttr,
+        FastMathAttr,
     ],
 )

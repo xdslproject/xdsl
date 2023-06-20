@@ -87,8 +87,10 @@
   // CHECK-NEXT: %shrsi = "arith.shrsi"(%lhsi32, %rhsi32) : (i32, i32) -> i32
 
   %cmpi = "arith.cmpi"(%lhsi32, %rhsi32) {"predicate" = 2 : i64} : (i32, i32) -> i1
+  %cmpi_index = "arith.cmpi"(%lhsindex, %rhsindex) {"predicate" = 2 : i64} : (index, index) -> i1
 
-  // CHECK: %cmpi = "arith.cmpi"(%lhsi32, %rhsi32) {"predicate" = 2 : i64} : (i32, i32) -> i1
+  // CHECK-NEXT: %cmpi = "arith.cmpi"(%lhsi32, %rhsi32) {"predicate" = 2 : i64} : (i32, i32) -> i1
+  // CHECK-NEXT: %cmpi_index = "arith.cmpi"(%lhsindex, %rhsindex) {"predicate" = 2 : i64} : (index, index) -> i1
 
   %maxf = arith.maxf %lhsf32, %rhsf32 : f32
   %maxf_vector = arith.maxf %lhsvec, %rhsvec : vector<4xf32>

@@ -43,6 +43,13 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
         (elem_hint,) = get_args(hint)
         return all(isa(elem, elem_hint) for elem in arg_list)
 
+    if origin is set:
+        if not isinstance(arg, set):
+            return False
+        arg_set: set[Any] = cast(set[Any], arg)
+        (elem_hint,) = get_args(hint)
+        return all(isa(elem, elem_hint) for elem in arg_set)
+
     if origin is tuple:
         if not isinstance(arg, tuple):
             return False
@@ -73,7 +80,9 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
 
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
 
-    if (origin is not None) and issubclass(origin, GenericData | ParametrizedAttribute):
+    if (origin is not None) and issubclass(
+        origin, (GenericData, ParametrizedAttribute)
+    ):
         constraint = irdl_to_attr_constraint(hint)
         try:
             constraint.verify(arg, {})

@@ -3,13 +3,28 @@ import pytest
 from typing import cast
 
 from xdsl.dialects.arith import Arith, Addi, Subi, Constant
-from xdsl.dialects.builtin import Builtin, IntegerType, i32, i64, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import (
+    Builtin,
+    IntegerType,
+    i32,
+    i64,
+    IntegerAttr,
+    ModuleOp,
+)
 from xdsl.dialects.func import Func
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.scf import If
-from xdsl.dialects.test import TestOp
+from xdsl.dialects.test import TestOp, TestTermOp
 
-from xdsl.ir import MLContext, Operation, Block, Region, ErasedSSAValue, SSAValue
+from xdsl.ir import (
+    MLContext,
+    Operation,
+    Block,
+    Region,
+    ErasedSSAValue,
+    SSAValue,
+)
+from xdsl.traits import IsTerminator
 from xdsl.parser import Parser
 from xdsl.irdl import (
     IRDLOperation,
@@ -18,6 +33,8 @@ from xdsl.irdl import (
     Operand,
     operand_def,
     var_region_def,
+    Successor,
+    successor_def,
 )
 from xdsl.utils.test_value import TestSSAValue
 from xdsl.utils.exceptions import VerifyException
@@ -149,6 +166,94 @@ def test_op_clone_with_regions():
     assert if2.false_region.op is not if_.false_region.op
 
 
+@irdl_op_definition
+class SuccessorOp(IRDLOperation):
+    """
+    Utility operation that requires a successor.
+    """
+
+    name = "test.successor_op"
+
+    successor: Successor = successor_def()
+
+    traits = frozenset([IsTerminator()])
+
+
+def test_block_branching_to_another_region_wrong():
+    """
+    Tests that an operation cannot have successors that branch to blocks of
+    another region.
+    """
+    block1 = Block([TestOp.create(), TestOp.create()])
+    region1 = Region([block1])
+
+    op0 = TestOp.create(successors=[block1])
+    block0 = Block([op0])
+    region0 = Region([block0])
+    region0 = TestOp.create(regions=[region0, region1])
+
+    outer_block = Block([region0])
+
+    with pytest.raises(
+        VerifyException,
+        match="is branching to a block of a different region",
+    ):
+        outer_block.verify()
+
+
+def test_block_not_branching_to_another_region():
+    """
+    Tests that an operation can have successors that branch to blocks of the
+    same region.
+    """
+    block0 = Block()
+
+    op0 = SuccessorOp.create(successors=[block0])
+    block1 = Block([op0])
+
+    region0 = Region([block0, block1])
+
+    region0.verify()
+
+
+def test_empty_block_with_no_parent_region_requires_no_terminator():
+    """
+    Tests that an empty block belonging no parent region requires no terminator
+    operation.
+    """
+    block0 = Block([])
+
+    block0.verify()
+
+
+def test_empty_block_with_orphan_single_block_parent_region_requires_no_terminator():
+    """
+    Tests that an empty block belonging to a single-block region with no parent
+    operation requires no terminator operation.
+    """
+    block0 = Block([])
+    region0 = Region([block0])
+
+    region0.verify()
+
+
+def test_empty_block_with_single_block_parent_region_requires_terminator():
+    """
+    Tests that an empty block belonging to a single-block region in a parent
+    operation requires terminator operation.
+
+    This test should fail once the NoTerminator functionality is implemented.
+    See https://github.com/xdslproject/xdsl/issues/1093
+    """
+    block0 = Block([])
+    region0 = Region([block0])
+    op0 = TestOp.create(regions=[region0])
+
+    # TODO single-block regions dealt when the NoTerminator trait is
+    # implemented (https://github.com/xdslproject/xdsl/issues/1093)
+    op0.verify()
+
+
 def test_region_clone_into_circular_blocks():
     """
     Test that cloning a region with circular block dependency works.
@@ -172,56 +277,67 @@ def test_region_clone_into_circular_blocks():
 
 def test_op_with_successors_not_in_block():
     block0 = Block()
-    op0 = TestOp.create(successors=[block0])
+    op0 = SuccessorOp.create(successors=[block0])
 
     with pytest.raises(
         VerifyException,
-        match="Operation with block successors does not belong to a block or a region",
+        match="with block successors does not belong to a block or a region",
     ):
         op0.verify()
 
 
 def test_op_with_successors_not_in_region():
-    block0 = Block()
-    op0 = TestOp.create(successors=[block0])
-    _ = Block([op0])
+    block1 = Block()
+
+    op0 = TestOp.create(successors=[block1])
+    block0 = Block([op0])
 
     with pytest.raises(
         VerifyException,
-        match="Operation with block successors does not belong to a block or a region",
+        match="with block successors does not belong to a block or a region",
     ):
-        op0.verify()
+        block0.verify()
 
 
-def test_non_empty_block_with_single_block_parent_region_can_have_terminator():
+def test_non_empty_block_with_single_block_parent_region_must_have_terminator():
     """
     Tests that an non-empty block belonging to a single-block region with parent
-    operation can have a single terminator operation without the IsTerminator
-    trait.
+    operation cannot have an operation that is not a terminator.
     """
     block1 = Block([TestOp.create()])
     region0 = Region([block1])
     op0 = TestOp.create(regions=[region0])
 
+    # TODO single-block regions dealt when the NoTerminator trait is
+    # implemented (https://github.com/xdslproject/xdsl/issues/1093)
+    # this should fail
     op0.verify()
 
 
-def test_non_empty_block_with_parent_region_requires_terminator_with_successors():
+def test_non_empty_block_with_single_block_parent_region_with_terminator():
+    """
+    Tests that an non-empty block belonging to a single-block region with parent
+    operation must have at least a terminator operation.
+    """
+    block0 = Block([TestTermOp.create()])
+    region0 = Region([block0])
+    op0 = TestOp.create(regions=[region0])
+
+    op0.verify()
+
+
+def test_non_empty_block_with_parent_region_can_have_terminator_with_successors():
     """
     Tests that an non-empty block belonging to a multi-block region with parent
     operation requires terminator operation.
     The terminator operation may have successors.
     """
     block0 = Block()
-    block1 = Block([TestOp.create(successors=[block0])])
+    block1 = Block([SuccessorOp.create(successors=[block0])])
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
 
-    with pytest.raises(
-        VerifyException,
-        match="Operation terminates block but is not a terminator",
-    ):
-        op0.verify()
+    op0.verify()
 
 
 def test_non_empty_block_with_parent_region_requires_terminator_without_successors():
@@ -237,9 +353,29 @@ def test_non_empty_block_with_parent_region_requires_terminator_without_successo
 
     with pytest.raises(
         VerifyException,
-        match="Operation terminates block but is not a terminator",
+        match="terminates block in multi-block region but is not a terminator",
     ):
         op0.verify()
+
+
+def test_non_empty_block_with_parent_region_requires_terminator_with_successors():
+    """
+    Tests that an non-empty block belonging to a multi-block region with parent
+    operation requires terminator operation.
+    The terminator operation may have successors.
+    """
+    block0 = Block()
+
+    op0 = TestOp.create(successors=[block0])
+    block1 = Block([op0])
+
+    region0 = Region([block0, block1])
+
+    with pytest.raises(
+        VerifyException,
+        match="terminates block in multi-block region but is not a terminator",
+    ):
+        region0.verify()
 
 
 def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op():
@@ -254,7 +390,7 @@ def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op
 
     with pytest.raises(
         VerifyException,
-        match="Operation with block successors must terminate its parent block",
+        match="with block successors must terminate its parent block",
     ):
         op0.verify()
 

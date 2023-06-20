@@ -44,7 +44,6 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     attr_constr_coercion,
-    irdl_data_definition,
     irdl_to_attr_constraint,
     irdl_op_definition,
     ParameterDef,
@@ -281,7 +280,7 @@ class Signedness(Enum):
     UNSIGNED = 2
 
 
-@irdl_data_definition
+@irdl_attr_definition
 class SignednessAttr(Data[Signedness]):
     name = "signedness"
 
@@ -1165,14 +1164,10 @@ class UnregisteredOp(IRDLOperation, ABC):
 
     name = "builtin.unregistered"
 
-    op_name__: StringAttr = attr_def(StringAttr)
+    op_name: StringAttr = attr_def(StringAttr, attr_name="op_name__")
     args: VarOperand = var_operand_def()
     res: VarOpResult = var_result_def()
     regs: VarRegion = var_region_def()
-
-    @property
-    def op_name(self) -> StringAttr:
-        return self.op_name__  # type: ignore
 
     @classmethod
     def with_name(cls, name: str) -> type[Operation]:
@@ -1309,7 +1304,7 @@ class ModuleOp(IRDLOperation):
     def print(self, printer: Printer) -> None:
         if len(self.attributes) != 0:
             printer.print(" attributes {")
-            printer.print_dictionary(self.attributes, printer.print, printer.print)
+            printer.print_attribute_dictionary(self.attributes)
             printer.print("}")
 
         if not self.body.block.ops:

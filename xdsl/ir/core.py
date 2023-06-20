@@ -20,7 +20,7 @@ from typing import (
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
-from xdsl.traits import OpTrait, IsTerminator, OpTraitInvT
+from xdsl.traits import OpTrait, OpTraitInvT, IsTerminator
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -769,26 +769,34 @@ class Operation(IRNode):
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
 
-        if (parent_block := self.parent) is not None and (
-            parent_region := parent_block.parent
-        ) is not None:
-            if self.successors and parent_block.last_op != self:
+        parent_block = self.parent
+        parent_region = None if parent_block is None else parent_block.parent
+
+        if self.successors:
+            if parent_block is None or parent_region is None:
                 raise VerifyException(
-                    "Operation with block successors must terminate its parent block"
+                    f"Operation {self.name} with block successors does not belong to a block or a region"
                 )
 
+            if parent_block.last_op is not self:
+                raise VerifyException(
+                    f"Operation {self.name} with block successors must terminate its parent block"
+                )
+
+            for succ in self.successors:
+                if succ.parent != parent_block.parent:
+                    raise VerifyException(
+                        f"Operation {self.name} is branching to a block of a different region"
+                    )
+
+        if parent_block is not None and parent_region is not None:
             # TODO single-block regions dealt when the NoTerminator trait is
             # implemented (https://github.com/xdslproject/xdsl/issues/1093)
             if len(parent_region.blocks) > 1:
-                if not self.has_trait(IsTerminator):
+                if parent_block.last_op is self and not self.has_trait(IsTerminator):
                     raise VerifyException(
-                        "Operation terminates block but is not a terminator"
+                        f"Operation {self.name} terminates block in multi-block region but is not a terminator"
                     )
-        else:
-            if self.successors:
-                raise VerifyException(
-                    "Operation with block successors does not belong to a block or a region"
-                )
 
         if verify_nested_ops:
             for region in self.regions:
@@ -1170,6 +1178,7 @@ class Block(IRNode):
         def __call__(self, *args: BlockArgument) -> list[Operation]:
             ...
 
+    @deprecated("Please use Builder instead")
     @staticmethod
     def from_callable(block_arg_types: Iterable[Attribute], f: BlockCallback):
         b = Block(arg_types=block_arg_types)

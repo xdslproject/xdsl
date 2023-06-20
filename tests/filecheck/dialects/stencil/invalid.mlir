@@ -1,4 +1,14 @@
-// RUN: xdsl-opt %s --split-input-file --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --split-input-file --verify-diagnostics --parsing-diagnostics | filecheck %s
+
+builtin.module {
+  func.func @mixed_bounds_2d(%in : !stencil.field<?x[-4,68]xf64>) {
+    "func.return"() : () -> ()
+  }
+}
+
+// CHECK: stencil types can only be fully dynamic or sized.
+
+// -----
 
 builtin.module {
   func.func @buffered_and_stored_1d(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[0,1024]xf64>) {
@@ -105,3 +115,55 @@ builtin.module {
 }
 
  // CHECK: 'stencil.access' expects parent op 'stencil.apply'
+
+// -----
+
+builtin.module {
+  func.func @wrong_return_arity_1d(%in : !stencil.field<[-4,68]xf64>, %bigin : !stencil.field<[-4,68]x[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
+    %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
+    %outt1, %outt2 = "stencil.apply"(%int) ({
+    ^0(%intb : !stencil.temp<?xf64>):
+      %v = "stencil.access"(%intb) {"offset" = #stencil.index<-1>} : (!stencil.temp<?xf64>) -> f64
+      "stencil.return"(%v) : (f64) -> ()
+    }) : (!stencil.temp<?xf64>) -> (!stencil.temp<?xf64>, !stencil.temp<?xf64>)
+    "stencil.store"(%outt1, %out) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
+    "func.return"() : () -> ()
+  }
+}
+
+ // CHECK: stencil.return expected 2 operands to match the parent stencil.apply result types, got 1
+
+// -----
+
+builtin.module {
+  func.func @wrong_return_types_1d(%in : !stencil.field<[-4,68]xf64>, %bigin : !stencil.field<[-4,68]x[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
+    %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
+    %outt1, %outt2 = "stencil.apply"(%int) ({
+    ^0(%intb : !stencil.temp<?xf64>):
+      %v = "stencil.access"(%intb) {"offset" = #stencil.index<-1>} : (!stencil.temp<?xf64>) -> f64
+      "stencil.return"(%v, %v) : (f64, f64) -> ()
+    }) : (!stencil.temp<?xf64>) -> (!stencil.temp<?xf64>, !stencil.temp<?xf32>)
+    "stencil.store"(%outt1, %out) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
+    "func.return"() : () -> ()
+  }
+}
+
+ // CHECK: stencil.return expected operand types to match the parent stencil.apply result element types.
+
+
+// -----
+
+builtin.module {
+  func.func @different_apply_bounds(%in : !stencil.field<[-4,68]xf64>, %bigin : !stencil.field<[-4,68]x[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
+    %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
+    %outt1, %outt2 = "stencil.apply"(%int) ({
+    ^0(%intb : !stencil.temp<?xf64>):
+      %v = "stencil.access"(%intb) {"offset" = #stencil.index<-1>} : (!stencil.temp<?xf64>) -> f64
+      "stencil.return"(%v, %v) : (f64, f64) -> ()
+    }) : (!stencil.temp<?xf64>) -> (!stencil.temp<?xf64>, !stencil.temp<[0,64]xf64>)
+    "stencil.store"(%outt1, %out) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
+    "func.return"() : () -> ()
+  }
+}
+
+// CHECK: Expected all output types bounds to be equals.

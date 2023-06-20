@@ -7,7 +7,16 @@ from abc import ABC, abstractmethod
 
 from typing import TypeAlias, cast
 
-from xdsl.ir import Dialect, Operation, SSAValue, Attribute, Block, Region, OpResult
+from xdsl.ir import (
+    Dialect,
+    Operation,
+    SSAValue,
+    Attribute,
+    Block,
+    Region,
+    OpResult,
+)
+
 from xdsl.dialects.builtin import (
     Float64Type,
     FunctionType,
@@ -39,7 +48,7 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from xdsl.traits import Pure, OpTrait
+from xdsl.traits import Pure, OpTrait, SymbolOpInterface, IsTerminator
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
@@ -182,6 +191,8 @@ class FuncOp(IRDLOperation):
     function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
+    traits = frozenset((SymbolOpInterface(),))
+
     def __init__(
         self,
         name: str,
@@ -200,23 +211,6 @@ class FuncOp(IRDLOperation):
             attributes["sym_visibility"] = StringAttr("private")
 
         return super().__init__(attributes=attributes, regions=[region])
-
-    @staticmethod
-    def from_callable(
-        name: str,
-        input_types: list[Attribute],
-        return_types: list[Attribute],
-        func: Block.BlockCallback,
-        /,
-        private: bool = False,
-    ):
-        ftype = FunctionType.from_lists(input_types, return_types)
-        return FuncOp(
-            name,
-            ftype,
-            Region([Block.from_callable(input_types, func)]),
-            private=private,
-        )
 
     def verify_(self):
         # Check that the returned value matches the type of the function
@@ -366,6 +360,7 @@ class ReturnOp(IRDLOperation):
 
     name = "toy.return"
     input: OptOperand = opt_operand_def(AnyTensorTypeF64)
+    traits = frozenset([IsTerminator()])
 
     def __init__(self, input: SSAValue | None = None):
         return super().__init__(operands=[input])

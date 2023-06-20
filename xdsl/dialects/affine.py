@@ -4,6 +4,7 @@ from typing import Sequence
 
 from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
 from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
+from xdsl.traits import IsTerminator
 from xdsl.irdl import (
     VarOpResult,
     attr_def,
@@ -31,6 +32,10 @@ class For(IRDLOperation):
     step: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     body: Region = region_def()
+
+    # TODO this requires the ImplicitAffineTerminator trait instead of
+    # NoTerminator
+    # gh issue: https://github.com/xdslproject/xdsl/issues/1149
 
     def verify_(self) -> None:
         if len(self.operands) != len(self.results):
@@ -77,28 +82,13 @@ class For(IRDLOperation):
             regions=[region],
         )
 
-    @staticmethod
-    def from_callable(
-        operands: Sequence[Operation | SSAValue],
-        lower_bound: int | AnyIntegerAttr,
-        upper_bound: int | AnyIntegerAttr,
-        body: Block.BlockCallback,
-        step: int | AnyIntegerAttr = 1,
-    ) -> For:
-        arg_types = [IndexType()] + [SSAValue.get(op).typ for op in operands]
-        return For.from_region(
-            operands,
-            lower_bound,
-            upper_bound,
-            Region(Block.from_callable(arg_types, body)),
-            step,
-        )
-
 
 @irdl_op_definition
 class Yield(IRDLOperation):
     name = "affine.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
+
+    traits = frozenset([IsTerminator()])
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
