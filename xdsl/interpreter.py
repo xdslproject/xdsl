@@ -5,7 +5,8 @@ from typing import IO, Any, Callable, Generator, Iterable, TypeAlias, TypeVar, P
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
-from xdsl.traits import SymbolOpInterface
+from xdsl.ir.core import Block, Region
+from xdsl.traits import IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -265,7 +266,7 @@ class Interpreter:
         """
         self._impls.register_from(impls, override=override)
 
-    def run(self, op: Operation | str):
+    def run_op(self, op: Operation | str, inputs: tuple[Any, ...]) -> tuple[Any, ...]:
         """
         Fetches the implemetation for the given op, passes it the Python values
         associated with the SSA operands, and assigns the results to the
@@ -274,12 +275,45 @@ class Interpreter:
         if isinstance(op, str):
             op = self.get_op_for_symbol(op)
 
-        inputs = self.get_values(op.operands)
         results = self._impls.run(self, op, inputs)
-        self.interpreter_assert(
-            len(op.results) == len(results), "Incorrect number of results"
-        )
-        self.set_values(zip(op.results, results))
+        return results
+
+    def run_block(self, block: Block, args: tuple[Any, ...]) -> tuple[Any, ...] | None:
+        """
+        Interpret a basic block, using `args` as the block argument values.
+        The terminator of this block is expected either to call its successor or return
+        the results for the region directly.
+        """
+        self.set_values(zip(block.args, args))
+
+        for op in block.ops:
+            inputs = self.get_values(op.operands)
+            results = self._impls.run(self, op, inputs)
+            if op.has_trait(IsTerminator):
+                return results
+            else:
+                self.interpreter_assert(
+                    len(op.results) == len(results), "Incorrect number of results"
+                )
+                self.set_values(zip(op.results, results))
+
+        return None
+
+    def run_ssacfg_region(
+        self, region: Region, args: tuple[Any, ...], name: str = "unknown"
+    ) -> tuple[Any, ...] | None:
+        """
+        Interpret an SSACFG-semantic Region.
+        Creates a new scope, then executes the first block in the region. The first block
+        is expected to return the results of the region directly.
+        """
+        if not region.blocks:
+            return ()
+        self.push_scope(name)
+        block = region.blocks[0]
+        results = self.run_block(block, args)
+        self.pop_scope()
+        return results
 
     def get_op_for_symbol(self, symbol: str) -> Operation:
         if symbol in self.symbol_table:
