@@ -797,12 +797,14 @@ class Operation(IRNode):
                     ) is not None and not parent_op.has_trait(NoTerminator):
                         if not self.has_trait(IsTerminator):
                             raise VerifyException(
-                                f"Operation {self.name} terminates block in single-block region but is not a terminator"
+                                f"Operation {self.name} terminates block in "
+                                "single-block region but is not a terminator"
                             )
                 elif len(parent_region.blocks) > 1:
                     if not self.has_trait(IsTerminator):
                         raise VerifyException(
-                            f"Operation {self.name} terminates block in multi-block region but is not a terminator"
+                            f"Operation {self.name} terminates block in multi-block "
+                            "region but is not a terminator"
                         )
 
         if verify_nested_ops:
@@ -1392,7 +1394,8 @@ class Block(IRNode):
                     NoTerminator
                 ):
                     raise VerifyException(
-                        f"Operation {parent_op.name} contains empty block in single-block region that expects at least a terminator"
+                        f"Operation {parent_op.name} contains empty block in "
+                        "single-block region that expects at least a terminator"
                     )
 
     def drop_all_references(self) -> None:
