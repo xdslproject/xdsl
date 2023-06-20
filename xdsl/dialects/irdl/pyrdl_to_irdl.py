@@ -11,8 +11,6 @@ from xdsl.ir.core import Block, Dialect, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import (
     AttrConstraint,
     IRDLOperation,
-    OpDef,
-    ParamAttrDef,
 )
 
 from xdsl.dialects.irdl import AnyOp
@@ -27,10 +25,9 @@ def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue
     return any_op.output
 
 
-def op_def_to_irdl(op_def: type[IRDLOperation] | OpDef) -> OperationOp:
+def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
     """Convert an operation definition to an IRDL operation definition."""
-    if not isinstance(op_def, OpDef):
-        op_def = op_def.irdl_definition
+    op_def = op.irdl_definition
 
     block = Block()
     builder = Builder(block)
@@ -53,11 +50,10 @@ def op_def_to_irdl(op_def: type[IRDLOperation] | OpDef) -> OperationOp:
 
 
 def attr_def_to_irdl(
-    attr_def: type[ParametrizedAttribute] | ParamAttrDef,
+    attr: type[ParametrizedAttribute],
 ) -> AttributeOp:
     """Convert an attribute definition to an IRDL attribute definition."""
-    if not isinstance(attr_def, ParamAttrDef):
-        attr_def = attr_def.irdl_definition
+    attr_def = attr.irdl_definition
 
     block = Block()
     builder = Builder(block)
