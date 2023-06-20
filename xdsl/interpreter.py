@@ -398,7 +398,7 @@ class ReturnedValues(NamedTuple):
 TerminatorValue: TypeAlias = ReturnedValues
 
 
-class OpImplResult:
+class OpImplResult(NamedTuple):
     """
     The result of interpreting an Operation. If and only if the Operation is a terminator,
     it must set the terminator_value.
@@ -406,14 +406,6 @@ class OpImplResult:
 
     values: PythonValues
     terminator_value: TerminatorValue | None
-
-    def __init__(
-        self,
-        values: PythonValues,
-        terminator_value: TerminatorValue | None,
-    ):
-        self.values = values
-        self.terminator_value = terminator_value
 
 
 NonTerminatorOpImpl: TypeAlias = Callable[
