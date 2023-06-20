@@ -1304,9 +1304,7 @@ class ModuleOp(IRDLOperation):
     def print(self, printer: Printer) -> None:
         if len(self.attributes) != 0:
             printer.print(" attributes {")
-            printer.print_attribute_dictionary(
-                self.attributes, printer.print, printer.print
-            )
+            printer.print_attribute_dictionary(self.attributes)
             printer.print("}")
 
         if not self.body.block.ops:

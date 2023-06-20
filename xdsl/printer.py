@@ -186,18 +186,15 @@ class Printer:
 
     def print_attribute_dictionary(
         self,
-        elems: dict[K, V],
-        print_key: Callable[[K], None],
-        print_value: Callable[[V], None],
-        delimiter: str = ", ",
+        elems: dict[str, Attribute],
     ) -> None:
-        for i, (key, value) in enumerate(elems.items()):
+        for i, (name, attribute) in enumerate(elems.items()):
             if i:
-                self.print(delimiter)
-            print_key(key)
-            if not isinstance(value, UnitAttr):
+                self.print(", ")
+            self.print(name)
+            if not isinstance(attribute, UnitAttr):
                 self.print("=")
-                print_value(value)
+                self.print_attribute(attribute)
 
     def _print_new_line(
         self, indent: int | None = None, print_message: bool = True
