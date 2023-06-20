@@ -1,4 +1,4 @@
-# RUN: python %s | filecheck %s
+# RUN: coverage run %s | filecheck %s
 
 from xdsl.dialects.irdl.pyrdl_to_irdl import dialect_to_irdl
 from xdsl.dialects.cmath import CMath
