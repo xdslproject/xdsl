@@ -1,7 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import IO, Any, Callable, Generator, Iterable, TypeAlias, TypeVar, ParamSpec
+from typing import (
+    IO,
+    Any,
+    Callable,
+    Generator,
+    Iterable,
+    NamedTuple,
+    TypeAlias,
+    TypeVar,
+    ParamSpec,
+)
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
@@ -70,7 +80,7 @@ P = ParamSpec("P")
 
 def impl(
     op_type: type[OperationInvT],
-) -> Callable[[OpImpl[_FT, OperationInvT]], OpImpl[_FT, OperationInvT]]:
+) -> Callable[[NonTerminatorOpImpl[_FT, OperationInvT]], OpImpl[_FT, OperationInvT]]:
     """
     Marks the Python implementation of an xDSL `Operation` instance, to be used
     by an `Interpreter`. The Interpreter will fetch the Python values
@@ -81,9 +91,52 @@ def impl(
     See `InterpreterFunctions`
     """
 
-    def annot(func: OpImpl[_FT, OperationInvT]) -> OpImpl[_FT, OperationInvT]:
-        setattr(func, _IMPL_OP_TYPE, op_type)
-        return func
+    if op_type.has_trait(IsTerminator):
+        raise ValueError(
+            "Operations that are terminators must use `impl_terminator` annotation"
+        )
+
+    def annot(
+        func: NonTerminatorOpImpl[_FT, OperationInvT]
+    ) -> OpImpl[_FT, OperationInvT]:
+        def impl(
+            ft: _FT, interpreter: Interpreter, op: OperationInvT, values: PythonValues
+        ) -> OpImplResult:
+            return OpImplResult(func(ft, interpreter, op, values), None)
+
+        setattr(impl, _IMPL_OP_TYPE, op_type)
+        return impl
+
+    return annot
+
+
+def impl_terminator(
+    op_type: type[OperationInvT],
+) -> Callable[[TerminatorOpImpl[_FT, OperationInvT]], OpImpl[_FT, OperationInvT]]:
+    """
+    Marks the Python implementation of an xDSL `Operation` instance, to be used
+    by an `Interpreter`. The Interpreter will fetch the Python values
+    associated with the operands from the current environment, and pass them as
+    the `args` parameter. The returned values are assigned to the `results`
+    values.
+
+    See `InterpreterFunctions`
+    """
+
+    if not op_type.has_trait(IsTerminator):
+        raise ValueError(
+            "Operations that are not terminators must use `impl` annotation"
+        )
+
+    def annot(func: TerminatorOpImpl[_FT, OperationInvT]) -> OpImpl[_FT, OperationInvT]:
+        def impl(
+            ft: _FT, interpreter: Interpreter, op: OperationInvT, values: PythonValues
+        ) -> OpImplResult:
+            successor, args = func(ft, interpreter, op, values)
+            return OpImplResult(args, successor)
+
+        setattr(impl, _IMPL_OP_TYPE, op_type)
+        return impl
 
     return annot
 
@@ -138,7 +191,7 @@ class _InterpreterFunctionImpls:
 
     def run(
         self, interpreter: Interpreter, op: Operation, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    ) -> OpImplResult:
         if type(op) not in self._impl_dict:
             raise InterpretationError(
                 f"Could not find interpretation function for op {op.name}"
@@ -266,19 +319,18 @@ class Interpreter:
         """
         self._impls.register_from(impls, override=override)
 
-    def run_op(self, op: Operation | str, inputs: tuple[Any, ...]) -> tuple[Any, ...]:
+    def run_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
         """
-        Fetches the implemetation for the given op, passes it the Python values
-        associated with the SSA operands, and assigns the results to the
-        operation's results.
+        Calls the implementation for the given operation.
         """
+        # TODO: replace this with CallableOp trait implementation.
         if isinstance(op, str):
             op = self.get_op_for_symbol(op)
 
-        results = self._impls.run(self, op, inputs)
-        return results
+        result = self._impls.run(self, op, inputs)
+        return result.values
 
-    def run_block(self, block: Block, args: tuple[Any, ...]) -> tuple[Any, ...] | None:
+    def run_block(self, block: Block, args: PythonValues) -> PythonValues | None:
         """
         Interpret a basic block, using `args` as the block argument values.
         The terminator of this block is expected either to call its successor or return
@@ -286,22 +338,27 @@ class Interpreter:
         """
         self.set_values(zip(block.args, args))
 
-        for op in block.ops:
-            inputs = self.get_values(op.operands)
-            results = self._impls.run(self, op, inputs)
-            if op.has_trait(IsTerminator):
-                return results
-            else:
-                self.interpreter_assert(
-                    len(op.results) == len(results), "Incorrect number of results"
-                )
-                self.set_values(zip(op.results, results))
+        op: Operation | None = block.first_op
 
-        return None
+        while op is not None:
+            inputs = self.get_values(op.operands)
+            result = self._impls.run(self, op, inputs)
+            self.interpreter_assert(
+                len(op.results) == len(result.values),
+                "Incorrect number of results",
+            )
+            self.set_values(zip(op.results, result.values))
+
+            if result.terminator_value is not None:
+                # Only support region termination for now
+                return result.terminator_value.values
+
+            # Set up next iteration
+            op = op.next_op
 
     def run_ssacfg_region(
-        self, region: Region, args: tuple[Any, ...], name: str = "unknown"
-    ) -> tuple[Any, ...] | None:
+        self, region: Region, args: PythonValues, name: str = "unknown"
+    ) -> PythonValues | None:
         """
         Interpret an SSACFG-semantic Region.
         Creates a new scope, then executes the first block in the region. The first block
@@ -331,8 +388,37 @@ class Interpreter:
             raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
 
 
+PythonValues: TypeAlias = tuple[Any, ...]
+
+
+class ReturnedValues(NamedTuple):
+    values: PythonValues
+
+
+TerminatorValue: TypeAlias = ReturnedValues
+
+
+class OpImplResult(NamedTuple):
+    """
+    The result of interpreting an Operation. If and only if the Operation is a terminator,
+    it must set the terminator_value.
+    """
+
+    values: PythonValues
+    terminator_value: TerminatorValue | None
+
+
+NonTerminatorOpImpl: TypeAlias = Callable[
+    [_FT, Interpreter, OperationInvT, PythonValues], PythonValues
+]
+
+TerminatorOpImpl: TypeAlias = Callable[
+    [_FT, Interpreter, OperationInvT, PythonValues],
+    tuple[TerminatorValue, PythonValues],
+]
+
 OpImpl: TypeAlias = Callable[
-    [_FT, Interpreter, OperationInvT, tuple[Any, ...]], tuple[Any, ...]
+    [_FT, Interpreter, OperationInvT, PythonValues], OpImplResult
 ]
 
 _ImplDict: TypeAlias = dict[type[Operation], OpImpl[InterpreterFunctions, Operation]]

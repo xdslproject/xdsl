@@ -139,14 +139,26 @@ def test_is_terminator_with_successors_verify():
     op0.verify()
 
 
-def test_is_terminator_without_successors_verify():
+def test_is_terminator_without_successors_multi_block_region_verify():
     """
     Test that an operation with an IsTerminator trait may not have successor
-    blocks.
+    blocks in a multi-block parent region.
     """
     block0 = Block([])
     block1 = Block([IsTerminatorOp.create()])
     region0 = Region([block0, block1])
+    op0 = TestOp.create(regions=[region0])
+
+    op0.verify()
+
+
+def test_is_terminator_without_successors_single_block_parent_region_verify():
+    """
+    Test that an operation with an IsTerminator trait may not have successor
+    blocks in a single-block parent region.
+    """
+    block0 = Block([IsTerminatorOp.create()])
+    region0 = Region([block0])
     op0 = TestOp.create(regions=[region0])
 
     op0.verify()

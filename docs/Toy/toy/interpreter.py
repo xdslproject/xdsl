@@ -7,7 +7,16 @@ from itertools import accumulate
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import TensorType, VectorType
-from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
+from xdsl.interpreter import (
+    Interpreter,
+    InterpreterFunctions,
+    PythonValues,
+    ReturnedValues,
+    TerminatorValue,
+    impl_terminator,
+    register_impls,
+    impl,
+)
 
 from .dialects import toy as toy
 
@@ -98,11 +107,12 @@ class ToyFunctions(InterpreterFunctions):
 
         return (Tensor([l * r for l, r in zip(lhs.data, rhs.data)], lhs.shape),)
 
-    @impl(toy.ReturnOp)
+    @impl_terminator(toy.ReturnOp)
     def run_return(
         self, interpreter: Interpreter, op: toy.ReturnOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        return args
+    ) -> tuple[TerminatorValue, PythonValues]:
+        assert len(args) < 2
+        return ReturnedValues(args), ()
 
     @impl(toy.GenericCallOp)
     def run_generic_call(
