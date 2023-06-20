@@ -6,9 +6,8 @@ from itertools import accumulate
 
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import TensorType, VectorType, ModuleOp
+from xdsl.dialects.builtin import TensorType, VectorType
 from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
-from xdsl.utils.exceptions import InterpretationError
 
 from .dialects import toy as toy
 
@@ -40,11 +39,9 @@ class ToyFunctions(InterpreterFunctions):
     def run_toy_func(
         self, interpreter: Interpreter, name: str, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        for op in interpreter.module.ops:
-            if isinstance(op, toy.FuncOp) and op.sym_name.data == name:
-                return self.run_func(interpreter, op, args)
-
-        raise InterpretationError(f"Could not find toy function with name: {name}")
+        op = interpreter.get_op_for_symbol(name)
+        assert isinstance(op, toy.FuncOp)
+        return self.run_func(interpreter, op, args)
 
     @impl(toy.PrintOp)
     def run_print(
@@ -143,9 +140,3 @@ class ToyFunctions(InterpreterFunctions):
         result = Tensor(new_data, arg.shape[::-1])
 
         return (result,)
-
-    @impl(ModuleOp)
-    def run_module(
-        self, interpreter: Interpreter, op: ModuleOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        return self.run_toy_func(interpreter, "main", args)
