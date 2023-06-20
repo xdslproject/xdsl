@@ -358,6 +358,26 @@ def test_non_empty_block_with_parent_region_requires_terminator_without_successo
         op0.verify()
 
 
+def test_non_empty_block_with_parent_region_requires_terminator_with_successors():
+    """
+    Tests that an non-empty block belonging to a multi-block region with parent
+    operation requires terminator operation.
+    The terminator operation may have successors.
+    """
+    block0 = Block()
+
+    op0 = TestOp.create(successors=[block0])
+    block1 = Block([op0])
+
+    region0 = Region([block0, block1])
+
+    with pytest.raises(
+        VerifyException,
+        match="terminates block in multi-block region but is not a terminator",
+    ):
+        region0.verify()
+
+
 def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op():
     """
     Tests that an non-empty block belonging to a multi-block region with parent
