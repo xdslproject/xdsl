@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Union, Sequence, cast
 
+from xdsl.utils.deprecation import deprecated
 from xdsl.dialects.builtin import (
     StringAttr,
     FunctionType,
@@ -319,6 +320,9 @@ class Return(IRDLOperation):
 
     traits = frozenset([HasParent(FuncOp), IsTerminator()])
 
+    def __init__(self, *return_vals: SSAValue | Operation):
+        super().__init__(operands=[return_vals])
+
     def verify_(self) -> None:
         func_op = self.parent_op()
         assert isinstance(func_op, FuncOp)
@@ -331,8 +335,48 @@ class Return(IRDLOperation):
             )
 
     @staticmethod
+    @deprecated("Use func.Return(...) instead!")
     def get(*ops: Operation | SSAValue) -> Return:
         return Return.build(operands=[list(ops)])
+
+    def print(self, printer: Printer):
+        if self.attributes:
+            printer.print(" ")
+            printer.print_attribute_dictionary(self.attributes)
+
+        if self.arguments:
+            printer.print(" ")
+            printer.print_list(self.arguments, printer.print_ssa_value)
+            printer.print(" : ")
+            printer.print_list((x.typ for x in self.arguments), printer.print_attribute)
+
+    @classmethod
+    def parse(cls: type[Return], parser: Parser) -> Return:
+        attrs = parser.parse_optional_attr_dict()
+
+        args: list[SSAValue] = []
+        arg0 = parser.parse_optional_operand()
+        if arg0 is not None:
+            args.append(arg0)
+            while parser.parse_optional_punctuation(",") is not None:
+                args.append(parser.parse_operand())
+
+            parser.parse_punctuation(":")
+
+            types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_type, "Expected return value type"
+            )
+            if len(args) != len(types):
+                parser.raise_error("Expected the same number of types and arguments!")
+            for arg, typ in zip(args, types):
+                # can we do this?
+                if arg.typ != typ:
+                    assert False
+                    # TODO: what error to raise here?
+
+        op = Return(*args)
+        op.attributes.update(attrs)
+        return op
 
 
 Func = Dialect([FuncOp, Call, Return], [])

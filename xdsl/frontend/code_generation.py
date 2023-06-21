@@ -589,7 +589,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.col_offset,
                     f"Expected '{function_name}' to return a type.",
                 )
-            self.inserter.insert_op(func.Return.get())
+            self.inserter.insert_op(func.Return())
 
     def visit_Return(self, node: ast.Return) -> None:
         # First of all, we should only be able to return if the statement is directly
@@ -625,7 +625,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     f"Expected non-zero number of return types in function "
                     f"'{func_name}', but got 0.",
                 )
-            self.inserter.insert_op(func.Return.get())
+            self.inserter.insert_op(func.Return())
         else:
             # Return some type, check function signature matches as well.
             # TODO: Support multiple return values if we allow multiple assignemnts.
@@ -651,4 +651,4 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                         f" got {operands[i].typ}.",
                     )
 
-            self.inserter.insert_op(func.Return.get(*operands))
+            self.inserter.insert_op(func.Return(*operands))

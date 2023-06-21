@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Sequence
 
 from xdsl.ir import Operation, SSAValue, Dialect, Attribute, Region
-from xdsl.traits import HasParent
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
 from xdsl.irdl import (
@@ -114,7 +114,7 @@ class ReturnOp(IRDLOperation):
     values: VarOperand = var_operand_def(riscv.RegisterType)
     comment: StringAttr | None = opt_attr_def(StringAttr)
 
-    traits = frozenset([HasParent(FuncOp)])
+    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
 
     def __init__(
         self,

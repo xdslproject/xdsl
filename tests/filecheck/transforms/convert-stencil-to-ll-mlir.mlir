@@ -12,7 +12,7 @@ builtin.module {
       "stencil.return"(%6) : (f64) -> ()
     }) : (f64) -> !stencil.temp<[1,65]x[2,66]x[3,63]xf64>
     "stencil.store"(%3, %2) {"lb" = #stencil.index<1, 2, 3>, "ub" = #stencil.index<65, 66, 63>} : (!stencil.temp<[1,65]x[2,66]x[3,63]xf64>, !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 
   // CHECK:      func.func @stencil_init_float(%0 : f64, %1 : memref<?x?x?xf64>) {
@@ -40,7 +40,7 @@ builtin.module {
   // CHECK-NEXT:     }) : (index, index, index) -> ()
   // CHECK-NEXT:     "scf.yield"() : () -> ()
   // CHECK-NEXT:   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
-  // CHECK-NEXT:   "func.return"() : () -> ()
+  // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
   func.func @bufferswapping(%f0 : !stencil.field<[-2,2002]x[-2,2002]xf32>, %f1 : !stencil.field<[-2,2002]x[-2,2002]xf32>) -> !stencil.field<[-2,2002]x[-2,2002]xf32> {
@@ -58,7 +58,7 @@ builtin.module {
       "stencil.store"(%ti, %fi) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<2000, 2000>} : (!stencil.temp<[0,2000]x[0,2000]xf32>, !stencil.field<[-2,2002]x[-2,2002]xf32>) -> ()
       "scf.yield"(%fi, %fim1) : (!stencil.field<[-2,2002]x[-2,2002]xf32>, !stencil.field<[-2,2002]x[-2,2002]xf32>) -> ()
     }) : (index, index, index, !stencil.field<[-2,2002]x[-2,2002]xf32>, !stencil.field<[-2,2002]x[-2,2002]xf32>) -> (!stencil.field<[-2,2002]x[-2,2002]xf32>, !stencil.field<[-2,2002]x[-2,2002]xf32>)
-    "func.return"(%t1_out) : (!stencil.field<[-2,2002]x[-2,2002]xf32>) -> ()
+    func.return %t1_out : !stencil.field<[-2,2002]x[-2,2002]xf32>
   }
 // CHECK:      func.func @bufferswapping(%f0 : memref<2004x2004xf32>, %f1 : memref<2004x2004xf32>) -> memref<2004x2004xf32> {
 // CHECK-NEXT:   %time_m = "arith.constant"() {"value" = 0 : index} : () -> index
@@ -89,7 +89,7 @@ builtin.module {
 // CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 // CHECK-NEXT:     "scf.yield"(%fi, %fim1) : (memref<2004x2004xf32>, memref<2004x2004xf32>) -> ()
 // CHECK-NEXT:   }) : (index, index, index, memref<2004x2004xf32>, memref<2004x2004xf32>) -> (memref<2004x2004xf32>, memref<2004x2004xf32>)
-// CHECK-NEXT:   "func.return"(%t1_out) : (memref<2004x2004xf32>) -> ()
+// CHECK-NEXT:   func.return %t1_out : memref<2004x2004xf32>
 // CHECK-NEXT: }
 
   func.func @copy_1d(%0 : !stencil.field<?xf64>, %out : !stencil.field<?xf64>) {
@@ -102,7 +102,7 @@ builtin.module {
       "stencil.return"(%5) : (f64) -> ()
     }) : (!stencil.temp<[-1,68]xf64>) -> !stencil.temp<[0,68]xf64>
     "stencil.store"(%3, %outc) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<[0,68]xf64>, !stencil.field<[0,1024]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 
   // CHECK:      func.func @copy_1d(%23 : memref<?xf64>, %out : memref<?xf64>) {
@@ -121,7 +121,7 @@ builtin.module {
   // CHECK-NEXT:     "memref.store"(%32, %outc_storeview, %29) : (f64, memref<68xf64, strided<[1]>>, index) -> ()
   // CHECK-NEXT:     "scf.yield"() : () -> ()
   // CHECK-NEXT:   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
-  // CHECK-NEXT:   "func.return"() : () -> ()
+  // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
   func.func @copy_2d(%0 : !stencil.field<?x?xf64>) {
@@ -132,7 +132,7 @@ builtin.module {
       %5 = "stencil.access"(%4) {"offset" = #stencil.index<-1, 0>} : (!stencil.temp<[-1,64]x[0,68]xf64>) -> f64
       "stencil.return"(%5) : (f64) -> ()
     }) : (!stencil.temp<[-1,64]x[0,68]xf64>) -> !stencil.temp<[0,64]x[0,68]xf64>
-    "func.return"() : () -> ()
+    func.return
   }
   // CHECK:      func.func @copy_2d(%33 : memref<?x?xf64>) {
   // CHECK-NEXT:   %34 = "memref.cast"(%33) : (memref<?x?xf64>) -> memref<72x72xf64>
@@ -155,7 +155,7 @@ builtin.module {
   // CHECK-NEXT:     }) : (index, index, index) -> ()
   // CHECK-NEXT:     "scf.yield"() : () -> ()
   // CHECK-NEXT:   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
-  // CHECK-NEXT:   "func.return"() : () -> ()
+  // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
   func.func @copy_3d(%0 : !stencil.field<?x?x?xf64>) {
@@ -166,7 +166,7 @@ builtin.module {
       %5 = "stencil.access"(%4) {"offset" = #stencil.index<-1, 0, 1>} : (!stencil.temp<[-1,64]x[0,64]x[0,69]xf64>) -> f64
       "stencil.return"(%5) : (f64) -> ()
     }) : (!stencil.temp<[-1,64]x[0,64]x[0,69]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,68]xf64>
-    "func.return"() : () -> ()
+    func.return
   }
 // CHECK:       func.func @copy_3d(%48 : memref<?x?x?xf64>) {
 // CHECK-NEXT:    %49 = "memref.cast"(%48) : (memref<?x?x?xf64>) -> memref<72x74x76xf64>
@@ -197,21 +197,21 @@ builtin.module {
 // CHECK-NEXT:      }) : (index, index, index) -> ()
 // CHECK-NEXT:      "scf.yield"() : () -> ()
 // CHECK-NEXT:    }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
-// CHECK-NEXT:    "func.return"() : () -> ()
+// CHECK-NEXT:    func.return
 // CHECK-NEXT:  }
 
   func.func @test_funcop_lowering(%0 : !stencil.field<?x?x?xf64>) {
-    "func.return"() : () -> ()
+    func.return
   }
   // CHECK:      func.func @test_funcop_lowering(%68 : memref<?x?x?xf64>) {
-  // CHECK-NEXT:   "func.return"() : () -> ()
+  // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
   func.func @test_funcop_lowering_dyn(%1 : !stencil.field<[-1,7]x[-1,7]xf64>) {
-    "func.return"() : () -> ()
+    func.return
   }
   // CHECK-NEXT: func.func @test_funcop_lowering_dyn(%69 : memref<8x8xf64>) {
-  // CHECK-NEXT:   "func.return"() : () -> ()
+  // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
   func.func @offsets(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>, %2 : !stencil.field<?x?x?xf64>) {
@@ -235,7 +235,7 @@ builtin.module {
       "stencil.return"(%19, %18) : (f64, f64) -> ()
     }) : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.temp<[0,64]x[0,64]x[0,64]xf64>)
     "stencil.store"(%7, %4) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 64>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 
 // CHECK:      func.func @offsets(%70 : memref<?x?x?xf64>, %71 : memref<?x?x?xf64>, %72 : memref<?x?x?xf64>) {
@@ -305,7 +305,7 @@ builtin.module {
 // CHECK-NEXT:     }) : (index, index, index) -> ()
 // CHECK-NEXT:     "scf.yield"() : () -> ()
 // CHECK-NEXT:   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
-// CHECK-NEXT:   "func.return"() : () -> ()
+// CHECK-NEXT:   func.return
 // CHECK-NEXT: }
 
 func.func @trivial_externals(%dyn_mem : memref<?x?x?xf64>, %sta_mem : memref<64x64x64xf64>, %dyn_field : !stencil.field<?x?x?xf64>, %sta_field : !stencil.field<[-2,62]x[0,64]x[2,66]xf64>) {
@@ -315,11 +315,11 @@ func.func @trivial_externals(%dyn_mem : memref<?x?x?xf64>, %sta_mem : memref<64x
     %1 = "stencil.external_load"(%sta_mem) : (memref<64x64x64xf64>) -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
 
     %casted = "stencil.cast"(%0) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
-    "func.return"() : () -> ()
+    func.return
 }
 // CHECK:       func.func @trivial_externals(%dyn_mem : memref<?x?x?xf64>, %sta_mem : memref<64x64x64xf64>, %dyn_field : memref<?x?x?xf64>, %sta_field : memref<64x64x64xf64>) {
 // CHECK-NEXT:    %casted = "memref.cast"(%dyn_mem) : (memref<?x?x?xf64>) -> memref<64x64x64xf64>
-// CHECK-NEXT:    "func.return"() : () -> ()
+// CHECK-NEXT:    func.return
 // CHECK-NEXT: }
 
 func.func @neg_bounds(%in : !stencil.field<[-32,32]xf64>, %out : !stencil.field<[-32,32]xf64>) {
@@ -330,7 +330,7 @@ func.func @neg_bounds(%in : !stencil.field<[-32,32]xf64>, %out : !stencil.field<
     "stencil.return"(%val) : (f64) -> ()
   }) : (!stencil.temp<[-16,16]xf64>) -> !stencil.temp<[-16,16]xf64>
   "stencil.store"(%outt, %out) {"lb" = #stencil.index<-16>, "ub" = #stencil.index<16>} : (!stencil.temp<[-16,16]xf64>, !stencil.field<[-32,32]xf64>) -> ()
-  "func.return"() : () -> ()
+  func.return
 }
 // CHECK:      func.func @neg_bounds(%in : memref<64xf64>, %out_1 : memref<64xf64>) {
 // CHECK-NEXT:   %out_storeview = "memref.subview"(%out_1) {"static_offsets" = array<i64: 32>, "static_sizes" = array<i64: 32>, "static_strides" = array<i64: 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<64xf64>) -> memref<32xf64, strided<[1], offset: 32>>
@@ -346,7 +346,7 @@ func.func @neg_bounds(%in : !stencil.field<[-32,32]xf64>, %out : !stencil.field<
 // CHECK-NEXT:     "memref.store"(%val_2, %out_storeview, %131) : (f64, memref<32xf64, strided<[1], offset: 32>>, index) -> ()
 // CHECK-NEXT:     "scf.yield"() : () -> ()
 // CHECK-NEXT:   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
-// CHECK-NEXT:   "func.return"() : () -> ()
+// CHECK-NEXT:   func.return
 // CHECK-NEXT: }
 
   func.func @stencil_buffer(%49 : !stencil.field<[-4,68]xf64>, %50 : !stencil.field<[-4,68]xf64>) {
@@ -363,7 +363,7 @@ func.func @neg_bounds(%in : !stencil.field<[-32,32]xf64>, %out : !stencil.field<
       "stencil.return"(%58) : (f64) -> ()
     }) : (!stencil.temp<[1,65]xf64>) -> !stencil.temp<[0,64]xf64>
     "stencil.store"(%56, %50) {"lb" = #stencil.index<0>, "ub" = #stencil.index<64>} : (!stencil.temp<[0,64]xf64>, !stencil.field<[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 
 // CHECK:       func.func @stencil_buffer(%132 : memref<72xf64>, %133 : memref<72xf64>) {
@@ -394,7 +394,7 @@ func.func @neg_bounds(%in : !stencil.field<[-32,32]xf64>, %out : !stencil.field<
 // CHECK-NEXT:      "scf.yield"() : () -> ()
 // CHECK-NEXT:    }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 // CHECK-NEXT:    "memref.dealloc"(%137) : (memref<64xf64, strided<[1], offset: -1>>) -> ()
-// CHECK-NEXT:    "func.return"() : () -> ()
+// CHECK-NEXT:    func.return
 // CHECK-NEXT:  }
 
   func.func @stencil_two_stores(%59 : !stencil.field<[-4,68]xf64>, %60 : !stencil.field<[-4,68]xf64>, %61 : !stencil.field<[-4,68]xf64>) {
@@ -411,7 +411,7 @@ func.func @neg_bounds(%in : !stencil.field<[-32,32]xf64>, %out : !stencil.field<
       "stencil.return"(%68) : (f64) -> ()
     }) : (!stencil.temp<[1,65]xf64>) -> !stencil.temp<[0,64]xf64>
     "stencil.store"(%66, %60) {"lb" = #stencil.index<0>, "ub" = #stencil.index<64>} : (!stencil.temp<[0,64]xf64>, !stencil.field<[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 
 //CHECK:      func.func @stencil_two_stores(%152 : memref<72xf64>, %153 : memref<72xf64>, %154 : memref<72xf64>) {
@@ -440,7 +440,7 @@ func.func @neg_bounds(%in : !stencil.field<[-32,32]xf64>, %out : !stencil.field<
 //CHECK-NEXT:     "memref.store"(%171, %155, %168) : (f64, memref<64xf64, strided<[1], offset: 4>>, index) -> ()
 //CHECK-NEXT:     "scf.yield"() : () -> ()
 //CHECK-NEXT:   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
-//CHECK-NEXT:   "func.return"() : () -> ()
+//CHECK-NEXT:   func.return
 //CHECK-NEXT: }
 
 }

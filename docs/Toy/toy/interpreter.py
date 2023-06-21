@@ -6,9 +6,17 @@ from itertools import accumulate
 
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import TensorType, VectorType, ModuleOp
-from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
-from xdsl.utils.exceptions import InterpretationError
+from xdsl.dialects.builtin import TensorType, VectorType
+from xdsl.interpreter import (
+    Interpreter,
+    InterpreterFunctions,
+    PythonValues,
+    ReturnedValues,
+    TerminatorValue,
+    impl_terminator,
+    register_impls,
+    impl,
+)
 
 from .dialects import toy as toy
 
@@ -37,36 +45,12 @@ class Tensor:
 
 @register_impls
 class ToyFunctions(InterpreterFunctions):
-    def run_toy_func(
-        self, interpreter: Interpreter, name: str, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        for op in interpreter.module.ops:
-            if isinstance(op, toy.FuncOp) and op.sym_name.data == name:
-                return self.run_func(interpreter, op, args)
-
-        raise InterpretationError(f"Could not find toy function with name: {name}")
-
     @impl(toy.PrintOp)
     def run_print(
         self, interpreter: Interpreter, op: toy.PrintOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         interpreter.print(f"{args[0]}")
         return ()
-
-    @impl(toy.FuncOp)
-    def run_func(
-        self, interpreter: Interpreter, op: toy.FuncOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        interpreter.push_scope(f"ctx_{op.sym_name.data}")
-        block = op.body.blocks[0]
-        interpreter.set_values(zip(block.args, args))
-        for body_op in block.ops:
-            interpreter.run(body_op)
-        last_op = block.last_op
-        assert isinstance(last_op, toy.ReturnOp)
-        results = interpreter.get_values(tuple(last_op.operands))
-        interpreter.pop_scope()
-        return results
 
     @impl(toy.ConstantOp)
     def run_const(
@@ -112,18 +96,18 @@ class ToyFunctions(InterpreterFunctions):
 
         return (Tensor([l * r for l, r in zip(lhs.data, rhs.data)], lhs.shape),)
 
-    @impl(toy.ReturnOp)
+    @impl_terminator(toy.ReturnOp)
     def run_return(
         self, interpreter: Interpreter, op: toy.ReturnOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
+    ) -> tuple[TerminatorValue, PythonValues]:
         assert len(args) < 2
-        return ()
+        return ReturnedValues(args), ()
 
     @impl(toy.GenericCallOp)
     def run_generic_call(
         self, interpreter: Interpreter, op: toy.GenericCallOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        return self.run_toy_func(interpreter, op.callee.string_value(), args)
+        return interpreter.call_op(op.callee.string_value(), args)
 
     @impl(toy.TransposeOp)
     def run_transpose(
@@ -143,9 +127,3 @@ class ToyFunctions(InterpreterFunctions):
         result = Tensor(new_data, arg.shape[::-1])
 
         return (result,)
-
-    @impl(ModuleOp)
-    def run_module(
-        self, interpreter: Interpreter, op: ModuleOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        return self.run_toy_func(interpreter, "main", args)

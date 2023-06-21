@@ -13,7 +13,7 @@
       %res = "arith.addi"(%sum, %val) : (i32, i32) -> i32
       "affine.yield"(%res) : (i32) -> ()
     }) {"lower_bound" = 0 : index, "upper_bound" = 256 : index, "step" = 1 : index} : (i32) -> i32
-    "func.return"(%r) : (i32) -> ()
+    func.return %r : i32
   }) {"sym_name" = "sum_vec", "function_type" = (memref<128xi32>) -> i32, "sym_visibility" = "private"} : () -> ()
 
   // CHECK:      "func.func"() ({

@@ -30,6 +30,7 @@ from xdsl.dialects.builtin import (
     ContainerType,
 )
 from xdsl.ir import (
+    Attribute,
     TypeAttribute,
     Operation,
     SSAValue,
@@ -274,14 +275,14 @@ class Alloca(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    alignment: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
 
     irdl_options = [AttrSizedOperandSegments()]
 
     @staticmethod
     def get(
         return_type: Attribute,
-        alignment: int,
+        alignment: int | AnyIntegerAttr | None = None,
         shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
     ) -> Alloca:
@@ -291,10 +292,15 @@ class Alloca(IRDLOperation):
         if dynamic_sizes is None:
             dynamic_sizes = []
 
+        if isinstance(alignment, int):
+            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+
         return Alloca.build(
             operands=[dynamic_sizes, []],
             result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
-            attributes={"alignment": IntegerAttr.from_int_and_width(alignment, 64)},
+            attributes={
+                "alignment": alignment,
+            },
         )
 
 
@@ -426,6 +432,7 @@ class Subview(IRDLOperation):
         offsets: Sequence[int],
         sizes: Sequence[int],
         strides: Sequence[int],
+        reduce_rank: bool = False,
     ) -> Subview:
         source = SSAValue.get(source)
 
@@ -447,12 +454,27 @@ class Subview(IRDLOperation):
             + source_offset
         )
 
+        if reduce_rank:
+            composed_strides = layout_strides
+            layout_strides: list[int] = []
+            result_sizes: list[int] = []
+
+            for stride, size in zip(composed_strides, sizes):
+                if size == 1:
+                    continue
+                layout_strides.append(stride)
+                result_sizes.append(size)
+
+        else:
+            result_sizes = list(sizes)
+
         layout = StridedLayoutAttr(layout_strides, layout_offset)
 
         return_typ = MemRefType.from_element_type_and_shape(
             source_type.element_type,
-            sizes,
+            result_sizes,
             layout,
+            source_type.memory_space,
         )
 
         return Subview.build(
@@ -588,12 +610,35 @@ class DmaWaitOp(IRDLOperation):
             raise VerifyException("Expected tag to be a memref of i32")
 
 
+@irdl_op_definition
+class CopyOp(IRDLOperation):
+    name = "memref.copy"
+    source: Operand = operand_def(MemRefType)
+    destination: Operand = operand_def(MemRefType)
+
+    def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
+        super().__init__([source, destination])
+
+    def verify_(self) -> None:
+        source = cast(MemRefType[Attribute], self.source.typ)
+        destination = cast(MemRefType[Attribute], self.destination.typ)
+        if source.get_shape() != destination.get_shape():
+            raise VerifyException(
+                f"Expected source and destination to have the same shape."
+            )
+        if source.get_element_type() != destination.get_element_type():
+            raise VerifyException(
+                f"Expected source and destination to have the same element type."
+            )
+
+
 MemRef = Dialect(
     [
         Load,
         Store,
         Alloc,
         Alloca,
+        CopyOp,
         Dealloc,
         GetGlobal,
         Global,
