@@ -12,7 +12,9 @@ from xdsl.dialects.gpu import (
     GlobalIdOp,
     GridDimOp,
     HostRegisterOp,
+    HostUnregisterOp,
     LaneIdOp,
+    LaunchFuncOp,
     LaunchOp,
     MemcpyOp,
     ModuleEndOp,
@@ -195,17 +197,23 @@ def test_grid_dim():
 
 
 def test_host_register():
-    memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [10, 10])
-    ref = memref.Alloca.get(memref_type, 0)
-
-    unranked = memref.Cast.build(
-        operands=[ref], result_types=[memref.UnrankedMemrefType.from_type(builtin.i32)]
-    )
+    memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [-1])
+    unranked = memref.Alloca.get(memref_type, 0)
 
     register = HostRegisterOp(unranked)
 
     assert isinstance(register, HostRegisterOp)
     assert register.value is unranked.results[0]
+
+
+def test_host_unregister():
+    memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [-1])
+    unranked = memref.Alloca.get(memref_type, 0)
+
+    unregister = HostUnregisterOp(unranked)
+
+    assert isinstance(unregister, HostUnregisterOp)
+    assert unregister.value is unranked.results[0]
 
 
 def test_lane_id():
@@ -251,6 +259,56 @@ def test_launch():
     assert nd_launch.asyncToken.typ == AsyncTokenType()
     assert nd_launch.asyncDependencies == tuple()
     assert nd_launch.dynamicSharedMemorySize is ten.result
+
+
+def test_launchfunc():
+    kernel = builtin.SymbolRefAttr("root", ["gpu", "kernel"])
+    args = [arith.Constant.from_int_and_width(10, builtin.IndexType())]
+    ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
+    gridSize: list[Operation | SSAValue] = [ten, ten, ten]
+    blockSize: list[Operation | SSAValue] = [ten, ten, ten]
+    launch = LaunchFuncOp(kernel, gridSize, blockSize)
+
+    assert isinstance(launch, LaunchFuncOp)
+    assert launch.kernel is kernel
+    assert launch.gridSizeX is ten.result
+    assert launch.gridSizeY is ten.result
+    assert launch.gridSizeZ is ten.result
+    assert launch.blockSizeX is ten.result
+    assert launch.blockSizeY is ten.result
+    assert launch.blockSizeZ is ten.result
+    assert launch.asyncToken is None
+    assert launch.asyncDependencies == ()
+    assert launch.dynamicSharedMemorySize is None
+    assert launch.kernelOperands == ()
+
+    asyncDependencies = []
+
+    kernel = builtin.SymbolRefAttr("root", ["gpu", "kernel"])
+
+    launch = LaunchFuncOp(
+        kernel,
+        gridSize,
+        blockSize,
+        args,
+        True,
+        asyncDependencies,
+        ten,
+    )
+
+    assert isinstance(launch, LaunchFuncOp)
+    assert launch.kernel is kernel
+    assert launch.gridSizeX is ten.result
+    assert launch.gridSizeY is ten.result
+    assert launch.gridSizeZ is ten.result
+    assert launch.blockSizeX is ten.result
+    assert launch.blockSizeY is ten.result
+    assert launch.blockSizeZ is ten.result
+    assert launch.asyncToken is not None
+    assert launch.asyncToken.typ == AsyncTokenType()
+    assert launch.asyncDependencies == tuple()
+    assert launch.dynamicSharedMemorySize is ten.result
+    assert tuple(a.owner for a in launch.kernelOperands) == tuple(args)
 
 
 def test_memcpy():

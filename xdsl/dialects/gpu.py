@@ -422,6 +422,20 @@ class HostRegisterOp(IRDLOperation):
 
 
 @irdl_op_definition
+class HostUnregisterOp(IRDLOperation):
+    """
+    Unregisters a memref for access from device.
+    """
+
+    name = "gpu.host_unregister"
+
+    value: Operand = operand_def(memref.UnrankedMemrefType)
+
+    def __init__(self, memref: SSAValue | Operation):
+        return super().__init__(operands=[SSAValue.get(memref)])
+
+
+@irdl_op_definition
 class LaneIdOp(IRDLOperation):
     name = "gpu.lane_id"
     result: OpResult = result_def(IndexType)
@@ -488,6 +502,82 @@ class LaunchOp(IRDLOperation):
                 "gpu.launch's body arguments are 12 index arguments, with 3 block "
                 "indices, 3 block sizes, 3 thread indices, and 3 thread counts"
             )
+
+
+@irdl_op_definition
+class LaunchFuncOp(IRDLOperation):
+    """
+    Launch a kernel function on the specified grid of thread blocks. gpu.launch
+    operations are lowered to gpu.launch_func operations by outlining the kernel body
+    into a function in a dedicated module, which reflects the separate compilation
+    process. The kernel function is required to have the gpu.kernel attribute. The
+    module containing the kernel function is required to be a gpu.module. And finally,
+    the module containing the kernel module (which thus cannot be the top-level module)
+    is required to have the gpu.container_module attribute. The gpu.launch_func operation
+    has a symbol attribute named kernel to identify the fully specified kernel function
+    to launch (both the gpu.module and func).
+
+    The gpu.launch_func supports async dependencies: the kernel does not start executing
+    until the ops producing those async dependencies have completed.
+
+    By default, the host implicitly blocks until kernel execution has completed. If
+    the async keyword is present, the host does not block but instead a !gpu.async.token
+    is returned. Other async GPU ops can take this token as dependency.
+
+    The operation requires at least the grid and block sizes along the x,y,z dimensions
+    as arguments. When a lower-dimensional kernel is required, unused sizes must be
+    explicitly set to 1.
+
+    The remaining operands are optional. The first optional operand corresponds to the
+    amount of dynamic shared memory a kernel's workgroup should be allocated; when this
+    operand is not present, a zero size is assumed.
+
+    The remaining operands if present are passed as arguments to the kernel function.
+    """
+
+    name = "gpu.launch_func"
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    gridSizeX: Operand = operand_def(IndexType)
+    gridSizeY: Operand = operand_def(IndexType)
+    gridSizeZ: Operand = operand_def(IndexType)
+    blockSizeX: Operand = operand_def(IndexType)
+    blockSizeY: Operand = operand_def(IndexType)
+    blockSizeZ: Operand = operand_def(IndexType)
+    dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
+    kernelOperands: VarOperand = var_operand_def()
+
+    asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
+
+    kernel: SymbolRefAttr = attr_def(SymbolRefAttr)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    def __init__(
+        self,
+        func: SymbolRefAttr,
+        gridSize: Sequence[SSAValue | Operation],
+        blockSize: Sequence[SSAValue | Operation],
+        kernelOperands: Sequence[SSAValue | Operation] | None = None,
+        async_launch: bool = False,
+        asyncDependencies: Sequence[SSAValue | Operation] | None = None,
+        dynamicSharedMemorySize: SSAValue | Operation | None = None,
+    ):
+        if len(gridSize) != 3:
+            raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
+        if len(blockSize) != 3:
+            raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+
+        return super().__init__(
+            operands=[
+                asyncDependencies,
+                *gridSize,
+                *blockSize,
+                dynamicSharedMemorySize,
+                kernelOperands,
+            ],
+            result_types=[[AsyncTokenType()] if async_launch else []],
+            attributes={"kernel": func},
+        )
 
 
 @irdl_op_definition
@@ -608,8 +698,10 @@ GPU = Dialect(
         GlobalIdOp,
         GridDimOp,
         HostRegisterOp,
+        HostUnregisterOp,
         LaneIdOp,
         LaunchOp,
+        LaunchFuncOp,
         MemcpyOp,
         ModuleOp,
         ModuleEndOp,

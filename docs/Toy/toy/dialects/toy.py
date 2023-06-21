@@ -48,7 +48,13 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from xdsl.traits import Pure, OpTrait, SymbolOpInterface, IsTerminator
+from xdsl.traits import (
+    CallableOpInterface,
+    Pure,
+    OpTrait,
+    SymbolOpInterface,
+    IsTerminator,
+)
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
@@ -167,6 +173,13 @@ class AddOp(IRDLOperation):
                         )
 
 
+class FuncOpCallableInterface(CallableOpInterface):
+    @classmethod
+    def get_callable_region(cls, op: Operation) -> Region:
+        assert isinstance(op, FuncOp)
+        return op.body
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     """
@@ -191,7 +204,7 @@ class FuncOp(IRDLOperation):
     function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
-    traits = frozenset((SymbolOpInterface(),))
+    traits = frozenset((SymbolOpInterface(), FuncOpCallableInterface()))
 
     def __init__(
         self,

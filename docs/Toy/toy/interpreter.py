@@ -7,7 +7,16 @@ from itertools import accumulate
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import TensorType, VectorType
-from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
+from xdsl.interpreter import (
+    Interpreter,
+    InterpreterFunctions,
+    PythonValues,
+    ReturnedValues,
+    TerminatorValue,
+    impl_terminator,
+    register_impls,
+    impl,
+)
 
 from .dialects import toy as toy
 
@@ -42,17 +51,6 @@ class ToyFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         interpreter.print(f"{args[0]}")
         return ()
-
-    @impl(toy.FuncOp)
-    def run_func(
-        self, interpreter: Interpreter, op: toy.FuncOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        results = interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
-        interpreter.interpreter_assert(
-            results is not None, f"Expected toy.func region to have a terminator"
-        )
-        assert results is not None
-        return results
 
     @impl(toy.ConstantOp)
     def run_const(
@@ -98,17 +96,18 @@ class ToyFunctions(InterpreterFunctions):
 
         return (Tensor([l * r for l, r in zip(lhs.data, rhs.data)], lhs.shape),)
 
-    @impl(toy.ReturnOp)
+    @impl_terminator(toy.ReturnOp)
     def run_return(
         self, interpreter: Interpreter, op: toy.ReturnOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        return args
+    ) -> tuple[TerminatorValue, PythonValues]:
+        assert len(args) < 2
+        return ReturnedValues(args), ()
 
     @impl(toy.GenericCallOp)
     def run_generic_call(
         self, interpreter: Interpreter, op: toy.GenericCallOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        return interpreter.run_op(op.callee.string_value(), args)
+        return interpreter.call_op(op.callee.string_value(), args)
 
     @impl(toy.TransposeOp)
     def run_transpose(

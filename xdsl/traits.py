@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
+import abc
 from xdsl.utils.exceptions import VerifyException
 from typing import (
     TYPE_CHECKING,
@@ -165,3 +166,21 @@ class SymbolOpInterface(OpTrait):
                 f'Operation {op.name} must have a "sym_name" attribute of type '
                 f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
             )
+
+
+class CallableOpInterface(OpTrait, abc.ABC):
+    """
+    Interface for function-like Operations that can be called in a generic way.
+
+    Please see MLIR documentation for CallOpInterface and CallableOpInterface for more
+    information.
+
+    https://mlir.llvm.org/docs/Interfaces/#callinterfaces
+    """
+
+    @classmethod
+    def get_callable_region(cls, op: Operation) -> Region:
+        """
+        Returns the body of the operation
+        """
+        raise NotImplementedError
