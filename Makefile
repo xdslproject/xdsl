@@ -22,6 +22,7 @@ filecheck:
 # run pytest tests
 pytest:
 	pytest tests -W error -vv
+	pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
 
 # run all tests
 tests: pytest filecheck pyright
