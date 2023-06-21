@@ -14,6 +14,7 @@ clean:
 # run filecheck tests
 filecheck:
 	lit -vv tests/filecheck
+	lit -vv docs/Toy/examples
 
 # run pytest tests
 pytest:
