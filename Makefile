@@ -1,7 +1,10 @@
 MAKEFLAGS += --no-builtin-rules
 MAKEFLAGS += --no-builtin-variables
 
-# make tasks runn all commands in a single shell
+# allow overriding the name of the venv directory
+VENV_DIR ?= venv
+
+# make tasks run all commands in a single shell
 .ONESHELL:
 
 # these targets don't produce files:
@@ -9,7 +12,7 @@ MAKEFLAGS += --no-builtin-variables
 
 # remove all caches and the venv
 clean:
-	rm -rf venv .pytest_cache *.egg-info .coverage.*
+	rm -rf ${VENV_DIR} .pytest_cache *.egg-info .coverage.*
 
 # run filecheck tests
 filecheck:
@@ -46,7 +49,7 @@ black:
 
 # set up the venv with all dependencies for development
 venv: requirements-optional.txt requirements.txt
-	python3 -m venv venv
-	source venv/bin/activate
+	python3 -m venv ${VENV_DIR}
+	source ${VENV_DIR}/bin/activate
 	pip install -r requirements-optional.txt -r requirements.txt
 	pip install -e ".[extras]"
