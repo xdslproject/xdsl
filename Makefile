@@ -1,10 +1,6 @@
 MAKEFLAGS += --no-builtin-rules
 MAKEFLAGS += --no-builtin-variables
 
-xdsl_sources = $(shell find xdsl -type f)
-test_sources = $(shell find tests -type f)
-filecheck_sources = $(shell find tests -iname '*.mlir' -type f)
-
 
 .PHONY: clean filecheck pytest tests rerun-notebooks precommit-install precommit black pyright
 
