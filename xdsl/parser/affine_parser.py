@@ -27,7 +27,7 @@ class AffineParser(Parser):
         # Handle parentheses
         if self._parse_optional_token(Token.Kind.L_PAREN):
             expr = self._parse_affine_expr(dims, syms)
-            self._consume_token(Token.Kind.R_PAREN)
+            self._parse_token(Token.Kind.R_PAREN, "Expected closing parenthesis")
             return expr
         # Handle bare id
         if bare_id := self._parse_optional_token(Token.Kind.BARE_IDENT):
@@ -125,7 +125,7 @@ class AffineParser(Parser):
         """
 
         def parse_id() -> str:
-            return self._consume_token(Token.Kind.BARE_IDENT).text
+            return self._parse_token(Token.Kind.BARE_IDENT, "Expected identifier").text
 
         # Parse dimensions
         dims = self.parse_comma_separated_list(self.Delimiter.PAREN, parse_id)
@@ -145,7 +145,7 @@ class AffineParser(Parser):
         # Parse affine space
         dims, syms = self._parse_affine_space()
         # Parse : delimiter
-        self._consume_token(Token.Kind.ARROW)
+        self._parse_token(Token.Kind.ARROW, "Expected `->`")
         # Parse list of affine expressions
         exprs = self._parse_multi_affine_expr(dims, syms)
         # Create map and return.
