@@ -72,6 +72,8 @@ git clone https://github.com/xdslproject/xdsl.git
 cd xdsl
 # set up the venv and install everything
 make venv
+# activate the venv
+source venv/bin/activate
 ```
 
 ### Testing

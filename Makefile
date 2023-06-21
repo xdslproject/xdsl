@@ -1,7 +1,10 @@
 MAKEFLAGS += --no-builtin-rules
 MAKEFLAGS += --no-builtin-variables
 
+# make tasks runn all commands in a single shell
+.ONESHELL:
 
+# these targets don't produce files:
 .PHONY: clean filecheck pytest tests rerun-notebooks precommit-install precommit black pyright
 
 # remove all caches and the venv
@@ -17,7 +20,7 @@ pytest:
 	pytest tests -W error -vv
 
 # run all tests
-tests: pytest filecheck
+tests: pytest filecheck pyright
 	echo test
 
 # re-generate the output from all jupyter notebooks in the docs directory
@@ -44,5 +47,5 @@ black:
 venv: requirements-optional.txt requirements.txt
 	python3 -m venv venv
 	source venv/bin/activate
-	pip install -r requirements-optional.txt requirements.txt
+	pip install -r requirements-optional.txt -r requirements.txt
 	pip install -e ".[extras]"
