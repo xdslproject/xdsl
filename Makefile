@@ -49,8 +49,9 @@ pyright:
 
 # run black on all files currently staged
 black:
-	touched="$(shell git diff --staged --name-only)"
-	black $${touched:-xdsl}
+	staged_files="$(shell git diff --staged --name-only)"
+	# run black on all of xdsl if no staged files exist
+	black $${staged_files:-xdsl}
 
 
 # set up the venv with all dependencies for development
