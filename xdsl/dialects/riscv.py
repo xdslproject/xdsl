@@ -1284,6 +1284,8 @@ class JOp(RdImmJumpOperation):
 
     name = "riscv.j"
 
+    traits = frozenset((IsTerminator(),))
+
     def __init__(
         self,
         immediate: int | AnyIntegerAttr | str | LabelAttr,

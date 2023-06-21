@@ -72,8 +72,11 @@
 
     "riscv.j"() {"immediate" = 1 : i32, "rd" = !riscv.reg<zero>} : () -> ()
     // CHECK-NEXT: j 1
+    ^0(%b00 : !riscv.reg<>, %b01 : !riscv.reg<>):
+
     "riscv.j"() {"immediate" = #riscv.label<"label">, "rd" = !riscv.reg<zero>} : () -> ()
     // CHECK-NEXT: j label
+    ^1(%b10 : !riscv.reg<>, %b11 : !riscv.reg<>):
 
     "riscv.jalr"(%0) {"immediate" = 1 : i32}: (!riscv.reg<zero>) -> ()
     // CHECK-NEXT: jalr zero, 1
@@ -84,7 +87,7 @@
 
     "riscv.ret"() : () -> ()
     // CHECK-NEXT: ret
-    ^0(%b00 : !riscv.reg<>, %b01 : !riscv.reg<>):
+    ^2(%b20 : !riscv.reg<>, %b21 : !riscv.reg<>):
 
 
     // Conditional Branch Instructions
@@ -156,7 +159,7 @@
     // CHECK-NEXT: ebreak
     "riscv.ret"() : () -> ()
     // CHECK-NEXT: ret
-    ^1(%b10 : !riscv.reg<>, %b11 : !riscv.reg<>):
+    ^3(%b30 : !riscv.reg<>, %b31 : !riscv.reg<>):
 
     "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
     // CHECK-NEXT: .align 2

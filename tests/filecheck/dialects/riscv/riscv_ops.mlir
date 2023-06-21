@@ -67,8 +67,12 @@
 
     "riscv.j"() {"immediate" = 1 : i32} : () -> ()
     // CHECK-NEXT: "riscv.j"() {"immediate" = 1 : i32} : () -> ()
+    ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
+    // CHECK-NEXT: ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
     "riscv.j"() {"immediate" = #riscv.label<"label">} : () -> ()
     // CHECK-NEXT: "riscv.j"() {"immediate" = #riscv.label<"label">} : () -> ()
+    ^1(%4 : !riscv.reg<>, %5 : !riscv.reg<>):
+    // CHECK-NEXT: ^1(%4 : !riscv.reg<>, %5 : !riscv.reg<>):
 
     "riscv.jalr"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> ()
     // CHECK-NEXT: "riscv.jalr"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> ()
@@ -79,8 +83,8 @@
 
     "riscv.ret"() : () -> ()
     // CHECK-NEXT: "riscv.ret"() : () -> ()
-    ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
-    // CHECK-NEXT: ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
+    ^2(%6 : !riscv.reg<>, %7 : !riscv.reg<>):
+    // CHECK-NEXT: ^2(%6 : !riscv.reg<>, %7 : !riscv.reg<>):
 
     // Conditional Branch Instructions
     "riscv.beq"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
