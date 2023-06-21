@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .core import Parser, ParserState, Token, ParseError
+from xdsl.parser.core import Parser, ParserState, Token, ParseError
 from xdsl.ir.affine import AffineExpr, AffineMap
 
 
@@ -24,7 +24,7 @@ class AffineParser(Parser):
                   | integer-literal
                   | `-` primary
         """
-        # Handle parenthesis
+        # Handle parentheses
         if self._parse_optional_token(Token.Kind.L_PAREN):
             expr = self._parse_affine_expr(dims, syms)
             self._consume_token(Token.Kind.R_PAREN)

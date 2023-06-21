@@ -78,7 +78,7 @@ from xdsl.ir import (
 from xdsl.ir.affine import AffineMap
 from xdsl.utils.hints import isa
 
-from . import affine_parser as affine_parser
+import xdsl.parser.affine_parser as affine_parser
 
 
 @dataclass
