@@ -35,6 +35,7 @@ from xdsl.ir import (
     AttributeCovT,
     AttributeInvT,
 )
+from xdsl.ir.affine import AffineMap
 
 from xdsl.irdl import (
     AllOf,
@@ -1139,6 +1140,21 @@ class StridedLayoutAttr(ParametrizedAttribute):
         super().__init__([strides, offset])
 
 
+@irdl_attr_definition
+class AffineMapAttr(Data[AffineMap]):
+    """An Attribute containing an AffineMap object."""
+
+    name = "affine_map"
+
+    @staticmethod
+    def parse_parameter(parser: Parser) -> AffineMap:
+        data = parser.parse_affine_map()
+        return data
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f"{self.data}")
+
+
 @irdl_op_definition
 class UnrealizedConversionCastOp(IRDLOperation):
     name = "builtin.unrealized_conversion_cast"
@@ -1362,5 +1378,6 @@ Builtin = Dialect(
         VectorType,
         TensorType,
         UnrankedTensorType,
+        AffineMapAttr,
     ],
 )
