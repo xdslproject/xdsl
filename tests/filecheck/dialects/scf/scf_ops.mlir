@@ -51,7 +51,7 @@ builtin.module {
     ^1(%arg2 : i32):
       "scf.yield"(%arg2) : (i32) -> ()
     }) : (i32) -> i32
-    "func.return"() : () -> ()
+    func.return
   }
 
   // CHECK:      func.func @while() {
@@ -65,7 +65,7 @@ builtin.module {
   // CHECK-NEXT:   ^{{.*}}(%{{.*}} : i32):
   // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (i32) -> ()
   // CHECK-NEXT:   }) : (i32) -> i32
-  // CHECK-NEXT:   "func.return"() : () -> ()
+  // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
   func.func @for() {
@@ -78,7 +78,7 @@ builtin.module {
       %prod_new = arith.muli %prod_iter, %iv : index
       "scf.yield"(%prod_new) : (index) -> ()
     }) : (index, index, index, index) -> index
-    "func.return"() : () -> ()
+    func.return
   }
 
   // CHECK-NEXT: func.func @for() {
@@ -91,7 +91,7 @@ builtin.module {
   // CHECK-NEXT:     %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
   // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (index) -> ()
   // CHECK-NEXT:   }) : (index, index, index, index) -> index
-  // CHECK-NEXT:   "func.return"() : () -> ()
+  // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
 

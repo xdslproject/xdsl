@@ -6,7 +6,6 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.ir import Attribute, OpResult
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
-    NoneAttr,
     StridedLayoutAttr,
     i32,
     i64,
@@ -221,7 +220,7 @@ def test_memref_matmul_verify():
 
             scf.For.get(lit0, dim_a0, lit1, [], outer_loop)
 
-            func.Return.get(out)
+            func.Return(out)
 
         func.FuncOp(
             "matmul",
