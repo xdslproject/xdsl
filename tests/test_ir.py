@@ -554,8 +554,8 @@ def test_descriptions():
     assert str(a.value) == "1 : i32"
     assert f"{a.value}" == "1 : i32"
 
-    assert str(a) == '%0 = "arith.constant"() {"value" = 1 : i32} : () -> i32'
-    assert f"{a}" == 'Constant(%0 = "arith.constant"() {"value" = 1 : i32} : () -> i32)'
+    assert str(a) == "%0 = arith.constant 1 : i32"
+    assert f"{a}" == "Constant(%0 = arith.constant 1 : i32)"
 
     m = ModuleOp([a])
 
@@ -563,7 +563,7 @@ def test_descriptions():
         str(m)
         == """\
 builtin.module {
-  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %0 = arith.constant 1 : i32
 }"""
     )
 
@@ -572,7 +572,7 @@ builtin.module {
         == """\
 ModuleOp(
 \tbuiltin.module {
-\t  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+\t  %0 = arith.constant 1 : i32
 \t}
 )"""
     )
