@@ -49,7 +49,9 @@ pyright:
 
 # run black on all files currently staged
 black:
-	black $(shell git diff --staged --name-only)
+	touched="$(shell git diff --staged --name-only)"
+	black $${touched:-xdsl}
+
 
 # set up the venv with all dependencies for development
 venv: requirements-optional.txt requirements.txt
