@@ -342,7 +342,7 @@ class Return(IRDLOperation):
     def print(self, printer: Printer):
         if self.attributes:
             printer.print(" ")
-            printer.print_attribute_dictionary(self.attributes)
+            printer.print_op_attributes(self.attributes)
 
         if self.arguments:
             printer.print(" ")

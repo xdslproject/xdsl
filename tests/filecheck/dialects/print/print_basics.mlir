@@ -17,4 +17,4 @@ builtin.module {
 // CHECK-NEXT:  %1 = "test.op"() : () -> i32
 // CHECK-NEXT:  print.println "Uses vals twice {} {} {} {}", %1 : i32, %0 : i32, %1 : i32, %0 : i32
 // CHECK-NEXT:  print.println "{}", %0 : i32
-// CHECK-NEXT:  print.println "{}", %0 : i32 {unit}
+// CHECK-NEXT:  print.println "{}", %0 : i32 {"unit"}

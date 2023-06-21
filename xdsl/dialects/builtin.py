@@ -1319,9 +1319,8 @@ class ModuleOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if len(self.attributes) != 0:
-            printer.print(" attributes {")
-            printer.print_attribute_dictionary(self.attributes)
-            printer.print("}")
+            printer.print(" attributes ")
+            printer.print_op_attributes(self.attributes)
 
         if not self.body.block.ops:
             # Do not print the entry block if the region has an empty block
