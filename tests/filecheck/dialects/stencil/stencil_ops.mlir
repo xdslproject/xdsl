@@ -12,7 +12,7 @@ builtin.module {
       "stencil.return"(%8) : (!stencil.result<f64>) -> ()
     }) : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
     "stencil.store"(%5, %3) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 64>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 }
 
@@ -28,7 +28,7 @@ builtin.module {
 // CHECK-NEXT:       "stencil.return"(%8) : (!stencil.result<f64>) -> ()
 // CHECK-NEXT:     }) : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
 // CHECK-NEXT:     "stencil.store"(%5, %3) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 64>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
-// CHECK-NEXT:     "func.return"() : () -> ()
+// CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
@@ -52,7 +52,7 @@ builtin.module {
       "stencil.store"(%tip1, %fip1) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<50, 80, 40>} : (!stencil.temp<?x?x?xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> ()
       "scf.yield"(%fip1, %fi) : (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> ()
     }) : (index, index, index, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>)
-    "func.return"() : () -> ()
+    func.return
   }
 }
 
@@ -74,7 +74,7 @@ builtin.module {
 // CHECK-NEXT:       "stencil.store"(%tip1, %fip1) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<50, 80, 40>} : (!stencil.temp<?x?x?xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> ()
 // CHECK-NEXT:       "scf.yield"(%fip1, %fi) : (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> ()
 // CHECK-NEXT:     }) : (index, index, index, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>)
-// CHECK-NEXT:     "func.return"() : () -> ()
+// CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
@@ -101,7 +101,7 @@ builtin.module {
       "stencil.return"(%17) : (f64) -> ()
     }) : (!stencil.temp<[-1,65]x[-1,65]xf64>) -> !stencil.temp<[0,64]x[0,64]xf64>
     "stencil.store"(%5, %3) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<64, 64>} : (!stencil.temp<[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 }
 
@@ -126,7 +126,7 @@ builtin.module {
 // CHECK-NEXT:       "stencil.return"(%17) : (f64) -> ()
 // CHECK-NEXT:     }) : (!stencil.temp<[-1,65]x[-1,65]xf64>) -> !stencil.temp<[0,64]x[0,64]xf64>
 // CHECK-NEXT:     "stencil.store"(%5, %3) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<64, 64>} : (!stencil.temp<[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]xf64>) -> ()
-// CHECK-NEXT:     "func.return"() : () -> ()
+// CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
@@ -149,7 +149,7 @@ builtin.module {
       "stencil.return"(%14) : (f64) -> ()
     }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
     "stencil.store"(%12, %1) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<64, 64>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 }
 
@@ -168,6 +168,6 @@ builtin.module {
 // CHECK-NEXT:       "stencil.return"(%9) : (f64) -> ()
 // CHECK-NEXT:     }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
 // CHECK-NEXT:     "stencil.store"(%7, %1) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<64, 64>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
-// CHECK-NEXT:     "func.return"() : () -> ()
+// CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

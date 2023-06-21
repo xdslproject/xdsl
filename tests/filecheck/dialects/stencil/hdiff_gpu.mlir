@@ -22,7 +22,7 @@
       "stencil.return"(%19) : (f64) -> ()
     }) : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
     "stencil.store"(%8, %4) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 64>} : (!stencil.temp<?x?x?xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }) {"function_type" = (!stencil.field<?x?x?xf64>, !stencil.field<?x?x?xf64>) -> (), "sym_name" = "stencil_hdiff"} : () -> ()
 }) : () -> ()
 
@@ -90,6 +90,6 @@
 // CHECK-NEXT:       "memref.store"(%58, %6, %18, %17, %16) : (f64, memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> ()
 // CHECK-NEXT:       "scf.yield"() : () -> ()
 // CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
-// CHECK-NEXT:     "func.return"() : () -> ()
+// CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
