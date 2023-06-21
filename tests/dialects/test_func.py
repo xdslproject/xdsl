@@ -93,6 +93,7 @@ def test_wrong_blockarg_types():
     b = Block(arg_types=(i32,))
     with ImplicitBuilder(b) as (arg0,):
         Addi(arg0, arg0)
+        Return()
     r = Region(b)
     f = FuncOp.from_region("f", [i32, i32], [], r)
 

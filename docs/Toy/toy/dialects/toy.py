@@ -373,6 +373,7 @@ class ReturnOp(IRDLOperation):
 
     name = "toy.return"
     input: OptOperand = opt_operand_def(AnyTensorTypeF64)
+
     traits = frozenset([IsTerminator()])
 
     def __init__(self, input: SSAValue | None = None):

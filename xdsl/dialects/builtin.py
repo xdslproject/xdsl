@@ -58,7 +58,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.traits import IsolatedFromAbove
+from xdsl.traits import IsolatedFromAbove, NoTerminator
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
@@ -1285,7 +1285,7 @@ class ModuleOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
 
     def __init__(
         self,

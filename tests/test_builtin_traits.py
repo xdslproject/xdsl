@@ -17,6 +17,7 @@ from xdsl.ir import Region, Block
 from xdsl.traits import (
     HasParent,
     IsTerminator,
+    NoTerminator,
     IsolatedFromAbove,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -29,12 +30,16 @@ class ParentOp(IRDLOperation):
 
     region: Region = region_def()
 
+    traits = frozenset([NoTerminator()])
+
 
 @irdl_op_definition
 class Parent2Op(IRDLOperation):
     name = "test.parent2"
 
     region: Region = region_def()
+
+    traits = frozenset([NoTerminator()])
 
 
 @irdl_op_definition
@@ -115,6 +120,46 @@ def test_has_parent_verify():
 
 
 @irdl_op_definition
+class HasNoTerminatorOp(IRDLOperation):
+    """
+    An operation that can opt out from having a terminator.
+    This requires the operation to have a single block.
+    """
+
+    name = "test.has_no_terminator"
+
+    region: Region = region_def()
+
+    traits = frozenset([NoTerminator()])
+
+
+def test_has_no_terminator_empty_block_with_single_block_region_requires_no_terminator():
+    """
+    Tests that an empty block belonging to a single-block region with parent
+    operation requires no terminator operation if it has the NoTerminator trait.
+    """
+    block0 = Block([])
+    region0 = Region([block0])
+    _ = HasNoTerminatorOp.create(regions=[region0])
+
+    block0.verify()
+
+
+def test_has_no_terminator_empty_block_with_multi_block_region_fails():
+    """
+    Tests that an empty block belonging to a multi-block region with parent
+    operation fails if it has the NoTerminator trait.
+    """
+    block0 = Block([])
+    block1 = Block([])
+    region0 = Region([block0, block1])
+    op0 = HasNoTerminatorOp.create(regions=[region0])
+
+    with pytest.raises(VerifyException, match="does not contain single-block regions"):
+        op0.verify()
+
+
+@irdl_op_definition
 class IsTerminatorOp(IRDLOperation):
     """
     An operation that provides the IsTerminator trait.
@@ -127,29 +172,27 @@ class IsTerminatorOp(IRDLOperation):
     traits = frozenset([IsTerminator()])
 
 
-def test_is_terminator_with_successors_verify():
-    """
-    Test that an operation with an IsTerminator trait may have successor blocks.
-    """
-    block0 = Block([])
-    block1 = Block([IsTerminatorOp.create(successors=[block0])])
-    region0 = Region([block0, block1])
-    op0 = TestOp.create(regions=[region0])
-
-    op0.verify()
-
-
-def test_is_terminator_without_successors_multi_block_region_verify():
+def test_is_terminator_without_successors_multi_block_parent_region_verify():
     """
     Test that an operation with an IsTerminator trait may not have successor
     blocks in a multi-block parent region.
     """
+
     block0 = Block([])
+    # term op is the single op in its block
     block1 = Block([IsTerminatorOp.create()])
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
 
     op0.verify()
+
+    block2 = Block([])
+    # term op with other ops in its block
+    block3 = Block([TestOp.create(), IsTerminatorOp.create()])
+    region1 = Region([block2, block3])
+    op1 = TestOp.create(regions=[region1])
+
+    op1.verify()
 
 
 def test_is_terminator_without_successors_single_block_parent_region_verify():
@@ -157,37 +200,60 @@ def test_is_terminator_without_successors_single_block_parent_region_verify():
     Test that an operation with an IsTerminator trait may not have successor
     blocks in a single-block parent region.
     """
+    # term op is the single op in its block
     block0 = Block([IsTerminatorOp.create()])
     region0 = Region([block0])
     op0 = TestOp.create(regions=[region0])
 
     op0.verify()
 
+    # term op with other ops in its block
+    block1 = Block([TestOp.create(), IsTerminatorOp.create()])
+    region1 = Region([block1])
+    op1 = TestOp.create(regions=[region1])
 
-def test_is_terminator_fails_if_not_last_operation_parent_block():
+    op1.verify()
+
+
+def test_is_terminator_fails_if_not_last_op_parent_block_in_single_block_region():
     """
     Test that an operation with an IsTerminator trait fails if it is not the
-    last operation in its parent block.
+    last operation in its parent block in a single-block region.
     """
     block0 = Block([IsTerminatorOp.create(), TestOp.create()])
     region0 = Region([block0])
     op0 = TestOp.create(regions=[region0])
 
     with pytest.raises(
-        VerifyException, match="must be the last operation in the parent block"
+        VerifyException, match="must be the last operation in its parent block"
     ):
         op0.verify()
 
 
-def test_is_terminator_if_not_last_op_parent_block_in_multi_block_region():
+def test_is_terminator_fails_if_not_last_op_parent_block_in_multi_block_region():
     """
     Test that an operation without an IsTerminator trait verifies if it is not
     the last operation in its parent block in a multi-block region.
     """
-    block0 = Block([TestOp.create(), IsTerminatorOp.create()])
+    block0 = Block([IsTerminatorOp.create(), TestOp.create()])
     block1 = Block([])
     region0 = Region([block0, block1])
     op0 = TestOp.create(regions=[region0])
+
+    with pytest.raises(
+        VerifyException, match="must be the last operation in its parent block"
+    ):
+        op0.verify()
+
+
+def test_no_terminator_op_with_is_terminator_op():
+    """
+    Test that an operation with a NoTerminator trait verifies if it contains a
+    terminator operation (i.e., has the IsTerminator trait).
+    """
+    block0 = Block([IsTerminatorOp.create()])
+    region0 = Region([block0])
+    op0 = HasNoTerminatorOp.create(regions=[region0])
 
     op0.verify()
 
@@ -202,7 +268,7 @@ class IsolatedFromAboveOp(IRDLOperation):
 
     region: Region = region_def()
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
 
 
 def test_isolated_from_above():
@@ -215,7 +281,7 @@ def test_isolated_from_above():
 
     # Test a simple, properly Isolated
     op = IsolatedFromAboveOp(regions=[Region([block])])
-    op.verify
+    op.verify()
 
     # Check a simple isolation violation
     out_cst = arith.Constant.from_int_and_width(0, builtin.i32)

@@ -62,6 +62,7 @@ builtin.module {
     "stencil.apply"(%int) ({
     ^0(%intb : !stencil.temp<?xf64>):
       %v = "stencil.access"(%intb) {"offset" = #stencil.index<-1>} : (!stencil.temp<?xf64>) -> f64
+      "stencil.return"() : () -> ()
     }) : (!stencil.temp<?xf64>) -> ()
     "func.return"() : () -> ()
   }

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import IO, Iterable, TypeAlias, Sequence
 
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsTerminator, NoTerminator
 
 from xdsl.ir import (
     Dialect,
@@ -1850,6 +1850,8 @@ class LabelOp(IRDLOperation, RISCVOp):
     comment: StringAttr | None = opt_attr_def(StringAttr)
     data: OptRegion = opt_region_def("single_block")
 
+    traits = frozenset([NoTerminator()])
+
     def __init__(
         self,
         label: str | LabelAttr,
@@ -1889,6 +1891,8 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     directive: StringAttr = attr_def(StringAttr)
     value: StringAttr | None = opt_attr_def(StringAttr)
     data: OptRegion = opt_region_def("single_block")
+
+    traits = frozenset([NoTerminator()])
 
     def __init__(
         self,

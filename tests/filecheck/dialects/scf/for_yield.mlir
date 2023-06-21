@@ -7,5 +7,6 @@
   "scf.for"(%lb, %ub, %step, %carried) ({
 // CHECK: The scf.for's body does not end with a scf.yield. A scf.for loop with loop-carried variables must yield their values at the end of its body.
   ^0(%iv : index, %carried_arg : i8):
+    "test.termop"() : () -> ()
   }) : (index, index, index, i8) -> ()
 }) : () -> ()

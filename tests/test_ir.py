@@ -241,17 +241,16 @@ def test_empty_block_with_single_block_parent_region_requires_terminator():
     """
     Tests that an empty block belonging to a single-block region in a parent
     operation requires terminator operation.
-
-    This test should fail once the NoTerminator functionality is implemented.
-    See https://github.com/xdslproject/xdsl/issues/1093
     """
     block0 = Block([])
     region0 = Region([block0])
     op0 = TestOp.create(regions=[region0])
 
-    # TODO single-block regions dealt when the NoTerminator trait is
-    # implemented (https://github.com/xdslproject/xdsl/issues/1093)
-    op0.verify()
+    with pytest.raises(
+        VerifyException,
+        match="contains empty block in single-block region that expects at least a terminator",
+    ):
+        op0.verify()
 
 
 def test_region_clone_into_circular_blocks():
@@ -308,10 +307,11 @@ def test_non_empty_block_with_single_block_parent_region_must_have_terminator():
     region0 = Region([block1])
     op0 = TestOp.create(regions=[region0])
 
-    # TODO single-block regions dealt when the NoTerminator trait is
-    # implemented (https://github.com/xdslproject/xdsl/issues/1093)
-    # this should fail
-    op0.verify()
+    with pytest.raises(
+        VerifyException,
+        match="terminates block in single-block region but is not a terminator",
+    ):
+        op0.verify()
 
 
 def test_non_empty_block_with_single_block_parent_region_with_terminator():

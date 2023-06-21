@@ -75,8 +75,23 @@ class IsTerminator(OpTrait):
         """Check that the operation satisfies the IsTerminator trait requirements."""
         if op.parent is not None and op.parent.last_op != op:
             raise VerifyException(
-                f"'{op.name}' must be the last operation in the parent block"
+                f"'{op.name}' must be the last operation in its parent block"
             )
+
+
+class NoTerminator(OpTrait):
+    """
+    Allow an operation to have single block regions with no terminator.
+
+    https://mlir.llvm.org/docs/Traits/#terminator
+    """
+
+    def verify(self, op: Operation) -> None:
+        for region in op.regions:
+            if len(region.blocks) > 1:
+                raise VerifyException(
+                    f"'{op.name}' does not contain single-block regions"
+                )
 
 
 class IsolatedFromAbove(OpTrait):
