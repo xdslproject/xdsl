@@ -246,6 +246,18 @@ def test_is_terminator_fails_if_not_last_op_parent_block_in_multi_block_region()
         op0.verify()
 
 
+def test_no_terminator_op_with_is_terminator_op():
+    """
+    Test that an operation with a NoTerminator trait verifies if it contains a
+    terminator operation (i.e., has the IsTerminator trait).
+    """
+    block0 = Block([IsTerminatorOp.create()])
+    region0 = Region([block0])
+    op0 = HasNoTerminatorOp.create(regions=[region0])
+
+    op0.verify()
+
+
 @irdl_op_definition
 class IsolatedFromAboveOp(IRDLOperation):
     """
