@@ -53,7 +53,6 @@ black:
 	# run black on all of xdsl if no staged files exist
 	black $${staged_files:-xdsl}
 
-
 # set up the venv with all dependencies for development
 venv: requirements-optional.txt requirements.txt
 	python3 -m venv ${VENV_DIR}
