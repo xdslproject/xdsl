@@ -30,5 +30,6 @@ class AffineMap:
         syms = ", ".join(syms)
         # Create comma seperated list of results.
         results = ", ".join(str(expr) for expr in self.results)
-
+        if self.num_symbols == 0:
+            return f"({dims}) -> ({results})"
         return f"({dims})[{syms}] -> ({results})"
