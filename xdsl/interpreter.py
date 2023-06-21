@@ -16,7 +16,7 @@ from typing import (
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import OperationInvT, SSAValue, Operation
 from xdsl.ir.core import Block, Region
-from xdsl.traits import IsTerminator, SymbolOpInterface
+from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -323,12 +323,38 @@ class Interpreter:
         """
         Calls the implementation for the given operation.
         """
-        # TODO: replace this with CallableOp trait implementation.
         if isinstance(op, str):
             op = self.get_op_for_symbol(op)
 
         result = self._impls.run(self, op, inputs)
         return result.values
+
+    def call_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
+        """
+        Calls the implementation for the given operation.
+        """
+        if isinstance(op, str):
+            name = op
+            op = self.get_op_for_symbol(op)
+        else:
+            name = "unknown"
+
+        interface = op.get_trait(CallableOpInterface)
+
+        self.interpreter_assert(
+            interface is not None,
+            f"Operation {op.name} does not have trait CallableOpInterface",
+        )
+        assert interface is not None
+
+        body = interface.get_callable_region(op)
+
+        results = self.run_ssacfg_region(body, inputs, name)
+        self.interpreter_assert(
+            results is not None, f"Expected {op.name} body to have a terminator"
+        )
+        assert results is not None
+        return results
 
     def run_block(self, block: Block, args: PythonValues) -> PythonValues | None:
         """
