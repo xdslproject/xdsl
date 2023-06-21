@@ -169,9 +169,11 @@
     // CHECK-NEXT: label0:
     "riscv.label"() ({
       %nested_addi = "riscv.addi"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j1>
+      "riscv.ret"() : () -> ()
     }) {"label" = #riscv.label<"label1">} : () -> ()
     // CHECK-NEXT: label1:
     // CHECK-NEXT: addi j1, j1, 1
+    // CHECK-NEXT: ret
 
 
     // Custom instruction
