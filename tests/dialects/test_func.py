@@ -111,7 +111,7 @@ def test_func_rewriting_helpers():
     """
     func = FuncOp("test", ((i32, i32, i32), ()))
     with ImplicitBuilder(func.body):
-        Return.get()
+        Return()
 
     func.replace_argument_type(2, i64)
     assert func.function_type.inputs.data[2] is i64
@@ -143,7 +143,7 @@ def test_func_rewriting_helpers():
 def test_func_get_return_op():
     func_w_ret = FuncOp("test", ((i32, i32, i32), ()))
     with ImplicitBuilder(func_w_ret.body) as (a, _, _):
-        Return.get(a)
+        Return(a)
 
     func = FuncOp("test", ((i32, i32, i32), ()))
 
@@ -171,7 +171,7 @@ def test_call():
     # Create a Addi operation to use the args of the block
     c = Addi(block0.args[0], block0.args[1])
     # Create a return operation and add it in the block
-    ret0 = Return.get(c)
+    ret0 = Return(c)
     block0.add_ops([c, ret0])
     # Create a region with the block
     region = Region(block0)
@@ -219,7 +219,7 @@ def test_call_II():
     # Create a Addi operation to use the args of the block
     c = Addi(block0.args[0], block0.args[0])
     # Create a return operation and add it in the block
-    ret0 = Return.get(c)
+    ret0 = Return(c)
     block0.add_ops([c, ret0])
     # Create a region with the block
     region = Region(block0)
@@ -259,7 +259,7 @@ def test_return():
     c = Constant.from_int_and_width(3, i32)
 
     # Use these operations to create a Return operation
-    ret0 = Return.get(a, b, c)
+    ret0 = Return(a, b, c)
     assert len(ret0.operands) == 3
 
 

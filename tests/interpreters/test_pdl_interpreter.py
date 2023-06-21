@@ -68,7 +68,7 @@ def swap_arguments_input():
             z = arith.Constant.from_int_and_width(1, 32).result
             x_y = arith.Addi(x, y).result
             x_y_z = arith.Addi(x_y, z).result
-            func.Return.get(x_y_z)
+            func.Return(x_y_z)
 
     return ir_module
 
@@ -83,7 +83,7 @@ def swap_arguments_output():
             z = arith.Constant.from_int_and_width(1, 32).result
             x_y = arith.Addi(x, y).result
             z_x_y = arith.Addi(z, x_y).result
-            func.Return.get(z_x_y)
+            func.Return(z_x_y)
 
     return ir_module
 
@@ -178,7 +178,7 @@ def add_zero_input():
             x = arith.Constant.from_int_and_width(4, 32)
             y = arith.Constant.from_int_and_width(0, 32)
             z = arith.Addi(x, y)
-            func.Return.get(z)
+            func.Return(z)
 
     return ir_module
 
@@ -190,7 +190,7 @@ def add_zero_output():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
             x = arith.Constant.from_int_and_width(4, 32)
             _y = arith.Constant.from_int_and_width(0, 32)
-            func.Return.get(x)
+            func.Return(x)
 
     return ir_module
 
