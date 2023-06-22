@@ -47,6 +47,15 @@
         %is_dm_core = "snrt.is_dm_core"() : () -> i32
         // CHECK: %{{.*}} = "snrt.is_dm_core"() : () -> i32
 
+        %barrier_reg_ptr = "snrt.barrier_reg_ptr"() : () -> i32
+        // CHECK: %{{.*}} = "snrt.barrier_reg_ptr"() : () -> i32
+        %global_memory0, %global_memory1 = "snrt.global_memory"() : () -> (i64, i64)
+        // CHECK: %{{.*}}, %{{.*}} = "snrt.global_memory"() : () -> (i64, i64)
+        %cluster_memory0, %cluster_memory1 = "snrt.cluster_memory"() : () -> (i64, i64)
+        // CHECK: %{{.*}}, %{{.*}} = "snrt.cluster_memory"() : () -> (i64, i64)
+        %zero_memory0, %zero_memory1 = "snrt.zero_memory"() : () -> (i64, i64)
+        // CHECK: %{{.*}}, %{{.*}} = "snrt.zero_memory"() : () -> (i64, i64)
+
         // DMA Operations
         %dst_64 = "arith.constant"() {"value" = 100 : i64} : () -> i64
         %src_64 = "arith.constant"() {"value" = 0 : i64} : () -> i64
