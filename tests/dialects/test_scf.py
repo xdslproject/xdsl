@@ -235,15 +235,18 @@ def test_parallel_verify_yield_last_op():
     # This should verify
     p.verify()
 
-    p2 = ParallelOp.get([lbi], [ubi], [si], Region(Block(arg_types=[IndexType()])))
-    with pytest.raises(VerifyException):
+    # TODO this should be removed once SingleBlockImplicitTerminator is
+    # implemented
+    # gh issue: https://github.com/xdslproject/xdsl/issues/1148
+    b2 = Block(arg_types=[IndexType()])
+    b2.add_op(Constant.from_int_and_width(1, IndexType()))
+    b2.add_op(TestTermOp.create())
+    p2 = ParallelOp.get([lbi], [ubi], [si], Region(b2))
+    with pytest.raises(
+        VerifyException,
+        match="scf.parallel region must terminate with an scf.yield",
+    ):
         p2.verify()
-
-    b3 = Block(arg_types=[IndexType()])
-    b3.add_op(Constant.from_int_and_width(1, IndexType()))
-    p3 = ParallelOp.get([lbi], [ubi], [si], Region(b3))
-    with pytest.raises(VerifyException):
-        p3.verify()
 
 
 def test_parallel_verify_yield_zero_ops():
@@ -307,23 +310,47 @@ def test_reduce_op():
 
 def test_reduce_op_num_block_args():
     init_val = Constant.from_int_and_width(10, i32)
+    reduce_constant = Constant.from_int_and_width(100, i32)
 
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[i32, i32, i32])).verify()
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[i32])).verify()
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[])).verify()
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce block must have exactly two arguments, but ",
+    ):
+        rro = ReduceReturnOp.get(reduce_constant)
+        ReduceOp.get(init_val, Block([rro], arg_types=[i32, i32, i32])).verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce block must have exactly two arguments, but ",
+    ):
+        rro = ReduceReturnOp.get(reduce_constant)
+        ReduceOp.get(init_val, Block([rro], arg_types=[i32])).verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce block must have exactly two arguments, but ",
+    ):
+        rro = ReduceReturnOp.get(reduce_constant)
+        ReduceOp.get(init_val, Block([rro], arg_types=[])).verify()
 
 
 def test_reduce_op_num_block_arg_types():
     init_val = Constant.from_int_and_width(10, i32)
+    reduce_constant = Constant.from_int_and_width(100, i32)
 
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[i32, i64])).verify()
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce block argument types must be the same but have",
+    ):
+        rro = ReduceReturnOp.get(reduce_constant)
+        ReduceOp.get(init_val, Block([rro], arg_types=[i32, i64])).verify()
 
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[i64, i32])).verify()
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce block argument types must be the same but have",
+    ):
+        rro = ReduceReturnOp.get(reduce_constant)
+        ReduceOp.get(init_val, Block([rro], arg_types=[i64, i32])).verify()
 
 
 def test_reduce_op_num_block_arg_types_match_operand_type():

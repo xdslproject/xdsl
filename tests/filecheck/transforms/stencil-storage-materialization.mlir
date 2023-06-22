@@ -11,7 +11,7 @@ builtin.module{
       "stencil.return"(%v) : (f64) -> ()
     }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
     "stencil.store"(%outt, %out) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 
 // CHECK:      func.func @copy(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
@@ -22,7 +22,7 @@ builtin.module{
 // CHECK-NEXT:     "stencil.return"(%v) : (f64) -> ()
 // CHECK-NEXT:   }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
 // CHECK-NEXT:   "stencil.store"(%outt, %out) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
-// CHECK-NEXT:   "func.return"() : () -> ()
+// CHECK-NEXT:   func.return
 // CHECK-NEXT: }
 
  // Here we want to see a buffer added after the first apply.
@@ -40,7 +40,7 @@ builtin.module{
       "stencil.return"(%v) : (f64) -> ()
     }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
     "stencil.store"(%outt, %out) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 
   //CHECK:      func.func @buffer_copy(%in_1 : !stencil.field<[-4,68]xf64>, %out_1 : !stencil.field<[-4,68]xf64>) {
@@ -57,7 +57,7 @@ builtin.module{
   //CHECK-NEXT:     "stencil.return"(%v_1) : (f64) -> ()
   //CHECK-NEXT:   }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
   //CHECK-NEXT:   "stencil.store"(%outt_1, %out_1) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
-  //CHECK-NEXT:   "func.return"() : () -> ()
+  //CHECK-NEXT:   func.return
   //CHECK-NEXT: }
 
   // Here we don't want to see a buffer added after the apply, because the result is stored.
@@ -76,7 +76,7 @@ builtin.module{
       "stencil.return"(%v) : (f64) -> ()
     }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
     "stencil.store"(%outt, %out) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
+    func.return
   }
 
 // CHECK:      func.func @stored_copy(%in_2 : !stencil.field<[-4,68]xf64>, %midout : !stencil.field<[-4,68]xf64>, %out_2 : !stencil.field<[-4,68]xf64>) {
@@ -93,7 +93,7 @@ builtin.module{
 // CHECK-NEXT:     "stencil.return"(%v_3) : (f64) -> ()
 // CHECK-NEXT:   }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
 // CHECK-NEXT:   "stencil.store"(%outt_2, %out_2) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
-// CHECK-NEXT:   "func.return"() : () -> ()
+// CHECK-NEXT:   func.return
 // CHECK-NEXT: }
 }
 

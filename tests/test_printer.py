@@ -98,7 +98,7 @@ def test_op_message():
     """Test that an operation message can be printed."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()
 """
@@ -132,7 +132,7 @@ def test_two_different_op_messages():
     """Test that an operation message can be printed."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -167,7 +167,7 @@ def test_two_same_op_messages():
     """Test that an operation message can be printed."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -203,7 +203,7 @@ def test_op_message_with_region():
     """Test that an operation message can be printed on an operation with a region."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -236,7 +236,7 @@ def test_op_message_with_region_and_overflow():
     """
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -268,7 +268,7 @@ def test_diagnostic():
     """
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -301,7 +301,7 @@ def test_print_custom_name():
     """
     prog = """\
 "builtin.module"() ({
-  %i = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %i = arith.constant 42 : i32
   %213 = "arith.addi"(%i, %i) : (i32, i32) -> i32
 }) : () -> ()
 """
@@ -469,13 +469,13 @@ def test_generic_format():
     """
     prog = """
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = "test.add"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
     expected = """\
 builtin.module {
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = test.add %0 + %0 : i32
 }
 """
@@ -504,7 +504,7 @@ builtin.module {
 
     expected = """\
 builtin.module {
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = test.add %0 + %0 : i32
 }
 """
@@ -526,7 +526,7 @@ def test_custom_format_II():
     """
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = test.add %0 + %0 : i32
 }) : () -> ()
 """
@@ -563,7 +563,7 @@ def test_missing_custom_format():
     """
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = arith.constant 42 : i32
   %1 = test.no_custom_format(%0) : (i32) -> i32
 }) : () -> ()
 """

@@ -200,9 +200,10 @@ class ParallelOp(IRDLOperation):
                 )
 
         # Ensure that scf.yield is the last operation in the block as this is required
-        if len(self.body.block.ops) == 0 or not isinstance(
-            self.body.block.last_op, Yield
-        ):
+        # TODO this should be removed once SingleBlockImplicitTerminator is
+        # implemented
+        # gh issue: https://github.com/xdslproject/xdsl/issues/1148
+        if not isinstance(self.body.block.last_op, Yield):
             raise VerifyException(
                 "scf.parallel region must terminate with an scf.yield"
             )

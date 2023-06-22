@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Annotated, Generic, TypeVar
 
+from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
     ContainerOf,
     Float16Type,
@@ -56,6 +57,14 @@ class Constant(IRDLOperation):
     result: OpResult = result_def(AnyAttr())
     value: Attribute = attr_def(Attribute)
 
+    def __init__(self, value: AnyIntegerAttr | FloatAttr[AnyFloat]):
+        typ: IntegerType | IndexType | AnyFloat
+        if isinstance(value, FloatAttr):
+            typ = value.type
+        else:
+            typ = value.typ
+        super().__init__(operands=[], result_types=[typ], attributes={"value": value})
+
     @staticmethod
     def from_attr(attr: Attribute, typ: Attribute) -> Constant:
         return Constant.create(result_types=[typ], attributes={"value": attr})
@@ -78,6 +87,29 @@ class Constant(IRDLOperation):
         if isinstance(val, float):
             val = FloatAttr(val, typ)
         return Constant.create(result_types=[typ], attributes={"value": val})
+
+    def print(self, printer: Printer):
+        attrs = self.attributes.copy()
+        attrs.pop("value")
+
+        printer.print_op_attributes(attrs)
+
+        printer.print(" ")
+        printer.print_attribute(self.value)
+
+    @classmethod
+    def parse(cls: type[Constant], parser: Parser) -> Constant:
+        attrs = parser.parse_optional_attr_dict()
+
+        p0 = parser.pos
+        value = parser.parse_attribute()
+
+        if not isa(value, AnyIntegerAttr | FloatAttr[AnyFloat]):
+            parser.raise_error("Invalid constant value", p0, parser.pos)
+
+        c = Constant(value)
+        c.attributes.update(attrs)
+        return c
 
 
 _T = TypeVar("_T", bound=Attribute)

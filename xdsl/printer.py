@@ -640,7 +640,7 @@ class Printer:
             self.print(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
-    def _print_op_attributes(self, attributes: Dict[str, Attribute]) -> None:
+    def print_op_attributes(self, attributes: Dict[str, Attribute]) -> None:
         if len(attributes) == 0:
             return
 
@@ -656,7 +656,7 @@ class Printer:
         self.print_successors(op.successors)
 
         self.print_regions(op.regions)
-        self._print_op_attributes(op.attributes)
+        self.print_op_attributes(op.attributes)
 
         # Print the operation type
         self.print(" : (")

@@ -20,7 +20,7 @@ from typing import (
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
-from xdsl.traits import OpTrait, OpTraitInvT, IsTerminator
+from xdsl.traits import OpTrait, OpTraitInvT, IsTerminator, NoTerminator
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -769,30 +769,43 @@ class Operation(IRNode):
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
 
-        if (parent_block := self.parent) is not None and (
-            parent_region := parent_block.parent
-        ) is not None:
-            if self.successors and parent_block.last_op != self:
+        parent_block = self.parent
+        parent_region = None if parent_block is None else parent_block.parent
+
+        if self.successors:
+            if parent_block is None or parent_region is None:
                 raise VerifyException(
-                    "Operation with block successors must terminate its parent block"
+                    f"Operation {self.name} with block successors does not belong to a block or a region"
+                )
+
+            if parent_block.last_op is not self:
+                raise VerifyException(
+                    f"Operation {self.name} with block successors must terminate its parent block"
                 )
 
             for succ in self.successors:
-                if succ.parent != parent_region:
-                    raise VerifyException("Branching to a block of a different region")
-
-            # TODO single-block regions dealt when the NoTerminator trait is
-            # implemented (https://github.com/xdslproject/xdsl/issues/1093)
-            if len(parent_region.blocks) > 1:
-                if parent_block.last_op is self and not self.has_trait(IsTerminator):
+                if succ.parent != parent_block.parent:
                     raise VerifyException(
-                        "Operation terminates block but is not a terminator"
+                        f"Operation {self.name} is branching to a block of a different region"
                     )
-        else:
-            if self.successors:
-                raise VerifyException(
-                    "Operation with block successors does not belong to a block or a region"
-                )
+
+        if parent_block is not None and parent_region is not None:
+            if parent_block.last_op == self:
+                if len(parent_region.blocks) == 1:
+                    if (
+                        parent_op := parent_region.parent
+                    ) is not None and not parent_op.has_trait(NoTerminator):
+                        if not self.has_trait(IsTerminator):
+                            raise VerifyException(
+                                f"Operation {self.name} terminates block in "
+                                "single-block region but is not a terminator"
+                            )
+                elif len(parent_region.blocks) > 1:
+                    if not self.has_trait(IsTerminator):
+                        raise VerifyException(
+                            f"Operation {self.name} terminates block in multi-block "
+                            "region but is not a terminator"
+                        )
 
         if verify_nested_ops:
             for region in self.regions:
@@ -1372,6 +1385,18 @@ class Block(IRNode):
                     "Parent pointer of operation does not refer to containing region"
                 )
             operation.verify()
+
+        if len(self.ops) == 0:
+            if (region_parent := self.parent) is not None and (
+                parent_op := region_parent.parent
+            ) is not None:
+                if len(region_parent.blocks) == 1 and not parent_op.has_trait(
+                    NoTerminator
+                ):
+                    raise VerifyException(
+                        f"Operation {parent_op.name} contains empty block in "
+                        "single-block region that expects at least a terminator"
+                    )
 
     def drop_all_references(self) -> None:
         """

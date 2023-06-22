@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import TypeVar, Iterable, Callable, cast, ClassVar
 
-from xdsl.builder import Builder
 from xdsl.passes import ModulePass
 
 from xdsl.utils.hints import isa
@@ -14,7 +13,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import Rewriter
 from xdsl.ir import (
-    BlockArgument,
     MLContext,
     Operation,
     SSAValue,
@@ -276,9 +274,10 @@ def generate_mpi_calls_for(
 
     for i, ex in enumerate(exchanges):
         # generate a temp buffer to store the data in
-        alloc_outbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        reduced_size = [i for i in ex.size if i != 1]
+        alloc_outbound = memref.Alloc.get(dtype, 64, reduced_size)
         alloc_outbound.memref.name_hint = f"send_buff_ex{i}"
-        alloc_inbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        alloc_inbound = memref.Alloc.get(dtype, 64, reduced_size)
         alloc_inbound.memref.name_hint = f"recv_buff_ex{i}"
         yield from (alloc_outbound, alloc_inbound)
 
@@ -362,7 +361,7 @@ def generate_mpi_calls_for(
                                 source,
                                 ex,
                                 buffer.memref,
-                                reverse=True,
+                                receive=True,
                             )
                         )
                         + [scf.Yield.get()]
@@ -374,79 +373,29 @@ def generate_mpi_calls_for(
 
 
 def generate_memcpy(
-    source: SSAValue, ex: dmp.HaloExchangeDecl, dest: SSAValue, reverse: bool = False
+    field: SSAValue, ex: dmp.HaloExchangeDecl, buffer: SSAValue, receive: bool = False
 ) -> list[Operation]:
     """
     This function generates a memcpy routine to copy over the parts
-    specified by the `ex` from `source` into `dest`.
+    specified by the `field` from `field` into `buffer`.
 
-    If reverse=True, it instead copy from `dest` into the parts of
-    `source` as specified by `ex`
+    If receive=True, it instead copy from `buffer` into the parts of
+    `field` as specified by `ex`
 
     """
-    assert ex.dim == 2, "Cannot handle non-2d case of memcpy yet!"
+    assert isa(field.typ, memref.MemRefType[Attribute])
 
-    idx = builtin.IndexType()
-
-    x0 = arith.Constant.from_int_and_width(ex.offset[0], idx)
-    x0.result.name_hint = "x0"
-    y0 = arith.Constant.from_int_and_width(ex.offset[1], idx)
-    y0.result.name_hint = "y0"
-    x_len = arith.Constant.from_int_and_width(ex.size[0], idx)
-    x_len.result.name_hint = "x_len"
-    y_len = arith.Constant.from_int_and_width(ex.size[1], idx)
-    y_len.result.name_hint = "y_len"
-    cst0 = arith.Constant.from_int_and_width(0, idx)
-    cst1 = arith.Constant.from_int_and_width(1, idx)
-
-    @Builder.implicit_region([idx, idx])
-    def loop_body(args: tuple[BlockArgument, ...]):
-        """
-        Loop body of the scf.parallel() that iterates the following domain:
-        i = (0->x_len), y = (0->y_len)
-        """
-        i, j = args
-        i.name_hint = "i"
-        j.name_hint = "j"
-
-        # x = i + x0
-        # y = i + y0
-        x = arith.Addi(i, x0)
-        y = arith.Addi(j, y0)
-
-        x.result.name_hint = "x"
-        y.result.name_hint = "y"
-
-        # linearized_idx = (j * x_len) + i
-        dest_idx = arith.Muli(j, x_len)
-        linearized_idx = arith.Addi(dest_idx, i)
-        linearized_idx.result.name_hint = "linearized_idx"
-
-        if reverse:
-            load = memref.Load.get(dest, [linearized_idx])
-            memref.Store.get(load, source, [x, y])
-        else:
-            load = memref.Load.get(source, [x, y])
-            memref.Store.get(load, dest, [linearized_idx])
-
-        scf.Yield.get()
-
-    loop = scf.ParallelOp.get(
-        [cst0, cst0],
-        [x_len, y_len],
-        [cst1, cst1],
-        loop_body,
-        [],
+    subview = memref.Subview.from_static_parameters(
+        field, field.typ, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
     )
+    if receive:
+        copy = memref.CopyOp(buffer, subview)
+    else:
+        copy = memref.CopyOp(subview, buffer)
 
     return [
-        x0,
-        y0,
-        x_len,
-        y_len,
-        cst0,
-        cst1,
-        loop,
+        subview,
+        copy,
     ]
 
 

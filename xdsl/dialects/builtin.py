@@ -35,6 +35,7 @@ from xdsl.ir import (
     AttributeCovT,
     AttributeInvT,
 )
+from xdsl.ir.affine import AffineMap
 
 from xdsl.irdl import (
     AllOf,
@@ -57,7 +58,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.traits import IsolatedFromAbove
+from xdsl.traits import IsolatedFromAbove, NoTerminator
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
@@ -1139,6 +1140,21 @@ class StridedLayoutAttr(ParametrizedAttribute):
         super().__init__([strides, offset])
 
 
+@irdl_attr_definition
+class AffineMapAttr(Data[AffineMap]):
+    """An Attribute containing an AffineMap object."""
+
+    name = "affine_map"
+
+    @staticmethod
+    def parse_parameter(parser: Parser) -> AffineMap:
+        data = parser.parse_affine_map()
+        return data
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f"{self.data}")
+
+
 @irdl_op_definition
 class UnrealizedConversionCastOp(IRDLOperation):
     name = "builtin.unrealized_conversion_cast"
@@ -1269,7 +1285,7 @@ class ModuleOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
 
     def __init__(
         self,
@@ -1303,9 +1319,8 @@ class ModuleOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if len(self.attributes) != 0:
-            printer.print(" attributes {")
-            printer.print_dictionary(self.attributes, printer.print, printer.print)
-            printer.print("}")
+            printer.print(" attributes ")
+            printer.print_op_attributes(self.attributes)
 
         if not self.body.block.ops:
             # Do not print the entry block if the region has an empty block
@@ -1363,5 +1378,6 @@ Builtin = Dialect(
         VectorType,
         TensorType,
         UnrankedTensorType,
+        AffineMapAttr,
     ],
 )
