@@ -19,9 +19,11 @@ from xdsl.ir import (
 )
 
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     OptRegion,
     OptSingleBlockRegion,
+    Successor,
     VarOpResult,
     attr_def,
     irdl_op_definition,
@@ -32,6 +34,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_region_def,
     result_def,
+    successor_def,
     var_operand_def,
     var_result_def,
 )
@@ -608,11 +611,25 @@ class RsRsOffOperation(IRDLOperation, RISCVInstruction, ABC):
     rs2: Operand = operand_def(RegisterType)
     offset: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
+    then_arguments: VarOperand = var_operand_def(RegisterType)
+    else_arguments: VarOperand = var_operand_def(RegisterType)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    then_block = successor_def()
+    else_block = successor_def()
+
+    traits = frozenset([IsTerminator()])
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         offset: int | AnyIntegerAttr | LabelAttr,
+        then_arguments: Sequence[SSAValue],
+        else_arguments: Sequence[SSAValue],
+        then_block: Successor,
+        else_block: Successor,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -624,11 +641,12 @@ class RsRsOffOperation(IRDLOperation, RISCVInstruction, ABC):
             comment = StringAttr(comment)
 
         super().__init__(
-            operands=[rs1, rs2],
+            operands=[rs1, rs2, then_arguments, else_arguments],
             attributes={
                 "offset": offset,
                 "comment": comment,
             },
+            successors=(then_block, else_block),
         )
 
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:

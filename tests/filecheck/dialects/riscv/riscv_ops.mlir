@@ -83,22 +83,37 @@
 
     "riscv.ret"() : () -> ()
     // CHECK-NEXT: "riscv.ret"() : () -> ()
-    ^2(%6 : !riscv.reg<>, %7 : !riscv.reg<>):
-    // CHECK-NEXT: ^2(%6 : !riscv.reg<>, %7 : !riscv.reg<>):
+    ^2(%b20 : !riscv.reg<>, %b21 : !riscv.reg<>):
+    // CHECK-NEXT: ^2(%b20 : !riscv.reg<>, %b21 : !riscv.reg<>):
 
     // Conditional Branch Instructions
-    "riscv.beq"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: "riscv.beq"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    "riscv.bne"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: "riscv.bne"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    "riscv.blt"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: "riscv.blt"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    "riscv.bge"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: "riscv.bge"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    "riscv.bltu"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: "riscv.bltu"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    "riscv.bgeu"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: "riscv.bgeu"(%{{.*}}, %{{.*}}) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
+
+    "riscv.beq"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: "riscv.beq"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+
+    ^3(%b30 : !riscv.reg<>, %b31 : !riscv.reg<>):
+    // CHECK-NEXT: ^3(%b30 : !riscv.reg<>, %b31 : !riscv.reg<>):
+    "riscv.bne"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: "riscv.bne"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+
+    ^4(%b40 : !riscv.reg<>, %b41 : !riscv.reg<>):
+    // CHECK-NEXT: ^4(%b40 : !riscv.reg<>, %b41 : !riscv.reg<>):
+    "riscv.blt"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: "riscv.blt"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    ^5(%b50 : !riscv.reg<>, %b51 : !riscv.reg<>):
+    // CHECK-NEXT: ^5(%b50 : !riscv.reg<>, %b51 : !riscv.reg<>):
+    "riscv.bge"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: "riscv.bge"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    ^6(%b60 : !riscv.reg<>, %b61 : !riscv.reg<>):
+    // CHECK-NEXT: ^6(%b60 : !riscv.reg<>, %b61 : !riscv.reg<>):
+    "riscv.bltu"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: "riscv.bltu"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    ^7(%b70 : !riscv.reg<>, %b71 : !riscv.reg<>):
+    // CHECK-NEXT: ^7(%b70 : !riscv.reg<>, %b71 : !riscv.reg<>):
+    "riscv.bgeu"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: "riscv.bgeu"(%0, %1, %0, %1, %0, %1) [^2, ^3] {"offset" = 1 : i32, "operand_segment_sizes" = array<i32: 1, 1, 2, 2>} : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    ^8(%b80 : !riscv.reg<>, %b81 : !riscv.reg<>):
+    // CHECK-NEXT: ^8(%b80 : !riscv.reg<>, %b81 : !riscv.reg<>):
 
     // RV32I/RV64I: 2.6 Load and Store Instructions
 
