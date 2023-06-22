@@ -784,7 +784,9 @@ class Operation(IRNode):
             yield from region.walk_reverse()
         yield self
 
-    def verify(self, verify_nested_ops: bool = True) -> None:
+    def verify(
+        self, verify_nested_ops: bool = True, allow_unregistered: bool = False
+    ) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
@@ -814,14 +816,20 @@ class Operation(IRNode):
                 if len(parent_region.blocks) == 1:
                     if (
                         parent_op := parent_region.parent
-                    ) is not None and not parent_op.has_trait(NoTerminator):
-                        if not self.has_trait(IsTerminator):
+                    ) is not None and not parent_op.has_trait(
+                        NoTerminator, allow_unregistered=allow_unregistered
+                    ):
+                        if not self.has_trait(
+                            IsTerminator, allow_unregistered=allow_unregistered
+                        ):
                             raise VerifyException(
                                 f"Operation {self.name} terminates block in "
                                 "single-block region but is not a terminator"
                             )
                 elif len(parent_region.blocks) > 1:
-                    if not self.has_trait(IsTerminator):
+                    if not self.has_trait(
+                        IsTerminator, allow_unregistered=allow_unregistered
+                    ):
                         raise VerifyException(
                             f"Operation {self.name} terminates block in multi-block "
                             "region but is not a terminator"
@@ -829,7 +837,7 @@ class Operation(IRNode):
 
         if verify_nested_ops:
             for region in self.regions:
-                region.verify()
+                region.verify(allow_unregistered=allow_unregistered)
 
         # Custom verifier
         try:
@@ -899,10 +907,24 @@ class Operation(IRNode):
         return op
 
     @classmethod
-    def has_trait(cls, trait: type[OpTrait], parameters: Any = None) -> bool:
+    def has_trait(
+        cls,
+        trait: type[OpTrait],
+        parameters: Any = None,
+        allow_unregistered: bool = False,
+    ) -> bool:
         """
-        Check if the operation implements a trait with the given parameters.
+        Check if the operation implements a trait with the given parameters, unless
+        allow_unregistered is True and the operation is not registered,
+        in which case return True.
         """
+
+        if allow_unregistered:
+            from xdsl.dialects.builtin import UnregisteredOp
+
+            if issubclass(cls, UnregisteredOp):
+                return True
+
         return cls.get_trait(trait, parameters) is not None
 
     @classmethod
@@ -1401,20 +1423,20 @@ class Block(IRNode):
         for op in self.ops_reverse:
             yield from op.walk_reverse()
 
-    def verify(self) -> None:
+    def verify(self, allow_unregistered: bool = False) -> None:
         for operation in self.ops:
             if operation.parent != self:
                 raise Exception(
                     "Parent pointer of operation does not refer to containing region"
                 )
-            operation.verify()
+            operation.verify(allow_unregistered=allow_unregistered)
 
         if len(self.ops) == 0:
             if (region_parent := self.parent) is not None and (
                 parent_op := region_parent.parent
             ) is not None:
                 if len(region_parent.blocks) == 1 and not parent_op.has_trait(
-                    NoTerminator
+                    NoTerminator, allow_unregistered=allow_unregistered
                 ):
                     raise VerifyException(
                         f"Operation {parent_op.name} contains empty block in "
@@ -1700,9 +1722,9 @@ class Region(IRNode):
         for block in reversed(self.blocks):
             yield from block.walk_reverse()
 
-    def verify(self) -> None:
+    def verify(self, allow_unregistered: bool = False) -> None:
         for block in self.blocks:
-            block.verify()
+            block.verify(allow_unregistered=allow_unregistered)
             if block.parent != self:
                 raise Exception(
                     "Parent pointer of block does not refer to containing region"
