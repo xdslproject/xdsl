@@ -159,9 +159,42 @@ class AffineExpr:
 
         raise ValueError("Unreachable")
 
+    def _try_fold_constant(
+        self, other: AffineExpr, binop: _AffineExprKind
+    ) -> AffineExpr | None:
+        if self._impl.kind != _AffineExprKind.Constant:
+            return None
+        if other._impl.kind != _AffineExprKind.Constant:
+            return None
+        assert isinstance(self._impl, _AffineConstantExprStorage)
+        assert isinstance(other._impl, _AffineConstantExprStorage)
+
+        match binop:
+            case _AffineExprKind.Add:
+                return AffineExpr.constant(self._impl.value + other._impl.value)
+            case _AffineExprKind.Mul:
+                return AffineExpr.constant(self._impl.value * other._impl.value)
+            case _AffineExprKind.Mod:
+                return AffineExpr.constant(self._impl.value % other._impl.value)
+            case _AffineExprKind.FloorDiv:
+                return AffineExpr.constant(self._impl.value // other._impl.value)
+            case _AffineExprKind.CeilDiv:
+                return AffineExpr.constant(-(-self._impl.value // other._impl.value))
+            case _:
+                raise ValueError(f"Unreachable")
+
     def __add__(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
+
+        # Fold constants.
+        if fold := self._try_fold_constant(other, _AffineExprKind.Add):
+            return fold
+
+        # Keep the constant on the right side.
+        if self._impl.kind == _AffineExprKind.Constant:
+            self, other = other, self
+
         # TODO (#1086): Simplify addition here before returning.
         return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Add, self, other))
 
@@ -180,6 +213,14 @@ class AffineExpr:
     def __mul__(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
+
+        # Fold constant.
+        if fold := self._try_fold_constant(other, _AffineExprKind.Mul):
+            return fold
+
+        # Keep the constant on the right side.
+        if self._impl.kind == _AffineExprKind.Constant:
+            self, other = other, self
         if other._impl.kind != _AffineExprKind.Constant:
             # TODO (#1087): MLIR also supports multiplication by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
@@ -195,6 +236,11 @@ class AffineExpr:
     def floor_div(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
+
+        # Fold constants.
+        if fold := self._try_fold_constant(other, _AffineExprKind.FloorDiv):
+            return fold
+
         if other._impl.kind != _AffineExprKind.Constant:
             # TODO (#1087): MLIR also supports floor-division by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
@@ -209,6 +255,11 @@ class AffineExpr:
     def ceil_div(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
+
+        # Fold constants.
+        if fold := self._try_fold_constant(other, _AffineExprKind.CeilDiv):
+            return fold
+
         if other._impl.kind != _AffineExprKind.Constant:
             # TODO (#1087): MLIR also supports ceil-division by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
@@ -223,6 +274,11 @@ class AffineExpr:
     def __mod__(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
+
+        # Fold constants.
+        if fold := self._try_fold_constant(other, _AffineExprKind.Mod):
+            return fold
+
         if other._impl.kind != _AffineExprKind.Constant:
             # TODO (#1087): MLIR also supports Mod by symbols also, making maps
             # semi-affine. Currently, we do not implement semi-affine maps.
