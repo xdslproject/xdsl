@@ -172,42 +172,34 @@ builtin.module {
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
+// -----
+
 builtin.module {
-  func.func private @stencil_buffer(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>) {
-    %4 = "stencil.load"(%0) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
+  func.func private @stencil_offset_mapping(%0 : !stencil.field<?x?xf64>, %1 : !stencil.field<?x?xf64>) {
+    %2 = "stencil.cast"(%0) : (!stencil.field<?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]xf64>
+    %3 = "stencil.cast"(%1) : (!stencil.field<?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]xf64>
+    %4 = "stencil.load"(%2) : (!stencil.field<[-4,68]x[-4,68]xf64>) -> !stencil.temp<[-1,65]x[-1,65]xf64>
     %5 = "stencil.apply"(%4) ({
-    ^0(%6 : !stencil.temp<?xf64>):
-      %11 = "stencil.access"(%6) {"offset" = #stencil.index<0>, "offset_mapping" = [#int<0>]} : (!stencil.temp<?xf64>) -> f64
-      "stencil.return"(%11) : (f64) -> ()
-    }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
-
-    %15 = "stencil.buffer"(%5) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
-
-    %12 = "stencil.apply"(%15) ({
-    ^0(%13 : !stencil.temp<?xf64>):
-      %14 = "stencil.access"(%13) {"offset" = #stencil.index<0>, "offset_mapping" = [#int<0>]} : (!stencil.temp<?xf64>) -> f64
-      "stencil.return"(%14) : (f64) -> ()
-    }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
-    "stencil.store"(%12, %1) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<64, 64>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
+    ^0(%6 : !stencil.temp<[-1,65]x[-1,65]xf64>):
+      %7 = "stencil.access"(%6) {"offset" = #stencil.index<-1, 0>, "offset_mapping" = [#int<1>, #int<0>]} : (!stencil.temp<[-1,65]x[-1,65]xf64>) -> f64
+      "stencil.return"(%7) : (f64) -> ()
+    }) : (!stencil.temp<[-1,65]x[-1,65]xf64>) -> !stencil.temp<[0,64]x[0,64]xf64>
+    "stencil.store"(%5, %3) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<64, 64>} : (!stencil.temp<[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]xf64>) -> ()
     func.return
   }
 }
 
 // CHECK:      builtin.module {
-// CHECK-NEXT:   func.func private @stencil_buffer(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>) {
-// CHECK-NEXT:     %2 = "stencil.load"(%0) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
-// CHECK-NEXT:     %3 = "stencil.apply"(%2) ({
-// CHECK-NEXT:     ^0(%4 : !stencil.temp<?xf64>):
-// CHECK-NEXT:       %5 = "stencil.access"(%4) {"offset" = #stencil.index<0>, "offset_mapping" = [#int<0>]} : (!stencil.temp<?xf64>) -> f64
-// CHECK-NEXT:       "stencil.return"(%5) : (f64) -> ()
-// CHECK-NEXT:     }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
-// CHECK-NEXT:     %6 = "stencil.buffer"(%3) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
-// CHECK-NEXT:     %7 = "stencil.apply"(%6) ({
-// CHECK-NEXT:     ^1(%8 : !stencil.temp<?xf64>):
-// CHECK-NEXT:       %9 = "stencil.access"(%8) {"offset" = #stencil.index<0>, "offset_mapping" = [#int<0>]} : (!stencil.temp<?xf64>) -> f64
-// CHECK-NEXT:       "stencil.return"(%9) : (f64) -> ()
-// CHECK-NEXT:     }) : (!stencil.temp<?xf64>) -> !stencil.temp<?xf64>
-// CHECK-NEXT:     "stencil.store"(%7, %1) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<64, 64>} : (!stencil.temp<?xf64>, !stencil.field<[-4,68]xf64>) -> ()
+// CHECK-NEXT:   func.func private @stencil_offset_mapping(%0 : !stencil.field<?x?xf64>, %1 : !stencil.field<?x?xf64>) {
+// CHECK-NEXT:     %2 = "stencil.cast"(%0) : (!stencil.field<?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]xf64>
+// CHECK-NEXT:     %3 = "stencil.cast"(%1) : (!stencil.field<?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]xf64>
+// CHECK-NEXT:     %4 = "stencil.load"(%2) : (!stencil.field<[-4,68]x[-4,68]xf64>) -> !stencil.temp<[-1,65]x[-1,65]xf64>
+// CHECK-NEXT:     %5 = "stencil.apply"(%4) ({
+// CHECK-NEXT:     ^0(%6 : !stencil.temp<[-1,65]x[-1,65]xf64>):
+// CHECK-NEXT:       %7 = "stencil.access"(%6) {"offset" = #stencil.index<-1, 0>, "offset_mapping" = [#int<1>, #int<0>]} : (!stencil.temp<[-1,65]x[-1,65]xf64>) -> f64
+// CHECK-NEXT:       "stencil.return"(%7) : (f64) -> ()
+// CHECK-NEXT:     }) : (!stencil.temp<[-1,65]x[-1,65]xf64>) -> !stencil.temp<[0,64]x[0,64]xf64>
+// CHECK-NEXT:     "stencil.store"(%5, %3) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<64, 64>} : (!stencil.temp<[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]xf64>) -> ()
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
