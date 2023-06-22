@@ -184,6 +184,7 @@ def test_stencil_apply_no_results():
     with pytest.raises(AssertionError):
         ApplyOp.get([], Block([]), [])
 
+
 @pytest.mark.parametrize(
     "indices",
     (
