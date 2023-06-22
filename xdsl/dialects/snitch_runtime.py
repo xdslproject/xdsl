@@ -9,9 +9,9 @@ from xdsl.irdl import (
     result_def,
     ConstraintVar,
 )
-from xdsl.ir import Block, OpResult, Dialect, Attribute, Operation, Region, SSAValue
+from xdsl.ir import OpResult, Dialect, Attribute
 from xdsl.dialects.builtin import i32, i64, IndexType
-from typing import Generic, Mapping, Sequence, TypeVar, Annotated
+from typing import Generic, TypeVar, Annotated
 
 tx_id = i32
 
