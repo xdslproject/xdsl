@@ -384,6 +384,11 @@ class AccessOpToMemref(RewritePattern):
 class StencilTypeConversionFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
+        # skip external function declarations
+        # TODO: also work for external function decls!
+        if op.is_declaration:
+            return
+
         inputs: list[Attribute] = []
         for arg in op.body.block.args:
             if isa(arg.typ, FieldType[Attribute]):
