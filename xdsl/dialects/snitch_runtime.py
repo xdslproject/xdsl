@@ -13,7 +13,9 @@ from xdsl.ir import OpResult, Dialect, Attribute
 from xdsl.dialects.builtin import i32, i64, IndexType
 from typing import Generic, TypeVar, Annotated
 
+# Transfer ID
 tx_id = i32
+# Indicates address range in memory, a "memory slice"
 slice_t_begin = i64
 slice_t_end = i64
 
