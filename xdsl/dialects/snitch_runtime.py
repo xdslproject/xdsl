@@ -9,9 +9,9 @@ from xdsl.irdl import (
     result_def,
     ConstraintVar,
 )
-from xdsl.ir import OpResult, Dialect, Attribute
+from xdsl.ir import Block, OpResult, Dialect, Attribute, Operation, Region, SSAValue
 from xdsl.dialects.builtin import i32, i64, IndexType
-from typing import Generic, TypeVar, Annotated
+from typing import Generic, Mapping, Sequence, TypeVar, Annotated
 
 tx_id = i32
 
@@ -181,6 +181,231 @@ class DmaWaitAllOp(SnitchRuntimeBarrier):
     name = "snrt.dma_wait_all"
 
 
+"""
+The different SSR data movers.
+    SNRT_SSR_DM0 = 0,
+    SNRT_SSR_DM1 = 1,
+    SNRT_SSR_DM2 = 2,
+"""
+ssr_dm = i32
+
+"""
+The different dimensions.
+    SNRT_SSR_1D = 0,
+    SNRT_SSR_2D = 1,
+    SNRT_SSR_3D = 2,
+    SNRT_SSR_4D = 3,
+"""
+ssr_dim = i32
+
+
+@irdl_op_definition
+class SsrLoop1dOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Configure an SSR data mover for a 1D loop nest.
+    """
+
+    name = "snrt.ssr_loop_1d"
+    dm: Operand = operand_def(ssr_dm)
+    b0: Operand = operand_def(IndexType)
+    i0: Operand = operand_def(IndexType)
+
+    def __init__(
+        self,
+        dm: Operation | SSAValue,
+        b0: Operation | SSAValue,
+        i0: Operation | SSAValue,
+    ):
+        super().__init__(operands=[dm, b0, i0], result_types=[])
+
+
+@irdl_op_definition
+class SsrLoop2dOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Configure an SSR data mover for a 2D loop nest.
+    """
+
+    name = "snrt.ssr_loop_2d"
+    dm: Operand = operand_def(ssr_dm)
+    b0: Operand = operand_def(IndexType)
+    b1: Operand = operand_def(IndexType)
+    i0: Operand = operand_def(IndexType)
+    i1: Operand = operand_def(IndexType)
+
+    def __init__(
+        self,
+        dm: Operation | SSAValue,
+        b0: Operation | SSAValue,
+        b1: Operation | SSAValue,
+        i0: Operation | SSAValue,
+        i1: Operation | SSAValue,
+    ):
+        super().__init__(operands=[dm, b0, b1, i0, i1], result_types=[])
+
+
+@irdl_op_definition
+class SsrLoop3dOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Configure an SSR data mover for a 3D loop nest.
+    """
+
+    name = "snrt.ssr_loop_3d"
+    dm: Operand = operand_def(ssr_dm)
+    b0: Operand = operand_def(IndexType)
+    b1: Operand = operand_def(IndexType)
+    b2: Operand = operand_def(IndexType)
+    i0: Operand = operand_def(IndexType)
+    i1: Operand = operand_def(IndexType)
+    i2: Operand = operand_def(IndexType)
+
+    def __init__(
+        self,
+        dm: Operation | SSAValue,
+        b0: Operation | SSAValue,
+        b1: Operation | SSAValue,
+        b2: Operation | SSAValue,
+        i0: Operation | SSAValue,
+        i1: Operation | SSAValue,
+        i2: Operation | SSAValue,
+    ):
+        super().__init__(operands=[dm, b0, b1, b2, i0, i1, i2], result_types=[])
+
+
+@irdl_op_definition
+class SsrLoop4dOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Configure an SSR data mover for a 4D loop nest.
+    b0: Inner-most bound (limit of loop)
+    b3: Outer-most bound (limit of loop)
+    s0: increment size of inner-most loop
+    """
+
+    name = "snrt.ssr_loop_4d"
+    dm: Operand = operand_def(ssr_dm)
+    b0: Operand = operand_def(IndexType)
+    b1: Operand = operand_def(IndexType)
+    b2: Operand = operand_def(IndexType)
+    b3: Operand = operand_def(IndexType)
+    i0: Operand = operand_def(IndexType)
+    i1: Operand = operand_def(IndexType)
+    i2: Operand = operand_def(IndexType)
+    i3: Operand = operand_def(IndexType)
+
+    def __init__(
+        self,
+        dm: Operation | SSAValue,
+        b0: Operation | SSAValue,
+        b1: Operation | SSAValue,
+        b2: Operation | SSAValue,
+        b3: Operation | SSAValue,
+        i0: Operation | SSAValue,
+        i1: Operation | SSAValue,
+        i2: Operation | SSAValue,
+        i3: Operation | SSAValue,
+    ):
+        super().__init__(operands=[dm, b0, b1, b2, b3, i0, i1, i2, i3], result_types=[])
+
+
+@irdl_op_definition
+class SsrRepeatOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Configure the repetition count for a stream.
+    """
+
+    name = "snrt.ssr_repeat"
+    dm: Operand = operand_def(ssr_dm)
+    count: Operand = operand_def(IndexType)
+
+    def __init__(
+        self,
+        dm: Operation | SSAValue,
+        count: Operation | SSAValue,
+    ):
+        super().__init__(operands=[dm, count], result_types=[])
+
+
+@irdl_op_definition
+class SsrEnableOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Enable SSR.
+    """
+
+    name = "snrt.ssr_enable"
+
+    def __init__(
+        self,
+    ):
+        super().__init__(operands=[], result_types=[])
+
+
+@irdl_op_definition
+class SsrDisableOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Disable SSR.
+    """
+
+    name = "snrt.ssr_disable"
+
+    def __init__(
+        self,
+    ):
+        super().__init__(operands=[], result_types=[])
+
+
+@irdl_op_definition
+class SsrReadOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Start a streaming read.
+    """
+
+    name = "snrt.ssr_read"
+    dm: Operand = operand_def(ssr_dm)
+    dim: Operand = operand_def(ssr_dim)
+    ptr: Operand = operand_def(i32)
+
+    def __init__(
+        self,
+        dm: Operation | SSAValue,
+        dim: Operation | SSAValue,
+        ptr: Operation | SSAValue,
+    ):
+        super().__init__(operands=[dm, dim, ptr], result_types=[])
+
+
+@irdl_op_definition
+class SsrWriteOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Start a streaming write.
+    """
+
+    name = "snrt.ssr_write"
+    dm: Operand = operand_def(ssr_dm)
+    dim: Operand = operand_def(ssr_dim)
+    ptr: Operand = operand_def(i32)
+
+    def __init__(
+        self,
+        dm: Operation | SSAValue,
+        dim: Operation | SSAValue,
+        ptr: Operation | SSAValue,
+    ):
+        super().__init__(operands=[dm, dim, ptr], result_types=[])
+
+
+@irdl_op_definition
+class FpuFenceOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Synchronize the integer and float pipelines.
+    """
+
+    name = "snrt.fpu_fence"
+
+    def __init__(
+        self,
+    ):
+        super().__init__(operands=[], result_types=[])
+
+
 SnitchRuntime = Dialect(
     [
         ClusterNumOp,
@@ -191,6 +416,16 @@ SnitchRuntime = Dialect(
         DmaStart2DOp,
         DmaWaitOp,
         DmaWaitAllOp,
+        SsrLoop1dOp,
+        SsrLoop2dOp,
+        SsrLoop3dOp,
+        SsrLoop4dOp,
+        SsrRepeatOp,
+        SsrEnableOp,
+        SsrDisableOp,
+        SsrReadOp,
+        SsrWriteOp,
+        FpuFenceOp,
     ],
     [],
 )
