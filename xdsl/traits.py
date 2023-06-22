@@ -26,6 +26,10 @@ class OpTrait:
 
     parameters: Any = field(default=None)
 
+    def apply(self, op: Operation) -> None:
+        """Apply the trait to the operation."""
+        pass
+
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
         pass
@@ -92,6 +96,46 @@ class NoTerminator(OpTrait):
                 raise VerifyException(
                     f"'{op.name}' does not contain single-block regions"
                 )
+
+
+class SingleBlockImplicitTerminator(OpTrait):
+    """
+    Checks and adds if missing the specified terminator to an operation which has
+    single-block region.
+
+    This should be fully compatible with MLIR's Trait:
+    https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator
+    """
+
+    # TODO check if this can also be StringAttr like in MLIR
+    parameters: type[Operation]
+
+    # TODO maybe forward the rest of the params as ctor args
+    def __init__(self, parameters: type[Operation]):
+        super().__init__(parameters)
+
+    def apply(self, op: Operation):
+        for region in op.regions:
+            if len(region.blocks) > 1:
+                raise VerifyException(
+                    f"'{op.name}' does not contain single-block regions"
+                )
+            for block in region.blocks:
+                if not isinstance(block.last_op, self.parameters):
+                    block.add_op(self.parameters.create())
+
+    def verify(self, op: Operation) -> None:
+        for region in op.regions:
+            if len(region.blocks) > 1:
+                raise VerifyException(
+                    f"'{op.name}' does not contain single-block regions"
+                )
+            for block in region.blocks:
+                if not isinstance(block.last_op, self.parameters):
+                    raise VerifyException(
+                        f"'{op.name}' does not terminate with operation of type "
+                        f"{self.parameters}, but with {type(block.last_op)} instead"
+                    )
 
 
 class IsolatedFromAbove(OpTrait):
