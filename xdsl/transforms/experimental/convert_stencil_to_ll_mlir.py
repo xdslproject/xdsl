@@ -403,7 +403,6 @@ class AccessOpToMemref(RewritePattern):
             if x != 0:
                 constant_op = arith.Constant.from_int_and_width(x, builtin.IndexType())
                 add_op = arith.Addi(block_arg, constant_op)
-                print(type(add_op.results[0]))
                 memref_load_args.append(add_op.results[0])
                 off_const_ops += [constant_op, add_op]
             else:
