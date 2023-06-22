@@ -370,11 +370,29 @@ class AccessOpToMemref(RewritePattern):
             for x in memref_offset
         ]
 
-        args = collectBlockArguments(len(memref_offset), block)
-        if self.target == "gpu":
-            args = reversed(args)
+        if op.offset_mapping is not None:
+            max_idx = 0
+            for i in op.offset_mapping:
+                if i.data + 1 > max_idx:
+                    max_idx = i.data + 1
+            args = collectBlockArguments(max_idx, block)
+            # Reverse the list as arguments are collated in the opposite
+            # order to the stencil.apply ordering (e.g. the top most loop is
+            # front of the list, rather than at the end)
+            args.reverse()
+        else:
+            args = collectBlockArguments(len(memref_offset), block)
 
-        off_sum_ops = [arith.Addi(i, x) for i, x in zip(args, off_const_ops)]
+        if self.target == "gpu":
+            args.reverse()
+
+        if op.offset_mapping is not None:
+            off_sum_ops = [
+                arith.Addi(args[i.data], x)
+                for i, x in zip(op.offset_mapping, off_const_ops)
+            ]
+        else:
+            off_sum_ops = [arith.Addi(i, x) for i, x in zip(args, off_const_ops)]
 
         load = memref.Load.get(op.temp, off_sum_ops)
 
