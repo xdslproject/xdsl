@@ -18,6 +18,7 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     NoTerminator,
+    SingleBlockImplicitTerminator,
     IsolatedFromAbove,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -256,6 +257,44 @@ def test_no_terminator_op_with_is_terminator_op():
     op0 = HasNoTerminatorOp.create(regions=[region0])
 
     op0.verify()
+
+
+@irdl_op_definition
+class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
+    """
+    An operation that implements terminator to be used with an operation that uses the
+    SingleBlockImplicitTerminator trait.
+    """
+
+    name = "test.is_single_block_implicit_terminator"
+
+    # TODO fix circular reference
+    # traits = frozenset([HasParent(HasSingleBlockImplicitTerminatorOp)])
+    traits = frozenset([IsTerminator()])
+
+
+@irdl_op_definition
+class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
+    """
+    An operation that expects a single-block region and an implicit terminator trait for
+    that block.
+    """
+
+    name = "test.has_single_block_implicit_terminator"
+
+    region: Region = region_def("single_block")
+
+    traits = frozenset(
+        [SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)]
+    )
+
+
+def test_single_block_implicit_terminator():
+    op0 = HasSingleBlockImplicitTerminatorOp(regions=[Region(Block())])
+
+    op0.verify()
+
+    assert isinstance(op0.region.block.last_op, IsSingleBlockImplicitTerminatorOp)
 
 
 @irdl_op_definition
