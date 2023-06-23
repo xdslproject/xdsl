@@ -567,6 +567,25 @@ def test_stencil_access():
     assert access.temp.typ == temp_type
 
 
+def test_stencil_access_offset_mapping():
+    temp_type = TempType([(0, 5), (0, 5)], f32)
+    temp_type_ssa_val = TestSSAValue(temp_type)
+
+    offset = [1, 1]
+    offset_index_attr = IndexAttr.get(*offset)
+
+    offset_mapping = [1, 0]
+    offset_mapping_attr = ArrayAttr(IntAttr(value) for value in offset_mapping)
+
+    access = AccessOp.get(temp_type_ssa_val, offset, offset_mapping)
+
+    assert isinstance(access, AccessOp)
+    assert access.offset == offset_index_attr
+    assert access.temp.typ == temp_type
+    assert access.offset_mapping is not None
+    assert access.offset_mapping == offset_mapping_attr
+
+
 def test_store_result():
     elem = IndexAttr.get(1)
     elem_ssa_val = TestSSAValue(elem)
