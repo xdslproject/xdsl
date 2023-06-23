@@ -1,18 +1,23 @@
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Annotated, Sequence
 
-from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr
+from xdsl.dialects.builtin import AffineMapAttr, AnyIntegerAttr, IndexType, IntegerAttr
+from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
 from xdsl.traits import IsTerminator
 from xdsl.irdl import (
+    ConstraintVar,
     VarOpResult,
     attr_def,
     irdl_op_definition,
     VarOperand,
     AnyAttr,
     IRDLOperation,
+    operand_def,
+    opt_attr_def,
     region_def,
+    result_def,
     var_operand_def,
     var_result_def,
 )
@@ -84,6 +89,50 @@ class For(IRDLOperation):
 
 
 @irdl_op_definition
+class Store(IRDLOperation):
+    name = "affine.store"
+
+    T = Annotated[Attribute, ConstraintVar("T")]
+
+    value = operand_def(T)
+    memref = operand_def(MemRefType[T])
+    map = opt_attr_def(AffineMapAttr)
+
+    def __init__(self, value: SSAValue, memref: SSAValue, map: AffineMapAttr):
+        super().__init__(
+            operands=(value, memref),
+            attributes={"map": map},
+        )
+
+
+@irdl_op_definition
+class Load(IRDLOperation):
+    name = "affine.load"
+
+    T = Annotated[Attribute, ConstraintVar("T")]
+
+    memref = operand_def(MemRefType[T])
+    indices = var_operand_def(IndexType)
+
+    result = result_def(T)
+
+    map = opt_attr_def(AffineMapAttr)
+
+    def __init__(
+        self,
+        memref: SSAValue,
+        indices: Sequence[SSAValue],
+        map: AffineMapAttr,
+        result_type: T,
+    ):
+        super().__init__(
+            operands=(memref, indices),
+            attributes={"map": map},
+            result_types=(result_type,),
+        )
+
+
+@irdl_op_definition
 class Yield(IRDLOperation):
     name = "affine.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
@@ -95,4 +144,4 @@ class Yield(IRDLOperation):
         return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
-Affine = Dialect([For, Yield], [])
+Affine = Dialect([For, Store, Load, Yield], [])
