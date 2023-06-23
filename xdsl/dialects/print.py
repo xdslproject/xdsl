@@ -58,11 +58,7 @@ class PrintLnOp(IRDLOperation):
         if len(self.attributes) > 1:
             attrs = self.attributes.copy()
             attrs.pop("format_str")
-            printer.print_string(" {")
-            printer.print_dictionary(
-                attrs, printer.print_string, printer.print_attribute
-            )
-            printer.print_string("}")
+            printer.print_op_attributes(attrs)
 
     @classmethod
     def parse(cls: type[PrintLnOp], parser: Parser) -> PrintLnOp:

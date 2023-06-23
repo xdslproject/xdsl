@@ -13,7 +13,11 @@ from xdsl.ir import OpResult, Dialect, Attribute
 from xdsl.dialects.builtin import i32, i64, IndexType
 from typing import Generic, TypeVar, Annotated
 
+# Transfer ID
 tx_id = i32
+# Indicates address range in memory, a "memory slice"
+slice_t_begin = i64
+slice_t_end = i64
 
 
 class SnitchRuntimeBaseOp(IRDLOperation, ABC):
@@ -72,6 +76,56 @@ class ClusterHwBarrierOp(NoOperandNoResultBaseOp):
 
 
 _T = TypeVar("_T", bound=Attribute)
+
+
+@irdl_op_definition
+class BarrierRegPtrOp(SnitchRuntimeGetInfo):
+    """
+    Get pointer to barrier register
+    """
+
+    name = "snrt.barrier_reg_ptr"
+
+
+class GetMemoryInfoBaseOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Generic base class for operations returning memory slices
+    """
+
+    slice_begin: OpResult = result_def(slice_t_begin)
+    slice_end: OpResult = result_def(slice_t_end)
+
+    def __init__(
+        self,
+    ):
+        super().__init__(operands=[], result_types=[slice_t_begin, slice_t_end])
+
+
+@irdl_op_definition
+class GlobalMemoryOp(GetMemoryInfoBaseOp):
+    """
+    Get start address of global memory
+    """
+
+    name = "snrt.global_memory"
+
+
+@irdl_op_definition
+class ClusterMemoryOp(GetMemoryInfoBaseOp):
+    """
+    Get start address of the cluster's TCDM memory
+    """
+
+    name = "snrt.cluster_memory"
+
+
+@irdl_op_definition
+class ZeroMemoryOp(GetMemoryInfoBaseOp):
+    """
+    Get start address of the cluster's zero memory
+    """
+
+    name = "snrt.zero_memory"
 
 
 class DmaStart1DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
@@ -387,6 +441,10 @@ SnitchRuntime = Dialect(
     [
         ClusterNumOp,
         ClusterHwBarrierOp,
+        BarrierRegPtrOp,
+        GlobalMemoryOp,
+        ClusterMemoryOp,
+        ZeroMemoryOp,
         DmaStart1DWideptrOp,
         DmaStart1DOp,
         DmaStart2DWideptrOp,

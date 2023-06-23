@@ -4,6 +4,7 @@ import pytest
 
 from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.arith import Constant
+from xdsl.dialects.test import TestTermOp
 
 from xdsl.ir import Block, OpResult, Region
 from xdsl.traits import IsTerminator
@@ -357,12 +358,12 @@ def test_region_op_blocks():
 
 
 def test_region_op_ops():
-    op1 = RegionOp.build(regions=[[Block()]])
-    op2 = RegionOp.build(regions=[[Block()]])
-    op = RegionOp.build(regions=[[op1, op2]])
+    op1 = RegionOp.build(regions=[[Block([TestTermOp.create()])]])
+    op2 = RegionOp.build(regions=[[Block([TestTermOp.create()])]])
+    op = RegionOp.build(regions=[[op1, op2, TestTermOp.create()]])
     op.verify()
     assert len(op.region.blocks) == 1
-    assert len(op.region.blocks[0].ops) == 2
+    assert len(op.region.blocks[0].ops) == 3
 
 
 def test_noop_region():
@@ -384,7 +385,7 @@ class SBRegionOp(IRDLOperation):
 
 
 def test_sbregion_one_block():
-    op = SBRegionOp.build(regions=[[Block()]])
+    op = SBRegionOp.build(regions=[[Block([TestTermOp.create()])]])
     op.verify()
     assert len(op.region.blocks) == 1
 
@@ -418,7 +419,7 @@ class OptSBRegionOp(IRDLOperation):
 
 
 def test_opt_sbregion_one_block():
-    op1 = OptSBRegionOp.build(regions=[[[Block()]]])
+    op1 = OptSBRegionOp.build(regions=[[[Block([TestTermOp.create()])]]])
     op2 = OptSBRegionOp.build(regions=[[]])
     op1.verify()
     op2.verify()
@@ -449,7 +450,7 @@ class VarSBRegionOp(IRDLOperation):
 
 
 def test_var_sbregion_one_block():
-    op1 = VarSBRegionOp.build(regions=[[[Block()]]])
+    op1 = VarSBRegionOp.build(regions=[[[Block([TestTermOp.create()])]]])
     op2 = VarSBRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op1.verify()
     op2.verify()

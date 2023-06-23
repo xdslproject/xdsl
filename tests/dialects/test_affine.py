@@ -60,7 +60,7 @@ def test_for_mismatch_blockargs():
     inp = b.args[0]
     f = For.create(
         operands=[inp],
-        regions=[Region(Block())],
+        regions=[Region(Block([Yield.get()]))],
         attributes=attributes,
         result_types=[IndexType()],
     )

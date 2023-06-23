@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
+// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
 
 "builtin.module"() ({
     "gpu.module"() ({
@@ -9,6 +9,7 @@
             %memref = "memref.alloc"() {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<10x10xi32>
             %unranked = "memref.cast"(%memref) : (memref<10x10xi32>) -> memref<*xi32>
             "gpu.host_register"(%unranked) : (memref<*xi32>) -> ()
+            "gpu.host_unregister"(%unranked) : (memref<*xi32>) -> ()
 
             %threadidx = "gpu.thread_id"() {"dimension" = #gpu<dim x>} : () -> index
             %threadidy = "gpu.thread_id"() {"dimension" = #gpu<dim y>} : () -> index
@@ -65,12 +66,17 @@
                 %final = "arith.muli"(%sum, %one) : (index, index) -> index
                 "gpu.terminator"() : () -> ()
             }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
+            "gpu.launch_func"(%n, %n, %n, %n, %n, %n, %dev, %n) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1>, "kernel" = @gpu::@foo} : (index, index, index, index, index, index, i32, index) -> ()
 
             "func.return"() : () -> ()
         }) {"function_type" = () -> (), "sym_name" = "kernel"} : () -> ()
+        "gpu.func"() ({
+        ^bb0(%arg0: index):
+            "gpu.return"() : () -> ()
+        }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> ()} : () -> ()
         "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
-}) : () -> ()
+}) {"gpu.container_module"} : () -> ()
 
 // CHECK:      "builtin.module"() ({
 // CHECK-NEXT:     "gpu.module"() ({
@@ -81,6 +87,7 @@
 // CHECK-NEXT:             %{{.*}} = "memref.alloc"() {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<10x10xi32>
 // CHECK-NEXT:             %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x10xi32>) -> memref<*xi32>
 // CHECK-NEXT:             "gpu.host_register"(%{{.*}}) : (memref<*xi32>) -> ()
+// CHECK-NEXT:             "gpu.host_unregister"(%{{.*}}) : (memref<*xi32>) -> ()
 
 // CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() {"dimension" = #gpu<dim x>} : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() {"dimension" = #gpu<dim y>} : () -> index
@@ -137,10 +144,15 @@
 // CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (index, index) -> index
 // CHECK-NEXT:                 "gpu.terminator"() : () -> ()
 // CHECK-NEXT:             }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
+// CHECK-NEXT:             "gpu.launch_func"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) {"kernel" = @gpu::@foo, "operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1>} : (index, index, index, index, index, index, i32, index) -> ()
 
 // CHECK-NEXT:             "func.return"() : () -> ()
 // CHECK-NEXT:         }) {"function_type" = () -> (), "sym_name" = "kernel"} : () -> ()
+// CHECK-NEXT:         "gpu.func"() ({
+// CHECK-NEXT:         ^{{.*}}(%{{.*}}: index):
+// CHECK-NEXT:             "gpu.return"() : () -> ()
+// CHECK-NEXT:         }) {"function_type" = (index) -> (), "kernel", "sym_name" = "foo"} : () -> ()
 // CHECK-NEXT:          "gpu.module_end"() : () -> ()
 // CHECK-NEXT:     }) {"sym_name" = "gpu"} : () -> ()
 
-// CHECK-NEXT: }) : () -> ()
+// CHECK-NEXT: }) {"gpu.container_module"} : () -> ()

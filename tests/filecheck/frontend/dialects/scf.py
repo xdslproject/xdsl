@@ -9,14 +9,14 @@ from xdsl.frontend.dialects.builtin import index, i1, i32, f32
 p = FrontendProgram()
 with CodeContext(p):
     # CHECK:      func.func @test_for_I(%{{.*}} : index) {
-    # CHECK:        %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
+    # CHECK:        %{{.*}} = arith.constant 0 : index
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
-    # CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:   %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
     # CHECK-NEXT:   ^0(%{{.*}} : index):
     # CHECK-NEXT:     "scf.yield"() : () -> ()
     # CHECK-NEXT:   }) : (index, index, index) -> ()
-    # CHECK-NEXT:   "func.return"() : () -> ()
+    # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
 
     def test_for_I(end: index):
@@ -27,12 +27,12 @@ with CodeContext(p):
     # CHECK:      func.func @test_for_II(%{{.*}} : index, %{{.*}} : index) {
     # CHECK:        %{{.*}} = "symref.fetch"() {"symbol" = @start} : () -> index
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
-    # CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:   %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
     # CHECK-NEXT:   ^1(%{{.*}} : index):
     # CHECK-NEXT:     "scf.yield"() : () -> ()
     # CHECK-NEXT:   }) : (index, index, index) -> ()
-    # CHECK-NEXT:   "func.return"() : () -> ()
+    # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
     def test_for_II(start: index, end: index):
         for _ in range(start, end):  # type: ignore
@@ -47,7 +47,7 @@ with CodeContext(p):
     # CHECK-NEXT:   ^2(%{{.*}} : index):
     # CHECK-NEXT:     "scf.yield"() : () -> ()
     # CHECK-NEXT:   }) : (index, index, index) -> ()
-    # CHECK-NEXT:   "func.return"() : () -> ()
+    # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
     def test_for_III(start: index, end: index, step: index):
         for _ in range(start, end, step):  # type: ignore
@@ -55,19 +55,19 @@ with CodeContext(p):
         return
 
     # CHECK:        func.func @test_for_IV(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
-    # CHECK:          %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
+    # CHECK:          %{{.*}} = arith.constant 0 : index
     # CHECK-NEXT:     %{{.*}} = "symref.fetch"() {"symbol" = @a} : () -> index
-    # CHECK-NEXT:     %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:     %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:     "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
     # CHECK-NEXT:     ^{{.*}}(%{{.*}} : index):
-    # CHECK-NEXT:       %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
+    # CHECK-NEXT:       %{{.*}} = arith.constant 0 : index
     # CHECK-NEXT:       %{{.*}} = "symref.fetch"() {"symbol" = @b} : () -> index
-    # CHECK-NEXT:       %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:       %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:       "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
     # CHECK-NEXT:       ^{{.*}}(%{{.*}} : index):
-    # CHECK-NEXT:         %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
+    # CHECK-NEXT:         %{{.*}} = arith.constant 0 : index
     # CHECK-NEXT:         %{{.*}} = "symref.fetch"() {"symbol" = @c} : () -> index
-    # CHECK-NEXT:         %{{.*}} = "arith.constant"() {"value" = 1 : index} : () -> index
+    # CHECK-NEXT:         %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:         "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
     # CHECK-NEXT:         ^{{.*}}(%{{.*}} : index):
     # CHECK-NEXT:           "scf.yield"() : () -> ()
@@ -76,7 +76,7 @@ with CodeContext(p):
     # CHECK-NEXT:       }) : (index, index, index) -> ()
     # CHECK-NEXT:       "scf.yield"() : () -> ()
     # CHECK-NEXT:     }) : (index, index, index) -> ()
-    # CHECK-NEXT:   "func.return"() : () -> ()
+    # CHECK-NEXT:   func.return
     # CHECK-NEXT:   }
     def test_for_IV(a: index, b: index, c: index):
         for _ in range(a):  # type: ignore

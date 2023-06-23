@@ -16,7 +16,7 @@ from xdsl.ir import (
     Region,
     OpResult,
 )
-from xdsl.traits import IsTerminator
+
 from xdsl.dialects.builtin import (
     Float64Type,
     FunctionType,
@@ -48,7 +48,13 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from xdsl.traits import Pure, OpTrait
+from xdsl.traits import (
+    CallableOpInterface,
+    Pure,
+    OpTrait,
+    SymbolOpInterface,
+    IsTerminator,
+)
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
@@ -167,6 +173,13 @@ class AddOp(IRDLOperation):
                         )
 
 
+class FuncOpCallableInterface(CallableOpInterface):
+    @classmethod
+    def get_callable_region(cls, op: Operation) -> Region:
+        assert isinstance(op, FuncOp)
+        return op.body
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     """
@@ -190,6 +203,8 @@ class FuncOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
+
+    traits = frozenset((SymbolOpInterface(), FuncOpCallableInterface()))
 
     def __init__(
         self,
@@ -358,6 +373,7 @@ class ReturnOp(IRDLOperation):
 
     name = "toy.return"
     input: OptOperand = opt_operand_def(AnyTensorTypeF64)
+
     traits = frozenset([IsTerminator()])
 
     def __init__(self, input: SSAValue | None = None):
