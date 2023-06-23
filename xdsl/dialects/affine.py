@@ -144,4 +144,12 @@ class Yield(IRDLOperation):
         return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
-Affine = Dialect([For, Store, Load, Yield], [])
+Affine = Dialect(
+    [
+        For,
+        Store,
+        Load,
+        Yield,
+    ],
+    [],
+)
