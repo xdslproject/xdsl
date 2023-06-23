@@ -4,11 +4,9 @@ This module contains all custom exceptions used by xDSL.
 """
 from __future__ import annotations
 
-import sys
 import typing
 from dataclasses import dataclass
-from io import StringIO
-from typing import Any, IO
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from xdsl.parser import Span
@@ -70,13 +68,8 @@ class ParseError(Exception):
     span: Span
     msg: str
 
-    def print(self, file: IO[str] = sys.stderr):
-        print(self.span.print_with_context(self.msg), file=file)
-
-    def __repr__(self):
-        io = StringIO()
-        self.print(io)
-        return io.getvalue()
+    def __repr__(self) -> str:
+        return self.span.print_with_context(self.msg)
 
 
 @dataclass
@@ -84,11 +77,12 @@ class MultipleSpansParseError(ParseError):
     ref_text: str | None
     refs: list[tuple[Span, str | None]]
 
-    def print(self, file: IO[str] = sys.stderr):
-        super().print(file)
-        print(self.ref_text or "With respect to:", file=file)
+    def __repr__(self) -> str:
+        res = super().__repr__() + "\n"
+        res += self.ref_text or "With respect to:\n"
         for span, msg in self.refs:
-            print(span.print_with_context(msg), file=file)
+            res += span.print_with_context(msg) + "\n"
+        return res
 
 
 class PassPipelineParseError(BaseException):
