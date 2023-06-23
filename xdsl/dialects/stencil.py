@@ -25,6 +25,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     attr_def,
+    opt_attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     ParameterDef,
@@ -473,6 +474,13 @@ class AccessOp(IRDLOperation):
     This operation accesses a value from a stencil.temp given the specified offset.
     offset. The offset is specified relative to the current position.
 
+    The optional offset mapping will determine which offset corresponds to which
+    result dimension and is needed when we are accessing an array which has fewer
+    dimensions than the result. Dimensions are mapped from the inner loop, which is 0,
+    incrementing with each outer nested loop. e.g. in a nest of three loops, 0 would be
+    the inner loop, 1 the middle loop, and 2 the outer loop. We do not allow out of order
+    mappings.
+
     Example:
       %0 = stencil.access %temp [-1, 0, 0] : !stencil.temp<?x?x?xf64> -> f64
     """
@@ -480,25 +488,37 @@ class AccessOp(IRDLOperation):
     name = "stencil.access"
     temp: Operand = operand_def(TempType)
     offset: IndexAttr = attr_def(IndexAttr)
+    offset_mapping: ArrayAttr[IntAttr] | None = opt_attr_def(ArrayAttr[IntAttr])
     res: OpResult = result_def(Attribute)
 
     traits = frozenset([HasParent(ApplyOp)])
 
     @staticmethod
-    def get(temp: SSAValue | Operation, offset: Sequence[int]):
+    def get(
+        temp: SSAValue | Operation,
+        offset: Sequence[int],
+        offset_mapping: Sequence[int] | None = None,
+    ):
         temp_type = SSAValue.get(temp).typ
         assert isinstance(temp_type, TempType)
         temp_type = cast(TempType[Attribute], temp_type)
 
+        attributes: dict[str, IndexAttr | ArrayAttr[IntAttr]] = {
+            "offset": IndexAttr(
+                [
+                    ArrayAttr(IntAttr(value) for value in offset),
+                ]
+            ),
+        }
+
+        if offset_mapping is not None:
+            attributes["offset_mapping"] = ArrayAttr(
+                [IntAttr(value) for value in offset_mapping]
+            )
+
         return AccessOp.build(
             operands=[temp],
-            attributes={
-                "offset": IndexAttr(
-                    [
-                        ArrayAttr(IntAttr(value) for value in offset),
-                    ]
-                ),
-            },
+            attributes=attributes,
             result_types=[temp_type.element_type],
         )
 
@@ -515,10 +535,30 @@ class AccessOp(IRDLOperation):
         temp_typ = self.temp.typ
         assert isa(temp_typ, TempType[Attribute])
         if temp_typ.get_num_dims() != apply.get_rank():
+            if self.offset_mapping is None:
+                raise VerifyException(
+                    f"Expected stencil.access operand to be of rank {apply.get_rank()} to "
+                    f"match its parent apply, got {temp_typ.get_num_dims()} without explict offset mapping provided"
+                )
+
+        if self.offset_mapping is not None and len(self.offset_mapping) != len(
+            self.offset
+        ):
             raise VerifyException(
-                f"Expected stencil.access operand to be of rank {apply.get_rank()} to "
-                f"match its parent apply, got {temp_typ.get_num_dims()}"
+                f"Expected stencil.access offset mapping be of length {len(self.offset)} to "
+                f"match the provided offsets, but it is {len(self.offset_mapping)} instead"
             )
+
+        if self.offset_mapping is not None:
+            prev_offset = None
+            for offset in self.offset_mapping:
+                if prev_offset is not None:
+                    if offset.data >= prev_offset:
+                        raise VerifyException(
+                            f"Offset mapping in stencil.access must be strictly decreasing and unique, however {offset.data} follows "
+                            f"{prev_offset} which is disallowed"
+                        )
+                prev_offset = offset.data
 
         if len(self.offset) != temp_typ.get_num_dims():
             raise VerifyException(
