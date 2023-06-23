@@ -10,7 +10,15 @@ from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     op_type_rewrite_pattern,
 )
-from xdsl.ir import Block, MLContext, Region, Operation, SSAValue
+from xdsl.ir import (
+    Block,
+    MLContext,
+    Region,
+    Operation,
+    SSAValue,
+    OpResult,
+    BlockArgument,
+)
 from xdsl.irdl import Attribute
 from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
@@ -365,20 +373,44 @@ class AccessOpToMemref(RewritePattern):
         assert (block := op.parent_block()) is not None
 
         memref_offset = op.offset
-        off_const_ops = [
-            arith.Constant.from_int_and_width(x, builtin.IndexType())
-            for x in memref_offset
-        ]
+        if op.offset_mapping is not None:
+            max_idx = 0
+            for i in op.offset_mapping:
+                if i.data + 1 > max_idx:
+                    max_idx = i.data + 1
+            args = collectBlockArguments(max_idx, block)
+            # Reverse the list as arguments are collated in the opposite
+            # order to the stencil.apply ordering (e.g. the top most loop is
+            # front of the list, rather than at the end)
+            args.reverse()
+        else:
+            args = collectBlockArguments(len(memref_offset), block)
 
-        args = collectBlockArguments(len(memref_offset), block)
         if self.target == "gpu":
-            args = reversed(args)
+            args.reverse()
 
-        off_sum_ops = [arith.Addi(i, x) for i, x in zip(args, off_const_ops)]
+        off_const_ops: list[Operation] = []
+        memref_load_args: list[BlockArgument | OpResult] = []
 
-        load = memref.Load.get(op.temp, off_sum_ops)
+        # This will apply an offset to the index if one is required
+        # (e.g the offset is not zero), otherwise will use the index value directly
+        for i, x in enumerate(memref_offset):
+            block_arg = (
+                args[list(op.offset_mapping)[i].data]
+                if op.offset_mapping is not None
+                else args[i]
+            )
+            if x != 0:
+                constant_op = arith.Constant.from_int_and_width(x, builtin.IndexType())
+                add_op = arith.Addi(block_arg, constant_op)
+                memref_load_args.append(add_op.results[0])
+                off_const_ops += [constant_op, add_op]
+            else:
+                memref_load_args.append(block_arg)
 
-        rewriter.replace_matched_op([*off_const_ops, *off_sum_ops, load], [load.res])
+        load = memref.Load.get(op.temp, memref_load_args)
+
+        rewriter.replace_matched_op([*off_const_ops, load], [load.res])
 
 
 class StencilTypeConversionFuncOp(RewritePattern):
