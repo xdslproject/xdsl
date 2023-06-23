@@ -8,7 +8,9 @@ nbval<0.11
 filecheck<0.0.24
 lit<17.0.0
 pre-commit==3.3.3
-riscemu==2.1.0
+#riscemu==2.1.0
+#temp workaround until PR is merged
+riscemu @ git+https://github.com/adutilleul/riscemu@master
 asv<0.6
 # pyright has to be the last line and fixed with `==`. The CI parses this file
 # in `.github/parse_pyright_version.py` and installs the according version for

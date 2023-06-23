@@ -40,7 +40,7 @@ def simple_linear_riscv():
     def text_region():
         @Builder.implicit_region
         def main_region() -> None:
-            zero = riscv.GetRegisterOp(riscv.Registers.ZERO).res
+            zero = riscv.GetIntegerRegisterOp(riscv.Registers.ZERO).res
             v0 = riscv.AddiOp(zero, 1).rd
             v1 = riscv.AddiOp(zero, 2).rd
 
@@ -58,6 +58,10 @@ def simple_linear_riscv():
             v14 = riscv.SubOp(v13, v5).rd
             v15 = riscv.MulOp(v12, v8).rd
             v16 = riscv.AddOp(v14, v15).rd
+
+            v18 = riscv.FCvtSWOp(v16).rd
+            v19 = riscv.FCvtSWOp(v18).rd
+            _ = riscv.FAddSOp(v18, v19).rd
 
             riscv.MVOp(v16, rd=riscv.Registers.A0)
             riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
@@ -79,7 +83,7 @@ def simple_linear_riscv_allocated():
     def text_region():
         @Builder.implicit_region
         def main_region() -> None:
-            zero = riscv.GetRegisterOp(riscv.Registers.ZERO).res
+            zero = riscv.GetIntegerRegisterOp(riscv.Registers.ZERO).res
             v0 = riscv.AddiOp(zero, 1, rd=riscv.Registers.T6).rd
             v1 = riscv.AddiOp(zero, 2, rd=riscv.Registers.T5).rd
 
@@ -97,6 +101,10 @@ def simple_linear_riscv_allocated():
             v14 = riscv.SubOp(v13, v5, rd=riscv.Registers.S2).rd
             v15 = riscv.MulOp(v12, v8, rd=riscv.Registers.A7).rd
             v16 = riscv.AddOp(v14, v15, rd=riscv.Registers.A6).rd
+
+            v18 = riscv.FCvtSWOp(v16, rd=riscv.Registers.FT11).rd
+            v19 = riscv.FCvtSWOp(v18, rd=riscv.Registers.FT10).rd
+            _ = riscv.FAddSOp(v18, v19, rd=riscv.Registers.FT9).rd
 
             riscv.MVOp(v16, rd=riscv.Registers.A0)
             riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
