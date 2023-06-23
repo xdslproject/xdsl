@@ -32,17 +32,17 @@
 
     %memref = "test.op"() : () -> memref<2x3xf64>
     %value = "test.op"() : () -> f64
-    "affine.store"(%value, %memref) {"map" = #affine_map<() -> (0, 0)>} : (f64, memref<2x3xf64>) -> ()
+    "affine.store"(%value, %memref) {"map" = affine_map<() -> (0, 0)>} : (f64, memref<2x3xf64>) -> ()
 
     // CHECK:      %memref = "test.op"() : () -> memref<2x3xf64>
     // CHECK-NEXT: %value = "test.op"() : () -> f64
-    // CHECK-NEXT: "affine.store"(%value, %memref) {"map" = #affine_map<() -> (0, 0)>} : (f64, memref<2x3xf64>) -> ()
+    // CHECK-NEXT: "affine.store"(%value, %memref) {"map" = affine_map<() -> (0, 0)>} : (f64, memref<2x3xf64>) -> ()
 
     %zero = "test.op"() : () -> index
-    %same_value = "affine.load"(%memref, %zero, %zero) {"map" = #affine_map<(d0, d1) -> (d0, d1)>} : (memref<2x3xf64>, index, index) -> f64
+    %same_value = "affine.load"(%memref, %zero, %zero) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (memref<2x3xf64>, index, index) -> f64
 
     // CHECK:      %zero = "test.op"() : () -> index
-    // CHECK-NEXT: %same_value = "affine.load"(%memref, %zero, %zero) {"map" = #affine_map<(d0, d1) -> (d0, d1)>} : (memref<2x3xf64>, index, index) -> f64
+    // CHECK-NEXT: %same_value = "affine.load"(%memref, %zero, %zero) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (memref<2x3xf64>, index, index) -> f64
 
 
 }) : () -> ()
