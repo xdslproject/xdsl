@@ -28,6 +28,7 @@ from xdsl.ir import (
 )
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     AnyIntegerAttr,
     AnyFloatAttr,
     AnyUnrankedTensorType,
@@ -603,9 +604,15 @@ class Printer:
                 self.print(" : ", attribute.type)
             return
 
+        if isinstance(attribute, AffineMapAttr):
+            self.print("affine_map<")
+            self.print(attribute.data)
+            self.print(">")
+            return
+
         if isinstance(attribute, UnregisteredAttr):
             # Do not print `!` or `#` for unregistered builtin attributes
-            if attribute.attr_name.data not in ["affine_map", "affine_set"]:
+            if attribute.attr_name.data not in ["affine_set"]:
                 self.print("!" if attribute.is_type.data else "#")
             self.print(attribute.attr_name.data, attribute.value.data)
             return
