@@ -183,19 +183,31 @@ class AffineExpr:
             case _:
                 raise ValueError(f"Unreachable")
 
-    def __add__(self, other: AffineExpr | int) -> AffineExpr:
-        if isinstance(other, int):
-            other = AffineExpr.constant(other)
-
+    def _simplify_add(self, other: AffineExpr) -> AffineExpr | None:
+        """Simplify addition. Constant is assumed to be on RHS."""
         # Fold constants.
         if fold := self._try_fold_constant(other, _AffineExprKind.Add):
             return fold
+        # Ignore addition with 0.
+        if other._impl.kind == _AffineExprKind.Constant:
+            assert isinstance(other._impl, _AffineConstantExprStorage)
+            if other._impl.value == 0:
+                return self
+        # Fold (expr + constant) + constant.
+        if self._impl.kind == _AffineExprKind.Add:
+            assert isinstance(self._impl, _AffineBinaryOpExprStorage)
+            if fold := self._impl.rhs._try_fold_constant(other, _AffineExprKind.Add):
+                return self._impl.lhs + fold
+        return None
 
-        # Keep the constant on the right side.
+    def __add__(self, other: AffineExpr | int) -> AffineExpr:
+        if isinstance(other, int):
+            other = AffineExpr.constant(other)
+        # Canonicalize the expression so that the constant is always on the RHS.
         if self._impl.kind == _AffineExprKind.Constant:
             self, other = other, self
-
-        # TODO (#1086): Simplify addition here before returning.
+        if simplified := self._simplify_add(other):
+            return simplified
         return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Add, self, other))
 
     def __radd__(self, other: AffineExpr | int) -> AffineExpr:
@@ -210,17 +222,31 @@ class AffineExpr:
     def __rsub__(self, other: AffineExpr | int) -> AffineExpr:
         return self.__sub__(other)
 
-    def __mul__(self, other: AffineExpr | int) -> AffineExpr:
-        if isinstance(other, int):
-            other = AffineExpr.constant(other)
-
+    def _simplify_mul(self, other: AffineExpr) -> AffineExpr | None:
+        """Simplify multiplication. Constant is assumed to be on RHS."""
         # Fold constant.
         if fold := self._try_fold_constant(other, _AffineExprKind.Mul):
             return fold
+        # Ignore multiplication by 1.
+        if other._impl.kind == _AffineExprKind.Constant:
+            assert isinstance(other._impl, _AffineConstantExprStorage)
+            if other._impl.value == 1:
+                return self
+        # Fold (expr * constant) * constant.
+        if self._impl.kind == _AffineExprKind.Mul:
+            assert isinstance(self._impl, _AffineBinaryOpExprStorage)
+            if fold := self._impl.rhs._try_fold_constant(other, _AffineExprKind.Mul):
+                return self._impl.lhs * fold
+        return None
 
-        # Keep the constant on the right side.
+    def __mul__(self, other: AffineExpr | int) -> AffineExpr:
+        if isinstance(other, int):
+            other = AffineExpr.constant(other)
+        # Canonicalize the expression so that the constant is always on the RHS.
         if self._impl.kind == _AffineExprKind.Constant:
             self, other = other, self
+        if simplified := self._simplify_mul(other):
+            return simplified
         if other._impl.kind != _AffineExprKind.Constant:
             # TODO (#1087): MLIR also supports multiplication by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
