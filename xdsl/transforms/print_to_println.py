@@ -208,6 +208,69 @@ def _emit_itoa_inline(number: SSAValue) -> Iterable[Operation]:
             digit = (num // (10**pos)) % 10
             putchar(digit)
 
+
+    In MLIR this is:
+
+    module{
+        func.func private @putchar(i32) -> i32
+
+        func.func @main() -> (i32){
+            %in = arith.constant 2323: i32
+            %zero = arith.constant 0 : i32
+            %is_negative = arith.cmpi slt, %in, %zero : i32
+            %is_zero = arith.cmpi eq, %in, %zero : i32
+            // If the value is zero, just print one zero
+            // Otherwise log10 does not work
+            %return_value = scf.if %is_zero -> (i32) {
+                 %minus_one = arith.constant -1 : i32
+                 %neg_in = arith.muli %minus_one, %in : i32
+                 // Zero in ascii is 48 (decimal)
+                 %ascii_zero = arith.constant 48 : i32
+                 %return_value_zero = func.call @putchar(%ascii_zero) : (i32) -> (i32)
+                 scf.yield %return_value_zero: i32
+            } else {
+                %in_positive = scf.if %is_negative -> (i32) {
+                    // If the value is negative, print the minus
+                    // minus in ascii is 45 (decimal)
+                    %ascii_minus = arith.constant 45 : i32
+                    %test = func.call @putchar(%ascii_minus) : (i32) -> (i32)
+                    // continue with the positive number
+                    %neg_in = arith.subi %zero, %in : i32
+                    scf.yield %neg_in: i32
+                } else {
+                    scf.yield %in : i32
+                }
+                // If the value is positive, print each character with putchar
+                // size = ceil(log10(num + 1))
+                %one = arith.constant 1 : i32
+                %plus_one = arith.addi %in_positive, %one : i32
+                %plus_one_fp = arith.uitofp %plus_one : i32 to f32
+                %size = math.log10 %plus_one_fp : f32
+                %size_ceiled = math.ceil %size : f32
+                %size_int = arith.fptoui %size_ceiled : f32 to i32
+                scf.for %index_var=%zero to %size_int step %one : i32 {
+                    // Print out the most significant digit first
+                    //
+                    // for i in range(size):
+                    //   pos = size - i - 1
+                    %size_minus_one = arith.subi %size_int, %one : i32
+                    %position = arith.subi %size_minus_one, %index_var: i32
+
+                    // digit = (num // (10**pos)) % 10
+                    %ten = arith.constant 10 : i32
+                    %i_0 = "math.ipowi"(%ten, %position): (i32, i32)-> i32
+                    %i_1 = arith.divui %in_positive, %i_0 : i32
+                    %digit = arith.remui %i_1, %ten : i32
+                    %ascii_offset = arith.constant 48 : i32
+                    %char = arith.addi %digit, %ascii_offset : i32
+                    %return_value = func.call @putchar(%char) : (i32) -> (i32)
+                }
+                // We can not return multiple values, so just return one instead
+                scf.yield %one: i32
+            }
+        return %return_value: i32
+        }
+    }
     """
     return []
 
