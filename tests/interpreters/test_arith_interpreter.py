@@ -1,6 +1,6 @@
 import pytest
 from xdsl.interpreter import Interpreter
-from xdsl.runner.arith import ArithFunctions
+from xdsl.interpreters.arith import ArithFunctions
 from xdsl.dialects.arith import Addi, Cmpi, Constant, Muli, Subi
 from xdsl.dialects.builtin import (
     IndexType,
