@@ -416,19 +416,19 @@ class AccessOpToMemref(RewritePattern):
 class StencilTypeConversionFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        inputs: list[Attribute] = []
-        for arg in op.body.block.args:
-            if isa(arg.typ, FieldType[Attribute]):
-                memreftyp = StencilToMemRefType(arg.typ)
-                rewriter.modify_block_argument_type(arg, memreftyp)
-                inputs.append(memreftyp)
-            else:
-                inputs.append(arg.typ)
+        inputs: list[Attribute] = [
+            StencilToMemRefType(inp) if isa(inp, FieldType[Attribute]) else inp
+            for inp in op.function_type.inputs
+        ]
         outputs: list[Attribute] = [
             StencilToMemRefType(out) if isa(out, FieldType[Attribute]) else out
             for out in op.function_type.outputs
         ]
         op.attributes["function_type"] = FunctionType.from_lists(inputs, outputs)
+        if op.body.blocks:
+            for inp, arg in zip(inputs, op.body.blocks[0].args):
+                if inp != arg.typ:
+                    rewriter.modify_block_argument_type(arg, inp)
 
 
 class UpdateLoopCarriedVarTypes(RewritePattern):
