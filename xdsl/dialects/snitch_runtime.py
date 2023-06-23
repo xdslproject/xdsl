@@ -229,7 +229,7 @@ class ClusterHwBarrierOp(NoOperandNoResultBaseOp):
 
 
 @irdl_op_definition
-class ClusterSwBarrierOp(SnitchRuntimeBarrier):
+class ClusterSwBarrierOp(NoOperandNoResultBaseOp):
     """
     Synchronize with compute cores after loading data
     """
@@ -238,7 +238,7 @@ class ClusterSwBarrierOp(SnitchRuntimeBarrier):
 
 
 @irdl_op_definition
-class GlobalBarrierOp(SnitchRuntimeBarrier):
+class GlobalBarrierOp(NoOperandNoResultBaseOp):
     """
     Synchronize clusters globally with a global software barrier
     """
