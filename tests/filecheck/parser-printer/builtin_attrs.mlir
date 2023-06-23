@@ -40,7 +40,7 @@
 
   "func.func"() ({}) {function_type = () -> (), value = 42.0 : f32, sym_name = "float_attr"} : () -> ()
 
-  // CHECK: 42.0 : f32
+  // CHECK: 4.200000e+01 : f32
 
   "func.func"() ({}) {function_type = () -> (), value = true, sym_name = "true_attr"} : () -> ()
 
@@ -69,7 +69,7 @@
 
   "func.func"() ({}) {function_type = () -> (), value = 54 : f32, sym_name = "index_attr"} : () -> ()
 
-  // CHECK: 54.0 : f32
+  // CHECK: 5.400000e+01 : f32
 
   "func.func"() ({}) {function_type = () -> (), value = 0x132 : i32, sym_name = "index_attr"} : () -> ()
 
@@ -77,7 +77,7 @@
 
   "func.func"() ({}) {function_type = () -> (), value = 0x132 : f32, sym_name = "index_attr"} : () -> ()
 
-  // CHECK: 306.0 : f32
+  // CHECK: 3.060000e+02 : f32
 
 
   "func.func"() ({}) {function_type = () -> (), value = "foo", sym_name = "string_attr"} : () -> ()

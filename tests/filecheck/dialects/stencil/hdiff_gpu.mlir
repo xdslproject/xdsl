@@ -62,7 +62,7 @@
 // CHECK-NEXT:       %32 = arith.addf %21, %24 : f64
 // CHECK-NEXT:       %33 = arith.addf %27, %30 : f64
 // CHECK-NEXT:       %34 = arith.addf %32, %33 : f64
-// CHECK-NEXT:       %cst = arith.constant -4.0 : f64
+// CHECK-NEXT:       %cst = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:       %35 = arith.mulf %31, %cst : f64
 // CHECK-NEXT:       %36 = arith.addf %35, %34 : f64
 // CHECK-NEXT:       "memref.store"(%36, %6, %18, %17, %16) : (f64, memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> ()

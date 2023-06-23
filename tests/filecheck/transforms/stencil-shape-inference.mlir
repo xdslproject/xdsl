@@ -75,7 +75,7 @@ builtin.module {
 // CHECK-NEXT:       %12 = arith.addf %7, %8 : f64
 // CHECK-NEXT:       %13 = arith.addf %9, %10 : f64
 // CHECK-NEXT:       %14 = arith.addf %12, %13 : f64
-// CHECK-NEXT:       %cst = arith.constant -4.0 : f64
+// CHECK-NEXT:       %cst = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:       %15 = arith.mulf %11, %cst : f64
 // CHECK-NEXT:       %16 = arith.addf %15, %14 : f64
 // CHECK-NEXT:       "stencil.return"(%16) : (f64) -> ()
@@ -136,7 +136,7 @@ builtin.module {
 // CHECK-NEXT:     %2 = "stencil.cast"(%1) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
 // CHECK-NEXT:     %3 = "stencil.apply"(%0) ({
 // CHECK-NEXT:     ^0(%4 : f64):
-// CHECK-NEXT:       %5 = arith.constant 1.0 : f64
+// CHECK-NEXT:       %5 = arith.constant 1.000000e+00 : f64
 // CHECK-NEXT:       %6 = arith.addf %4, %5 : f64
 // CHECK-NEXT:       "stencil.return"(%6) : (f64) -> ()
 // CHECK-NEXT:     }) : (f64) -> !stencil.temp<[1,65]x[2,66]x[3,63]xf64>
