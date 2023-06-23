@@ -41,7 +41,7 @@ class LowerBarrierOpToFunc(RewritePattern, ABC):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: snitch_runtime.SnitchRuntimeBarrier, rewriter: PatternRewriter, /
+        self, op: snitch_runtime.NoOperandNoResultBaseOp, rewriter: PatternRewriter, /
     ):
         func_call = func.Call.get("snrt_" + op.name[5:], [], [])
         rewriter.replace_matched_op(func_call)

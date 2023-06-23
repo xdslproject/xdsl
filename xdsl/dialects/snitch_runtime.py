@@ -42,9 +42,9 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOp, ABC):
         super().__init__(operands=[], result_types=[i32])
 
 
-class SnitchRuntimeBarrier(SnitchRuntimeBaseOp, ABC):
+class NoOperandNoResultBaseOp(SnitchRuntimeBaseOp, ABC):
     """
-    A base class for snitch runtime barriers
+    A base class for operations with no operands nor results
     """
 
     def __init__(
@@ -63,7 +63,7 @@ class ClusterNumOp(SnitchRuntimeGetInfo):
 
 
 @irdl_op_definition
-class ClusterHwBarrierOp(SnitchRuntimeBarrier):
+class ClusterHwBarrierOp(NoOperandNoResultBaseOp):
     """
     Synchronize cores in a cluster with a hardware barrier
     """
@@ -173,7 +173,7 @@ class DmaWaitOp(SnitchRuntimeBaseOp):
 
 
 @irdl_op_definition
-class DmaWaitAllOp(SnitchRuntimeBarrier):
+class DmaWaitAllOp(NoOperandNoResultBaseOp):
     """
     Block until all operations on the DMA cease
     """
@@ -325,85 +325,62 @@ class SsrRepeatOp(SnitchRuntimeBaseOp, ABC):
 
 
 @irdl_op_definition
-class SsrEnableOp(SnitchRuntimeBaseOp, ABC):
+class SsrEnableOp(NoOperandNoResultBaseOp):
     """
     Enable SSR.
     """
 
     name = "snrt.ssr_enable"
 
-    def __init__(
-        self,
-    ):
-        super().__init__(operands=[], result_types=[])
-
 
 @irdl_op_definition
-class SsrDisableOp(SnitchRuntimeBaseOp, ABC):
+class SsrDisableOp(NoOperandNoResultBaseOp):
     """
     Disable SSR.
     """
 
     name = "snrt.ssr_disable"
 
+
+class SsrReadWriteBaseOp(SnitchRuntimeBaseOp, ABC):
+    dm: Operand = operand_def(ssr_dm)
+    dim: Operand = operand_def(ssr_dim)
+    ptr: Operand = operand_def(i32)
+
     def __init__(
         self,
+        dm: Operation | SSAValue,
+        dim: Operation | SSAValue,
+        ptr: Operation | SSAValue,
     ):
-        super().__init__(operands=[], result_types=[])
+        super().__init__(operands=[dm, dim, ptr], result_types=[])
 
 
 @irdl_op_definition
-class SsrReadOp(SnitchRuntimeBaseOp, ABC):
+class SsrReadOp(SsrReadWriteBaseOp):
     """
     Start a streaming read.
     """
 
     name = "snrt.ssr_read"
-    dm: Operand = operand_def(ssr_dm)
-    dim: Operand = operand_def(ssr_dim)
-    ptr: Operand = operand_def(i32)
-
-    def __init__(
-        self,
-        dm: Operation | SSAValue,
-        dim: Operation | SSAValue,
-        ptr: Operation | SSAValue,
-    ):
-        super().__init__(operands=[dm, dim, ptr], result_types=[])
 
 
 @irdl_op_definition
-class SsrWriteOp(SnitchRuntimeBaseOp, ABC):
+class SsrWriteOp(SsrReadWriteBaseOp):
     """
     Start a streaming write.
     """
 
     name = "snrt.ssr_write"
-    dm: Operand = operand_def(ssr_dm)
-    dim: Operand = operand_def(ssr_dim)
-    ptr: Operand = operand_def(i32)
-
-    def __init__(
-        self,
-        dm: Operation | SSAValue,
-        dim: Operation | SSAValue,
-        ptr: Operation | SSAValue,
-    ):
-        super().__init__(operands=[dm, dim, ptr], result_types=[])
 
 
 @irdl_op_definition
-class FpuFenceOp(SnitchRuntimeBaseOp, ABC):
+class FpuFenceOp(NoOperandNoResultBaseOp):
     """
     Synchronize the integer and float pipelines.
     """
 
     name = "snrt.fpu_fence"
-
-    def __init__(
-        self,
-    ):
-        super().__init__(operands=[], result_types=[])
 
 
 SnitchRuntime = Dialect(
