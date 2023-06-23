@@ -1,5 +1,4 @@
 from typing import cast
-from traitlets import Any
 from xdsl.dialects.arith import Addi, Constant, Cmpi, Muli, Subi
 from xdsl.dialects.builtin import AnyIntegerAttr
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
@@ -10,9 +9,7 @@ from xdsl.utils.hints import isa
 @register_impls
 class ArithFunctions(InterpreterFunctions):
     @impl(Constant)
-    def run_constant(
-        self, interpreter: Interpreter, op: Constant, args: tuple[Any, ...]
-    ):
+    def run_constant(self, interpreter: Interpreter, op: Constant, args: tuple[()]):
         value = op.value
         interpreter.interpreter_assert(
             isa(op.value, AnyIntegerAttr),

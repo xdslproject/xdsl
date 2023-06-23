@@ -1,0 +1,87 @@
+import pytest
+from xdsl.interpreter import Interpreter
+from xdsl.runner.arith import ArithFunctions
+from xdsl.dialects.arith import Addi, Cmpi, Constant, Muli, Subi
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    Signedness,
+)
+from xdsl.dialects import test
+
+
+runner = Interpreter(ModuleOp([]))
+runner.register_implementations(ArithFunctions())
+
+lhs_op = test.TestOp(operands=[[]], result_types=[IndexType()], regions=[[]])
+rhs_op = test.TestOp(operands=[[]], result_types=[IndexType()], regions=[[]])
+
+
+@pytest.mark.parametrize("value", [1, 0, -1, 127])
+@pytest.mark.parametrize(
+    "value_type",
+    [
+        IndexType(),
+        IntegerType(8),
+        IntegerType(16),
+        IntegerType(32),
+        IntegerType(32, Signedness.SIGNED),
+    ],
+)
+def test_constant(value: int, value_type: int | IndexType | IntegerType):
+    constant = Constant.from_int_and_width(value, value_type)
+
+    ret = runner.run_op(constant, ())
+
+    assert len(ret) == 1
+    assert ret[0] == value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_subi(lhs_value: int, rhs_value: int):
+    subi = Subi(lhs_op, rhs_op)
+
+    ret = runner.run_op(subi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value - rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_addi(lhs_value: int, rhs_value: int):
+    addi = Addi(lhs_op, rhs_op)
+
+    ret = runner.run_op(addi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value + rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_muli(lhs_value: int, rhs_value: int):
+    muli = Muli(lhs_op, rhs_op)
+
+    ret = runner.run_op(muli, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value * rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_cmpi(lhs_value: int, rhs_value: int):
+    cmpi = Cmpi(
+        operands=[lhs_op, rhs_op],
+        result_types=[lhs_op.res[0].typ],
+        attributes={"predicate": IntegerAttr(0, IndexType())},
+    )
+
+    ret = runner.run_op(cmpi, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == (lhs_value == rhs_value)
