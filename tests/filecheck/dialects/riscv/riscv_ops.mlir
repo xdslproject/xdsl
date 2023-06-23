@@ -79,8 +79,8 @@
 
     "riscv.ret"() : () -> ()
     // CHECK-NEXT: "riscv.ret"() : () -> ()
-    ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
-    // CHECK-NEXT: ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
+  ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
+  // CHECK-NEXT: ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
 
     // Conditional Branch Instructions
     "riscv.beq"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
