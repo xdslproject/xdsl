@@ -25,7 +25,7 @@ pytest:
 
 # run pytest on notebooks
 pytest-nb:
-	pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
+	pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb --nbval-current-env
 
 # run all tests
 tests: pytest pytest-nb filecheck pyright
