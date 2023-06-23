@@ -3,6 +3,10 @@
 builtin.module {
 // CHECK: builtin.module {
 
+  // The pass used to crash on external function, just regression-testing this here.
+  func.func @external() -> ()
+  // CHECK: func.func @external() -> ()
+
   func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
     %2 = "stencil.cast"(%1) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
     %3 = "stencil.apply"(%0) ({
