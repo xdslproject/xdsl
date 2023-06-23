@@ -400,7 +400,7 @@ class Printer:
             typ = cast(
                 FloatAttr[Float16Type | Float32Type | Float64Type], attribute
             ).type
-            self.print(value.data)
+            self.print(f"{value.data:.6e}")
             self.print(" : ")
             self.print_attribute(typ)
             return
