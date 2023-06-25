@@ -1,10 +1,11 @@
 from __future__ import annotations
+from xdsl.parser.base_parser import BaseParser
 
-from xdsl.parser.core import Parser, ParserState, Token, ParseError
+from xdsl.parser.core import ParserState, Token, ParseError
 from xdsl.ir.affine import AffineExpr, AffineMap
 
 
-class AffineParser(Parser):
+class AffineParser(BaseParser):
     _BINOP_PRECEDENCE = {
         "+": 10,
         "-": 10,
@@ -15,7 +16,7 @@ class AffineParser(Parser):
     }
 
     def __init__(self, state: ParserState) -> None:
-        self.resume_from_state(state)
+        self._resume_from(state)
 
     def _parse_primary(self, dims: list[str], syms: list[str]) -> AffineExpr:
         """
