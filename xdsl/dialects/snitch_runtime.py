@@ -13,7 +13,11 @@ from xdsl.ir import OpResult, Dialect, Attribute
 from xdsl.dialects.builtin import i32, i64, IndexType
 from typing import Generic, TypeVar, Annotated
 
+# Transfer ID
 tx_id = i32
+# Indicates address range in memory, a "memory slice"
+slice_t_begin = i64
+slice_t_end = i64
 
 
 class SnitchRuntimeBaseOp(IRDLOperation, ABC):
@@ -54,12 +58,165 @@ class SnitchRuntimeBarrier(SnitchRuntimeBaseOp, ABC):
 
 
 @irdl_op_definition
+class GlobalCoreBaseHartidOp(SnitchRuntimeGetInfo):
+    """
+    Get the current core's global base Hart ID
+    """
+
+    name = "snrt.global_core_base_hartid"
+
+
+@irdl_op_definition
+class GlobalCoreIdxOp(SnitchRuntimeGetInfo):
+    """
+    Regardless of core type, return global core index, equal to the Hart ID of the current core - global base Hart ID of the cluster
+    """
+
+    name = "snrt.global_core_idx"
+
+
+@irdl_op_definition
+class GlobalCoreNumOp(SnitchRuntimeGetInfo):
+    """
+    Return total amount of cores including DMA cores per cluster
+    """
+
+    name = "snrt.global_core_num"
+
+
+@irdl_op_definition
+class GlobalComputeCoreIdxOp(SnitchRuntimeGetInfo):
+    """
+    For compute core, return global core index
+    """
+
+    name = "snrt.global_compute_core_idx"
+
+
+@irdl_op_definition
+class GlobalComputeCoreNumOp(SnitchRuntimeGetInfo):
+    """
+    Return total amount of compute cores per cluster
+    """
+
+    name = "snrt.global_compute_core_num"
+
+
+@irdl_op_definition
+class GlobalDmCoreIdxOp(SnitchRuntimeGetInfo):
+    """
+    For DMA core, return global core index
+    """
+
+    name = "snrt.global_dm_core_idx"
+
+
+@irdl_op_definition
+class GlobalDmCoreNumOp(SnitchRuntimeGetInfo):
+    """
+    Return total amount of DMA cores
+    """
+
+    name = "snrt.global_dm_core_num"
+
+
+@irdl_op_definition
+class ClusterCoreBaseHartidOp(SnitchRuntimeGetInfo):
+    """
+    Return Base Hart ID for this cluster
+    """
+
+    name = "snrt.cluster_core_base_hartid"
+
+
+@irdl_op_definition
+class ClusterCoreIdxOp(SnitchRuntimeGetInfo):
+    """
+    Return cluster identifier
+    """
+
+    name = "snrt.cluster_core_idx"
+
+
+@irdl_op_definition
+class ClusterCoreNumOp(SnitchRuntimeGetInfo):
+    """
+    Return total amount of cores for the current cluster
+    """
+
+    name = "snrt.cluster_core_num"
+
+
+@irdl_op_definition
+class ClusterComputeCoreIdxOp(SnitchRuntimeGetInfo):
+    """
+    For compute cores return core ID within a cluster
+    """
+
+    name = "snrt.cluster_compute_core_idx"
+
+
+@irdl_op_definition
+class ClusterComputeCoreNumOp(SnitchRuntimeGetInfo):
+    """
+    Return number of compute cores for the current cluster
+    """
+
+    name = "snrt.cluster_compute_core_num"
+
+
+@irdl_op_definition
+class ClusterDmCoreIdxOp(SnitchRuntimeGetInfo):
+    """
+    For DMA cores, return core ID within a cluster, currently hardcoded to number of all cores - 1
+    """
+
+    name = "snrt.cluster_dm_core_idx"
+
+
+@irdl_op_definition
+class ClusterDmCoreNumOp(SnitchRuntimeGetInfo):
+    """
+    Return amount of DMA cores in this cluster, in the current runtime, this is hardcoded to 1
+    """
+
+    name = "snrt.cluster_dm_core_num"
+
+
+@irdl_op_definition
+class ClusterIdxOp(SnitchRuntimeGetInfo):
+    """
+    Return i32 identifier for the cluster this core is a part of
+    """
+
+    name = "snrt.cluster_idx"
+
+
+@irdl_op_definition
 class ClusterNumOp(SnitchRuntimeGetInfo):
     """
     Probe the amount of clusters
     """
 
     name = "snrt.cluster_num"
+
+
+@irdl_op_definition
+class IsComputeCoreOp(SnitchRuntimeGetInfo):
+    """
+    Return non-zero integer if current snitch core is a compute core
+    """
+
+    name = "snrt.is_compute_core"
+
+
+@irdl_op_definition
+class IsDmCoreOp(SnitchRuntimeGetInfo):
+    """
+    Return non-zero integer if current snitch core is a DMA core
+    """
+
+    name = "snrt.is_dm_core"
 
 
 @irdl_op_definition
@@ -71,7 +228,75 @@ class ClusterHwBarrierOp(SnitchRuntimeBarrier):
     name = "snrt.cluster_hw_barrier"
 
 
+@irdl_op_definition
+class ClusterSwBarrierOp(SnitchRuntimeBarrier):
+    """
+    Synchronize with compute cores after loading data
+    """
+
+    name = "snrt.cluster_sw_barrier"
+
+
+@irdl_op_definition
+class GlobalBarrierOp(SnitchRuntimeBarrier):
+    """
+    Synchronize clusters globally with a global software barrier
+    """
+
+    name = "snrt.global_barrier"
+
+
 _T = TypeVar("_T", bound=Attribute)
+
+
+@irdl_op_definition
+class BarrierRegPtrOp(SnitchRuntimeGetInfo):
+    """
+    Get pointer to barrier register
+    """
+
+    name = "snrt.barrier_reg_ptr"
+
+
+class GetMemoryInfoBaseOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Generic base class for operations returning memory slices
+    """
+
+    slice_begin: OpResult = result_def(slice_t_begin)
+    slice_end: OpResult = result_def(slice_t_end)
+
+    def __init__(
+        self,
+    ):
+        super().__init__(operands=[], result_types=[slice_t_begin, slice_t_end])
+
+
+@irdl_op_definition
+class GlobalMemoryOp(GetMemoryInfoBaseOp):
+    """
+    Get start address of global memory
+    """
+
+    name = "snrt.global_memory"
+
+
+@irdl_op_definition
+class ClusterMemoryOp(GetMemoryInfoBaseOp):
+    """
+    Get start address of the cluster's TCDM memory
+    """
+
+    name = "snrt.cluster_memory"
+
+
+@irdl_op_definition
+class ZeroMemoryOp(GetMemoryInfoBaseOp):
+    """
+    Get start address of the cluster's zero memory
+    """
+
+    name = "snrt.zero_memory"
 
 
 class DmaStart1DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
@@ -183,8 +408,31 @@ class DmaWaitAllOp(SnitchRuntimeBarrier):
 
 SnitchRuntime = Dialect(
     [
+        GlobalCoreBaseHartidOp,
+        GlobalCoreIdxOp,
+        GlobalCoreNumOp,
+        GlobalComputeCoreIdxOp,
+        GlobalComputeCoreNumOp,
+        GlobalDmCoreIdxOp,
+        GlobalDmCoreNumOp,
+        ClusterCoreBaseHartidOp,
+        ClusterCoreIdxOp,
+        ClusterCoreNumOp,
+        ClusterComputeCoreIdxOp,
+        ClusterComputeCoreNumOp,
+        ClusterDmCoreIdxOp,
+        ClusterDmCoreNumOp,
+        ClusterIdxOp,
         ClusterNumOp,
+        IsComputeCoreOp,
+        IsDmCoreOp,
         ClusterHwBarrierOp,
+        ClusterSwBarrierOp,
+        GlobalBarrierOp,
+        BarrierRegPtrOp,
+        GlobalMemoryOp,
+        ClusterMemoryOp,
+        ZeroMemoryOp,
         DmaStart1DWideptrOp,
         DmaStart1DOp,
         DmaStart2DWideptrOp,
