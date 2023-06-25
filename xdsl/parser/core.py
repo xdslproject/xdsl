@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import functools
 import itertools
 import math
 import re
-import sys
 from abc import ABC
 from collections import defaultdict
 from dataclasses import dataclass
@@ -14,7 +12,6 @@ from typing import (
     NoReturn,
     TypeVar,
     Iterable,
-    IO,
     cast,
     Literal,
     Callable,
@@ -79,66 +76,6 @@ from xdsl.ir.affine import AffineMap
 from xdsl.utils.hints import isa
 
 import xdsl.parser.affine_parser as affine_parser
-
-
-@dataclass
-class BacktrackingHistory:
-    """
-    This class holds on to past errors encountered during parsing.
-
-    Given the following error message:
-       <unknown>:2:12
-         %0 : !invalid = arith.constant() ["value" = 1 : !i32]
-               ^^^^^^^
-               'invalid' is not a known attribute
-
-       <unknown>:2:7
-         %0 : !invalid = arith.constant() ["value" = 1 : !i32]
-              ^
-              Expected type of value-id here!
-
-    The BacktrackingHistory will contain the outermost error "
-    "(expected type of value-id here)
-    It's parent will be the next error message (not a known attribute).
-    Some errors happen in named regions (e.g. "parsing of operation")
-    """
-
-    error: ParseError
-    parent: BacktrackingHistory | None
-    region_name: str | None
-    pos: Position
-
-    def print_unroll(self, file: IO[str] = sys.stderr):
-        if self.parent:
-            if self.parent.get_farthest_point() > self.pos:
-                self.parent.print_unroll(file)
-                self.print(file)
-            else:
-                self.print(file)
-                self.parent.print_unroll(file)
-
-    def print(self, file: IO[str] = sys.stderr):
-        print(
-            "Parsing of {} failed:".format(self.region_name or "<unknown>"), file=file
-        )
-        self.error.print_pretty(file=file)
-
-    @functools.cache
-    def get_farthest_point(self) -> Position:
-        """
-        Find the farthest this history managed to parse
-        """
-        if self.parent:
-            return max(self.pos, self.parent.get_farthest_point())
-        return self.pos
-
-    def iterate(self) -> Iterable[BacktrackingHistory]:
-        yield self
-        if self.parent:
-            yield from self.parent.iterate()
-
-    def __hash__(self):
-        return id(self)
 
 
 @dataclass
