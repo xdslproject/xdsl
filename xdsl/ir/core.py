@@ -815,7 +815,9 @@ class Operation(IRNode):
         try:
             self.verify_()
         except VerifyException as err:
-            self.emit_error("Operation does not verify: " + str(err))
+            self.emit_error(
+                "Operation does not verify: " + str(err), underlying_error=err
+            )
 
     def verify_(self) -> None:
         pass
@@ -974,14 +976,17 @@ class Operation(IRNode):
         return True
 
     def emit_error(
-        self, message: str, exception_type: type[Exception] = VerifyException
+        self,
+        message: str,
+        exception_type: type[Exception] = VerifyException,
+        underlying_error: Exception | None = None,
     ) -> NoReturn:
         """Emit an error with the given message."""
         from xdsl.utils.diagnostic import Diagnostic
 
         diagnostic = Diagnostic()
         diagnostic.add_message(self, message)
-        diagnostic.raise_exception(message, self, exception_type)
+        diagnostic.raise_exception(message, self, exception_type, underlying_error)
 
     def __eq__(self, other: object) -> bool:
         return self is other
