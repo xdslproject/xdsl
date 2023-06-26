@@ -10,6 +10,7 @@ from typing import (
     Any,
     Generic,
     Iterable,
+    Mapping,
     NoReturn,
     Protocol,
     Sequence,
@@ -621,9 +622,8 @@ class Operation(IRNode):
         return self._operands
 
     @operands.setter
-    def operands(self, new: list[SSAValue] | tuple[SSAValue, ...]):
-        if isinstance(new, list):
-            new = tuple(new)
+    def operands(self, new: Sequence[SSAValue]):
+        new = tuple(new)
         for idx, operand in enumerate(self._operands):
             operand.remove_use(Use(self, idx))
         for idx, operand in enumerate(new):
@@ -636,23 +636,13 @@ class Operation(IRNode):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue] | None = None,
-        result_types: Sequence[Attribute] | None = None,
-        attributes: dict[str, Attribute] | None = None,
-        successors: Sequence[Block] | None = None,
-        regions: Sequence[Region] | None = None,
+        operands: Sequence[SSAValue] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute] = {},
+        successors: Sequence[Block] = (),
+        regions: Sequence[Region] = (),
     ) -> None:
         super().__init__()
-        if operands is None:
-            operands = []
-        if result_types is None:
-            result_types = []
-        if attributes is None:
-            attributes = {}
-        if successors is None:
-            successors = []
-        if regions is None:
-            regions = []
 
         # This is assumed to exist by Operation.operand setter.
         self._operands = tuple()
@@ -661,7 +651,7 @@ class Operation(IRNode):
         self.results = [
             OpResult(typ, self, idx) for (idx, typ) in enumerate(result_types)
         ]
-        self.attributes = attributes
+        self.attributes = dict(attributes)
         self.successors = list(successors)
         self.regions = []
         for region in regions:
@@ -672,11 +662,11 @@ class Operation(IRNode):
     @classmethod
     def create(
         cls: type[OpT],
-        operands: Sequence[SSAValue] | None = None,
-        result_types: Sequence[Attribute] | None = None,
-        attributes: dict[str, Attribute] | None = None,
-        successors: Sequence[Block] | None = None,
-        regions: Sequence[Region] | None = None,
+        operands: Sequence[SSAValue] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: dict[str, Attribute] = {},
+        successors: Sequence[Block] = (),
+        regions: Sequence[Region] = (),
     ) -> OpT:
         op = cls.__new__(cls)
         Operation.__init__(op, operands, result_types, attributes, successors, regions)
