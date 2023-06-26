@@ -263,7 +263,7 @@ class ReduceOp(IRDLOperation):
         argument: SSAValue | Operation,
         block: Block,
     ) -> ReduceOp:
-        return ReduceOp.build(operands=[argument], regions=[Region(block, parent=None)])
+        return ReduceOp.build(operands=[argument], regions=[Region(block)])
 
     def verify_(self) -> None:
         if len(self.body.block.args) != 2:

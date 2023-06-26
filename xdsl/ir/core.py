@@ -483,7 +483,7 @@ class ParametrizedAttribute(Attribute):
 
 @dataclass
 class IRNode(ABC):
-    parent: IRNode | None
+    parent: IRNode | None = field(default=None, init=False, repr=False)
 
     def is_ancestor(self, op: IRNode) -> bool:
         "Returns true if the IRNode is an ancestor of another IRNode."
@@ -516,29 +516,29 @@ class IRNode(ABC):
         ...
 
 
-@dataclass
+@dataclass(init=False)
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
-    name: ClassVar[str] = field(init=False, repr=False)
+    name: ClassVar[str] = field(repr=False)
     """The operation name. Should be a static member of the class"""
 
-    _operands: tuple[SSAValue, ...] = field(default_factory=lambda: ())
+    _operands: tuple[SSAValue, ...]
     """The operation operands."""
 
-    results: list[OpResult] = field(default_factory=list)
+    results: list[OpResult]
     """The results created by the operation."""
 
-    successors: list[Block] = field(default_factory=list)
+    successors: list[Block]
     """
     The basic blocks that the operation may give control to.
     This list should be empty for non-terminator operations.
     """
 
-    attributes: dict[str, Attribute] = field(default_factory=dict)
+    attributes: dict[str, Attribute]
     """The attributes attached to the operation."""
 
-    regions: list[Region] = field(default_factory=list)
+    regions: list[Region]
     """Regions arguments of the operation."""
 
     parent: Block | None = field(default=None, repr=False)
@@ -550,7 +550,7 @@ class Operation(IRNode):
     _prev_op: Operation | None = field(default=None, repr=False)
     """Previous operation in block containing this operation."""
 
-    traits: ClassVar[frozenset[OpTrait]] = field(init=False)
+    traits: ClassVar[frozenset[OpTrait]]
     """
     Traits attached to an operation definition.
     This is a static field, and is made empty by default by PyRDL if not set
@@ -642,6 +642,7 @@ class Operation(IRNode):
         successors: Sequence[Block] | None = None,
         regions: Sequence[Region] | None = None,
     ) -> None:
+        super().__init__()
         if operands is None:
             operands = []
         if result_types is None:
@@ -1124,15 +1125,13 @@ class Block(IRNode):
         ops: Iterable[Operation] = (),
         *,
         arg_types: Iterable[Attribute] = (),
-        parent: Region | None = None,
     ):
-        super().__init__(self)
+        super().__init__()
         self._args = tuple(
             BlockArgument(typ, self, index) for index, typ in enumerate(arg_types)
         )
         self._first_op = None
         self._last_op = None
-        self.parent = parent
 
         self.add_ops(ops)
 
@@ -1474,11 +1473,8 @@ class Region(IRNode):
     parent: Operation | None = field(default=None, repr=False)
     """Operation containing the region."""
 
-    def __init__(
-        self, blocks: Block | Iterable[Block] = (), parent: Operation | None = None
-    ):
-        super().__init__(self)
-        self.parent = parent
+    def __init__(self, blocks: Block | Iterable[Block] = ()):
+        super().__init__()
         self.blocks = []
         if isinstance(blocks, Block):
             blocks = (blocks,)
