@@ -1197,11 +1197,11 @@ class UnregisteredOp(IRDLOperation, ABC):
             @classmethod
             def create(
                 cls,
-                operands: Sequence[SSAValue] | None = None,
-                result_types: Sequence[Attribute] | None = None,
-                attributes: dict[str, Attribute] | None = None,
-                successors: Sequence[Block] | None = None,
-                regions: Sequence[Region] | None = None,
+                operands: Sequence[SSAValue] = (),
+                result_types: Sequence[Attribute] = (),
+                attributes: Mapping[str, Attribute] = {},
+                successors: Sequence[Block] = (),
+                regions: Sequence[Region] = (),
             ):
                 op = super().create(
                     operands, result_types, attributes, successors, regions

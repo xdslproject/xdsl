@@ -1761,6 +1761,8 @@ class Parser(BaseParser):
 
         # Parse successors
         successors = self.parse_optional_successors()
+        if successors is None:
+            successors = []
 
         # Parse regions
         regions = []
