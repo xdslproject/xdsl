@@ -29,9 +29,10 @@ parser.add_argument(
     default="interpret",
     help="Action to perform on source file (default: interpret)",
 )
+parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
 
 
-def main(path: Path, emit: str):
+def main(path: Path, emit: str, print_generic: bool):
     ctx = context()
 
     path = args.source
@@ -54,29 +55,27 @@ def main(path: Path, emit: str):
                 print(f"Unknown file format {path}")
                 return
 
+    printer = Printer(print_generic_format=print_generic)
+
     if emit == "ir-toy":
-        printer = Printer()
         printer.print(module_op)
         return
 
     OptimiseToy().apply(ctx, module_op)
 
     if emit == "ir-toy-opt":
-        printer = Printer()
         printer.print(module_op)
         return
 
     InlineToyPass().apply(ctx, module_op)
 
     if emit == "ir-toy-inline":
-        printer = Printer()
         printer.print(module_op)
         return
 
     ShapeInferencePass().apply(ctx, module_op)
 
     if emit == "ir-toy-infer-shapes":
-        printer = Printer()
         printer.print(module_op)
         return
 
@@ -91,4 +90,4 @@ def main(path: Path, emit: str):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.source, args.emit)
+    main(args.source, args.emit, args.print_generic)

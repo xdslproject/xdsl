@@ -85,7 +85,9 @@ class AffineParser(BaseParser):
             rhs = self._parse_primary(dims, syms)
             next_prec = self._get_token_precedence()
             if tok_prec < next_prec:
-                rhs = self._parse_binop_rhs(rhs, tok_prec, dims, syms)
+                # Increase the precision of the current operator to parse
+                # it before the next one in case they have same precedence.
+                rhs = self._parse_binop_rhs(rhs, tok_prec + 1, dims, syms)
             lhs = self._create_binop_expr(lhs, rhs, binop)
 
     # TODO: Extend to semi-affine maps
