@@ -664,7 +664,7 @@ class Operation(IRNode):
         cls: type[OpT],
         operands: Sequence[SSAValue] = (),
         result_types: Sequence[Attribute] = (),
-        attributes: dict[str, Attribute] = {},
+        attributes: Mapping[str, Attribute] = {},
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
     ) -> OpT:
