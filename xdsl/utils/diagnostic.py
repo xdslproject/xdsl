@@ -20,6 +20,7 @@ class Diagnostic:
         message: str,
         ir: IRNode,
         exception_type: type[Exception] = DiagnosticException,
+        underlying_error: Exception | None = None,
     ) -> NoReturn:
         """Raise an exception, that will also print all messages in the IR."""
         from xdsl.printer import Printer
@@ -38,4 +39,4 @@ class Diagnostic:
         else:
             assert "xDSL internal error: get_toplevel_object returned unknown construct"
 
-        raise exception_type(message + "\n\n" + f.getvalue())
+        raise exception_type(message + "\n\n" + f.getvalue()) from underlying_error
