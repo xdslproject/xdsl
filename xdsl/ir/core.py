@@ -707,6 +707,28 @@ class Operation(IRNode):
         Operation.__init__(op, operands, result_types, attributes, successors, regions)
         return op
 
+    @deprecated("Use op.operands.__setindex__ instead")
+    def replace_operand(self, operand: int | SSAValue, new_operand: SSAValue) -> None:
+        """
+        Replace an operand with another operand.
+        Raises ValueError if the specified operand is not an operand of this op
+        """
+        if isinstance(operand, SSAValue):
+            try:
+                operand_idx = self._operands.index(operand)
+            except ValueError as err:
+                raise ValueError(
+                    "{} is not an operand of {}.".format(operand, self)
+                ) from err
+        else:
+            operand_idx = operand
+
+        self.operands = (
+            list(self._operands[:operand_idx])
+            + [new_operand]
+            + list(self._operands[operand_idx + 1 :])
+        )
+
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
         if region.parent:

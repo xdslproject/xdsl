@@ -144,6 +144,7 @@ def test_op_operands_assign():
     val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
     op = TestOp.create(operands=[val1, val2])
     op.operands = [val2, val1]
+    op.verify()
 
     assert len(val1.uses) == 1
     assert len(val2.uses) == 1
@@ -154,6 +155,7 @@ def test_op_operands_indexing():
     """Test `__getitem__`, `__setitem__`, and `__len__` on `op.operands`."""
     val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
     op = TestOp.create(operands=[val1, val2])
+    op.verify()
 
     assert op.operands[0] == val1
     assert op.operands[1] == val2
@@ -161,6 +163,7 @@ def test_op_operands_indexing():
     assert op.operands[0:2] == (val1, val2)
 
     op.operands[0] = val2
+    op.verify()
 
     assert len(val1.uses) == 0
     assert len(val2.uses) == 2
