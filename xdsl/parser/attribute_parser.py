@@ -70,7 +70,17 @@ from xdsl.parser.base_parser import BaseParser
 @dataclass
 class AttrParser(BaseParser):
     """
-    TODO
+    Basic recursive descent parser for attributes and types.
+
+    Methods named `parse_*` will consume tokens, and throw a `ParseError` if
+    an unexpected token is parsed. Methods marked with `parse_optional` will return
+    None if the first token is unexpected, and will throw a `ParseError` if the
+    first token is expected, but a following token is not.
+
+    Methods with a `context_msg` argument allows to append the context message to the
+    thrown error. For instance, if `',' expected` is returned, setting `context_msg` to
+    `" in integer list"` will throw the error `',' expected in integer list` instead.
+
     """
 
     ctx: MLContext
