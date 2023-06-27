@@ -394,4 +394,4 @@ def test_yield():
     yield_op = YieldOp(operands)
 
     assert isinstance(yield_op, YieldOp)
-    assert yield_op.operands == tuple([SSAValue.get(o) for o in operands])
+    assert list(yield_op.operands) == [SSAValue.get(o) for o in operands]

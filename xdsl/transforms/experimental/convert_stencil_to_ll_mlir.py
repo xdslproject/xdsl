@@ -217,7 +217,7 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
     for idx, arg in enumerate(entry.args):
         arg_uses = set(arg.uses)
         for use in arg_uses:
-            use.operation.replace_operand(use.index, op.args[idx])
+            use.operation.operands[use.index] = op.args[idx]
         entry.erase_arg(arg)
 
     rewriter.insert_block_argument(entry, 0, builtin.IndexType())
