@@ -20,46 +20,46 @@ from wgpu_interpreter import WGPUFunctions
 
 
 # This defines the function's body
-@Builder.implicit_region(
-    [
-        # It takes two memref<?xi32> (i.e. two dynamic arrays of i32)
-        memref.MemRefType.from_element_type_and_shape(builtin.i32, shape=[-1]),
-        memref.MemRefType.from_element_type_and_shape(builtin.i32, shape=[-1]),
-    ]
-)
-def function_body(args: tuple[BlockArgument, ...]):
-    # Find out the thread id in dim x
-    # to mimic WGPU "let i: u32 = index.x;"
-    thread_id_x = gpu.GlobalIdOp.get(gpu.DimensionAttr.from_dimension("x"))
-    # That's just setting
-    # the printed name to "i" for convenience
-    thread_id_x.result.name_hint = "i"
-    # Take the value from
-    load = memref.Load.get(args[0], [thread_id_x.result])
-    load.res.name_hint = "val"
-    memref.Store.get(load.res, args[1], [thread_id_x.result])
+# @Builder.implicit_region(
+#     [
+#         # It takes two memref<?xi32> (i.e. two dynamic arrays of i32)
+#         memref.MemRefType.from_element_type_and_shape(builtin.i32, shape=[-1]),
+#         memref.MemRefType.from_element_type_and_shape(builtin.i32, shape=[-1]),
+#     ]
+# )
+# def function_body(args: tuple[BlockArgument, ...]):
+#     # Find out the thread id in dim x
+#     # to mimic WGPU "let i: u32 = index.x;"
+#     thread_id_x = gpu.GlobalIdOp.get(gpu.DimensionAttr.from_dimension("x"))
+#     # That's just setting
+#     # the printed name to "i" for convenience
+#     thread_id_x.result.name_hint = "i"
+#     # Take the value from
+#     load = memref.Load.get(args[0], [thread_id_x.result])
+#     load.res.name_hint = "val"
+#     memref.Store.get(load.res, args[1], [thread_id_x.result])
+#
+#
+# @Builder.implicit_region
+# def module_region():
+#     FuncOp(
+#         "main",
+#         FunctionType.from_lists(
+#             [
+#                 memref.MemRefType.from_element_type_and_shape(builtin.i32, shape=[-1]),
+#                 memref.MemRefType.from_element_type_and_shape(builtin.i32, shape=[-1]),
+#             ],
+#             [],
+#         ),
+#         function_body,
+#     )
 
 
-@Builder.implicit_region
-def module_region():
-    FuncOp(
-        "main",
-        FunctionType.from_lists(
-            [
-                memref.MemRefType.from_element_type_and_shape(builtin.i32, shape=[-1]),
-                memref.MemRefType.from_element_type_and_shape(builtin.i32, shape=[-1]),
-            ],
-            [],
-        ),
-        function_body,
-    )
-
-
-shader_ir = gpu.ModuleOp.get(SymbolRefAttr("main"), module_region)
-out_string = StringIO("")
-wgpu_printer = WGPUFunctions()
-wgpu_printer.print(shader_ir, out_string)
-print(out_string.getvalue())
+# shader_ir = gpu.ModuleOp.get(SymbolRefAttr("main"), module_region)
+# out_string = StringIO("")
+# wgpu_printer = WGPUFunctions()
+# wgpu_printer.print(shader_ir, out_string)
+# print(out_string.getvalue())
 
 # %% Shader and data
 
@@ -79,6 +79,42 @@ fn main(@builtin(global_invocation_id) index: vec3<u32>) {
 }
 """
 
+new = """
+ @group(0) @binding(0)
+                    var<storage,read> data1: array<i32>;
+                
+                    @group(0) @binding(1)
+                    var<storage,read_write> data2: array<i32>;
+                
+        @compute
+        @workgroup_size(1)
+        fn main(@builtin(global_invocation_id) index: vec3<u32>) {
+        
+        let i: u32 = index.x;
+        
+                    let cst1 : u32 = 1u;
+                    
+                    let cstm1 : u32 = 4294967295u;
+                    
+            let cst2 : i32 = 2;
+            
+        let im1 = i + cstm1;
+        let ip1 = i + cst1;
+                let val = data1[i];
+                
+                let valm1 = data1[im1];
+                
+                let valp1 = data1[ip1];
+                
+        let sides = valm1 + valp1;
+                let val2 = val * cst2;
+                let res = sides - val2;
+                        data2[i] = res;
+                        
+            }
+
+"""
+
 # Create input data as a memoryview
 n = 20
 data = memoryview(bytearray(n * 4)).cast("i")
@@ -89,13 +125,13 @@ for i in range(n):
 
 # The first arg is the input data, per binding
 # The second arg are the ouput types, per binding
-out = compute_with_buffers({0: data}, {1: (n, "i")}, out_string.getvalue(), n=n)
+out = compute_with_buffers({0: data}, {1: (n, "i")}, new, n=n)
 
 # The result is a dict matching the output types
 # Select data from buffer at binding 1
 result = out[1].tolist()
 print(result)
-assert result == list(range(20))
+# assert result == list(range(20))
 
 # %% The short version, using numpy
 
@@ -111,7 +147,7 @@ assert result == list(range(20))
 
 # Create device and shader object
 device = wgpu.utils.get_default_device()
-cshader = device.create_shader_module(code=out_string.getvalue())
+cshader = device.create_shader_module(code=new)
 
 # Create buffer objects, input buffer is mapped.
 buffer1 = device.create_buffer_with_data(data=data, usage=wgpu.BufferUsage.STORAGE)
@@ -170,4 +206,4 @@ device.queue.submit([command_encoder.finish()])
 out = device.queue.read_buffer(buffer2).cast("i")
 result = out.tolist()
 print(result)
-assert result == list(range(20))
+# assert result == list(range(20))
