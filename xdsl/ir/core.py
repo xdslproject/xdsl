@@ -521,7 +521,7 @@ class IRNode(ABC):
 @dataclass
 class OpOperands(Sequence[SSAValue]):
     """
-    A view on an operation operand list.
+    A view of the operand list of an operation.
     Any modification to the view is reflected on the operation.
     """
 
