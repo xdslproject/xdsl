@@ -4,7 +4,7 @@ from xdsl.builder import Builder
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects import riscv
 from xdsl.ir import MLContext
-from xdsl.transforms.riscv_register_allocation import RegisterAllocation
+from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 import pytest
 
@@ -27,7 +27,7 @@ def test_simple():
         riscv.CustomAssemblyInstructionOp("print", inputs=[forty_two], result_types=[])
         riscv.ReturnOp()
 
-    RegisterAllocation().apply(ctx, module)
+    RISCVRegisterAllocation().apply(ctx, module)
 
     code = riscv.riscv_code(module)
 
@@ -54,7 +54,7 @@ def test_simple_float():
         riscv.CustomAssemblyInstructionOp("print.float", inputs=[mul], result_types=[])
         riscv.ReturnOp()
 
-    RegisterAllocation().apply(ctx, module)
+    RISCVRegisterAllocation().apply(ctx, module)
 
     code = riscv.riscv_code(module)
 
@@ -159,7 +159,7 @@ def test_multiply_add():
 
         riscv.LabelOp("muladd", muladd)
 
-    RegisterAllocation().apply(ctx, module)
+    RISCVRegisterAllocation().apply(ctx, module)
 
     code = riscv.riscv_code(module)
 
