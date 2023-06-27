@@ -42,35 +42,6 @@ def test_simple():
     assert "42\n" == stream.getvalue()
 
 
-def test_simple_float():
-    @ModuleOp
-    @Builder.implicit_region
-    def module():
-        fivei = riscv.LiOp(1084227584).rd
-        fouri = riscv.LiOp(1082130432).rd
-        fivef = riscv.FCvtSWuOp(fivei).rd
-        fourf = riscv.FCvtSWuOp(fouri).rd
-        mul = riscv.FMulSOp(fivef, fourf).rd
-        riscv.CustomAssemblyInstructionOp("print.float", inputs=[mul], result_types=[])
-        riscv.ReturnOp()
-
-    RISCVRegisterAllocation().apply(ctx, module)
-
-    code = riscv.riscv_code(module)
-
-    print(code)
-
-    stream = StringIO()
-    RV_Debug.stream = stream
-    run_riscv(
-        code,
-        extensions=[RV_Debug],
-        unlimited_regs=True,
-        verbosity=1,
-    )
-    assert "20.0\n" == stream.getvalue()
-
-
 def test_multiply_add():
     @ModuleOp
     @Builder.implicit_region

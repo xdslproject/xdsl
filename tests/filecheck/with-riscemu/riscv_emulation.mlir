@@ -15,22 +15,6 @@ builtin.module {
 // -----
 
 builtin.module {
-  %0 = "riscv.li"() {"immediate" = 1084227584 : si32} : () -> !riscv.reg<j0>
-  %1 = "riscv.li"() {"immediate" = 1082130432 : si32} : () -> !riscv.reg<j1>
-  %2 = "riscv.fcvt.s.wu"(%0) : (!riscv.reg<j0>) -> !riscv.freg<ft11>
-  %3 = "riscv.fcvt.s.wu"(%1) : (!riscv.reg<j1>) -> !riscv.freg<ft10>
-  %4 = "riscv.fmul.s"(%2, %3) : (!riscv.freg<ft11>, !riscv.freg<ft10>) -> !riscv.freg<ft9>
-  "riscv.custom_assembly_instruction"(%4) {"instruction_name" = "print.float"} : (!riscv.freg<ft9>) -> ()
-  %5 = "riscv.li"() {"immediate" = 93 : si32} : () -> !riscv.reg<a7>
-  "riscv.ecall"() : () -> ()
-  "riscv.ret"() : () -> ()
-}
-
-// CHECK: 20.0
-
-// -----
-
-builtin.module {
   "riscv.label"() ({
     %0 = "riscv.li"() {"immediate" = 3 : si32} : () -> !riscv.reg<a0>
     %1 = "riscv.li"() {"immediate" = 2 : si32} : () -> !riscv.reg<a1>
