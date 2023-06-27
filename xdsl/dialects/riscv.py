@@ -2226,7 +2226,7 @@ class ScfgwOp(RsRsIntegerOperation):
 
 # endregion
 
-# region RV32F: 8 “F” Standard Extension forSingle-Precision Floating-Point, Version 2.0
+# region RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
 
 
 class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):

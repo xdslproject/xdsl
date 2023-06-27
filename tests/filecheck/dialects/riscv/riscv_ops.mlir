@@ -194,7 +194,7 @@
   // RV32I/RV64I: 2.5 Control Transfer Instructions (cont'd)
   // terminators
 
-  // RV32F: 8 “F” Standard Extension forSingle-Precision Floating-Point, Version 2.0
+  // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
   %f0 = "riscv.get_float_register"() : () -> !riscv.freg<>
   // CHECK-NEXT: %{{.*}} = "riscv.get_float_register"() : () -> !riscv.freg<>
   %f1 = "riscv.get_float_register"() : () -> !riscv.freg<>
