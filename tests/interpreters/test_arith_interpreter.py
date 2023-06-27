@@ -12,8 +12,8 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects import test
 
 
-runner = Interpreter(ModuleOp([]))
-runner.register_implementations(ArithFunctions())
+interpreter = Interpreter(ModuleOp([]))
+interpreter.register_implementations(ArithFunctions())
 
 lhs_op = test.TestOp(operands=[[]], result_types=[IndexType()], regions=[[]])
 rhs_op = test.TestOp(operands=[[]], result_types=[IndexType()], regions=[[]])
@@ -33,7 +33,7 @@ rhs_op = test.TestOp(operands=[[]], result_types=[IndexType()], regions=[[]])
 def test_constant(value: int, value_type: int | IndexType | IntegerType):
     constant = Constant.from_int_and_width(value, value_type)
 
-    ret = runner.run_op(constant, ())
+    ret = interpreter.run_op(constant, ())
 
     assert len(ret) == 1
     assert ret[0] == value
@@ -44,7 +44,7 @@ def test_constant(value: int, value_type: int | IndexType | IntegerType):
 def test_subi(lhs_value: int, rhs_value: int):
     subi = Subi(lhs_op, rhs_op)
 
-    ret = runner.run_op(subi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(subi, (lhs_value, rhs_value))
 
     assert len(ret) == 1
     assert ret[0] == lhs_value - rhs_value
@@ -55,7 +55,7 @@ def test_subi(lhs_value: int, rhs_value: int):
 def test_addi(lhs_value: int, rhs_value: int):
     addi = Addi(lhs_op, rhs_op)
 
-    ret = runner.run_op(addi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(addi, (lhs_value, rhs_value))
 
     assert len(ret) == 1
     assert ret[0] == lhs_value + rhs_value
@@ -66,7 +66,7 @@ def test_addi(lhs_value: int, rhs_value: int):
 def test_muli(lhs_value: int, rhs_value: int):
     muli = Muli(lhs_op, rhs_op)
 
-    ret = runner.run_op(muli, (lhs_value, rhs_value))
+    ret = interpreter.run_op(muli, (lhs_value, rhs_value))
 
     assert len(ret) == 1
     assert ret[0] == lhs_value * rhs_value
@@ -81,7 +81,7 @@ def test_cmpi(lhs_value: int, rhs_value: int):
         attributes={"predicate": IntegerAttr(0, IndexType())},
     )
 
-    ret = runner.run_op(cmpi, (lhs_value, rhs_value))
+    ret = interpreter.run_op(cmpi, (lhs_value, rhs_value))
 
     assert len(ret) == 1
     assert ret[0] == (lhs_value == rhs_value)
