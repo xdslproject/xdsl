@@ -1,24 +1,17 @@
 from __future__ import annotations
 
-import functools
 import itertools
 import math
 import re
-import sys
-from abc import ABC
 from collections import defaultdict
 from dataclasses import dataclass
-from enum import Enum, auto
 from typing import (
     Any,
     NoReturn,
-    TypeVar,
     Iterable,
-    IO,
     cast,
     Literal,
     Callable,
-    overload,
     Sequence,
 )
 
@@ -79,66 +72,7 @@ from xdsl.ir.affine import AffineMap
 from xdsl.utils.hints import isa
 
 import xdsl.parser.affine_parser as affine_parser
-
-
-@dataclass
-class BacktrackingHistory:
-    """
-    This class holds on to past errors encountered during parsing.
-
-    Given the following error message:
-       <unknown>:2:12
-         %0 : !invalid = arith.constant() ["value" = 1 : !i32]
-               ^^^^^^^
-               'invalid' is not a known attribute
-
-       <unknown>:2:7
-         %0 : !invalid = arith.constant() ["value" = 1 : !i32]
-              ^
-              Expected type of value-id here!
-
-    The BacktrackingHistory will contain the outermost error "
-    "(expected type of value-id here)
-    It's parent will be the next error message (not a known attribute).
-    Some errors happen in named regions (e.g. "parsing of operation")
-    """
-
-    error: ParseError
-    parent: BacktrackingHistory | None
-    region_name: str | None
-    pos: Position
-
-    def print_unroll(self, file: IO[str] = sys.stderr):
-        if self.parent:
-            if self.parent.get_farthest_point() > self.pos:
-                self.parent.print_unroll(file)
-                self.print(file)
-            else:
-                self.print(file)
-                self.parent.print_unroll(file)
-
-    def print(self, file: IO[str] = sys.stderr):
-        print(
-            "Parsing of {} failed:".format(self.region_name or "<unknown>"), file=file
-        )
-        self.error.print_pretty(file=file)
-
-    @functools.cache
-    def get_farthest_point(self) -> Position:
-        """
-        Find the farthest this history managed to parse
-        """
-        if self.parent:
-            return max(self.pos, self.parent.get_farthest_point())
-        return self.pos
-
-    def iterate(self) -> Iterable[BacktrackingHistory]:
-        yield self
-        if self.parent:
-            yield from self.parent.iterate()
-
-    def __hash__(self):
-        return id(self)
+from xdsl.parser.base_parser import ParserState, BaseParser
 
 
 @dataclass
@@ -182,23 +116,7 @@ class UnresolvedOperand:
         return self.span.text[1:]
 
 
-@dataclass(init=False)
-class ParserState:
-    """
-    The parser state. It contains the lexer, and the next token to parse.
-    The parser state should be shared between all parsers, so parsers can
-    share the same position.
-    """
-
-    lexer: Lexer
-    current_token: Token
-
-    def __init__(self, lexer: Lexer):
-        self.lexer = lexer
-        self.current_token = lexer.lex()
-
-
-class Parser(ABC):
+class Parser(BaseParser):
     """
     Basic recursive descent parser.
 
@@ -232,14 +150,6 @@ class Parser(ABC):
     This field map a name and a tuple index to the forward declared SSA value.
     """
 
-    parser_state: ParserState
-
-    T_ = TypeVar("T_")
-    """
-    Type var used for handling function that return single or multiple Spans.
-    Basically the output type of all try_parse functions is `T_ | None`
-    """
-
     allow_unregistered_dialect: bool
 
     def __init__(
@@ -249,87 +159,13 @@ class Parser(ABC):
         name: str = "<unknown>",
         allow_unregistered_dialect: bool = False,
     ) -> None:
-        self.parser_state = ParserState(Lexer(Input(input, name)))
+        super().__init__(ParserState(Lexer(Input(input, name))))
         self.ctx = ctx
         self.ssa_values = dict()
         self.blocks = dict()
         self.forward_block_references = dict()
         self.forward_ssa_references = dict()
         self.allow_unregistered_dialect = allow_unregistered_dialect
-
-    def resume_from_state(self, state: ParserState):
-        """
-        Resume parsing from a given parsing state.
-        """
-        self.parser_state = state
-
-    def resume_from(self, pos: Position):
-        """
-        Resume parsing from a given position.
-        """
-        self.lexer.pos = pos
-        self._current_token = self.lexer.lex()
-
-    @property
-    def _current_token(self) -> Token:
-        return self.parser_state.current_token
-
-    @_current_token.setter
-    def _current_token(self, token: Token):
-        self.parser_state.current_token = token
-
-    @property
-    def lexer(self) -> Lexer:
-        return self.parser_state.lexer
-
-    @property
-    def pos(self) -> Position:
-        """Get the position of the next token."""
-        return self._current_token.span.start
-
-    def _consume_token(self, expected_kind: Token.Kind | None = None) -> Token:
-        """
-        Advance the lexer to the next token.
-        Additionally check that the current token was of a specific kind,
-        and assert if it was not.
-        For reporting errors if the token was not of the expected kind,
-        use `_parse_token` instead.
-        """
-        consumed_token = self._current_token
-        if expected_kind is not None:
-            assert consumed_token.kind == expected_kind, "Consumed an unexpected token!"
-        self._current_token = self.lexer.lex()
-        return consumed_token
-
-    def _parse_optional_token(self, expected_kind: Token.Kind) -> Token | None:
-        """
-        If the current token is of the expected kind, consume it and return it.
-        Otherwise, return None.
-        """
-        if self._current_token.kind == expected_kind:
-            current_token = self._current_token
-            self._consume_token(expected_kind)
-            return current_token
-        return None
-
-    def _parse_token(self, expected_kind: Token.Kind, error_msg: str) -> Token:
-        """
-        Parse a specific token, and raise an error if it is not present.
-        Returns the token that was parsed.
-        """
-        if self._current_token.kind != expected_kind:
-            self.raise_error(error_msg, self._current_token.span)
-        current_token = self._current_token
-        self._consume_token(expected_kind)
-        return current_token
-
-    def _parse_optional_token_in(
-        self, expected_kinds: Iterable[Token.Kind]
-    ) -> Token | None:
-        """Parse one of the expected tokens if present, and returns it."""
-        if self._current_token.kind not in expected_kinds:
-            return None
-        return self._consume_token()
 
     def parse_module(self) -> ModuleOp:
         op = self.parse_optional_operation()
@@ -338,7 +174,7 @@ class Parser(ABC):
             self.raise_error("Could not parse entire input!")
 
         if not isinstance(op, ModuleOp):
-            self.resume_from(0)
+            self._resume_from(0)
             self.raise_error("builtin.module operation expected", 0)
 
         if self.forward_ssa_references:
@@ -452,208 +288,6 @@ class Parser(ABC):
         attribute.
         """
         return self.expect(self.parse_optional_symbol_name, "expect symbol name")
-
-    class Delimiter(Enum):
-        """
-        Supported delimiters when parsing lists.
-        """
-
-        PAREN = auto()
-        ANGLE = auto()
-        SQUARE = auto()
-        BRACES = auto()
-        NONE = auto()
-
-    def parse_comma_separated_list(
-        self, delimiter: Delimiter, parse: Callable[[], T_], context_msg: str = ""
-    ) -> list[T_]:
-        """
-        Parses greedily a list of elements separated by commas, and delimited
-        by the specified delimiter. The parsing stops when the delimiter is
-        closed, or when an error is produced. If no delimiter is specified, at
-        least one element is expected to be parsed.
-        """
-        if delimiter == self.Delimiter.NONE:
-            pass
-        elif delimiter == self.Delimiter.PAREN:
-            self._parse_token(Token.Kind.L_PAREN, "Expected '('" + context_msg)
-            if self._parse_optional_token(Token.Kind.R_PAREN) is not None:
-                return []
-        elif delimiter == self.Delimiter.ANGLE:
-            self._parse_token(Token.Kind.LESS, "Expected '<'" + context_msg)
-            if self._parse_optional_token(Token.Kind.GREATER) is not None:
-                return []
-        elif delimiter == self.Delimiter.SQUARE:
-            self._parse_token(Token.Kind.L_SQUARE, "Expected '['" + context_msg)
-            if self._parse_optional_token(Token.Kind.R_SQUARE) is not None:
-                return []
-        elif delimiter == self.Delimiter.BRACES:
-            self._parse_token(Token.Kind.L_BRACE, "Expected '{'" + context_msg)
-            if self._parse_optional_token(Token.Kind.R_BRACE) is not None:
-                return []
-        else:
-            assert False, "Unknown delimiter"
-
-        elems = [parse()]
-        while self._parse_optional_token(Token.Kind.COMMA) is not None:
-            elems.append(parse())
-
-        if delimiter == self.Delimiter.NONE:
-            pass
-        elif delimiter == self.Delimiter.PAREN:
-            self._parse_token(Token.Kind.R_PAREN, "Expected ')'" + context_msg)
-        elif delimiter == self.Delimiter.ANGLE:
-            self._parse_token(Token.Kind.GREATER, "Expected '>'" + context_msg)
-        elif delimiter == self.Delimiter.SQUARE:
-            self._parse_token(Token.Kind.R_SQUARE, "Expected ']'" + context_msg)
-        elif delimiter == self.Delimiter.BRACES:
-            self._parse_token(Token.Kind.R_BRACE, "Expected '}'" + context_msg)
-        else:
-            assert False, "Unknown delimiter"
-
-        return elems
-
-    def parse_optional_boolean(self) -> bool | None:
-        """
-        Parse a boolean, if present, with the format `true` or `false`.
-        """
-        if self._current_token.kind == Token.Kind.BARE_IDENT:
-            if self._current_token.text == "true":
-                self._consume_token(Token.Kind.BARE_IDENT)
-                return True
-            elif self._current_token.text == "false":
-                self._consume_token(Token.Kind.BARE_IDENT)
-                return False
-        return None
-
-    def parse_boolean(self, context_msg: str = "") -> bool:
-        """
-        Parse a boolean with the format `true` or `false`.
-        """
-        return self.expect(
-            lambda: self.parse_optional_boolean(),
-            "Expected boolean literal" + context_msg,
-        )
-
-    def parse_optional_integer(
-        self, allow_boolean: bool = True, allow_negative: bool = True
-    ) -> int | None:
-        """
-        Parse an (possible negative) integer. The integer can either be
-        decimal or hexadecimal.
-        Optionally allow parsing of 'true' or 'false' into 1 and 0.
-        """
-        # Parse true and false if needed
-        if allow_boolean:
-            if (boolean := self.parse_optional_boolean()) is not None:
-                return 1 if boolean else 0
-
-        # Parse negative numbers if required
-        is_negative = False
-        if allow_negative:
-            is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
-
-        # Parse the actual number
-        if (int_token := self._parse_optional_token(Token.Kind.INTEGER_LIT)) is None:
-            if is_negative:
-                self.raise_error("Expected integer literal after '-'")
-            return None
-
-        # Get the value and optionally negate it
-        value = int_token.get_int_value()
-        if is_negative:
-            value = -value
-        return value
-
-    def parse_optional_number(self) -> int | float | None:
-        """
-        Parse an integer or float literal, if present.
-        """
-
-        is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
-
-        if (
-            value := self.parse_optional_integer(
-                allow_boolean=False, allow_negative=False
-            )
-        ) is not None:
-            return -value if is_negative else value
-
-        if (value := self._parse_optional_token(Token.Kind.FLOAT_LIT)) is not None:
-            value = value.get_float_value()
-            return -value if is_negative else value
-
-        if is_negative:
-            self.raise_error("Expected integer or float literal after '-'")
-        return None
-
-    def parse_number(self, context_msg: str = "") -> int | float:
-        """
-        Parse an integer or float literal.
-        """
-        return self.expect(
-            lambda: self.parse_optional_number(),
-            "integer or float literal expected" + context_msg,
-        )
-
-    def parse_integer(
-        self,
-        allow_boolean: bool = True,
-        allow_negative: bool = True,
-        context_msg: str = "",
-    ) -> int:
-        """
-        Parse an (possible negative) integer. The integer can
-        either be decimal or hexadecimal.
-        Optionally allow parsing of 'true' or 'false' into 1 and 0.
-        """
-
-        return self.expect(
-            lambda: self.parse_optional_integer(allow_boolean, allow_negative),
-            "Expected integer literal" + context_msg,
-        )
-
-    def parse_optional_str_literal(self) -> str | None:
-        """
-        Parse a string literal with the format `"..."`, if present.
-
-        Returns the string contents without the quotes and with escape sequences
-        resolved.
-        """
-
-        if (token := self._parse_optional_token(Token.Kind.STRING_LIT)) is None:
-            return None
-        return token.get_string_literal_value()
-
-    def parse_str_literal(self, context_msg: str = "") -> str:
-        """
-        Parse a string literal with the format `"..."`.
-
-        Returns the string contents without the quotes and with escape sequences
-        resolved.
-        """
-        return self.expect(
-            self.parse_optional_str_literal,
-            "string literal expected" + context_msg,
-        )
-
-    def parse_optional_identifier(self) -> str | None:
-        """
-        Parse an identifier, if present, with syntax:
-            ident ::= (letter|[_]) (letter|digit|[_$.])*
-        """
-        if (token := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
-            return token.text
-        return None
-
-    def parse_identifier(self, context_msg: str = "") -> str:
-        """
-        Parse an identifier, if present, with syntax:
-            ident ::= (letter|[_]) (letter|digit|[_$.])*
-        """
-        return self.expect(
-            self.parse_optional_identifier, "identifier expected" + context_msg
-        )
 
     _decimal_integer_regex = re.compile(r"[0-9]+")
 
@@ -989,7 +623,7 @@ class Parser(ABC):
         # `0` and `x`.
         int_token = self._consume_token(Token.Kind.INTEGER_LIT)
         if int_token.text[:2] == "0x":
-            self.resume_from(int_token.span.start + 1)
+            self._resume_from(int_token.span.start + 1)
             return 0
 
         return int_token.get_int_value()
@@ -1012,7 +646,7 @@ class Parser(ABC):
             )
 
         # Move the lexer to the position after 'x'.
-        self.resume_from(self._current_token.span.start + 1)
+        self._resume_from(self._current_token.span.start + 1)
 
     def parse_ranked_shape(self) -> tuple[list[int], Attribute]:
         """
@@ -1144,77 +778,6 @@ class Parser(ABC):
             return TensorType.from_type_and_list(type, shape, encoding)
 
         return TensorType.from_type_and_list(type, shape)
-
-    def expect(self, try_parse: Callable[[], T_ | None], error_message: str) -> T_:
-        """
-        Used to force completion of a try_parse function.
-        Will throw a parse error if it can't.
-        """
-        res = try_parse()
-        if res is None:
-            self.raise_error(error_message)
-        return res
-
-    @overload
-    def raise_error(
-        self,
-        msg: str,
-        at_position: Position,
-        end_position: Position,
-    ) -> NoReturn:
-        ...
-
-    @overload
-    def raise_error(
-        self,
-        msg: str,
-        at_position: Position | Span | None = None,
-    ) -> NoReturn:
-        ...
-
-    def raise_error(
-        self,
-        msg: str,
-        at_position: Span | Position | None = None,
-        end_position: Position | None = None,
-    ) -> NoReturn:
-        """
-        Helper for raising exceptions, provides as much context as possible to them.
-
-        If no position is provided, the error will be displayed at the next token.
-        This will, for example, include backtracking errors, if any occurred previously.
-        """
-        if end_position is not None:
-            assert isinstance(at_position, Position)
-            at_position = Span(at_position, end_position, self.lexer.input)
-        if at_position is None:
-            at_position = self._current_token.span
-        elif isinstance(at_position, Position):
-            at_position = Span(at_position, at_position, self.lexer.input)
-
-        raise ParseError(at_position, msg)
-
-    def parse_optional_characters(self, text: str) -> str | None:
-        """
-        Parse a given token text, if present.
-        If the given text is the beginning of the next token, this will still
-        return None.
-        """
-        if self._current_token.text == text:
-            self._consume_token()
-            return text
-        return None
-
-    def parse_characters(self, text: str, context_msg: str = "") -> str:
-        """
-        Parse a given token text.
-        The context message is appended to the error message if the parsing fails.
-        If the given text is the start of the next token, this will still raise
-        an error.
-        """
-        if (res := self.parse_optional_characters(text)) is not None:
-            return res
-        self.raise_error(f"'{text}' expected" + context_msg)
 
     def _register_ssa_definition(
         self, name: str, values: Sequence[SSAValue], span: Span
@@ -1481,25 +1044,6 @@ class Parser(ABC):
         if (v := self.parse_optional_integer(allow_boolean=False)) is not None:
             return v
         self.raise_error("Expected an integer literal or `?`" + context_msg)
-
-    def parse_keyword(self, keyword: str, context_msg: str = "") -> str:
-        """Parse a specific identifier."""
-
-        error_msg = f"Expected '{keyword}'" + context_msg
-        if self.parse_optional_keyword(keyword) is not None:
-            return keyword
-        self.raise_error(error_msg)
-
-    def parse_optional_keyword(self, keyword: str) -> str | None:
-        """Parse a specific identifier if it is present"""
-
-        if (
-            self._current_token.kind == Token.Kind.BARE_IDENT
-            and self._current_token.text == keyword
-        ):
-            self._consume_token(Token.Kind.BARE_IDENT)
-            return keyword
-        return None
 
     def _parse_strided_layout_attr(self, name: Span) -> Attribute:
         """
@@ -1850,7 +1394,7 @@ class Parser(ABC):
             pos = self._current_token.span.start
             self._consume_token(Token.Kind.COLON)
             if self._parse_optional_token(Token.Kind.COLON) is None:
-                self.resume_from(pos)
+                self._resume_from(pos)
                 break
 
             refs.append(self.parse_symbol_name())
@@ -2014,39 +1558,6 @@ class Parser(ABC):
                     Span(begin_pos, begin_pos, self.lexer.input),
                 )
         return attr
-
-    def parse_optional_punctuation(
-        self, punctuation: Token.PunctuationSpelling
-    ) -> Token.PunctuationSpelling | None:
-        """
-        Parse a punctuation, if it is present. Otherwise, return None.
-        Punctuations are defined by `Token.PunctuationSpelling`.
-        """
-        # This check is only necessary to catch errors made by users that
-        # are not using pyright.
-        assert Token.Kind.is_spelling_of_punctuation(punctuation), (
-            "'parse_optional_punctuation' must be " "called with a valid punctuation"
-        )
-        kind = Token.Kind.get_punctuation_kind_from_spelling(punctuation)
-        if self._parse_optional_token(kind) is not None:
-            return punctuation
-        return None
-
-    def parse_punctuation(
-        self, punctuation: Token.PunctuationSpelling, context_msg: str = ""
-    ) -> Token.PunctuationSpelling:
-        """
-        Parse a punctuation. Punctuations are defined by
-        `Token.PunctuationSpelling`.
-        """
-        # This check is only necessary to catch errors made by users that
-        # are not using pyright.
-        assert Token.Kind.is_spelling_of_punctuation(
-            punctuation
-        ), "'parse_punctuation' must be called with a valid punctuation"
-        kind = Token.Kind.get_punctuation_kind_from_spelling(punctuation)
-        self._parse_token(kind, f"Expected '{punctuation}'" + context_msg)
-        return punctuation
 
     _builtin_integer_type_regex = re.compile(r"^[su]?i(\d+)$")
     _builtin_float_type_regex = re.compile(r"^f(\d+)$")
@@ -2250,6 +1761,8 @@ class Parser(ABC):
 
         # Parse successors
         successors = self.parse_optional_successors()
+        if successors is None:
+            successors = []
 
         # Parse regions
         regions = []
@@ -2342,5 +1855,5 @@ class Parser(ABC):
         )
 
     def parse_affine_map(self) -> AffineMap:
-        affp = affine_parser.AffineParser(self.parser_state)
+        affp = affine_parser.AffineParser(self._parser_state)
         return affp.parse_affine_map()

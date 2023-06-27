@@ -45,10 +45,8 @@ def test_empty_program():
 def test_error_on_run(args: list[str], expected_error: str):
     opt = xDSLOptMain(args=args)
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=expected_error):
         opt.run()
-
-    assert expected_error in e.value.args[0]
 
 
 @pytest.mark.parametrize(

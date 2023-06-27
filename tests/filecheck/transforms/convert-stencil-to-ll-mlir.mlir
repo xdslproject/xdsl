@@ -34,7 +34,7 @@ builtin.module {
   // CHECK-NEXT:     ^1(%12 : index):
   // CHECK-NEXT:       "scf.for"(%6, %10, %7) ({
   // CHECK-NEXT:       ^2(%13 : index):
-  // CHECK-NEXT:         %14 = arith.constant 1.0 : f64
+  // CHECK-NEXT:         %14 = arith.constant 1.000000e+00 : f64
   // CHECK-NEXT:         %15 = arith.addf %0, %14 : f64
   // CHECK-NEXT:         "memref.store"(%15, %3, %11, %12, %13) : (f64, memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>, index, index, index) -> ()
   // CHECK-NEXT:         "scf.yield"() : () -> ()
@@ -267,7 +267,7 @@ builtin.module {
   // CHECK-NEXT:         %97 = arith.addf %86, %89 : f64
   // CHECK-NEXT:         %98 = arith.addf %92, %95 : f64
   // CHECK-NEXT:         %99 = arith.addf %97, %98 : f64
-  // CHECK-NEXT:         %cst = arith.constant -4.0 : f64
+  // CHECK-NEXT:         %cst = arith.constant -4.000000e+00 : f64
   // CHECK-NEXT:         %100 = arith.mulf %96, %cst : f64
   // CHECK-NEXT:         %101 = arith.addf %100, %99 : f64
   // CHECK-NEXT:         "memref.store"(%101, %71, %81, %82, %83) : (f64, memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> ()

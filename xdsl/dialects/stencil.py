@@ -29,15 +29,11 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     ParameterDef,
-    Attribute,
-    Region,
     VerifyException,
     Generic,
     Operand,
-    OpResult,
     VarOperand,
     VarOpResult,
-    Block,
     IRDLOperation,
     operand_def,
     region_def,
@@ -46,7 +42,6 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.traits import HasParent, IsTerminator, IsolatedFromAbove
-from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -139,12 +134,14 @@ class StencilBoundsAttr(ParametrizedAttribute):
     def _verify(self):
         if len(self.lb) != len(self.ub):
             raise VerifyException(
-                "Incoherent stencil bounds: lower and upper bounds must have the same dimensionality."
+                "Incoherent stencil bounds: lower and upper bounds must have the "
+                "same dimensionality."
             )
         for d in self.ub - self.lb:
             if d <= 0:
                 raise VerifyException(
-                    "Incoherent stencil bounds: upper bound must be strictly greater than lower bound."
+                    "Incoherent stencil bounds: upper bound must be strictly "
+                    "greater than lower bound."
                 )
 
     def __init__(self, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]):
@@ -537,16 +534,18 @@ class AccessOp(IRDLOperation):
         if temp_typ.get_num_dims() != apply.get_rank():
             if self.offset_mapping is None:
                 raise VerifyException(
-                    f"Expected stencil.access operand to be of rank {apply.get_rank()} to "
-                    f"match its parent apply, got {temp_typ.get_num_dims()} without explict offset mapping provided"
+                    f"Expected stencil.access operand to be of rank {apply.get_rank()} "
+                    f"to match its parent apply, got {temp_typ.get_num_dims()} without "
+                    f"explict offset mapping provided"
                 )
 
         if self.offset_mapping is not None and len(self.offset_mapping) != len(
             self.offset
         ):
             raise VerifyException(
-                f"Expected stencil.access offset mapping be of length {len(self.offset)} to "
-                f"match the provided offsets, but it is {len(self.offset_mapping)} instead"
+                f"Expected stencil.access offset mapping be of length {len(self.offset)} "
+                f"to match the provided offsets, but it is {len(self.offset_mapping)} "
+                f"instead"
             )
 
         if self.offset_mapping is not None:
@@ -555,7 +554,8 @@ class AccessOp(IRDLOperation):
                 if prev_offset is not None:
                     if offset.data >= prev_offset:
                         raise VerifyException(
-                            f"Offset mapping in stencil.access must be strictly decreasing and unique, however {offset.data} follows "
+                            f"Offset mapping in stencil.access must be strictly "
+                            f"decreasing and unique, however {offset.data} follows "
                             f"{prev_offset} which is disallowed"
                         )
                 prev_offset = offset.data
@@ -646,8 +646,8 @@ class BufferOp(IRDLOperation):
             )
         if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
             raise VerifyException(
-                f"A stencil.buffer's operand temp should only be buffered. You can use "
-                f"stencil.buffer's output instead!"
+                "A stencil.buffer's operand temp should only be buffered. You can use "
+                "stencil.buffer's output instead!"
             )
 
 
@@ -657,7 +657,7 @@ class StoreOp(IRDLOperation):
     This operation writes values to a field on a user defined range.
 
     Example:
-      stencil.store %temp to %field ([0,0,0] : [64,64,60]) : !stencil.temp<?x?x?xf64> to !stencil.field<70x70x60xf64>
+      stencil.store %temp to %field ([0,0,0] : [64,64,60]) : !stencil.temp<?x?x?xf64> to !stencil.field<70x70x60xf64>  # noqa
     """
 
     name = "stencil.store"
