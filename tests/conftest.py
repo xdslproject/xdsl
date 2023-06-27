@@ -11,6 +11,7 @@ def assert_print_op(
     expected: str,
     diagnostic: Diagnostic | None,
     print_generic_format: bool = True,
+    print_debuginfo: bool = False,
     **printer_options: Any,
 ):
     """
@@ -55,6 +56,7 @@ def assert_print_op(
     printer = Printer(
         stream=file,
         print_generic_format=print_generic_format,
+        print_debuginfo=print_debuginfo,
         diagnostic=diagnostic,
         **printer_options,
     )

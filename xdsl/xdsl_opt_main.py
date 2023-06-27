@@ -329,7 +329,11 @@ class xDSLOptMain:
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(
-                stream=output, print_generic_format=self.args.print_op_generic
+                stream=output,
+                print_generic_format=self.args.print_op_generic,
+                print_debuginfo=self.args.print_debuginfo
+                if "print_debuginfo" in self.args
+                else False,
             )
             printer.print_op(prog)
             print("\n", file=output)

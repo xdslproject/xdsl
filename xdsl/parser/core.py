@@ -37,6 +37,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerType,
+    LocationAttr,
     Signedness,
     StringAttr,
     IntegerAttr,
@@ -213,6 +214,7 @@ class Parser(BaseParser):
             ).span
             self.parse_punctuation(":")
             arg_type = self.parse_attribute()
+            self._parse_optional_location()
 
             # Insert the block argument in the block, and register it in the parser
             block_arg = block.insert_arg(arg_type, len(block.args))
@@ -1021,6 +1023,7 @@ class Parser(BaseParser):
             self.parse_optional_builtin_int_or_float_attr,
             self._parse_optional_array_attr,
             self._parse_optional_symref_attr,
+            self._parse_optional_location,
             self._parse_optional_builtin_dict_attr,
             self.parse_optional_type,
             self._parse_optional_builtin_parametrized_attr,
@@ -1395,6 +1398,22 @@ class Parser(BaseParser):
 
         return SymbolRefAttr(sym_root, ArrayAttr(refs))
 
+    def _parse_optional_location(self) -> LocationAttr | None:
+        """
+        Parse a location attribute, if present.
+          location ::= `loc` `(` `unknown` `)`
+        """
+        snapshot = self._current_token.span.start
+        if (
+            self.parse_optional_characters("loc")
+            and self.parse_optional_punctuation("(")
+            and self.parse_optional_characters("unknown")
+            and self.parse_optional_punctuation(")")
+        ):
+            return LocationAttr()
+        self._resume_from(snapshot)
+        return None
+
     def parse_optional_builtin_int_or_float_attr(
         self,
     ) -> AnyIntegerAttr | AnyFloatAttr | None:
@@ -1648,6 +1667,7 @@ class Parser(BaseParser):
             operation             ::= op-result-list? (generic-operation | custom-operation)
             generic-operation     ::= string-literal `(` value-use-list? `)`  successor-list?
                                       region-list? dictionary-attribute? `:` function-type
+                                      location?
             custom-operation      ::= bare-id custom-operation-format
             op-result-list        ::= op-result (`,` op-result)* `=`
             op-result             ::= value-id (`:` integer-literal)
@@ -1742,6 +1762,7 @@ class Parser(BaseParser):
         Parse an operation with format:
             generic-operation     ::= string-literal `(` value-use-list? `)`  successor-list?
                                       region-list? dictionary-attribute? `:` function-type
+                                      location?
             successor-list        ::= `[` successor (`,` successor)* `]`
             successor             ::= caret-id
             region-list           ::= `(` region (`,` region)* `)`
@@ -1777,6 +1798,8 @@ class Parser(BaseParser):
                 f"expected {len(func_type.inputs)} operand types but had {len(args)}",
                 func_type_pos,
             )
+
+        self._parse_optional_location()
 
         operands = [
             self.resolve_operand(operand, type)
