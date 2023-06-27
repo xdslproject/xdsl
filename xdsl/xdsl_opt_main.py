@@ -165,6 +165,8 @@ class xDSLOptMain:
         self.register_all_arguments(arg_parser)
         self.args = arg_parser.parse_args(args=args)
 
+        self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
+
         self.setup_pipeline()
 
     def run(self):
@@ -302,7 +304,6 @@ class xDSLOptMain:
                 self.ctx,
                 io.read(),
                 self.get_input_name(),
-                self.args.allow_unregistered_dialect,
             ).parse_module()
 
         self.available_frontends["mlir"] = parse_mlir

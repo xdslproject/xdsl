@@ -8,7 +8,7 @@ VENV_DIR ?= venv
 .ONESHELL:
 
 # these targets don't produce files:
-.PHONY: clean filecheck pytest pytest-nb tests rerun-notebooks precommit-install precommit black pyright
+.PHONY: clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
 
 # remove all caches and the venv
 clean:
@@ -16,8 +16,7 @@ clean:
 
 # run filecheck tests
 filecheck:
-	lit -vv tests/filecheck
-	lit -vv docs/Toy/examples
+	lit -vv tests/filecheck --order=smart
 
 # run pytest tests
 pytest:
@@ -27,8 +26,13 @@ pytest:
 pytest-nb:
 	pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb --nbval-current-env
 
+# run tests for Toy tutorial
+tests-toy:
+	lit -v docs/Toy/examples --order=smart
+	pytest docs/Toy/toy/tests
+
 # run all tests
-tests: pytest pytest-nb filecheck pyright
+tests: pytest tests-toy filecheck pytest-nb pyright
 	echo test
 
 # re-generate the output from all jupyter notebooks in the docs directory

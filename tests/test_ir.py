@@ -296,8 +296,8 @@ def test_region_clone_into_circular_blocks():
         "test.op"() [^0] : () -> ()
     }
     """
-    ctx = MLContext()
-    region = Parser(ctx, region_str, allow_unregistered_dialect=True).parse_region()
+    ctx = MLContext(allow_unregistered=True)
+    region = Parser(ctx, region_str).parse_region()
 
     region2 = Region()
     region.clone_into(region2)
