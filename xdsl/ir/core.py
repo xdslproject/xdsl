@@ -723,11 +723,7 @@ class Operation(IRNode):
         else:
             operand_idx = operand
 
-        self.operands = (
-            list(self._operands[:operand_idx])
-            + [new_operand]
-            + list(self._operands[operand_idx + 1 :])
-        )
+        self.operands[operand_idx] = new_operand
 
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
