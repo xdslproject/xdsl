@@ -1,6 +1,6 @@
 from abc import ABC
 from xdsl.dialects.riscv import (
-    RISCVRegister,
+    Register,
     RegisterType,
     FloatingRegisterType,
     RISCVOp,
@@ -35,18 +35,14 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
         let's just assume that we have all the registers available for our use except the one explicitly reserved by the default riscv ABI.
         """
 
-        self.integer_available_registers = list(
-            RISCVRegister.RV32I_INDEX_BY_NAME.keys()
-        )
+        self.integer_available_registers = list(Register.RV32I_INDEX_BY_NAME.keys())
         reserved_registers = set(["zero", "sp", "gp", "tp", "fp", "s0"])
         self.integer_available_registers = [
             reg
             for reg in self.integer_available_registers
             if reg not in reserved_registers
         ]
-        self.floating_available_registers = list(
-            RISCVRegister.RV32F_INDEX_BY_NAME.keys()
-        )
+        self.floating_available_registers = list(Register.RV32F_INDEX_BY_NAME.keys())
 
     def allocate_registers(self, module: ModuleOp) -> None:
         """
@@ -69,25 +65,23 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                             if result.typ.data.name is None:
                                 # If we run out of real registers, allocate a j register
                                 if not integer_block_registers:
-                                    result.typ = RegisterType(
-                                        RISCVRegister(f"j{self.idx}")
-                                    )
+                                    result.typ = RegisterType(Register(f"j{self.idx}"))
                                     self.idx += 1
                                 else:
                                     result.typ = RegisterType(
-                                        RISCVRegister(integer_block_registers.pop())
+                                        Register(integer_block_registers.pop())
                                     )
                         elif isinstance(result.typ, FloatingRegisterType):
                             if result.typ.data.name is None:
                                 # If we run out of real registers, allocate a j register
                                 if not floating_block_registers:
                                     result.typ = FloatingRegisterType(
-                                        RISCVRegister(f"j{self.idx}")
+                                        Register(f"j{self.idx}")
                                     )
                                     self.idx += 1
                                 else:
                                     result.typ = FloatingRegisterType(
-                                        RISCVRegister(floating_block_registers.pop())
+                                        Register(floating_block_registers.pop())
                                     )
 
 
@@ -109,9 +103,9 @@ class RegisterAllocatorJRegs(RegisterAllocator):
             for result in op.results:
                 if isinstance(result.typ, RegisterType):
                     if result.typ.data.name is None:
-                        result.typ = RegisterType(RISCVRegister(f"j{self.idx}"))
+                        result.typ = RegisterType(Register(f"j{self.idx}"))
                         self.idx += 1
                 elif isinstance(result.typ, FloatingRegisterType):
                     if result.typ.data.name is None:
-                        result.typ = FloatingRegisterType(RISCVRegister(f"j{self.idx}"))
+                        result.typ = FloatingRegisterType(Register(f"j{self.idx}"))
                         self.idx += 1

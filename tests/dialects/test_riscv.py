@@ -236,9 +236,9 @@ def test_immediate_shift_inst():
 
 def check_float_register():
     with pytest.raises(VerifyException):
-        riscv.RegisterType(riscv.RISCVRegister("ft9"))
+        riscv.RegisterType(riscv.Register("ft9"))
     with pytest.raises(VerifyException):
-        riscv.FloatingRegisterType(riscv.RISCVRegister("a0"))
+        riscv.FloatingRegisterType(riscv.Register("a0"))
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)

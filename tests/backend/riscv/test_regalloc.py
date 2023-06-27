@@ -4,7 +4,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 
 from xdsl.transforms.riscv_register_allocation import (
-    RISCVRegisterAllocation,
+    RegisterAllocation,
 )
 
 
@@ -40,7 +40,7 @@ def simple_linear_riscv():
     def text_region():
         @Builder.implicit_region
         def main_region() -> None:
-            zero = riscv.GetIntegerRegisterOp(riscv.Registers.ZERO).res
+            zero = riscv.GetRegisterOp(riscv.Registers.ZERO).res
             v0 = riscv.AddiOp(zero, 1).rd
             v1 = riscv.AddiOp(zero, 2).rd
 
@@ -83,7 +83,7 @@ def simple_linear_riscv_allocated():
     def text_region():
         @Builder.implicit_region
         def main_region() -> None:
-            zero = riscv.GetIntegerRegisterOp(riscv.Registers.ZERO).res
+            zero = riscv.GetRegisterOp(riscv.Registers.ZERO).res
             v0 = riscv.AddiOp(zero, 1, rd=riscv.Registers.T6).rd
             v1 = riscv.AddiOp(zero, 2, rd=riscv.Registers.T5).rd
 
@@ -116,7 +116,7 @@ def simple_linear_riscv_allocated():
 
 
 def test_allocate_simple_linear():
-    RISCVRegisterAllocation("BlockNaive").apply(context(), simple_linear_riscv)
+    RegisterAllocation("BlockNaive").apply(context(), simple_linear_riscv)
 
     assert riscv.riscv_code(simple_linear_riscv) == riscv.riscv_code(
         simple_linear_riscv_allocated

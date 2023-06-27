@@ -9,7 +9,7 @@ from xdsl.backend.riscv.register_allocation import (
 
 
 @dataclass
-class RISCVRegisterAllocation(ModulePass):
+class RegisterAllocation(ModulePass):
     """
     Allocates unallocated registers in the module.
     """

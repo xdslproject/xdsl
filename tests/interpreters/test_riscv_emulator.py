@@ -4,7 +4,7 @@ from xdsl.builder import Builder
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects import riscv
 from xdsl.ir import MLContext
-from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
+from xdsl.transforms.riscv_register_allocation import RegisterAllocation
 
 import pytest
 
@@ -27,7 +27,7 @@ def test_simple():
         riscv.CustomAssemblyInstructionOp("print", inputs=[forty_two], result_types=[])
         riscv.ReturnOp()
 
-    RISCVRegisterAllocation().apply(ctx, module)
+    RegisterAllocation().apply(ctx, module)
 
     code = riscv.riscv_code(module)
 
@@ -54,7 +54,7 @@ def test_simple_float():
         riscv.CustomAssemblyInstructionOp("print.float", inputs=[mul], result_types=[])
         riscv.ReturnOp()
 
-    RISCVRegisterAllocation().apply(ctx, module)
+    RegisterAllocation().apply(ctx, module)
 
     code = riscv.riscv_code(module)
 
@@ -82,7 +82,7 @@ def test_multiply_add():
             riscv.LiOp(1, rd=riscv.Registers.A2)
 
             riscv.JalOp("muladd")
-            res = riscv.GetIntegerRegisterOp(riscv.Registers.A0).res
+            res = riscv.GetRegisterOp(riscv.Registers.A0).res
             riscv.CustomAssemblyInstructionOp("print", [res], [])
 
             riscv.LiOp(93, rd=riscv.Registers.A7)
@@ -93,8 +93,8 @@ def test_multiply_add():
         @Builder.implicit_region
         def multiply():
             riscv.CommentOp("no extra registers needed, so no need to deal with stack")
-            a0_multiply = riscv.GetIntegerRegisterOp(riscv.Registers.A0)
-            a1_multiply = riscv.GetIntegerRegisterOp(riscv.Registers.A1)
+            a0_multiply = riscv.GetRegisterOp(riscv.Registers.A0)
+            a1_multiply = riscv.GetRegisterOp(riscv.Registers.A1)
             riscv.MulOp(a0_multiply, a1_multiply, rd=riscv.Registers.A0)
             riscv.ReturnOp()
 
@@ -103,8 +103,8 @@ def test_multiply_add():
         @Builder.implicit_region
         def add():
             riscv.CommentOp("no extra registers needed, so no need to deal with stack")
-            a0_add = riscv.GetIntegerRegisterOp(riscv.Registers.A0)
-            a1_add = riscv.GetIntegerRegisterOp(riscv.Registers.A1)
+            a0_add = riscv.GetRegisterOp(riscv.Registers.A0)
+            a1_add = riscv.GetRegisterOp(riscv.Registers.A1)
             riscv.AddOp(a0_add, a1_add, rd=riscv.Registers.A0)
             riscv.ReturnOp()
 
@@ -115,12 +115,12 @@ def test_multiply_add():
             riscv.CommentOp("a0 <- a0 * a1 + a2")
             riscv.CommentOp("prologue")
             # get registers with the arguments to muladd
-            a2_muladd = riscv.GetIntegerRegisterOp(riscv.Registers.A2)
+            a2_muladd = riscv.GetRegisterOp(riscv.Registers.A2)
 
             # get registers we'll use in this section
-            sp_muladd = riscv.GetIntegerRegisterOp(riscv.Registers.SP)
-            s0_muladd_0 = riscv.GetIntegerRegisterOp(riscv.Registers.S0)
-            ra_muladd = riscv.GetIntegerRegisterOp(riscv.Registers.RA)
+            sp_muladd = riscv.GetRegisterOp(riscv.Registers.SP)
+            s0_muladd_0 = riscv.GetRegisterOp(riscv.Registers.S0)
+            ra_muladd = riscv.GetRegisterOp(riscv.Registers.RA)
             riscv.CommentOp(
                 "decrement stack pointer by number of register values we need to store for later"
             )
@@ -159,7 +159,7 @@ def test_multiply_add():
 
         riscv.LabelOp("muladd", muladd)
 
-    RISCVRegisterAllocation().apply(ctx, module)
+    RegisterAllocation().apply(ctx, module)
 
     code = riscv.riscv_code(module)
 
