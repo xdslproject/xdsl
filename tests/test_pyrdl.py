@@ -16,7 +16,7 @@ from xdsl.irdl import (
     VarConstraint,
     irdl_attr_definition,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
@@ -28,7 +28,7 @@ class BoolData(Data[bool]):
     name = "bool"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> bool:
+    def parse_parameter(parser: AttrParser) -> bool:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer):
@@ -42,7 +42,7 @@ class IntData(Data[int]):
     name = "int"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> int:
+    def parse_parameter(parser: AttrParser) -> int:
         return parser.parse_integer()
 
     def print_parameter(self, printer: Printer):

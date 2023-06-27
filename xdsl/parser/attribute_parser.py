@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-import itertools
 import math
 import re
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import (
     Any,
     NoReturn,
-    Iterable,
     cast,
     Literal,
     Callable,
-    Sequence,
 )
 
-from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
-from xdsl.utils.lexer import Input, Lexer, Position, Span, StringLiteral, Token
+from xdsl.utils.exceptions import ParseError
+from xdsl.utils.lexer import Position, Span, StringLiteral, Token
 from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
@@ -51,7 +47,6 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     OpaqueAttr,
     NoneAttr,
-    ModuleOp,
     UnitAttr,
     i64,
     StridedLayoutAttr,
@@ -60,11 +55,7 @@ from xdsl.dialects.builtin import (
     LocationAttr,
 )
 from xdsl.ir import (
-    SSAValue,
-    Block,
     Attribute,
-    Operation,
-    Region,
     MLContext,
     ParametrizedAttribute,
     Data,
@@ -73,7 +64,7 @@ from xdsl.ir.affine import AffineMap
 from xdsl.utils.hints import isa
 
 import xdsl.parser.affine_parser as affine_parser
-from xdsl.parser.base_parser import ParserState, BaseParser
+from xdsl.parser.base_parser import BaseParser
 
 
 @dataclass

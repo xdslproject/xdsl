@@ -1,63 +1,23 @@
 from __future__ import annotations
 
 import itertools
-import math
 import re
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import (
     Any,
-    NoReturn,
     Iterable,
     cast,
-    Literal,
-    Callable,
     Sequence,
 )
+from xdsl.parser.base_parser import ParserState
 
-from xdsl.utils.exceptions import ParseError, MultipleSpansParseError
-from xdsl.utils.lexer import Input, Lexer, Position, Span, StringLiteral, Token
-from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
+from xdsl.utils.exceptions import MultipleSpansParseError
+from xdsl.utils.lexer import Input, Lexer, Span, Token
 from xdsl.dialects.builtin import (
-    AnyArrayAttr,
-    AnyFloat,
-    AnyFloatAttr,
-    AnyTensorType,
-    AnyUnrankedTensorType,
-    AnyVectorType,
-    BFloat16Type,
-    DenseResourceAttr,
     DictionaryAttr,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    Float80Type,
-    Float128Type,
-    FloatAttr,
-    FunctionType,
-    IndexType,
-    IntegerType,
-    LocationAttr,
-    Signedness,
-    StringAttr,
-    IntegerAttr,
-    ArrayAttr,
-    TensorType,
-    UnrankedTensorType,
     UnregisteredAttr,
-    RankedVectorOrTensorOf,
-    VectorType,
-    SymbolRefAttr,
-    DenseArrayBase,
-    DenseIntOrFPElementsAttr,
-    OpaqueAttr,
-    NoneAttr,
     ModuleOp,
-    UnitAttr,
-    i64,
-    StridedLayoutAttr,
-    ComplexType,
-    AffineMapAttr,
 )
 from xdsl.ir import (
     SSAValue,
@@ -69,11 +29,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Data,
 )
-from xdsl.ir.affine import AffineMap
-from xdsl.utils.hints import isa
 
-import xdsl.parser.affine_parser as affine_parser
-from xdsl.parser.base_parser import ParserState, BaseParser
 from xdsl.parser.attribute_parser import AttrParser
 
 

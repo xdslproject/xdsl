@@ -59,7 +59,7 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import AttrParser
     from xdsl.printer import Printer
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
@@ -124,7 +124,7 @@ class MemRefType(
         return MemRefType([shape, referenced_type, layout, memory_space])
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in memref attribute")
         shape = parser.parse_attribute()
         parser.parse_punctuation(",", " between shape and element type parameters")
