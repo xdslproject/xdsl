@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import operator
-from typing import Any
-from itertools import accumulate
 
-from dataclasses import dataclass
+from typing import Any, cast
 
 from xdsl.dialects.builtin import TensorType, VectorType
 from xdsl.interpreter import (
@@ -17,30 +14,9 @@ from xdsl.interpreter import (
     register_impls,
     impl,
 )
+from xdsl.interpreters.shaped_array import ShapedArray
 
 from .dialects import toy as toy
-
-
-@dataclass
-class Tensor:
-    data: list[float]
-    shape: list[int]
-
-    def __format__(self, __format_spec: str) -> str:
-        prod_shapes: list[int] = list(accumulate(reversed(self.shape), operator.mul))
-        assert prod_shapes[-1] == len(self.data)
-        result = "[" * len(self.shape)
-
-        for i, d in enumerate(self.data):
-            if i:
-                n = sum(not i % p for p in prod_shapes)
-                result += "]" * n
-                result += ", "
-                result += "[" * n
-            result += f"{d}"
-
-        result += "]" * len(self.shape)
-        return result
 
 
 @register_impls
@@ -59,7 +35,7 @@ class ToyFunctions(InterpreterFunctions):
         assert not len(args)
         data = op.get_data()
         shape = op.get_shape()
-        result = Tensor(data, shape)
+        result = ShapedArray(data, shape)
         return (result,)
 
     @impl(toy.ReshapeOp)
@@ -67,34 +43,39 @@ class ToyFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: toy.ReshapeOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         (arg,) = args
-        assert isinstance(arg, Tensor)
+        assert isinstance(arg, ShapedArray)
+        arg = cast(ShapedArray[float], arg)
         result_typ = op.results[0].typ
         assert isinstance(result_typ, (VectorType, TensorType))
         new_shape = list(result_typ.get_shape())
 
-        return (Tensor(arg.data, new_shape),)
+        return (ShapedArray(arg.data, new_shape),)
 
     @impl(toy.AddOp)
     def run_add(
         self, interpreter: Interpreter, op: toy.AddOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         lhs, rhs = args
-        assert isinstance(lhs, Tensor)
-        assert isinstance(rhs, Tensor)
+        assert isinstance(lhs, ShapedArray)
+        assert isinstance(rhs, ShapedArray)
+        lhs = cast(ShapedArray[float], lhs)
+        rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
 
-        return (Tensor([l + r for l, r in zip(lhs.data, rhs.data)], lhs.shape),)
+        return (ShapedArray([l + r for l, r in zip(lhs.data, rhs.data)], lhs.shape),)
 
     @impl(toy.MulOp)
     def run_mul(
         self, interpreter: Interpreter, op: toy.MulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         lhs, rhs = args
-        assert isinstance(lhs, Tensor)
-        assert isinstance(rhs, Tensor)
+        assert isinstance(lhs, ShapedArray)
+        assert isinstance(rhs, ShapedArray)
+        lhs = cast(ShapedArray[float], lhs)
+        rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
 
-        return (Tensor([l * r for l, r in zip(lhs.data, rhs.data)], lhs.shape),)
+        return (ShapedArray([l * r for l, r in zip(lhs.data, rhs.data)], lhs.shape),)
 
     @impl_terminator(toy.ReturnOp)
     def run_return(
@@ -114,7 +95,8 @@ class ToyFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: toy.TransposeOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         (arg,) = args
-        assert isinstance(arg, Tensor)
+        assert isinstance(arg, ShapedArray)
+        arg = cast(ShapedArray[float], arg)
         assert len(arg.shape) == 2
 
         cols = arg.shape[0]
@@ -124,6 +106,6 @@ class ToyFunctions(InterpreterFunctions):
             arg.data[row * cols + col] for col in range(cols) for row in range(rows)
         ]
 
-        result = Tensor(new_data, arg.shape[::-1])
+        result = ShapedArray(new_data, arg.shape[::-1])
 
         return (result,)
