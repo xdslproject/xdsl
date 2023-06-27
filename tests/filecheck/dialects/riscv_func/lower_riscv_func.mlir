@@ -9,7 +9,7 @@
 // CHECK-NEXT:     %{{.+}} = "riscv.mv"(%{{.+}}) : (!riscv.reg<s0>) -> !riscv.reg<a0>
 // CHECK-NEXT:     %{{.+}} = "riscv.li"() {"immediate" = 64 : i32} : () -> !riscv.reg<a7>
 // CHECK-NEXT:     "riscv.ecall"() : () -> ()
-// CHECK-NEXT:     %{{.+}} = "riscv.get_integer_register"() : () -> !riscv.reg<a0>
+// CHECK-NEXT:     %{{.+}} = "riscv.get_register"() : () -> !riscv.reg<a0>
 // CHECK-NEXT:     %{{.+}} = "riscv.mv"(%{{.+}}) : (!riscv.reg<a0>) -> !riscv.reg<s1>
 
 
@@ -27,15 +27,15 @@
 
 // CHECK-NEXT:     "riscv.label"() ({
 // CHECK-NEXT:         "riscv.jal"() {"immediate" = #riscv.label<"get_one">} : () -> ()
-// CHECK-NEXT:         %{{.*}} = "riscv.get_integer_register"() : () -> !riscv.reg<a0>
+// CHECK-NEXT:         %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a0>
 // CHECK-NEXT:         %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<a0>) -> !riscv.reg<>
 // CHECK-NEXT:         "riscv.jal"() {"immediate" = #riscv.label<"get_one">} : () -> ()
-// CHECK-NEXT:         %{{.*}} = "riscv.get_integer_register"() : () -> !riscv.reg<a0>
+// CHECK-NEXT:         %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a0>
 // CHECK-NEXT:         %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<a0>) -> !riscv.reg<>
 // CHECK-NEXT:         %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:         %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<a1>
 // CHECK-NEXT:         "riscv.jal"() {"immediate" = #riscv.label<"add">} : () -> ()
-// CHECK-NEXT:         %{{.*}} = "riscv.get_integer_register"() : () -> !riscv.reg<a0>
+// CHECK-NEXT:         %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a0>
 // CHECK-NEXT:         %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<a0>) -> !riscv.reg<>
 // CHECK-NEXT:         %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:         "riscv.jal"() {"immediate" = #riscv.label<"my_print">} : () -> ()
@@ -69,8 +69,8 @@
     }) {"func_name" = "add"} : () -> ()
 
 // CHECK-NEXT:     "riscv.label"() ({
-// CHECK-NEXT:         %{{.*}} = "riscv.get_integer_register"() : () -> !riscv.reg<a0>
-// CHECK-NEXT:         %{{.*}} = "riscv.get_integer_register"() : () -> !riscv.reg<a1>
+// CHECK-NEXT:         %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a0>
+// CHECK-NEXT:         %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a1>
 // CHECK-NEXT:         %{{.*}} = "riscv.add"(%{{.*}}, %{{.*}}) : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<>
 // CHECK-NEXT:         %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:         "riscv.ret"() : () -> ()

@@ -2167,7 +2167,7 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
     ```
     """
 
-    name = "riscv.get_integer_register"
+    name = "riscv.get_register"
     res: OpResult = result_def(RegisterType)
 
     def __init__(

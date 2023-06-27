@@ -1,7 +1,7 @@
 // RUN: xdsl-opt %s | xdsl-opt --print-op-generic | filecheck %s
 "builtin.module"() ({
-  %0 = "riscv.get_integer_register"() : () -> !riscv.reg<>
-  %1 = "riscv.get_integer_register"() : () -> !riscv.reg<>
+  %0 = "riscv.get_register"() : () -> !riscv.reg<>
+  %1 = "riscv.get_register"() : () -> !riscv.reg<>
   // RV32I/RV64I: 2.4 Integer Computational Instructions
 
   // Integer Register-Immediate Instructions
