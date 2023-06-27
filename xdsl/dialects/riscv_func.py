@@ -26,9 +26,9 @@ from xdsl.dialects import riscv
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args: VarOperand = var_operand_def(riscv.IntegerRegister)
+    args: VarOperand = var_operand_def(riscv.RegisterType)
     syscall_num: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
-    result: OptOpResult = opt_result_def(riscv.IntegerRegister)
+    result: OptOpResult = opt_result_def(riscv.RegisterType)
 
     def __init__(
         self,
@@ -42,7 +42,7 @@ class SyscallOp(IRDLOperation):
             operands=[operands],
             attributes={"syscall_num": num},
             result_types=[
-                riscv.IntegerRegister(riscv.RISCVRegister()) if has_result else None
+                riscv.RegisterType(riscv.RISCVRegister()) if has_result else None
             ],
         )
 
@@ -62,15 +62,15 @@ class CallOp(IRDLOperation):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args: VarOperand = var_operand_def(riscv.IntegerRegister)
+    args: VarOperand = var_operand_def(riscv.RegisterType)
     func_name: StringAttr = attr_def(StringAttr)
-    ress: VarOpResult = var_result_def(riscv.IntegerRegister)
+    ress: VarOpResult = var_result_def(riscv.RegisterType)
 
     def __init__(
         self,
         func_name: StringAttr,
         args: Sequence[Operation | SSAValue],
-        result_types: Sequence[riscv.IntegerRegister],
+        result_types: Sequence[riscv.RegisterType],
         comment: StringAttr | None = None,
     ):
         super().__init__(
@@ -113,7 +113,7 @@ class ReturnOp(IRDLOperation):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values: VarOperand = var_operand_def(riscv.IntegerRegister)
+    values: VarOperand = var_operand_def(riscv.RegisterType)
     comment: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = frozenset([IsTerminator(), HasParent(FuncOp)])
