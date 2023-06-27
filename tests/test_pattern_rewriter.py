@@ -16,12 +16,12 @@ from xdsl.utils.hints import isa
 
 
 def rewrite_and_compare(prog: str, expected_prog: str, walker: PatternRewriteWalker):
-    ctx = MLContext()
+    ctx = MLContext(allow_unregistered=True)
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
     ctx.register_dialect(Scf)
 
-    parser = Parser(ctx, prog, allow_unregistered_dialect=True)
+    parser = Parser(ctx, prog)
     module = parser.parse_module()
 
     walker.rewrite_module(module)

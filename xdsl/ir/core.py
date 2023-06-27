@@ -56,8 +56,12 @@ class Dialect:
 class MLContext:
     """Contains structures for operations/attributes registration."""
 
-    _registeredOps: dict[str, type[Operation]] = field(default_factory=dict)
-    _registeredAttrs: dict[str, type[Attribute]] = field(default_factory=dict)
+    allow_unregistered: bool = field(default=False)
+
+    _registeredOps: dict[str, type[Operation]] = field(init=False, default_factory=dict)
+    _registeredAttrs: dict[str, type[Attribute]] = field(
+        init=False, default_factory=dict
+    )
 
     def register_dialect(self, dialect: Dialect):
         """Register a dialect. Operation and Attribute names should be unique"""
@@ -79,17 +83,15 @@ class MLContext:
             raise Exception(f"Attribute {attr.name} has already been registered")
         self._registeredAttrs[attr.name] = attr
 
-    def get_optional_op(
-        self, name: str, allow_unregistered: bool = False
-    ) -> type[Operation] | None:
+    def get_optional_op(self, name: str) -> type[Operation] | None:
         """
         Get an operation class from its name if it exists.
-        If the operation is not registered, return None unless
-        allow_unregistered is True, in which case return an UnregisteredOp.
+        If the operation is not registered, return None unless unregistered operations
+        are allowed in the context, in which case return an UnregisteredOp.
         """
         if name in self._registeredOps:
             return self._registeredOps[name]
-        if allow_unregistered:
+        if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredOp
 
             op_type = UnregisteredOp.with_name(name)
@@ -97,33 +99,32 @@ class MLContext:
             return op_type
         return None
 
-    def get_op(self, name: str, allow_unregistered: bool = False) -> type[Operation]:
+    def get_op(self, name: str) -> type[Operation]:
         """
         Get an operation class from its name.
-        If the operation is not registered, raise an exception unless
-        allow_unregistered is True, in which case return an UnregisteredOp.
+        If the operation is not registered, raise an exception unless unregistered
+        operations are allowed in the context, in which case return an UnregisteredOp.
         """
-        if op_type := self.get_optional_op(name, allow_unregistered):
+        if op_type := self.get_optional_op(name):
             return op_type
         raise Exception(f"Operation {name} is not registered")
 
     def get_optional_attr(
         self,
         name: str,
-        allow_unregistered: bool = False,
         create_unregistered_as_type: bool = False,
     ) -> type[Attribute] | None:
         """
         Get an attribute class from its name if it exists.
-        If the attribute is not registered, return None unless
-        allow_unregistered in True, in which case return an UnregisteredAttr.
+        If the attribute is not registered, return None unless unregistered attributes
+        are allowed in the context, in which case return an UnregisteredAttr.
         Since UnregisteredAttr may be a type (for MLIR compatibility), an
         additional flag is required to create an UnregisterAttr that is
         also a type.
         """
         if name in self._registeredAttrs:
             return self._registeredAttrs[name]
-        if allow_unregistered:
+        if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredAttr
 
             attr_type = UnregisteredAttr.with_name_and_type(
@@ -137,20 +138,17 @@ class MLContext:
     def get_attr(
         self,
         name: str,
-        allow_unregistered: bool = False,
         create_unregistered_as_type: bool = False,
     ) -> type[Attribute]:
         """
         Get an attribute class from its name.
-        If the attribute is not registered, raise an exception unless
-        allow_unregistered in True, in which case return an UnregisteredAttr.
+        If the attribute is not registered, raise an exception unless unregistered
+        attributes are allowed in the context, in which case return an UnregisteredAttr.
         Since UnregisteredAttr may be a type (for MLIR compatibility), an
         additional flag is required to create an UnregisterAttr that is
         also a type.
         """
-        if attr_type := self.get_optional_attr(
-            name, allow_unregistered, create_unregistered_as_type
-        ):
+        if attr_type := self.get_optional_attr(name, create_unregistered_as_type):
             return attr_type
         raise Exception(f"Attribute {name} is not registered")
 
