@@ -23,7 +23,7 @@ def parse_file(file: str, ctx: MLContext):
     """
     Parse the given file.
     """
-    parser = Parser(ctx, file, allow_unregistered_dialect=True)
+    parser = Parser(ctx, file)
     parser.parse_op()
 
 
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     file_names = list(glob.iglob(args.root_directory + "/**/*.mlir", recursive=True))
     print("Found " + str(len(file_names)) + " files to parse.")
 
-    ctx = MLContext()
+    ctx = MLContext(allow_unregistered=True)
 
     if args.profile:
         cProfile.run("run_on_files(file_names, args.mlir_path, ctx)")
