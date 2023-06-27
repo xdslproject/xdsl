@@ -1,8 +1,3 @@
-"""
-A helper structure to represent instances of type MemrefType, TensorType, VectorType, etc.
-in the interpreter.
-"""
-
 from itertools import accumulate
 from math import prod
 import operator
@@ -14,6 +9,11 @@ _T = TypeVar("_T")
 
 @dataclass
 class ShapedArray(Generic[_T]):
+    """
+    A helper structure to represent instances of type MemrefType, TensorType, VectorType, etc.
+    in the interpreter.
+    """
+
     data: list[_T]
     shape: list[int]
 
@@ -35,9 +35,15 @@ class ShapedArray(Generic[_T]):
         return offset
 
     def load(self, indices: tuple[int, ...]) -> _T:
+        """
+        Returns the element for a given tuple of indices
+        """
         return self.data[self.offset(indices)]
 
     def store(self, indices: tuple[int, ...], value: _T) -> None:
+        """
+        Returns the element for a given tuple of indices
+        """
         self.data[self.offset(indices)] = value
 
     def __format__(self, __format_spec: str) -> str:
