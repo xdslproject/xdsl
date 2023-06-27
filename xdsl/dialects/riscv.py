@@ -2230,6 +2230,12 @@ class ScfgwOp(RsRsIntegerOperation):
 
 
 class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
+    """
+    A base class for RV32F operations that take three
+    floating-point input registers and a destination register,
+    e.g: fused-multiply-add (FMA) instructions.
+    """
+
     rd: OpResult = result_def(FloatingRegisterType)
     rs1: Operand = operand_def(FloatingRegisterType)
     rs2: Operand = operand_def(FloatingRegisterType)
@@ -2264,6 +2270,11 @@ class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
 
 
 class RdRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
+    """
+    A base class for RV32F operations that
+    take two floating-point input registers and a destination.
+    """
+
     rd: OpResult = result_def(FloatingRegisterType)
     rs1: Operand = operand_def(FloatingRegisterType)
     rs2: Operand = operand_def(FloatingRegisterType)
@@ -2296,6 +2307,11 @@ class RdRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
 
 
 class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+    """
+    A base class for RV32F operations that take
+    two floating-point input registers and an integer destination register.
+    """
+
     rd: OpResult = result_def(RegisterType)
     rs1: Operand = operand_def(FloatingRegisterType)
     rs2: Operand = operand_def(FloatingRegisterType)
@@ -2328,6 +2344,11 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
 
 class RdRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
+    """
+    A base class for RV32F operations that take a floating-point
+    input register and a floating destination register.
+    """
+
     rd: OpResult = result_def(FloatingRegisterType)
     rs: Operand = operand_def(FloatingRegisterType)
 
@@ -2355,6 +2376,11 @@ class RdRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
 
 
 class RdRsFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+    """
+    A base class for RV32F operations that take a floating-point
+    input register and an integer destination register.
+    """
+
     rd: OpResult = result_def(RegisterType)
     rs: Operand = operand_def(FloatingRegisterType)
 
@@ -2382,6 +2408,11 @@ class RdRsFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
 
 class RdRsIntegerFloatOperation(IRDLOperation, RISCVInstruction, ABC):
+    """
+    A base class for RV32F operations that take an integer
+    input register and a floating-point destination register.
+    """
+
     rd: OpResult = result_def(FloatingRegisterType)
     rs: Operand = operand_def(RegisterType)
 
@@ -2409,6 +2440,11 @@ class RdRsIntegerFloatOperation(IRDLOperation, RISCVInstruction, ABC):
 
 
 class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
+    """
+    A base class for RV32F operations that have two source registers
+    (one integer and one floating-point) and an immediate.
+    """
+
     rs1: Operand = operand_def(RegisterType)
     rs2: Operand = operand_def(FloatingRegisterType)
     immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
@@ -2441,6 +2477,12 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
 
 
 class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
+    """
+    A base class for RV32Foperations that have one floating-point
+    destination register, one source register and
+    one immediate operand.
+    """
+
     rd: OpResult = result_def(FloatingRegisterType)
     rs1: Operand = operand_def(RegisterType)
     immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
