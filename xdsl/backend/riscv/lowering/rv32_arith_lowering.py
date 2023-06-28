@@ -274,6 +274,47 @@ class LowerArithDivf(RewritePattern):
         rewriter.replace_matched_op([riscv.FDivSOp(op.lhs, op.rhs)])
 
 
+class LowerArithNegf(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Negf, rewriter: PatternRewriter) -> None:
+        rewriter.replace_matched_op([riscv.FSgnJNSOp(op.operand, op.operand)])
+
+
+class LowerArithMinfOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Minf, rewriter: PatternRewriter) -> None:
+        raise NotImplementedError("Minf is not supported")
+
+
+class LowerArithMaxfOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Maxf, rewriter: PatternRewriter) -> None:
+        raise NotImplementedError("Maxf is not supported")
+
+
+class LowerArithCmpf(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Cmpf, rewriter: PatternRewriter) -> None:
+        match op.predicate.value.data:
+            # oeq
+            case 1:
+                rewriter.replace_matched_op([riscv.FeqSOP(op.lhs, op.rhs)])
+            # ogt
+            case 2:
+                rewriter.replace_matched_op([riscv.FltSOP(op.rhs, op.lhs)])
+            # oge
+            case 3:
+                rewriter.replace_matched_op([riscv.FleSOP(op.rhs, op.lhs)])
+            # olt
+            case 4:
+                rewriter.replace_matched_op([riscv.FltSOP(op.lhs, op.rhs)])
+            # ole
+            case 5:
+                rewriter.replace_matched_op([riscv.FleSOP(op.lhs, op.rhs)])
+            case _:
+                raise NotImplementedError("Cmpf predicate not supported")
+
+
 class LowerArithSIToFPOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.SIToFPOp, rewriter: PatternRewriter) -> None:
@@ -321,7 +362,9 @@ class LowerArithRV32(ModulePass):
         PatternRewriteWalker(LowerArithAddf()).rewrite_module(op)
         PatternRewriteWalker(LowerArithSubf()).rewrite_module(op)
         PatternRewriteWalker(LowerArithDivf()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithNegf()).rewrite_module(op)
         PatternRewriteWalker(LowerArithMulf()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithCmpf()).rewrite_module(op)
 
         # Unimplemented lowerings
         PatternRewriteWalker(LowerArithCeilDivSI()).rewrite_module(op)
@@ -343,5 +386,8 @@ class LowerArithRV32(ModulePass):
 
         PatternRewriteWalker(LowerArithExtFOp()).rewrite_module(op)
         PatternRewriteWalker(LowerArithTruncFOp()).rewrite_module(op)
+
+        PatternRewriteWalker(LowerArithMinfOp()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithMaxfOp()).rewrite_module(op)
 
         dce(op)
