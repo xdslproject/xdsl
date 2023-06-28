@@ -899,10 +899,22 @@ class Operation(IRNode):
         return op
 
     @classmethod
-    def has_trait(cls, trait: type[OpTrait], parameters: Any = None) -> bool:
+    def has_trait(
+        cls,
+        trait: type[OpTrait],
+        parameters: Any = None,
+        value_if_unregistered: bool = True,
+    ) -> bool:
         """
         Check if the operation implements a trait with the given parameters.
+        If the operation is not registered, return value_if_unregisteed instead.
         """
+
+        from xdsl.dialects.builtin import UnregisteredOp
+
+        if issubclass(cls, UnregisteredOp):
+            return value_if_unregistered
+
         return cls.get_trait(trait, parameters) is not None
 
     @classmethod
