@@ -113,6 +113,9 @@ class SingleBlockImplicitTerminator(OpTrait):
         super().__init__(parameters)
 
     def ensure_terminator(self, op: Operation) -> None:
+        if not op.regions:
+            raise VerifyException(f"'{op.name}' does not contain one or more regions")
+
         for region in op.regions:
             if len(region.blocks) > 1:
                 raise VerifyException(
@@ -143,6 +146,9 @@ class SingleBlockImplicitTerminator(OpTrait):
                     block.add_op(self.parameters.create())
 
     def verify(self, op: Operation) -> None:
+        if not op.regions:
+            raise VerifyException(f"'{op.name}' does not contain one or more regions")
+
         for region in op.regions:
             if len(region.blocks) > 1:
                 raise VerifyException(
