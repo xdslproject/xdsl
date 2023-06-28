@@ -3,6 +3,7 @@ Test the usage of builtin traits.
 """
 
 import pytest
+from typing import Sequence
 from xdsl.dialects import arith, builtin
 
 from xdsl.dialects.builtin import ModuleOp
@@ -12,6 +13,8 @@ from xdsl.irdl import (
     irdl_op_definition,
     opt_successor_def,
     region_def,
+    VarRegion,
+    var_region_def,
 )
 from xdsl.ir import Region, Block
 from xdsl.traits import (
@@ -282,19 +285,22 @@ class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     name = "test.has_single_block_implicit_terminator"
 
-    region: Region = region_def("single_block")
+    regs: VarRegion = var_region_def()
 
     traits = frozenset(
         [SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)]
     )
 
+    def __post_init__(self):
+        for trait in self.traits:
+            if isinstance(trait, SingleBlockImplicitTerminator):
+                trait.ensure_terminator(self)
+
 
 def test_single_block_implicit_terminator():
-    op0 = HasSingleBlockImplicitTerminatorOp(regions=[Region(Block())])
+    op0 = HasSingleBlockImplicitTerminatorOp(regions=[Region()])
 
     op0.verify()
-
-    assert isinstance(op0.region.block.last_op, IsSingleBlockImplicitTerminatorOp)
 
 
 @irdl_op_definition
