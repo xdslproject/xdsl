@@ -296,6 +296,9 @@ class LowerArithCmpf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpf, rewriter: PatternRewriter) -> None:
         match op.predicate.value.data:
+            # false
+            case 0:
+                rewriter.replace_matched_op([riscv.LiOp(0)])
             # oeq
             case 1:
                 rewriter.replace_matched_op([riscv.FeqSOP(op.lhs, op.rhs)])
@@ -311,6 +314,51 @@ class LowerArithCmpf(RewritePattern):
             # ole
             case 5:
                 rewriter.replace_matched_op([riscv.FleSOP(op.lhs, op.rhs)])
+            # one
+            case 6:
+                flt1 = riscv.FltSOP(op.lhs, op.rhs)
+                flt2 = riscv.FltSOP(op.rhs, op.lhs)
+                rewriter.replace_matched_op([flt1, flt2, riscv.OrOp(flt2, flt1)])
+            # ord
+            case 7:
+                feq1 = riscv.FeqSOP(op.lhs, op.lhs)
+                feq2 = riscv.FeqSOP(op.rhs, op.rhs)
+                rewriter.replace_matched_op([feq1, feq2, riscv.AndOp(feq2, feq1)])
+            # ueq
+            case 8:
+                flt1 = riscv.FltSOP(op.lhs, op.rhs)
+                flt2 = riscv.FltSOP(op.rhs, op.lhs)
+                or_ = riscv.OrOp(flt2, flt1)
+                rewriter.replace_matched_op([flt1, flt2, or_, riscv.XoriOp(or_, 1)])
+            # ugt
+            case 9:
+                fle = riscv.FleSOP(op.lhs, op.rhs)
+                rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
+            # uge
+            case 10:
+                fle = riscv.FltSOP(op.lhs, op.rhs)
+                rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
+            # ult
+            case 11:
+                fle = riscv.FleSOP(op.rhs, op.lhs)
+                rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
+            # ule
+            case 12:
+                flt = riscv.FltSOP(op.rhs, op.lhs)
+                rewriter.replace_matched_op([flt, riscv.XoriOp(flt, 1)])
+            # une
+            case 13:
+                feq = riscv.FeqSOP(op.lhs, op.rhs)
+                rewriter.replace_matched_op([feq, riscv.XoriOp(feq, 1)])
+            # uno
+            case 14:
+                feq1 = riscv.FeqSOP(op.lhs, op.lhs)
+                feq2 = riscv.FeqSOP(op.rhs, op.rhs)
+                and_ = riscv.AndOp(feq2, feq1)
+                rewriter.replace_matched_op([feq1, feq2, and_, riscv.XoriOp(and_, 1)])
+            # true
+            case 15:
+                rewriter.replace_matched_op([riscv.LiOp(1)])
             case _:
                 raise NotImplementedError("Cmpf predicate not supported")
 
