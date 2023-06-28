@@ -234,19 +234,19 @@ class LowerArithXOrI(RewritePattern):
 class LowerArithShLI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.ShLI, rewriter: PatternRewriter) -> None:
-        raise NotImplementedError("ShLI is not supported")
+        rewriter.replace_matched_op([riscv.SllOp(op.lhs, op.rhs)])
 
 
 class LowerArithShRUI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.ShRUI, rewriter: PatternRewriter) -> None:
-        raise NotImplementedError("ShRUI is not supported")
+        rewriter.replace_matched_op([riscv.SrlOp(op.lhs, op.rhs)])
 
 
 class LowerArithShRSI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.ShRSI, rewriter: PatternRewriter) -> None:
-        raise NotImplementedError("ShRSI is not supported")
+        rewriter.replace_matched_op([riscv.SraOp(op.lhs, op.rhs)])
 
 
 class LowerArithAddf(RewritePattern):
