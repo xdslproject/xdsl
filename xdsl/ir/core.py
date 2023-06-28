@@ -18,6 +18,7 @@ from typing import (
     cast,
     Iterator,
     ClassVar,
+    overload,
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
@@ -239,7 +240,7 @@ class SSAValue(ABC):
     def replace_by(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
         for use in self.uses.copy():
-            use.operation.replace_operand(use.index, value)
+            use.operation.operands[use.index] = value
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
@@ -515,6 +516,41 @@ class IRNode(ABC):
         ...
 
 
+@dataclass
+class OpOperands(Sequence[SSAValue]):
+    """
+    A view of the operand list of an operation.
+    Any modification to the view is reflected on the operation.
+    """
+
+    _op: Operation
+    """The operation owning the operands."""
+
+    @overload
+    def __getitem__(self, idx: int) -> SSAValue:
+        ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> Sequence[SSAValue]:
+        ...
+
+    def __getitem__(self, idx: int | slice) -> SSAValue | Sequence[SSAValue]:
+        return self._op._operands[idx]  # pyright: ignore[reportPrivateUsage]
+
+    def __setitem__(self, idx: int, operand: SSAValue) -> None:
+        operands = self._op._operands  # pyright: ignore[reportPrivateUsage]
+        operands[idx].remove_use(Use(self._op, idx))
+        operand.add_use(Use(self._op, idx))
+        new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
+        self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
+
+    def __iter__(self) -> Iterator[SSAValue]:
+        return iter(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
+    def __len__(self) -> int:
+        return len(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
+
 @dataclass(init=False)
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -522,7 +558,7 @@ class Operation(IRNode):
     name: ClassVar[str] = field(repr=False)
     """The operation name. Should be a static member of the class"""
 
-    _operands: tuple[SSAValue, ...]
+    _operands: tuple[SSAValue, ...] = field(default=())
     """The operation operands."""
 
     results: list[OpResult]
@@ -616,8 +652,8 @@ class Operation(IRNode):
         self._prev_op = new_op
 
     @property
-    def operands(self) -> tuple[SSAValue, ...]:
-        return self._operands
+    def operands(self) -> OpOperands:
+        return OpOperands(self)
 
     @operands.setter
     def operands(self, new: Sequence[SSAValue]):
@@ -643,8 +679,7 @@ class Operation(IRNode):
         super().__init__()
 
         # This is assumed to exist by Operation.operand setter.
-        self._operands = tuple()
-        self.operands = tuple(operands)
+        self.operands = operands
 
         self.results = [
             OpResult(typ, self, idx) for (idx, typ) in enumerate(result_types)
@@ -670,10 +705,10 @@ class Operation(IRNode):
         Operation.__init__(op, operands, result_types, attributes, successors, regions)
         return op
 
+    @deprecated("Use op.operands.__setindex__ instead")
     def replace_operand(self, operand: int | SSAValue, new_operand: SSAValue) -> None:
         """
         Replace an operand with another operand.
-
         Raises ValueError if the specified operand is not an operand of this op
         """
         if isinstance(operand, SSAValue):
@@ -686,11 +721,7 @@ class Operation(IRNode):
         else:
             operand_idx = operand
 
-        self.operands = (
-            list(self._operands[:operand_idx])
-            + [new_operand]
-            + list(self._operands[operand_idx + 1 :])
-        )
+        self.operands[operand_idx] = new_operand
 
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
@@ -868,10 +899,22 @@ class Operation(IRNode):
         return op
 
     @classmethod
-    def has_trait(cls, trait: type[OpTrait], parameters: Any = None) -> bool:
+    def has_trait(
+        cls,
+        trait: type[OpTrait],
+        parameters: Any = None,
+        value_if_unregistered: bool = True,
+    ) -> bool:
         """
         Check if the operation implements a trait with the given parameters.
+        If the operation is not registered, return value_if_unregisteed instead.
         """
+
+        from xdsl.dialects.builtin import UnregisteredOp
+
+        if issubclass(cls, UnregisteredOp):
+            return value_if_unregistered
+
         return cls.get_trait(trait, parameters) is not None
 
     @classmethod
