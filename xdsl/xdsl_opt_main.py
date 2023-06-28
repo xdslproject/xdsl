@@ -429,12 +429,12 @@ class xDSLOptMain:
         try:
             assert isinstance(prog, ModuleOp)
             if not self.args.disable_verify:
-                prog.verify(allow_unregistered=self.args.allow_unregistered_dialect)
+                prog.verify()
             for p in self.pipeline:
                 p.apply(self.ctx, prog)
                 assert isinstance(prog, ModuleOp)
                 if not self.args.disable_verify:
-                    prog.verify(allow_unregistered=self.args.allow_unregistered_dialect)
+                    prog.verify()
                 if self.args.print_between_passes:
                     print(f"IR after {p.name}:")
                     printer = Printer(stream=sys.stdout)

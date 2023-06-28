@@ -784,9 +784,7 @@ class Operation(IRNode):
             yield from region.walk_reverse()
         yield self
 
-    def verify(
-        self, verify_nested_ops: bool = True, allow_unregistered: bool = False
-    ) -> None:
+    def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
                 raise Exception("Erased SSA value is used by the operation")
@@ -837,7 +835,7 @@ class Operation(IRNode):
 
         if verify_nested_ops:
             for region in self.regions:
-                region.verify(allow_unregistered=allow_unregistered)
+                region.verify()
 
         # Custom verifier
         try:
@@ -1423,13 +1421,13 @@ class Block(IRNode):
         for op in self.ops_reverse:
             yield from op.walk_reverse()
 
-    def verify(self, allow_unregistered: bool = False) -> None:
+    def verify(self) -> None:
         for operation in self.ops:
             if operation.parent != self:
                 raise Exception(
                     "Parent pointer of operation does not refer to containing region"
                 )
-            operation.verify(allow_unregistered=allow_unregistered)
+            operation.verify()
 
         if len(self.ops) == 0:
             if (region_parent := self.parent) is not None and (
@@ -1722,9 +1720,9 @@ class Region(IRNode):
         for block in reversed(self.blocks):
             yield from block.walk_reverse()
 
-    def verify(self, allow_unregistered: bool = False) -> None:
+    def verify(self) -> None:
         for block in self.blocks:
-            block.verify(allow_unregistered=allow_unregistered)
+            block.verify()
             if block.parent != self:
                 raise Exception(
                     "Parent pointer of block does not refer to containing region"
