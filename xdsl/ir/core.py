@@ -814,20 +814,14 @@ class Operation(IRNode):
                 if len(parent_region.blocks) == 1:
                     if (
                         parent_op := parent_region.parent
-                    ) is not None and not parent_op.has_trait(
-                        NoTerminator, allow_unregistered=allow_unregistered
-                    ):
-                        if not self.has_trait(
-                            IsTerminator, allow_unregistered=allow_unregistered
-                        ):
+                    ) is not None and not parent_op.has_trait(NoTerminator):
+                        if not self.has_trait(IsTerminator):
                             raise VerifyException(
                                 f"Operation {self.name} terminates block in "
                                 "single-block region but is not a terminator"
                             )
                 elif len(parent_region.blocks) > 1:
-                    if not self.has_trait(
-                        IsTerminator, allow_unregistered=allow_unregistered
-                    ):
+                    if not self.has_trait(IsTerminator):
                         raise VerifyException(
                             f"Operation {self.name} terminates block in multi-block "
                             "region but is not a terminator"
@@ -909,19 +903,17 @@ class Operation(IRNode):
         cls,
         trait: type[OpTrait],
         parameters: Any = None,
-        allow_unregistered: bool = False,
+        value_if_unregistered: bool = True,
     ) -> bool:
         """
-        Check if the operation implements a trait with the given parameters, unless
-        allow_unregistered is True and the operation is not registered,
-        in which case return True.
+        Check if the operation implements a trait with the given parameters.
+        If the operation is not registered, return allow_unregistered instead.
         """
 
-        if allow_unregistered:
-            from xdsl.dialects.builtin import UnregisteredOp
+        from xdsl.dialects.builtin import UnregisteredOp
 
-            if issubclass(cls, UnregisteredOp):
-                return True
+        if issubclass(cls, UnregisteredOp):
+            return value_if_unregistered
 
         return cls.get_trait(trait, parameters) is not None
 
@@ -1434,7 +1426,7 @@ class Block(IRNode):
                 parent_op := region_parent.parent
             ) is not None:
                 if len(region_parent.blocks) == 1 and not parent_op.has_trait(
-                    NoTerminator, allow_unregistered=allow_unregistered
+                    NoTerminator
                 ):
                     raise VerifyException(
                         f"Operation {parent_op.name} contains empty block in "
