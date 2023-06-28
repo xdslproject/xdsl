@@ -107,21 +107,39 @@ class SingleBlockImplicitTerminator(OpTrait):
     https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator
     """
 
-    # TODO check if this can also be StringAttr like in MLIR
     parameters: type[Operation]
 
-    # TODO maybe forward the rest of the params as ctor args
     def __init__(self, parameters: type[Operation]):
         super().__init__(parameters)
 
-    def apply(self, op: Operation):
+    def ensure_terminator(self, op: Operation) -> None:
         for region in op.regions:
             if len(region.blocks) > 1:
                 raise VerifyException(
                     f"'{op.name}' does not contain single-block regions"
                 )
+
             for block in region.blocks:
-                if not isinstance(block.last_op, self.parameters):
+                if (
+                    (last_op := block.last_op) is not None
+                    and last_op.has_trait(IsTerminator)
+                    and not isinstance(last_op, self.parameters)
+                ):
+                    raise VerifyException(
+                        f"'{op.name}' terminates with operation of type "
+                        f"{type(block.last_op)} instead of {self.parameters}"
+                    )
+
+        for region in op.regions:
+            if len(region.blocks) == 0:
+                from xdsl.ir import Block
+
+                region.add_block(Block())
+
+            for block in region.blocks:
+                if (last_op := block.last_op) is None or not last_op.has_trait(
+                    IsTerminator
+                ):
                     block.add_op(self.parameters.create())
 
     def verify(self, op: Operation) -> None:
@@ -131,10 +149,15 @@ class SingleBlockImplicitTerminator(OpTrait):
                     f"'{op.name}' does not contain single-block regions"
                 )
             for block in region.blocks:
+                if not block.ops:
+                    raise VerifyException(
+                        f"'{op.name}' contains empty block instead of terminating with"
+                        f"{self.parameters}"
+                    )
                 if not isinstance(block.last_op, self.parameters):
                     raise VerifyException(
-                        f"'{op.name}' does not terminate with operation of type "
-                        f"{self.parameters}, but with {type(block.last_op)} instead"
+                        f"'{op.name}' terminates with operation of type "
+                        f"{type(block.last_op)} instead of {self.parameters}"
                     )
 
 
