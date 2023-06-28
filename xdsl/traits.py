@@ -26,10 +26,6 @@ class OpTrait:
 
     parameters: Any = field(default=None)
 
-    def apply(self, op: Operation) -> None:
-        """Apply the trait to the operation."""
-        pass
-
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
         pass
