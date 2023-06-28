@@ -1786,16 +1786,6 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     new_attrs["verify_"] = verify_
 
-    original_post_init = getattr(cls, "__post_init__")
-
-    def custom_post_init(self: _OpT) -> None:
-        original_post_init(self)
-
-        for trait in self.traits:
-            trait.apply(self)
-
-    new_attrs["__post_init__"] = custom_post_init
-
     return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})  # type: ignore
 
 
