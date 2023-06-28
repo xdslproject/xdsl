@@ -2,7 +2,7 @@ from abc import ABC
 from xdsl.dialects.riscv import (
     Register,
     RegisterType,
-    FloatingRegisterType,
+    FloatRegisterType,
     RISCVOp,
 )
 from xdsl.dialects.builtin import ModuleOp
@@ -71,16 +71,16 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                                     result.typ = RegisterType(
                                         Register(integer_block_registers.pop())
                                     )
-                        elif isinstance(result.typ, FloatingRegisterType):
+                        elif isinstance(result.typ, FloatRegisterType):
                             if result.typ.data.name is None:
                                 # If we run out of real registers, allocate a j register
                                 if not floating_block_registers:
-                                    result.typ = FloatingRegisterType(
+                                    result.typ = FloatRegisterType(
                                         Register(f"j{self.idx}")
                                     )
                                     self.idx += 1
                                 else:
-                                    result.typ = FloatingRegisterType(
+                                    result.typ = FloatRegisterType(
                                         Register(floating_block_registers.pop())
                                     )
 
@@ -105,7 +105,7 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                     if result.typ.data.name is None:
                         result.typ = RegisterType(Register(f"j{self.idx}"))
                         self.idx += 1
-                elif isinstance(result.typ, FloatingRegisterType):
+                elif isinstance(result.typ, FloatRegisterType):
                     if result.typ.data.name is None:
-                        result.typ = FloatingRegisterType(Register(f"j{self.idx}"))
+                        result.typ = FloatRegisterType(Register(f"j{self.idx}"))
                         self.idx += 1
