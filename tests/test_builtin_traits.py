@@ -272,7 +272,7 @@ class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
     name = "test.is_single_block_implicit_terminator"
 
     # TODO fix circular reference
-    # traits = frozenset([HasParent(HasSingleBlockImplicitTerminatorOp)])
+    # traits = frozenset([HasParent(HasSingleBlockImplicitTerminatorOp), IsTerminator()])
     traits = frozenset([IsTerminator()])
 
 
