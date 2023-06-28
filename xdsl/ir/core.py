@@ -907,7 +907,7 @@ class Operation(IRNode):
     ) -> bool:
         """
         Check if the operation implements a trait with the given parameters.
-        If the operation is not registered, return allow_unregistered instead.
+        If the operation is not registered, return value_if_unregisteed instead.
         """
 
         from xdsl.dialects.builtin import UnregisteredOp
