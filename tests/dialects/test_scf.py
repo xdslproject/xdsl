@@ -26,7 +26,7 @@ def test_for():
 
     assert len(f.results) == 1
     assert f.results[0].typ == carried.result.typ
-    assert f.operands == (lb.result, ub.result, step.result, carried.result)
+    assert tuple(f.operands) == (lb.result, ub.result, step.result, carried.result)
     assert f.regions == [body]
     assert f.attributes == {}
 

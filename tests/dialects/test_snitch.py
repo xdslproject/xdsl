@@ -9,8 +9,8 @@ import pytest
 
 
 def test_csr_op():
-    stream = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
-    value = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+    stream = TestSSAValue(riscv.Registers.A1)
+    value = TestSSAValue(riscv.Registers.A1)
     valid = IntegerAttr(snitch.SnitchResources.dimensions - 1, i32)
     invalid = IntegerAttr(snitch.SnitchResources.dimensions, i32)
 
