@@ -10,8 +10,8 @@ import pytest
 
 
 def test_add_op():
-    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
-    a2 = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
+    a1 = TestSSAValue(riscv.Registers.A1)
+    a2 = TestSSAValue(riscv.Registers.A2)
     add_op = riscv.AddOp(a1, a2, rd=riscv.Registers.A0)
     a0 = add_op.rd
 
@@ -26,8 +26,8 @@ def test_add_op():
 
 
 def test_csr_op():
-    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
-    zero = TestSSAValue(riscv.RegisterType(riscv.Registers.ZERO))
+    a1 = TestSSAValue(riscv.Registers.A1)
+    zero = TestSSAValue(riscv.Registers.ZERO)
     csr = IntegerAttr(16, i32)
     # CsrrwOp
     riscv.CsrrwOp(rs1=a1, csr=csr, rd=riscv.Registers.A2).verify()
@@ -112,8 +112,8 @@ def test_label_op_with_comment():
 def test_label_op_with_region():
     @Builder.implicit_region
     def label_region():
-        a1_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
-        a2_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
+        a1_reg = TestSSAValue(riscv.Registers.A1)
+        a2_reg = TestSSAValue(riscv.Registers.A2)
         riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
 
     label_str = "mylabel"
@@ -138,7 +138,7 @@ def test_return_op():
 
 def test_immediate_i_inst():
     # I-Type - 12-bits immediate
-    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+    a1 = TestSSAValue(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
         riscv.AddiOp(a1, 1 << 11, rd=riscv.Registers.A0)
@@ -163,8 +163,8 @@ def test_immediate_i_inst():
 
 def test_immediate_s_inst():
     # S-Type - 12-bits immediate
-    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
-    a2 = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
+    a1 = TestSSAValue(riscv.Registers.A1)
+    a2 = TestSSAValue(riscv.Registers.A2)
 
     with pytest.raises(VerifyException):
         riscv.SwOp(a1, a2, 1 << 11)
@@ -199,7 +199,7 @@ def test_immediate_u_j_inst():
 
 def test_immediate_jalr_inst():
     # Jalr - 12-bits immediate
-    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+    a1 = TestSSAValue(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
         riscv.JalrOp(a1, 1 << 12, rd=riscv.Registers.A0)
@@ -223,7 +223,7 @@ def test_immediate_pseudo_inst():
 
 def test_immediate_shift_inst():
     # Shift instructions (SLLI, SRLI, SRAI) - 5-bits immediate
-    a1 = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
+    a1 = TestSSAValue(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
         riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
@@ -232,3 +232,19 @@ def test_immediate_shift_inst():
         riscv.SlliOp(a1, -1, rd=riscv.Registers.A0)
 
     riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
+
+
+def check_float_register():
+    with pytest.raises(VerifyException):
+        riscv.RegisterType(riscv.Register("ft9"))
+    with pytest.raises(VerifyException):
+        riscv.FloatRegisterType(riscv.Register("a0"))
+
+    a1 = TestSSAValue(riscv.Registers.A1)
+    a2 = TestSSAValue(riscv.Registers.A2)
+    with pytest.raises(VerifyException):
+        riscv.FAddSOp(a1, a2)
+
+    f1 = TestSSAValue(riscv.Registers.FT0)
+    f2 = TestSSAValue(riscv.Registers.FT1)
+    riscv.FAddSOp(f1, f2)
