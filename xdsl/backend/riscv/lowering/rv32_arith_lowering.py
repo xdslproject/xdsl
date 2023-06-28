@@ -41,24 +41,20 @@ class LowerArithConstant(RewritePattern):
             ), "64 bit operations not supported on RV32 triple"
             rewriter.replace_op(
                 op,
-                riscv.LiOp(
-                    op.value.value.data, rd=riscv.RegisterType(riscv.Register())
-                ),
+                riscv.LiOp(op.value.value.data),
             )
         elif isinstance(op.result.typ, Float32Type) and isinstance(op.value, FloatAttr):
             lui = riscv.LiOp(
                 convert_float_to_int(op.value.value.data),
                 rd=riscv.RegisterType(riscv.Register()),
             )
-            fld = riscv.FCvtSWOp(lui.rd, rd=riscv.FloatRegisterType(riscv.Register()))
+            fld = riscv.FCvtSWOp(lui.rd)
             rewriter.replace_op(op, [lui, fld])
         elif isinstance(op.result.typ, IndexType):
             assert isinstance(op.value, IntegerAttr)
             rewriter.replace_op(
                 op,
-                riscv.LiOp(
-                    op.value.value.data, rd=riscv.RegisterType(riscv.Register())
-                ),
+                riscv.LiOp(op.value.value.data),
             )
 
 
@@ -82,25 +78,21 @@ class LowerArithAddi(RewritePattern):
             ), "64 bit operations not supported on RV32 triple"
             rewriter.replace_op(
                 op,
-                [riscv.AddOp(op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register()))],
+                [riscv.AddOp(op.lhs, op.rhs)],
             )
         else:
             rewriter.replace_op(
                 op,
-                [riscv.AddOp(op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register()))],
+                [riscv.AddOp(op.lhs, op.rhs)],
             )
 
 
 class LowerArithSubi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Subi, rewriter: PatternRewriter) -> None:
-        assert isinstance(op.lhs, arith.IntegerType) and isinstance(
-            op.rhs, arith.IntegerType
-        )
+        assert isinstance(op.lhs, arith.IntegerType)
         assert op.lhs.width.data <= 32, "64 bit operations not supported on RV32 triple"
-        rewriter.replace_op(
-            op, riscv.SubOp(op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register()))
-        )
+        rewriter.replace_op(op, riscv.SubOp(op.lhs, op.rhs))
 
 
 class LowerArithMuli(RewritePattern):
@@ -112,38 +104,30 @@ class LowerArithMuli(RewritePattern):
             ), "64 bit operations not supported on RV32 triple"
             rewriter.replace_op(
                 op,
-                [riscv.MulOp(op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register()))],
+                [riscv.MulOp(op.lhs, op.rhs)],
             )
         else:
             rewriter.replace_op(
                 op,
-                [riscv.MulOp(op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register()))],
+                [riscv.MulOp(op.lhs, op.rhs)],
             )
 
 
 class LowerArithDivUI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.DivUI, rewriter: PatternRewriter) -> None:
-        assert isinstance(op.lhs, arith.IntegerType) and isinstance(
-            op.rhs, arith.IntegerType
-        )
+        assert isinstance(op.lhs, arith.IntegerType)
         assert op.lhs.width.data <= 32, "64 bit operations not supported on RV32 triple"
-        rewriter.replace_op(
-            op, riscv.DivuOp(op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register()))
-        )
+        rewriter.replace_op(op, riscv.DivuOp(op.lhs, op.rhs))
 
 
 class LowerArithDivSI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.DivSI, rewriter: PatternRewriter) -> None:
-        assert isinstance(op.lhs, arith.IntegerType) and isinstance(
-            op.rhs, arith.IntegerType
-        )
+        assert isinstance(op.lhs, arith.IntegerType)
         assert op.lhs.width.data <= 32, "64 bit operations not supported on RV32 triple"
 
-        rewriter.replace_op(
-            op, riscv.DivOp(op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register()))
-        )
+        rewriter.replace_op(op, riscv.DivOp(op.lhs, op.rhs))
 
 
 class LowerArithFloorDivSI(RewritePattern):
@@ -151,11 +135,6 @@ class LowerArithFloorDivSI(RewritePattern):
     def match_and_rewrite(
         self, op: arith.FloorDivSI, rewriter: PatternRewriter
     ) -> None:
-        assert isinstance(op.lhs, arith.IntegerType) and isinstance(
-            op.rhs, arith.IntegerType
-        )
-        assert op.lhs.width.data <= 32, "64 bit operations not supported on RV32 triple"
-
         raise NotImplementedError("FloorDivSI is not supported")
 
 
@@ -184,13 +163,9 @@ class LowerArithRemSI(RewritePattern):
             assert (
                 op.lhs.width.data <= 32
             ), "64 bit operations not supported on RV32 triple"
-            rewriter.replace_matched_op(
-                [riscv.RemOp(op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register()))]
-            )
+            rewriter.replace_matched_op([riscv.RemOp(op.lhs, op.rhs)])
         else:
-            rewriter.replace_matched_op(
-                [riscv.RemOp(op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register()))]
-            )
+            rewriter.replace_matched_op([riscv.RemOp(op.lhs, op.rhs)])
 
 
 class LowerArithMinSI(RewritePattern):
@@ -229,50 +204,37 @@ class LowerArithCmpi(RewritePattern):
                 rewriter.replace_matched_op([xor_op, seqz_op])
             # ne
             case 1:
+                zero = riscv.GetRegisterOp(riscv.Registers.ZERO)
                 xor_op = riscv.XorOp(op.lhs, op.rhs)
-                snez_op = riscv.SltuOp(
-                    riscv.GetRegisterOp(riscv.Registers.ZERO), xor_op
-                )
+                snez_op = riscv.SltuOp(zero, xor_op)
                 rewriter.replace_matched_op([xor_op, snez_op])
                 pass
             # slt
             case 2:
-                slt = riscv.SltOp(
-                    op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register())
-                )
+                slt = riscv.SltOp(op.lhs, op.rhs)
                 rewriter.replace_matched_op([slt])
             # sle
             case 3:
-                slt = riscv.SltOp(
-                    op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register())
-                )
-                xori = riscv.XoriOp(slt, 1, rd=riscv.RegisterType(riscv.Register()))
+                slt = riscv.SltOp(op.lhs, op.rhs)
+                xori = riscv.XoriOp(slt, 1)
                 rewriter.replace_matched_op([slt, xori])
             # ult
             case 4:
-                sltu = riscv.SltuOp(
-                    op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register())
-                )
+                sltu = riscv.SltuOp(op.lhs, op.rhs)
                 rewriter.replace_matched_op([sltu])
             # ule
             case 5:
-                sltu = riscv.SltuOp(
-                    op.lhs, op.rhs, rd=riscv.RegisterType(riscv.Register())
-                )
-                xori = riscv.XoriOp(sltu, 1, rd=riscv.RegisterType(riscv.Register()))
+                sltu = riscv.SltuOp(op.lhs, op.rhs)
+                xori = riscv.XoriOp(sltu, 1)
                 rewriter.replace_matched_op([sltu, xori])
             # ugt
             case 6:
-                sltu = riscv.SltuOp(
-                    op.rhs, op.lhs, rd=riscv.RegisterType(riscv.Register())
-                )
+                sltu = riscv.SltuOp(op.rhs, op.lhs)
                 rewriter.replace_matched_op([sltu])
             # uge
             case 7:
-                sltu = riscv.SltuOp(
-                    op.rhs, op.lhs, rd=riscv.RegisterType(riscv.Register())
-                )
-                xori = riscv.XoriOp(sltu, 1, rd=riscv.RegisterType(riscv.Register()))
+                sltu = riscv.SltuOp(op.rhs, op.lhs)
+                xori = riscv.XoriOp(sltu, 1)
                 rewriter.replace_matched_op([sltu, xori])
             case _:
                 raise NotImplementedError("Cmpi predicate not supported")
@@ -327,21 +289,9 @@ class LowerArithAddf(RewritePattern):
             assert not isinstance(
                 op.lhs.typ, Float64Type
             ), "Double precision not supported on RV32 triple"
-            rewriter.replace_matched_op(
-                [
-                    riscv.FAddSOp(
-                        op.lhs, op.rhs, rd=riscv.FloatRegisterType(riscv.Register())
-                    )
-                ]
-            )
+            rewriter.replace_matched_op([riscv.FAddSOp(op.lhs, op.rhs)])
         else:
-            rewriter.replace_matched_op(
-                [
-                    riscv.FAddSOp(
-                        op.lhs, op.rhs, rd=riscv.FloatRegisterType(riscv.Register())
-                    )
-                ]
-            )
+            rewriter.replace_matched_op([riscv.FAddSOp(op.lhs, op.rhs)])
 
 
 class LowerArithSubf(RewritePattern):
@@ -351,21 +301,9 @@ class LowerArithSubf(RewritePattern):
             assert not isinstance(
                 op.lhs.typ, Float64Type
             ), "Double precision not supported on RV32 triple"
-            rewriter.replace_matched_op(
-                [
-                    riscv.FSubSOp(
-                        op.lhs, op.rhs, rd=riscv.FloatRegisterType(riscv.Register())
-                    )
-                ]
-            )
+            rewriter.replace_matched_op([riscv.FSubSOp(op.lhs, op.rhs)])
         else:
-            rewriter.replace_matched_op(
-                [
-                    riscv.FSubSOp(
-                        op.lhs, op.rhs, rd=riscv.FloatRegisterType(riscv.Register())
-                    )
-                ]
-            )
+            rewriter.replace_matched_op([riscv.FSubSOp(op.lhs, op.rhs)])
 
 
 class LowerArithMulf(RewritePattern):
@@ -375,21 +313,9 @@ class LowerArithMulf(RewritePattern):
             assert not isinstance(
                 op.lhs.typ, Float64Type
             ), "Double precision not supported on RV32 triple"
-            rewriter.replace_matched_op(
-                [
-                    riscv.FMulSOp(
-                        op.lhs, op.rhs, rd=riscv.FloatRegisterType(riscv.Register())
-                    )
-                ]
-            )
+            rewriter.replace_matched_op([riscv.FMulSOp(op.lhs, op.rhs)])
         else:
-            rewriter.replace_matched_op(
-                [
-                    riscv.FMulSOp(
-                        op.lhs, op.rhs, rd=riscv.FloatRegisterType(riscv.Register())
-                    )
-                ]
-            )
+            rewriter.replace_matched_op([riscv.FMulSOp(op.lhs, op.rhs)])
 
 
 class LowerArithDivf(RewritePattern):
@@ -399,21 +325,9 @@ class LowerArithDivf(RewritePattern):
             assert not isinstance(
                 op.lhs.typ, Float64Type
             ), "Double precision not supported on RV32 triple"
-            rewriter.replace_matched_op(
-                [
-                    riscv.FDivSOp(
-                        op.lhs, op.rhs, rd=riscv.FloatRegisterType(riscv.Register())
-                    )
-                ]
-            )
+            rewriter.replace_matched_op([riscv.FDivSOp(op.lhs, op.rhs)])
         else:
-            rewriter.replace_matched_op(
-                [
-                    riscv.FDivSOp(
-                        op.lhs, op.rhs, rd=riscv.FloatRegisterType(riscv.Register())
-                    )
-                ]
-            )
+            rewriter.replace_matched_op([riscv.FDivSOp(op.lhs, op.rhs)])
 
 
 class LowerArithSIToFPOp(RewritePattern):
@@ -423,13 +337,9 @@ class LowerArithSIToFPOp(RewritePattern):
             assert (
                 op.input.width.data <= 32
             ), "64 bit operations not supported on RV32 triple"
-            rewriter.replace_matched_op(
-                [riscv.FCvtSWOp(op.input, rd=riscv.FloatRegisterType(riscv.Register()))]
-            )
+            rewriter.replace_matched_op([riscv.FCvtSWOp(op.input)])
         else:
-            rewriter.replace_matched_op(
-                [riscv.FCvtSWOp(op.input, rd=riscv.FloatRegisterType(riscv.Register()))]
-            )
+            rewriter.replace_matched_op([riscv.FCvtSWOp(op.input)])
 
 
 class LowerArithRV32(ModulePass):
