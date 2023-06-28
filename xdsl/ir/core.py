@@ -18,6 +18,7 @@ from typing import (
     cast,
     Iterator,
     ClassVar,
+    overload,
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
@@ -56,8 +57,12 @@ class Dialect:
 class MLContext:
     """Contains structures for operations/attributes registration."""
 
-    _registeredOps: dict[str, type[Operation]] = field(default_factory=dict)
-    _registeredAttrs: dict[str, type[Attribute]] = field(default_factory=dict)
+    allow_unregistered: bool = field(default=False)
+
+    _registeredOps: dict[str, type[Operation]] = field(init=False, default_factory=dict)
+    _registeredAttrs: dict[str, type[Attribute]] = field(
+        init=False, default_factory=dict
+    )
 
     def register_dialect(self, dialect: Dialect):
         """Register a dialect. Operation and Attribute names should be unique"""
@@ -79,17 +84,15 @@ class MLContext:
             raise Exception(f"Attribute {attr.name} has already been registered")
         self._registeredAttrs[attr.name] = attr
 
-    def get_optional_op(
-        self, name: str, allow_unregistered: bool = False
-    ) -> type[Operation] | None:
+    def get_optional_op(self, name: str) -> type[Operation] | None:
         """
         Get an operation class from its name if it exists.
-        If the operation is not registered, return None unless
-        allow_unregistered is True, in which case return an UnregisteredOp.
+        If the operation is not registered, return None unless unregistered operations
+        are allowed in the context, in which case return an UnregisteredOp.
         """
         if name in self._registeredOps:
             return self._registeredOps[name]
-        if allow_unregistered:
+        if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredOp
 
             op_type = UnregisteredOp.with_name(name)
@@ -97,33 +100,32 @@ class MLContext:
             return op_type
         return None
 
-    def get_op(self, name: str, allow_unregistered: bool = False) -> type[Operation]:
+    def get_op(self, name: str) -> type[Operation]:
         """
         Get an operation class from its name.
-        If the operation is not registered, raise an exception unless
-        allow_unregistered is True, in which case return an UnregisteredOp.
+        If the operation is not registered, raise an exception unless unregistered
+        operations are allowed in the context, in which case return an UnregisteredOp.
         """
-        if op_type := self.get_optional_op(name, allow_unregistered):
+        if op_type := self.get_optional_op(name):
             return op_type
         raise Exception(f"Operation {name} is not registered")
 
     def get_optional_attr(
         self,
         name: str,
-        allow_unregistered: bool = False,
         create_unregistered_as_type: bool = False,
     ) -> type[Attribute] | None:
         """
         Get an attribute class from its name if it exists.
-        If the attribute is not registered, return None unless
-        allow_unregistered in True, in which case return an UnregisteredAttr.
+        If the attribute is not registered, return None unless unregistered attributes
+        are allowed in the context, in which case return an UnregisteredAttr.
         Since UnregisteredAttr may be a type (for MLIR compatibility), an
         additional flag is required to create an UnregisterAttr that is
         also a type.
         """
         if name in self._registeredAttrs:
             return self._registeredAttrs[name]
-        if allow_unregistered:
+        if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredAttr
 
             attr_type = UnregisteredAttr.with_name_and_type(
@@ -137,20 +139,17 @@ class MLContext:
     def get_attr(
         self,
         name: str,
-        allow_unregistered: bool = False,
         create_unregistered_as_type: bool = False,
     ) -> type[Attribute]:
         """
         Get an attribute class from its name.
-        If the attribute is not registered, raise an exception unless
-        allow_unregistered in True, in which case return an UnregisteredAttr.
+        If the attribute is not registered, raise an exception unless unregistered
+        attributes are allowed in the context, in which case return an UnregisteredAttr.
         Since UnregisteredAttr may be a type (for MLIR compatibility), an
         additional flag is required to create an UnregisterAttr that is
         also a type.
         """
-        if attr_type := self.get_optional_attr(
-            name, allow_unregistered, create_unregistered_as_type
-        ):
+        if attr_type := self.get_optional_attr(name, create_unregistered_as_type):
             return attr_type
         raise Exception(f"Attribute {name} is not registered")
 
@@ -241,7 +240,7 @@ class SSAValue(ABC):
     def replace_by(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
         for use in self.uses.copy():
-            use.operation.replace_operand(use.index, value)
+            use.operation.operands[use.index] = value
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
@@ -517,6 +516,41 @@ class IRNode(ABC):
         ...
 
 
+@dataclass
+class OpOperands(Sequence[SSAValue]):
+    """
+    A view of the operand list of an operation.
+    Any modification to the view is reflected on the operation.
+    """
+
+    _op: Operation
+    """The operation owning the operands."""
+
+    @overload
+    def __getitem__(self, idx: int) -> SSAValue:
+        ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> Sequence[SSAValue]:
+        ...
+
+    def __getitem__(self, idx: int | slice) -> SSAValue | Sequence[SSAValue]:
+        return self._op._operands[idx]  # pyright: ignore[reportPrivateUsage]
+
+    def __setitem__(self, idx: int, operand: SSAValue) -> None:
+        operands = self._op._operands  # pyright: ignore[reportPrivateUsage]
+        operands[idx].remove_use(Use(self._op, idx))
+        operand.add_use(Use(self._op, idx))
+        new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
+        self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
+
+    def __iter__(self) -> Iterator[SSAValue]:
+        return iter(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
+    def __len__(self) -> int:
+        return len(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
+
 @dataclass(init=False)
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -524,7 +558,7 @@ class Operation(IRNode):
     name: ClassVar[str] = field(repr=False)
     """The operation name. Should be a static member of the class"""
 
-    _operands: tuple[SSAValue, ...]
+    _operands: tuple[SSAValue, ...] = field(default=())
     """The operation operands."""
 
     results: list[OpResult]
@@ -618,8 +652,8 @@ class Operation(IRNode):
         self._prev_op = new_op
 
     @property
-    def operands(self) -> tuple[SSAValue, ...]:
-        return self._operands
+    def operands(self) -> OpOperands:
+        return OpOperands(self)
 
     @operands.setter
     def operands(self, new: Sequence[SSAValue]):
@@ -645,8 +679,7 @@ class Operation(IRNode):
         super().__init__()
 
         # This is assumed to exist by Operation.operand setter.
-        self._operands = tuple()
-        self.operands = tuple(operands)
+        self.operands = operands
 
         self.results = [
             OpResult(typ, self, idx) for (idx, typ) in enumerate(result_types)
@@ -672,10 +705,10 @@ class Operation(IRNode):
         Operation.__init__(op, operands, result_types, attributes, successors, regions)
         return op
 
+    @deprecated("Use op.operands.__setindex__ instead")
     def replace_operand(self, operand: int | SSAValue, new_operand: SSAValue) -> None:
         """
         Replace an operand with another operand.
-
         Raises ValueError if the specified operand is not an operand of this op
         """
         if isinstance(operand, SSAValue):
@@ -688,11 +721,7 @@ class Operation(IRNode):
         else:
             operand_idx = operand
 
-        self.operands = (
-            list(self._operands[:operand_idx])
-            + [new_operand]
-            + list(self._operands[operand_idx + 1 :])
-        )
+        self.operands[operand_idx] = new_operand
 
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""

@@ -59,7 +59,6 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.traits import IsolatedFromAbove, NoTerminator
-from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -157,11 +156,6 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
                     f"element is of type {type(val)}"
                 )
 
-    @staticmethod
-    @deprecated_constructor
-    def from_list(data: List[AttributeCovT]) -> ArrayAttr[AttributeCovT]:
-        return ArrayAttr[AttributeCovT](data)
-
     def __len__(self):
         return len(self.data)
 
@@ -183,16 +177,6 @@ class StringAttr(Data[str]):
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f'"{self.data}"')
 
-    @staticmethod
-    @deprecated_constructor
-    def from_str(data: str) -> StringAttr:
-        return StringAttr(data)
-
-    @staticmethod
-    @deprecated_constructor
-    def from_int(data: int) -> StringAttr:
-        return StringAttr(str(data))
-
 
 @irdl_attr_definition
 class SymbolNameAttr(ParametrizedAttribute):
@@ -203,16 +187,6 @@ class SymbolNameAttr(ParametrizedAttribute):
         if isinstance(data, str):
             data = StringAttr(data)
         super().__init__([data])
-
-    @staticmethod
-    @deprecated_constructor
-    def from_str(data: str) -> SymbolNameAttr:
-        return SymbolNameAttr(data)
-
-    @staticmethod
-    @deprecated_constructor
-    def from_string_attr(data: StringAttr) -> SymbolNameAttr:
-        return SymbolNameAttr(data)
 
 
 @irdl_attr_definition
@@ -234,18 +208,6 @@ class SymbolRefAttr(ParametrizedAttribute):
             )
         super().__init__([root, nested])
 
-    @staticmethod
-    @deprecated_constructor
-    def from_str(root: str, nested: List[str] = []) -> SymbolRefAttr:
-        return SymbolRefAttr(root, nested)
-
-    @staticmethod
-    @deprecated_constructor
-    def from_string_attr(
-        root: StringAttr, nested: List[StringAttr] = []
-    ) -> SymbolRefAttr:
-        return SymbolRefAttr(root, nested)
-
     def string_value(self):
         root = self.root_reference.data
         for ref in self.nested_references.data:
@@ -264,11 +226,6 @@ class IntAttr(Data[int]):
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
-
-    @staticmethod
-    @deprecated_constructor
-    def from_int(data: int) -> IntAttr:
-        return IntAttr(data)
 
 
 class Signedness(Enum):
@@ -306,11 +263,6 @@ class SignednessAttr(Data[Signedness]):
         else:
             raise ValueError(f"Invalid signedness {data}")
 
-    @staticmethod
-    @deprecated_constructor
-    def from_enum(signedness: Signedness) -> SignednessAttr:
-        return SignednessAttr(signedness)
-
 
 @irdl_attr_definition
 class IntegerType(ParametrizedAttribute, TypeAttribute):
@@ -328,13 +280,6 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
         if isinstance(signedness, Signedness):
             signedness = SignednessAttr(signedness)
         super().__init__([data, signedness])
-
-    @staticmethod
-    @deprecated_constructor
-    def from_width(
-        width: int, signedness: Signedness = Signedness.SIGNLESS
-    ) -> IntegerType:
-        return IntegerType(width, signedness)
 
 
 i64 = IntegerType(64)
@@ -465,11 +410,6 @@ class FloatData(Data[float]):
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
 
-    @staticmethod
-    @deprecated_constructor
-    def from_float(data: float) -> FloatData:
-        return FloatData(data)
-
 
 _FloatAttrTyp = TypeVar("_FloatAttrTyp", bound=AnyFloat, covariant=True)
 
@@ -511,16 +451,6 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
                 raise ValueError(f"Invalid bitwidth: {type}")
         super().__init__([data, type])
 
-    @staticmethod
-    @deprecated_constructor
-    def from_value(value: float, type: _FloatAttrTypInv) -> FloatAttr[_FloatAttrTypInv]:
-        return FloatAttr(FloatData.from_float(value), type)
-
-    @staticmethod
-    @deprecated_constructor
-    def from_float_and_width(value: float, width: int) -> FloatAttr[AnyFloat]:
-        return FloatAttr(value, width)
-
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
 
@@ -553,17 +483,6 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
         raise Exception(f"Unsupported operation on {DictionaryAttr.name}")
 
-    @staticmethod
-    @deprecated_constructor
-    def from_dict(data: dict[str | StringAttr, Attribute]) -> DictionaryAttr:
-        to_add_data: dict[str, Attribute] = {}
-        for k, v in data.items():
-            # try to coerce keys into StringAttr
-            if isinstance(k, StringAttr):
-                k = k.data
-            to_add_data[k] = v
-        return DictionaryAttr(to_add_data)
-
     def verify(self) -> None:
         return super().verify()
 
@@ -578,11 +497,6 @@ class TupleType(ParametrizedAttribute):
         if isinstance(types, list):
             types = ArrayAttr(types)
         super().__init__([types])
-
-    @staticmethod
-    @deprecated_constructor
-    def from_type_list(types: List[Attribute]) -> TupleType:
-        return TupleType(types)
 
 
 @irdl_attr_definition

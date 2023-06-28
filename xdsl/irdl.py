@@ -1226,7 +1226,7 @@ def get_construct_defs(
 
 def get_op_constructs(
     op: Operation, construct: VarIRConstruct
-) -> tuple[SSAValue, ...] | list[OpResult] | list[Region] | list[Successor]:
+) -> Sequence[SSAValue] | list[OpResult] | list[Region] | list[Successor]:
     """
     Get the list of arguments of the type in an operation.
     For example, if the argument type is an operand, get the list of
@@ -1377,7 +1377,7 @@ def get_operand_result_or_region(
 ) -> (
     None
     | SSAValue
-    | tuple[SSAValue, ...]
+    | Sequence[SSAValue]
     | list[OpResult]
     | Region
     | list[Region]

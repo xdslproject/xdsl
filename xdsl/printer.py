@@ -312,7 +312,7 @@ class Printer:
         self.print_list(regions, self.print_region)
         self.print(")")
 
-    def _print_operands(self, operands: tuple[SSAValue, ...]) -> None:
+    def _print_operands(self, operands: Sequence[SSAValue]) -> None:
         if len(operands) == 0:
             self.print("()")
             return

@@ -150,14 +150,11 @@ class Parser(BaseParser):
     This field map a name and a tuple index to the forward declared SSA value.
     """
 
-    allow_unregistered_dialect: bool
-
     def __init__(
         self,
         ctx: MLContext,
         input: str,
         name: str = "<unknown>",
-        allow_unregistered_dialect: bool = False,
     ) -> None:
         super().__init__(ParserState(Lexer(Input(input, name))))
         self.ctx = ctx
@@ -165,7 +162,6 @@ class Parser(BaseParser):
         self.blocks = dict()
         self.forward_block_references = dict()
         self.forward_ssa_references = dict()
-        self.allow_unregistered_dialect = allow_unregistered_dialect
 
     def parse_module(self) -> ModuleOp:
         op = self.parse_optional_operation()
@@ -474,7 +470,6 @@ class Parser(BaseParser):
         """
         attr_def = self.ctx.get_optional_attr(
             attr_name,
-            self.allow_unregistered_dialect,
             create_unregistered_as_type=is_type,
         )
         if attr_def is None:
@@ -1211,7 +1206,6 @@ class Parser(BaseParser):
         # attribute definition.
         attr_def = self.ctx.get_optional_attr(
             name.text,
-            allow_unregistered=self.allow_unregistered_dialect,
             create_unregistered_as_type=False,
         )
         if attr_def is None:
@@ -1701,10 +1695,7 @@ class Parser(BaseParser):
         Raises an error if the operation is not registered, and if unregistered
         dialects are not allowed.
         """
-        op_type = self.ctx.get_optional_op(
-            name, allow_unregistered=self.allow_unregistered_dialect
-        )
-
+        op_type = self.ctx.get_optional_op(name)
         if op_type is not None:
             return op_type
 

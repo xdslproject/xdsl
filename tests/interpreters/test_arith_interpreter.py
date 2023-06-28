@@ -1,7 +1,7 @@
 import pytest
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
-from xdsl.dialects.arith import Addi, Cmpi, Constant, Muli, Subi
+from xdsl.dialects.arith import Addf, Addi, Cmpi, Constant, Mulf, Muli, Subf, Subi
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
@@ -67,6 +67,39 @@ def test_muli(lhs_value: int, rhs_value: int):
     muli = Muli(lhs_op, rhs_op)
 
     ret = interpreter.run_op(muli, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value * rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_subf(lhs_value: int, rhs_value: int):
+    subf = Subf(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(subf, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value - rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_addf(lhs_value: int, rhs_value: int):
+    addf = Addf(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(addf, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == lhs_value + rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_mulf(lhs_value: int, rhs_value: int):
+    mulf = Mulf(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(mulf, (lhs_value, rhs_value))
 
     assert len(ret) == 1
     assert ret[0] == lhs_value * rhs_value

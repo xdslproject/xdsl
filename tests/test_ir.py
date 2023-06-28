@@ -139,6 +139,37 @@ def test_ops_accessor_III():
         region0.detach_block(1)
 
 
+def test_op_operands_assign():
+    """Test that we can directly assign `op.operands`."""
+    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    op = TestOp.create(operands=[val1, val2])
+    op.operands = [val2, val1]
+    op.verify()
+
+    assert len(val1.uses) == 1
+    assert len(val2.uses) == 1
+    assert tuple(op.operands) == (val2, val1)
+
+
+def test_op_operands_indexing():
+    """Test `__getitem__`, `__setitem__`, and `__len__` on `op.operands`."""
+    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    op = TestOp.create(operands=[val1, val2])
+    op.verify()
+
+    assert op.operands[0] == val1
+    assert op.operands[1] == val2
+    assert op.operands[-1] == val2
+    assert op.operands[0:2] == (val1, val2)
+
+    op.operands[0] = val2
+    op.verify()
+
+    assert len(val1.uses) == 0
+    assert len(val2.uses) == 2
+    assert tuple(op.operands) == (val2, val2)
+
+
 def test_op_clone():
     a = Constant.from_int_and_width(1, 32)
     b = a.clone()
@@ -265,8 +296,8 @@ def test_region_clone_into_circular_blocks():
         "test.op"() [^0] : () -> ()
     }
     """
-    ctx = MLContext()
-    region = Parser(ctx, region_str, allow_unregistered_dialect=True).parse_region()
+    ctx = MLContext(allow_unregistered=True)
+    region = Parser(ctx, region_str).parse_region()
 
     region2 = Region()
     region.clone_into(region2)
@@ -668,21 +699,6 @@ def test_op_custom_verify_is_done_last():
         b.verify()
     assert e.value.args[0] != "Custom Verification Check"
     assert "test.custom_verify_op operation does not verify" in e.value.args[0]
-
-
-def test_replace_operand():
-    cst0 = Constant.from_int_and_width(0, 32).result
-    cst1 = Constant.from_int_and_width(1, 32).result
-    add = Addi(cst0, cst1)
-
-    new_cst = Constant.from_int_and_width(2, 32).result
-    add.replace_operand(cst0, new_cst)
-
-    assert new_cst in add.operands
-    assert cst0 not in add.operands
-
-    with pytest.raises(ValueError):
-        add.replace_operand(cst0, new_cst)
 
 
 def test_block_walk():
