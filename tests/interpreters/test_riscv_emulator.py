@@ -25,7 +25,6 @@ def test_simple():
         seven = riscv.LiOp(7).rd
         forty_two = riscv.MulOp(six, seven).rd
         riscv.CustomAssemblyInstructionOp("print", inputs=[forty_two], result_types=[])
-        riscv.ReturnOp()
 
     RISCVRegisterAllocation().apply(ctx, module)
 
