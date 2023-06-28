@@ -1,7 +1,6 @@
 import ctypes
 from xdsl.dialects.builtin import (
     Float32Type,
-    Float64Type,
     FloatAttr,
     IndexType,
     IntegerAttr,
@@ -127,7 +126,7 @@ class LowerArithCeilDivUI(RewritePattern):
 class LowerArithRemUI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.RemUI, rewriter: PatternRewriter) -> None:
-        raise NotImplementedError("RemUI is not supported")
+        rewriter.replace_matched_op(riscv.RemuOp(op.lhs, op.rhs))
 
 
 class LowerArithRemSI(RewritePattern):
@@ -217,19 +216,19 @@ class LowerArithSelect(RewritePattern):
 class LowerArithAndI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.AndI, rewriter: PatternRewriter) -> None:
-        raise NotImplementedError("AndI is not supported")
+        rewriter.replace_matched_op([riscv.AndOp(op.lhs, op.rhs)])
 
 
 class LowerArithOrI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.OrI, rewriter: PatternRewriter) -> None:
-        raise NotImplementedError("OrI is not supported")
+        rewriter.replace_matched_op([riscv.OrOp(op.lhs, op.rhs)])
 
 
 class LowerArithXOrI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.XOrI, rewriter: PatternRewriter) -> None:
-        raise NotImplementedError("XorI is not supported")
+        rewriter.replace_matched_op([riscv.XorOp(op.lhs, op.rhs)])
 
 
 class LowerArithShLI(RewritePattern):
