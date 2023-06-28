@@ -18,8 +18,6 @@ from xdsl.pattern_rewriter import (
 from xdsl.dialects import arith, riscv
 from xdsl.transforms.dead_code_elimination import dce
 
-# Various helper functions
-
 
 def convert_float_to_int(value: float) -> int:
     """
@@ -36,25 +34,31 @@ class LowerArithConstant(RewritePattern):
         if isinstance(op.result.typ, arith.IntegerType) and isinstance(
             op.value, IntegerAttr
         ):
-            assert (
-                op.result.typ.width.data <= 32
-            ), "64 bit operations not supported on RV32 triple"
+            if op.result.typ.width.data <= 32:
+                rewriter.replace_op(
+                    op,
+                    riscv.LiOp(op.value.value.data),
+                )
+            else:
+                raise NotImplementedError("Only 32 bit integers are supported for now")
+        elif isinstance(op.value, FloatAttr):
+            if isinstance(op.result.typ, Float32Type):
+                lui = riscv.LiOp(
+                    convert_float_to_int(op.value.value.data),
+                    rd=riscv.RegisterType(riscv.Register()),
+                )
+                fld = riscv.FCvtSWOp(lui.rd)
+                rewriter.replace_op(op, [lui, fld])
+            else:
+                raise NotImplementedError("Only 32 bit floats are supported")
+        elif isinstance(op.result.typ, IndexType) and isinstance(op.value, IntegerAttr):
             rewriter.replace_op(
                 op,
                 riscv.LiOp(op.value.value.data),
             )
-        elif isinstance(op.result.typ, Float32Type) and isinstance(op.value, FloatAttr):
-            lui = riscv.LiOp(
-                convert_float_to_int(op.value.value.data),
-                rd=riscv.RegisterType(riscv.Register()),
-            )
-            fld = riscv.FCvtSWOp(lui.rd)
-            rewriter.replace_op(op, [lui, fld])
-        elif isinstance(op.result.typ, IndexType):
-            assert isinstance(op.value, IntegerAttr)
-            rewriter.replace_op(
-                op,
-                riscv.LiOp(op.value.value.data),
+        else:
+            raise NotImplementedError(
+                f"Unsupported constant type {op.value} of type {type(op.value)}"
             )
 
 
@@ -63,70 +67,40 @@ class LowerArithIndexCast(RewritePattern):
     def match_and_rewrite(
         self, op: arith.IndexCastOp, rewriter: PatternRewriter
     ) -> None:
-        old_uses = set(op.result.uses)
-        for use in old_uses:
-            use.operation.replace_operand(use.index, op.input)
-        rewriter.erase_matched_op()
+        """
+        On a RV32 triple, the index type is 32 bits, so we can just drop the cast.
+        """
+
+        rewriter.replace_matched_op([], [op.input])
 
 
 class LowerArithAddi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter) -> None:
-        if isinstance(op.lhs, arith.IntegerType):
-            assert (
-                op.lhs.width.data <= 32
-            ), "64 bit operations not supported on RV32 triple"
-            rewriter.replace_op(
-                op,
-                [riscv.AddOp(op.lhs, op.rhs)],
-            )
-        else:
-            rewriter.replace_op(
-                op,
-                [riscv.AddOp(op.lhs, op.rhs)],
-            )
+        rewriter.replace_op(op, riscv.AddOp(op.lhs, op.rhs))
 
 
 class LowerArithSubi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Subi, rewriter: PatternRewriter) -> None:
-        assert isinstance(op.lhs, arith.IntegerType)
-        assert op.lhs.width.data <= 32, "64 bit operations not supported on RV32 triple"
         rewriter.replace_op(op, riscv.SubOp(op.lhs, op.rhs))
 
 
 class LowerArithMuli(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Muli, rewriter: PatternRewriter) -> None:
-        if isinstance(op.lhs, arith.IntegerType):
-            assert (
-                op.lhs.width.data <= 32
-            ), "64 bit operations not supported on RV32 triple"
-            rewriter.replace_op(
-                op,
-                [riscv.MulOp(op.lhs, op.rhs)],
-            )
-        else:
-            rewriter.replace_op(
-                op,
-                [riscv.MulOp(op.lhs, op.rhs)],
-            )
+        rewriter.replace_op(op, riscv.MulOp(op.lhs, op.rhs))
 
 
 class LowerArithDivUI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.DivUI, rewriter: PatternRewriter) -> None:
-        assert isinstance(op.lhs, arith.IntegerType)
-        assert op.lhs.width.data <= 32, "64 bit operations not supported on RV32 triple"
         rewriter.replace_op(op, riscv.DivuOp(op.lhs, op.rhs))
 
 
 class LowerArithDivSI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.DivSI, rewriter: PatternRewriter) -> None:
-        assert isinstance(op.lhs, arith.IntegerType)
-        assert op.lhs.width.data <= 32, "64 bit operations not supported on RV32 triple"
-
         rewriter.replace_op(op, riscv.DivOp(op.lhs, op.rhs))
 
 
@@ -159,13 +133,7 @@ class LowerArithRemUI(RewritePattern):
 class LowerArithRemSI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.RemSI, rewriter: PatternRewriter) -> None:
-        if isinstance(op.lhs, arith.IntegerType):
-            assert (
-                op.lhs.width.data <= 32
-            ), "64 bit operations not supported on RV32 triple"
-            rewriter.replace_matched_op([riscv.RemOp(op.lhs, op.rhs)])
-        else:
-            rewriter.replace_matched_op([riscv.RemOp(op.lhs, op.rhs)])
+        rewriter.replace_matched_op([riscv.RemOp(op.lhs, op.rhs)])
 
 
 class LowerArithMinSI(RewritePattern):
@@ -285,61 +253,49 @@ class LowerArithShRSI(RewritePattern):
 class LowerArithAddf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addf, rewriter: PatternRewriter) -> None:
-        if isinstance(op.lhs, arith.FloatAttr):
-            assert not isinstance(
-                op.lhs.typ, Float64Type
-            ), "Double precision not supported on RV32 triple"
-            rewriter.replace_matched_op([riscv.FAddSOp(op.lhs, op.rhs)])
-        else:
-            rewriter.replace_matched_op([riscv.FAddSOp(op.lhs, op.rhs)])
+        rewriter.replace_matched_op([riscv.FAddSOp(op.lhs, op.rhs)])
 
 
 class LowerArithSubf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Subf, rewriter: PatternRewriter) -> None:
-        if isinstance(op.lhs, arith.FloatAttr):
-            assert not isinstance(
-                op.lhs.typ, Float64Type
-            ), "Double precision not supported on RV32 triple"
-            rewriter.replace_matched_op([riscv.FSubSOp(op.lhs, op.rhs)])
-        else:
-            rewriter.replace_matched_op([riscv.FSubSOp(op.lhs, op.rhs)])
+        rewriter.replace_matched_op([riscv.FSubSOp(op.lhs, op.rhs)])
 
 
 class LowerArithMulf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Mulf, rewriter: PatternRewriter) -> None:
-        if isinstance(op.lhs, arith.FloatAttr):
-            assert not isinstance(
-                op.lhs.typ, Float64Type
-            ), "Double precision not supported on RV32 triple"
-            rewriter.replace_matched_op([riscv.FMulSOp(op.lhs, op.rhs)])
-        else:
-            rewriter.replace_matched_op([riscv.FMulSOp(op.lhs, op.rhs)])
+        rewriter.replace_matched_op([riscv.FMulSOp(op.lhs, op.rhs)])
 
 
 class LowerArithDivf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Divf, rewriter: PatternRewriter) -> None:
-        if isinstance(op.lhs, arith.FloatAttr):
-            assert not isinstance(
-                op.lhs.typ, Float64Type
-            ), "Double precision not supported on RV32 triple"
-            rewriter.replace_matched_op([riscv.FDivSOp(op.lhs, op.rhs)])
-        else:
-            rewriter.replace_matched_op([riscv.FDivSOp(op.lhs, op.rhs)])
+        rewriter.replace_matched_op([riscv.FDivSOp(op.lhs, op.rhs)])
 
 
 class LowerArithSIToFPOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.SIToFPOp, rewriter: PatternRewriter) -> None:
-        if isinstance(op.input, arith.IntegerType):
-            assert (
-                op.input.width.data <= 32
-            ), "64 bit operations not supported on RV32 triple"
-            rewriter.replace_matched_op([riscv.FCvtSWOp(op.input)])
-        else:
-            rewriter.replace_matched_op([riscv.FCvtSWOp(op.input)])
+        rewriter.replace_matched_op([riscv.FCvtSWOp(op.input)])
+
+
+class LowerArithFPToSIOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.FPToSIOp, rewriter: PatternRewriter) -> None:
+        rewriter.replace_matched_op([riscv.FCvtWSOp(op.input)])
+
+
+class LowerArithExtFOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.ExtFOp, rewriter: PatternRewriter) -> None:
+        raise NotImplementedError("ExtF is not supported")
+
+
+class LowerArithTruncFOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.TruncFOp, rewriter: PatternRewriter) -> None:
+        raise NotImplementedError("TruncF is not supported")
 
 
 class LowerArithRV32(ModulePass):
@@ -349,6 +305,8 @@ class LowerArithRV32(ModulePass):
         # Implemented lowerings
         PatternRewriteWalker(LowerArithConstant()).rewrite_module(op)
         PatternRewriteWalker(LowerArithIndexCast()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithSIToFPOp()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithFPToSIOp()).rewrite_module(op)
 
         PatternRewriteWalker(LowerArithAddi()).rewrite_module(op)
         PatternRewriteWalker(LowerArithSubi()).rewrite_module(op)
@@ -364,7 +322,6 @@ class LowerArithRV32(ModulePass):
         PatternRewriteWalker(LowerArithSubf()).rewrite_module(op)
         PatternRewriteWalker(LowerArithDivf()).rewrite_module(op)
         PatternRewriteWalker(LowerArithMulf()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithSIToFPOp()).rewrite_module(op)
 
         # Unimplemented lowerings
         PatternRewriteWalker(LowerArithCeilDivSI()).rewrite_module(op)
@@ -375,11 +332,16 @@ class LowerArithRV32(ModulePass):
         PatternRewriteWalker(LowerArithMinUI()).rewrite_module(op)
         PatternRewriteWalker(LowerArithMaxUI()).rewrite_module(op)
         PatternRewriteWalker(LowerArithSelect()).rewrite_module(op)
+
         PatternRewriteWalker(LowerArithAndI()).rewrite_module(op)
         PatternRewriteWalker(LowerArithOrI()).rewrite_module(op)
         PatternRewriteWalker(LowerArithXOrI()).rewrite_module(op)
+
         PatternRewriteWalker(LowerArithShLI()).rewrite_module(op)
         PatternRewriteWalker(LowerArithShRUI()).rewrite_module(op)
         PatternRewriteWalker(LowerArithShRSI()).rewrite_module(op)
+
+        PatternRewriteWalker(LowerArithExtFOp()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithTruncFOp()).rewrite_module(op)
 
         dce(op)

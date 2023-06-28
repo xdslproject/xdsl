@@ -6,7 +6,7 @@ from xdsl.dialects.func import Func
 from xdsl.dialects.memref import MemRef
 from xdsl.ir import MLContext
 from xdsl.parser import Parser as IRParser
-
+from xdsl.printer import Printer
 import pytest
 
 
@@ -23,11 +23,13 @@ def test_lower_arith():
         "xdsl/backend/riscv/lowering/tests/examples/dot_product.mlir",
     ]
 
+    printer = Printer()
     for path in samples:
         with open(path, "r") as f:
             parser = IRParser(ctx, f.read(), name=f"{path}")
             module_op = parser.parse_module()
             LowerArithRV32().apply(ctx, module_op)
+            printer.print(module_op)
             with pytest.raises(Exception):
                 module_op.verify()
 
