@@ -108,39 +108,6 @@ class SingleBlockImplicitTerminator(OpTrait):
     def __init__(self, parameters: type[Operation]):
         super().__init__(parameters)
 
-    def ensure_terminator(self, op: Operation) -> None:
-        if not op.regions:
-            raise VerifyException(f"'{op.name}' does not contain one or more regions")
-
-        for region in op.regions:
-            if len(region.blocks) > 1:
-                raise VerifyException(
-                    f"'{op.name}' does not contain single-block regions"
-                )
-
-            for block in region.blocks:
-                if (
-                    (last_op := block.last_op) is not None
-                    and last_op.has_trait(IsTerminator)
-                    and not isinstance(last_op, self.parameters)
-                ):
-                    raise VerifyException(
-                        f"'{op.name}' terminates with operation {last_op.name} "
-                        f"instead of {self.parameters.name}"
-                    )
-
-        for region in op.regions:
-            if len(region.blocks) == 0:
-                from xdsl.ir import Block
-
-                region.add_block(Block())
-
-            for block in region.blocks:
-                if (last_op := block.last_op) is None or not last_op.has_trait(
-                    IsTerminator
-                ):
-                    block.add_op(self.parameters.create())
-
     def verify(self, op: Operation) -> None:
         if not op.regions:
             raise VerifyException(f"'{op.name}' does not contain one or more regions")
@@ -151,16 +118,49 @@ class SingleBlockImplicitTerminator(OpTrait):
                     f"'{op.name}' does not contain single-block regions"
                 )
             for block in region.blocks:
-                if not block.ops:
+                if (last_op := block.last_op) is None:
                     raise VerifyException(
                         f"'{op.name}' contains empty block instead of at least "
                         f"terminating with {self.parameters.name}"
                     )
-                if not isinstance(block.last_op, self.parameters):
+
+                if not isinstance(last_op, self.parameters):
                     raise VerifyException(
                         f"'{op.name}' terminates with operation {last_op.name} "
                         f"instead of {self.parameters.name}"
                     )
+
+
+def ensure_terminator(trait: SingleBlockImplicitTerminator, op: Operation) -> None:
+    if not op.regions:
+        raise VerifyException(f"'{op.name}' does not contain one or more regions")
+
+    for region in op.regions:
+        if len(region.blocks) > 1:
+            raise VerifyException(f"'{op.name}' does not contain single-block regions")
+
+        for block in region.blocks:
+            if (
+                (last_op := block.last_op) is not None
+                and last_op.has_trait(IsTerminator)
+                and not isinstance(last_op, trait.parameters)
+            ):
+                raise VerifyException(
+                    f"'{op.name}' terminates with operation {last_op.name} "
+                    f"instead of {trait.parameters.name}"
+                )
+
+    for region in op.regions:
+        if len(region.blocks) == 0:
+            from xdsl.ir import Block
+
+            region.add_block(Block())
+
+        for block in region.blocks:
+            if (last_op := block.last_op) is None or not last_op.has_trait(
+                IsTerminator
+            ):
+                block.add_op(trait.parameters.create())
 
 
 class IsolatedFromAbove(OpTrait):

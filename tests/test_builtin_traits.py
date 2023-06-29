@@ -22,6 +22,7 @@ from xdsl.traits import (
     IsTerminator,
     NoTerminator,
     SingleBlockImplicitTerminator,
+    ensure_terminator,
     IsolatedFromAbove,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -297,7 +298,7 @@ class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
     def __post_init__(self):
         sbit_traits = self.get_traits_of_type(SingleBlockImplicitTerminator)
         for trait in sbit_traits:
-            trait.ensure_terminator(self)
+            ensure_terminator(trait, self)
 
 
 def test_single_block_implicit_terminator():
