@@ -140,4 +140,6 @@
     // CHECK-NEXT: %{{.*}} = "riscv.xori"(%cmpf14_2) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
     %cmpf15 = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 15 : i32} : (f32, f32) -> i1
     // CHECK-NEXT: %{{.*}} = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<>
+    %index_cast = "arith.index_cast"(%lhsindex) : (index) -> i32
+    // CHECK-NEXT: }) : () -> ()
 }) : () -> ()
