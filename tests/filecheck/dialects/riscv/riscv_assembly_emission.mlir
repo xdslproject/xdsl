@@ -226,8 +226,8 @@
   %fcvtswu = "riscv.fcvt.s.wu"(%0) : (!riscv.reg<zero>) -> !riscv.freg<j8>
   // CHECK-NEXT: fcvt.s.wu j8, zero
   %fmvwx = "riscv.fmv.w.x"(%0) : (!riscv.reg<zero>) -> !riscv.freg<j8>
-  // CHECK-NEXT: fmv.w.x j8, zero    // CHECK-NEXT : %{{.*}} = "riscv.fcvt.s.w"(%lhsf32) : (!riscv.reg<>) -> !riscv.freg<>
-reg<zero>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fmv.w.x j8, zero
+  %flw = "riscv.flw"(%0) {"immediate" = 1 : i32}: (!riscv.reg<zero>) -> !riscv.freg<j8>
   // CHECK-NEXT: flw j8, zero, 1
   "riscv.fsw"(%0, %f0) {"immediate" = 1 : i32} : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
   // CHECK-NEXT: fsw zero, j5, 1
