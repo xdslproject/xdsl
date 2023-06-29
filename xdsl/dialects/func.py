@@ -31,12 +31,21 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
+    CallableOpInterface,
     HasParent,
     IsTerminator,
     IsolatedFromAbove,
+    SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
+
+class FuncOpCallableInterface(CallableOpInterface):
+    @classmethod
+    def get_callable_region(cls, op: Operation) -> Region:
+        assert isinstance(op, FuncOp)
+        return op.body
 
 
 @irdl_op_definition
@@ -48,7 +57,9 @@ class FuncOp(IRDLOperation):
     function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = frozenset(
+        [IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()]
+    )
 
     def __init__(
         self,
