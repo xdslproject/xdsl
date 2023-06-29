@@ -35,11 +35,11 @@ class LowerSyscallOp(RewritePattern):
             ops.append(
                 riscv.MVOp(
                     arg,
-                    rd=riscv.Register(f"a{i}"),
+                    rd=riscv.IntegerRegister(f"a{i}"),
                 )
             )
 
-        ops.append(riscv.LiOp(immediate=op.syscall_num, rd=riscv.Registers.A7))
+        ops.append(riscv.LiOp(immediate=op.syscall_num, rd=riscv.IntegerRegisters.A7))
 
         if op.result is None:
             ops.append(riscv.EcallOp())
@@ -48,11 +48,11 @@ class LowerSyscallOp(RewritePattern):
             # The result will be stored to a0, move to register that will be used
             ecall = riscv.EcallOp()
             ops.append(ecall)
-            gr = riscv.GetRegisterOp(riscv.Registers.A0)
+            gr = riscv.GetRegisterOp(riscv.IntegerRegisters.A0)
             ops.append(gr)
             res = gr.res
 
-            mv = riscv.MVOp(res, rd=cast(riscv.RegisterType, op.result.typ))
+            mv = riscv.MVOp(res, rd=cast(riscv.IntegerRegisterType, op.result.typ))
             ops.append(mv)
             new_results = mv.results
 
@@ -70,7 +70,7 @@ class LowerRISCVFuncOp(RewritePattern):
             # replace arguments with `GetRegisterOp`s
             index = len(body.args) - 1
             last_arg = body.args[-1]
-            get_reg_op = riscv.GetRegisterOp(riscv.Register(f"a{index}"))
+            get_reg_op = riscv.GetRegisterOp(riscv.IntegerRegister(f"a{index}"))
             last_arg.replace_by(get_reg_op.res)
             rewriter.insert_op_before(get_reg_op, first_op)
             first_op = get_reg_op
@@ -86,7 +86,7 @@ class LowerRISCVFuncReturnOp(RewritePattern):
     def match_and_rewrite(self, op: riscv_func.ReturnOp, rewriter: PatternRewriter):
         for i, value in enumerate(op.values):
             rewriter.insert_op_before_matched_op(
-                riscv.MVOp(value, rd=riscv.Register(f"a{i}"))
+                riscv.MVOp(value, rd=riscv.IntegerRegister(f"a{i}"))
             )
         rewriter.replace_matched_op(riscv.ReturnOp())
 
@@ -97,7 +97,7 @@ class LowerRISCVCallOp(RewritePattern):
         for i, arg in enumerate(op.operands):
             # Load arguments into a0...
             rewriter.insert_op_before_matched_op(
-                riscv.MVOp(arg, rd=riscv.Register(f"a{i}"))
+                riscv.MVOp(arg, rd=riscv.IntegerRegister(f"a{i}"))
             )
 
         ops: list[Operation] = [
@@ -106,7 +106,7 @@ class LowerRISCVCallOp(RewritePattern):
         new_results: list[OpResult] = []
 
         for i in range(len(op.results)):
-            get_reg = riscv.GetRegisterOp(riscv.Register(f"a{i}"))
+            get_reg = riscv.GetRegisterOp(riscv.IntegerRegister(f"a{i}"))
             move_res = riscv.MVOp(get_reg)
             ops.extend((get_reg, move_res))
             new_results.append(move_res.rd)

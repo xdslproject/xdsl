@@ -14,12 +14,12 @@ from xdsl.irdl import (
 )
 from xdsl.utils.exceptions import VerifyException
 
-from .base import Register, RegisterType
+from .base import IntegerRegister, IntegerRegisterType
 from .core import AssemblyInstructionArgType, RISCVInstruction
 
 
 class CsrOperation(IRDLOperation, RISCVInstruction, ABC):
-    rd: OpResult = result_def(RegisterType)
+    rd: OpResult = result_def(IntegerRegisterType)
     csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
 
@@ -33,7 +33,7 @@ class CsrReadWriteOperation(CsrOperation):
       returned in rd
     """
 
-    rs1: Operand = operand_def(RegisterType)
+    rs1: Operand = operand_def(IntegerRegisterType)
     writeonly: UnitAttr | None = opt_attr_def(UnitAttr)
 
     def __init__(
@@ -42,13 +42,13 @@ class CsrReadWriteOperation(CsrOperation):
         csr: AnyIntegerAttr,
         *,
         writeonly: bool = False,
-        rd: RegisterType | Register | None = None,
+        rd: IntegerRegisterType | IntegerRegister | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterType(Register())
-        elif isinstance(rd, Register):
-            rd = RegisterType(rd)
+            rd = IntegerRegisterType(IntegerRegister())
+        elif isinstance(rd, IntegerRegister):
+            rd = IntegerRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -64,7 +64,7 @@ class CsrReadWriteOperation(CsrOperation):
     def verify_(self) -> None:
         if not self.writeonly:
             return
-        if not isinstance(self.rd.typ, RegisterType):
+        if not isinstance(self.rd.typ, IntegerRegisterType):
             return
         if self.rd.typ.data.name is not None and self.rd.typ.data.name != "zero":
             raise VerifyException(
@@ -88,7 +88,7 @@ class CsrBitwiseOperation(CsrOperation):
       to writing to a CSR takes place even if the mask in rs has no actual bits set.
     """
 
-    rs1: Operand = operand_def(RegisterType)
+    rs1: Operand = operand_def(IntegerRegisterType)
     readonly: UnitAttr | None = opt_attr_def(UnitAttr)
 
     def __init__(
@@ -97,13 +97,13 @@ class CsrBitwiseOperation(CsrOperation):
         csr: AnyIntegerAttr,
         *,
         readonly: bool = False,
-        rd: RegisterType | Register | None = None,
+        rd: IntegerRegisterType | IntegerRegister | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterType(Register())
-        elif isinstance(rd, Register):
-            rd = RegisterType(rd)
+            rd = IntegerRegisterType(IntegerRegister())
+        elif isinstance(rd, IntegerRegister):
+            rd = IntegerRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -119,7 +119,7 @@ class CsrBitwiseOperation(CsrOperation):
     def verify_(self) -> None:
         if not self.readonly:
             return
-        if not isinstance(self.rs1.typ, RegisterType):
+        if not isinstance(self.rs1.typ, IntegerRegisterType):
             return
         if self.rs1.typ.data.name is not None and self.rs1.typ.data.name != "zero":
             raise VerifyException(
@@ -150,13 +150,13 @@ class CsrReadWriteImmOperation(CsrOperation):
         immediate: AnyIntegerAttr,
         *,
         writeonly: bool = False,
-        rd: RegisterType | Register | None = None,
+        rd: IntegerRegisterType | IntegerRegister | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterType(Register())
-        elif isinstance(rd, Register):
-            rd = RegisterType(rd)
+            rd = IntegerRegisterType(IntegerRegister())
+        elif isinstance(rd, IntegerRegister):
+            rd = IntegerRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -172,7 +172,7 @@ class CsrReadWriteImmOperation(CsrOperation):
     def verify_(self) -> None:
         if self.writeonly is None:
             return
-        if not isinstance(self.rd.typ, RegisterType):
+        if not isinstance(self.rd.typ, IntegerRegisterType):
             return
         if self.rd.typ.data.name is not None and self.rd.typ.data.name != "zero":
             raise VerifyException(
@@ -203,13 +203,13 @@ class CsrBitwiseImmOperation(CsrOperation):
         csr: AnyIntegerAttr,
         immediate: AnyIntegerAttr,
         *,
-        rd: RegisterType | Register | None = None,
+        rd: IntegerRegisterType | IntegerRegister | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterType(Register())
-        elif isinstance(rd, Register):
-            rd = RegisterType(rd)
+            rd = IntegerRegisterType(IntegerRegister())
+        elif isinstance(rd, IntegerRegister):
+            rd = IntegerRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(

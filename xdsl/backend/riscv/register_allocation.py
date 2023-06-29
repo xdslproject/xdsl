@@ -1,8 +1,8 @@
 from abc import ABC
 from xdsl.dialects.riscv import (
     RISCVOp,
-    Register,
-    RegisterType,
+    IntegerRegister,
+    IntegerRegisterType,
     FloatRegister,
     FloatRegisterType,
 )
@@ -36,7 +36,9 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
         let's just assume that we have all the registers available for our use except the one explicitly reserved by the default riscv ABI.
         """
 
-        self.integer_available_registers = list(Register.RV32I_INDEX_BY_NAME.keys())
+        self.integer_available_registers = list(
+            IntegerRegister.RV32I_INDEX_BY_NAME.keys()
+        )
         reserved_registers = set(["zero", "sp", "gp", "tp", "fp", "s0"])
         self.integer_available_registers = [
             reg
@@ -64,15 +66,17 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                         continue
 
                     for result in op.results:
-                        if isinstance(result.typ, RegisterType):
+                        if isinstance(result.typ, IntegerRegisterType):
                             if result.typ.data.name is None:
                                 # If we run out of real registers, allocate a j register
                                 if not integer_block_registers:
-                                    result.typ = RegisterType(Register(f"j{self.idx}"))
+                                    result.typ = IntegerRegisterType(
+                                        IntegerRegister(f"j{self.idx}")
+                                    )
                                     self.idx += 1
                                 else:
-                                    result.typ = RegisterType(
-                                        Register(integer_block_registers.pop())
+                                    result.typ = IntegerRegisterType(
+                                        IntegerRegister(integer_block_registers.pop())
                                     )
                         elif isinstance(result.typ, FloatRegisterType):
                             if result.typ.data.name is None:
@@ -104,9 +108,11 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                 continue
 
             for result in op.results:
-                if isinstance(result.typ, RegisterType):
+                if isinstance(result.typ, IntegerRegisterType):
                     if result.typ.data.name is None:
-                        result.typ = RegisterType(Register(f"j{self.idx}"))
+                        result.typ = IntegerRegisterType(
+                            IntegerRegister(f"j{self.idx}")
+                        )
                         self.idx += 1
                 elif isinstance(result.typ, FloatRegisterType):
                     if result.typ.data.name is None:

@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from io import StringIO
-from typing import IO, Iterable, Protocol, TypeAlias, runtime_checkable
+from typing import (
+    IO,
+    Iterable,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    runtime_checkable,
+)
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -12,7 +19,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
 )
-from xdsl.ir import Data, Operation, Region, SSAValue
+from xdsl.ir import Data, Operation, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     OptRegion,
@@ -68,6 +75,50 @@ class LabelAttr(Data[str]):
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string_literal(self.data)
+
+
+class Register:
+    """
+    A RISC-V register.
+    """
+
+    name: str | None
+    """The register name. Should be one of `ABI_INDEX_BY_NAME` or `None`"""
+
+    ABI_INDEX_BY_NAME: dict[str, int]
+
+    def __init__(self, name: str | None = None) -> None:
+        self.name = name
+
+    def __eq__(self, __value: object) -> bool:
+        return isinstance(__value, Register) and self.name == __value.name
+
+
+RegisterT = TypeVar("RegisterT", bound=Register)
+
+
+class RegisterType(Data[RegisterT], TypeAttribute):
+    """
+    A RISC-V register type.
+    """
+
+    name = "riscv.reg"
+
+    @property
+    def register_name(self) -> str:
+        """Returns name if allocated, raises ValueError if not"""
+        if self.data.name is None:
+            raise ValueError("Cannot get name for unallocated register")
+        return self.data.name
+
+    def print_assembly_instruction_arg(self) -> str:
+        return self.register_name
+
+    def print_parameter(self, printer: Printer) -> None:
+        name = self.data.name
+        if name is None:
+            return
+        printer.print_string(name)
 
 
 class RISCVOp(Operation, ABC):

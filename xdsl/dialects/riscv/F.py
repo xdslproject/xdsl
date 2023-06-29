@@ -1,8 +1,7 @@
 from abc import ABC
-from dataclasses import dataclass, field
 
 from xdsl.dialects.builtin import AnyIntegerAttr, StringAttr
-from xdsl.ir import Data, Dialect, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.ir import Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
@@ -16,26 +15,24 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
-from .base import Register, RegisterType
+from .base import IntegerRegister, IntegerRegisterType
 from .core import (
     AssemblyInstructionArgType,
     LabelAttr,
     RISCVInstruction,
     RISCVOp,
     SImm12Attr,
+    Register,
+    RegisterType,
 )
 
 # region RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
 
 
-@dataclass(frozen=True)
-class FloatRegister:
+class FloatRegister(Register):
     """
-    A RISC-V register.
+    A RISC-V float register.
     """
-
-    name: str | None = field(default=None)
-    """The register name. Should be one of `ABI_INDEX_BY_NAME` or `None`"""
 
     RV32F_INDEX_BY_NAME = {
         "ft0": 0,
@@ -72,9 +69,11 @@ class FloatRegister:
         "ft11": 31,
     }
 
+    ABI_INDEX_BY_NAME = RV32F_INDEX_BY_NAME
+
 
 @irdl_attr_definition
-class FloatRegisterType(Data[FloatRegister], TypeAttribute):
+class FloatRegisterType(RegisterType[FloatRegister]):
     """
     A RISC-V register type.
     """
@@ -235,7 +234,7 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     two floating-point input registers and an integer destination register.
     """
 
-    rd: OpResult = result_def(RegisterType)
+    rd: OpResult = result_def(IntegerRegisterType)
     rs1: Operand = operand_def(FloatRegisterType)
     rs2: Operand = operand_def(FloatRegisterType)
 
@@ -244,13 +243,13 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: RegisterType | Register | None = None,
+        rd: IntegerRegisterType | IntegerRegister | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterType(Register())
-        elif isinstance(rd, Register):
-            rd = RegisterType(rd)
+            rd = IntegerRegisterType(IntegerRegister())
+        elif isinstance(rd, IntegerRegister):
+            rd = IntegerRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -304,20 +303,20 @@ class RdRsFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     input register and an integer destination register.
     """
 
-    rd: OpResult = result_def(RegisterType)
+    rd: OpResult = result_def(IntegerRegisterType)
     rs: Operand = operand_def(FloatRegisterType)
 
     def __init__(
         self,
         rs: Operation | SSAValue,
         *,
-        rd: RegisterType | Register | None = None,
+        rd: IntegerRegisterType | IntegerRegister | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterType(Register())
-        elif isinstance(rd, Register):
-            rd = RegisterType(rd)
+            rd = IntegerRegisterType(IntegerRegister())
+        elif isinstance(rd, IntegerRegister):
+            rd = IntegerRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -337,7 +336,7 @@ class RdRsIntegerFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(FloatRegisterType)
-    rs: Operand = operand_def(RegisterType)
+    rs: Operand = operand_def(IntegerRegisterType)
 
     def __init__(
         self,
@@ -368,7 +367,7 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     (one integer and one floating-point) and an immediate.
     """
 
-    rs1: Operand = operand_def(RegisterType)
+    rs1: Operand = operand_def(IntegerRegisterType)
     rs2: Operand = operand_def(FloatRegisterType)
     immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
@@ -407,7 +406,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(FloatRegisterType)
-    rs1: Operand = operand_def(RegisterType)
+    rs1: Operand = operand_def(IntegerRegisterType)
     immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(

@@ -215,7 +215,7 @@ class LowerSsrEnable(RewritePattern):
                 riscv.CsrrsiOp(
                     csr=IntegerAttr(SnitchStreamerMemoryMap.csr, i32),
                     immediate=IntegerAttr(1, i32),
-                    rd=riscv.Registers.ZERO,
+                    rd=riscv.IntegerRegisters.ZERO,
                 )
             ],
             [],
@@ -230,7 +230,7 @@ class LowerSsrDisable(RewritePattern):
                 riscv.CsrrciOp(
                     csr=IntegerAttr(SnitchStreamerMemoryMap.csr, i32),
                     immediate=IntegerAttr(1, i32),
-                    rd=riscv.Registers.ZERO,
+                    rd=riscv.IntegerRegisters.ZERO,
                 )
             ],
             [],
