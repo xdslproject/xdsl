@@ -178,8 +178,7 @@ class LowerArithCmpi(RewritePattern):
                 pass
             # slt
             case 2:
-                slt = riscv.SltOp(op.lhs, op.rhs)
-                rewriter.replace_matched_op([slt])
+                rewriter.replace_matched_op([riscv.SltOp(op.lhs, op.rhs)])
             # sle
             case 3:
                 slt = riscv.SltOp(op.lhs, op.rhs)
@@ -187,8 +186,7 @@ class LowerArithCmpi(RewritePattern):
                 rewriter.replace_matched_op([slt, xori])
             # ult
             case 4:
-                sltu = riscv.SltuOp(op.lhs, op.rhs)
-                rewriter.replace_matched_op([sltu])
+                rewriter.replace_matched_op([riscv.SltuOp(op.lhs, op.rhs)])
             # ule
             case 5:
                 sltu = riscv.SltuOp(op.lhs, op.rhs)
@@ -196,8 +194,7 @@ class LowerArithCmpi(RewritePattern):
                 rewriter.replace_matched_op([sltu, xori])
             # ugt
             case 6:
-                sltu = riscv.SltuOp(op.rhs, op.lhs)
-                rewriter.replace_matched_op([sltu])
+                rewriter.replace_matched_op([riscv.SltuOp(op.rhs, op.lhs)])
             # uge
             case 7:
                 sltu = riscv.SltuOp(op.rhs, op.lhs)
