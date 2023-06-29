@@ -57,6 +57,17 @@ black:
 	# run black on all of xdsl if no staged files exist
 	black $${staged_files:-xdsl}
 
+# run coverage over tests, use COVERAGE_FILE env var to control coverage data filename
+coverage:
+	coverage run -m pytest
+
+coverage-report-html:
+ifndef COVERAGE_FILE
+	$(error environment variable COVERAGE_FILE is not set)
+else
+	coverage html
+endif
+
 # set up the venv with all dependencies for development
 venv: requirements-optional.txt requirements.txt
 	python3 -m venv ${VENV_DIR}
