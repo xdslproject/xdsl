@@ -238,13 +238,13 @@ def check_float_register():
     with pytest.raises(VerifyException):
         riscv.RegisterType(riscv.Register("ft9"))
     with pytest.raises(VerifyException):
-        riscv.FloatRegisterType(riscv.Register("a0"))
+        riscv.FloatRegisterType(riscv.FloatRegister("a0"))
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
     with pytest.raises(VerifyException):
         riscv.FAddSOp(a1, a2)
 
-    f1 = TestSSAValue(riscv.Registers.FT0)
-    f2 = TestSSAValue(riscv.Registers.FT1)
+    f1 = TestSSAValue(riscv.FloatRegisters.FT0)
+    f2 = TestSSAValue(riscv.FloatRegisters.FT1)
     riscv.FAddSOp(f1, f2)

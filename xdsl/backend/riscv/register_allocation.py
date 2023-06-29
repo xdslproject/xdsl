@@ -1,9 +1,10 @@
 from abc import ABC
 from xdsl.dialects.riscv import (
+    RISCVOp,
     Register,
     RegisterType,
+    FloatRegister,
     FloatRegisterType,
-    RISCVOp,
 )
 from xdsl.dialects.builtin import ModuleOp
 
@@ -42,7 +43,9 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
             for reg in self.integer_available_registers
             if reg not in reserved_registers
         ]
-        self.floating_available_registers = list(Register.RV32F_INDEX_BY_NAME.keys())
+        self.floating_available_registers = list(
+            FloatRegister.RV32F_INDEX_BY_NAME.keys()
+        )
 
     def allocate_registers(self, module: ModuleOp) -> None:
         """
@@ -76,12 +79,12 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                                 # If we run out of real registers, allocate a j register
                                 if not floating_block_registers:
                                     result.typ = FloatRegisterType(
-                                        Register(f"j{self.idx}")
+                                        FloatRegister(f"j{self.idx}")
                                     )
                                     self.idx += 1
                                 else:
                                     result.typ = FloatRegisterType(
-                                        Register(floating_block_registers.pop())
+                                        FloatRegister(floating_block_registers.pop())
                                     )
 
 
@@ -107,5 +110,5 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                         self.idx += 1
                 elif isinstance(result.typ, FloatRegisterType):
                     if result.typ.data.name is None:
-                        result.typ = FloatRegisterType(Register(f"j{self.idx}"))
+                        result.typ = FloatRegisterType(FloatRegister(f"j{self.idx}"))
                         self.idx += 1
