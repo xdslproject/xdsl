@@ -1,11 +1,11 @@
-// RUN: xdsl-opt %s -p print-to-printf | filecheck %s
+// RUN: xdsl-opt %s -p printf-to-llvm | filecheck %s
 
 builtin.module {
     "func.func"() ({
         %pi = "arith.constant"() {value = 3.14159:f32} : () -> f32
         %12 = "arith.constant"() {value = 12 : i32} : () -> i32
 
-        print.println "Hello: {} {}", %pi : f32, %12 : i32
+        printf.print_format "Hello: {} {}", %pi : f32, %12 : i32
 
         "func.return"() : () -> ()
     }) {sym_name = "main", function_type=() -> ()} : () -> ()
