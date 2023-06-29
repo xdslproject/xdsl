@@ -1,3 +1,4 @@
+# type: ignore
 from xdsl.ir import Dialect
 
 from .base import (
