@@ -308,7 +308,9 @@ def test_single_block_implicit_terminator():
     op0.verify()
     op1.verify()
 
-    with pytest.raises(VerifyException, match="terminates with operation of type"):
+    with pytest.raises(
+        VerifyException, match="terminates with operation test.is_terminator"
+    ):
         HasSingleBlockImplicitTerminatorOp(
             regions=[Region(Block([IsTerminatorOp.create()])), Region()]
         )
