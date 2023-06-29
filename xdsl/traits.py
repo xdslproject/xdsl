@@ -125,8 +125,8 @@ class SingleBlockImplicitTerminator(OpTrait):
                     and not isinstance(last_op, self.parameters)
                 ):
                     raise VerifyException(
-                        f"'{op.name}' terminates with operation of type "
-                        f"{type(block.last_op)} instead of {self.parameters}"
+                        f"'{op.name}' terminates with operation {last_op.name} "
+                        f"instead of {self.parameters.name}"
                     )
 
         for region in op.regions:
@@ -153,13 +153,13 @@ class SingleBlockImplicitTerminator(OpTrait):
             for block in region.blocks:
                 if not block.ops:
                     raise VerifyException(
-                        f"'{op.name}' contains empty block instead of terminating with"
-                        f"{self.parameters}"
+                        f"'{op.name}' contains empty block instead of at least "
+                        f"terminating with {self.parameters.name}"
                     )
                 if not isinstance(block.last_op, self.parameters):
                     raise VerifyException(
-                        f"'{op.name}' terminates with operation of type "
-                        f"{type(block.last_op)} instead of {self.parameters}"
+                        f"'{op.name}' terminates with operation {last_op.name} "
+                        f"instead of {self.parameters.name}"
                     )
 
 
