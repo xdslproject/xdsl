@@ -12,7 +12,6 @@ from xdsl.irdl import (
     result_def,
 )
 from xdsl.parser import Parser
-from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 from .base import IntegerRegister, IntegerRegisterType
@@ -87,9 +86,6 @@ class FloatRegisterType(RegisterType[FloatRegister]):
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
 
-    def print_assembly_instruction_arg(self) -> str:
-        return self.register_name
-
     @staticmethod
     def parse_parameter(parser: Parser) -> FloatRegister:
         name = parser.parse_optional_identifier()
@@ -98,12 +94,6 @@ class FloatRegisterType(RegisterType[FloatRegister]):
         if not name.startswith("j"):
             assert name in FloatRegister.RV32F_INDEX_BY_NAME.keys()
         return FloatRegister(name)
-
-    def print_parameter(self, printer: Printer) -> None:
-        name = self.data.name
-        if name is None:
-            return
-        printer.print_string(name)
 
     def verify(self) -> None:
         if self.data.name is None or self.data.name.startswith("j"):

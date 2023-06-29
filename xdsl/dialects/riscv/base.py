@@ -32,7 +32,6 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import Parser
-from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
@@ -108,9 +107,6 @@ class IntegerRegisterType(RegisterType[IntegerRegister]):
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
 
-    def print_assembly_instruction_arg(self) -> str:
-        return self.register_name
-
     @staticmethod
     def parse_parameter(parser: Parser) -> IntegerRegister:
         name = parser.parse_optional_identifier()
@@ -119,12 +115,6 @@ class IntegerRegisterType(RegisterType[IntegerRegister]):
         if not name.startswith("j"):
             assert name in IntegerRegister.RV32I_INDEX_BY_NAME.keys()
         return IntegerRegister(name)
-
-    def print_parameter(self, printer: Printer) -> None:
-        name = self.data.name
-        if name is None:
-            return
-        printer.print_string(name)
 
     def verify(self) -> None:
         if self.data.name is None or self.data.name.startswith("j"):
