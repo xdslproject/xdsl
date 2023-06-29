@@ -174,7 +174,7 @@ class LowerArithCmpi(RewritePattern):
                 zero = riscv.GetRegisterOp(riscv.Registers.ZERO)
                 xor_op = riscv.XorOp(op.lhs, op.rhs)
                 snez_op = riscv.SltuOp(zero, xor_op)
-                rewriter.replace_matched_op([xor_op, snez_op])
+                rewriter.replace_matched_op([zero, xor_op, snez_op])
                 pass
             # slt
             case 2:
@@ -386,8 +386,8 @@ class LowerArithTruncFOp(RewritePattern):
         raise NotImplementedError("TruncF is not supported")
 
 
-class LowerArithRV32(ModulePass):
-    name = "lower-arith-rv32"
+class RISCVLowerArithRV32(ModulePass):
+    name = "riscv-lower-arith-rv32"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         # Implemented lowerings
@@ -413,15 +413,7 @@ class LowerArithRV32(ModulePass):
         PatternRewriteWalker(LowerArithMulf()).rewrite_module(op)
         PatternRewriteWalker(LowerArithCmpf()).rewrite_module(op)
 
-        # Unimplemented lowerings
-        PatternRewriteWalker(LowerArithCeilDivSI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithCeilDivUI()).rewrite_module(op)
         PatternRewriteWalker(LowerArithRemUI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMinSI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMaxSI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMinUI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMaxUI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithSelect()).rewrite_module(op)
 
         PatternRewriteWalker(LowerArithAndI()).rewrite_module(op)
         PatternRewriteWalker(LowerArithOrI()).rewrite_module(op)
@@ -430,6 +422,15 @@ class LowerArithRV32(ModulePass):
         PatternRewriteWalker(LowerArithShLI()).rewrite_module(op)
         PatternRewriteWalker(LowerArithShRUI()).rewrite_module(op)
         PatternRewriteWalker(LowerArithShRSI()).rewrite_module(op)
+
+        # Unimplemented lowerings
+        PatternRewriteWalker(LowerArithCeilDivSI()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithCeilDivUI()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithMinSI()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithMaxSI()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithMinUI()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithMaxUI()).rewrite_module(op)
+        PatternRewriteWalker(LowerArithSelect()).rewrite_module(op)
 
         PatternRewriteWalker(LowerArithExtFOp()).rewrite_module(op)
         PatternRewriteWalker(LowerArithTruncFOp()).rewrite_module(op)

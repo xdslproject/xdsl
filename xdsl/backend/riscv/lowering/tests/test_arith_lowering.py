@@ -1,4 +1,4 @@
-from xdsl.backend.riscv.lowering.rv32_arith_lowering import LowerArithRV32
+from xdsl.backend.riscv.lowering.rv32_arith_lowering import RISCVLowerArithRV32
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.cf import Cf
@@ -28,7 +28,7 @@ def test_lower_arith():
         with open(path, "r") as f:
             parser = IRParser(ctx, f.read(), name=f"{path}")
             module_op = parser.parse_module()
-            LowerArithRV32().apply(ctx, module_op)
+            RISCVLowerArithRV32().apply(ctx, module_op)
             printer.print(module_op)
             with pytest.raises(Exception):
                 module_op.verify()
