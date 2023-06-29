@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir.core import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriteWalker,
     PatternRewriter,
     RewritePattern,
@@ -387,52 +388,49 @@ class RISCVLowerArithRV32(ModulePass):
     name = "riscv-lower-arith-rv32"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        # Implemented lowerings
-        PatternRewriteWalker(LowerArithConstant()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithIndexCast()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithSIToFPOp()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithFPToSIOp()).rewrite_module(op)
-
-        PatternRewriteWalker(LowerArithAddi()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithSubi()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMuli()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithDivUI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithDivSI()).rewrite_module(op)
-
-        PatternRewriteWalker(LowerArithFloorDivSI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithRemSI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithCmpi()).rewrite_module(op)
-
-        PatternRewriteWalker(LowerArithAddf()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithSubf()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithDivf()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithNegf()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMulf()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithCmpf()).rewrite_module(op)
-
-        PatternRewriteWalker(LowerArithRemUI()).rewrite_module(op)
-
-        PatternRewriteWalker(LowerArithAndI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithOrI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithXOrI()).rewrite_module(op)
-
-        PatternRewriteWalker(LowerArithShLI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithShRUI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithShRSI()).rewrite_module(op)
-
-        # Unimplemented lowerings
-        PatternRewriteWalker(LowerArithCeilDivSI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithCeilDivUI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMinSI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMaxSI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMinUI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMaxUI()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithSelect()).rewrite_module(op)
-
-        PatternRewriteWalker(LowerArithExtFOp()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithTruncFOp()).rewrite_module(op)
-
-        PatternRewriteWalker(LowerArithMinfOp()).rewrite_module(op)
-        PatternRewriteWalker(LowerArithMaxfOp()).rewrite_module(op)
+        walker = PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    LowerArithConstant(),
+                    LowerArithIndexCast(),
+                    LowerArithSIToFPOp(),
+                    LowerArithFPToSIOp(),
+                    LowerArithAddi(),
+                    LowerArithSubi(),
+                    LowerArithMuli(),
+                    LowerArithDivUI(),
+                    LowerArithDivSI(),
+                    LowerArithFloorDivSI(),
+                    LowerArithRemSI(),
+                    LowerArithCmpi(),
+                    LowerArithAddf(),
+                    LowerArithSubf(),
+                    LowerArithDivf(),
+                    LowerArithNegf(),
+                    LowerArithMulf(),
+                    LowerArithCmpf(),
+                    LowerArithRemUI(),
+                    LowerArithAndI(),
+                    LowerArithOrI(),
+                    LowerArithXOrI(),
+                    LowerArithShLI(),
+                    LowerArithShRUI(),
+                    LowerArithShRSI(),
+                    LowerArithCeilDivSI(),
+                    LowerArithCeilDivUI(),
+                    LowerArithMinSI(),
+                    LowerArithMaxSI(),
+                    LowerArithMinUI(),
+                    LowerArithMaxUI(),
+                    LowerArithSelect(),
+                    LowerArithExtFOp(),
+                    LowerArithTruncFOp(),
+                    LowerArithMinfOp(),
+                    LowerArithMaxfOp(),
+                ]
+            ),
+            apply_recursively=False,
+        )
+        walker.rewrite_module(op)
 
         dce(op)
