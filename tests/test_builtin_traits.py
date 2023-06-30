@@ -274,6 +274,7 @@ class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     # TODO fix circular reference
     # traits = frozenset([HasParent(HasSingleBlockImplicitTerminatorOp), IsTerminator()])
+    # this is tracked by gh issue: https://github.com/xdslproject/xdsl/issues/1218
     traits = frozenset([IsTerminator()])
 
 
