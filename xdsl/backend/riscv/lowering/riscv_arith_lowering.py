@@ -384,8 +384,8 @@ class LowerArithTruncFOp(RewritePattern):
         raise NotImplementedError("TruncF is not supported")
 
 
-class RISCVLowerArithRV32(ModulePass):
-    name = "riscv-lower-arith-rv32"
+class RISCVLowerArith(ModulePass):
+    name = "lower-arith-to-riscv"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(

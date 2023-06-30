@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-lower-arith-rv32 %s | xdsl-opt --print-op-generic | filecheck %s
+// RUN: xdsl-opt -p lower-arith-to-riscv %s | xdsl-opt --print-op-generic | filecheck %s
 "builtin.module"() ({
     %lhsi32 = "arith.constant"() {value = 1 : i32} : () -> i32
     // CHECK: %{{.*}} = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<>
