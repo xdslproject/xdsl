@@ -60,7 +60,7 @@ black:
 
 # run coverage over tests, use COVERAGE_FILE env var to control coverage data filename
 coverage:
-	coverage run -m pytest
+	pytest -W error --cov --cov-config=.coveragerc .
 
 check-coverage-file:
 ifndef COVERAGE_FILE
