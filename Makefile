@@ -9,7 +9,7 @@ VENV_DIR ?= venv
 
 # these targets don't produce files:
 .PHONY: clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
-.PHONY: coverage coverage-report-html coverage-report-md
+.PHONY: coverage coverage-report-html coverage-report-md check-coverage-file
 
 # remove all caches and the venv
 clean:
