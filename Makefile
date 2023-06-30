@@ -68,6 +68,13 @@ else
 	coverage html
 endif
 
+coverage-report-md:
+ifndef COVERAGE_FILE
+	$(error environment variable COVERAGE_FILE is not set)
+else
+	coverage report --format=markdown
+endif
+
 # set up the venv with all dependencies for development
 venv: requirements-optional.txt requirements.txt
 	python3 -m venv ${VENV_DIR}
