@@ -302,6 +302,52 @@ class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
             ensure_terminator(trait, self)
 
 
+@irdl_op_definition
+class HasSingleBlockImplicitTerminatorWrongCreationOp(IRDLOperation):
+    """
+    An operation that expects a single-block region and an implicit terminator trait for
+    that block, but ensure_terminator() has not been called during construction.
+    This exercises the SingleBlockImplicitTerminator.verify() checks.
+    """
+
+    name = "test.has_single_block_implicit_terminator_wrong_creation"
+
+    irdl_options = [AttrSizedRegionSegments()]
+
+    region: Region = region_def()
+    opt_region: OptRegion = opt_region_def()
+
+    traits = frozenset(
+        [SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)]
+    )
+
+
+@irdl_op_definition
+class HasSingleBlockImplicitTerminatorWrongCreationOp2(IRDLOperation):
+    """
+    An operation that expects a single-block region and an implicit terminator trait for
+    that block, but ensure_terminator() has not been called during construction.
+    This exercises the SingleBlockImplicitTerminator.verify() checks that expects at
+    least a terminator.
+    This is achieved by adding the trait NoTerminator, but it should catch cases where
+    these traits are used in a conflicting manner.
+    """
+
+    name = "test.has_single_block_implicit_terminator_wrong_creation2"
+
+    irdl_options = [AttrSizedRegionSegments()]
+
+    region: Region = region_def()
+    opt_region: OptRegion = opt_region_def()
+
+    traits = frozenset(
+        [
+            NoTerminator(),
+            SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp),
+        ]
+    )
+
+
 def test_single_block_implicit_terminator_verify():
     # test empty single-region op
     op0 = HasSingleBlockImplicitTerminatorOp(regions=[Region(), []])
@@ -337,7 +383,12 @@ def test_single_block_implicit_terminator_verify():
     assert op4.opt_region is not None and len(op4.opt_region.blocks[0].ops) == 1
 
 
-def test_single_block_implicit_terminator_fail():
+def test_single_block_implicit_terminator_with_correct_construction_fail():
+    """
+    Tests SingleBlockImplicitTerminator when ensure_terminator has been called during
+    operation creation
+    """
+
     # test multi-block region op
     with pytest.raises(VerifyException, match="does not contain single-block regions"):
         HasSingleBlockImplicitTerminatorOp(
@@ -351,6 +402,39 @@ def test_single_block_implicit_terminator_fail():
         HasSingleBlockImplicitTerminatorOp(
             regions=[Region(Block([IsTerminatorOp.create()])), Region()]
         )
+
+
+def test_single_block_implicit_terminator_with_wrong_construction_fail():
+    """
+    Tests SingleBlockImplicitTerminator when ensure_terminator has not been called during
+    operation creation
+    """
+
+    op0 = HasSingleBlockImplicitTerminatorWrongCreationOp(
+        regions=[Region([Block(), Block()]), Region()]
+    )
+    # test multi-block region op
+    with pytest.raises(VerifyException, match="does not contain single-block regions"):
+        op0.verify()
+
+    op1 = HasSingleBlockImplicitTerminatorWrongCreationOp(
+        regions=[Region(Block([IsTerminatorOp.create()])), Region()]
+    )
+    # test single-block region op with wrong terminator
+    with pytest.raises(
+        VerifyException, match="terminates with operation test.is_terminator"
+    ):
+        op1.verify()
+
+    op2 = HasSingleBlockImplicitTerminatorWrongCreationOp2(
+        regions=[Region(Block()), Region()]
+    )
+    # test single-block region op with wrong terminator
+    with pytest.raises(
+        VerifyException,
+        match="contains empty block instead of at least terminating with",
+    ):
+        op2.verify()
 
 
 @irdl_op_definition
