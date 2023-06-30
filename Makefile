@@ -9,6 +9,7 @@ VENV_DIR ?= venv
 
 # these targets don't produce files:
 .PHONY: clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
+.PHONY: coverage coverage-report-html coverage-report-md
 
 # remove all caches and the venv
 clean:
@@ -61,19 +62,16 @@ black:
 coverage:
 	coverage run -m pytest
 
-coverage-report-html:
+check-coverage-file:
 ifndef COVERAGE_FILE
 	$(error environment variable COVERAGE_FILE is not set)
-else
-	coverage html
 endif
 
-coverage-report-md:
-ifndef COVERAGE_FILE
-	$(error environment variable COVERAGE_FILE is not set)
-else
+coverage-report-html: check-coverage-file
+	coverage html
+
+coverage-report-md: check-coverage-file
 	coverage report --format=markdown
-endif
 
 # set up the venv with all dependencies for development
 venv: requirements-optional.txt requirements.txt
