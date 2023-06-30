@@ -105,9 +105,6 @@ class SingleBlockImplicitTerminator(OpTrait):
 
     parameters: type[Operation]
 
-    def __init__(self, parameters: type[Operation]):
-        super().__init__(parameters)
-
     def verify(self, op: Operation) -> None:
         for region in op.regions:
             if len(region.blocks) > 1:
