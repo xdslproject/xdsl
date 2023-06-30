@@ -4,12 +4,18 @@ MAKEFLAGS += --no-builtin-variables
 # allow overriding the name of the venv directory
 VENV_DIR ?= venv
 
+# use a default prefix for coverage data files
+COVERAGE_FILE ?= .coverage
+
+# use different coverage data file per coverage run, otherwise combine complains
+TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
+
 # make tasks run all commands in a single shell
 .ONESHELL:
 
 # these targets don't produce files:
 .PHONY: clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
-.PHONY: coverage coverage-report-html coverage-report-md check-coverage-file
+.PHONY: coverage coverage-tests coverage-filecheck-tests coverage-report-html coverage-report-md
 
 # remove all caches and the venv
 clean:
@@ -34,7 +40,7 @@ tests-toy:
 
 # run all tests
 tests: pytest tests-toy filecheck pytest-nb pyright
-	echo test
+	@echo test
 
 # re-generate the output from all jupyter notebooks in the docs directory
 rerun-notebooks:
@@ -58,19 +64,28 @@ black:
 	# run black on all of xdsl if no staged files exist
 	black $${staged_files:-xdsl}
 
-# run coverage over tests, use COVERAGE_FILE env var to control coverage data filename
-coverage:
-	pytest -W error --cov --cov-config=.coveragerc .
+# run coverage over all tests and combine data files
+coverage: coverage-tests coverage-filecheck-tests
+	coverage combine --append
 
-check-coverage-file:
-ifndef COVERAGE_FILE
-	$(error environment variable COVERAGE_FILE is not set)
+# run coverage over tests
+coverage-tests:
+	COVERAGE_FILE=${TESTS_COVERAGE_FILE} pytest -W error --cov --cov-config=.coveragerc
+
+# run coverage over filecheck tests
+coverage-filecheck-tests:
+ifeq ($(which mlir-opt >/dev/null && echo $?), 0)
+	lit -v tests/filecheck/ -DCOVERAGE
+else
+	@echo skipping coverage of filecheck tests because mlir-opt is not in PATH
 endif
 
-coverage-report-html: check-coverage-file
+# generate html coverage report
+coverage-report-html:
 	coverage html
 
-coverage-report-md: check-coverage-file
+# generate markdown coverage report
+coverage-report-md:
 	coverage report --format=markdown
 
 # set up the venv with all dependencies for development
