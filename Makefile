@@ -74,11 +74,7 @@ coverage-tests:
 
 # run coverage over filecheck tests
 coverage-filecheck-tests:
-ifeq ($(which mlir-opt >/dev/null && echo $?), 0)
 	lit -v tests/filecheck/ -DCOVERAGE
-else
-	@echo skipping coverage of filecheck tests because mlir-opt is not in PATH
-endif
 
 # generate html coverage report
 coverage-report-html:
