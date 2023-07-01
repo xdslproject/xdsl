@@ -42,7 +42,13 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects import memref
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, NoTerminator, IsolatedFromAbove
+from xdsl.traits import (
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+    ensure_terminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -339,18 +345,35 @@ class MemcpyOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ModuleEndOp(IRDLOperation):
+    name = "gpu.module_end"
+
+    # TODO circular dependency disallows this set of traits
+    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
+    # traits = frozenset([HasParent(ModuleOp), IsTerminator()])
+    traits = frozenset([IsTerminator()])
+
+    def __init__(self):
+        return super().__init__()
+
+
+@irdl_op_definition
 class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
     body: Region = region_def("single_block")
     sym_name: StringAttr = attr_def(StringAttr)
 
-    # TODO this requires the SingleBlockImplicitTerminator trait instead of
-    # NoTerminator
-    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
+    traits = frozenset(
+        [IsolatedFromAbove(), SingleBlockImplicitTerminator(ModuleEndOp)]
+    )
 
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
         return super().__init__(attributes={"sym_name": name}, regions=[ops])
+
+    def __post_init__(self):
+        for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(trait, self)
 
 
 @irdl_op_definition
@@ -578,16 +601,6 @@ class LaunchFuncOp(IRDLOperation):
             result_types=[[AsyncTokenType()] if async_launch else []],
             attributes={"kernel": func},
         )
-
-
-@irdl_op_definition
-class ModuleEndOp(IRDLOperation):
-    name = "gpu.module_end"
-
-    traits = frozenset([HasParent(ModuleOp), IsTerminator()])
-
-    def __init__(self):
-        return super().__init__()
 
 
 @irdl_op_definition

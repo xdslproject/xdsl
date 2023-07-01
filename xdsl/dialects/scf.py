@@ -4,7 +4,12 @@ from typing import Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.traits import HasParent, IsTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+    ensure_terminator,
+)
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -22,6 +27,59 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
+class While(IRDLOperation):
+    name = "scf.while"
+    arguments: VarOperand = var_operand_def(AnyAttr())
+
+    res: VarOpResult = var_result_def(AnyAttr())
+    before_region: Region = region_def()
+    after_region: Region = region_def()
+
+    # TODO verify dependencies between scf.condition, scf.yield and the regions
+    def verify_(self):
+        for idx, arg in enumerate(self.arguments):
+            if self.before_region.block.args[idx].typ != arg.typ:
+                raise Exception(
+                    f"Block arguments with wrong type, expected {arg.typ}, "
+                    f"got {self.before_region.block.args[idx].typ}"
+                )
+
+        for idx, res in enumerate(self.res):
+            if self.after_region.block.args[idx].typ != res.typ:
+                raise Exception(
+                    f"Block arguments with wrong type, expected {res.typ}, "
+                    f"got {self.after_region.block.args[idx].typ}"
+                )
+
+    @staticmethod
+    def get(
+        operands: Sequence[SSAValue | Operation],
+        result_types: Sequence[Attribute],
+        before: Region | Sequence[Operation] | Sequence[Block],
+        after: Region | Sequence[Operation] | Sequence[Block],
+    ) -> While:
+        op = While.build(
+            operands=operands, result_types=result_types, regions=[before, after]
+        )
+        return op
+
+
+@irdl_op_definition
+class Yield(IRDLOperation):
+    name = "scf.yield"
+    arguments: VarOperand = var_operand_def(AnyAttr())
+
+    # TODO circular dependency disallows this set of traits
+    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
+    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
+    traits = frozenset([IsTerminator()])
+
+    @staticmethod
+    def get(*operands: SSAValue | Operation) -> Yield:
+        return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
+
+
+@irdl_op_definition
 class If(IRDLOperation):
     name = "scf.if"
     output: VarOpResult = var_result_def(AnyAttr())
@@ -30,6 +88,8 @@ class If(IRDLOperation):
     true_region: Region = region_def()
     # TODO this should be optional under certain conditions
     false_region: Region = region_def()
+
+    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
 
     @staticmethod
     def get(
@@ -61,6 +121,13 @@ class For(IRDLOperation):
     res: VarOpResult = var_result_def(AnyAttr())
 
     body: Region = region_def("single_block")
+
+    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
+
+    def __post_init__(self):
+        # TODO custom conditions
+        for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(trait, self, self.iter_args)
 
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.block.args):
@@ -129,6 +196,8 @@ class ParallelOp(IRDLOperation):
     body: Region = region_def("single_block")
 
     irdl_options = [AttrSizedOperandSegments()]
+
+    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
 
     @staticmethod
     def get(
@@ -199,20 +268,10 @@ class ParallelOp(IRDLOperation):
                     f", parallel argment is of type {initValsType} whereas reduction operation is of type {typ}"
                 )
 
-        # Ensure that scf.yield is the last operation in the block as this is required
-        # TODO this should be removed once SingleBlockImplicitTerminator is
-        # implemented
-        # gh issue: https://github.com/xdslproject/xdsl/issues/1148
-        if not isinstance(self.body.block.last_op, Yield):
-            raise VerifyException(
-                "scf.parallel region must terminate with an scf.yield"
-            )
-
         # Ensure that the number of operands in scf.yield is exactly zero
-        number_yield_ops = len(self.body.block.last_op.arguments)
-        if number_yield_ops != 0:
+        if (last_op := self.body.block.last_op) is not None and last_op.operands:
             raise VerifyException(
-                f"scf.yield contains {number_yield_ops} operands but this must be zero inside an scf.parallel"
+                f"scf.yield contains {len(last_op.operands)} operands but this must be zero inside an scf.parallel"
             )
 
         # Ensure that the number of reductions matches the
@@ -314,44 +373,6 @@ class ReduceReturnOp(IRDLOperation):
 
 
 @irdl_op_definition
-class While(IRDLOperation):
-    name = "scf.while"
-    arguments: VarOperand = var_operand_def(AnyAttr())
-
-    res: VarOpResult = var_result_def(AnyAttr())
-    before_region: Region = region_def()
-    after_region: Region = region_def()
-
-    # TODO verify dependencies between scf.condition, scf.yield and the regions
-    def verify_(self):
-        for idx, arg in enumerate(self.arguments):
-            if self.before_region.block.args[idx].typ != arg.typ:
-                raise Exception(
-                    f"Block arguments with wrong type, expected {arg.typ}, "
-                    f"got {self.before_region.block.args[idx].typ}"
-                )
-
-        for idx, res in enumerate(self.res):
-            if self.after_region.block.args[idx].typ != res.typ:
-                raise Exception(
-                    f"Block arguments with wrong type, expected {res.typ}, "
-                    f"got {self.after_region.block.args[idx].typ}"
-                )
-
-    @staticmethod
-    def get(
-        operands: Sequence[SSAValue | Operation],
-        result_types: Sequence[Attribute],
-        before: Region | Sequence[Operation] | Sequence[Block],
-        after: Region | Sequence[Operation] | Sequence[Block],
-    ) -> While:
-        op = While.build(
-            operands=operands, result_types=result_types, regions=[before, after]
-        )
-        return op
-
-
-@irdl_op_definition
 class Condition(IRDLOperation):
     name = "scf.condition"
     cond: Operand = operand_def(IntegerType(1))
@@ -362,18 +383,6 @@ class Condition(IRDLOperation):
     @staticmethod
     def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:
         return Condition.build(operands=[cond, [output for output in output_ops]])
-
-
-@irdl_op_definition
-class Yield(IRDLOperation):
-    name = "scf.yield"
-    arguments: VarOperand = var_operand_def(AnyAttr())
-
-    traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-
-    @staticmethod
-    def get(*operands: SSAValue | Operation) -> Yield:
-        return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
 Scf = Dialect(

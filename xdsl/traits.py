@@ -2,11 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import abc
 from xdsl.utils.exceptions import VerifyException
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
     from xdsl.ir import Operation, Region
@@ -125,7 +121,9 @@ class SingleBlockImplicitTerminator(OpTrait):
                     )
 
 
-def ensure_terminator(trait: SingleBlockImplicitTerminator, op: Operation) -> None:
+def ensure_terminator(
+    trait: SingleBlockImplicitTerminator, op: Operation, *args: Any
+) -> None:
     for region in op.regions:
         if len(region.blocks) > 1:
             raise VerifyException(f"'{op.name}' does not contain single-block regions")
@@ -151,7 +149,7 @@ def ensure_terminator(trait: SingleBlockImplicitTerminator, op: Operation) -> No
             if (last_op := block.last_op) is None or not last_op.has_trait(
                 IsTerminator
             ):
-                block.add_op(trait.parameters.create())
+                block.add_op(trait.parameters.create(*args))
 
 
 class IsolatedFromAbove(OpTrait):

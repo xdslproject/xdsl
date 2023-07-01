@@ -297,8 +297,7 @@ class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
     )
 
     def __post_init__(self):
-        sbit_traits = self.get_traits_of_type(SingleBlockImplicitTerminator)
-        for trait in sbit_traits:
+        for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
             ensure_terminator(trait, self)
 
 

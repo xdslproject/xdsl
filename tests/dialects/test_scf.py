@@ -14,7 +14,7 @@ def test_for():
     ub = Constant.from_int_and_width(42, IndexType())
     step = Constant.from_int_and_width(3, IndexType())
     carried = Constant.from_int_and_width(1, IndexType())
-    bodyblock = Block(arg_types=[IndexType()])
+    bodyblock = Block(arg_types=[IndexType(), IndexType()])
     body = Region(bodyblock)
     f = For.get(lb, ub, step, [carried], body)
 
@@ -29,6 +29,7 @@ def test_for():
     assert tuple(f.operands) == (lb.result, ub.result, step.result, carried.result)
     assert f.regions == [body]
     assert f.attributes == {}
+    f.verify()
 
 
 def test_parallel_no_init_vals():
@@ -220,33 +221,6 @@ def test_parallel_verify_reduction_and_block_type_fails():
     p = ParallelOp.get([lbi], [ubi], [si], body, initVals)
     with pytest.raises(VerifyException):
         p.verify()
-
-
-def test_parallel_verify_yield_last_op():
-    lbi = Constant.from_int_and_width(0, IndexType())
-    ubi = Constant.from_int_and_width(10, IndexType())
-    si = Constant.from_int_and_width(1, IndexType())
-
-    b = Block(arg_types=[IndexType()])
-    b.add_op(Yield.get())
-
-    body = Region(b)
-    p = ParallelOp.get([lbi], [ubi], [si], body)
-    # This should verify
-    p.verify()
-
-    # TODO this should be removed once SingleBlockImplicitTerminator is
-    # implemented
-    # gh issue: https://github.com/xdslproject/xdsl/issues/1148
-    b2 = Block(arg_types=[IndexType()])
-    b2.add_op(Constant.from_int_and_width(1, IndexType()))
-    b2.add_op(TestTermOp.create())
-    p2 = ParallelOp.get([lbi], [ubi], [si], Region(b2))
-    with pytest.raises(
-        VerifyException,
-        match="scf.parallel region must terminate with an scf.yield",
-    ):
-        p2.verify()
 
 
 def test_parallel_verify_yield_zero_ops():
