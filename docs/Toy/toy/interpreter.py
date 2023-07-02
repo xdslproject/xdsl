@@ -38,6 +38,12 @@ class ToyFunctions(InterpreterFunctions):
         result = ShapedArray(data, shape)
         return (result,)
 
+    @impl(toy.CastOp)
+    def run_cast(
+        self, interpreter: Interpreter, op: toy.CastOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        return args
+
     @impl(toy.ReshapeOp)
     def run_reshape(
         self, interpreter: Interpreter, op: toy.ReshapeOp, args: tuple[Any, ...]
