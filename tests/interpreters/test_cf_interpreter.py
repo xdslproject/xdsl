@@ -1,3 +1,4 @@
+import pytest
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, cf, func
 from xdsl.dialects.builtin import ModuleOp, i32
@@ -8,7 +9,7 @@ from xdsl.interpreters.func import FuncFunctions
 from xdsl.ir.core import Block, Region
 
 
-def triangle_fn(n: int) -> int:
+def sum_to_fn(n: int) -> int:
     result = 0
     i = 0
     while i <= n:
@@ -19,7 +20,7 @@ def triangle_fn(n: int) -> int:
 
 @ModuleOp
 @Builder.implicit_region
-def triangle_op():
+def sum_to_op():
     prologue = Block(arg_types=(i32,))
     loop_iter = Block(arg_types=(i32, i32))
     loop_body = Block(arg_types=(i32, i32))
@@ -52,8 +53,8 @@ def triangle_op():
     )
 
 
-def triangle_interp(n: int) -> int:
-    interpreter = Interpreter(triangle_op)
+def sum_to_interp(n: int) -> int:
+    interpreter = Interpreter(sum_to_op)
     interpreter.register_implementations(CfFunctions())
     interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(ArithFunctions())
@@ -61,9 +62,6 @@ def triangle_interp(n: int) -> int:
     return result
 
 
-def test_triangle():
-    assert triangle_fn(0) == triangle_interp(0)
-    assert triangle_fn(1) == 1
-    assert triangle_fn(2) == 3
-    assert triangle_fn(3) == 6
-    assert triangle_fn(4) == 10
+@pytest.mark.parametrize("n", (0, 1, 2, 3, 4))
+def test_triangle(n: int):
+    assert sum_to_fn(n) == sum_to_interp(n)
