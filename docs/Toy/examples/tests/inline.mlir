@@ -1,4 +1,4 @@
-// RUN: python -m toy %s --emit=ir-toy-inline | filecheck %s
+// RUN: python -m toy %s --emit=toy-inline | filecheck %s
 
 builtin.module {
 // CHECK: builtin.module {
