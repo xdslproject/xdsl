@@ -31,7 +31,10 @@ from .rewrites.optimise_toy import OptimiseToy
 from .rewrites.shape_inference import ShapeInferencePass
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_toy_affine import LowerToAffinePass
-from .rewrites.lower_to_toy_accelerator import LowerToToyAccelerator
+from .rewrites.lower_to_toy_accelerator import (
+    LowerToToyAccelerator,
+    LowerToyAccelerator,
+)
 from .rewrites.mlir_opt import MLIROptPass
 from .rewrites.setup_riscv_pass import FinalizeRiscvPass, SetupRiscvPass
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
@@ -45,10 +48,12 @@ from .rewrites.lower_func_riscv_func import LowerFuncToRiscvFunc
 
 from .interpreter import Interpreter, ToyFunctions
 
-from .emulator.toy_accelerator_functions import (
+from .emulator.toy_accelerator_instruction_functions import (
     ShapedArrayBuffer,
-    ToyAcceleratorFunctions,
+    ToyAcceleratorInstructionFunctions,
 )
+from .emulator.toy_accelerator_functions import ToyAcceleratorFunctions
+
 
 parser = argparse.ArgumentParser(description="Process Toy file")
 parser.add_argument("source", type=Path, help="toy source file")
@@ -136,6 +141,10 @@ def main(path: Path, emit: str, accelerate: bool, print_generic: bool):
     LowerToAffinePass().apply(ctx, module_op)
     module_op.verify()
 
+    if accelerate:
+        LowerToToyAccelerator().apply(ctx, module_op)
+        module_op.verify()
+
     if emit == "ir-affine":
         printer.print(module_op)
         return
@@ -143,85 +152,13 @@ def main(path: Path, emit: str, accelerate: bool, print_generic: bool):
     if emit == "interpret-affine":
         interpreter = Interpreter(module_op)
         interpreter.register_implementations(AffineFunctions())
+        interpreter.register_implementations(ToyAcceleratorFunctions())
         interpreter.register_implementations(ArithFunctions())
         interpreter.register_implementations(MemrefFunctions())
         interpreter.register_implementations(PrintfFunctions())
         interpreter.register_implementations(FuncFunctions())
         interpreter.call_op("main", ())
         return
-
-    if accelerate:
-        LowerToToyAccelerator().apply(ctx, module_op)
-
-        module_op.verify()
-
-        # if emit == "ir-toy-accelerator":
-        #     printer.print(module_op)
-        #     return
-
-        # if emit == "interpret-toy-accelerator":
-        # #     interpreter = Interpreter(module_op)
-
-        #     def memfer_from_buffer(
-        #         o: riscv.RegisterType, r: memref.MemRefType[Float64Type], value: Any
-        #     ) -> Any:
-        #         shape = r.get_shape()
-        #         return ShapedArrayBuffer(value.data, list(shape))
-
-        #     def buffer_from_memref(
-        #         o: memref.MemRefType[Float64Type], r: riscv.RegisterType, value: Any
-        #     ) -> Any:
-        #         return Buffer(value.data)
-
-        #     builtin_functions = BuiltinFunctions()
-
-        #     builtin_functions.register_cast_impl(
-        #         riscv.RegisterType, memref.MemRefType, memfer_from_buffer
-        #     )
-        #     builtin_functions.register_cast_impl(
-        #         memref.MemRefType, riscv.RegisterType, buffer_from_memref
-        #     )
-
-        #     interpreter.register_implementations(ToyAcceleratorFunctions())
-        #     interpreter.register_implementations(AffineFunctions())
-        #     interpreter.register_implementations(ArithFunctions())
-        #     interpreter.register_implementations(builtin_functions)
-        #     interpreter.register_implementations(MemrefFunctions())
-        #     interpreter.register_implementations(PrintFunctions())
-        #     interpreter.register_implementations(FuncFunctions())
-        #     interpreter.call_op("main", ())
-        #     return
-
-        # MLIROptPass(
-        #     [
-        #         "--allow-unregistered-dialect",
-        #         "--canonicalize",
-        #         "--cse",
-        #         "--lower-affine",
-        #         "--mlir-print-op-generic",
-        #     ]
-        # ).apply(ctx, module_op)
-
-        # SetupRiscvPass().apply(ctx, module_op)
-        # LowerCfRiscvCfPass().apply(ctx, module_op)
-        # DeadCodeElimination().apply(ctx, module_op)
-        # LowerArithRiscvPass().apply(ctx, module_op)
-        # LowerPrintfRiscvPass().apply(ctx, module_op)
-        # LowerMemrefToRiscv().apply(ctx, module_op)
-        # LowerFuncToRiscvFunc().apply(ctx, module_op)
-        # FinalizeRiscvPass().apply(ctx, module_op)
-        # LowerRISCVFunc().apply(ctx, module_op)
-        # RISCVRegisterAllocation().apply(ctx, module_op)
-
-        # DeadCodeElimination().apply(ctx, module_op)
-
-        # module_op.verify()
-
-        # if emit == "riscemu-toy-accelerator":
-        #     print(module_op)
-        #     code = riscv.riscv_code(module_op)
-        #     emulate_riscv(code)
-        #     return
 
     MLIROptPass(
         [
@@ -261,11 +198,12 @@ def main(path: Path, emit: str, accelerate: bool, print_generic: bool):
         )
         interpreter.register_implementations(builtin_functions)
         interpreter.register_implementations(ScfFunctions())
+        interpreter.register_implementations(ToyAcceleratorFunctions())
         interpreter.register_implementations(ArithFunctions())
         interpreter.register_implementations(MemrefFunctions())
         interpreter.register_implementations(PrintfFunctions())
         interpreter.register_implementations(FuncFunctions())
-        interpreter.register_implementations(ToyAcceleratorFunctions())
+        interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
         interpreter.call_op("main", ())
         return
 
@@ -287,6 +225,7 @@ def main(path: Path, emit: str, accelerate: bool, print_generic: bool):
         if emit == "interpret-cf":
             interpreter = Interpreter(module_op)
             interpreter.register_implementations(CfFunctions())
+            interpreter.register_implementations(ToyAcceleratorFunctions())
             interpreter.register_implementations(ArithFunctions())
             interpreter.register_implementations(MemrefFunctions())
             interpreter.register_implementations(PrintfFunctions())
@@ -298,6 +237,7 @@ def main(path: Path, emit: str, accelerate: bool, print_generic: bool):
         LowerCfRiscvCfPass().apply(ctx, module_op)
 
     SetupRiscvPass().apply(ctx, module_op)
+    LowerToyAccelerator().apply(ctx, module_op)
     LowerScfRiscvPass().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
     LowerArithRiscvPass().apply(ctx, module_op)
@@ -317,44 +257,7 @@ def main(path: Path, emit: str, accelerate: bool, print_generic: bool):
     if emit == "interpret-riscv":
         interpreter = Interpreter(module_op)
 
-        riscv_functions = ToyAcceleratorFunctions()
-
-        # def tensor_print(
-        #     interpreter: Interpreter,
-        #     op: riscv.CustomAssemblyInstructionOp,
-        #     args: PythonValues,
-        # ) -> PythonValues:
-        #     buffer = args[0]
-        #     assert isinstance(buffer, Buffer)
-        #     buffer = cast(Buffer[int], buffer)
-        #     interpreter.print(f"{buffer.data}")
-        #     return ()
-
-        # def tensor_print2d(
-        #     interpreter: Interpreter,
-        #     op: riscv.CustomAssemblyInstructionOp,
-        #     args: PythonValues,
-        # ) -> PythonValues:
-        #     buffer, rows, cols = args
-        #     data = [float(value) for value in buffer.data]
-        #     shaped_array = ShapedArray(data, [rows, cols])
-        #     interpreter.print(f"{shaped_array}")
-        #     return ()
-
-        # def buffer_alloc(
-        #     interpreter: Interpreter,
-        #     op: riscv.CustomAssemblyInstructionOp,
-        #     args: PythonValues,
-        # ) -> PythonValues:
-        #     return (Buffer([0] * args[0]),)
-
-        # riscv_functions.custom_instructions = {
-        #     "tensor.print": tensor_print,
-        #     "tensor.print2d": tensor_print2d,
-        #     "buffer.alloc": buffer_alloc,
-        # }
-
-        interpreter.register_implementations(riscv_functions)
+        interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
         interpreter.register_implementations(RiscvCfFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
         interpreter.register_implementations(BuiltinFunctions())

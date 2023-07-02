@@ -1,86 +1,57 @@
-from typing import Generic, TypeVar
-from xdsl.dialects import riscv
-from xdsl.interpreter import Interpreter, PythonValues
-from xdsl.interpreters.riscv import Buffer, RiscvFunctions
-from xdsl.interpreters.shaped_array import ShapedArray
-
-_T = TypeVar("_T")
+from __future__ import annotations
 
 
-class ShapedArrayBuffer(Generic[_T], ShapedArray[_T]):
-    def __add__(self, offset: int) -> Buffer[_T]:
-        return Buffer(self.data) + offset
+from typing import Any
+
+from xdsl.interpreter import (
+    Interpreter,
+    InterpreterFunctions,
+    register_impls,
+    impl,
+)
+
+from ..dialects import toy_accelerator
 
 
-class ToyAcceleratorFunctions(RiscvFunctions):
-    def __init__(self):
-        super().__init__()
-        self.custom_instructions = {
-            "tensor.print2d": accelerator_tensor_print2d,
-            "tensor.transpose2d": accelerator_tensor_transpose2d,
-            "buffer.alloc": accelerator_buffer_alloc,
-            "buffer.add": accelerator_buffer_add,
-            "buffer.mul": accelerator_buffer_mul,
-            "print": print_,
-        }
+@register_impls
+class ToyAcceleratorFunctions(InterpreterFunctions):
+    @impl(toy_accelerator.Transpose)
+    def run_transpose(
+        self,
+        interpreter: Interpreter,
+        op: toy_accelerator.Transpose,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        dest, source = args
 
+        source_rows = op.source_rows.value.data
+        source_cols = op.source_cols.value.data
 
-def print_(
-    interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
-) -> PythonValues:
-    interpreter.print(f"{args[0]}")
-    return ()
+        for row in range(source_rows):
+            for col in range(source_cols):
+                value = source.load((row, col))
+                dest.store((col, row), value)
 
+        return ()
 
-def accelerator_tensor_print2d(
-    interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
-) -> PythonValues:
-    buffer, rows, cols = args
-    shaped_array = ShapedArray([float(value) for value in buffer.data], [rows, cols])
-    interpreter.print(f"{shaped_array}")
-    return ()
+    @impl(toy_accelerator.Add)
+    def run_add(
+        self, interpreter: Interpreter, op: toy_accelerator.Add, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        dest, lhs, rhs = args
 
+        for i, (l, r) in enumerate(zip(lhs.data, rhs.data)):
+            dest.data[i] = l + r
 
-def accelerator_tensor_transpose2d(
-    interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
-) -> PythonValues:
-    dest_buffer, source_buffer, rows, cols = args
+        return ()
 
-    source_shaped_array = ShapedArray(source_buffer.data, [rows, cols])
-    dest_shaped_array = ShapedArray(dest_buffer.data, [cols, rows])
+    @impl(toy_accelerator.Mul)
+    def run_mul(
+        self, interpreter: Interpreter, op: toy_accelerator.Mul, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        dest, lhs, rhs = args
 
-    for row in range(rows):
-        for col in range(cols):
-            value = source_shaped_array.load((row, col))
-            dest_shaped_array.store((col, row), value)
+        for i, (l, r) in enumerate(zip(lhs.data, rhs.data)):
+            dest.data[i] = l * r
 
-    return ()
-
-
-def accelerator_buffer_add(
-    interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
-) -> PythonValues:
-    size, dest_buffer, source_buffer = args
-
-    for i in range(size):
-        dest_buffer[i] += source_buffer[i]
-
-    return ()
-
-
-def accelerator_buffer_mul(
-    interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
-) -> PythonValues:
-    size, dest_buffer, source_buffer = args
-
-    for i in range(size):
-        dest_buffer[i] *= source_buffer[i]
-
-    return ()
-
-
-def accelerator_buffer_alloc(
-    interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
-) -> PythonValues:
-    (size,) = args
-    return (Buffer([0] * size),)
+        return ()
