@@ -34,6 +34,7 @@ from xdsl.dialects.printf import Printf
 from xdsl.dialects.experimental.math import Math
 from xdsl.dialects.experimental.fir import FIR
 from xdsl.dialects.experimental.dmp import DMP
+from xdsl.dialects.experimental.hls import HLS
 
 from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
@@ -58,6 +59,10 @@ from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
 from xdsl.transforms.experimental.dmp.scatter_gather import (
     DmpScatterGatherTrivialLowering,
 )
+from xdsl.transforms.experimental.lower_hls import LowerHLSPass
+from xdsl.transforms.experimental.replace_incompatible_fpga import (
+    ReplaceIncompatibleFPGA,
+)
 from xdsl.transforms.printf_to_llvm import PrintfToLLVM
 
 from xdsl.utils.exceptions import DiagnosticException
@@ -78,6 +83,7 @@ def get_all_dialects() -> list[Dialect]:
         FIR,
         Func,
         GPU,
+        HLS,
         IRDL,
         LLVM,
         Math,
@@ -106,11 +112,13 @@ def get_all_passes() -> list[type[ModulePass]]:
         DmpScatterGatherTrivialLowering,
         GlobalStencilToLocalStencil2DHorizontal,
         LowerHaloToMPI,
+        LowerHLSPass,
         LowerMPIPass,
         LowerRISCVFunc,
         LowerSnitchPass,
         LowerSnitchRuntimePass,
         PrintfToLLVM,
+        ReplaceIncompatibleFPGA,
         RISCVRegisterAllocation,
         StencilShapeInferencePass,
         StencilStorageMaterializationPass,
