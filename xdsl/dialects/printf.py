@@ -14,7 +14,7 @@ from xdsl.ir import Dialect, SSAValue, Operation, VerifyException
 
 
 @irdl_op_definition
-class PrintLnOp(IRDLOperation):
+class PrintFormatOp(IRDLOperation):
     """
     A string formatting and printing utility.
 
@@ -22,10 +22,10 @@ class PrintLnOp(IRDLOperation):
 
     Example uses:
     %42 = arith.constant 42 : i32
-    print.println "The magic number is {}", %42
+    printf.print_format "The magic number is {}", %42
     """
 
-    name = "print.println"
+    name = "printf.print_format"
 
     format_str: builtin.StringAttr = attr_def(builtin.StringAttr)
     format_vals: VarOperand = var_operand_def()
@@ -61,7 +61,7 @@ class PrintLnOp(IRDLOperation):
             printer.print_op_attributes(attrs)
 
     @classmethod
-    def parse(cls: type[PrintLnOp], parser: Parser) -> PrintLnOp:
+    def parse(cls: type[PrintFormatOp], parser: Parser) -> PrintFormatOp:
         format_str = parser.parse_str_literal()
         args: list[SSAValue] = []
         while parser.parse_optional_characters(",") is not None:
@@ -75,19 +75,19 @@ class PrintLnOp(IRDLOperation):
 
         if "format_str" in attr_dict:
             parser.raise_error(
-                "format_str keyword is a reserved attribute for print.println!"
+                "format_str keyword is a reserved attribute for printf.print_format!"
             )
 
-        op = PrintLnOp(format_str, *args)
+        op = PrintFormatOp(format_str, *args)
 
         op.attributes.update(attr_dict)
 
         return op
 
 
-Print = Dialect(
+Printf = Dialect(
     [
-        PrintLnOp,
+        PrintFormatOp,
     ],
     [],
 )

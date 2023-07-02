@@ -3,7 +3,7 @@ import hashlib
 import re
 
 from xdsl.ir import SSAValue, Attribute, MLContext, Operation
-from xdsl.dialects import print, builtin, arith, llvm
+from xdsl.dialects import builtin, arith, llvm, printf
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -49,10 +49,12 @@ def _key_from_str(val: str) -> str:
     return f"{legalize_str_for_symbol_name(val[:10])}_{h.hexdigest()}"
 
 
-def _format_string_spec_from_print_op(op: print.PrintLnOp) -> Iterable[str | SSAValue]:
+def _format_string_spec_from_print_op(
+    op: printf.PrintFormatOp,
+) -> Iterable[str | SSAValue]:
     """
     Translates the op:
-    print.println "val = {}, val2 = {}", %1 : i32, %2 : f32
+    printf.print_format "val = {}, val2 = {}", %1 : i32, %2 : f32
 
     into this sequence:
     ["val = ", %1, ", val2 = ", %2]
@@ -106,7 +108,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
         )
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: print.PrintLnOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: printf.PrintFormatOp, rewriter: PatternRewriter, /):
         format_str = ""
         args: list[SSAValue] = []
         casts: list[Operation] = []
@@ -143,8 +145,8 @@ class PrintlnOpToPrintfCall(RewritePattern):
         )
 
 
-class PrintToPrintf(ModulePass):
-    name = "print-to-printf"
+class PrintfToLLVM(ModulePass):
+    name = "printf-to-llvm"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         add_printf_call = PrintlnOpToPrintfCall()

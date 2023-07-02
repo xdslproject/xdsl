@@ -63,6 +63,7 @@ class For(IRDLOperation):
     @staticmethod
     def from_region(
         operands: Sequence[Operation | SSAValue],
+        result_types: Sequence[Attribute],
         lower_bound: int | AnyIntegerAttr,
         upper_bound: int | AnyIntegerAttr,
         region: Region,
@@ -74,14 +75,13 @@ class For(IRDLOperation):
             upper_bound = IntegerAttr.from_index_int_value(upper_bound)
         if isinstance(step, int):
             step = IntegerAttr.from_index_int_value(step)
-        result_types = [SSAValue.get(op).typ for op in operands]
         attributes: dict[str, Attribute] = {
             "lower_bound": lower_bound,
             "upper_bound": upper_bound,
             "step": step,
         }
         return For.build(
-            operands=[[operand for operand in operands]],
+            operands=[operands],
             result_types=[result_types],
             attributes=attributes,
             regions=[region],

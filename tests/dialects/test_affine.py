@@ -6,7 +6,7 @@ from xdsl.ir import Attribute, Region, Block
 
 
 def test_simple_for():
-    f = For.from_region([], 0, 5, Region())
+    f = For.from_region([], [], 0, 5, Region())
     assert f.lower_bound.value.data == 0
     assert f.upper_bound.value.data == 5
 

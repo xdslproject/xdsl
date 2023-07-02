@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p print-to-printf | mlir-opt --test-lower-to-llvm  | filecheck %s
+// RUN: xdsl-opt %s -p printf-to-llvm | mlir-opt --test-lower-to-llvm  | filecheck %s
 // this tests straight to llvmir to verify intended target compatibility
 
 builtin.module {
@@ -6,7 +6,7 @@ builtin.module {
         %pi = "arith.constant"() {value = 3.14159:f32} : () -> f32
         %12 = "arith.constant"() {value = 12 : i32} : () -> i32
 
-        print.println "Hello: {} {}", %pi : f32, %12 : i32
+        printf.print_format "Hello: {} {}", %pi : f32, %12 : i32
 
         "func.return"() : () -> ()
     }) {sym_name = "main", function_type=() -> ()} : () -> ()
