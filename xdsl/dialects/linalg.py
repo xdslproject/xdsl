@@ -22,6 +22,7 @@ from xdsl.irdl import (
     region_def,
     attr_def,
     AttrSizedOperandSegments,
+    opt_attr_def,
 )
 from typing import Sequence
 from enum import Enum
@@ -72,15 +73,15 @@ class Generic(IRDLOperation):
     body: Region = region_def("single_block")
 
     # Trait attributes
-    indexing_maps: Attribute = attr_def(ArrayAttr[AffineMapAttr])
-    iterator_types: Attribute = attr_def(ArrayAttr[IteratorTypeAttr])
-    doc: Attribute = attr_def(StringAttr)
-    library_call: Attribute = attr_def(StringAttr)
+    indexing_maps: ArrayAttr[AffineMapAttr] = attr_def(ArrayAttr[AffineMapAttr])
+    iterator_types: ArrayAttr[IteratorTypeAttr] = attr_def(ArrayAttr[IteratorTypeAttr])
+    doc: StringAttr | None = opt_attr_def(StringAttr)
+    library_call: StringAttr | None = opt_attr_def(StringAttr)
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
         body: Region,
@@ -88,8 +89,8 @@ class Generic(IRDLOperation):
         iterator_types: Sequence[Attribute],
         doc: StringAttr | None = None,
         library_call: StringAttr | None = None,
-    ) -> Generic:
-        return Generic.build(
+    ) -> None:
+        super().__init__(
             operands=[inputs, outputs],
             result_types=[[]],
             attributes={
@@ -110,9 +111,8 @@ class Yield(IRDLOperation):
 
     traits = frozenset([IsTerminator()])
 
-    @staticmethod
-    def get(*operands: SSAValue | Operation) -> Yield:
-        return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
+    def __init__(self, *operands: SSAValue | Operation) -> None:
+        super().__init__(operands=[SSAValue.get(operand) for operand in operands])
 
 
 Linalg = Dialect([Generic, Yield], [IteratorTypeAttr])

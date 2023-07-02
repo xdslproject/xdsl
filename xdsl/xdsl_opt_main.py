@@ -21,6 +21,7 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.gpu import GPU
+from xdsl.dialects.linalg import Linalg
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.test import Test
 from xdsl.dialects.stencil import Stencil
@@ -78,6 +79,7 @@ def get_all_dialects() -> list[Dialect]:
         FIR,
         Func,
         GPU,
+        Linalg,
         IRDL,
         LLVM,
         Math,
