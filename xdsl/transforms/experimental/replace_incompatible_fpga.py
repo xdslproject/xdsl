@@ -17,8 +17,36 @@ from xdsl.builder import Builder
 from xdsl.passes import ModulePass
 
 from xdsl.dialects.scf import Yield, If
+from xdsl.dialects.func import Call
 
 from xdsl.dialects.experimental.math import CopySignOp, AbsFOp
+
+
+@dataclass
+class ReplaceCopySignOpByXilinxMath(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: CopySignOp, rewriter: PatternRewriter, /):
+        call = Call.get("copysign", [op.lhs, op.rhs], [f64])
+
+        rewriter.replace_matched_op([call])
+
+
+@dataclass
+class ReplaceMaxfByXilinxMath(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: Maxf, rewriter: PatternRewriter, /):
+        call = Call.get("fmax", [op.lhs, op.rhs], [f64])
+
+        rewriter.replace_matched_op([call])
+
+
+@dataclass
+class ReplaceAbsOpByXilinxMath(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: AbsFOp, rewriter: PatternRewriter, /):
+        call = Call.get("fabs", [op.operand], [f64])
+
+        rewriter.replace_matched_op([call])
 
 
 @dataclass
@@ -66,7 +94,7 @@ class ReplaceCopySignOpByEquivalent(RewritePattern):
 
 
 @dataclass
-class ReplaceMaxNumOpByEquivalent(RewritePattern):
+class ReplaceMaxfOpByEquivalent(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: Maxf, rewriter: PatternRewriter, /):
         compf_ops = Cmpf.get(op.lhs, op.rhs, 2)
@@ -137,9 +165,12 @@ class ReplaceIncompatibleFPGA(ModulePass):
 
         walkers = gen_greedy_walkers(
             [
-                ReplaceCopySignOpByEquivalent(),
-                ReplaceMaxNumOpByEquivalent(),
-                ReplaceAbsOpByEquivalent(),
+                # ReplaceCopySignOpByEquivalent(),
+                ReplaceCopySignOpByXilinxMath(),
+                # ReplaceMaxfOpByEquivalent(),
+                ReplaceMaxfByXilinxMath(),
+                # ReplaceAbsOpByEquivalent(),
+                ReplaceAbsOpByXilinxMath(),
             ]
         )
 
