@@ -1,4 +1,5 @@
 from typing import Sequence
+
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir.core import MLContext, OpResult, SSAValue
 from xdsl.passes import ModulePass
@@ -10,7 +11,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
-from xdsl.dialects import arith, cf, riscv, riscv_cf, builtin
+from xdsl.dialects import arith, cf, riscv, riscv_cf, builtin, riscv_func
 
 
 def cast_values_to_registers(
@@ -37,6 +38,20 @@ def copy_registers(
     return results
 
 
+class AddLabelsToBlocksInFunction(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
+        if len(op.func_body.blocks) < 2:
+            return
+
+        func_name = op.sym_name.data
+
+        for i, block in enumerate(op.func_body.blocks):
+            first_op = block.first_op
+            if not isinstance(first_op, riscv.LabelOp):
+                rewriter.insert_op_at_start(riscv.LabelOp(f"{func_name}.bb{i}"), block)
+
+
 class LowerBranchOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: cf.Branch, rewriter: PatternRewriter):
@@ -51,13 +66,25 @@ class LowerBranchOp(RewritePattern):
 class LowerConditionalBranchOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: cf.ConditionalBranch, rewriter: PatternRewriter):
+        # Expect that the then block immediately follows the op, which is usually the
+        # case. The branch operations in riscv.cf require the else block to be immediately
+        # following the current block. They also require that the first op of the then
+        # block is a label.
+
         # block_args_to_registers(op.then_block, rewriter)
         # block_args_to_registers(op.else_block, rewriter)
 
-        new_then_arguments = cast_values_to_registers(op.then_arguments, rewriter)
+        new_then_arguments = cast_values_to_registers(op.else_arguments, rewriter)
         new_then_arguments = copy_registers(new_then_arguments, rewriter)
-        new_else_arguments = cast_values_to_registers(op.else_arguments, rewriter)
+        new_else_arguments = cast_values_to_registers(op.then_arguments, rewriter)
         new_else_arguments = copy_registers(new_else_arguments, rewriter)
+
+        then_block, else_block = op.else_block, op.then_block
+
+        then_block_first_op = then_block.first_op
+        assert isinstance(
+            then_block_first_op, riscv.LabelOp
+        ), f"Handle non function later {then_block_first_op}"
 
         if isinstance(op.cond, OpResult) and isinstance(op.cond.op, arith.Cmpi):
             cmpi = op.cond.op
@@ -70,8 +97,8 @@ class LowerConditionalBranchOp(RewritePattern):
                             rhs,
                             new_then_arguments,
                             new_else_arguments,
-                            op.then_block,
-                            op.else_block,
+                            then_block,
+                            else_block,
                         )
                     )
                 case 1:  # ne
@@ -81,22 +108,24 @@ class LowerConditionalBranchOp(RewritePattern):
                             rhs,
                             new_then_arguments,
                             new_else_arguments,
-                            op.then_block,
-                            op.else_block,
+                            then_block,
+                            else_block,
                         )
                     )
                 case 2:  # slt
+                    # Opposite of slt is Bge
                     rewriter.replace_matched_op(
-                        riscv_cf.BltOp(
+                        riscv_cf.BgeOp(
                             lhs,
                             rhs,
                             new_then_arguments,
                             new_else_arguments,
-                            op.then_block,
-                            op.else_block,
+                            then_block,
+                            else_block,
                         )
                     )
                 case 3:  # sle
+                    assert False, "unhandled"
                     # No sle, flip arguments and use ge instead
                     rewriter.replace_matched_op(
                         riscv_cf.BgeOp(
@@ -104,11 +133,13 @@ class LowerConditionalBranchOp(RewritePattern):
                             lhs,
                             new_else_arguments,
                             new_then_arguments,
-                            op.else_block,
-                            op.then_block,
+                            else_block,
+                            then_block,
                         )
                     )
                 case 4:  # sgt
+                    assert False, "unhandled"
+
                     # No sgt, flip arguments and use lt instead
                     rewriter.replace_matched_op(
                         riscv_cf.BltOp(
@@ -116,33 +147,35 @@ class LowerConditionalBranchOp(RewritePattern):
                             lhs,
                             new_else_arguments,
                             new_then_arguments,
-                            op.else_block,
-                            op.then_block,
+                            else_block,
+                            then_block,
                         )
                     )
                 case 5:  # sge
-                    rewriter.replace_matched_op(
-                        riscv_cf.BgeOp(
-                            lhs,
-                            rhs,
-                            new_then_arguments,
-                            new_else_arguments,
-                            op.then_block,
-                            op.else_block,
-                        )
-                    )
-                case 6:  # ult
                     rewriter.replace_matched_op(
                         riscv_cf.BltOp(
                             lhs,
                             rhs,
                             new_then_arguments,
                             new_else_arguments,
-                            op.then_block,
-                            op.else_block,
+                            then_block,
+                            else_block,
+                        )
+                    )
+                case 6:  # ult
+                    rewriter.replace_matched_op(
+                        riscv_cf.BgeuOp(
+                            lhs,
+                            rhs,
+                            new_then_arguments,
+                            new_else_arguments,
+                            then_block,
+                            else_block,
                         )
                     )
                 case 7:  # ule
+                    assert False, "unhandled"
+
                     # No ule, flip arguments and use geu instead
                     rewriter.replace_matched_op(
                         riscv_cf.BgeuOp(
@@ -150,11 +183,13 @@ class LowerConditionalBranchOp(RewritePattern):
                             lhs,
                             new_else_arguments,
                             new_then_arguments,
-                            op.else_block,
-                            op.then_block,
+                            else_block,
+                            then_block,
                         )
                     )
                 case 8:  # ugt
+                    assert False, "unhandled"
+
                     # No ugt, flip arguments and use ltu instead
                     rewriter.replace_matched_op(
                         riscv_cf.BltuOp(
@@ -162,19 +197,19 @@ class LowerConditionalBranchOp(RewritePattern):
                             lhs,
                             new_else_arguments,
                             new_then_arguments,
-                            op.else_block,
-                            op.then_block,
+                            else_block,
+                            then_block,
                         )
                     )
                 case 9:  # uge
                     rewriter.replace_matched_op(
-                        riscv_cf.BgeuOp(
+                        riscv_cf.BltuOp(
                             lhs,
                             rhs,
                             new_then_arguments,
                             new_else_arguments,
-                            op.then_block,
-                            op.else_block,
+                            then_block,
+                            else_block,
                         )
                     )
                 case _:
@@ -188,6 +223,7 @@ class LowerCfRiscvCfPass(ModulePass):
     name = "lower-cf-riscv-cf"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        PatternRewriteWalker(AddLabelsToBlocksInFunction()).rewrite_module(op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

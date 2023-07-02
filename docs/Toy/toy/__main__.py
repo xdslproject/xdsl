@@ -207,43 +207,40 @@ def main(path: Path, emit: str, accelerate: bool, print_generic: bool):
         interpreter.call_op("main", ())
         return
 
-    if emit in ("ir-cf", "interpret-cf", "ir-riscv", "interpret-riscv"):
-        MLIROptPass(
-            [
-                "--allow-unregistered-dialect",
-                "--canonicalize",
-                "--cse",
-                "--convert-scf-to-cf",
-                "--mlir-print-op-generic",
-            ]
-        ).apply(ctx, module_op)
+    MLIROptPass(
+        [
+            "--allow-unregistered-dialect",
+            "--canonicalize",
+            "--cse",
+            "--convert-scf-to-cf",
+            "--mlir-print-op-generic",
+        ]
+    ).apply(ctx, module_op)
 
-        if emit == "ir-cf":
-            printer.print(module_op)
-            return
+    if emit == "ir-cf":
+        printer.print(module_op)
+        return
 
-        if emit == "interpret-cf":
-            interpreter = Interpreter(module_op)
-            interpreter.register_implementations(CfFunctions())
-            interpreter.register_implementations(ToyAcceleratorFunctions())
-            interpreter.register_implementations(ArithFunctions())
-            interpreter.register_implementations(MemrefFunctions())
-            interpreter.register_implementations(PrintfFunctions())
-            interpreter.register_implementations(FuncFunctions())
-            interpreter.call_op("main", ())
-            return
-
-    if emit in ("ir-riscv", "interpret-riscv"):
-        LowerCfRiscvCfPass().apply(ctx, module_op)
+    if emit == "interpret-cf":
+        interpreter = Interpreter(module_op)
+        interpreter.register_implementations(CfFunctions())
+        interpreter.register_implementations(ToyAcceleratorFunctions())
+        interpreter.register_implementations(ArithFunctions())
+        interpreter.register_implementations(MemrefFunctions())
+        interpreter.register_implementations(PrintfFunctions())
+        interpreter.register_implementations(FuncFunctions())
+        interpreter.call_op("main", ())
+        return
 
     SetupRiscvPass().apply(ctx, module_op)
+    LowerFuncToRiscvFunc().apply(ctx, module_op)
+    LowerCfRiscvCfPass().apply(ctx, module_op)
     LowerToyAccelerator().apply(ctx, module_op)
     LowerScfRiscvPass().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
     LowerArithRiscvPass().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
-    LowerFuncToRiscvFunc().apply(ctx, module_op)
     FinalizeRiscvPass().apply(ctx, module_op)
 
     DeadCodeElimination().apply(ctx, module_op)

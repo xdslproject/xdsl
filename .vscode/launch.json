@@ -12,8 +12,8 @@
             "justMyCode": false,
             "args": [
                 "docs/Toy/examples/interpret.toy",
-                "--emit=interpret-riscv",
-                "--accelerate"
+                "--emit=riscemu",
+                // "--accelerate"
             ]
         }
     ]

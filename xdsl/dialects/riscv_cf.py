@@ -1,5 +1,6 @@
 from abc import ABC
 from typing import Sequence
+from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.riscv import AssemblyInstructionArg, RISCVInstruction, RegisterType
 from xdsl.ir.core import Block, Dialect, Operation, SSAValue
@@ -15,6 +16,7 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
 
 
 def instruction_count(block: Block) -> int:
@@ -101,10 +103,53 @@ class BranchOperation(IRDLOperation, RISCVInstruction, ABC):
             successors=(then_block, else_block),
         )
 
+    def verify_(self) -> None:
+        # The else block must be the one immediately following this one.
+
+        parent_block = self.parent
+        assert parent_block is not None
+
+        parent_region = parent_block.parent
+        assert parent_region is not None
+
+        this_index = parent_region.blocks.index(parent_block)
+        else_index = parent_region.blocks.index(self.else_block)
+
+        if this_index + 1 != else_index:
+            raise VerifyException(
+                f"riscv_cf branch op else block must be immediately after op"
+            )
+
+        # The then block must start with a label op.
+
+        then_block_first_op = self.then_block.first_op
+
+        if then_block_first_op is None:
+            raise VerifyException(f"riscv_cf branch op then block must not be empty")
+
+        if not isinstance(then_block_first_op, riscv.LabelOp):
+            raise VerifyException(
+                f"riscv_cf branch op then block first op must be a label"
+            )
+
+        # Types of arguments must match arg types of blocks
+
+        for op_arg, block_arg in zip(self.then_arguments, self.then_block.args):
+            if op_arg.typ != block_arg.typ:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.typ} {block_arg.typ}"
+                )
+
+        for op_arg, block_arg in zip(self.else_arguments, self.else_block.args):
+            if op_arg.typ != block_arg.typ:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.typ} {block_arg.typ}"
+                )
+
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        block = self.parent
-        assert block is not None
-        return self.rs1, self.rs2, instruction_offset(block, self.then_block)
+        then_label = self.then_block.first_op
+        assert isinstance(then_label, riscv.LabelOp)
+        return self.rs1, self.rs2, then_label.label
 
 
 @irdl_op_definition
@@ -117,7 +162,7 @@ class BeqOp(BranchOperation):
     https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq
     """
 
-    name = "riscv.cf.beq"
+    name = "riscv_cf.beq"
 
 
 @irdl_op_definition
@@ -130,7 +175,7 @@ class BneOp(BranchOperation):
     https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bne
     """
 
-    name = "riscv.cf.bne"
+    name = "riscv_cf.bne"
 
 
 @irdl_op_definition
@@ -143,7 +188,7 @@ class BltOp(BranchOperation):
     https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#blt
     """
 
-    name = "riscv.cf.blt"
+    name = "riscv_cf.blt"
 
 
 @irdl_op_definition
@@ -156,7 +201,7 @@ class BgeOp(BranchOperation):
     https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bge
     """
 
-    name = "riscv.cf.bge"
+    name = "riscv_cf.bge"
 
 
 @irdl_op_definition
@@ -169,7 +214,7 @@ class BltuOp(BranchOperation):
     https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bltu
     """
 
-    name = "riscv.cf.bltu"
+    name = "riscv_cf.bltu"
 
 
 @irdl_op_definition
@@ -182,7 +227,7 @@ class BgeuOp(BranchOperation):
     https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bgeu
     """
 
-    name = "riscv.cf.bgeu"
+    name = "riscv_cf.bgeu"
 
 
 @irdl_op_definition
@@ -193,7 +238,7 @@ class JOp(IRDLOperation, RISCVInstruction):
     Used to be a part of the spec, removed in 2.0.
     """
 
-    name = "riscv.cf.j"
+    name = "riscv_cf.j"
 
     block_arguments: VarOperand = var_operand_def(RegisterType)
 
@@ -219,10 +264,19 @@ class JOp(IRDLOperation, RISCVInstruction):
             successors=(successor,),
         )
 
+    def verify_(self) -> None:
+        # Types of arguments must match arg types of blocks
+
+        for op_arg, block_arg in zip(self.block_arguments, self.successor.args):
+            if op_arg.typ != block_arg.typ:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.typ} {block_arg.typ}"
+                )
+
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        block = self.parent
-        assert block is not None
-        return (instruction_offset(block, self.successor),)
+        dest_label = self.successor.first_op
+        assert isinstance(dest_label, riscv.LabelOp)
+        return (dest_label.label,)
 
 
 RISCV_CF = Dialect(

@@ -105,7 +105,9 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                         typ = RegisterType(Register(f"j{self.idx}"))
                         arg.typ = typ
                         self.idx += 1
-                        op.then_arguments[i].typ = typ
+                    else:
+                        typ = arg.typ
+                    op.then_arguments[i].typ = typ
 
                 for i, arg in enumerate(op.else_block.args):
                     assert isinstance(arg.typ, RegisterType)
@@ -113,7 +115,9 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                         typ = RegisterType(Register(f"j{self.idx}"))
                         arg.typ = typ
                         self.idx += 1
-                        op.else_arguments[i].typ = typ
+                    else:
+                        typ = arg.typ
+                    op.else_arguments[i].typ = typ
 
             elif isinstance(op, riscv_cf.JOp):
                 for i, arg in enumerate(op.successor.args):
@@ -122,7 +126,9 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                         typ = RegisterType(Register(f"j{self.idx}"))
                         arg.typ = typ
                         self.idx += 1
-                        op.block_arguments[i].typ = typ
+                    else:
+                        typ = arg.typ
+                    op.block_arguments[i].typ = typ
 
         for op in module.walk():
             if not isinstance(op, RISCVOp):
