@@ -127,7 +127,7 @@ class SingleBlockImplicitTerminator(OpTrait):
                     )
 
 
-def ensure_terminator(trait: SingleBlockImplicitTerminator, op: Operation) -> None:
+def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> None:
     """
     Method that helps with the creation of an implicit terminator.
     This should be explicitly called during the creation of an operation that has the
