@@ -69,6 +69,11 @@ class For(IRDLOperation):
                 f"{len(self.body.block.args)}. The body must have the induction "
                 f"variable and loop-carried variables as arguments."
             )
+        if self.body.block.args and (iter_var := self.body.block.args[0]):
+            if not isinstance(iter_var.typ, IndexType):
+                raise VerifyException(
+                    f"Type {iter_var.typ} of body first argument is not an index for the induction variable"
+                )
         for idx, arg in enumerate(self.iter_args):
             if self.body.block.args[idx + 1].typ != arg.typ:
                 raise VerifyException(
@@ -81,7 +86,7 @@ class For(IRDLOperation):
                 self.body.block.last_op, Yield
             ):
                 raise VerifyException(
-                    "The scf.for's body does not end with a scf.yield. A scf.for loop "
+                    "The scf.for's body does not end with an scf.yield. A scf.for loop "
                     "with loop-carried variables must yield their values at the end of "
                     "its body."
                 )

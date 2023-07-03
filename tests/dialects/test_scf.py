@@ -1,5 +1,9 @@
-import pytest
+"""
+Test the usage of scf dialect.
+"""
+
 from typing import cast
+import pytest
 from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import Region, IndexType, ModuleOp, i32, i64
@@ -9,26 +13,65 @@ from xdsl.dialects.test import TestTermOp
 from xdsl.utils.exceptions import VerifyException, DiagnosticException
 
 
-def test_for():
-    lb = Constant.from_int_and_width(0, IndexType())
-    ub = Constant.from_int_and_width(42, IndexType())
+def test_for_with_loop_carried_verify():
+    """Test for with loop-carried variables"""
+
+    lower = Constant.from_int_and_width(0, IndexType())
+    upper = Constant.from_int_and_width(42, IndexType())
     step = Constant.from_int_and_width(3, IndexType())
     carried = Constant.from_int_and_width(1, IndexType())
-    bodyblock = Block(arg_types=[IndexType()])
+    bodyblock = Block(arg_types=[IndexType(), IndexType()])
+    bodyblock.add_op(Yield.get(carried))
     body = Region(bodyblock)
-    f = For.get(lb, ub, step, [carried], body)
+    for_op = For.get(lower, upper, step, [carried], body)
 
-    assert f.lb is lb.result
-    assert f.ub is ub.result
-    assert f.step is step.result
-    assert f.iter_args == tuple([carried.result])
-    assert f.body is body
+    assert for_op.lb is lower.result
+    assert for_op.ub is upper.result
+    assert for_op.step is step.result
+    assert for_op.iter_args == tuple([carried.result])
+    assert for_op.body is body
 
-    assert len(f.results) == 1
-    assert f.results[0].typ == carried.result.typ
-    assert tuple(f.operands) == (lb.result, ub.result, step.result, carried.result)
-    assert f.regions == [body]
-    assert f.attributes == {}
+    assert len(for_op.results) == 1
+    assert for_op.results[0].typ == carried.result.typ
+    assert tuple(for_op.operands) == (
+        lower.result,
+        upper.result,
+        step.result,
+        carried.result,
+    )
+    assert for_op.regions == [body]
+    assert for_op.attributes == {}
+
+    for_op.verify()
+
+
+def test_for_without_loop_carried_verify():
+    """Test for without loop-carried variables"""
+
+    lower = Constant.from_int_and_width(0, IndexType())
+    upper = Constant.from_int_and_width(42, IndexType())
+    step = Constant.from_int_and_width(3, IndexType())
+    bodyblock = Block(arg_types=[IndexType()])
+    bodyblock.add_op(Yield.get())
+    body = Region(bodyblock)
+    for_op = For.get(lower, upper, step, [], body)
+
+    assert for_op.lb is lower.result
+    assert for_op.ub is upper.result
+    assert for_op.step is step.result
+    assert for_op.iter_args == tuple()
+    assert for_op.body is body
+
+    assert len(for_op.results) == 0
+    assert tuple(for_op.operands) == (
+        lower.result,
+        upper.result,
+        step.result,
+    )
+    assert for_op.regions == [body]
+    assert for_op.attributes == {}
+
+    for_op.verify()
 
 
 def test_parallel_no_init_vals():

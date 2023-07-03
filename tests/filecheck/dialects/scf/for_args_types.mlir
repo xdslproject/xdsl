@@ -1,4 +1,5 @@
-// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s
+
 "builtin.module"() ({
   %lb = "arith.constant"() {"value" = 0 : i32} : () -> index
   %ub = "arith.constant"() {"value" = 42 : index} : () -> index
@@ -12,3 +13,17 @@
     "scf.yield"() : () -> ()
   }) : (i32, index, index) -> ()
 }) : () -> ()
+
+// -----
+
+"builtin.module"() ({
+  %lb = "arith.constant"() {"value" = 0 : index} : () -> index
+  %ub = "arith.constant"() {"value" = 42 : index} : () -> index
+  %step = "arith.constant"() {"value" = 7 : index} : () -> index
+  "scf.for"(%lb, %ub, %step) ({
+  ^0(%iv : f64):
+    "scf.yield"() : () -> ()
+  }) : (index, index, index) -> ()
+}) : () -> ()
+
+// CHECK: Type f64 of body first argument is not an index
