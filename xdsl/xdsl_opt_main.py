@@ -3,6 +3,7 @@ import sys
 import os
 
 from io import StringIO
+from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import Dialect, MLContext
@@ -21,6 +22,7 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.gpu import GPU
+from xdsl.dialects.linalg import Linalg
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.test import Test
 from xdsl.dialects.stencil import Stencil
@@ -29,7 +31,7 @@ from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.riscv import RISCV, print_assembly, riscv_code
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
-from xdsl.dialects.print import Print
+from xdsl.dialects.printf import Printf
 
 from xdsl.dialects.experimental.math import Math
 from xdsl.dialects.experimental.fir import FIR
@@ -58,7 +60,7 @@ from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
 from xdsl.transforms.experimental.dmp.scatter_gather import (
     DmpScatterGatherTrivialLowering,
 )
-from xdsl.transforms.print_to_println import PrintToPrintf
+from xdsl.transforms.printf_to_llvm import PrintfToLLVM
 
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
@@ -78,13 +80,14 @@ def get_all_dialects() -> list[Dialect]:
         FIR,
         Func,
         GPU,
+        Linalg,
         IRDL,
         LLVM,
         Math,
         MemRef,
         MPI,
         PDL,
-        Print,
+        Printf,
         RISCV,
         RISCV_Func,
         Scf,
@@ -110,8 +113,9 @@ def get_all_passes() -> list[type[ModulePass]]:
         LowerRISCVFunc,
         LowerSnitchPass,
         LowerSnitchRuntimePass,
-        PrintToPrintf,
+        PrintfToLLVM,
         RISCVRegisterAllocation,
+        RISCVLowerArith,
         StencilShapeInferencePass,
         StencilStorageMaterializationPass,
     ]
