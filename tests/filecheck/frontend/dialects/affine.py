@@ -11,7 +11,7 @@ with CodeContext(p):
     # CHECK-NEXT:   "affine.for"() ({
     # CHECK-NEXT:   ^0(%0 : index):
     # CHECK-NEXT:     "affine.yield"() : () -> ()
-    # CHECK-NEXT:   }) {"lower_bound" = 0 : index, "upper_bound" = 100 : index, "step" = 1 : index} : () -> ()
+    # CHECK-NEXT:   }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (100)>, "step" = 1 : index} : () -> ()
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
 
@@ -24,7 +24,7 @@ with CodeContext(p):
     # CHECK-NEXT:   "affine.for"() ({
     # CHECK-NEXT:   ^1(%1 : index):
     # CHECK-NEXT:     "affine.yield"() : () -> ()
-    # CHECK-NEXT:   }) {"lower_bound" = 10 : index, "upper_bound" = 30 : index, "step" = 1 : index} : () -> ()
+    # CHECK-NEXT:   }) {"lower_bound" = affine_map<() -> (10)>, "upper_bound" = affine_map<() -> (30)>, "step" = 1 : index} : () -> ()
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
     def test_affine_for_II():
@@ -36,7 +36,7 @@ with CodeContext(p):
     # CHECK-NEXT:   "affine.for"() ({
     # CHECK-NEXT:   ^2(%2 : index):
     # CHECK-NEXT:     "affine.yield"() : () -> ()
-    # CHECK-NEXT:   }) {"lower_bound" = 1 : index, "upper_bound" = 20 : index, "step" = 5 : index} : () -> ()
+    # CHECK-NEXT:   }) {"lower_bound" = affine_map<() -> (1)>, "upper_bound" = affine_map<() -> (20)>, "step" = 5 : index} : () -> ()
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
     def test_affine_for_III():
@@ -52,11 +52,11 @@ with CodeContext(p):
     # CHECK-NEXT:       "affine.for"() ({
     # CHECK-NEXT:       ^5(%5 : index):
     # CHECK-NEXT:         "affine.yield"() : () -> ()
-    # CHECK-NEXT:       }) {"lower_bound" = 0 : index, "upper_bound" = 30 : index, "step" = 1 : index} : () -> ()
+    # CHECK-NEXT:       }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (30)>, "step" = 1 : index} : () -> ()
     # CHECK-NEXT:       "affine.yield"() : () -> ()
-    # CHECK-NEXT:     }) {"lower_bound" = 0 : index, "upper_bound" = 20 : index, "step" = 1 : index} : () -> ()
+    # CHECK-NEXT:     }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (20)>, "step" = 1 : index} : () -> ()
     # CHECK-NEXT:     "affine.yield"() : () -> ()
-    # CHECK-NEXT:   }) {"lower_bound" = 0 : index, "upper_bound" = 10 : index, "step" = 1 : index} : () -> ()
+    # CHECK-NEXT:   }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (10)>, "step" = 1 : index} : () -> ()
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
     def test_affine_for_IV():

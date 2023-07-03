@@ -3,6 +3,7 @@ import sys
 import os
 
 from io import StringIO
+from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import Dialect, MLContext
@@ -114,6 +115,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         LowerSnitchRuntimePass,
         PrintfToLLVM,
         RISCVRegisterAllocation,
+        RISCVLowerArith,
         StencilShapeInferencePass,
         StencilStorageMaterializationPass,
     ]
