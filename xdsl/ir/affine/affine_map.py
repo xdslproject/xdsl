@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
-from .affine_expr import AffineExpr
+from xdsl.ir.affine import AffineExpr
 
 
 @dataclass
@@ -26,6 +26,21 @@ class AffineMap:
     @staticmethod
     def empty() -> AffineMap:
         return AffineMap(0, 0, [])
+
+    def compose(self, map: AffineMap) -> AffineMap:
+        """Compose the AffineMap with the given AffineMap."""
+        if self.num_dims != map.num_dims:
+            raise ValueError(
+                f"Cannot compose AffineMaps with different numbers of dimensions: "
+                f"{self.num_dims} and {map.num_dims}"
+            )
+
+        results = [expr.compose(map) for expr in self.results]
+        return AffineMap(
+            num_dims=self.num_dims,
+            num_symbols=map.num_symbols,
+            results=results,
+        )
 
     def eval(self, dims: list[int], symbols: list[int]) -> list[int]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
