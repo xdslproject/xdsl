@@ -373,7 +373,7 @@ class ModuleOp(IRDLOperation):
 
     def __post_init__(self):
         for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
-            ensure_terminator(trait, self)
+            ensure_terminator(self, trait)
 
 
 @irdl_op_definition

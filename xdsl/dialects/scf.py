@@ -127,7 +127,7 @@ class For(IRDLOperation):
     def __post_init__(self):
         # TODO custom conditions
         for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
-            ensure_terminator(trait, self, self.iter_args)
+            ensure_terminator(self, trait, self.iter_args)
 
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.block.args):
