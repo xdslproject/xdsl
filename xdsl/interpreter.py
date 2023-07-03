@@ -356,13 +356,6 @@ class Interpreter:
         assert results is not None
         return results
 
-    def run_block(self, block: Block, args: PythonValues) -> PythonValues | None:
-        """
-        Interpret a basic block, using `args` as the block argument values.
-        The terminator of this block is expected either to call its successor or return
-        the results for the region directly.
-        """
-
     def run_ssacfg_region(
         self, region: Region, args: PythonValues, name: str = "unknown"
     ) -> PythonValues | None:

@@ -1069,8 +1069,8 @@ class AffineMapAttr(Data[AffineMap]):
         printer.print_string(f"{self.data}")
 
     @staticmethod
-    def from_constant(value: int) -> AffineMapAttr:
-        return AffineMapAttr(AffineMap.from_constant(value))
+    def constant_map(value: int) -> AffineMapAttr:
+        return AffineMapAttr(AffineMap.constant_map(value))
 
 
 @irdl_op_definition

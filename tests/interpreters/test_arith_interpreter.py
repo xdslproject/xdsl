@@ -1,10 +1,11 @@
+import operator
+from typing import Callable
 import pytest
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.dialects.arith import Addf, Addi, Cmpi, Constant, Mulf, Muli, Subf, Subi
 from xdsl.dialects.builtin import (
     IndexType,
-    IntegerAttr,
     IntegerType,
     ModuleOp,
     Signedness,
@@ -107,14 +108,28 @@ def test_mulf(lhs_value: int, rhs_value: int):
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
 @pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
-def test_cmpi(lhs_value: int, rhs_value: int):
-    cmpi = Cmpi(
-        operands=[lhs_op, rhs_op],
-        result_types=[lhs_op.res[0].typ],
-        attributes={"predicate": IntegerAttr(0, IndexType())},
-    )
+@pytest.mark.parametrize(
+    "pred",
+    [
+        ("eq", operator.eq),
+        ("ne", operator.ne),
+        ("slt", operator.lt),
+        ("sle", operator.le),
+        ("sgt", operator.gt),
+        ("sge", operator.ge),
+        ("ult", operator.lt),
+        ("ule", operator.le),
+        ("ugt", operator.gt),
+        ("uge", operator.ge),
+    ],
+)
+def test_cmpi(
+    lhs_value: int, rhs_value: int, pred: tuple[str, Callable[[int, int], int]]
+):
+    arg, fn = pred
+    cmpi = Cmpi.get(lhs_op, rhs_op, arg)
 
     ret = interpreter.run_op(cmpi, (lhs_value, rhs_value))
 
     assert len(ret) == 1
-    assert ret[0] == (lhs_value == rhs_value)
+    assert ret[0] == fn(lhs_value, rhs_value)

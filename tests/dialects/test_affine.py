@@ -14,8 +14,8 @@ def test_simple_for():
 
 def test_for_mismatch_operands_results_counts():
     attributes: dict[str, Attribute] = {
-        "lower_bound": AffineMapAttr.from_constant(0),
-        "upper_bound": AffineMapAttr.from_constant(5),
+        "lower_bound": AffineMapAttr.constant_map(0),
+        "upper_bound": AffineMapAttr.constant_map(5),
         "step": IntegerAttr.from_index_int_value(1),
     }
     f = For.create(
@@ -31,8 +31,8 @@ def test_for_mismatch_operands_results_counts():
 
 def test_for_mismatch_operands_results_types():
     attributes: dict[str, Attribute] = {
-        "lower_bound": AffineMapAttr.from_constant(0),
-        "upper_bound": AffineMapAttr.from_constant(5),
+        "lower_bound": AffineMapAttr.constant_map(0),
+        "upper_bound": AffineMapAttr.constant_map(5),
         "step": IntegerAttr.from_index_int_value(1),
     }
     b = Block(arg_types=(IntegerType(32),))
@@ -53,8 +53,8 @@ def test_for_mismatch_operands_results_types():
 
 def test_for_mismatch_blockargs():
     attributes: dict[str, Attribute] = {
-        "lower_bound": AffineMapAttr.from_constant(0),
-        "upper_bound": AffineMapAttr.from_constant(5),
+        "lower_bound": AffineMapAttr.constant_map(0),
+        "upper_bound": AffineMapAttr.constant_map(5),
         "step": IntegerAttr.from_index_int_value(1),
     }
     b = Block(arg_types=(IndexType(),))

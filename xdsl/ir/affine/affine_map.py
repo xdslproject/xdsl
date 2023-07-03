@@ -19,7 +19,7 @@ class AffineMap:
         return not self.num_dims and not self.num_symbols
 
     @staticmethod
-    def from_constant(value: int) -> AffineMap:
+    def constant_map(value: int) -> AffineMap:
         return AffineMap(0, 0, [AffineExpr.constant(value)])
 
     @staticmethod

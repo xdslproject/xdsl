@@ -121,9 +121,9 @@ def build_affine_for_const(
     return build_affine_for(
         builder,
         (),
-        affine.AffineMap.from_constant(lb),
+        affine.AffineMap.constant_map(lb),
         (),
-        affine.AffineMap.from_constant(ub),
+        affine.AffineMap.constant_map(ub),
         step,
         iter_args,
         body_builder_fn,
