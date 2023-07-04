@@ -33,15 +33,17 @@ from typing import cast, Any
 
 @dataclass
 class LowerHLSStreamToAlloca(RewritePattern):
+    def __init__(self, op: builtin.ModuleOp):
+        self.module = op
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStream, rewriter: PatternRewriter, /):
         size = Constant.from_int_and_width(512, i32)
-        alloca = AllocaOp.get(size, i32)
-        print("---->", alloca)
-        depth_call = Call.get("llvm.fpga.set.stream.depth", [], [HLSStreamType(i32)])
-        print("----> ", depth_call)
+        alloca = AllocaOp.get(size, op.elem_type)
+        depth_call = Call.get("llvm.fpga.set.stream.depth", [alloca], [])
 
-        rewriter.replace_matched_op([size, alloca, depth_call])
+        rewriter.insert_op_after_matched_op(depth_call)
+        rewriter.replace_matched_op([size, alloca])
 
 
 @dataclass
@@ -215,7 +217,7 @@ class LowerHLSPass(ModulePass):
                 PragmaPipelineToFunc(op),
                 PragmaUnrollToFunc(op),
                 PragmaDataflowToFunc(op),
-                LowerHLSStreamToAlloca(),
+                LowerHLSStreamToAlloca(op),
             ]
         )
 
