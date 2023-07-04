@@ -61,8 +61,7 @@ class ShapedArray(Generic[_T]):
         """
         Iterates over the indices of this shaped array.
         """
-        for indices in product(*(range(dim) for dim in self.shape)):
-            yield tuple(indices)
+        yield from product(*(range(dim) for dim in self.shape))
 
     def transposed(self, dim0: int, dim1: int) -> ShapedArray[_T]:
         """
