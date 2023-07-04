@@ -1,16 +1,16 @@
-# RUN: python -m toy %s --emit=toy --interpret | filecheck %s
+# RUN: python -m toy %s --emit=toy | filecheck %s
 
-# RUN: python -m toy %s --emit=affine --interpret | filecheck %s
-# RUN: python -m toy %s --emit=scf --interpret | filecheck %s
-# RUN: python -m toy %s --emit=cf --interpret | filecheck %s
-# RUN: python -m toy %s --emit=riscv --interpret | filecheck %s
+# RUN: python -m toy %s --emit=affine | filecheck %s
+# RUN: python -m toy %s --emit=scf | filecheck %s
+# RUN: python -m toy %s --emit=cf | filecheck %s
+# RUN: python -m toy %s --emit=riscv | filecheck %s
 # RUN: python -m toy %s --emit=riscemu | filecheck %s
 
-# RUN: python -m toy %s --emit=affine --interpret --accelerate | filecheck %s
-# RUN: python -m toy %s --emit=scf --interpret --accelerate | filecheck %s
-# RUN: python -m toy %s --emit=cf --interpret --accelerate | filecheck %s
-# RUN: python -m toy %s --emit=riscv --interpret --accelerate | filecheck %s
-# RUN: python -m toy %s --emit=riscemu --accelerate | filecheck %s
+# RUN: python -m toy %s --emit=affine --accelerate | filecheck %s
+# RUN: python -m toy %s --emit=scf --accelerate | filecheck %s
+# RUN: python -m toy %s --emit=cf --accelerate | filecheck %s
+# RUN: python -m toy %s --emit=riscv --accelerate | filecheck %s
+# RUN: python -m toy %s --emit=riscemu | filecheck %s
 
 # User defined generic function that operates on unknown shaped arguments
 def multiply_transpose(a, b) {

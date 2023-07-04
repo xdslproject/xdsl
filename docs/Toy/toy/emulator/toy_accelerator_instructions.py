@@ -140,7 +140,7 @@ class ToyAccelerator(InstructionSet):
         data = self.buffer_read(source_ptr, size)
 
         shaped_array = ShapedArray(data, [b_rows, b_cols])
-        result_shaped_array = shaped_array.transposed()
+        result_shaped_array = shaped_array.transposed(0, 1)
 
         self.buffer_write(dest_ptr, data=result_shaped_array.data)
 

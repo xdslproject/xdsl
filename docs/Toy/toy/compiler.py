@@ -10,6 +10,10 @@ from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 
 from xdsl.interpreters.riscv_emulator import run_riscv
 
+from .rewrites.optimise_toy import OptimiseToy
+from .rewrites.shape_inference import ShapeInferencePass
+from .rewrites.inline_toy import InlineToyPass
+
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 
@@ -61,26 +65,28 @@ def transform(
     ctx: MLContext,
     module_op: ModuleOp,
     *,
-    emit: str = "riscv-assembly",
+    target: str = "riscv-assembly",
     accelerate: bool
 ):
-    # TODO: rename emit to target
-    if emit == "toy":
+    if target == "toy":
         return
 
     OptimiseToy().apply(ctx, module_op)
 
-    if emit == "toy-opt":
+    if target == "toy-opt":
         return
 
     InlineToyPass().apply(ctx, module_op)
 
-    if emit == "toy-inline":
+    if target == "toy-inline":
         return
 
     ShapeInferencePass().apply(ctx, module_op)
 
-    if emit == "toy-infer-shapes":
+    if target == "toy-infer-shapes":
+        return
+
+    if target == "toy-infer-shapes":
         return
 
     LowerToAffinePass().apply(ctx, module_op)
@@ -90,7 +96,7 @@ def transform(
         LowerToToyAccelerator().apply(ctx, module_op)
         module_op.verify()
 
-    if emit == "affine":
+    if target == "affine":
         return
 
     MLIROptPass(
@@ -103,7 +109,7 @@ def transform(
         ]
     ).apply(ctx, module_op)
 
-    if emit == "scf":
+    if target == "scf":
         return
 
     MLIROptPass(
@@ -116,7 +122,7 @@ def transform(
         ]
     ).apply(ctx, module_op)
 
-    if emit == "cf":
+    if target == "cf":
         return
 
     SetupRiscvPass().apply(ctx, module_op)
@@ -134,7 +140,7 @@ def transform(
 
     module_op.verify()
 
-    if emit == "riscv":
+    if target == "riscv":
         return
 
     LowerRISCVFunc(insert_exit_syscall=True).apply(ctx, module_op)
@@ -147,7 +153,7 @@ def compile(program: str, *, accelerate: bool) -> str:
     ctx = context()
 
     op = parse_toy(program)
-    transform(ctx, op, emit="riscv-regalloc", accelerate=accelerate)
+    transform(ctx, op, target="riscv-regalloc", accelerate=accelerate)
 
     io = StringIO()
     riscv.print_assembly(op, io)

@@ -56,12 +56,12 @@ parser.add_argument(
     default="riscemu",
     help="Action to perform on source file (default: riscemu)",
 )
-parser.add_argument("--interpret", dest="interpret", action="store_true")
+parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
 parser.add_argument("--accelerate", dest="accelerate", action="store_true")
 
 
-def main(path: Path, emit: str, interpret: bool, accelerate: bool, print_generic: bool):
+def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool):
     ctx = context()
 
     path = args.source
@@ -86,87 +86,85 @@ def main(path: Path, emit: str, interpret: bool, accelerate: bool, print_generic
 
     riscemu = emit == "riscemu"
     print_assembly = emit == "riscv-assembly"
-    print_module = not (riscemu or print_assembly)
 
     if riscemu or print_assembly:
         emit = "riscv-regalloc"
 
-    transform(ctx, module_op, emit=emit, accelerate=accelerate)
+    transform(ctx, module_op, target=emit, accelerate=accelerate)
 
-    if interpret:
-        if emit == "riscv-regalloc":
-            print("Interpretation of register allocated code currently unsupported")
-            # The reason is that we lower functions before register allocation, and lose
-            # the mechanism of function calls in the interpreter.
-            return
-
-        interpreter = Interpreter(module_op)
-        if emit in ("toy", "toy-opt", "toy-inline", "toy-infer-shapes"):
-            interpreter.register_implementations(ToyFunctions())
-        if emit in ("affine"):
-            interpreter.register_implementations(AffineFunctions())
-        if accelerate and emit in ("affine", "scf", "cf"):
-            interpreter.register_implementations(ToyAcceleratorFunctions())
-        if emit in ("affine", "scf", "cf"):
-            interpreter.register_implementations(ArithFunctions())
-            interpreter.register_implementations(MemrefFunctions())
-            interpreter.register_implementations(PrintfFunctions())
-            interpreter.register_implementations(FuncFunctions())
-        if emit == "scf":
-            interpreter.register_implementations(ScfFunctions())
-        if emit == "cf":
-            interpreter.register_implementations(CfFunctions())
-
-        if emit in ("scf, cf"):
-
-            def memfer_from_buffer(
-                o: riscv.RegisterType, r: memref.MemRefType[Float64Type], value: Any
-            ) -> Any:
-                shape = r.get_shape()
-                return ShapedArrayBuffer(value.data, list(shape))
-
-            def buffer_from_memref(
-                o: memref.MemRefType[Float64Type], r: riscv.RegisterType, value: Any
-            ) -> Any:
-                return Buffer(value.data)
-
-            builtin_functions = BuiltinFunctions()
-
-            builtin_functions.register_cast_impl(
-                riscv.RegisterType, memref.MemRefType, memfer_from_buffer
-            )
-            builtin_functions.register_cast_impl(
-                memref.MemRefType, riscv.RegisterType, buffer_from_memref
-            )
-            interpreter.register_implementations(builtin_functions)
-
-        if emit in ("riscv",):
-            interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
-            interpreter.register_implementations(RiscvCfFunctions())
-            interpreter.register_implementations(RiscvFuncFunctions())
-            interpreter.register_implementations(BuiltinFunctions())
-
-        interpreter.call_op("main", ())
-        return
-
-    if print_module:
+    if ir:
         printer = Printer(print_generic_format=print_generic)
         printer.print(module_op)
         return
 
-    code = riscv.riscv_code(module_op)
+    if riscemu or print_assembly:
+        code = riscv.riscv_code(module_op)
 
-    if print_assembly:
-        print(code)
+        if print_assembly:
+            print(code)
+            return
+
+        if riscemu:
+            emulate_riscv(code)
+            return
+
+    if emit == "riscv-regalloc":
+        print("Interpretation of register allocated code currently unsupported")
+        # The reason is that we lower functions before register allocation, and lose
+        # the mechanism of function calls in the interpreter.
         return
 
-    if riscemu:
-        emulate_riscv(code)
-        return
+    interpreter = Interpreter(module_op)
+    if emit in ("toy", "toy-opt", "toy-inline", "toy-infer-shapes"):
+        interpreter.register_implementations(ToyFunctions())
+    if emit in ("affine"):
+        interpreter.register_implementations(AffineFunctions())
+    if accelerate and emit in ("affine", "scf", "cf"):
+        interpreter.register_implementations(ToyAcceleratorFunctions())
+    if emit in ("affine", "scf", "cf"):
+        interpreter.register_implementations(ArithFunctions())
+        interpreter.register_implementations(MemrefFunctions())
+        interpreter.register_implementations(PrintfFunctions())
+        interpreter.register_implementations(FuncFunctions())
+    if emit == "scf":
+        interpreter.register_implementations(ScfFunctions())
+    if emit == "cf":
+        interpreter.register_implementations(CfFunctions())
+
+    if emit in ("scf, cf"):
+
+        def memfer_from_buffer(
+            o: riscv.RegisterType, r: memref.MemRefType[Float64Type], value: Any
+        ) -> Any:
+            shape = r.get_shape()
+            return ShapedArrayBuffer(value.data, list(shape))
+
+        def buffer_from_memref(
+            o: memref.MemRefType[Float64Type], r: riscv.RegisterType, value: Any
+        ) -> Any:
+            return Buffer(value.data)
+
+        builtin_functions = BuiltinFunctions()
+
+        builtin_functions.register_cast_impl(
+            riscv.RegisterType, memref.MemRefType, memfer_from_buffer
+        )
+        builtin_functions.register_cast_impl(
+            memref.MemRefType, riscv.RegisterType, buffer_from_memref
+        )
+        interpreter.register_implementations(builtin_functions)
+
+    if emit in ("riscv",):
+        interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
+        interpreter.register_implementations(RiscvCfFunctions())
+        interpreter.register_implementations(RiscvFuncFunctions())
+        interpreter.register_implementations(BuiltinFunctions())
+
+    interpreter.call_op("main", ())
 
     print(f"Unknown option {emit}")
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.source, args.emit, args.interpret, args.accelerate, args.print_generic)
+    main(args.source, args.emit, args.ir, args.accelerate, args.print_generic)
