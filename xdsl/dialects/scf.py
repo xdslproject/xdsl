@@ -144,15 +144,6 @@ class For(IRDLOperation):
                     f"got {self.body.block.args[idx].typ}. Arguments after the "
                     f"induction variable must match the carried variables."
                 )
-        if len(self.iter_args) > 0:
-            if len(self.body.ops) == 0 or not isinstance(
-                self.body.block.last_op, Yield
-            ):
-                raise VerifyException(
-                    "The scf.for's body does not end with a scf.yield. A scf.for loop "
-                    "with loop-carried variables must yield their values at the end of "
-                    "its body."
-                )
         if len(self.body.ops) > 0 and isinstance(self.body.block.last_op, Yield):
             yieldop = self.body.block.last_op
             if len(yieldop.arguments) != len(self.iter_args):
