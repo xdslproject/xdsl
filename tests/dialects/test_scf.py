@@ -234,7 +234,10 @@ def test_parallel_verify_yield_zero_ops():
     b.add_op(Yield.get(val))
     body = Region(b)
     p = ParallelOp.get([lbi], [ubi], [si], body)
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        VerifyException,
+        match="scf.yield contains 1 operands but this must be 0 inside an scf.parallel",
+    ):
         p.verify()
 
     b2 = Block(arg_types=[IndexType()])

@@ -257,7 +257,7 @@ class ParallelOp(IRDLOperation):
         # and the block argument is of type index
         if not all([isinstance(a.typ, IndexType) for a in body_args]):
             raise VerifyException(
-                f"scf.parallel's block must have an index argument"
+                "scf.parallel's block must have an index argument"
                 " for each induction variable"
             )
 
@@ -276,7 +276,8 @@ class ParallelOp(IRDLOperation):
         # Ensure that the number of operands in scf.yield is exactly zero
         if (last_op := self.body.block.last_op) is not None and last_op.operands:
             raise VerifyException(
-                f"scf.yield contains {len(last_op.operands)} operands but this must be zero inside an scf.parallel"
+                f"scf.yield contains {len(last_op.operands)} operands but this must be "
+                "0 inside an scf.parallel"
             )
 
         # Ensure that the number of reductions matches the
