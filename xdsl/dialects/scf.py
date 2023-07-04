@@ -214,6 +214,10 @@ class ParallelOp(IRDLOperation):
             result_types=[[SSAValue.get(a).typ for a in initVals]],
         )
 
+    def __post_init__(self):
+        for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(self, trait)
+
     def verify_(self) -> None:
         # This verifies the scf.parallel operation, as can be seen it's fairly complex
         # due to the restrictions on the operation and ability to mix in reduction operations
