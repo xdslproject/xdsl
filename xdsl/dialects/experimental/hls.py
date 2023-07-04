@@ -3,17 +3,26 @@ from __future__ import annotations
 
 from xdsl.dialects.builtin import (
     Attribute,
+    ParametrizedAttribute,
     StringAttr,
 )
-from xdsl.ir import Operation, SSAValue, Dialect
+from xdsl.ir import Operation, SSAValue, Dialect, TypeAttribute
 from xdsl.irdl import (
     irdl_op_definition,
+    irdl_attr_definition,
     Operand,
     IRDLOperation,
     operand_def,
     opt_attr_def,
+    Generic,
+    result_def,
 )
-from xdsl.dialects.builtin import i32
+
+from typing import TypeVar
+
+from xdsl.dialects.builtin import i32, f16
+
+_StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True)
 
 
 @irdl_op_definition
@@ -64,6 +73,47 @@ class PragmaArrayPartition(IRDLOperation):
             operands=[factor, dim],
             attributes={"variable": variable, "array_type": array_type},
         )
+
+
+@irdl_attr_definition
+class HLSStreamType(ParametrizedAttribute, TypeAttribute):
+    name = "hls.streamtype"
+
+
+# @irdl_op_definition
+# class HLSStream(IRDLOperation):
+#    name = "hls.stream"
+#
+#    @staticmethod
+#    def get():
+#        return HLSStream.build()
+
+
+@irdl_op_definition
+class HLSStream(IRDLOperation):
+    name = "hls.stream"
+    result: OpResult = result_def(
+        HLSStreamType()
+    )  # This should be changed to HLSStreamType
+
+    @staticmethod
+    def get() -> HLSStream:
+        return HLSStream.build(result_types=[HLSStreamType()])
+
+
+# @irdl_op_definition
+# class HLSExternalLoadOp(IRDLOperation):
+#    name = "hls.external_load"
+#    field: Operand = operand_def(Attribute)
+#    #result: OpResult = result_def(FieldType[Attribute] | memref.MemRefType[Attribute])
+#    result: OpResult = result_def(HLSStreamType[Attribute])
+#
+#    @staticmethod
+#    def get(
+#            arg: SSAValue | Operation,
+#            res_type : HLSStreamType[Attribute]
+#    ):
+#        return HLSExternalLoadOp.build(operands=[arg], result_types=[res_type])
 
 
 HLS = Dialect([PragmaPipeline, PragmaUnroll, PragmaDataflow, PragmaArrayPartition], [])

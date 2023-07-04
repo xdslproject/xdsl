@@ -49,6 +49,9 @@ from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
     ConvertStencilToLLMLIRPass,
 )
+from xdsl.transforms.experimental.hls_convert_stencil_to_ll_mlir import (
+    HLSConvertStencilToLLMLIRPass,
+)
 from xdsl.transforms.experimental.stencil_shape_inference import (
     StencilShapeInferencePass,
 )
@@ -117,6 +120,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         LowerRISCVFunc,
         LowerSnitchPass,
         LowerSnitchRuntimePass,
+        HLSConvertStencilToLLMLIRPass,
         PrintfToLLVM,
         ReplaceIncompatibleFPGA,
         RISCVRegisterAllocation,

@@ -15,13 +15,33 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import i32, IndexType
 from xdsl.dialects.arith import Constant
 
-from xdsl.dialects.experimental.hls import PragmaPipeline, PragmaUnroll, PragmaDataflow
+from xdsl.dialects.experimental.hls import (
+    PragmaPipeline,
+    PragmaUnroll,
+    PragmaDataflow,
+    HLSStreamType,
+    HLSStream,
+)
+from xdsl.dialects.llvm import AllocaOp
 
 from xdsl.passes import ModulePass
 
 from xdsl.dialects.scf import ParallelOp, For, Yield
 
 from typing import cast, Any
+
+
+@dataclass
+class LowerHLSStreamToAlloca(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: HLSStream, rewriter: PatternRewriter, /):
+        size = Constant.from_int_and_width(512, i32)
+        alloca = AllocaOp.get(size, i32)
+        print("---->", alloca)
+        depth_call = Call.get("llvm.fpga.set.stream.depth", [], [HLSStreamType()])
+        print("----> ", depth_call)
+
+        rewriter.replace_matched_op([size, alloca, depth_call])
 
 
 @dataclass
@@ -195,6 +215,7 @@ class LowerHLSPass(ModulePass):
                 PragmaPipelineToFunc(op),
                 PragmaUnrollToFunc(op),
                 PragmaDataflowToFunc(op),
+                LowerHLSStreamToAlloca(),
             ]
         )
 
