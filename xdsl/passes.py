@@ -92,7 +92,11 @@ class ModulePass(ABC):
 
         # if not all args were removed we raise an error
         if len(spec.args) != 0:
-            raise ValueError(f'Unrecognised pass arguments "{", ".join(spec.args)}"')
+            arguments_str = ", ".join(f'"{arg}"' for arg in spec.args)
+            fields_str = ", ".join(f'"{field.name}"' for field in fields)
+            raise ValueError(
+                f"Pass arguments [{arguments_str}] not found in [{fields_str}]"
+            )
 
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
