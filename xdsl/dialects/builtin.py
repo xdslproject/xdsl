@@ -79,6 +79,12 @@ class ShapedType(ABC):
         return prod(self.get_shape())
 
 
+class AnyShapedType(AttrConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, ShapedType):
+            raise Exception(f"expected type ShapedType but got {attr}")
+
+
 _ContainerElementTypeT = TypeVar(
     "_ContainerElementTypeT", bound=Attribute | None, covariant=True
 )

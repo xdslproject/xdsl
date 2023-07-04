@@ -18,13 +18,16 @@ class ScfFunctions(InterpreterFunctions):
     def run_for(
         self, interpreter: Interpreter, op: scf.For, args: PythonValues
     ) -> PythonValues:
-        for i in range(*args):
-            loop_results = interpreter.run_ssacfg_region(op.body, (i,), "for_loop")
-            assert not loop_results
+        lb, ub, step, *loop_args = args
+        loop_args = tuple(loop_args)
 
-        return ()
+        for i in range(lb, ub, step):
+            loop_args = interpreter.run_ssacfg_region(
+                op.body, (i, *loop_args), "for_loop"
+            )
+
+        return loop_args
 
     @impl_terminator(scf.Yield)
     def run_br(self, interpreter: Interpreter, op: scf.Yield, args: tuple[Any, ...]):
-        assert not args
-        return ReturnedValues(()), ()
+        return ReturnedValues(args), ()
