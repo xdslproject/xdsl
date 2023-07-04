@@ -1,10 +1,12 @@
 import ctypes
+from xdsl.backend.riscv.lowering.lower_utils import cast_values_to_registers
 from xdsl.dialects.builtin import (
     Float32Type,
     FloatAttr,
     IndexType,
     IntegerAttr,
     ModuleOp,
+    UnrealizedConversionCastOp,
 )
 from xdsl.ir.core import MLContext
 from xdsl.passes import ModulePass
@@ -35,26 +37,34 @@ class LowerArithConstant(RewritePattern):
             op.value, IntegerAttr
         ):
             if op.result.typ.width.data <= 32:
-                rewriter.replace_op(
-                    op,
-                    riscv.LiOp(op.value.value.data),
+                rewriter.replace_matched_op(
+                    [
+                        li := riscv.LiOp(op.value.value.data),
+                        UnrealizedConversionCastOp.get(li.results, (op.result.typ,)),
+                    ]
                 )
             else:
                 raise NotImplementedError("Only 32 bit integers are supported for now")
         elif isinstance(op.value, FloatAttr):
             if isinstance(op.result.typ, Float32Type):
-                lui = riscv.LiOp(
-                    convert_float_to_int(op.value.value.data),
-                    rd=riscv.RegisterType(riscv.Register()),
+                rewriter.replace_matched_op(
+                    [
+                        lui := riscv.LiOp(
+                            convert_float_to_int(op.value.value.data),
+                            rd=riscv.RegisterType(riscv.Register()),
+                        ),
+                        fld := riscv.FCvtSWOp(lui.rd),
+                        UnrealizedConversionCastOp.get(fld.results, (op.result.typ,)),
+                    ]
                 )
-                fld = riscv.FCvtSWOp(lui.rd)
-                rewriter.replace_op(op, [lui, fld])
             else:
                 raise NotImplementedError("Only 32 bit floats are supported")
         elif isinstance(op.result.typ, IndexType) and isinstance(op.value, IntegerAttr):
-            rewriter.replace_op(
-                op,
-                riscv.LiOp(op.value.value.data),
+            rewriter.replace_matched_op(
+                [
+                    li := riscv.LiOp(op.value.value.data),
+                    UnrealizedConversionCastOp.get(li.results, (op.result.typ,)),
+                ]
             )
         else:
             raise NotImplementedError(
@@ -77,31 +87,61 @@ class LowerArithIndexCast(RewritePattern):
 class LowerArithAddi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter) -> None:
-        rewriter.replace_op(op, riscv.AddOp(op.lhs, op.rhs))
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                add := riscv.AddOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(add.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithSubi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Subi, rewriter: PatternRewriter) -> None:
-        rewriter.replace_op(op, riscv.SubOp(op.lhs, op.rhs))
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                sub := riscv.SubOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(sub.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithMuli(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Muli, rewriter: PatternRewriter) -> None:
-        rewriter.replace_op(op, riscv.MulOp(op.lhs, op.rhs))
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                mul := riscv.MulOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(mul.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithDivUI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.DivUI, rewriter: PatternRewriter) -> None:
-        rewriter.replace_op(op, riscv.DivuOp(op.lhs, op.rhs))
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                divu := riscv.DivuOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(divu.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithDivSI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.DivSI, rewriter: PatternRewriter) -> None:
-        rewriter.replace_op(op, riscv.DivOp(op.lhs, op.rhs))
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                div := riscv.DivOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(div.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithFloorDivSI(RewritePattern):
@@ -127,13 +167,25 @@ class LowerArithCeilDivUI(RewritePattern):
 class LowerArithRemUI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.RemUI, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op(riscv.RemuOp(op.lhs, op.rhs))
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                remu := riscv.RemuOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(remu.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithRemSI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.RemSI, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.RemOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                rem := riscv.RemOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(rem.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithMinSI(RewritePattern):
@@ -163,44 +215,84 @@ class LowerArithMaxUI(RewritePattern):
 class LowerArithCmpi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpi, rewriter: PatternRewriter) -> None:
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
         # based on https://github.com/llvm/llvm-project/blob/main/llvm/test/CodeGen/RISCV/i32-icmp.ll
         match op.predicate.value.data:
             # eq
             case 0:
-                xor_op = riscv.XorOp(op.lhs, op.rhs)
-                seqz_op = riscv.SltiuOp(xor_op, 1)
-                rewriter.replace_matched_op([xor_op, seqz_op])
+                rewriter.replace_matched_op(
+                    [
+                        xor_op := riscv.XorOp(lhs, rhs),
+                        seqz_op := riscv.SltiuOp(xor_op, 1),
+                        UnrealizedConversionCastOp.get(
+                            seqz_op.results, (op.result.typ,)
+                        ),
+                    ]
+                )
             # ne
             case 1:
-                zero = riscv.GetRegisterOp(riscv.Registers.ZERO)
-                xor_op = riscv.XorOp(op.lhs, op.rhs)
-                snez_op = riscv.SltuOp(zero, xor_op)
-                rewriter.replace_matched_op([zero, xor_op, snez_op])
+                rewriter.replace_matched_op(
+                    [
+                        zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                        xor_op := riscv.XorOp(lhs, rhs),
+                        snez_op := riscv.SltuOp(zero, xor_op),
+                        UnrealizedConversionCastOp.get(
+                            snez_op.results, (op.result.typ,)
+                        ),
+                    ]
+                )
                 pass
             # slt
             case 2:
-                rewriter.replace_matched_op([riscv.SltOp(op.lhs, op.rhs)])
+                rewriter.replace_matched_op(
+                    [
+                        slt := riscv.SltOp(lhs, rhs),
+                        UnrealizedConversionCastOp.get(slt.results, (op.result.typ,)),
+                    ]
+                )
             # sle
             case 3:
-                slt = riscv.SltOp(op.lhs, op.rhs)
-                xori = riscv.XoriOp(slt, 1)
-                rewriter.replace_matched_op([slt, xori])
+                rewriter.replace_matched_op(
+                    [
+                        slt := riscv.SltOp(lhs, rhs),
+                        xori := riscv.XoriOp(slt, 1),
+                        UnrealizedConversionCastOp.get(xori.results, (op.result.typ,)),
+                    ]
+                )
             # ult
             case 4:
-                rewriter.replace_matched_op([riscv.SltuOp(op.lhs, op.rhs)])
+                rewriter.replace_matched_op(
+                    [
+                        sltu := riscv.SltuOp(lhs, rhs),
+                        UnrealizedConversionCastOp.get(sltu.results, (op.result.typ,)),
+                    ]
+                )
             # ule
             case 5:
-                sltu = riscv.SltuOp(op.lhs, op.rhs)
-                xori = riscv.XoriOp(sltu, 1)
-                rewriter.replace_matched_op([sltu, xori])
+                rewriter.replace_matched_op(
+                    [
+                        sltu := riscv.SltuOp(lhs, rhs),
+                        xori := riscv.XoriOp(sltu, 1),
+                        UnrealizedConversionCastOp.get(xori.results, (op.result.typ,)),
+                    ]
+                )
             # ugt
             case 6:
-                rewriter.replace_matched_op([riscv.SltuOp(op.rhs, op.lhs)])
+                rewriter.replace_matched_op(
+                    [
+                        sltu := riscv.SltuOp(rhs, lhs),
+                        UnrealizedConversionCastOp.get(sltu.results, (op.result.typ,)),
+                    ]
+                )
             # uge
             case 7:
-                sltu = riscv.SltuOp(op.rhs, op.lhs)
-                xori = riscv.XoriOp(sltu, 1)
-                rewriter.replace_matched_op([sltu, xori])
+                rewriter.replace_matched_op(
+                    [
+                        sltu := riscv.SltuOp(rhs, lhs),
+                        xori := riscv.XoriOp(sltu, 1),
+                        UnrealizedConversionCastOp.get(xori.results, (op.result.typ,)),
+                    ]
+                )
             case _:
                 raise NotImplementedError("Cmpi predicate not supported")
 
@@ -214,67 +306,133 @@ class LowerArithSelect(RewritePattern):
 class LowerArithAndI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.AndI, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.AndOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                and_ := riscv.AndOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(and_.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithOrI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.OrI, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.OrOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                or_ := riscv.OrOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(or_.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithXOrI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.XOrI, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.XorOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                xor := riscv.XorOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithShLI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.ShLI, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.SllOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                sll := riscv.SllOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(sll.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithShRUI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.ShRUI, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.SrlOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                srl := riscv.SrlOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(srl.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithShRSI(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.ShRSI, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.SraOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                sra := riscv.SraOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(sra.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithAddf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addf, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.FAddSOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                fadds := riscv.FAddSOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(fadds.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithSubf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Subf, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.FSubSOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                fsubs := riscv.FSubSOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(fsubs.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithMulf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Mulf, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.FMulSOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                fmuls := riscv.FMulSOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(fmuls.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithDivf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Divf, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.FDivSOp(op.lhs, op.rhs)])
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        rewriter.replace_matched_op(
+            [
+                fdivs := riscv.FMulSOp(lhs, rhs),
+                UnrealizedConversionCastOp.get(fdivs.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithNegf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Negf, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.FSgnJNSOp(op.operand, op.operand)])
+        operand = cast_values_to_registers([op.operand], rewriter)
+        rewriter.replace_matched_op(
+            [
+                fsgnjns := riscv.FSgnJNSOp(operand[0], operand[0]),
+                UnrealizedConversionCastOp.get(fsgnjns.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithMinfOp(RewritePattern):
@@ -292,70 +450,146 @@ class LowerArithMaxfOp(RewritePattern):
 class LowerArithCmpf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpf, rewriter: PatternRewriter) -> None:
+        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
         match op.predicate.value.data:
             # false
             case 0:
-                rewriter.replace_matched_op([riscv.LiOp(0)])
+                rewriter.replace_matched_op(
+                    [
+                        li := riscv.LiOp(0),
+                        UnrealizedConversionCastOp.get(li.results, (op.result.typ,)),
+                    ]
+                )
             # oeq
             case 1:
-                rewriter.replace_matched_op([riscv.FeqSOP(op.lhs, op.rhs)])
+                rewriter.replace_matched_op(
+                    [
+                        feq := riscv.FeqSOP(lhs, rhs),
+                        UnrealizedConversionCastOp.get(feq.results, (op.result.typ,)),
+                    ]
+                )
             # ogt
             case 2:
-                rewriter.replace_matched_op([riscv.FltSOP(op.rhs, op.lhs)])
+                rewriter.replace_matched_op(
+                    [
+                        ogt := riscv.FltSOP(rhs, lhs),
+                        UnrealizedConversionCastOp.get(ogt.results, (op.result.typ,)),
+                    ]
+                )
             # oge
             case 3:
-                rewriter.replace_matched_op([riscv.FleSOP(op.rhs, op.lhs)])
+                rewriter.replace_matched_op(
+                    [
+                        fle := riscv.FleSOP(rhs, lhs),
+                        UnrealizedConversionCastOp.get(fle.results, (op.result.typ,)),
+                    ]
+                )
             # olt
             case 4:
-                rewriter.replace_matched_op([riscv.FltSOP(op.lhs, op.rhs)])
+                rewriter.replace_matched_op(
+                    [
+                        olt := riscv.FltSOP(lhs, rhs),
+                        UnrealizedConversionCastOp.get(olt.results, (op.result.typ,)),
+                    ]
+                )
             # ole
             case 5:
-                rewriter.replace_matched_op([riscv.FleSOP(op.lhs, op.rhs)])
+                rewriter.replace_matched_op(
+                    [
+                        fle := riscv.FleSOP(lhs, rhs),
+                        UnrealizedConversionCastOp.get(fle.results, (op.result.typ,)),
+                    ]
+                )
             # one
             case 6:
-                flt1 = riscv.FltSOP(op.lhs, op.rhs)
-                flt2 = riscv.FltSOP(op.rhs, op.lhs)
-                rewriter.replace_matched_op([flt1, flt2, riscv.OrOp(flt2, flt1)])
+                rewriter.replace_matched_op(
+                    [
+                        flt1 := riscv.FltSOP(lhs, rhs),
+                        flt2 := riscv.FltSOP(rhs, lhs),
+                        or_ := riscv.OrOp(flt2, flt1),
+                        UnrealizedConversionCastOp.get(or_.results, (op.result.typ,)),
+                    ]
+                )
             # ord
             case 7:
-                feq1 = riscv.FeqSOP(op.lhs, op.lhs)
-                feq2 = riscv.FeqSOP(op.rhs, op.rhs)
-                rewriter.replace_matched_op([feq1, feq2, riscv.AndOp(feq2, feq1)])
+                rewriter.replace_matched_op(
+                    [
+                        feq1 := riscv.FeqSOP(lhs, lhs),
+                        feq2 := riscv.FeqSOP(rhs, rhs),
+                        and_ := riscv.AndOp(feq2, feq1),
+                        UnrealizedConversionCastOp.get(and_.results, (op.result.typ,)),
+                    ]
+                )
             # ueq
             case 8:
-                flt1 = riscv.FltSOP(op.lhs, op.rhs)
-                flt2 = riscv.FltSOP(op.rhs, op.lhs)
-                or_ = riscv.OrOp(flt2, flt1)
-                rewriter.replace_matched_op([flt1, flt2, or_, riscv.XoriOp(or_, 1)])
+                rewriter.replace_matched_op(
+                    [
+                        flt1 := riscv.FltSOP(lhs, rhs),
+                        flt2 := riscv.FltSOP(rhs, lhs),
+                        or_ := riscv.OrOp(flt2, flt1),
+                        xor := riscv.XoriOp(or_, 1),
+                        UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                    ]
+                )
             # ugt
             case 9:
-                fle = riscv.FleSOP(op.lhs, op.rhs)
-                rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
+                rewriter.replace_matched_op(
+                    [
+                        fle := riscv.FleSOP(lhs, rhs),
+                        xor := riscv.XoriOp(fle, 1),
+                        UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                    ]
+                )
             # uge
             case 10:
-                fle = riscv.FltSOP(op.lhs, op.rhs)
-                rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
+                rewriter.replace_matched_op(
+                    [
+                        fle := riscv.FltSOP(lhs, rhs),
+                        xor := riscv.XoriOp(fle, 1),
+                        UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                    ]
+                )
             # ult
             case 11:
-                fle = riscv.FleSOP(op.rhs, op.lhs)
-                rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
+                rewriter.replace_matched_op(
+                    [
+                        fle := riscv.FleSOP(rhs, lhs),
+                        xor := riscv.XoriOp(fle, 1),
+                        UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                    ]
+                )
             # ule
             case 12:
-                flt = riscv.FltSOP(op.rhs, op.lhs)
+                flt = riscv.FltSOP(rhs, lhs)
                 rewriter.replace_matched_op([flt, riscv.XoriOp(flt, 1)])
             # une
             case 13:
-                feq = riscv.FeqSOP(op.lhs, op.rhs)
-                rewriter.replace_matched_op([feq, riscv.XoriOp(feq, 1)])
+                rewriter.replace_matched_op(
+                    [
+                        feq := riscv.FeqSOP(lhs, rhs),
+                        xor := riscv.XoriOp(feq, 1),
+                        UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                    ]
+                )
             # uno
             case 14:
-                feq1 = riscv.FeqSOP(op.lhs, op.lhs)
-                feq2 = riscv.FeqSOP(op.rhs, op.rhs)
-                and_ = riscv.AndOp(feq2, feq1)
-                rewriter.replace_matched_op([feq1, feq2, and_, riscv.XoriOp(and_, 1)])
+                rewriter.replace_matched_op(
+                    [
+                        feq1 := riscv.FeqSOP(lhs, lhs),
+                        feq2 := riscv.FeqSOP(rhs, rhs),
+                        and_ := riscv.AndOp(feq2, feq1),
+                        riscv.XoriOp(and_, 1),
+                        UnrealizedConversionCastOp.get(and_.results, (op.result.typ,)),
+                    ]
+                )
             # true
             case 15:
-                rewriter.replace_matched_op([riscv.LiOp(1)])
+                rewriter.replace_matched_op(
+                    [
+                        li := riscv.LiOp(1),
+                        UnrealizedConversionCastOp.get(li.results, (op.result.typ,)),
+                    ]
+                )
             case _:
                 raise NotImplementedError("Cmpf predicate not supported")
 
@@ -363,13 +597,25 @@ class LowerArithCmpf(RewritePattern):
 class LowerArithSIToFPOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.SIToFPOp, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.FCvtSWOp(op.input)])
+        input = cast_values_to_registers([op.input], rewriter)
+        rewriter.replace_matched_op(
+            [
+                fcvtsw := riscv.FCvtSWOp(input[0]),
+                UnrealizedConversionCastOp.get(fcvtsw.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithFPToSIOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.FPToSIOp, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op([riscv.FCvtWSOp(op.input)])
+        input = cast_values_to_registers([op.input], rewriter)
+        rewriter.replace_matched_op(
+            [
+                fcvtws := riscv.FCvtWSOp(input[0]),
+                UnrealizedConversionCastOp.get(fcvtws.results, (op.result.typ,)),
+            ]
+        )
 
 
 class LowerArithExtFOp(RewritePattern):
