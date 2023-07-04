@@ -18,10 +18,6 @@ from xdsl.ir import Operation, OperationInvT, SSAValue
 from xdsl.ir.core import Attribute, Block, Region
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
-from xdsl.utils.hints import isa
-
-
-_T = TypeVar("_T")
 
 
 @dataclass
@@ -528,25 +524,10 @@ class Interpreter:
         """Print to current file."""
         print(*args, **kwargs, file=self.file)
 
-    def interpreter_assert(
-        self, condition: bool, message: str | None = None
-    ) -> None | NoReturn:
+    def interpreter_assert(self, condition: bool, message: str | None = None):
         """Raise InterpretationError if condition is not satisfied."""
         if not condition:
             raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
-
-    def get_arg(
-        self,
-        args: tuple[Any, ...],
-        index: int,
-        type: type[_T],
-        message: str | None = None,
-    ) -> _T:
-        self.interpreter_assert(
-            index < len(args) and isa(args[index], type),
-            f"Expected arg {index} to have type {type}" if message is None else message,
-        )
-        return args[index]
 
 
 PythonValues: TypeAlias = tuple[Any, ...]
