@@ -595,7 +595,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         shape_x = Constant.from_int_and_width(shape[0], i32)
         shape_y = Constant.from_int_and_width(shape[1], i32)
         shape_z = Constant.from_int_and_width(shape[2], i32)
-        data_stream = HLSStream.get()
+        data_stream = HLSStream.get(i32)
         print(data_stream)
         threedload_call = Call.get(
             "load_data", [field, data_stream, shape_x, shape_y, shape_z], []

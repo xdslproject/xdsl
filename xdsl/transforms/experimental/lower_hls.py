@@ -38,7 +38,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
         size = Constant.from_int_and_width(512, i32)
         alloca = AllocaOp.get(size, i32)
         print("---->", alloca)
-        depth_call = Call.get("llvm.fpga.set.stream.depth", [], [HLSStreamType()])
+        depth_call = Call.get("llvm.fpga.set.stream.depth", [], [HLSStreamType(i32)])
         print("----> ", depth_call)
 
         rewriter.replace_matched_op([size, alloca, depth_call])

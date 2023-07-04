@@ -14,13 +14,15 @@ from xdsl.irdl import (
     IRDLOperation,
     operand_def,
     opt_attr_def,
+    attr_def,
     Generic,
     result_def,
+    ParameterDef,
 )
 
 from typing import TypeVar
 
-from xdsl.dialects.builtin import i32, f16
+from xdsl.dialects.builtin import i32, f16, IntegerType
 
 _StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True)
 
@@ -79,6 +81,11 @@ class PragmaArrayPartition(IRDLOperation):
 class HLSStreamType(ParametrizedAttribute, TypeAttribute):
     name = "hls.streamtype"
 
+    element_type: ParameterDef[Attribute]
+
+    def get(element_type: Attribute):
+        return HLSStreamType(element_type)
+
 
 # @irdl_op_definition
 # class HLSStream(IRDLOperation):
@@ -92,13 +99,17 @@ class HLSStreamType(ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class HLSStream(IRDLOperation):
     name = "hls.stream"
-    result: OpResult = result_def(
-        HLSStreamType()
-    )  # This should be changed to HLSStreamType
+    elem_type: Attribute = attr_def(Attribute)
+    result: OpResult = result_def()  # This should be changed to HLSStreamType
 
     @staticmethod
-    def get() -> HLSStream:
-        return HLSStream.build(result_types=[HLSStreamType()])
+    def get(elem_type: Attribute) -> HLSStream:
+        attrs: dict[str, Attribute] = {}
+
+        attrs["elem_type"] = elem_type
+
+        stream_type = HLSStreamType([elem_type])
+        return HLSStream.build(result_types=[stream_type], attributes=attrs)
 
 
 # @irdl_op_definition
