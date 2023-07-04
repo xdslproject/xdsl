@@ -125,9 +125,10 @@ class For(IRDLOperation):
     traits = frozenset([SingleBlockImplicitTerminator(Yield)])
 
     def __post_init__(self):
-        # TODO custom conditions
-        for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
-            ensure_terminator(self, trait, self.iter_args)
+        # ensure a yield terminator only if there are no loop-carried variables
+        if len(self.iter_args) == 0:
+            for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
+                ensure_terminator(self, trait, self.iter_args)
 
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.block.args):
