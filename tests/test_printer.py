@@ -6,7 +6,7 @@ from io import StringIO
 from xdsl.dialects.arith import Arith, Addi, Constant
 from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, UnitAttr, i32
 from xdsl.dialects.func import Func
-from xdsl.dialects.test import TestOp
+from xdsl.dialects.test import Test, TestOp
 from xdsl.ir import (
     Attribute,
     MLContext,
@@ -56,14 +56,13 @@ def test_simple_forgotten_op():
 def test_print_op_location():
     """Test that an op can be printed with its location."""
     ctx = MLContext()
-    ctx.register_dialect(Arith)
+    ctx.register_dialect(Test)
 
-    lit = Constant.from_int_and_width(42, 32)
-    add = Addi(lit, lit)
+    add = TestOp(operands=[[]], result_types=[[i32]], regions=[[]])
 
     add.verify()
 
-    expected = """%0 = "arith.addi"(%1, %1) : (i32, i32) -> i32 loc(unknown)"""
+    expected = """%0 = "test.op"() : () -> i32 loc(unknown)"""
 
     assert_print_op(add, expected, None, print_debuginfo=True)
 
