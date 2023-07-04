@@ -35,7 +35,7 @@ class RemoveCastOps(RewritePattern):
 
 
 class ShapeInferencePass(ModulePass):
-    name = "dce"
+    name = "toy-infer-shapes"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(InferShapes()).rewrite_module(op)
