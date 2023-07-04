@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, scf, func
-from xdsl.dialects.builtin import ModuleOp, IndexType
+from xdsl.dialects.builtin import ModuleOp, IndexType, i1, i32
 from xdsl.interpreter import Interpreter
 
 from xdsl.interpreters.arith import ArithFunctions
@@ -41,16 +41,40 @@ def sum_to_for_op():
         func.Return(result)
 
 
-def sum_to_interp(module_op: ModuleOp, n: int) -> int:
+def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     module_op.verify()
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(ScfFunctions())
     interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(ArithFunctions())
-    (result,) = interpreter.call_op("sum_to", (n,))
+    (result,) = interpreter.call_op(func_name, (n,))
     return result
 
 
 @pytest.mark.parametrize("n,res", ((0, 0), (1, 0), (2, 1), (3, 3), (4, 6), (5, 10)))
 def test_sum_to(n: int, res: int):
-    assert res == sum_to_interp(sum_to_for_op, n)
+    assert res == scf_interp(sum_to_for_op, "sum_to", n)
+
+
+def test_if():
+    @ModuleOp
+    @Builder.implicit_region
+    def module_op():
+        with ImplicitBuilder(func.FuncOp("indicator", ((i1,), (i32,))).body) as (cond,):
+
+            @Builder.implicit_region
+            def true_region():
+                one = arith.Constant.from_int_and_width(1, 32)
+                scf.Yield.get(one)
+
+            @Builder.implicit_region
+            def false_region():
+                zero = arith.Constant.from_int_and_width(0, 32)
+                scf.Yield.get(zero)
+
+            result = scf.If.get(cond, (i32,), true_region, false_region)
+
+            func.Return(result)
+
+    assert scf_interp(module_op, "indicator", True) == 1
+    assert scf_interp(module_op, "indicator", False) == 0
