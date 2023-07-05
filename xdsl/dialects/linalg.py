@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
 )
 from xdsl.ir import Dialect, Attribute, Region, SSAValue, Data, Operation
+from xdsl.parser.attribute_parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.parser import Parser
 from xdsl.traits import IsTerminator
@@ -41,7 +42,7 @@ class IteratorTypeAttr(Data[IteratorType]):
     name = "linalg.iterator_type"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> IteratorType:
+    def parse_parameter(parser: AttrParser) -> IteratorType:
         if parser.parse_optional_keyword("parallel") is not None:
             return IteratorType.PARALLEL
         if parser.parse_optional_keyword("reduction") is not None:

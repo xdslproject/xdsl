@@ -184,7 +184,7 @@ class FloatRegisterType(Data[Register], TypeAttribute):
         return self.data.name
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> Register:
+    def parse_parameter(parser: AttrParser) -> Register:
         name = parser.parse_optional_identifier()
         if name is None:
             return Register()
