@@ -26,4 +26,4 @@
   }) : (index, index, index) -> ()
 }) : () -> ()
 
-// CHECK: Type f64 of body first argument is not an index
+// CHECK: The first block argument of the body is of type f64 instead of index

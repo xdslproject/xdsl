@@ -72,7 +72,8 @@ class For(IRDLOperation):
         if self.body.block.args and (iter_var := self.body.block.args[0]):
             if not isinstance(iter_var.typ, IndexType):
                 raise VerifyException(
-                    f"Type {iter_var.typ} of body first argument is not an index for the induction variable"
+                    f"The first block argument of the body is of type {iter_var.typ}"
+                    " instead of index"
                 )
         for idx, arg in enumerate(self.iter_args):
             if self.body.block.args[idx + 1].typ != arg.typ:
