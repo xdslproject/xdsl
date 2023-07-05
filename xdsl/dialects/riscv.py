@@ -7,6 +7,7 @@ from typing import IO, Iterable, Sequence, TypeAlias, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    FunctionType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -338,12 +339,17 @@ class RISCVOp(Operation, ABC):
         self.print_attributes(printer, not self.operands)
         printer.print_successors(self.successors)
         printer.print_regions(self.regions)
-        printer.print(" : ")
-        if self.results:
-            printer.print_list(
-                elems=self.results,
-                print_fn=lambda result: printer.print_attribute(result.typ),
-            )
+
+        # Print the operation type
+        printer.print(" : (")
+        printer.print_list(
+            self.operands, lambda operand: printer.print_attribute(operand.typ)
+        )
+        printer.print(") -> (")
+        printer.print_list(
+            self.results, lambda result: printer.print_attribute(result.typ)
+        )
+        printer.print(")")
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -370,10 +376,16 @@ class RISCVOp(Operation, ABC):
             parser.parse_punctuation(")")
         result_types = list[Attribute]()
         parser.parse_punctuation(":")
-        if (result_type := parser.parse_optional_type()) is not None:
+        parser.parse_punctuation("(")
+        while parser.parse_optional_type() is not None:
+            parser.parse_optional_punctuation(",")
+        parser.parse_punctuation(")")
+        parser.parse_punctuation("->")
+        parser.parse_punctuation("(")
+        while (result_type := parser.parse_optional_type()) is not None:
             result_types.append(result_type)
-            while parser.parse_optional_punctuation(",") is not None:
-                result_types.append(parser.parse_type())
+            parser.parse_optional_punctuation(",")
+        parser.parse_punctuation(")")
         return cls.create(
             operands=operands,
             result_types=result_types,
