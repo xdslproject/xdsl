@@ -21,8 +21,8 @@
 // CHECK-NEXT:   %0 = "arith.constant"() {"value" = 0 : index} : () -> index
 // CHECK-NEXT:   %1 = "arith.constant"() {"value" = 1000 : index} : () -> index
 // CHECK-NEXT:   %2 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:   %3 = "arith.constant"() {"value" = 10.2 : f32} : () -> f32
-// CHECK-NEXT:   %4 = "arith.constant"() {"value" = 18.1 : f32} : () -> f32
+// CHECK-NEXT:   %3 = "arith.constant"() {"value" = 1.020000e+01 : f32} : () -> f32
+// CHECK-NEXT:   %4 = "arith.constant"() {"value" = 1.810000e+01 : f32} : () -> f32
 // CHECK-NEXT:   %5 = "scf.parallel"(%0, %1, %2, %3) ({
 // CHECK-NEXT:   ^0(%6 : index):
 // CHECK-NEXT:     "scf.reduce"(%4) ({
