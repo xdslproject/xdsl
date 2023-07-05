@@ -2321,6 +2321,25 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 
         return _assembly_line(self.directive.data, (value,), is_indented=False)
 
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
+        printer.print_string_literal(self.directive.data)
+        if self.value is not None:
+            printer.print(", ")
+            printer.print_string_literal(self.value.data)
+
+    @classmethod
+    def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if (directive := parser.parse_optional_str_literal()) is not None:
+            attributes["directive"] = StringAttr(directive)
+        else:
+            raise NotImplementedError()
+        parser.parse_optional_punctuation(",")
+        if (value := parser.parse_optional_str_literal()) is not None:
+            attributes["value"] = StringAttr(value)
+        return attributes
+
 
 @irdl_op_definition
 class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):

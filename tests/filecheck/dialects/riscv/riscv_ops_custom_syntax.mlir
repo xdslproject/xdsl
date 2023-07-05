@@ -180,8 +180,8 @@
   }) {"directive" = ".text"} : () -> ()
   // CHECK-NEXT: riscv.ecall :
   // CHECK-NEXT: riscv.ebreak :
-  // CHECK-NEXT: riscv.directive {"directive" = ".align", "value" = "2"} :
-  // CHECK-NEXT: riscv.directive {"directive" = ".text"} ({
+  // CHECK-NEXT: riscv.directive ".align", "2" :
+  // CHECK-NEXT: riscv.directive ".text" ({
   // CHECK-NEXT:   %nested_li = riscv.li 1 : !riscv.reg<>
   // CHECK-NEXT: }) :
 
