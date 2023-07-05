@@ -4,6 +4,7 @@ Test the usage of scf dialect.
 
 from typing import cast
 import pytest
+from xdsl.ir.core import BlockArgument
 from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import Region, IndexType, ModuleOp, i32, i64
@@ -20,9 +21,11 @@ def test_for_with_loop_carried_verify():
     upper = Constant.from_int_and_width(42, IndexType())
     step = Constant.from_int_and_width(3, IndexType())
     carried = Constant.from_int_and_width(1, IndexType())
-    bodyblock = Block(arg_types=[IndexType(), IndexType()])
-    bodyblock.add_op(Yield.get(carried))
-    body = Region(bodyblock)
+
+    @Builder.implicit_region((IndexType(), IndexType()))
+    def body(_: tuple[BlockArgument, ...]) -> None:
+        Yield.get(carried)
+
     for_op = For.get(lower, upper, step, [carried], body)
 
     assert for_op.lb is lower.result
@@ -51,9 +54,11 @@ def test_for_without_loop_carried_verify():
     lower = Constant.from_int_and_width(0, IndexType())
     upper = Constant.from_int_and_width(42, IndexType())
     step = Constant.from_int_and_width(3, IndexType())
-    bodyblock = Block(arg_types=[IndexType()])
-    bodyblock.add_op(Yield.get())
-    body = Region(bodyblock)
+
+    @Builder.implicit_region((IndexType(),))
+    def body(_: tuple[BlockArgument, ...]) -> None:
+        Yield.get()
+
     for_op = For.get(lower, upper, step, [], body)
 
     assert for_op.lb is lower.result
