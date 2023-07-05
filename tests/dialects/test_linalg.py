@@ -20,10 +20,10 @@ def test_linalg_on_memrefs():
             linalg.Yield(args[0])
 
         indexing = AffineExpr.dimension(0)
-        indexing_map = AffineMap(1, 0, [indexing])
+        indexing_map = AffineMap(1, 0, (indexing,))
 
         indexing_maps = [
-            AffineMapAttr(AffineMap(1, 0, [])),
+            AffineMapAttr(AffineMap(1, 0, ())),
             AffineMapAttr(indexing_map),
         ]
 
