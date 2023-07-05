@@ -328,14 +328,14 @@ class RISCVOp(Operation, ABC):
     def assembly_line(self) -> str | None:
         raise NotImplementedError()
 
-    def print_attributes(self, printer: Printer) -> None:
+    def print_attributes(self, printer: Printer, first: bool) -> None:
         printer.print_op_attributes(self.attributes)
 
     def print(self, printer: Printer):
         if self.operands:
             printer.print(" ")
             printer.print_list(self.operands, printer.print_ssa_value)
-        self.print_attributes(printer=printer)
+        self.print_attributes(printer, not self.operands)
         printer.print_successors(self.successors)
         printer.print_regions(self.regions)
         printer.print(" : ")
@@ -354,8 +354,11 @@ class RISCVOp(Operation, ABC):
         operands = list[SSAValue]()
         if (operand := parser.parse_optional_operand()) is not None:
             operands.append(operand)
-            while parser.parse_optional_punctuation(",") is not None:
-                operands.append(parser.parse_operand())
+            while (
+                parser.parse_optional_punctuation(",") is not None
+                and (operand := parser.parse_optional_operand()) is not None
+            ):
+                operands.append(operand)
         attributes = cls.parse_attributes(parser)
         successors = parser.parse_optional_successors() or list()
         regions = list[Region]()
@@ -566,8 +569,8 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         if isinstance(self.immediate, LabelAttr):
             printer.print_string_literal(self.immediate.data)
         else:
@@ -626,14 +629,14 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         if isinstance(self.immediate, LabelAttr):
             printer.print_string_literal(self.immediate.data)
         else:
             printer.print(self.immediate.value.data)
         if self.rd is not None:
-            printer.print(" ")
+            printer.print(", ")
             printer.print(self.rd.data.name)
 
     @classmethod
@@ -645,6 +648,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes["immediate"] = LabelAttr(immediate)
         else:
             raise NotImplementedError()
+        parser.parse_optional_punctuation(",")
         if (rd := parser.parse_optional_identifier()) is not None:
             attributes["rd"] = RegisterType(Register(rd if rd != "None" else None))
         return attributes
@@ -693,8 +697,8 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         if isinstance(self.immediate, LabelAttr):
             printer.print_string_literal(self.immediate.data)
         else:
@@ -805,14 +809,14 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         if isinstance(self.immediate, LabelAttr):
             printer.print_string_literal(self.immediate.data)
         else:
             printer.print(self.immediate.value.data)
         if self.rd is not None:
-            printer.print(" ")
+            printer.print(", ")
             printer.print(self.rd.data.name)
 
     @classmethod
@@ -824,6 +828,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes["immediate"] = LabelAttr(immediate)
         else:
             raise NotImplementedError()
+        parser.parse_optional_punctuation(",")
         if (rd := parser.parse_optional_identifier()) is not None:
             attributes["rd"] = RegisterType(Register(rd if rd != "None" else None))
         return attributes
@@ -899,8 +904,8 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.offset
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         if isinstance(self.offset, LabelAttr):
             printer.print_string_literal(self.offset.data)
         else:
@@ -956,8 +961,8 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.immediate
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         printer.print(self.immediate.value.data)
 
     @classmethod
@@ -1068,11 +1073,11 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.rs1
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         printer.print(self.csr.value.data)
         if self.writeonly is not None:
-            printer.print(" w")
+            printer.print(", w")
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1081,6 +1086,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
             raise NotImplementedError()
+        parser.parse_optional_punctuation(",")
         if parser.parse_optional_characters("w") is not None:
             attributes["writeonly"] = UnitAttr()
         return attributes
@@ -1143,11 +1149,11 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.rs1
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         printer.print(self.csr.value.data)
         if self.readonly is not None:
-            printer.print(" r")
+            printer.print(", r")
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1156,6 +1162,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
             raise NotImplementedError()
+        parser.parse_optional_punctuation(",")
         if parser.parse_optional_characters("r") is not None:
             attributes["readonly"] = UnitAttr()
         return attributes
@@ -1216,13 +1223,13 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.immediate
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         printer.print(self.csr.value.data)
         if self.writeonly is not None:
-            printer.print(" w")
+            printer.print(", w")
         if self.immediate is not None:
-            printer.print(" ")
+            printer.print(", ")
             printer.print(self.immediate.value.data)
 
     @classmethod
@@ -1232,8 +1239,10 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
             raise NotImplementedError()
+        parser.parse_optional_punctuation(",")
         if parser.parse_optional_characters("w") is not None:
             attributes["writeonly"] = UnitAttr()
+        parser.parse_optional_punctuation(",")
         if (immediate := parser.parse_optional_integer()) is not None:
             attributes["immediate"] = IntegerAttr(immediate, i32)
         return attributes
@@ -1282,10 +1291,10 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.immediate
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         printer.print(self.csr.value.data)
-        printer.print(" ")
+        printer.print(", ")
         printer.print(self.immediate.value.data)
 
     @classmethod
@@ -1295,7 +1304,10 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
             raise NotImplementedError()
-        if (immediate := parser.parse_optional_integer()) is not None:
+        if (
+            parser.parse_optional_punctuation(",") is not None
+            and (immediate := parser.parse_optional_integer()) is not None
+        ):
             attributes["immediate"] = IntegerAttr(immediate, i32)
         else:
             raise NotImplementedError()
@@ -2250,8 +2262,8 @@ class LabelOp(IRDLOperation, RISCVOp):
     def assembly_line(self) -> str | None:
         return _append_comment(f"{self.label.data}:", self.comment)
 
-    def print_attributes(self, printer: Printer) -> None:
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         printer.print_string_literal(self.label.data)
 
     @classmethod
@@ -2363,8 +2375,8 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return *self.results, *self.operands
 
-    def print_attributes(self, printer: Printer):
-        printer.print(" ")
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
         printer.print_string_literal(self.instruction_name.data)
 
     @classmethod

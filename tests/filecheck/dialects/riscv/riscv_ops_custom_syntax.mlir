@@ -19,15 +19,15 @@
   %lui = "riscv.lui"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   %auipc = "riscv.auipc"() {"immediate" = 1 : i32}: () -> !riscv.reg<>
   %mv = "riscv.mv"(%0) : (!riscv.reg<>) -> !riscv.reg<>
-  // CHECK-NEXT: %addi = riscv.addi %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %slti = riscv.slti %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %sltiu = riscv.sltiu %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %andi = riscv.andi %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %ori = riscv.ori %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %xori = riscv.xori %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %slli = riscv.slli %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %srli = riscv.srli %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %srai = riscv.srai %0 1 : !riscv.reg<>
+  // CHECK-NEXT: %addi = riscv.addi %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %slti = riscv.slti %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %sltiu = riscv.sltiu %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %andi = riscv.andi %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %ori = riscv.ori %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %xori = riscv.xori %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %slli = riscv.slli %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %srli = riscv.srli %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %srai = riscv.srai %0, 1 : !riscv.reg<>
   // CHECK-NEXT: %lui = riscv.lui 1 : !riscv.reg<>
   // CHECK-NEXT: %auipc = riscv.auipc 1 : !riscv.reg<>
   // CHECK-NEXT: %mv = riscv.mv %0 : !riscv.reg<>
@@ -64,7 +64,7 @@
   "riscv.jal"() {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : () -> ()
   "riscv.jal"() {"immediate" = #riscv.label<"label">} : () -> ()
   // CHECK-NEXT: riscv.jal 1 :
-  // CHECK-NEXT: riscv.jal 1 None :
+  // CHECK-NEXT: riscv.jal 1, None :
   // CHECK-NEXT: riscv.jal "label" :
 
   "riscv.j"() {"immediate" = 1 : i32} : () -> ()
@@ -75,9 +75,9 @@
   "riscv.jalr"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> ()
   "riscv.jalr"(%0) {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : (!riscv.reg<>) -> ()
   "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
-  // CHECK-NEXT: riscv.jalr %0 1 :
-  // CHECK-NEXT: riscv.jalr %0 1 None :
-  // CHECK-NEXT: riscv.jalr %0 "label" :
+  // CHECK-NEXT: riscv.jalr %0, 1 :
+  // CHECK-NEXT: riscv.jalr %0, 1, None :
+  // CHECK-NEXT: riscv.jalr %0, "label" :
 
   // Conditional Branch Instructions
   "riscv.beq"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
@@ -86,12 +86,12 @@
   "riscv.bge"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
   "riscv.bltu"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
   "riscv.bgeu"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-  // CHECK-NEXT: riscv.beq %0, %1 1 :
-  // CHECK-NEXT: riscv.bne %0, %1 1 :
-  // CHECK-NEXT: riscv.blt %0, %1 1 :
-  // CHECK-NEXT: riscv.bge %0, %1 1 :
-  // CHECK-NEXT: riscv.bltu %0, %1 1 :
-  // CHECK-NEXT: riscv.bgeu %0, %1 1 :
+  // CHECK-NEXT: riscv.beq %0, %1, 1 :
+  // CHECK-NEXT: riscv.bne %0, %1, 1 :
+  // CHECK-NEXT: riscv.blt %0, %1, 1 :
+  // CHECK-NEXT: riscv.bge %0, %1, 1 :
+  // CHECK-NEXT: riscv.bltu %0, %1, 1 :
+  // CHECK-NEXT: riscv.bgeu %0, %1, 1 :
 
   // RV32I/RV64I: 2.6 Load and Store Instructions
 
@@ -103,14 +103,14 @@
   "riscv.sb"(%0, %1) {"immediate" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
   "riscv.sh"(%0, %1) {"immediate" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
   "riscv.sw"(%0, %1) {"immediate" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-  // CHECK-NEXT: %lb = riscv.lb %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %lbu = riscv.lbu %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %lh = riscv.lh %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %lhu = riscv.lhu %0 1 : !riscv.reg<>
-  // CHECK-NEXT: %lw = riscv.lw %0 1 : !riscv.reg<>
-  // CHECK-NEXT: riscv.sb %0, %1 1 :
-  // CHECK-NEXT: riscv.sh %0, %1 1 :
-  // CHECK-NEXT: riscv.sw %0, %1 1 :
+  // CHECK-NEXT: %lb = riscv.lb %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %lbu = riscv.lbu %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %lh = riscv.lh %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %lhu = riscv.lhu %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: %lw = riscv.lw %0, 1 : !riscv.reg<>
+  // CHECK-NEXT: riscv.sb %0, %1, 1 :
+  // CHECK-NEXT: riscv.sh %0, %1, 1 :
+  // CHECK-NEXT: riscv.sw %0, %1, 1 :
 
   // RV32I/RV64I: 2.8 Control and Status Register Instructions
 
@@ -126,18 +126,18 @@
   %csrrci_r = "riscv.csrrci"() {"csr" = 1024 : i32, "immediate" = 0 : i32}: () -> !riscv.reg<>
   %csrrwi_rw = "riscv.csrrwi"() {"csr" = 1024 : i32, "immediate" = 1 : i32}: () -> !riscv.reg<>
   %csrrwi_w = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32}: () -> !riscv.reg<>
-  // CHECK-NEXT: %csrrw_rw = riscv.csrrw %0 1024 : !riscv.reg<>
-  // CHECK-NEXT: %csrrw_w = riscv.csrrw %0 1024 w : !riscv.reg<>
-  // CHECK-NEXT: %csrrs_rw = riscv.csrrs %0 1024 : !riscv.reg<>
-  // CHECK-NEXT: %csrrs_r = riscv.csrrs %0 1024 r : !riscv.reg<>
-  // CHECK-NEXT: %csrrc_rw = riscv.csrrc %0 1024 : !riscv.reg<>
-  // CHECK-NEXT: %csrrc_r = riscv.csrrc %0 1024 r : !riscv.reg<>
-  // CHECK-NEXT: %csrrsi_rw = riscv.csrrsi 1024 8 : !riscv.reg<>
-  // CHECK-NEXT: %csrrsi_r = riscv.csrrsi 1024 0 : !riscv.reg<>
-  // CHECK-NEXT: %csrrci_rw = riscv.csrrci 1024 8 : !riscv.reg<>
-  // CHECK-NEXT: %csrrci_r = riscv.csrrci 1024 0 : !riscv.reg<>
-  // CHECK-NEXT: %csrrwi_rw = riscv.csrrwi 1024 1 : !riscv.reg<>
-  // CHECK-NEXT: %csrrwi_w = riscv.csrrwi 1024 w 1 : !riscv.reg<>
+  // CHECK-NEXT: %csrrw_rw = riscv.csrrw %0, 1024 : !riscv.reg<>
+  // CHECK-NEXT: %csrrw_w = riscv.csrrw %0, 1024, w : !riscv.reg<>
+  // CHECK-NEXT: %csrrs_rw = riscv.csrrs %0, 1024 : !riscv.reg<>
+  // CHECK-NEXT: %csrrs_r = riscv.csrrs %0, 1024, r : !riscv.reg<>
+  // CHECK-NEXT: %csrrc_rw = riscv.csrrc %0, 1024 : !riscv.reg<>
+  // CHECK-NEXT: %csrrc_r = riscv.csrrc %0, 1024, r : !riscv.reg<>
+  // CHECK-NEXT: %csrrsi_rw = riscv.csrrsi 1024, 8 : !riscv.reg<>
+  // CHECK-NEXT: %csrrsi_r = riscv.csrrsi 1024, 0 : !riscv.reg<>
+  // CHECK-NEXT: %csrrci_rw = riscv.csrrci 1024, 8 : !riscv.reg<>
+  // CHECK-NEXT: %csrrci_r = riscv.csrrci 1024, 0 : !riscv.reg<>
+  // CHECK-NEXT: %csrrwi_rw = riscv.csrrwi 1024, 1 : !riscv.reg<>
+  // CHECK-NEXT: %csrrwi_w = riscv.csrrwi 1024, w, 1 : !riscv.reg<>
 
   // Machine Mode Privileged Instructions
   "riscv.wfi"() : () -> ()
@@ -187,7 +187,7 @@
 
   // Custom instruction
   %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
-  // CHECK-NEXT: %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1 "hello" : !riscv.reg<>, !riscv.reg<>
+  // CHECK-NEXT: %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1, "hello" : !riscv.reg<>, !riscv.reg<>
 
 
   // RISC-V extensions
