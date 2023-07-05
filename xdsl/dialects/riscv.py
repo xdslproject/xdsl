@@ -595,7 +595,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         elif (immediate := parser.parse_optional_str_literal()) is not None:
             attributes["immediate"] = LabelAttr(immediate)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect an immediate")
         return attributes
 
 
@@ -658,7 +658,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         elif (immediate := parser.parse_optional_str_literal()) is not None:
             attributes["immediate"] = LabelAttr(immediate)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect an immediate")
         parser.parse_optional_punctuation(",")
         if (rd := parser.parse_optional_identifier()) is not None:
             attributes["rd"] = RegisterType(Register(rd if rd != "None" else None))
@@ -723,7 +723,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         elif (immediate := parser.parse_optional_str_literal()) is not None:
             attributes["immediate"] = LabelAttr(immediate)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect an immediate")
         return attributes
 
 
@@ -764,7 +764,7 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
                 immediate, IntegerType(5, Signedness.UNSIGNED)
             )
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect an immediate")
         return attributes
 
 
@@ -838,7 +838,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         elif (immediate := parser.parse_optional_str_literal()) is not None:
             attributes["immediate"] = LabelAttr(immediate)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect an immediate")
         parser.parse_optional_punctuation(",")
         if (rd := parser.parse_optional_identifier()) is not None:
             attributes["rd"] = RegisterType(Register(rd if rd != "None" else None))
@@ -930,7 +930,7 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         elif (offset := parser.parse_optional_str_literal()) is not None:
             attributes["offset"] = LabelAttr(offset)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect an offset")
         return attributes
 
 
@@ -984,7 +984,7 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         elif (immediate := parser.parse_optional_str_literal()) is not None:
             attributes["immediate"] = LabelAttr(immediate)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect an immediate")
         return attributes
 
 
@@ -1096,7 +1096,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
         if (csr := parser.parse_optional_integer()) is not None:
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect a csr")
         parser.parse_optional_punctuation(",")
         if parser.parse_optional_characters("w") is not None:
             attributes["writeonly"] = UnitAttr()
@@ -1172,7 +1172,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
         if (csr := parser.parse_optional_integer()) is not None:
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect a csr")
         parser.parse_optional_punctuation(",")
         if parser.parse_optional_characters("r") is not None:
             attributes["readonly"] = UnitAttr()
@@ -1249,7 +1249,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
         if (csr := parser.parse_optional_integer()) is not None:
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect a csr")
         parser.parse_optional_punctuation(",")
         if parser.parse_optional_characters("w") is not None:
             attributes["writeonly"] = UnitAttr()
@@ -1314,14 +1314,14 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
         if (csr := parser.parse_optional_integer()) is not None:
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect a csr")
         if (
             parser.parse_optional_punctuation(",") is not None
             and (immediate := parser.parse_optional_integer()) is not None
         ):
             attributes["immediate"] = IntegerAttr(immediate, i32)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect an immediate")
         return attributes
 
 
@@ -2283,7 +2283,7 @@ class LabelOp(IRDLOperation, RISCVOp):
         if (label := parser.parse_optional_str_literal()) is not None:
             attributes["label"] = LabelAttr(label)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect a label")
         return attributes
 
 
@@ -2345,7 +2345,7 @@ class DirectiveOp(IRDLOperation, RISCVOp):
         if (directive := parser.parse_optional_str_literal()) is not None:
             attributes["directive"] = StringAttr(directive)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect a directive")
         parser.parse_optional_punctuation(",")
         if (value := parser.parse_optional_str_literal()) is not None:
             attributes["value"] = StringAttr(value)
@@ -2809,7 +2809,7 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         elif (immediate := parser.parse_optional_str_literal()) is not None:
             attributes["immediate"] = LabelAttr(immediate)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect an immediate")
         return attributes
 
 
@@ -2870,7 +2870,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         elif (immediate := parser.parse_optional_str_literal()) is not None:
             attributes["immediate"] = LabelAttr(immediate)
         else:
-            raise NotImplementedError()
+            parser.raise_error("Expect an immediate")
         return attributes
 
 
