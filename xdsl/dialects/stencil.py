@@ -43,7 +43,7 @@ from xdsl.irdl import (
 )
 from xdsl.traits import HasParent, IsTerminator, IsolatedFromAbove
 from xdsl.utils.hints import isa
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
 
@@ -57,7 +57,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     array: ParameterDef[ArrayAttr[IntAttr]]
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         ints = parser.parse_comma_separated_list(
             parser.Delimiter.ANGLE, lambda: parser.parse_integer(allow_boolean=False)
@@ -190,7 +190,7 @@ class StencilType(
         return self.element_type
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         def parse_interval() -> tuple[int, int] | int:
             if parser.parse_optional_punctuation("?"):
                 return -1

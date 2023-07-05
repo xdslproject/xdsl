@@ -54,7 +54,7 @@ from xdsl.irdl import (
 
 from xdsl.utils.exceptions import VerifyException
 
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 
 GEP_USE_SSA_VAL = -2147483648
@@ -95,7 +95,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         printer.print(")>")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", " in LLVM struct")
         struct_name = parser.parse_optional_str_literal()
         if struct_name is None:
@@ -132,7 +132,7 @@ class LLVMPointerType(
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         if parser.parse_optional_characters("<") is None:
             return [NoneAttr(), NoneAttr()]
         type = parser.parse_optional_type()
@@ -176,7 +176,7 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         if parser.parse_optional_characters("<") is None:
             return [NoneAttr(), NoneAttr()]
         size = IntAttr(parser.parse_integer())
@@ -247,7 +247,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         printer.print_string(")>")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", " in llvm.func parameters")
         if parser.parse_optional_characters("void"):
             output = LLVMVoidType()
@@ -303,7 +303,7 @@ class LinkageAttr(ParametrizedAttribute):
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", "llvm.linkage parameter expected")
         # The linkage string is output from xDSL as a string (and accepted by MLIR as such)
         # however it is always output from MLIR without quotes. Therefore need to determine
@@ -886,7 +886,7 @@ class CallingConventionAttr(ParametrizedAttribute):
         printer.print_string("<" + self.convention.data + ">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
         for conv in LLVM_CALLING_CONVS:
             if parser.parse_optional_characters(conv) is not None:
@@ -999,7 +999,7 @@ class FastMathFlag(Enum):
     APPROX_FUNC = "afn"
 
     @staticmethod
-    def try_parse(parser: Parser) -> set[FastMathFlag] | None:
+    def try_parse(parser: AttrParser) -> set[FastMathFlag] | None:
         if parser.parse_optional_characters("none") is not None:
             return set[FastMathFlag]()
         if parser.parse_optional_characters("fast") is not None:
@@ -1036,7 +1036,7 @@ class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
         super().__init__(tuple(flags_))
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> tuple[FastMathFlag, ...]:
+    def parse_parameter(parser: AttrParser) -> tuple[FastMathFlag, ...]:
         flags = FastMathFlag.try_parse(parser)
         if flags is None:
             return tuple()

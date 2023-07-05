@@ -30,7 +30,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 
@@ -611,7 +611,7 @@ class CustomFormatAttr(ParametrizedAttribute):
     attr: ParameterDef[IntAttr]
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
         if parser.parse_optional_keyword("zero") is not None:
             parser.parse_characters(">")

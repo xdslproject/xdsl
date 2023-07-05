@@ -40,7 +40,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects import memref
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, NoTerminator, IsolatedFromAbove
 from xdsl.utils.exceptions import VerifyException
@@ -81,7 +81,7 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
     value: ParameterDef[T]
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters(
             "<",
             ": gpu attributes currently have the #gpu<name value> syntax.",
