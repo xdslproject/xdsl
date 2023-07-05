@@ -2,8 +2,8 @@
 Test the usage of scf dialect.
 """
 
-from typing import cast
 import pytest
+from typing import cast
 from xdsl.ir.core import BlockArgument
 from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
