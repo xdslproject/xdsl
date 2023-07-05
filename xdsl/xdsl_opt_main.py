@@ -287,6 +287,13 @@ class xDSLOptMain:
             help="Print operations with the generic format",
         )
 
+        arg_parser.add_argument(
+            "--print-debuginfo",
+            default=False,
+            action="store_true",
+            help="Print operations with debug info annotation, such as location.",
+        )
+
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
@@ -333,7 +340,9 @@ class xDSLOptMain:
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(
-                stream=output, print_generic_format=self.args.print_op_generic
+                stream=output,
+                print_generic_format=self.args.print_op_generic,
+                print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
             print("\n", file=output)

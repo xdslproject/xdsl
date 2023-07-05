@@ -299,6 +299,16 @@ class UnitAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
+class LocationAttr(ParametrizedAttribute):
+    """
+    An attribute representing source code location.
+    Only supports unknown locations for now.
+    """
+
+    name = "loc"
+
+
+@irdl_attr_definition
 class IndexType(ParametrizedAttribute):
     name = "index"
 
@@ -1283,6 +1293,7 @@ Builtin = Dialect(
         DenseResourceAttr,
         UnitAttr,
         FloatData,
+        LocationAttr,
         NoneAttr,
         OpaqueAttr,
         # Types
