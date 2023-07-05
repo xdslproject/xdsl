@@ -612,7 +612,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 "function body.",
             )
 
-        func_name = parent_op.sym_name.data
+        callee = parent_op.sym_name.data
         func_return_types = parent_op.function_type.outputs.data
 
         if node.value is None:
@@ -623,7 +623,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.lineno,
                     node.col_offset,
                     f"Expected non-zero number of return types in function "
-                    f"'{func_name}', but got 0.",
+                    f"'{callee}', but got 0.",
                 )
             self.inserter.insert_op(func.Return())
         else:
@@ -637,7 +637,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    f"Expected no return types in function '{func_name}'.",
+                    f"Expected no return types in function '{callee}'.",
                 )
 
             for i in range(len(operands)):
