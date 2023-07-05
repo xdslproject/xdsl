@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Dialect, Attribute, Region, SSAValue, Data, Operation
 from xdsl.parser.attribute_parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.parser import Parser
 from xdsl.traits import IsTerminator
 from xdsl.irdl import (
     irdl_op_definition,
