@@ -121,9 +121,7 @@ class SingleBlockImplicitTerminator(OpTrait):
                     )
 
 
-def ensure_terminator(
-    op: Operation, trait: SingleBlockImplicitTerminator, *args: Any
-) -> None:
+def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> None:
     """
     Method that helps with the creation of an implicit terminator.
     This should be explicitly called during the creation of an operation that has the
@@ -145,17 +143,22 @@ def ensure_terminator(
                     f"instead of {trait.parameters.name}"
                 )
 
+    from xdsl.builder import Builder, ImplicitBuilder
+
+    @Builder.implicit_region
+    def add_region():
+        pass
+
     for region in op.regions:
         if len(region.blocks) == 0:
-            from xdsl.ir import Block
-
-            region.add_block(Block())
+            _ = add_region
 
         for block in region.blocks:
             if (last_op := block.last_op) is None or not last_op.has_trait(
                 IsTerminator
             ):
-                block.add_op(trait.parameters.create(*args))
+                with ImplicitBuilder(block):
+                    trait.parameters.create()
 
 
 class IsolatedFromAbove(OpTrait):

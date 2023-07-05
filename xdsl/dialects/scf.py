@@ -91,6 +91,14 @@ class If(IRDLOperation):
 
     traits = frozenset([SingleBlockImplicitTerminator(Yield)])
 
+    def __post_init__(self):
+        # ensure a yield terminator only if there are no produced results
+        if len(self.output) == 0:
+            for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
+                ensure_terminator(self, trait)
+
+        super().__post_init__()
+
     @staticmethod
     def get(
         cond: SSAValue | Operation,
@@ -128,7 +136,9 @@ class For(IRDLOperation):
         # ensure a yield terminator only if there are no loop-carried variables
         if len(self.iter_args) == 0:
             for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
-                ensure_terminator(self, trait, self.iter_args)
+                ensure_terminator(self, trait)
+
+        super().__post_init__()
 
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.block.args):
@@ -208,6 +218,8 @@ class ParallelOp(IRDLOperation):
     def __post_init__(self):
         for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
             ensure_terminator(self, trait)
+
+        super().__post_init__()
 
     def verify_(self) -> None:
         # This verifies the scf.parallel operation, as can be seen it's fairly complex
