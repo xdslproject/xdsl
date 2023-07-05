@@ -1,2 +1,2 @@
 pip<24.0
-immutabledict<2.2.5
+immutabledict<2.2.6

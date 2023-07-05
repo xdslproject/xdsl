@@ -350,15 +350,12 @@ class Interpreter:
         body = interface.get_callable_region(op)
 
         results = self.run_ssacfg_region(body, inputs, name)
-        self.interpreter_assert(
-            results is not None, f"Expected {op.name} body to have a terminator"
-        )
         assert results is not None
         return results
 
     def run_ssacfg_region(
         self, region: Region, args: PythonValues, name: str = "unknown"
-    ) -> PythonValues | None:
+    ) -> PythonValues:
         """
         Interpret an SSACFG-semantic Region.
         Creates a new scope, then executes the first block in the region. The first block

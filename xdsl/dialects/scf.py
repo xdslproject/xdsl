@@ -147,6 +147,12 @@ class For(IRDLOperation):
                 f"{len(self.body.block.args)}. The body must have the induction "
                 f"variable and loop-carried variables as arguments."
             )
+        if self.body.block.args and (iter_var := self.body.block.args[0]):
+            if not isinstance(iter_var.typ, IndexType):
+                raise VerifyException(
+                    f"The first block argument of the body is of type {iter_var.typ}"
+                    " instead of index"
+                )
         for idx, arg in enumerate(self.iter_args):
             if self.body.block.args[idx + 1].typ != arg.typ:
                 raise VerifyException(
