@@ -7,7 +7,6 @@ from typing import IO, Iterable, Sequence, TypeAlias, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
-    FunctionType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
