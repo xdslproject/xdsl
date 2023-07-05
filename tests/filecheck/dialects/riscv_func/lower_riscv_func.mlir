@@ -1,7 +1,7 @@
-// RUN: xdsl-opt -p lower-riscv-func %s | filecheck %s
+// RUN: xdsl-opt -p lower-riscv-func --print-op-generic %s | filecheck %s
 
 "builtin.module"() ({
-// CHECK:      builtin.module {
+// CHECK:      "builtin.module"() ({
 
     %file = "riscv.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<s0>
     %success = "riscv_func.syscall"(%file) {"syscall_num" = 64 : i32}: (!riscv.reg<s0>) -> !riscv.reg<s1>
@@ -78,4 +78,4 @@
 
 }) : () -> ()
 
-// CHECK-NEXT: }
+// CHECK-NEXT: }) : () -> ()
