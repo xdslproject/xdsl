@@ -1093,7 +1093,11 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if (csr := parser.parse_optional_integer()) is not None:
+        if (
+            csr := parser.parse_optional_integer(
+                allow_boolean=False, allow_negative=False
+            )
+        ) is not None:
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
             parser.raise_error("Expect a csr")
@@ -1169,7 +1173,11 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if (csr := parser.parse_optional_integer()) is not None:
+        if (
+            csr := parser.parse_optional_integer(
+                allow_boolean=False, allow_negative=False
+            )
+        ) is not None:
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
             parser.raise_error("Expect a csr")
@@ -1246,7 +1254,11 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if (csr := parser.parse_optional_integer()) is not None:
+        if (
+            csr := parser.parse_optional_integer(
+                allow_boolean=False, allow_negative=False
+            )
+        ) is not None:
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
             parser.raise_error("Expect a csr")
@@ -1311,7 +1323,11 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if (csr := parser.parse_optional_integer()) is not None:
+        if (
+            csr := parser.parse_optional_integer(
+                allow_boolean=False, allow_negative=False
+            )
+        ) is not None:
             attributes["csr"] = IntegerAttr(csr, i32)
         else:
             parser.raise_error("Expect a csr")
