@@ -342,11 +342,11 @@ class RISCVOp(Operation, ABC):
         # Print the operation type
         printer.print(" : (")
         printer.print_list(
-            self.operands, lambda operand: printer.print_attribute(operand.typ)
+            self.operands, lambda operand: printer.print_attribute(operand.type)
         )
         printer.print(") -> (")
         printer.print_list(
-            self.results, lambda result: printer.print_attribute(result.typ)
+            self.results, lambda result: printer.print_attribute(result.type)
         )
         printer.print(")")
 
@@ -2446,11 +2446,11 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
         # Print the operation type
         printer.print(" : (")
         printer.print_list(
-            self.operands, lambda operand: printer.print_attribute(operand.typ)
+            self.operands, lambda operand: printer.print_attribute(operand.type)
         )
         printer.print(") -> (")
         printer.print_list(
-            self.results, lambda result: printer.print_attribute(result.typ)
+            self.results, lambda result: printer.print_attribute(result.type)
         )
         printer.print(")")
 
