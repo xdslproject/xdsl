@@ -13,7 +13,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import Rewriter
 from xdsl.ir import Block, MLContext, Region, Operation, SSAValue
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import FunctionType, i32
+from xdsl.dialects.builtin import FunctionType, i32, IntegerType
 from xdsl.dialects.func import FuncOp, Call, Return
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu, llvm
@@ -37,7 +37,8 @@ from xdsl.dialects.stencil import (
 )
 
 from xdsl.dialects.experimental.hls import (
-    HLSStream,  # ,
+    HLSStream,
+    HLSStreamType,
     # HLSExternalLoadOp
 )
 
@@ -47,6 +48,10 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 from xdsl.builder import Builder
+
+from xdsl.dialects.llvm import LLVMPointerType
+
+from xdsl.ir.core import BlockArgument
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
@@ -586,25 +591,55 @@ class ExtractForBody(RewritePattern):
 
 @dataclass
 class StencilExternalLoadToHLSExternalLoad(RewritePattern):
+    def __init__(self, op: builtin.ModuleOp):
+        self.module = op
+        self.set_load_data_declaration = False
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: Rewriter, /):
         field = op.field
         res = op.result
-        print("----> field", field.typ.get_shape())
+
+        # Find the llvm.ptr to external memory that genrates the argument to the stencil.external_load. For PSyclone, this is
+        # an argument to the parent function. TODO: this might need to be tested and generalised for other codes. Also, we are
+        # considering that the function argument will be the second to insertvalue, but we're walking up trhough the second to
+        # avoid bumping into arith.constants (see the mlir ssa).
+        new_op = field
+        func_arg = None
+
+        while not isa(func_arg, BlockArgument):
+            func_arg = new_op.owner.operands[-1]
+            new_op = new_op.owner.operands[0]
+
         shape = field.typ.get_shape()
         shape_x = Constant.from_int_and_width(shape[0], i32)
         shape_y = Constant.from_int_and_width(shape[1], i32)
         shape_z = Constant.from_int_and_width(shape[2], i32)
         data_stream = HLSStream.get(i32)
-        print(data_stream)
+
         threedload_call = Call.get(
-            "load_data", [field, data_stream, shape_x, shape_y, shape_z], []
+            "load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
         )
-        print(threedload_call)
 
         rewriter.insert_op_before_matched_op(
             [data_stream, shape_x, shape_y, shape_z, threedload_call]
         )
+
+        if not self.set_load_data_declaration:
+            load_data_func = FuncOp.external(
+                "load_data",
+                [
+                    func_arg.typ,
+                    LLVMPointerType.typed(data_stream.elem_type),
+                    i32,
+                    i32,
+                    i32,
+                ],
+                [],
+            )
+            self.module.body.block.add_op(load_data_func)
+
+            self.set_load_data_declaration = True
 
 
 @dataclass
@@ -631,7 +666,7 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
                     # FuncArgsToLLVMPtr(),
                     # ExtractForBody(op)
                     # CallShiftBuffer()
-                    StencilExternalLoadToHLSExternalLoad()
+                    StencilExternalLoadToHLSExternalLoad(op)
                 ]
             ),
             apply_recursively=False,

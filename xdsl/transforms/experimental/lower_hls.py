@@ -22,22 +22,32 @@ from xdsl.dialects.experimental.hls import (
     HLSStreamType,
     HLSStream,
 )
-from xdsl.dialects.llvm import AllocaOp
+from xdsl.dialects.llvm import AllocaOp, LLVMPointerType
 
 from xdsl.passes import ModulePass
 
 from xdsl.dialects.scf import ParallelOp, For, Yield
 
 from typing import cast, Any
+from xdsl.utils.hints import isa
 
 
 @dataclass
 class LowerHLSStreamToAlloca(RewritePattern):
     def __init__(self, op: builtin.ModuleOp):
         self.module = op
+        self.set_stream_depth_declaration = False
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStream, rewriter: PatternRewriter, /):
+        if not self.set_stream_depth_declaration:
+            stream_depth_func = FuncOp.external(
+                "llvm.fpga.set.stream.depth", [LLVMPointerType.typed(op.elem_type)], []
+            )
+            self.module.body.block.add_op(stream_depth_func)
+
+            self.set_stream_depth_declaration = True
+
         size = Constant.from_int_and_width(512, i32)
         alloca = AllocaOp.get(size, op.elem_type)
         depth_call = Call.get("llvm.fpga.set.stream.depth", [alloca], [])
