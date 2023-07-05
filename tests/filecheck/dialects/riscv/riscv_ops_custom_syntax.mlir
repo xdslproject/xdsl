@@ -261,8 +261,8 @@
 
   %flw = "riscv.flw"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.freg<>
   "riscv.fsw"(%0, %f0) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.freg<>) -> ()
-  // CHECK-NEXT: %flw = riscv.flw %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> (!riscv.freg<>)
-  // CHECK-NEXT: riscv.fsw %0, %f0 {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.freg<>) -> ()
+  // CHECK-NEXT: %flw = riscv.flw %0, 1 : (!riscv.reg<>) -> (!riscv.freg<>)
+  // CHECK-NEXT: riscv.fsw %0, %f0, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
 
   // Unconditional Branch Instructions
   "riscv.ret"() : () -> ()

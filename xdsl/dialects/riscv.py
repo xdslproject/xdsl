@@ -2795,6 +2795,24 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.immediate
 
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
+        if isinstance(self.immediate, LabelAttr):
+            printer.print_string_literal(self.immediate.data)
+        else:
+            printer.print(self.immediate.value.data)
+
+    @classmethod
+    def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if (immediate := parser.parse_optional_integer()) is not None:
+            attributes["immediate"] = IntegerAttr(immediate, i32)
+        elif (immediate := parser.parse_optional_str_literal()) is not None:
+            attributes["immediate"] = LabelAttr(immediate)
+        else:
+            raise NotImplementedError()
+        return attributes
+
 
 class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -2837,6 +2855,24 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
+
+    def print_attributes(self, printer: Printer, first: bool) -> None:
+        printer.print(" " if first else ", ")
+        if isinstance(self.immediate, LabelAttr):
+            printer.print_string_literal(self.immediate.data)
+        else:
+            printer.print(self.immediate.value.data)
+
+    @classmethod
+    def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if (immediate := parser.parse_optional_integer()) is not None:
+            attributes["immediate"] = IntegerAttr(immediate, i32)
+        elif (immediate := parser.parse_optional_str_literal()) is not None:
+            attributes["immediate"] = LabelAttr(immediate)
+        else:
+            raise NotImplementedError()
+        return attributes
 
 
 @irdl_op_definition
