@@ -81,12 +81,12 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         )
 
     def _allocate(self, reg: SSAValue) -> bool:
-        if isinstance(reg.typ, RegisterType | FloatRegisterType) and (
-            available_regs := self.register_sets.get(type(reg.typ))
-        ):
+        if isinstance(reg.typ, RegisterType | FloatRegisterType):
             if reg.typ.data.name is None:
                 # if we run out of real registers, allocate a j register
                 reg_type = type(reg.typ)
+                available_regs = self.register_sets.get(reg_type)
+
                 if not available_regs:
                     reg.typ = reg_type(Register(f"j{self.idx}"))
                     self.idx += 1
