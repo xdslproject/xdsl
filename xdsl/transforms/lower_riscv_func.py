@@ -85,7 +85,7 @@ class LowerRISCVFuncOp(RewritePattern):
 class InsertExitSyscallOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
-        if op.func_name.data != "main":
+        if op.sym_name.data != "main":
             return
         return_op = op.func_body.block.last_op
         assert isinstance(return_op, riscv_func.ReturnOp)
