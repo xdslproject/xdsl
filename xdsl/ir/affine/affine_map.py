@@ -20,6 +20,10 @@ class AffineMap:
         return AffineMap(0, 0, [AffineExpr.constant(value)])
 
     @staticmethod
+    def point_map(*values: int) -> AffineMap:
+        return AffineMap(0, 0, [AffineExpr.constant(value) for value in values])
+
+    @staticmethod
     def identity(rank: int) -> AffineMap:
         return AffineMap(rank, 0, [AffineExpr.dimension(dim) for dim in range(rank)])
 
