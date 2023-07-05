@@ -13,7 +13,7 @@ from xdsl.rewriter import Rewriter
 def rewrite_and_compare(
     prog: str, expected_prog: str, transformation: Callable[[ModuleOp, Rewriter], None]
 ):
-    ctx = MLContext()
+    ctx = MLContext(allow_unregistered=True)
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
     ctx.register_dialect(Scf)
@@ -135,20 +135,20 @@ def test_inline_block_at_end():
     """Test the inlining of a block at end."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  }) : (i1) -> ()
+  %0 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
+    %1 = "test.op"() : () -> !test.type<"int">
+  }) : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
   ^0:
-  }) : (i1) -> ()
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  }) : () -> ()
+  %1 = "test.op"() : () -> !test.type<"int">
 }) : () -> ()
 """
 
