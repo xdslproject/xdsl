@@ -22,7 +22,7 @@ from xdsl.dialects.experimental.hls import (
     HLSStreamType,
     HLSStream,
 )
-from xdsl.dialects.llvm import AllocaOp, LLVMPointerType
+from xdsl.dialects.llvm import AllocaOp, LLVMPointerType, LLVMStructType, GEPOp
 
 from xdsl.passes import ModulePass
 
@@ -40,19 +40,29 @@ class LowerHLSStreamToAlloca(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStream, rewriter: PatternRewriter, /):
+        hls_elem_type = op.elem_type.types.data[0]
+
         if not self.set_stream_depth_declaration:
             stream_depth_func = FuncOp.external(
-                "llvm.fpga.set.stream.depth", [LLVMPointerType.typed(op.elem_type)], []
+                "llvm.fpga.set.stream.depth",
+                [LLVMPointerType.typed(hls_elem_type), i32],
+                [],
             )
             self.module.body.block.add_op(stream_depth_func)
 
             self.set_stream_depth_declaration = True
 
+        # As can be seen on the compiled synthetic stream benchmark of the FPL paper
+        elem_type = LLVMStructType.from_type_list([op.elem_type])
         size = Constant.from_int_and_width(512, i32)
         alloca = AllocaOp.get(size, op.elem_type)
-        depth_call = Call.get("llvm.fpga.set.stream.depth", [alloca], [])
+        gep = GEPOp.get(
+            alloca, [0, 0], result_type=LLVMPointerType.typed(hls_elem_type)
+        )
+        depth = Constant.from_int_and_width(0, i32)
+        depth_call = Call.get("llvm.fpga.set.stream.depth", [gep, depth], [])
 
-        rewriter.insert_op_after_matched_op(depth_call)
+        rewriter.insert_op_after_matched_op([depth, gep, depth_call])
         rewriter.replace_matched_op([size, alloca])
 
 

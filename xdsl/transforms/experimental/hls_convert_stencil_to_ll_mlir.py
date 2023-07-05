@@ -49,7 +49,7 @@ from xdsl.utils.hints import isa
 
 from xdsl.builder import Builder
 
-from xdsl.dialects.llvm import LLVMPointerType
+from xdsl.dialects.llvm import LLVMPointerType, LLVMStructType, LLVMArrayType
 
 from xdsl.ir.core import BlockArgument
 
@@ -611,11 +611,16 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             func_arg = new_op.owner.operands[-1]
             new_op = new_op.owner.operands[0]
 
+        func_arg_type = func_arg.typ.type
+
+        func_arg_elem_type = func_arg.typ.type
+        struct_type = LLVMStructType.from_type_list([func_arg_elem_type])
+
         shape = field.typ.get_shape()
         shape_x = Constant.from_int_and_width(shape[0], i32)
         shape_y = Constant.from_int_and_width(shape[1], i32)
         shape_z = Constant.from_int_and_width(shape[2], i32)
-        data_stream = HLSStream.get(i32)
+        data_stream = HLSStream.get(struct_type)
 
         threedload_call = Call.get(
             "load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
