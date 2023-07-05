@@ -99,13 +99,18 @@ class ToyFunctions(InterpreterFunctions):
         arg = cast(ShapedArray[float], arg)
         assert len(arg.shape) == 2
 
-        cols = arg.shape[0]
-        rows = arg.shape[1]
+        new_data: list[float] = []
 
-        new_data = [
-            arg.data[row * cols + col] for col in range(cols) for row in range(rows)
-        ]
+        for col in range(arg.shape[1]):
+            for row in range(arg.shape[0]):
+                new_data.append(arg.load((row, col)))
 
         result = ShapedArray(new_data, arg.shape[::-1])
 
         return (result,)
+
+    @impl(toy.CastOp)
+    def run_cast(
+        self, interpreter: Interpreter, op: toy.CastOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        return args

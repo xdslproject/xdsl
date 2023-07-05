@@ -78,7 +78,7 @@ class LowerRISCVFuncOp(RewritePattern):
 
         label_body = rewriter.move_region_contents_to_new_regions(op.func_body)
 
-        rewriter.replace_matched_op(riscv.LabelOp(op.func_name.data, region=label_body))
+        rewriter.replace_matched_op(riscv.LabelOp(op.sym_name.data, region=label_body))
 
 
 class LowerRISCVFuncReturnOp(RewritePattern):
@@ -101,7 +101,7 @@ class LowerRISCVCallOp(RewritePattern):
             )
 
         ops: list[Operation] = [
-            riscv.JalOp(op.func_name.data),
+            riscv.JalOp(op.callee.data),
         ]
         new_results: list[OpResult] = []
 

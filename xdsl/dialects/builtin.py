@@ -79,6 +79,12 @@ class ShapedType(ABC):
         return prod(self.get_shape())
 
 
+class AnyShapedType(AttrConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, ShapedType):
+            raise Exception(f"expected type ShapedType but got {attr}")
+
+
 _ContainerElementTypeT = TypeVar(
     "_ContainerElementTypeT", bound=Attribute | None, covariant=True
 )
@@ -1077,6 +1083,10 @@ class AffineMapAttr(Data[AffineMap]):
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
+
+    @staticmethod
+    def constant_map(value: int) -> AffineMapAttr:
+        return AffineMapAttr(AffineMap.constant_map(value))
 
 
 @irdl_op_definition

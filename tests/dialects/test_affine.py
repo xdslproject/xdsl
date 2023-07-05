@@ -1,20 +1,21 @@
 import pytest
 
 from xdsl.dialects.affine import For, Yield
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
+from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, IntegerType
 from xdsl.ir import Attribute, Region, Block
+from xdsl.ir.affine.affine_expr import AffineExpr
 
 
 def test_simple_for():
-    f = For.from_region([], 0, 5, Region())
-    assert f.lower_bound.value.data == 0
-    assert f.upper_bound.value.data == 5
+    f = For.from_region([], [], 0, 5, Region())
+    assert f.lower_bound.data.results == [AffineExpr.constant(0)]
+    assert f.upper_bound.data.results == [AffineExpr.constant(5)]
 
 
 def test_for_mismatch_operands_results_counts():
     attributes: dict[str, Attribute] = {
-        "lower_bound": IntegerAttr.from_index_int_value(0),
-        "upper_bound": IntegerAttr.from_index_int_value(5),
+        "lower_bound": AffineMapAttr.constant_map(0),
+        "upper_bound": AffineMapAttr.constant_map(5),
         "step": IntegerAttr.from_index_int_value(1),
     }
     f = For.create(
@@ -30,8 +31,8 @@ def test_for_mismatch_operands_results_counts():
 
 def test_for_mismatch_operands_results_types():
     attributes: dict[str, Attribute] = {
-        "lower_bound": IntegerAttr.from_index_int_value(0),
-        "upper_bound": IntegerAttr.from_index_int_value(5),
+        "lower_bound": AffineMapAttr.constant_map(0),
+        "upper_bound": AffineMapAttr.constant_map(5),
         "step": IntegerAttr.from_index_int_value(1),
     }
     b = Block(arg_types=(IntegerType(32),))
@@ -52,8 +53,8 @@ def test_for_mismatch_operands_results_types():
 
 def test_for_mismatch_blockargs():
     attributes: dict[str, Attribute] = {
-        "lower_bound": IntegerAttr.from_index_int_value(0),
-        "upper_bound": IntegerAttr.from_index_int_value(5),
+        "lower_bound": AffineMapAttr.constant_map(0),
+        "upper_bound": AffineMapAttr.constant_map(5),
         "step": IntegerAttr.from_index_int_value(1),
     }
     b = Block(arg_types=(IndexType(),))

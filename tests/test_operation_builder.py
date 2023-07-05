@@ -207,14 +207,14 @@ def test_operand_builder_operation():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = OperandOp.build(operands=[op1])
     op2.verify()
-    assert op2.operands == (op1.res,)
+    assert tuple(op2.operands) == (op1.res,)
 
 
 def test_operand_builder_value():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = OperandOp.build(operands=[op1.res])
     op2.verify()
-    assert op2.operands == (op1.res,)
+    assert tuple(op2.operands) == (op1.res,)
 
 
 def test_operand_builder_exception():
@@ -256,7 +256,7 @@ def test_var_operand_builder():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = VarOperandOp.build(operands=[[op1, op1]])
     op2.verify()
-    assert op2.operands == (op1.res, op1.res)
+    assert tuple(op2.operands) == (op1.res, op1.res)
 
 
 @irdl_op_definition
@@ -272,7 +272,7 @@ def test_two_var_operand_builder():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = TwoVarOperandOp.build(operands=[[op1, op1], [op1, op1]])
     op2.verify()
-    assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 2])
@@ -282,7 +282,7 @@ def test_two_var_operand_builder2():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = TwoVarOperandOp.build(operands=[[op1], [op1, op1, op1]])
     op2.verify()
-    assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
