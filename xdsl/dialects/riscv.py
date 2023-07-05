@@ -759,12 +759,13 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if (immediate := parser.parse_optional_integer()) is not None:
-            attributes["immediate"] = IntegerAttr(
-                immediate, IntegerType(5, Signedness.UNSIGNED)
-            )
-        else:
-            parser.raise_error("Expect an immediate")
+        attributes["immediate"] = IntegerAttr(
+            parser.expect(
+                parser.parse_optional_integer,
+                "Expect an immediate",
+            ),
+            IntegerType(5, Signedness.UNSIGNED),
+        )
         return attributes
 
 
@@ -1093,14 +1094,15 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if (
-            csr := parser.parse_optional_integer(
-                allow_boolean=False, allow_negative=False
-            )
-        ) is not None:
-            attributes["csr"] = IntegerAttr(csr, i32)
-        else:
-            parser.raise_error("Expect a csr")
+        attributes["csr"] = IntegerAttr(
+            parser.expect(
+                lambda: parser.parse_optional_integer(
+                    allow_boolean=False, allow_negative=False
+                ),
+                "Expect a csr",
+            ),
+            i32,
+        )
         parser.parse_optional_punctuation(",")
         if parser.parse_optional_characters("w") is not None:
             attributes["writeonly"] = UnitAttr()
@@ -1173,14 +1175,15 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if (
-            csr := parser.parse_optional_integer(
-                allow_boolean=False, allow_negative=False
-            )
-        ) is not None:
-            attributes["csr"] = IntegerAttr(csr, i32)
-        else:
-            parser.raise_error("Expect a csr")
+        attributes["csr"] = IntegerAttr(
+            parser.expect(
+                lambda: parser.parse_optional_integer(
+                    allow_boolean=False, allow_negative=False
+                ),
+                "Expect a csr",
+            ),
+            i32,
+        )
         parser.parse_optional_punctuation(",")
         if parser.parse_optional_characters("r") is not None:
             attributes["readonly"] = UnitAttr()
@@ -1254,14 +1257,15 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if (
-            csr := parser.parse_optional_integer(
-                allow_boolean=False, allow_negative=False
-            )
-        ) is not None:
-            attributes["csr"] = IntegerAttr(csr, i32)
-        else:
-            parser.raise_error("Expect a csr")
+        attributes["csr"] = IntegerAttr(
+            parser.expect(
+                lambda: parser.parse_optional_integer(
+                    allow_boolean=False, allow_negative=False
+                ),
+                "Expect a csr",
+            ),
+            i32,
+        )
         parser.parse_optional_punctuation(",")
         if parser.parse_optional_characters("w") is not None:
             attributes["writeonly"] = UnitAttr()
@@ -1323,21 +1327,23 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if (
-            csr := parser.parse_optional_integer(
-                allow_boolean=False, allow_negative=False
-            )
-        ) is not None:
-            attributes["csr"] = IntegerAttr(csr, i32)
-        else:
-            parser.raise_error("Expect a csr")
-        if (
-            parser.parse_optional_punctuation(",") is not None
-            and (immediate := parser.parse_optional_integer()) is not None
-        ):
-            attributes["immediate"] = IntegerAttr(immediate, i32)
-        else:
-            parser.raise_error("Expect an immediate")
+        attributes["csr"] = IntegerAttr(
+            parser.expect(
+                lambda: parser.parse_optional_integer(
+                    allow_boolean=False, allow_negative=False
+                ),
+                "Expect a csr",
+            ),
+            i32,
+        )
+        parser.parse_optional_punctuation(",")
+        attributes["immediate"] = IntegerAttr(
+            parser.expect(
+                parser.parse_optional_integer,
+                "Expect an immediate",
+            ),
+            i32,
+        )
         return attributes
 
 
@@ -2295,12 +2301,14 @@ class LabelOp(IRDLOperation, RISCVOp):
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if (label := parser.parse_optional_str_literal()) is not None:
-            attributes["label"] = LabelAttr(label)
-        else:
-            parser.raise_error("Expect a label")
-        return attributes
+        return {
+            "label": LabelAttr(
+                parser.expect(
+                    parser.parse_optional_str_literal,
+                    "Expect a label",
+                )
+            )
+        }
 
 
 @irdl_op_definition
@@ -2358,10 +2366,12 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if (directive := parser.parse_optional_str_literal()) is not None:
-            attributes["directive"] = StringAttr(directive)
-        else:
-            parser.raise_error("Expect a directive")
+        attributes["directive"] = StringAttr(
+            parser.expect(
+                parser.parse_optional_str_literal,
+                "Expect a directive",
+            )
+        )
         parser.parse_optional_punctuation(",")
         if (value := parser.parse_optional_str_literal()) is not None:
             attributes["value"] = StringAttr(value)
