@@ -13,7 +13,7 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.ir import OpResult, Dialect, Attribute
-from xdsl.dialects.builtin import VectorType, i32, i64, IndexType
+from xdsl.dialects.builtin import i32, i64, IndexType
 from typing import Generic, Sequence, TypeVar, Annotated
 
 from xdsl.utils.exceptions import VerifyException
