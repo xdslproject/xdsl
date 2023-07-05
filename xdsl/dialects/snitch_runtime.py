@@ -1,5 +1,7 @@
 from abc import ABC
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    VarOperand,
     irdl_op_definition,
     IRDLOperation,
     Operand,
@@ -8,10 +10,13 @@ from xdsl.irdl import (
     operand_def,
     result_def,
     ConstraintVar,
+    var_operand_def,
 )
 from xdsl.ir import OpResult, Dialect, Attribute
-from xdsl.dialects.builtin import i32, i64, IndexType
-from typing import Generic, TypeVar, Annotated
+from xdsl.dialects.builtin import VectorType, i32, i64, IndexType
+from typing import Generic, Sequence, TypeVar, Annotated
+
+from xdsl.utils.exceptions import VerifyException
 
 # Transfer ID
 tx_id = i32
@@ -236,6 +241,15 @@ class DmaWaitAllOp(NoOperandNoResultBaseOp):
 
 
 """
+The number of data movers determines the number of
+independent memory address patterns a core can keep track
+of. Since the data movers are tied to individual registers,
+there need to be at least the same number of registers with
+stream semantics as there are data movers. Multiple SSRs
+may address the same data mover, for example to use the
+data mover both in integer and FP instructions.
+for more info check https://arxiv.org/pdf/1911.08356.pdf
+
 The different SSR data movers.
     SNRT_SSR_DM0 = 0,
     SNRT_SSR_DM1 = 1,
@@ -244,7 +258,8 @@ The different SSR data movers.
 ssr_dm = i32
 
 """
-The different dimensions.
+The different dimensions - those determine how many levels of nesting a loop can have.
+The snitch system handles cases with up to 4, but this can be extended.
     SNRT_SSR_1D = 0,
     SNRT_SSR_2D = 1,
     SNRT_SSR_3D = 2,
@@ -253,80 +268,62 @@ The different dimensions.
 ssr_dim = i32
 
 
+class SsrLoopBaseOp(SnitchRuntimeBaseOp, ABC):
+    """
+    Configure an SSR data mover for an n-dimensional loop nest.
+    """
+
+    name = "snrt.ssr_loop_1d"
+    data_mover: Operand = operand_def(ssr_dm)
+    bounds: VarOperand = var_operand_def(IndexType)
+    indices: VarOperand = var_operand_def(IndexType)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    def verify_(self) -> None:
+        if len(self.bounds) != len(self.indices):
+            raise VerifyException(
+                f"the length of bounds ({len(self.bounds)}) and indices ({len(self.indices)}) must be equal."
+            )
+
+    def __init__(
+        self,
+        data_mover: Operation | SSAValue,
+        bounds: Sequence[Operation | SSAValue],
+        indices: Sequence[Operation | SSAValue],
+    ):
+        super().__init__(operands=[data_mover, bounds, indices], result_types=[])
+
+
 @irdl_op_definition
-class SsrLoop1dOp(SnitchRuntimeBaseOp, ABC):
+class SsrLoop1dOp(SsrLoopBaseOp):
     """
     Configure an SSR data mover for a 1D loop nest.
     """
 
     name = "snrt.ssr_loop_1d"
-    dm: Operand = operand_def(ssr_dm)
-    b0: Operand = operand_def(IndexType)
-    i0: Operand = operand_def(IndexType)
-
-    def __init__(
-        self,
-        dm: Operation | SSAValue,
-        b0: Operation | SSAValue,
-        i0: Operation | SSAValue,
-    ):
-        super().__init__(operands=[dm, b0, i0], result_types=[])
 
 
 @irdl_op_definition
-class SsrLoop2dOp(SnitchRuntimeBaseOp, ABC):
+class SsrLoop2dOp(SsrLoopBaseOp):
     """
     Configure an SSR data mover for a 2D loop nest.
     """
 
     name = "snrt.ssr_loop_2d"
-    dm: Operand = operand_def(ssr_dm)
-    b0: Operand = operand_def(IndexType)
-    b1: Operand = operand_def(IndexType)
-    i0: Operand = operand_def(IndexType)
-    i1: Operand = operand_def(IndexType)
-
-    def __init__(
-        self,
-        dm: Operation | SSAValue,
-        b0: Operation | SSAValue,
-        b1: Operation | SSAValue,
-        i0: Operation | SSAValue,
-        i1: Operation | SSAValue,
-    ):
-        super().__init__(operands=[dm, b0, b1, i0, i1], result_types=[])
 
 
 @irdl_op_definition
-class SsrLoop3dOp(SnitchRuntimeBaseOp, ABC):
+class SsrLoop3dOp(SsrLoopBaseOp):
     """
     Configure an SSR data mover for a 3D loop nest.
     """
 
     name = "snrt.ssr_loop_3d"
-    dm: Operand = operand_def(ssr_dm)
-    b0: Operand = operand_def(IndexType)
-    b1: Operand = operand_def(IndexType)
-    b2: Operand = operand_def(IndexType)
-    i0: Operand = operand_def(IndexType)
-    i1: Operand = operand_def(IndexType)
-    i2: Operand = operand_def(IndexType)
-
-    def __init__(
-        self,
-        dm: Operation | SSAValue,
-        b0: Operation | SSAValue,
-        b1: Operation | SSAValue,
-        b2: Operation | SSAValue,
-        i0: Operation | SSAValue,
-        i1: Operation | SSAValue,
-        i2: Operation | SSAValue,
-    ):
-        super().__init__(operands=[dm, b0, b1, b2, i0, i1, i2], result_types=[])
 
 
 @irdl_op_definition
-class SsrLoop4dOp(SnitchRuntimeBaseOp, ABC):
+class SsrLoop4dOp(SsrLoopBaseOp):
     """
     Configure an SSR data mover for a 4D loop nest.
     b0: Inner-most bound (limit of loop)
@@ -335,29 +332,6 @@ class SsrLoop4dOp(SnitchRuntimeBaseOp, ABC):
     """
 
     name = "snrt.ssr_loop_4d"
-    dm: Operand = operand_def(ssr_dm)
-    b0: Operand = operand_def(IndexType)
-    b1: Operand = operand_def(IndexType)
-    b2: Operand = operand_def(IndexType)
-    b3: Operand = operand_def(IndexType)
-    i0: Operand = operand_def(IndexType)
-    i1: Operand = operand_def(IndexType)
-    i2: Operand = operand_def(IndexType)
-    i3: Operand = operand_def(IndexType)
-
-    def __init__(
-        self,
-        dm: Operation | SSAValue,
-        b0: Operation | SSAValue,
-        b1: Operation | SSAValue,
-        b2: Operation | SSAValue,
-        b3: Operation | SSAValue,
-        i0: Operation | SSAValue,
-        i1: Operation | SSAValue,
-        i2: Operation | SSAValue,
-        i3: Operation | SSAValue,
-    ):
-        super().__init__(operands=[dm, b0, b1, b2, b3, i0, i1, i2, i3], result_types=[])
 
 
 @irdl_op_definition
