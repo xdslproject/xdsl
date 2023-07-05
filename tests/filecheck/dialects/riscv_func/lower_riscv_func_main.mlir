@@ -5,7 +5,7 @@
 
     "riscv_func.func"() ({
         "riscv_func.return"() : () -> ()
-    }) {"func_name" = "main"} : () -> ()
+    }) {"sym_name" = "main"} : () -> ()
 
 // CHECK-NEXT:     "riscv.label"() ({
 // CHECK-NEXT:         %{{.*}} = "riscv.li"() {"immediate" = 93 : i32} : () -> !riscv.reg<a7>
