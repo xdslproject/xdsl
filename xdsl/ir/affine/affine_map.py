@@ -15,9 +15,22 @@ class AffineMap:
     num_symbols: int
     results: list[AffineExpr]
 
+    @property
+    def is_constant(self) -> bool:
+        """
+        Returns True if it is possible to guarantee that the map is constant. There may be
+        expressions that are constant in practice, but too complex to reason about, so
+        this is a pessimistic estimate.
+        """
+        return not self.num_symbols
+
     @staticmethod
     def constant_map(value: int) -> AffineMap:
         return AffineMap(0, 0, [AffineExpr.constant(value)])
+
+    @staticmethod
+    def from_constants(*values: int) -> AffineMap:
+        return AffineMap(0, 0, [AffineExpr.constant(value) for value in values])
 
     @staticmethod
     def identity(rank: int) -> AffineMap:
