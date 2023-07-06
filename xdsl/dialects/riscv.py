@@ -654,11 +654,6 @@ class RdRsImmIntegerOperation(_RdRsImmIntegerOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
 
-class RdRsImmIntegerMemOperation(_RdRsImmIntegerOperation, RISCVMemInstruction, ABC):
-    def assembly_line_args(self):
-        return self.rd, self.immediate, self.rs1
-
-
 class RdRsImmShiftOperation(RdRsImmIntegerOperation):
     """
     A base class for RISC-V operations that have one destination register, one source
@@ -811,7 +806,7 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rs1, self.rs2, self.offset
 
 
-class _RsRsImmIntegerOperation(IRDLOperation, ABC):
+class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have two source registers and an
     immediate.
@@ -846,15 +841,8 @@ class _RsRsImmIntegerOperation(IRDLOperation, ABC):
             },
         )
 
-
-class RsRsImmIntegerOperation(_RsRsImmIntegerOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.immediate
-
-
-class RsRsImmIntegerMemOperation(_RsRsImmIntegerOperation, RISCVMemInstruction, ABC):
-    def assembly_line_args(self):
-        return self.rs2, self.immediate, self.rs1
 
 
 class RsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -1653,7 +1641,7 @@ class LhuOp(RdRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class LwOp(RdRsImmIntegerMemOperation):
+class LwOp(RdRsImmIntegerOperation):
     """
     Loads a 32-bit value from memory and sign-extends this to XLEN bits before
     storing it in register rd.
@@ -1664,6 +1652,15 @@ class LwOp(RdRsImmIntegerMemOperation):
     """
 
     name = "riscv.lw"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rd)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
 
 
 @irdl_op_definition
@@ -1694,7 +1691,7 @@ class ShOp(RsRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class SwOp(RsRsImmIntegerMemOperation):
+class SwOp(RsRsImmIntegerOperation):
     """
     Store 32-bit, values from the low bits of register rs2 to memory.
 
@@ -1704,6 +1701,15 @@ class SwOp(RsRsImmIntegerMemOperation):
     """
 
     name = "riscv.sw"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rs2)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
 
 
 # endregion
