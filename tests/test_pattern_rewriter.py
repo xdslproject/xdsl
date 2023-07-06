@@ -818,8 +818,8 @@ def test_inline_block_after():
 
                 if first_op is not None and isinstance(first_op, TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
-                        inner_if_block = first_op.regs[0].blocks[0]
-                        rewriter.inline_block_after(inner_if_block, first_op)
+                        inner_block = first_op.regs[0].blocks[0]
+                        rewriter.inline_block_after(inner_block, first_op)
 
     rewrite_and_compare(
         prog,
@@ -831,43 +831,47 @@ def test_inline_block_after():
 def test_inline_block_after_matched():
     """Test the inlining of a block after an operation."""
 
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    "scf.if"(%0) ({
-      %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+    %1 = "test.op"() ({
+      %1 = "test.op"() : () -> !test.type<"int">
     }, {
-    ^0:
-    }) : (i1) -> ()
+    ^1:
+    }) : () -> !test.type<"int">
   }, {
-  ^1:
-  }) : (i1) -> ()
+  ^2:
+  }) : () -> !test.type<"int">
 }) : () -> ()
 """
 
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    "scf.if"(%0) ({
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+    %2 = "test.op"() ({
     ^0:
     }, {
     ^1:
-    }) : (i1) -> ()
+    }) : () -> !test.type<"int">
   }, {
   ^2:
-  }) : (i1) -> ()
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  }) : () -> !test.type<"int">
+  %3 = "test.op"() : () -> !test.type<"int">
 }) : () -> ()
 """
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
-            first_op = op.true_region.block.first_op
+        def match_and_rewrite(self, matched_op: TestOp, rewriter: PatternRewriter):
+            if matched_op.regs and matched_op.regs[0].blocks:
+                first_op = matched_op.regs[0].block.first_op
 
-            if first_op is not None and isinstance(first_op, If):
-                inner_if_block = first_op.true_region.block
-                rewriter.inline_block_after(inner_if_block, op)
+                if first_op is not None and isinstance(first_op, TestOp):
+                    if first_op.regs and first_op.regs[0].blocks:
+                        inner_block = first_op.regs[0].blocks[0]
+                        rewriter.inline_block_after(inner_block, matched_op)
 
     rewrite_and_compare(
         prog,
@@ -879,23 +883,24 @@ def test_inline_block_after_matched():
 def test_move_region_contents_to_new_regions():
     """Test moving a region outside of a region."""
 
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  }) : (i1) -> ()
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+  ^0:
+    %2 = "test.op"() : () -> !test.type<"int">
+  }) : () -> !test.type<"int">
 }) : () -> ()
 """
 
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-  }) : (i1) -> ()
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  }, {
-  ^0:
-  }) : (i1) -> ()
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+  }) : () -> !test.type<"int">
+  %2 = "test.op"() ({
+    %3 = "test.op"() : () -> !test.type<"int">
+  }) : () -> !test.type<"int">
 }) : () -> ()
 """
 
@@ -904,12 +909,13 @@ def test_move_region_contents_to_new_regions():
         def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
             ops_iter = iter(op.ops)
 
-            _first_op = next(ops_iter)
-            old_if = next(ops_iter)
-            assert isinstance(old_if, If)
-            new_region = rewriter.move_region_contents_to_new_regions(old_if.regions[0])
-            new_if = If.get(old_if.cond, [], new_region, Region([Block()]))
-            rewriter.insert_op_after(new_if, old_if)
+            _ = next(ops_iter)  # skip first op
+            old_op = next(ops_iter)
+            assert isinstance(old_op, TestOp)
+            new_region = rewriter.move_region_contents_to_new_regions(old_op.regions[0])
+            res_types = [r.typ for r in old_op.results]
+            new_op = TestOp.create(result_types=res_types, regions=[new_region])
+            rewriter.insert_op_after(new_op, old_op)
 
     rewrite_and_compare(
         prog,
