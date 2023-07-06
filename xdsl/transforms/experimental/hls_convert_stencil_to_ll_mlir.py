@@ -633,6 +633,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         shape_x = Constant.from_int_and_width(shape[0], i32)
         shape_y = Constant.from_int_and_width(shape[1], i32)
         shape_z = Constant.from_int_and_width(shape[2], i32)
+
+        two_int = Constant.from_int_and_width(2, i32)
+        shift_shape_x = arith.Subi(shape_x, two_int)
         data_stream = HLSStream.get(struct_type)
         stencil_stream = HLSStream.get(struct_stencil_type)
 
@@ -641,7 +644,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         )
 
         shift_buffer_call = Call.get(
-            "shift_buffer", [data_stream, stencil_stream, shape_x, shape_y, shape_z], []
+            "shift_buffer",
+            [data_stream, stencil_stream, shift_shape_x, shape_y, shape_z],
+            [],
         )
 
         rewriter.insert_op_before_matched_op(
@@ -651,6 +656,8 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
                 shape_x,
                 shape_y,
                 shape_z,
+                two_int,
+                shift_shape_x,
                 threedload_call,
                 shift_buffer_call,
             ]
