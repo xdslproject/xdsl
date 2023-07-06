@@ -22,6 +22,7 @@ from xdsl.dialects.experimental.hls import (
     HLSStreamType,
     HLSStream,
 )
+from xdsl.dialects import llvm
 from xdsl.dialects.llvm import AllocaOp, LLVMPointerType, LLVMStructType, GEPOp
 
 from xdsl.passes import ModulePass
@@ -43,10 +44,10 @@ class LowerHLSStreamToAlloca(RewritePattern):
         hls_elem_type = op.elem_type.types.data[0]
 
         if not self.set_stream_depth_declaration:
-            stream_depth_func = FuncOp.external(
+            stream_depth_func = llvm.FuncOp(
                 "llvm.fpga.set.stream.depth",
-                [LLVMPointerType.typed(hls_elem_type), i32],
-                [],
+                llvm.LLVMFunctionType([], is_variadic=True),
+                linkage=llvm.LinkageAttr("external"),
             )
             self.module.body.block.add_op(stream_depth_func)
 
@@ -60,7 +61,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
             alloca, [0, 0], result_type=LLVMPointerType.typed(hls_elem_type)
         )
         depth = Constant.from_int_and_width(0, i32)
-        depth_call = Call.get("llvm.fpga.set.stream.depth", [gep, depth], [])
+        depth_call = llvm.CallOp("llvm.fpga.set.stream.depth", gep, depth)
 
         rewriter.insert_op_after_matched_op([depth, gep, depth_call])
         rewriter.replace_matched_op([size, alloca])
