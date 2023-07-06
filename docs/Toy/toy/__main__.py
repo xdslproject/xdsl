@@ -3,6 +3,7 @@ import argparse
 from pathlib import Path
 from typing import Any
 from xdsl.dialects.builtin import Float64Type
+from xdsl.interpreter import InterpreterFunctions, impl_cast, register_impls
 
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
@@ -59,6 +60,28 @@ parser.add_argument(
 parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
 parser.add_argument("--accelerate", dest="accelerate", action="store_true")
+
+
+@register_impls
+class BufferMemrefConversion(InterpreterFunctions):
+    @impl_cast(riscv.RegisterType, memref.MemRefType[Float64Type])
+    def cast_buffer_to_memref(
+        self,
+        input_type: riscv.RegisterType,
+        output_type: memref.MemRefType[Float64Type],
+        value: Any,
+    ) -> Any:
+        shape = output_type.get_shape()
+        return ShapedArrayBuffer(value.data, list(shape))
+
+    @impl_cast(memref.MemRefType[Float64Type], riscv.RegisterType)
+    def cast_memref_to_buffer(
+        self,
+        input_type: memref.MemRefType[Float64Type],
+        output_type: riscv.RegisterType,
+        value: Any,
+    ) -> Any:
+        return Buffer(value.data)
 
 
 def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool):
@@ -132,27 +155,8 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
         interpreter.register_implementations(CfFunctions())
 
     if emit in ("scf, cf"):
-
-        def memfer_from_buffer(
-            o: riscv.RegisterType, r: memref.MemRefType[Float64Type], value: Any
-        ) -> Any:
-            shape = r.get_shape()
-            return ShapedArrayBuffer(value.data, list(shape))
-
-        def buffer_from_memref(
-            o: memref.MemRefType[Float64Type], r: riscv.RegisterType, value: Any
-        ) -> Any:
-            return Buffer(value.data)
-
-        builtin_functions = BuiltinFunctions()
-
-        builtin_functions.register_cast_impl(
-            riscv.RegisterType, memref.MemRefType, memfer_from_buffer
-        )
-        builtin_functions.register_cast_impl(
-            memref.MemRefType, riscv.RegisterType, buffer_from_memref
-        )
-        interpreter.register_implementations(builtin_functions)
+        interpreter.register_implementations(BuiltinFunctions())
+        interpreter.register_implementations(BufferMemrefConversion())
 
     if emit in ("riscv",):
         interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
