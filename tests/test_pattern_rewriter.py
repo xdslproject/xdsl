@@ -2,6 +2,7 @@ from conftest import assert_print_op
 
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
+from xdsl.dialects.test import Test, TestOp, TestType
 from xdsl.dialects.scf import If, Scf
 from xdsl.ir import Block, MLContext, Region, Operation
 from xdsl.pattern_rewriter import (
@@ -20,6 +21,7 @@ def rewrite_and_compare(prog: str, expected_prog: str, walker: PatternRewriteWal
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
     ctx.register_dialect(Scf)
+    ctx.register_dialect(Test)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
@@ -538,27 +540,31 @@ def test_replace_inner_op():
 def test_block_argument_type_change():
     """Test the modification of a block argument type."""
 
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-  ^0(%1 : i32):
-    %2 = "arith.addi"(%1, %1) : (i32, i32) -> i32
-  }, {}) : (i1) -> ()
-}) : () -> ()"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() ({
+  ^0(%1 : !test.type<"int">):
+    %2 = "test.op"() : () -> !test.type<"int">
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
 
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() ({
   ^0(%1 : i64):
-    %2 = "arith.addi"(%1, %1) : (i64, i64) -> i32
-  }, {
-  }) : (i1) -> ()
-}) : () -> ()"""
+    %2 = "test.op"() : () -> !test.type<"int">
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
-            rewriter.modify_block_argument_type(op.true_region.blocks[0].args[0], i64)
+        def match_and_rewrite(self, matched_op: TestOp, rewriter: PatternRewriter):
+            if matched_op.regs and matched_op.regs[0].blocks:
+                rewriter.modify_block_argument_type(
+                    matched_op.regs[0].blocks[0].args[0], i64
+                )
 
     rewrite_and_compare(
         prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
@@ -568,28 +574,32 @@ def test_block_argument_type_change():
 def test_block_argument_erasure():
     """Test the erasure of a block argument."""
 
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-  ^0(%1 : i32):
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() ({
+  ^0(%1 : !test.type<"int">):
+    %2 = "test.op"() : () -> !test.type<"int">
   }, {
   ^0:
-  }) : (i1) -> ()
-}) : () -> ()"""
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
 
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-  ^0:
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() ({
+    %1 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^1:
-  }) : (i1) -> ()
-}) : () -> ()"""
+  ^0:
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
-            rewriter.erase_block_argument(op.true_region.blocks[0].args[0])
+        def match_and_rewrite(self, matched_op: TestOp, rewriter: PatternRewriter):
+            if matched_op.regs and matched_op.regs[0].blocks:
+                rewriter.erase_block_argument(matched_op.regs[0].blocks[0].args[0])
 
     rewrite_and_compare(
         prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
@@ -599,28 +609,34 @@ def test_block_argument_erasure():
 def test_block_argument_insertion():
     """Test the insertion of a block argument."""
 
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() ({
+    %1 = "test.op"() : () -> !test.type<"int">
+  }, {
   ^0:
-  }, {
-  ^1:
-  }) : (i1) -> ()
-}) : () -> ()"""
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
 
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-  ^0(%1 : i32):
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() ({
+  ^0(%1 : !test.type<"int">):
+    %2 = "test.op"() : () -> !test.type<"int">
   }, {
   ^1:
-  }) : (i1) -> ()
-}) : () -> ()"""
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
-            rewriter.insert_block_argument(op.true_region.blocks[0], 0, i32)
+        def match_and_rewrite(self, matched_op: TestOp, rewriter: PatternRewriter):
+            if matched_op.regs and matched_op.regs[0].blocks:
+                rewriter.insert_block_argument(
+                    matched_op.regs[0].blocks[0], 0, TestType("int")
+                )
 
     rewrite_and_compare(
         prog,
@@ -632,29 +648,35 @@ def test_block_argument_insertion():
 def test_inline_block_before_matched_op():
     """Test the inlining of a block before the matched operation."""
 
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+  ^0:
+    %2 = "test.op"() : () -> !test.type<"int">
   }, {
   ^1:
-  }) : (i1) -> ()
-}) : () -> ()"""
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
 
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  "scf.if"(%0) ({
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() : () -> !test.type<"int">
+  %2 = "test.op"() ({
   ^0:
   }, {
   ^1:
-  }) : (i1) -> ()
-}) : () -> ()"""
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
-            rewriter.inline_block_before_matched_op(op.true_region.blocks[0])
+        def match_and_rewrite(self, matched_op: TestOp, rewriter: PatternRewriter):
+            if matched_op.regs and matched_op.regs[0].blocks:
+                rewriter.inline_block_before_matched_op(matched_op.regs[0].blocks[0])
 
     rewrite_and_compare(
         prog,
