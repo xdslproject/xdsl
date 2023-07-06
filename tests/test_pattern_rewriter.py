@@ -717,14 +717,46 @@ def test_inline_block_before():
 }) : () -> ()
 """
 
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+    %1 = "test.op"() ({
+      %1 = "test.op"() : () -> !test.type<"int">
+    }, {
+    ^1:
+    }) : () -> !test.type<"int">
+  }, {
+  ^2:
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+    %2 = "test.op"() : () -> !test.type<"int">
+    %3 = "test.op"() ({
+    ^0:
+    }, {
+    ^1:
+    }) : () -> !test.type<"int">
+  }, {
+  ^2:
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
+
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
-            first_op = op.true_region.blocks[0].first_op
+        def match_and_rewrite(self, matched_op: TestOp, rewriter: PatternRewriter):
+            if matched_op.regs and matched_op.regs[0].blocks:
+                first_op = matched_op.regs[0].blocks[0].first_op
 
-            if isinstance(first_op, If):
-                inner_if_block = first_op.true_region.blocks[0]
-                rewriter.inline_block_before(inner_if_block, first_op)
+                if isinstance(first_op, TestOp):
+                    inner_block = first_op.regs[0].blocks[0]
+                    rewriter.inline_block_before(inner_block, first_op)
 
     rewrite_and_compare(
         prog,
