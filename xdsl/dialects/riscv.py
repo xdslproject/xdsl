@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import IO, Iterable, TypeAlias, Sequence
+from typing import IO, TypeAlias, Sequence
 
 from xdsl.traits import IsTerminator, NoTerminator
 
@@ -330,7 +330,7 @@ class RISCVOp(Operation, ABC):
 
 
 AssemblyInstructionArg: TypeAlias = (
-    AnyIntegerAttr | LabelAttr | SSAValue | RegisterType | str | int | None
+    AnyIntegerAttr | LabelAttr | SSAValue | RegisterType | str | int
 )
 
 
@@ -350,7 +350,7 @@ class RISCVInstruction(RISCVOp):
     """
 
     @abstractmethod
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         """
         The arguments to the instruction, in the order they should be printed in the
         assembly.
@@ -367,9 +367,12 @@ class RISCVInstruction(RISCVOp):
     def assembly_line(self) -> str | None:
         # default assembly code generator
         instruction_name = self.assembly_instruction_name()
-        return _assembly_line(
-            instruction_name, _arg_str(self.assembly_line_args()), self.comment
+        arg_str = ", ".join(
+            _assembly_arg_str(arg)
+            for arg in self.assembly_line_args()
+            if arg is not None
         )
+        return _assembly_line(instruction_name, arg_str, self.comment)
 
 
 class RISCVMemInstruction(RISCVOp):
@@ -425,10 +428,8 @@ def _append_comment(line: str, comment: StringAttr | None) -> str:
     return f"{line}{padding} # {comment.data}"
 
 
-def _assembly_arg_str(arg: AssemblyInstructionArg) -> str | None:
-    if arg is None:
-        return None
-    elif isa(arg, AnyIntegerAttr):
+def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
+    if isa(arg, AnyIntegerAttr):
         return f"{arg.value.data}"
     elif isinstance(arg, int):
         return f"{arg}"
@@ -448,17 +449,6 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str | None:
             reg = arg.typ.register_name
             return reg
     assert False
-
-
-def _arg_str(args: Iterable[AssemblyInstructionArg]) -> str:
-    arg_strs: list[str] = []
-
-    for arg in args:
-        arg_str = _assembly_arg_str(arg)
-        if arg_str is not None:
-            arg_strs.append(arg_str)
-
-    return ", ".join(arg_strs)
 
 
 def _assembly_line(
@@ -612,7 +602,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
             }
         )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.immediate
 
 
@@ -746,7 +736,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
             },
         )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.rs1, self.immediate
 
 
@@ -1074,7 +1064,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
                 f"not '{self.rd.typ.data.name}'"
             )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.csr, self.immediate
 
 
@@ -2108,13 +2098,11 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 
     def assembly_line(self) -> str | None:
         if self.value is not None and self.value.data:
-            value = self.value.data
+            arg_str = _assembly_arg_str(self.value.data)
         else:
-            value = None
+            arg_str = ""
 
-        return _assembly_line(
-            self.directive.data, _arg_str((value,)), is_indented=False
-        )
+        return _assembly_line(self.directive.data, arg_str, is_indented=False)
 
 
 @irdl_op_definition
