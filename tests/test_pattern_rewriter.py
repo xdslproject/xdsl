@@ -779,43 +779,47 @@ def test_inline_block_at_before_when_op_is_matched_op():
 def test_inline_block_after():
     """Test the inlining of a block after an operation."""
 
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    "scf.if"(%0) ({
-      %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+    %1 = "test.op"() ({
+      %1 = "test.op"() : () -> !test.type<"int">
     }, {
-      ^1:
-    }) : (i1) -> ()
+    ^1:
+    }) : () -> !test.type<"int">
   }, {
   ^2:
-  }) : (i1) -> ()
+  }) : () -> !test.type<"int">
 }) : () -> ()
 """
 
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    "scf.if"(%0) ({
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+    %2 = "test.op"() ({
     ^0:
     }, {
     ^1:
-    }) : (i1) -> ()
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    }) : () -> !test.type<"int">
+    %3 = "test.op"() : () -> !test.type<"int">
   }, {
   ^2:
-  }) : (i1) -> ()
+  }) : () -> !test.type<"int">
 }) : () -> ()
 """
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
-            first_op = op.true_region.blocks[0].first_op
+        def match_and_rewrite(self, matched_op: TestOp, rewriter: PatternRewriter):
+            if matched_op.regs and matched_op.regs[0].blocks:
+                first_op = matched_op.regs[0].blocks[0].first_op
 
-            if first_op is not None and isinstance(first_op, If):
-                inner_if_block = first_op.true_region.blocks[0]
-                rewriter.inline_block_after(inner_if_block, first_op)
+                if first_op is not None and isinstance(first_op, TestOp):
+                    if first_op.regs and first_op.regs[0].blocks:
+                        inner_if_block = first_op.regs[0].blocks[0]
+                        rewriter.inline_block_after(inner_if_block, first_op)
 
     rewrite_and_compare(
         prog,
