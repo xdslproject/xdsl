@@ -13,7 +13,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import Rewriter
 from xdsl.ir import Block, MLContext, Region, Operation, SSAValue
 from xdsl.irdl import Attribute
-from xdsl.dialects.builtin import FunctionType, i32, IntegerType
+from xdsl.dialects.builtin import FunctionType, i32, IntegerType, f64
 from xdsl.dialects.func import FuncOp, Call, Return
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects import memref, arith, scf, builtin, gpu, llvm
@@ -614,20 +614,46 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         func_arg_type = func_arg.typ.type
 
         func_arg_elem_type = func_arg.typ.type
+
+        stencil_type = LLVMStructType.from_type_list(
+            [
+                LLVMArrayType.from_size_and_type(
+                    3,
+                    LLVMArrayType.from_size_and_type(
+                        3, LLVMArrayType.from_size_and_type(3, f64)
+                    ),
+                )
+            ]
+        )
+
         struct_type = LLVMStructType.from_type_list([func_arg_elem_type])
+        struct_stencil_type = LLVMStructType.from_type_list([stencil_type])
 
         shape = field.typ.get_shape()
         shape_x = Constant.from_int_and_width(shape[0], i32)
         shape_y = Constant.from_int_and_width(shape[1], i32)
         shape_z = Constant.from_int_and_width(shape[2], i32)
         data_stream = HLSStream.get(struct_type)
+        stencil_stream = HLSStream.get(struct_stencil_type)
 
         threedload_call = Call.get(
             "load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
         )
 
+        shift_buffer_call = Call.get(
+            "shift_buffer", [data_stream, stencil_stream, shape_x, shape_y, shape_z], []
+        )
+
         rewriter.insert_op_before_matched_op(
-            [data_stream, shape_x, shape_y, shape_z, threedload_call]
+            [
+                data_stream,
+                stencil_stream,
+                shape_x,
+                shape_y,
+                shape_z,
+                threedload_call,
+                shift_buffer_call,
+            ]
         )
 
         if not self.set_load_data_declaration:
@@ -643,6 +669,18 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
                 [],
             )
             self.module.body.block.add_op(load_data_func)
+            shift_buffer_func = FuncOp.external(
+                "shift_buffer",
+                [
+                    LLVMPointerType.typed(data_stream.elem_type),
+                    LLVMPointerType.typed(stencil_stream.elem_type),
+                    i32,
+                    i32,
+                    i32,
+                ],
+                [],
+            )
+            self.module.body.block.add_op(shift_buffer_func)
 
             self.set_load_data_declaration = True
 
