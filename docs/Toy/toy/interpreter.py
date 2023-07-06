@@ -108,3 +108,9 @@ class ToyFunctions(InterpreterFunctions):
         result = ShapedArray(new_data, arg.shape[::-1])
 
         return (result,)
+
+    @impl(toy.CastOp)
+    def run_cast(
+        self, interpreter: Interpreter, op: toy.CastOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        return args

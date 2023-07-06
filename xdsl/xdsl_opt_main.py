@@ -3,6 +3,7 @@ import sys
 import os
 
 from io import StringIO
+from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
 from xdsl.frontend.symref import Symref
 
 from xdsl.ir import Dialect, MLContext
@@ -21,6 +22,7 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.gpu import GPU
+from xdsl.dialects.linalg import Linalg
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.test import Test
 from xdsl.dialects.stencil import Stencil
@@ -87,6 +89,7 @@ def get_all_dialects() -> list[Dialect]:
         Func,
         GPU,
         HLS,
+        Linalg,
         IRDL,
         LLVM,
         Math,
@@ -124,6 +127,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         PrintfToLLVM,
         ReplaceIncompatibleFPGA,
         RISCVRegisterAllocation,
+        RISCVLowerArith,
         StencilShapeInferencePass,
         StencilStorageMaterializationPass,
     ]
@@ -295,6 +299,13 @@ class xDSLOptMain:
             help="Print operations with the generic format",
         )
 
+        arg_parser.add_argument(
+            "--print-debuginfo",
+            default=False,
+            action="store_true",
+            help="Print operations with debug info annotation, such as location.",
+        )
+
     def register_all_dialects(self):
         """
         Register all dialects that can be used.
@@ -341,7 +352,9 @@ class xDSLOptMain:
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(
-                stream=output, print_generic_format=self.args.print_op_generic
+                stream=output,
+                print_generic_format=self.args.print_op_generic,
+                print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
             print("\n", file=output)

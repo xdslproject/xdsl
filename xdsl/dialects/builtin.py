@@ -62,7 +62,7 @@ from xdsl.traits import IsolatedFromAbove, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
 
 
@@ -77,6 +77,12 @@ class ShapedType(ABC):
 
     def element_count(self) -> int:
         return prod(self.get_shape())
+
+
+class AnyShapedType(AttrConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, ShapedType):
+            raise Exception(f"expected type ShapedType but got {attr}")
 
 
 _ContainerElementTypeT = TypeVar(
@@ -124,7 +130,7 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         super().__init__(tuple(param))
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> tuple[AttributeCovT]:
+    def parse_parameter(parser: AttrParser) -> tuple[AttributeCovT]:
         data = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_attribute
         )
@@ -171,7 +177,7 @@ class StringAttr(Data[str]):
     name = "string"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -220,7 +226,7 @@ class IntAttr(Data[int]):
     name = "int"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> int:
+    def parse_parameter(parser: AttrParser) -> int:
         data = parser.parse_integer()
         return data
 
@@ -243,7 +249,7 @@ class SignednessAttr(Data[Signedness]):
     name = "signedness"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> Signedness:
+    def parse_parameter(parser: AttrParser) -> Signedness:
         if parser.parse_optional_keyword("signless") is not None:
             return Signedness.SIGNLESS
         if parser.parse_optional_keyword("signed") is not None:
@@ -290,6 +296,16 @@ i1 = IntegerType(1)
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute):
     name = "unit"
+
+
+@irdl_attr_definition
+class LocationAttr(ParametrizedAttribute):
+    """
+    An attribute representing source code location.
+    Only supports unknown locations for now.
+    """
+
+    name = "loc"
 
 
 @irdl_attr_definition
@@ -404,7 +420,7 @@ class FloatData(Data[float]):
     name = "float_data"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> float:
+    def parse_parameter(parser: AttrParser) -> float:
         return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
@@ -469,7 +485,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
     name = "dictionary"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> dict[str, Attribute]:
+    def parse_parameter(parser: AttrParser) -> dict[str, Attribute]:
         return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -1061,12 +1077,16 @@ class AffineMapAttr(Data[AffineMap]):
     name = "affine_map"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> AffineMap:
+    def parse_parameter(parser: AttrParser) -> AffineMap:
         data = parser.parse_affine_map()
         return data
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
+
+    @staticmethod
+    def constant_map(value: int) -> AffineMapAttr:
+        return AffineMapAttr(AffineMap.constant_map(value))
 
 
 @irdl_op_definition
@@ -1273,6 +1293,7 @@ Builtin = Dialect(
         DenseResourceAttr,
         UnitAttr,
         FloatData,
+        LocationAttr,
         NoneAttr,
         OpaqueAttr,
         # Types
