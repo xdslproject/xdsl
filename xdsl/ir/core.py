@@ -1,6 +1,6 @@
 from __future__ import annotations
-import re
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
@@ -8,27 +8,28 @@ from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Generic,
     Iterable,
+    Iterator,
     Mapping,
     NoReturn,
     Protocol,
     Sequence,
     TypeVar,
     cast,
-    Iterator,
-    ClassVar,
     overload,
 )
+
+from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
-from xdsl.traits import OpTrait, OpTraitInvT, IsTerminator, NoTerminator
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
-    from xdsl.printer import Printer
     from xdsl.irdl import ParamAttrDef
+    from xdsl.parser import AttrParser, Parser
+    from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
 
@@ -424,7 +425,7 @@ class Data(Generic[DataElement], Attribute, ABC):
 
     @staticmethod
     @abstractmethod
-    def parse_parameter(parser: Parser) -> DataElement:
+    def parse_parameter(parser: AttrParser) -> DataElement:
         """Parse the attribute parameter."""
 
     @abstractmethod
@@ -460,7 +461,7 @@ class ParametrizedAttribute(Attribute):
         return attr
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 

@@ -2,8 +2,8 @@ from contextlib import redirect_stdout
 from io import StringIO
 
 import pytest
-from xdsl.dialects import builtin
 
+from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import DiagnosticException

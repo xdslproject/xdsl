@@ -1,24 +1,25 @@
 from __future__ import annotations
+
 from typing import Union
 
 from xdsl.dialects.builtin import Float32Type, Float64Type
 from xdsl.ir import (
-    TypeAttribute,
-    ParametrizedAttribute,
-    Operation,
     Dialect,
+    Operation,
     OpResult,
+    ParametrizedAttribute,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
-    irdl_op_definition,
-    irdl_attr_definition,
-    Operand,
-    ParameterDef,
-    ParamAttrConstraint,
     AnyOf,
-    VerifyException,
     IRDLOperation,
+    Operand,
+    ParamAttrConstraint,
+    ParameterDef,
+    VerifyException,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     result_def,
 )

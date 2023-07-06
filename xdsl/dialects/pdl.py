@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Annotated, Generic, Iterable, Sequence, TypeVar
 
-from xdsl.traits import HasParent, IsTerminator, NoTerminator
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
     ArrayAttr,
@@ -15,35 +14,36 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    TypeAttribute,
     OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    IRDLOperation,
     Operand,
     OptOperand,
     OptRegion,
     ParameterDef,
+    VarOperand,
+    VarOpResult,
     attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_operand_def,
     opt_region_def,
     region_def,
+    result_def,
     var_operand_def,
     var_result_def,
-    VarOperand,
-    VarOpResult,
-    irdl_attr_definition,
-    irdl_op_definition,
-    IRDLOperation,
-    result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.traits import HasParent, IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 

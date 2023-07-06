@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import operator
 from itertools import accumulate, product
 from math import prod
-import operator
 from typing import Generic, Iterable, TypeAlias, TypeVar
+
 from attr import dataclass
 
 _T = TypeVar("_T")

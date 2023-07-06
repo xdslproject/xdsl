@@ -1,17 +1,18 @@
 from abc import ABC
+from typing import Annotated, Generic, TypeVar
+
+from xdsl.dialects.builtin import IndexType, i32, i64
+from xdsl.ir import Attribute, Dialect, OpResult
 from xdsl.irdl import (
-    irdl_op_definition,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     Operation,
     SSAValue,
+    irdl_op_definition,
     operand_def,
     result_def,
-    ConstraintVar,
 )
-from xdsl.ir import OpResult, Dialect, Attribute
-from xdsl.dialects.builtin import i32, i64, IndexType
-from typing import Generic, TypeVar, Annotated
 
 # Transfer ID
 tx_id = i32

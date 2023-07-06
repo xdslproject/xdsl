@@ -1,38 +1,28 @@
 from dataclasses import dataclass, field
-from typing import TypeVar, Iterable, Callable, cast, ClassVar
+from typing import Callable, ClassVar, Iterable, TypeVar, cast
 
+from xdsl.dialects import arith, builtin, func, memref, mpi, scf, stencil
+from xdsl.dialects.experimental import dmp
+from xdsl.ir import Block, MLContext, Operation, OpResult, Region, SSAValue
+from xdsl.irdl import Attribute
 from xdsl.passes import ModulePass
-
-from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
-    GreedyRewritePatternApplier,
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import Rewriter
-from xdsl.ir import (
-    MLContext,
-    Operation,
-    SSAValue,
-    Block,
-    Region,
-    OpResult,
+from xdsl.transforms.experimental.dmp.decompositions import (
+    DomainDecompositionStrategy,
+    GridSlice2d,
+    HorizontalSlices2D,
 )
-from xdsl.irdl import Attribute
-from xdsl.dialects import builtin, mpi, memref, arith, scf, func, stencil
-from xdsl.dialects.experimental import dmp
-
 from xdsl.transforms.experimental.stencil_shape_inference import (
     StencilShapeInferencePass,
 )
-
-from xdsl.transforms.experimental.dmp.decompositions import (
-    DomainDecompositionStrategy,
-    HorizontalSlices2D,
-    GridSlice2d,
-)
+from xdsl.utils.hints import isa
 
 _T = TypeVar("_T", bound=Attribute)
 

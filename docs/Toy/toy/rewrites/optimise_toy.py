@@ -1,19 +1,19 @@
 from typing import cast
 
-from xdsl.ir import MLContext, OpResult
 from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
     ArrayAttr,
+    DenseIntOrFPElementsAttr,
     Float64Type,
     FloatAttr,
     ModuleOp,
 )
+from xdsl.ir import MLContext, OpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    PatternRewriteWalker,
-    op_type_rewrite_pattern,
-    RewritePattern,
     PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
 from xdsl.transforms.dead_code_elimination import dce
 from xdsl.utils.hints import isa

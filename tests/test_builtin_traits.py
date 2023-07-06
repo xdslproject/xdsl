@@ -3,30 +3,30 @@ Test the usage of builtin traits.
 """
 
 import pytest
-from xdsl.dialects import arith, builtin
 
+from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.test import TestOp
+from xdsl.ir import Block, Region
 from xdsl.irdl import (
-    IRDLOperation,
     AttrSizedRegionSegments,
+    IRDLOperation,
+    OptRegion,
     OptSuccessor,
     irdl_op_definition,
+    opt_region_def,
     opt_successor_def,
     region_def,
-    OptRegion,
-    opt_region_def,
 )
-from xdsl.ir import Region, Block
 from xdsl.traits import (
     HasParent,
+    IsolatedFromAbove,
     IsTerminator,
     NoTerminator,
     SingleBlockImplicitTerminator,
     ensure_terminator,
-    IsolatedFromAbove,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.dialects.test import TestOp
 
 
 @irdl_op_definition

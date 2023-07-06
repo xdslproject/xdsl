@@ -1,4 +1,5 @@
 from typing import cast
+
 from xdsl.interpreters.shaped_array import ShapedArray
 
 

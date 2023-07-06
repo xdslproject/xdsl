@@ -1,15 +1,15 @@
-from xdsl.dialects import mpi, func, llvm, builtin, arith
-from xdsl.ir import Operation, Attribute, OpResult
+from xdsl.dialects import arith, builtin, func, llvm, mpi
+from xdsl.dialects.builtin import i32, i64
+from xdsl.ir import Attribute, Operation, OpResult
 from xdsl.irdl import (
+    IRDLOperation,
+    Operand,
     VarOpResult,
     irdl_op_definition,
     var_result_def,
-    IRDLOperation,
-    Operand,
 )
-from xdsl.transforms import lower_mpi
 from xdsl.pattern_rewriter import PatternRewriteWalker
-from xdsl.dialects.builtin import i32, i64
+from xdsl.transforms import lower_mpi
 
 info = lower_mpi.MpiLibraryInfo()
 
@@ -466,7 +466,7 @@ def test_mpi_type_conversion():
 
     lowering = lower_mpi.LowerMpiRecv(info)
 
-    from xdsl.dialects.builtin import f64, f32, IntegerType, i32, i64, Signedness
+    from xdsl.dialects.builtin import IntegerType, Signedness, f32, f64, i32, i64
 
     u64 = IntegerType(64, Signedness.UNSIGNED)
     u32 = IntegerType(32, Signedness.UNSIGNED)
