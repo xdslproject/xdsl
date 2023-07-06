@@ -406,25 +406,6 @@ class FuncOpLowering(RewritePattern):
         rewriter.replace_matched_op(new_op)
 
 
-# //===----------------------------------------------------------------------===//
-# // ToyToAffine RewritePatterns: Print operations
-# //===----------------------------------------------------------------------===//
-
-# struct PrintOpLowering : public OpConversionPattern<toy::PrintOp> {
-#   using OpConversionPattern<toy::PrintOp>::OpConversionPattern;
-
-#   LogicalResult
-#   matchAndRewrite(toy::PrintOp op, OpAdaptor adaptor,
-#                   ConversionPatternRewriter &rewriter) const final {
-#     // We don't lower "toy.print" in this pass, but we need to update its
-#     // operands.
-#     rewriter.updateRootInPlace(op,
-#                                [&] { op->setOperands(adaptor.getOperands()); });
-#     return success();
-#   }
-# };
-
-
 class PrintOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.PrintOp, rewriter: PatternRewriter):
