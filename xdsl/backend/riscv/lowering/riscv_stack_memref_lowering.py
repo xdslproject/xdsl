@@ -101,7 +101,7 @@ class LowerMemrefStore(RewritePattern):
 
 class LowerMemrefLoad(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter) -> None:
         mem, *indices = cast_values_to_registers(op.operands, rewriter)
 
         assert isinstance(op.memref.typ, memref.MemRefType)
@@ -121,7 +121,6 @@ class LowerMemrefLoad(RewritePattern):
                 ),
                 UnrealizedConversionCastOp.get(lw.results, (memref_typ.element_type,)),
             ],
-            [],
         )
 
 

@@ -42,6 +42,7 @@ from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.experimental.stencil_storage_materialization import (
     StencilStorageMaterializationPass,
 )
+from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCasts
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_mpi import LowerMPIPass
@@ -118,6 +119,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         RISCVLowerArith,
         StencilShapeInferencePass,
         StencilStorageMaterializationPass,
+        ReconcileUnrealizedCasts,
     ]
 
 
