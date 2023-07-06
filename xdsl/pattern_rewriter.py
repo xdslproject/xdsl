@@ -4,18 +4,10 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import UnionType
-from typing import (
-    Callable,
-    TypeVar,
-    Union,
-    get_args,
-    get_origin,
-    Iterable,
-    Sequence,
-)
+from typing import Callable, Iterable, Sequence, TypeVar, Union, get_args, get_origin
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, Region, Block, BlockArgument, Attribute, SSAValue
+from xdsl.ir import Attribute, Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.rewriter import Rewriter
 
 
@@ -154,7 +146,7 @@ class PatternRewriter:
         """
         self.has_done_action = True
         if op == self.current_operation:
-            return self.erase_matched_op()
+            return self.erase_matched_op(safe_erase)
         if not self._can_modify_op(op):
             raise Exception(
                 "PatternRewriter can only erase operations that are the matched operation"
