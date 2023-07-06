@@ -133,6 +133,7 @@ def test_replace_op_new_results():
 
 def test_inline_block_at_end():
     """Test the inlining of a block at end."""
+
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
@@ -166,22 +167,23 @@ def test_inline_block_at_end():
 
 def test_inline_block_before():
     """Test the inlining of a block before an operation."""
+
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  }) : (i1) -> ()
+  %0 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
+    %1 = "test.op"() : () -> !test.type<"int">
+  }) : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  "scf.if"(%0) ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
   ^0:
-  }) : (i1) -> ()
+  }) : () -> ()
 }) : () -> ()
 """
 
@@ -198,22 +200,23 @@ def test_inline_block_before():
 
 def test_inline_block_after():
     """Test the inlining of a block after an operation."""
+
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  }) : (i1) -> ()
+  %0 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
+    %1 = "test.op"() : () -> !test.type<"int">
+  }) : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  "scf.if"(%0) ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
   ^0:
-  }) : (i1) -> ()
+  }) : () -> ()
 }) : () -> ()
 """
 
