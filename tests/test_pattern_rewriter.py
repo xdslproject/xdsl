@@ -688,35 +688,6 @@ def test_inline_block_before_matched_op():
 def test_inline_block_before():
     """Test the inlining of a block before an operation."""
 
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    "scf.if"(%0) ({
-      %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-    }, {
-    ^1:
-    }) : (i1) -> ()
-  }, {
-  ^2:
-  }) : (i1) -> ()
-}) : () -> ()
-"""
-
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-    "scf.if"(%0) ({
-    ^0:
-    }, {
-    ^1:
-    }) : (i1) -> ()
-  }, {
-  ^2:
-  }) : (i1) -> ()
-}) : () -> ()
-"""
-
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
@@ -768,31 +739,35 @@ def test_inline_block_before():
 def test_inline_block_at_before_when_op_is_matched_op():
     """Test the inlining of a block before an operation, being the matched one."""
 
-    prog = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+  ^0:
+    %2 = "test.op"() : () -> !test.type<"int">
   }, {
   ^1:
-  }) : (i1) -> ()
+  }) : () -> !test.type<"int">
 }) : () -> ()
 """
 
-    expected = """"builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  "scf.if"(%0) ({
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() : () -> !test.type<"int">
+  %2 = "test.op"() ({
   ^0:
   }, {
   ^1:
-  }) : (i1) -> ()
+  }) : () -> !test.type<"int">
 }) : () -> ()
 """
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, op: If, rewriter: PatternRewriter):
-            rewriter.inline_block_before(op.true_region.blocks[0], op)
+        def match_and_rewrite(self, matched_op: TestOp, rewriter: PatternRewriter):
+            if matched_op.regs and matched_op.regs[0].blocks:
+                rewriter.inline_block_before(matched_op.regs[0].blocks[0], matched_op)
 
     rewrite_and_compare(
         prog,
