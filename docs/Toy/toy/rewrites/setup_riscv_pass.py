@@ -2,8 +2,13 @@ from collections import Counter
 from dataclasses import dataclass, field
 from xdsl.dialects import riscv, riscv_func
 
-from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
-from xdsl.ir.core import Block, MLContext, Operation, Region
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.ir.core import (
+    Block,
+    MLContext,
+    Operation,
+    Region,
+)
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
@@ -97,23 +102,8 @@ class ChangeBlockArgumentTypes(RewritePattern):
                     )
 
 
-class RemoveCasts(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: UnrealizedConversionCastOp, rewriter: PatternRewriter
-    ):
-        """
-        Remove casts from code.
-        """
-        # Technically should do this by folding the casts, and removing the ones that cast
-        # from register to register. Hopefully this will work ok for the time being
-
-        rewriter.replace_matched_op([], op.operands)
-
-
 class FinalizeRiscvPass(ModulePass):
     name = "finalize-lowering-to-riscv"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(ChangeBlockArgumentTypes()).rewrite_module(op)
-        PatternRewriteWalker(RemoveCasts()).rewrite_module(op)

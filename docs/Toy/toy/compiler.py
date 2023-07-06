@@ -35,6 +35,7 @@ from .rewrites.lower_scf_riscv import LowerScfRiscvPass
 from .rewrites.lower_arith_riscv import LowerArithRiscvPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_func_riscv_func import LowerFuncToRiscvFunc
+from .rewrites.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 
 from .emulator.toy_accelerator_instructions import ToyAccelerator
 
@@ -135,6 +136,7 @@ def transform(
     LowerPrintfRiscvPass().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
     FinalizeRiscvPass().apply(ctx, module_op)
+    ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 
     DeadCodeElimination().apply(ctx, module_op)
 
