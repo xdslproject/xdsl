@@ -91,14 +91,6 @@ class If(IRDLOperation):
 
     traits = frozenset([SingleBlockImplicitTerminator(Yield)])
 
-    def __post_init__(self):
-        # ensure a yield terminator only if there are no produced results
-        if len(self.output) == 0:
-            for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
-                ensure_terminator(self, trait)
-
-        super().__post_init__()
-
     @staticmethod
     def get(
         cond: SSAValue | Operation,
@@ -109,11 +101,18 @@ class If(IRDLOperation):
         if false_region is None:
             false_region = Region()
 
-        return If.build(
+        if_op = If.build(
             operands=[cond],
             result_types=[return_types],
             regions=[true_region, false_region],
         )
+
+        # ensure a yield terminator only if there are no produced results
+        if len(if_op.output) == 0:
+            for trait in if_op.get_traits_of_type(SingleBlockImplicitTerminator):
+                ensure_terminator(if_op, trait)
+
+        return if_op
 
 
 @irdl_op_definition
@@ -131,14 +130,6 @@ class For(IRDLOperation):
     body: Region = region_def("single_block")
 
     traits = frozenset([SingleBlockImplicitTerminator(Yield)])
-
-    def __post_init__(self):
-        # ensure a yield terminator only if there are no loop-carried variables
-        if len(self.iter_args) == 0:
-            for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
-                ensure_terminator(self, trait)
-
-        super().__post_init__()
 
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.block.args):
@@ -184,12 +175,19 @@ class For(IRDLOperation):
     ) -> For:
         if isinstance(body, Block):
             body = [body]
-        op = For.build(
+
+        for_op = For.build(
             operands=[lb, ub, step, iter_args],
             result_types=[[SSAValue.get(a).typ for a in iter_args]],
             regions=[body],
         )
-        return op
+
+        # ensure a yield terminator only if there are no loop-carried variables
+        if len(for_op.iter_args) == 0:
+            for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):
+                ensure_terminator(for_op, trait)
+
+        return for_op
 
 
 @irdl_op_definition
@@ -215,17 +213,16 @@ class ParallelOp(IRDLOperation):
         body: Region | Sequence[Block] | Sequence[Operation],
         initVals: Sequence[SSAValue | Operation] = [],
     ) -> ParallelOp:
-        return ParallelOp.build(
+        parallel_op = ParallelOp.build(
             operands=[lowerBounds, upperBounds, steps, initVals],
             regions=[body],
             result_types=[[SSAValue.get(a).typ for a in initVals]],
         )
 
-    def __post_init__(self):
-        for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
-            ensure_terminator(self, trait)
+        for trait in parallel_op.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(parallel_op, trait)
 
-        super().__post_init__()
+        return parallel_op
 
     def verify_(self) -> None:
         # This verifies the scf.parallel operation, as can be seen it's fairly complex

@@ -369,9 +369,8 @@ class ModuleOp(IRDLOperation):
     )
 
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
-        return super().__init__(attributes={"sym_name": name}, regions=[ops])
+        super().__init__(attributes={"sym_name": name}, regions=[ops])
 
-    def __post_init__(self):
         for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
             ensure_terminator(self, trait)
 
