@@ -150,8 +150,8 @@ class AllocOp(IRDLOperation):
 
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
-        assert isinstance(self.result.typ, memref.MemRefType)
-        typ: memref.MemRefType[Attribute] = self.result.typ
+        assert isinstance(self.result.type, memref.MemRefType)
+        typ: memref.MemRefType[Attribute] = self.result.type
         ndyn_typ = len([i for i in typ.shape.data if i.value.data == -1])
         if ndyn != ndyn_typ:
             raise VerifyException(
@@ -203,7 +203,7 @@ class AllReduceOp(IRDLOperation):
     ):
         return AllReduceOp.build(
             operands=[operand],
-            result_types=[SSAValue.get(operand).typ],
+            result_types=[SSAValue.get(operand).type],
             attributes={
                 "op": op,
                 "uniform": uniform,
@@ -217,16 +217,16 @@ class AllReduceOp(IRDLOperation):
     ):
         return AllReduceOp.build(
             operands=[operand],
-            result_types=[SSAValue.get(operand).typ],
+            result_types=[SSAValue.get(operand).type],
             attributes={"uniform": uniform} if uniform is not None else {},
             regions=[body],
         )
 
     def verify_(self) -> None:
-        if self.result.typ != self.operand.typ:
+        if self.result.type != self.operand.type:
             raise VerifyException(
-                f"Type mismatch: result type is {self.result.typ}, operand type is "
-                f"{self.operand.typ}. They must be the same type for gpu.all_reduce"
+                f"Type mismatch: result type is {self.result.type}, operand type is "
+                f"{self.operand.type}. They must be the same type for gpu.all_reduce"
             )
 
         non_empty_body = any(b.ops for b in self.body.blocks)
@@ -243,10 +243,10 @@ class AllReduceOp(IRDLOperation):
                 )
         if non_empty_body:
             region_args = self.body.blocks[0].args
-            args_types = [r.typ for r in region_args]
-            if args_types != [self.result.typ, self.operand.typ]:
+            args_types = [r.type for r in region_args]
+            if args_types != [self.result.type, self.operand.type]:
                 raise VerifyException(
-                    f"Expected {[str(t) for t in [self.result.typ, self.operand.typ]]}, "
+                    f"Expected {[str(t) for t in [self.result.type, self.operand.type]]}, "
                     f"got {[str(t) for t in args_types]}. A gpu.all_reduce's body must "
                     "have two arguments matching the result type."
                 )
@@ -332,9 +332,9 @@ class MemcpyOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if self.src.typ != self.dst.typ:
+        if self.src.type != self.dst.type:
             raise VerifyException(
-                f"Expected {self.src.typ}, got {self.dst.typ}. gpu.memcpy source and "
+                f"Expected {self.src.type}, got {self.dst.type}. gpu.memcpy source and "
                 "destination types must match."
             )
 
@@ -368,7 +368,7 @@ class FuncOp(IRDLOperation):
     def verify_(self):
         entry_block: Block = self.body.blocks[0]
         function_inputs = self.function_type.inputs.data
-        block_arg_types = tuple(a.typ for a in entry_block.args)
+        block_arg_types = tuple(a.type for a in entry_block.args)
         if function_inputs != block_arg_types:
             raise VerifyException(
                 "Expected first entry block arguments to have the same types as the "
@@ -496,7 +496,7 @@ class LaunchOp(IRDLOperation):
         if not any(b.ops for b in self.body.blocks):
             raise VerifyException("gpu.launch requires a non-empty body.")
         body_args = self.body.blocks[0].args
-        args_type = [a.typ for a in body_args]
+        args_type = [a.type for a in body_args]
         if args_type != [IndexType()] * 12:
             raise VerifyException(
                 f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}. "
@@ -674,8 +674,8 @@ class YieldOp(IRDLOperation):
     def verify_(self) -> None:
         op = self.parent_op()
         if op is not None:
-            yield_type = [o.typ for o in self.values]
-            result_type = [r.typ for r in op.results]
+            yield_type = [o.type for o in self.values]
+            result_type = [r.type for r in op.results]
             if yield_type != result_type:
                 raise VerifyException(
                     f"Expected {[str(t) for t in result_type]}, got {[str(t) for t in yield_type]}. The gpu.yield values "

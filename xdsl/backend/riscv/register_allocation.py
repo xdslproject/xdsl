@@ -57,26 +57,26 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                         continue
 
                     for result in op.results:
-                        if isinstance(result.typ, RegisterType):
-                            if result.typ.data.name is None:
+                        if isinstance(result.type, RegisterType):
+                            if result.type.data.name is None:
                                 # If we run out of real registers, allocate a j register
                                 if not integer_block_registers:
-                                    result.typ = RegisterType(Register(f"j{self.idx}"))
+                                    result.type = RegisterType(Register(f"j{self.idx}"))
                                     self.idx += 1
                                 else:
-                                    result.typ = RegisterType(
+                                    result.type = RegisterType(
                                         Register(integer_block_registers.pop())
                                     )
-                        elif isinstance(result.typ, FloatRegisterType):
-                            if result.typ.data.name is None:
+                        elif isinstance(result.type, FloatRegisterType):
+                            if result.type.data.name is None:
                                 # If we run out of real registers, allocate a j register
                                 if not floating_block_registers:
-                                    result.typ = FloatRegisterType(
+                                    result.type = FloatRegisterType(
                                         Register(f"j{self.idx}")
                                     )
                                     self.idx += 1
                                 else:
-                                    result.typ = FloatRegisterType(
+                                    result.type = FloatRegisterType(
                                         Register(floating_block_registers.pop())
                                     )
 
@@ -97,11 +97,11 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                 continue
 
             for result in op.results:
-                if isinstance(result.typ, RegisterType):
-                    if result.typ.data.name is None:
-                        result.typ = RegisterType(Register(f"j{self.idx}"))
+                if isinstance(result.type, RegisterType):
+                    if result.type.data.name is None:
+                        result.type = RegisterType(Register(f"j{self.idx}"))
                         self.idx += 1
-                elif isinstance(result.typ, FloatRegisterType):
-                    if result.typ.data.name is None:
-                        result.typ = FloatRegisterType(Register(f"j{self.idx}"))
+                elif isinstance(result.type, FloatRegisterType):
+                    if result.type.data.name is None:
+                        result.type = FloatRegisterType(Register(f"j{self.idx}"))
                         self.idx += 1

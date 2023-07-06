@@ -183,7 +183,7 @@ class IRGen:
                 return_op = last_op
                 if return_op.input is not None:
                     return_arg = return_op.input
-                    return_types = [return_arg.typ]
+                    return_types = [return_arg.type]
         if return_op is None:
             self.builder.insert(ReturnOp())
 

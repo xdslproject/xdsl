@@ -26,18 +26,18 @@ def test_llvm_pointer_ops():
 
     assert len(alloc_ptr.res.uses) == 1
     assert ptr.size is idx.result
-    assert isinstance(ptr.res.typ, llvm.LLVMPointerType)
-    assert ptr.res.typ.type == builtin.i32
-    assert isinstance(ptr.res.typ.addr_space, builtin.NoneAttr)
+    assert isinstance(ptr.res.type, llvm.LLVMPointerType)
+    assert ptr.res.type.type == builtin.i32
+    assert isinstance(ptr.res.type.addr_space, builtin.NoneAttr)
 
     assert "volatile_" in store.attributes
     assert "nontemporal" in store.attributes
     assert "alignment" in store.attributes
     assert "ordering" in store.attributes
 
-    assert isinstance(nullptr.nullptr.typ, llvm.LLVMPointerType)
-    assert isinstance(nullptr.nullptr.typ.type, builtin.NoneAttr)
-    assert isinstance(nullptr.nullptr.typ.addr_space, builtin.NoneAttr)
+    assert isinstance(nullptr.nullptr.type, llvm.LLVMPointerType)
+    assert isinstance(nullptr.nullptr.type.type, builtin.NoneAttr)
+    assert isinstance(nullptr.nullptr.type.addr_space, builtin.NoneAttr)
 
 
 def test_llvm_ptr_to_int_to_ptr():
@@ -46,11 +46,11 @@ def test_llvm_ptr_to_int_to_ptr():
     int_val = llvm.PtrToIntOp.get(ptr)
 
     assert ptr.input == idx.result
-    assert isinstance(ptr.output.typ, llvm.LLVMPointerType)
-    assert ptr.output.typ.type == builtin.i32
+    assert isinstance(ptr.output.type, llvm.LLVMPointerType)
+    assert ptr.output.type.type == builtin.i32
     assert int_val.input == ptr.output
-    assert isinstance(int_val.output.typ, builtin.IntegerType)
-    assert int_val.output.typ.width.data == 64
+    assert isinstance(int_val.output.type, builtin.IntegerType)
+    assert int_val.output.type.width.data == 64
 
 
 def test_llvm_pointer_type():
@@ -89,7 +89,7 @@ def test_llvm_getelementptr_op_invalid_construction():
 def test_llvm_getelementptr_op():
     size = arith.Constant.from_int_and_width(1, 32)
     ptr = llvm.AllocaOp.get(size, builtin.i32)
-    ptr_typ = llvm.LLVMPointerType.typed(ptr.res.typ)
+    ptr_typ = llvm.LLVMPointerType.typed(ptr.res.type)
     opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
 
     # check that construction with static-only offsets and inbounds attr works:
@@ -101,7 +101,7 @@ def test_llvm_getelementptr_op():
     )
 
     assert "inbounds" in gep1.attributes
-    assert gep1.result.typ == ptr_typ
+    assert gep1.result.type == ptr_typ
     assert gep1.ptr == ptr.res
     assert "elem_type" not in gep1.attributes
     assert len(gep1.rawConstantIndices.data) == 1
@@ -117,7 +117,7 @@ def test_llvm_getelementptr_op():
 
     assert "elem_type" in gep2.attributes
     assert "inbounds" not in gep2.attributes
-    assert gep2.result.typ == ptr_typ
+    assert gep2.result.type == ptr_typ
     assert len(gep1.rawConstantIndices.data) == 1
     assert len(gep1.ssa_indices) == 0
 
@@ -183,7 +183,7 @@ def test_addressof_op():
 
     assert isinstance(address_of.global_name, builtin.SymbolRefAttr)
     assert address_of.global_name.root_reference.data == "test"
-    assert address_of.result.typ == ptr_type
+    assert address_of.result.type == ptr_type
 
 
 def test_implicit_void_func_return():

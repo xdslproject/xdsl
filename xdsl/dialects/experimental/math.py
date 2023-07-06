@@ -41,7 +41,7 @@ class AbsFOp(IRDLOperation):
         return AbsFOp.build(
             attributes={"fastmath": fastmath},
             operands=[operand],
-            result_types=[operand.typ],
+            result_types=[operand.type],
         )
 
 
@@ -65,7 +65,7 @@ class AbsIOp(IRDLOperation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue]) -> AbsIOp:
         operand = SSAValue.get(operand)
-        return AbsIOp.build(operands=[operand], result_types=[operand.typ])
+        return AbsIOp.build(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -108,7 +108,7 @@ class Atan2Op(IRDLOperation):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
         return Atan2Op.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
         )
 
 
@@ -141,7 +141,7 @@ class AtanOp(IRDLOperation):
         return AtanOp.build(
             attributes={"fastmath": fastmath},
             operands=[operand],
-            result_types=[operand.typ],
+            result_types=[operand.type],
         )
 
 
@@ -173,7 +173,7 @@ class CbrtOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return CbrtOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -206,7 +206,7 @@ class CeilOp(IRDLOperation):
         return CeilOp.build(
             attributes={"fastmath": fastmath},
             operands=[operand],
-            result_types=[operand.typ],
+            result_types=[operand.type],
         )
 
 
@@ -244,7 +244,7 @@ class CopySignOp(IRDLOperation):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
         return CopySignOp.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
         )
 
 
@@ -277,7 +277,7 @@ class CosOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return CosOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -300,7 +300,9 @@ class CountLeadingZerosOp(IRDLOperation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue]) -> CountLeadingZerosOp:
         operand = SSAValue.get(operand)
-        return CountLeadingZerosOp.build(operands=[operand], result_types=[operand.typ])
+        return CountLeadingZerosOp.build(
+            operands=[operand], result_types=[operand.type]
+        )
 
 
 @irdl_op_definition
@@ -323,7 +325,7 @@ class CountTrailingZerosOp(IRDLOperation):
     def get(operand: Union[Operation, SSAValue]) -> CountTrailingZerosOp:
         operand = SSAValue.get(operand)
         return CountTrailingZerosOp.build(
-            operands=[operand], result_types=[operand.typ]
+            operands=[operand], result_types=[operand.type]
         )
 
 
@@ -346,7 +348,7 @@ class CtPopOp(IRDLOperation):
     @staticmethod
     def get(operand: Union[Operation, SSAValue]) -> CtPopOp:
         operand = SSAValue.get(operand)
-        return CtPopOp.build(operands=[operand], result_types=[operand.typ])
+        return CtPopOp.build(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -378,7 +380,7 @@ class ErfOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return ErfOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -411,7 +413,7 @@ class Exp2Op(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return Exp2Op.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -446,7 +448,7 @@ class ExpM1Op(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return ExpM1Op.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -479,7 +481,7 @@ class ExpOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return ExpOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -524,7 +526,7 @@ class FPowIOp(IRDLOperation):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
         return FPowIOp.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
         )
 
 
@@ -557,7 +559,7 @@ class FloorOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return FloorOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -602,7 +604,7 @@ class FmaOp(IRDLOperation):
         b = SSAValue.get(b)
         c = SSAValue.get(c)
         return FmaOp.build(
-            attributes=attributes, operands=[a, b, c], result_types=[a.typ]
+            attributes=attributes, operands=[a, b, c], result_types=[a.type]
         )
 
 
@@ -632,7 +634,7 @@ class IPowIOp(IRDLOperation):
     ) -> IPowIOp:
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
-        return IPowIOp.build(operands=[lhs, rhs], result_types=[lhs.typ])
+        return IPowIOp.build(operands=[lhs, rhs], result_types=[lhs.type])
 
 
 @irdl_op_definition
@@ -661,7 +663,7 @@ class Log10Op(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return Log10Op.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -693,7 +695,7 @@ class Log1pOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return Log1pOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -723,7 +725,7 @@ class Log2Op(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return Log2Op.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -753,7 +755,7 @@ class LogOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return LogOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -790,7 +792,7 @@ class PowFOp(IRDLOperation):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
         return PowFOp.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
         )
 
 
@@ -826,7 +828,7 @@ class RoundEvenOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return RoundEvenOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -862,7 +864,7 @@ class RoundOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return RoundOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -891,7 +893,7 @@ class RsqrtOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return RsqrtOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -924,7 +926,7 @@ class SinOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return SinOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -953,7 +955,7 @@ class SqrtOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return SqrtOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -983,7 +985,7 @@ class TanOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return TanOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -1013,7 +1015,7 @@ class TanhOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return TanhOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -1048,7 +1050,7 @@ class TruncOp(IRDLOperation):
 
         operand = SSAValue.get(operand)
         return TruncOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 

@@ -399,11 +399,11 @@ def _assembly_line(
         elif isinstance(arg, FloatRegisterType):
             arg_strs.append(arg.register_name)
         else:
-            if isinstance(arg.typ, RegisterType):
-                reg = arg.typ.register_name
+            if isinstance(arg.type, RegisterType):
+                reg = arg.type.register_name
                 arg_strs.append(reg)
-            elif isinstance(arg.typ, FloatRegisterType):
-                reg = arg.typ.register_name
+            elif isinstance(arg.type, FloatRegisterType):
+                reg = arg.type.register_name
                 arg_strs.append(reg)
 
     code = "    " if is_indented else ""
@@ -873,12 +873,12 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.writeonly:
             return
-        if not isinstance(self.rd.typ, RegisterType):
+        if not isinstance(self.rd.type, RegisterType):
             return
-        if self.rd.typ.data.name is not None and self.rd.typ.data.name != "zero":
+        if self.rd.type.data.name is not None and self.rd.type.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.typ.data.name}'"
+                f"not '{self.rd.type.data.name}'"
             )
 
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
@@ -931,12 +931,12 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.readonly:
             return
-        if not isinstance(self.rs1.typ, RegisterType):
+        if not isinstance(self.rs1.type, RegisterType):
             return
-        if self.rs1.typ.data.name is not None and self.rs1.typ.data.name != "zero":
+        if self.rs1.type.data.name is not None and self.rs1.type.data.name != "zero":
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.typ.data.name}'"
+                f"not '{self.rs1.type.data.name}'"
             )
 
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
@@ -987,12 +987,12 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if self.writeonly is None:
             return
-        if not isinstance(self.rd.typ, RegisterType):
+        if not isinstance(self.rd.type, RegisterType):
             return
-        if self.rd.typ.data.name is not None and self.rd.typ.data.name != "zero":
+        if self.rd.type.data.name is not None and self.rd.type.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.typ.data.name}'"
+                f"not '{self.rd.type.data.name}'"
             )
 
     def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
