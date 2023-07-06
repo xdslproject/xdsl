@@ -1,4 +1,4 @@
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir.core import Attribute, MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -25,8 +25,11 @@ class LowerPrintOp(RewritePattern):
             [
                 rows := riscv.LiOp(shape[0]),
                 cols := riscv.LiOp(shape[1]),
+                input := UnrealizedConversionCastOp.get(
+                    (param,), (riscv.RegisterType(riscv.Register()),)
+                ),
                 riscv.CustomAssemblyInstructionOp(
-                    "tensor.print2d", (param, rows.rd, cols.rd), ()
+                    "tensor.print2d", (input.results[0], rows.rd, cols.rd), ()
                 ),
             ]
         )
