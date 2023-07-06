@@ -1,31 +1,32 @@
 from __future__ import annotations
 
+from enum import Enum
+from typing import Sequence
+
 from xdsl.dialects.builtin import (
-    ArrayAttr,
     AffineMapAttr,
-    StringAttr,
     AnyShapedType,
     AnyTensorType,
+    ArrayAttr,
+    StringAttr,
 )
-from xdsl.ir import Dialect, Attribute, Region, SSAValue, Data, Operation
+from xdsl.ir import Attribute, Data, Dialect, Operation, Region, SSAValue
+from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    IRDLOperation,
+    VarOperand,
+    VarOpResult,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
+    opt_attr_def,
+    region_def,
+    var_operand_def,
+    var_result_def,
+)
 from xdsl.parser.attribute_parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
-from xdsl.irdl import (
-    irdl_op_definition,
-    irdl_attr_definition,
-    IRDLOperation,
-    VarOperand,
-    var_operand_def,
-    var_result_def,
-    VarOpResult,
-    region_def,
-    attr_def,
-    AttrSizedOperandSegments,
-    opt_attr_def,
-)
-from typing import Sequence
-from enum import Enum
 
 
 class IteratorType(Enum):

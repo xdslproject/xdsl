@@ -4,33 +4,23 @@ import itertools
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Iterable,
-    cast,
-    Sequence,
-)
-from xdsl.parser.base_parser import ParserState
+from typing import Any, Iterable, Sequence, cast
 
+from xdsl.dialects.builtin import DictionaryAttr, ModuleOp, UnregisteredAttr
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Data,
+    MLContext,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+)
+from xdsl.parser.attribute_parser import AttrParser
+from xdsl.parser.base_parser import ParserState
 from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, Token
-from xdsl.dialects.builtin import (
-    DictionaryAttr,
-    UnregisteredAttr,
-    ModuleOp,
-)
-from xdsl.ir import (
-    SSAValue,
-    Block,
-    Attribute,
-    Operation,
-    Region,
-    MLContext,
-    ParametrizedAttribute,
-    Data,
-)
-
-from xdsl.parser.attribute_parser import AttrParser
 
 
 @dataclass

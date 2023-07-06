@@ -8,14 +8,14 @@ Each file is also splitted according to `split-input-file` if it is
 present.
 """
 
-import subprocess
-import cProfile
 import argparse
+import cProfile
 import glob
+import subprocess
 import timeit
 from typing import Iterable
-from xdsl.ir import MLContext
 
+from xdsl.ir import MLContext
 from xdsl.parser import Parser
 
 

@@ -1,9 +1,9 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import i1, i32, i64, f16, f32, f64
+from xdsl.frontend.dialects.builtin import f16, f32, f64, i1, i32, i64
 from xdsl.frontend.exception import CodeGenerationException
+from xdsl.frontend.program import FrontendProgram
 
 p = FrontendProgram()
 with CodeContext(p):

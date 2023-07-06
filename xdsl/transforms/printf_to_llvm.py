@@ -1,18 +1,16 @@
-from typing import Iterable
 import hashlib
 import re
+from typing import Iterable
 
-from xdsl.ir import SSAValue, Attribute, MLContext, Operation
-from xdsl.dialects import builtin, arith, llvm, printf
+from xdsl.dialects import arith, builtin, llvm, printf
+from xdsl.ir import Attribute, MLContext, Operation, SSAValue
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
-    PatternRewriteWalker,
 )
-
-from xdsl.passes import ModulePass
-
 
 i8 = builtin.IntegerType(8)
 

@@ -1,7 +1,6 @@
 from typing import Any
 
 from xdsl.dialects import func
-
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,

@@ -1,19 +1,20 @@
 from __future__ import annotations
+
 from xdsl.ir import Data, Dialect, TypeAttribute
-from xdsl.traits import IsTerminator
 from xdsl.irdl import (
-    VarOpResult,
+    IRDLOperation,
     VarOperand,
+    VarOpResult,
     VarRegion,
     irdl_attr_definition,
     irdl_op_definition,
-    IRDLOperation,
     var_operand_def,
     var_region_def,
     var_result_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator
 
 
 @irdl_op_definition

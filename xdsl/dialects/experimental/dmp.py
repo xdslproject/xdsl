@@ -12,30 +12,29 @@ from __future__ import annotations
 from math import prod
 from typing import Sequence
 
-from xdsl.printer import Printer
-from xdsl.parser import AttrParser
-from xdsl.utils.hints import isa
-from xdsl.dialects import stencil
+from xdsl.dialects import builtin, memref, stencil
 from xdsl.ir import (
-    Operation,
-    Region,
-    SSAValue,
-    ParametrizedAttribute,
     Attribute,
     Dialect,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
 )
 from xdsl.irdl import (
-    Operand,
-    attr_def,
-    irdl_op_definition,
-    irdl_attr_definition,
-    ParameterDef,
     IRDLOperation,
+    Operand,
+    ParameterDef,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     region_def,
 )
-from xdsl.dialects import builtin, memref
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
+from xdsl.utils.hints import isa
 
 # helpers for named dimensions:
 DIM_X = 0

@@ -1,6 +1,6 @@
 from __future__ import annotations
-import re
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
@@ -8,27 +8,28 @@ from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Generic,
     Iterable,
+    Iterator,
     Mapping,
     NoReturn,
     Protocol,
     Sequence,
     TypeVar,
     cast,
-    Iterator,
-    ClassVar,
     overload,
 )
+
+from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
-from xdsl.traits import OpTrait, OpTraitInvT, IsTerminator, NoTerminator
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import Parser, AttrParser
-    from xdsl.printer import Printer
     from xdsl.irdl import ParamAttrDef
+    from xdsl.parser import AttrParser, Parser
+    from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
 

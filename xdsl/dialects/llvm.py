@@ -2,47 +2,45 @@ from __future__ import annotations
 
 from enum import Enum
 from types import EllipsisType
-from typing import Sequence, Literal
-from xdsl.traits import IsTerminator
+from typing import Literal, Sequence
 
-from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
-    StringAttr,
-    ArrayAttr,
-    DenseArrayBase,
-    IntAttr,
-    NoneAttr,
-    IntegerType,
-    IntegerAttr,
     AnyIntegerAttr,
+    ArrayAttr,
+    ContainerType,
+    DenseArrayBase,
     IndexType,
-    UnitAttr,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    NoneAttr,
+    StringAttr,
     SymbolRefAttr,
+    UnitAttr,
     i32,
     i64,
-    ContainerType,
 )
 from xdsl.ir import (
-    TypeAttribute,
-    ParametrizedAttribute,
     Attribute,
-    Dialect,
-    OpResult,
-    Operation,
-    SSAValue,
-    Region,
     Data,
+    Dialect,
+    Operation,
+    OpResult,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
+    IRDLOperation,
     Operand,
     OptOperand,
     ParameterDef,
+    VarOperand,
     VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    VarOperand,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -51,11 +49,11 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-
-from xdsl.utils.exceptions import VerifyException
-
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 GEP_USE_SSA_VAL = -2147483648
 """

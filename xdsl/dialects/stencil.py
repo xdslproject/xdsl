@@ -1,51 +1,48 @@
 from __future__ import annotations
 
 from operator import add, lt, neg
-from typing import Sequence, TypeVar, cast, Iterable, Iterator
+from typing import Iterable, Iterator, Sequence, TypeVar, cast
 
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyIntegerAttr,
+    ArrayAttr,
     IntAttr,
     ParametrizedAttribute,
-    ArrayAttr,
-    AnyFloat,
 )
-from xdsl.dialects import memref
-
 from xdsl.ir import (
+    Attribute,
     Block,
+    Dialect,
+    Operation,
     OpResult,
     Region,
     SSAValue,
-    Operation,
-    Attribute,
-    Dialect,
     TypeAttribute,
 )
 from xdsl.irdl import (
-    attr_def,
-    opt_attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    ParameterDef,
-    VerifyException,
     Generic,
+    IRDLOperation,
     Operand,
+    ParameterDef,
     VarOperand,
     VarOpResult,
-    IRDLOperation,
+    VerifyException,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
+    opt_attr_def,
     region_def,
     result_def,
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsTerminator, IsolatedFromAbove
-from xdsl.utils.hints import isa
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator
+from xdsl.utils.hints import isa
 
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
 

@@ -1,7 +1,9 @@
-import versioneer
-from setuptools import find_packages, setup
-from pathlib import Path
 import re
+from pathlib import Path
+
+from setuptools import find_packages, setup
+
+import versioneer
 
 # Add README.md as long description
 this_directory = Path(__file__).parent

@@ -1,16 +1,16 @@
 from typing import List
-from xdsl.ir import Operation, MLContext, TypeAttribute
+
+from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
+from xdsl.ir import MLContext, Operation, TypeAttribute
 from xdsl.irdl import Operand
-from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (
-    RewritePattern,
-    PatternRewriter,
-    op_type_rewrite_pattern,
-    PatternRewriteWalker,
     GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-from xdsl.dialects import builtin, llvm, arith, mpi, memref, scf
-from xdsl.dialects import stencil
+from xdsl.utils.hints import isa
 
 AnyNumericType = builtin.AnyFloat | builtin.IntegerType
 
