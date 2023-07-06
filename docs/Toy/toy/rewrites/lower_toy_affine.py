@@ -20,6 +20,7 @@ from xdsl.dialects.printf import PrintFormatOp
 from xdsl.ir.core import Block, MLContext, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriteWalker,
     PatternRewriter,
     RewritePattern,
@@ -457,10 +458,17 @@ class LowerToAffinePass(ModulePass):
 
         # Now that the conversion target has been defined, we just need to provide the set
         # of patterns that will lower the Toy operations.
-        PatternRewriteWalker(AddOpLowering()).rewrite_module(op)
-        PatternRewriteWalker(ConstantOpLowering()).rewrite_module(op)
-        PatternRewriteWalker(FuncOpLowering()).rewrite_module(op)
-        PatternRewriteWalker(MulOpLowering()).rewrite_module(op)
-        PatternRewriteWalker(PrintOpLowering()).rewrite_module(op)
-        PatternRewriteWalker(ReturnOpLowering()).rewrite_module(op)
-        PatternRewriteWalker(TransposeOpLowering()).rewrite_module(op)
+
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    AddOpLowering(),
+                    ConstantOpLowering(),
+                    FuncOpLowering(),
+                    MulOpLowering(),
+                    PrintOpLowering(),
+                    ReturnOpLowering(),
+                    TransposeOpLowering(),
+                ]
+            )
+        ).rewrite_module(op)
