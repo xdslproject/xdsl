@@ -26,6 +26,6 @@ def cast_values_to_registers(
 def get_type_size(t: Attribute) -> int:
     if isinstance(t, builtin.Float32Type):
         return 4
-    elif isinstance(t, builtin.IntegerType) and t.width == 32:
-        return 4
+    elif isinstance(t, builtin.IntegerType):
+        return t.width.data // 8
     raise NotImplementedError(f"Type {t} is not supported")
