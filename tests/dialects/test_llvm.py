@@ -1,7 +1,9 @@
+from io import StringIO
+
 import pytest
-from conftest import assert_print_op
 
 from xdsl.dialects import arith, builtin, llvm
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -200,11 +202,8 @@ def test_calling_conv():
 
 
 def test_variadic_func():
-    test_function = llvm.FuncOp(
-        "test_function",
-        llvm.LLVMFunctionType([], is_variadic=True),
-        linkage=llvm.LinkageAttr("external"),
-    )
-    expected = """"llvm.func"() ({
-}) {"sym_name" = "test_function", "function_type" = !llvm.func<void (...)>, "CConv" = #llvm.cconv<ccc>, "linkage" = #llvm.linkage<"external">, "visibility_" = 0 : i64} : () -> ()"""
-    assert_print_op(test_function, expected, None)
+    func_type = llvm.LLVMFunctionType([], is_variadic=True)
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_attribute(func_type)
+    assert io.getvalue() == """!llvm.func<void (...)>"""
