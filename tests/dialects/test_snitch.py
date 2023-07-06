@@ -1,11 +1,9 @@
-from xdsl.utils.test_value import TestSSAValue
-from xdsl.dialects import riscv, snitch
-
-from xdsl.dialects.builtin import IntegerAttr, i32
-
-from xdsl.utils.exceptions import VerifyException
-
 import pytest
+
+from xdsl.dialects import riscv, snitch
+from xdsl.dialects.builtin import IntegerAttr, i32
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_csr_op():

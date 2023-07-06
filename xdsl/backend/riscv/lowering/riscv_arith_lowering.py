@@ -1,4 +1,6 @@
 import ctypes
+
+from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
     Float32Type,
     FloatAttr,
@@ -10,12 +12,11 @@ from xdsl.ir.core import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.dialects import arith, riscv
 from xdsl.transforms.dead_code_elimination import dce
 
 

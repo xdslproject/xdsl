@@ -1,24 +1,21 @@
 from abc import ABC
-from typing import TypeVar, cast
 from dataclasses import dataclass
-
 from math import prod
+from typing import TypeVar, cast
 
-from xdsl.passes import ModulePass
-
-from xdsl.utils.hints import isa
-from xdsl.dialects.builtin import Signedness, IntegerType, i32, i64, IndexType
+from xdsl.dialects import arith, builtin, func, llvm, memref, mpi
+from xdsl.dialects.builtin import IndexType, IntegerType, Signedness, i32, i64
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Operation, SSAValue, OpResult, Attribute, MLContext
-
+from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    RewritePattern,
-    PatternRewriter,
-    op_type_rewrite_pattern,
-    PatternRewriteWalker,
     GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-from xdsl.dialects import mpi, llvm, func, memref, arith, builtin
+from xdsl.utils.hints import isa
 
 
 @dataclass(frozen=True)

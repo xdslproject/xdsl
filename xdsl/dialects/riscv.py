@@ -3,31 +3,37 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import IO, Iterable, TypeAlias, Sequence
+from typing import IO, Iterable, Sequence, TypeAlias
 
-from xdsl.traits import IsTerminator, NoTerminator
-
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    Signedness,
+    StringAttr,
+    UnitAttr,
+)
 from xdsl.ir import (
-    Dialect,
-    Operation,
-    Region,
-    SSAValue,
     Attribute,
     Data,
+    Dialect,
+    Operation,
     OpResult,
+    Region,
+    SSAValue,
     TypeAttribute,
 )
-
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     OptRegion,
     OptSingleBlockRegion,
+    VarOperand,
     VarOpResult,
     attr_def,
-    irdl_op_definition,
     irdl_attr_definition,
-    VarOperand,
-    Operand,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_region_def,
@@ -35,18 +41,9 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
-    IntegerType,
-    ModuleOp,
-    Signedness,
-    UnitAttr,
-    IntegerAttr,
-    StringAttr,
-)
+from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 

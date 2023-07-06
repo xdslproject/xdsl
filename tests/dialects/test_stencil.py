@@ -2,8 +2,11 @@ import pytest
 
 from xdsl.dialects.builtin import (
     AnyFloat,
+    ArrayAttr,
     FloatAttr,
+    IndexType,
     IntAttr,
+    IntegerType,
     bf16,
     f16,
     f32,
@@ -12,29 +15,26 @@ from xdsl.dialects.builtin import (
     f128,
     i32,
     i64,
-    IntegerType,
-    ArrayAttr,
-    IndexType,
-)
-from xdsl.dialects.stencil import (
-    CastOp,
-    BufferOp,
-    ExternalLoadOp,
-    ExternalStoreOp,
-    ReturnOp,
-    ResultType,
-    ApplyOp,
-    StencilBoundsAttr,
-    StoreOp,
-    TempType,
-    LoadOp,
-    FieldType,
-    IndexAttr,
-    StoreResultOp,
-    IndexOp,
-    AccessOp,
 )
 from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.stencil import (
+    AccessOp,
+    ApplyOp,
+    BufferOp,
+    CastOp,
+    ExternalLoadOp,
+    ExternalStoreOp,
+    FieldType,
+    IndexAttr,
+    IndexOp,
+    LoadOp,
+    ResultType,
+    ReturnOp,
+    StencilBoundsAttr,
+    StoreOp,
+    StoreResultOp,
+    TempType,
+)
 from xdsl.ir import Attribute, Block
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa

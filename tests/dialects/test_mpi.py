@@ -1,4 +1,4 @@
-from xdsl.dialects import mpi, memref
+from xdsl.dialects import memref, mpi
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import f64, i32
 

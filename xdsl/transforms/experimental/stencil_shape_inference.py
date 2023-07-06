@@ -1,4 +1,5 @@
 from typing import Iterable, TypeVar, cast
+
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -11,13 +12,12 @@ from xdsl.dialects.stencil import (
     StoreOp,
     TempType,
 )
-
 from xdsl.ir import Attribute, BlockArgument, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )

@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from xdsl.ir import MLContext
-from xdsl.passes import ModulePass
-from xdsl.dialects.builtin import ModuleOp
+
 from xdsl.backend.riscv.register_allocation import (
     RegisterAllocatorBlockNaive,
     RegisterAllocatorJRegs,
 )
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.ir import MLContext
+from xdsl.passes import ModulePass
 
 
 @dataclass

@@ -2,22 +2,22 @@ from pathlib import Path
 
 import pytest
 
-from ..frontend.parser import Parser, ParseError
+from ..frontend.location import Location
+from ..frontend.parser import ParseError, Parser
 from ..frontend.toy_ast import (
-    ModuleAST,
-    FunctionAST,
-    PrintExprAST,
-    PrototypeAST,
-    VariableExprAST,
-    ReturnExprAST,
     BinaryExprAST,
     CallExprAST,
-    VarDeclExprAST,
-    VarType,
+    FunctionAST,
     LiteralExprAST,
+    ModuleAST,
     NumberExprAST,
+    PrintExprAST,
+    PrototypeAST,
+    ReturnExprAST,
+    VarDeclExprAST,
+    VariableExprAST,
+    VarType,
 )
-from ..frontend.location import Location
 
 
 def test_parse_ast():

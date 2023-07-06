@@ -1,24 +1,24 @@
 from __future__ import annotations
-from collections.abc import Sequence
 
-from typing import Union, Sequence
+from collections.abc import Sequence
+from typing import Sequence, Union
 
 from xdsl.dialects.builtin import IntegerType, StringAttr
-from xdsl.ir import SSAValue, Operation, Block, Dialect
-from xdsl.traits import IsTerminator
+from xdsl.ir import Block, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    attr_def,
-    irdl_op_definition,
-    VarOperand,
     AnyAttr,
-    Operand,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     Successor,
+    VarOperand,
+    attr_def,
+    irdl_op_definition,
     operand_def,
     successor_def,
     var_operand_def,
 )
+from xdsl.traits import IsTerminator
 
 
 @irdl_op_definition

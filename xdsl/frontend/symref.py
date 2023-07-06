@@ -1,16 +1,17 @@
 from __future__ import annotations
+
+from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import Attribute, Dialect, OpResult, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
+    IRDLOperation,
     Operand,
+    Operation,
     attr_def,
     irdl_op_definition,
-    AnyAttr,
-    Operation,
-    IRDLOperation,
     operand_def,
     result_def,
 )
-from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 
 
 @irdl_op_definition

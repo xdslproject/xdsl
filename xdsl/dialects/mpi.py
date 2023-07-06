@@ -2,36 +2,36 @@ from __future__ import annotations
 
 from abc import ABC
 from enum import Enum
-from typing import cast, TypeVar, Generic, Sequence
+from typing import Generic, Sequence, TypeVar, cast
 
-from xdsl.utils.hints import isa
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import IntegerType, Signedness, StringAttr, AnyFloat, i32
+from xdsl.dialects.builtin import AnyFloat, IntegerType, Signedness, StringAttr, i32
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (
-    Operation,
     Attribute,
-    SSAValue,
+    Dialect,
+    Operation,
     OpResult,
     ParametrizedAttribute,
-    Dialect,
+    SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
+    IRDLOperation,
     Operand,
-    attr_def,
-    irdl_op_definition,
-    irdl_attr_definition,
+    OptOperand,
     OptOpResult,
     ParameterDef,
-    OptOperand,
-    IRDLOperation,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_operand_def,
-    result_def,
     opt_result_def,
+    result_def,
 )
+from xdsl.utils.hints import isa
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 

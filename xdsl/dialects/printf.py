@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from xdsl.parser import Parser
-from xdsl.printer import Printer
+from xdsl.dialects import builtin
+from xdsl.ir import Dialect, Operation, SSAValue, VerifyException
 from xdsl.irdl import (
     IRDLOperation,
-    irdl_op_definition,
     VarOperand,
     attr_def,
+    irdl_op_definition,
     var_operand_def,
 )
-from xdsl.dialects import builtin
-from xdsl.ir import Dialect, SSAValue, Operation, VerifyException
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 
 
 @irdl_op_definition

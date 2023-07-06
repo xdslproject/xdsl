@@ -1,58 +1,56 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from math import prod
 from typing import (
-    Iterable,
-    Mapping,
-    TypeAlias,
-    List,
-    cast,
-    Type,
-    Sequence,
     TYPE_CHECKING,
     Any,
-    TypeVar,
-    overload,
-    Iterator,
     Generic,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Sequence,
+    Type,
+    TypeAlias,
+    TypeVar,
+    cast,
+    overload,
 )
 
-from math import prod
-
 from xdsl.ir import (
+    Attribute,
+    AttributeCovT,
+    AttributeInvT,
     Block,
     BlockOps,
     Data,
-    TypeAttribute,
-    ParametrizedAttribute,
-    Operation,
-    Region,
-    Attribute,
     Dialect,
+    Operation,
+    ParametrizedAttribute,
+    Region,
     SSAValue,
-    AttributeCovT,
-    AttributeInvT,
+    TypeAttribute,
 )
 from xdsl.ir.affine import AffineMap
-
 from xdsl.irdl import (
     AllOf,
-    VarOpResult,
-    VarOperand,
-    VarRegion,
-    attr_def,
-    irdl_attr_definition,
-    attr_constr_coercion,
-    irdl_to_attr_constraint,
-    irdl_op_definition,
-    ParameterDef,
+    AnyAttr,
+    AttrConstraint,
     Generic,
     GenericData,
-    AttrConstraint,
-    AnyAttr,
     IRDLOperation,
+    ParameterDef,
+    VarOperand,
+    VarOpResult,
+    VarRegion,
+    attr_constr_coercion,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
+    irdl_to_attr_constraint,
     region_def,
     var_operand_def,
     var_region_def,

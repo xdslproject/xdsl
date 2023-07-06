@@ -4,8 +4,8 @@ given root directory.
 It then prints the total time taken to parse all files.
 """
 
-import cProfile
 import argparse
+import cProfile
 import glob
 import timeit
 from typing import Iterable

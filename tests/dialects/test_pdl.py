@@ -1,8 +1,8 @@
 import pytest
-from xdsl.ir import Block
 
 import xdsl.dialects.pdl as pdl
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, StringAttr, i32, i64
+from xdsl.ir import Block
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 

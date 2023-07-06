@@ -1,71 +1,66 @@
 import argparse
-import sys
 import os
-
+import sys
 from io import StringIO
-from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
-from xdsl.frontend.symref import Symref
+from typing import IO, Callable, Dict, List, Sequence, Type
 
-from xdsl.ir import Dialect, MLContext
-from xdsl.parser import Parser, ParseError
-from xdsl.passes import ModulePass
-from xdsl.printer import Printer
-from xdsl.dialects.func import Func
-from xdsl.dialects.scf import Scf
+from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
-from xdsl.dialects.builtin import ModuleOp, Builtin
-from xdsl.dialects.cmath import CMath
+from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.cf import Cf
-from xdsl.dialects.vector import Vector
-from xdsl.dialects.memref import MemRef
-from xdsl.dialects.llvm import LLVM
-from xdsl.dialects.mpi import MPI
+from xdsl.dialects.cmath import CMath
+from xdsl.dialects.experimental.dmp import DMP
+from xdsl.dialects.experimental.fir import FIR
+from xdsl.dialects.experimental.math import Math
+from xdsl.dialects.func import Func
 from xdsl.dialects.gpu import GPU
-from xdsl.dialects.linalg import Linalg
-from xdsl.dialects.pdl import PDL
-from xdsl.dialects.test import Test
-from xdsl.dialects.stencil import Stencil
-from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.irdl import IRDL
+from xdsl.dialects.linalg import Linalg
+from xdsl.dialects.llvm import LLVM
+from xdsl.dialects.memref import MemRef
+from xdsl.dialects.mpi import MPI
+from xdsl.dialects.pdl import PDL
+from xdsl.dialects.printf import Printf
 from xdsl.dialects.riscv import RISCV, print_assembly, riscv_code
+from xdsl.dialects.riscv_func import RISCV_Func
+from xdsl.dialects.scf import Scf
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
-from xdsl.dialects.printf import Printf
-
-from xdsl.dialects.experimental.math import Math
-from xdsl.dialects.experimental.fir import FIR
-from xdsl.dialects.experimental.dmp import DMP
-
+from xdsl.dialects.stencil import Stencil
+from xdsl.dialects.test import Test
+from xdsl.dialects.vector import Vector
 from xdsl.frontend.passes.desymref import DesymrefyPass
+from xdsl.frontend.symref import Symref
+from xdsl.ir import Dialect, MLContext
+from xdsl.parser import ParseError, Parser
+from xdsl.passes import ModulePass
+from xdsl.printer import Printer
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
-from xdsl.transforms.experimental.stencil_storage_materialization import (
-    StencilStorageMaterializationPass,
-)
-from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
-from xdsl.transforms.lower_mpi import LowerMPIPass
-from xdsl.transforms.lower_snitch import LowerSnitchPass
-from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
     ConvertStencilToLLMLIRPass,
 )
-from xdsl.transforms.experimental.stencil_shape_inference import (
-    StencilShapeInferencePass,
+from xdsl.transforms.experimental.dmp.scatter_gather import (
+    DmpScatterGatherTrivialLowering,
 )
 from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
     GlobalStencilToLocalStencil2DHorizontal,
     LowerHaloToMPI,
 )
-from xdsl.transforms.experimental.dmp.scatter_gather import (
-    DmpScatterGatherTrivialLowering,
+from xdsl.transforms.experimental.stencil_shape_inference import (
+    StencilShapeInferencePass,
 )
+from xdsl.transforms.experimental.stencil_storage_materialization import (
+    StencilStorageMaterializationPass,
+)
+from xdsl.transforms.lower_mpi import LowerMPIPass
+from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
+from xdsl.transforms.lower_snitch import LowerSnitchPass
+from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
 from xdsl.transforms.printf_to_llvm import PrintfToLLVM
-
+from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
-
-from typing import IO, Dict, Callable, List, Sequence, Type
 
 
 def get_all_dialects() -> list[Dialect]:
@@ -353,7 +348,7 @@ class xDSLOptMain:
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
             try:
-                from xdsl.interpreters.riscv_emulator import run_riscv, RV_Debug
+                from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
             except ImportError:
                 print("Please install optional dependencies to run riscv emulation")
                 return

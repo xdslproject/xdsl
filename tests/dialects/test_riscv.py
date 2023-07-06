@@ -1,12 +1,10 @@
-from xdsl.builder import Builder
-from xdsl.utils.test_value import TestSSAValue
-from xdsl.dialects import riscv
-
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
-
-from xdsl.utils.exceptions import VerifyException
-
 import pytest
+
+from xdsl.builder import Builder
+from xdsl.dialects import riscv
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_add_op():

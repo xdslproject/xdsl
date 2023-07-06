@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import re
 import ast
-
+import re
 from dataclasses import dataclass, field
-from io import StringIO
 from enum import Enum
-from typing import ClassVar, Literal, TypeAlias, TypeGuard, cast, overload
+from io import StringIO
 from string import hexdigits
+from typing import ClassVar, Literal, TypeAlias, TypeGuard, cast, overload
 
 from xdsl.utils.exceptions import ParseError
 

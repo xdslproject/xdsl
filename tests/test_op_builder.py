@@ -1,10 +1,10 @@
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.ir import BlockArgument, Block, Region
-from xdsl.dialects.builtin import IntAttr, i32
 from xdsl.dialects.arith import Constant
+from xdsl.dialects.builtin import IntAttr, i32
 from xdsl.dialects.scf import If
+from xdsl.ir import Block, BlockArgument, Region
 
 
 def test_builder():
