@@ -3,8 +3,7 @@ from conftest import assert_print_op
 from xdsl.dialects.arith import Arith, Constant, Addi, Muli
 from xdsl.dialects.builtin import i32, i64, Builtin, IntegerAttr, ModuleOp
 from xdsl.dialects.test import Test, TestOp, TestType
-from xdsl.dialects.scf import If, Scf
-from xdsl.ir import Block, MLContext, Region, Operation
+from xdsl.ir import MLContext, Operation
 from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     op_type_rewrite_pattern,
@@ -20,7 +19,6 @@ def rewrite_and_compare(prog: str, expected_prog: str, walker: PatternRewriteWal
     ctx = MLContext(allow_unregistered=True)
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
-    ctx.register_dialect(Scf)
     ctx.register_dialect(Test)
 
     parser = Parser(ctx, prog)
