@@ -2435,9 +2435,67 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
         printer.print(" " if first else ", ")
         printer.print_string_literal(self.instruction_name.data)
 
+    def print(self, printer: Printer):
+        self.print_attributes(printer, True)
+        if self.operands:
+            printer.print(" ")
+            printer.print_list(self.operands, printer.print_ssa_value)
+        printer.print_successors(self.successors)
+        printer.print_regions(self.regions)
+
+        # Print the operation type
+        printer.print(" : (")
+        printer.print_list(
+            self.operands, lambda operand: printer.print_attribute(operand.typ)
+        )
+        printer.print(") -> (")
+        printer.print_list(
+            self.results, lambda result: printer.print_attribute(result.typ)
+        )
+        printer.print(")")
+
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         return {"instruction_name": StringAttr(parser.parse_str_literal())}
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        attributes = cls.parse_attributes(parser)
+        operands = list[SSAValue]()
+        if (operand := parser.parse_optional_operand()) is not None:
+            operands.append(operand)
+            while (
+                parser.parse_optional_punctuation(",") is not None
+                and (operand := parser.parse_optional_operand()) is not None
+            ):
+                operands.append(operand)
+        successors = parser.parse_optional_successors() or list()
+        regions = list[Region]()
+        if parser.parse_optional_punctuation("(") is not None:
+            regions = parser.parse_comma_separated_list(
+                delimiter=parser.Delimiter.NONE,
+                parse=parser.parse_region,
+            )
+            parser.parse_punctuation(")")
+        result_types = list[Attribute]()
+        parser.parse_punctuation(":")
+        parser.parse_punctuation("(")
+        while parser.parse_optional_type() is not None:
+            parser.parse_optional_punctuation(",")
+        parser.parse_punctuation(")")
+        parser.parse_punctuation("->")
+        parser.parse_punctuation("(")
+        while (result_type := parser.parse_optional_type()) is not None:
+            result_types.append(result_type)
+            parser.parse_optional_punctuation(",")
+        parser.parse_punctuation(")")
+        return cls.create(
+            operands=operands,
+            result_types=result_types,
+            attributes=attributes,
+            successors=successors,
+            regions=regions,
+        )
 
 
 @irdl_op_definition
