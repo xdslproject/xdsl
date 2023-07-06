@@ -191,10 +191,12 @@ def test_op_clone_with_regions():
     if2 = if_.clone()
 
     assert if2 is not if_
-    assert len(if2.true_region.ops) == 1
-    assert len(if2.false_region.ops) == 1
-    assert if2.true_region.op is not if_.true_region.op
-    assert if2.false_region.op is not if_.false_region.op
+    assert len(if2.true_region.ops) == 2
+    assert len(if2.false_region.ops) == 2
+    for if2_true_op, if_true_op in zip(if2.true_region.ops, if_.true_region.ops):
+        assert if2_true_op is not if_true_op
+    for if2_false_op, if_false_op in zip(if2.false_region.ops, if_.false_region.ops):
+        assert if2_false_op is not if_false_op
 
 
 @irdl_op_definition
