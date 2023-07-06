@@ -23,7 +23,7 @@ class AffineMap:
         return AffineMap(0, 0, [AffineExpr.constant(value)])
 
     @staticmethod
-    def from_constants(*values: int) -> AffineMap:
+    def point_map(*values: int) -> AffineMap:
         return AffineMap(0, 0, [AffineExpr.constant(value) for value in values])
 
     @staticmethod

@@ -13,7 +13,7 @@ from math import prod
 from typing import Sequence
 
 from xdsl.printer import Printer
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser
 from xdsl.utils.hints import isa
 from xdsl.dialects import stencil
 from xdsl.ir import (
@@ -292,7 +292,7 @@ class HaloShapeInformation(ParametrizedAttribute):
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         """
         Parses the attribute, the format of it is:
 
@@ -358,7 +358,7 @@ class NodeGrid(ParametrizedAttribute):
         return prod(self.as_tuple())
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
 
         shape: list[int] = [parser.parse_integer(allow_negative=False)]

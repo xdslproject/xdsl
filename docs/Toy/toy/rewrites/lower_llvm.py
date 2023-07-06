@@ -61,7 +61,7 @@ class LowerReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: llvm.ReturnOp, rewriter: PatternRewriter):
         # TODO: add support for optional argument
-        assert op.value is None, "Only support return with no arguments for now"
+        assert op.arg is None, "Only support return with no arguments for now"
 
         rewriter.replace_matched_op(riscv_func.ReturnOp(()))
 

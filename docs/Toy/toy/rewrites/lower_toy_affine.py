@@ -371,7 +371,7 @@ class ConstantOpLowering(RewritePattern):
                 constants[offset].result,
                 alloc.memref,
                 (),
-                map=affine.AffineMapAttr(affine.AffineMap.from_constants(*index)),
+                map=affine.AffineMapAttr(affine.AffineMap.point_map(*index)),
             )
             for offset, index in enumerate(_indices)
         ]

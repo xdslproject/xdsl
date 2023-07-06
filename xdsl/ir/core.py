@@ -26,7 +26,7 @@ from xdsl.traits import OpTrait, OpTraitInvT, IsTerminator, NoTerminator
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import Parser, AttrParser
     from xdsl.printer import Printer
     from xdsl.irdl import ParamAttrDef
 
@@ -424,7 +424,7 @@ class Data(Generic[DataElement], Attribute, ABC):
 
     @staticmethod
     @abstractmethod
-    def parse_parameter(parser: Parser) -> DataElement:
+    def parse_parameter(parser: AttrParser) -> DataElement:
         """Parse the attribute parameter."""
 
     @abstractmethod
@@ -460,7 +460,7 @@ class ParametrizedAttribute(Attribute):
         return attr
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 

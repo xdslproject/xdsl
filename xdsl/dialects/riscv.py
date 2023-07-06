@@ -38,7 +38,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -150,7 +150,7 @@ class RegisterType(Data[Register], TypeAttribute):
         return self.data.name
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> Register:
+    def parse_parameter(parser: AttrParser) -> Register:
         name = parser.parse_optional_identifier()
         if name is None:
             return Register()
@@ -186,7 +186,7 @@ class FloatRegisterType(Data[Register], TypeAttribute):
         return self.data.name
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> Register:
+    def parse_parameter(parser: AttrParser) -> Register:
         name = parser.parse_optional_identifier()
         if name is None:
             return Register()
@@ -312,7 +312,7 @@ class LabelAttr(Data[str]):
     name = "riscv.label"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
