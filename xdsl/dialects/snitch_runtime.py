@@ -25,7 +25,7 @@ slice_t_begin = i64
 slice_t_end = i64
 
 
-class SnitchRuntimeBaseOp(IRDLOperation, ABC):
+class SnitchRuntimeBaseOperation(IRDLOperation, ABC):
     """
     A base class for ops in the Snitch Runtime dialect.
     The Snitch Runtime dialect models the snitch runtime which contains low level
@@ -38,7 +38,7 @@ class SnitchRuntimeBaseOp(IRDLOperation, ABC):
     pass
 
 
-class SnitchRuntimeGetInfo(SnitchRuntimeBaseOp, ABC):
+class SnitchRuntimeGetInfo(SnitchRuntimeBaseOperation, ABC):
     """
     A base class for snitch runtime functions that get a certain value at runtime
     """
@@ -48,10 +48,10 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOp, ABC):
     def __init__(
         self,
     ):
-        super().__init__(operands=[], result_types=[i32])
+        super().__init__(result_types=[i32])
 
 
-class NoOperandNoResultBaseOp(SnitchRuntimeBaseOp, ABC):
+class NoOperandNoResultBaseOperation(SnitchRuntimeBaseOperation, ABC):
     """
     A base class for operations with no operands nor results
     """
@@ -59,7 +59,7 @@ class NoOperandNoResultBaseOp(SnitchRuntimeBaseOp, ABC):
     def __init__(
         self,
     ):
-        super().__init__(operands=[], result_types=[])
+        super().__init__()
 
 
 @irdl_op_definition
@@ -225,7 +225,7 @@ class IsDmCoreOp(SnitchRuntimeGetInfo):
 
 
 @irdl_op_definition
-class ClusterHwBarrierOp(NoOperandNoResultBaseOp):
+class ClusterHwBarrierOp(NoOperandNoResultBaseOperation):
     """
     Synchronize cores in a cluster with a hardware barrier
     """
@@ -234,7 +234,7 @@ class ClusterHwBarrierOp(NoOperandNoResultBaseOp):
 
 
 @irdl_op_definition
-class ClusterSwBarrierOp(NoOperandNoResultBaseOp):
+class ClusterSwBarrierOp(NoOperandNoResultBaseOperation):
     """
     Synchronize with compute cores after loading data
     """
@@ -243,7 +243,7 @@ class ClusterSwBarrierOp(NoOperandNoResultBaseOp):
 
 
 @irdl_op_definition
-class GlobalBarrierOp(NoOperandNoResultBaseOp):
+class GlobalBarrierOp(NoOperandNoResultBaseOperation):
     """
     Synchronize clusters globally with a global software barrier
     """
@@ -263,7 +263,7 @@ class BarrierRegPtrOp(SnitchRuntimeGetInfo):
     name = "snrt.barrier_reg_ptr"
 
 
-class GetMemoryInfoBaseOp(SnitchRuntimeBaseOp, ABC):
+class GetMemoryInfoBaseOperation(SnitchRuntimeBaseOperation, ABC):
     """
     Generic base class for operations returning memory slices
     """
@@ -274,11 +274,11 @@ class GetMemoryInfoBaseOp(SnitchRuntimeBaseOp, ABC):
     def __init__(
         self,
     ):
-        super().__init__(operands=[], result_types=[slice_t_begin, slice_t_end])
+        super().__init__(result_types=[slice_t_begin, slice_t_end])
 
 
 @irdl_op_definition
-class GlobalMemoryOp(GetMemoryInfoBaseOp):
+class GlobalMemoryOp(GetMemoryInfoBaseOperation):
     """
     Get start address of global memory
     """
@@ -287,7 +287,7 @@ class GlobalMemoryOp(GetMemoryInfoBaseOp):
 
 
 @irdl_op_definition
-class ClusterMemoryOp(GetMemoryInfoBaseOp):
+class ClusterMemoryOp(GetMemoryInfoBaseOperation):
     """
     Get start address of the cluster's TCDM memory
     """
@@ -296,7 +296,7 @@ class ClusterMemoryOp(GetMemoryInfoBaseOp):
 
 
 @irdl_op_definition
-class ZeroMemoryOp(GetMemoryInfoBaseOp):
+class ZeroMemoryOp(GetMemoryInfoBaseOperation):
     """
     Get start address of the cluster's zero memory
     """
@@ -304,7 +304,7 @@ class ZeroMemoryOp(GetMemoryInfoBaseOp):
     name = "snrt.zero_memory"
 
 
-class DmaStart1DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
+class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     """
     Initiate an asynchronous 1D DMA transfer
     """
@@ -324,7 +324,7 @@ class DmaStart1DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
         super().__init__(operands=[dst, src, size], result_types=[tx_id])
 
 
-class DmaStart2DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
+class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     """
     Generic base class for starting asynchronous 2D DMA transfers
     """
@@ -354,7 +354,7 @@ class DmaStart2DBaseOp(SnitchRuntimeBaseOp, Generic[_T], ABC):
 
 
 @irdl_op_definition
-class DmaStart1DOp(DmaStart1DBaseOp[Annotated[Attribute, i32]]):
+class DmaStart1DOp(DmaStart1DBaseOperation[Annotated[Attribute, i32]]):
     """
     Initiate an asynchronous 1D DMA transfer with 32-bits pointers
     """
@@ -363,7 +363,7 @@ class DmaStart1DOp(DmaStart1DBaseOp[Annotated[Attribute, i32]]):
 
 
 @irdl_op_definition
-class DmaStart1DWideptrOp(DmaStart1DBaseOp[Annotated[Attribute, i64]]):
+class DmaStart1DWideptrOp(DmaStart1DBaseOperation[Annotated[Attribute, i64]]):
     """
     Initiate an asynchronous 1D DMA transfer with 64-bits wide pointers
     """
@@ -372,7 +372,7 @@ class DmaStart1DWideptrOp(DmaStart1DBaseOp[Annotated[Attribute, i64]]):
 
 
 @irdl_op_definition
-class DmaStart2DOp(DmaStart2DBaseOp[Annotated[Attribute, i32]]):
+class DmaStart2DOp(DmaStart2DBaseOperation[Annotated[Attribute, i32]]):
     """
     Initiate an asynchronous 2D DMA transfer with 32-bits pointers
     """
@@ -381,7 +381,7 @@ class DmaStart2DOp(DmaStart2DBaseOp[Annotated[Attribute, i32]]):
 
 
 @irdl_op_definition
-class DmaStart2DWideptrOp(DmaStart2DBaseOp[Annotated[Attribute, i64]]):
+class DmaStart2DWideptrOp(DmaStart2DBaseOperation[Annotated[Attribute, i64]]):
     """
     Initiate an asynchronous 2D DMA transfer with 64-bits wide pointers
     """
@@ -390,7 +390,7 @@ class DmaStart2DWideptrOp(DmaStart2DBaseOp[Annotated[Attribute, i64]]):
 
 
 @irdl_op_definition
-class DmaWaitOp(SnitchRuntimeBaseOp):
+class DmaWaitOp(SnitchRuntimeBaseOperation):
     """
     Block until a transfer finishes
     """
@@ -399,11 +399,11 @@ class DmaWaitOp(SnitchRuntimeBaseOp):
     transfer_id: Operand = operand_def(tx_id)
 
     def __init__(self, transfer_id: Operation | SSAValue):
-        super().__init__(operands=[transfer_id], result_types=[])
+        super().__init__(operands=[transfer_id])
 
 
 @irdl_op_definition
-class DmaWaitAllOp(NoOperandNoResultBaseOp):
+class DmaWaitAllOp(NoOperandNoResultBaseOperation):
     """
     Block until all operations on the DMA cease
     """
@@ -439,7 +439,7 @@ The snitch system handles cases with up to 4, but this can be extended.
 ssr_dim = i32
 
 
-class SsrLoopBaseOp(SnitchRuntimeBaseOp, ABC):
+class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     """
     Configure an SSR data mover for an n-dimensional loop nest.
     """
@@ -463,7 +463,7 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOp, ABC):
         bounds: Sequence[Operation | SSAValue],
         indices: Sequence[Operation | SSAValue],
     ):
-        super().__init__(operands=[data_mover, bounds, indices], result_types=[])
+        super().__init__(operands=[data_mover, bounds, indices])
 
 
 @irdl_op_definition
@@ -506,7 +506,7 @@ class SsrLoop4dOp(SsrLoopBaseOp):
 
 
 @irdl_op_definition
-class SsrRepeatOp(SnitchRuntimeBaseOp, ABC):
+class SsrRepeatOp(SnitchRuntimeBaseOperation, ABC):
     """
     Configure the repetition count for a stream.
     """
@@ -520,11 +520,11 @@ class SsrRepeatOp(SnitchRuntimeBaseOp, ABC):
         dm: Operation | SSAValue,
         count: Operation | SSAValue,
     ):
-        super().__init__(operands=[dm, count], result_types=[])
+        super().__init__(operands=[dm, count])
 
 
 @irdl_op_definition
-class SsrEnableOp(NoOperandNoResultBaseOp):
+class SsrEnableOp(NoOperandNoResultBaseOperation):
     """
     Enable SSR.
     """
@@ -533,7 +533,7 @@ class SsrEnableOp(NoOperandNoResultBaseOp):
 
 
 @irdl_op_definition
-class SsrDisableOp(NoOperandNoResultBaseOp):
+class SsrDisableOp(NoOperandNoResultBaseOperation):
     """
     Disable SSR.
     """
@@ -541,7 +541,7 @@ class SsrDisableOp(NoOperandNoResultBaseOp):
     name = "snrt.ssr_disable"
 
 
-class SsrReadWriteBaseOp(SnitchRuntimeBaseOp, ABC):
+class SsrReadWriteBaseOperation(SnitchRuntimeBaseOperation, ABC):
     dm: Operand = operand_def(ssr_dm)
     dim: Operand = operand_def(ssr_dim)
     ptr: Operand = operand_def(i32)
@@ -552,11 +552,11 @@ class SsrReadWriteBaseOp(SnitchRuntimeBaseOp, ABC):
         dim: Operation | SSAValue,
         ptr: Operation | SSAValue,
     ):
-        super().__init__(operands=[dm, dim, ptr], result_types=[])
+        super().__init__(operands=[dm, dim, ptr])
 
 
 @irdl_op_definition
-class SsrReadOp(SsrReadWriteBaseOp):
+class SsrReadOp(SsrReadWriteBaseOperation):
     """
     Start a streaming read.
     """
@@ -565,7 +565,7 @@ class SsrReadOp(SsrReadWriteBaseOp):
 
 
 @irdl_op_definition
-class SsrWriteOp(SsrReadWriteBaseOp):
+class SsrWriteOp(SsrReadWriteBaseOperation):
     """
     Start a streaming write.
     """
@@ -574,7 +574,7 @@ class SsrWriteOp(SsrReadWriteBaseOp):
 
 
 @irdl_op_definition
-class FpuFenceOp(NoOperandNoResultBaseOp):
+class FpuFenceOp(NoOperandNoResultBaseOperation):
     """
     Synchronize the integer and float pipelines.
     """
