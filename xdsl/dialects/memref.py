@@ -242,7 +242,7 @@ class Alloc(IRDLOperation):
     def get(
         return_type: Attribute,
         alignment: int | None = None,
-        shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
+        shape: Iterable[int | AnyIntegerAttr] | None = None,
     ) -> Alloc:
         if shape is None:
             shape = [1]
@@ -275,7 +275,7 @@ class Alloca(IRDLOperation):
     def get(
         return_type: Attribute,
         alignment: int | AnyIntegerAttr | None = None,
-        shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
+        shape: Iterable[int | AnyIntegerAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
     ) -> Alloca:
         if shape is None:
