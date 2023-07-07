@@ -1784,9 +1784,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     new_attrs["verify_"] = verify_
 
-    return type(
-        cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs}
-    )  # type: ignore
+    return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})  # type: ignore
 
 
 #  ____        _
