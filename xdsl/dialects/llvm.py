@@ -240,7 +240,9 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         printer.print(" (")
         printer.print_list(self.inputs, printer.print_attribute)
         if self.is_variadic:
-            printer.print(", ...")
+            if self.inputs:
+                printer.print(", ")
+            printer.print("...")
 
         printer.print_string(")>")
 
