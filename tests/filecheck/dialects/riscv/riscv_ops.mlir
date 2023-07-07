@@ -261,6 +261,9 @@
   "riscv.fsw"(%0, %f0) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.freg<>) -> ()
   // CHECK-NEXT: "riscv.fsw"(%{{.*}}, %{{.*}}) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.freg<>) -> ()
 
+  "riscv.jal"() {"immediate" = 1 : i32, "test" = "hello", "comment" = "world"} : () -> ()
+  // CHECK-NEXT: "riscv.jal"() {"immediate" = 1 : i32, "test" = "hello"} : () -> ()
+
   // Unconditional Branch Instructions
   "riscv.ret"() : () -> ()
   // CHECK-NEXT: "riscv.ret"() : () -> ()
