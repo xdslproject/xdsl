@@ -1,12 +1,10 @@
 # RUN: python %s | mlir-opt | filecheck %s
 
-from xdsl.ir import Attribute
-from xdsl.dialects.builtin import ModuleOp
-
-from xdsl.dialects import memref
-from xdsl.dialects.builtin import f32
-from xdsl.printer import Printer
 from xdsl.builder import Builder
+from xdsl.dialects import memref
+from xdsl.dialects.builtin import ModuleOp, f32
+from xdsl.ir import Attribute
+from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
 

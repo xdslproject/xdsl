@@ -2,10 +2,7 @@ from xdsl.builder import Builder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
-
-from xdsl.transforms.riscv_register_allocation import (
-    RISCVRegisterAllocation,
-)
+from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 
 def context() -> MLContext:

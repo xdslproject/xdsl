@@ -1,36 +1,8 @@
 from __future__ import annotations
+
 from typing import Generic, Sequence, TypeVar
 
-from xdsl.ir import (
-    Attribute,
-    TypeAttribute,
-    OpResult,
-    Operation,
-    Dialect,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-)
-from xdsl.ir.core import Block
-from xdsl.irdl import (
-    AttrSizedOperandSegments,
-    Operand,
-    OptOpResult,
-    OptOperand,
-    ParameterDef,
-    VarOperand,
-    attr_def,
-    irdl_op_definition,
-    irdl_attr_definition,
-    IRDLOperation,
-    operand_def,
-    opt_attr_def,
-    opt_operand_def,
-    region_def,
-    result_def,
-    opt_result_def,
-    var_operand_def,
-)
+from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
@@ -39,10 +11,39 @@ from xdsl.dialects.builtin import (
     UnitAttr,
     i32,
 )
-from xdsl.dialects import memref
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    Operation,
+    OpResult,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
+from xdsl.ir.core import Block
+from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    IRDLOperation,
+    Operand,
+    OptOperand,
+    OptOpResult,
+    ParameterDef,
+    VarOperand,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
+    operand_def,
+    opt_attr_def,
+    opt_operand_def,
+    opt_result_def,
+    region_def,
+    result_def,
+    var_operand_def,
+)
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, NoTerminator, IsolatedFromAbove
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 
 

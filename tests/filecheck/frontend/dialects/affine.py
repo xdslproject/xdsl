@@ -4,7 +4,6 @@ from xdsl.frontend.context import CodeContext
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.frontend.program import FrontendProgram
 
-
 p = FrontendProgram()
 with CodeContext(p):
     # CHECK:      func.func @test_affine_for_I() {

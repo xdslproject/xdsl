@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import Union
 
 from xdsl.dialects.arith import FastMathFlagsAttr
-from xdsl.dialects.builtin import IntegerType, AnyFloat
-from xdsl.ir import Operation, SSAValue, OpResult, Dialect
+from xdsl.dialects.builtin import AnyFloat, IntegerType
+from xdsl.ir import Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
-    irdl_op_definition,
-    Operand,
     IRDLOperation,
+    Operand,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     result_def,

@@ -1,9 +1,9 @@
 from __future__ import annotations
-from xdsl.parser.base_parser import BaseParser
 
-from xdsl.utils.exceptions import ParseError
-from xdsl.parser.core import ParserState, Token
 from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.parser.base_parser import BaseParser
+from xdsl.parser.core import ParserState, Token
+from xdsl.utils.exceptions import ParseError
 
 
 class AffineParser(BaseParser):

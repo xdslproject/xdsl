@@ -1,17 +1,16 @@
 from io import StringIO
 
+import pytest
+
 from xdsl.builder import Builder
-from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects import riscv
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-
-import pytest
 
 pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 
 from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
-
 
 ctx = MLContext()
 ctx.register_dialect(riscv.RISCV)

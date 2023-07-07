@@ -1,22 +1,23 @@
 from __future__ import annotations
+
 from typing import Sequence
 
 from xdsl.dialects.builtin import (
     IndexType,
+    VectorBaseTypeAndRankConstraint,
+    VectorBaseTypeConstraint,
+    VectorRankConstraint,
     VectorType,
     i1,
-    VectorRankConstraint,
-    VectorBaseTypeConstraint,
-    VectorBaseTypeAndRankConstraint,
 )
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Attribute, Operation, SSAValue, Dialect, OpResult
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AnyAttr,
-    irdl_op_definition,
+    IRDLOperation,
     Operand,
     VarOperand,
-    IRDLOperation,
+    irdl_op_definition,
     operand_def,
     result_def,
     var_operand_def,

@@ -1,6 +1,9 @@
+from io import StringIO
+
 import pytest
 
-from xdsl.dialects import llvm, builtin, arith
+from xdsl.dialects import arith, builtin, llvm
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -196,3 +199,11 @@ def test_calling_conv():
 
     with pytest.raises(VerifyException, match='Invalid calling convention "nooo"'):
         llvm.CallingConventionAttr("nooo").verify()
+
+
+def test_variadic_func():
+    func_type = llvm.LLVMFunctionType([], is_variadic=True)
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_attribute(func_type)
+    assert io.getvalue() == """!llvm.func<void (...)>"""

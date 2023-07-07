@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from typing import Any, cast
 
 from xdsl.dialects.builtin import TensorType, VectorType
@@ -10,9 +9,9 @@ from xdsl.interpreter import (
     PythonValues,
     ReturnedValues,
     TerminatorValue,
+    impl,
     impl_terminator,
     register_impls,
-    impl,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
 

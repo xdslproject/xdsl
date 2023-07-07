@@ -1,37 +1,37 @@
 import pytest
-from xdsl.builder import Builder
-from xdsl.ir.core import BlockArgument
 
-from xdsl.utils.exceptions import VerifyException
-from xdsl.ir import Attribute, OpResult
+from xdsl.builder import Builder
+from xdsl.dialects import arith, builtin, func, memref, scf
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DenseArrayBase,
+    IndexType,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
     StridedLayoutAttr,
     i32,
     i64,
-    IntegerType,
-    IndexType,
-    ArrayAttr,
-    DenseArrayBase,
-    IntegerAttr,
-    IntAttr,
 )
 from xdsl.dialects.memref import (
     Alloc,
     Alloca,
+    Cast,
     CopyOp,
     Dealloc,
-    MemRefType,
-    Load,
-    Store,
-    UnrankedMemrefType,
-    ExtractAlignedPointerAsIndexOp,
-    Subview,
-    Cast,
     DmaStartOp,
     DmaWaitOp,
+    ExtractAlignedPointerAsIndexOp,
+    Load,
+    MemRefType,
+    Store,
+    Subview,
+    UnrankedMemrefType,
 )
-from xdsl.dialects import builtin, memref, func, arith, scf
+from xdsl.ir import Attribute, OpResult
+from xdsl.ir.core import BlockArgument
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
 

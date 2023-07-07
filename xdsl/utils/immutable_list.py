@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import Any, TypeVar, Iterable, SupportsIndex, cast, overload
+
+from typing import Any, Iterable, SupportsIndex, TypeVar, cast, overload
 
 _T = TypeVar("_T")
 _S = TypeVar("_S")

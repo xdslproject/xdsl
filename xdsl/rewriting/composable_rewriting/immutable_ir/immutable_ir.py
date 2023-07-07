@@ -1,14 +1,17 @@
 from __future__ import annotations
+
 from abc import ABC
 from dataclasses import dataclass
-from typing import Sequence, TypeGuard, Any
+from typing import Any, Sequence, TypeGuard
+
 from immutabledict import immutabledict
+
 from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
-    OpResult,
     Operation,
+    OpResult,
     Region,
     SSAValue,
 )

@@ -3,49 +3,41 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from typing import (
+    Any,
+    Callable,
+    Dict,
     Iterable,
+    List,
+    Optional,
     Sequence,
     TypeVar,
-    Any,
-    Dict,
-    Optional,
-    List,
     cast,
-    Callable,
 )
 
-from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
-from xdsl.ir import (
-    BlockArgument,
-    TypeAttribute,
-    SSAValue,
-    Block,
-    Attribute,
-    Region,
-    Operation,
-    Data,
-    ParametrizedAttribute,
-)
-from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyIntegerAttr,
     AnyFloatAttr,
+    AnyIntegerAttr,
     AnyUnrankedTensorType,
     AnyVectorType,
+    ArrayAttr,
     BFloat16Type,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
-    Float128Type,
+    DictionaryAttr,
     Float16Type,
     Float32Type,
     Float64Type,
     Float80Type,
+    Float128Type,
     FloatAttr,
     FloatData,
+    FunctionType,
     IndexType,
+    IntAttr,
+    IntegerAttr,
     IntegerType,
     LocationAttr,
     NoneAttr,
@@ -54,18 +46,26 @@ from xdsl.dialects.builtin import (
     StridedLayoutAttr,
     StringAttr,
     SymbolRefAttr,
-    IntegerAttr,
-    ArrayAttr,
-    IntAttr,
     TensorType,
     UnitAttr,
-    FunctionType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
     VectorType,
-    DictionaryAttr,
 )
+from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Data,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
+from xdsl.utils.diagnostic import Diagnostic
 
 indentNumSpaces = 2
 

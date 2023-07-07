@@ -1,15 +1,15 @@
 import pytest
-import xdsl.frontend.dialects.builtin as builtin
 
+import xdsl.frontend.dialects.builtin as builtin
 from xdsl.dialects.arith import Addi, Constant, Mulf
 from xdsl.dialects.builtin import (
     Float32Type,
     Float64Type,
     IntegerType,
-    i32,
-    i64,
     f32,
     f64,
+    i32,
+    i64,
 )
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.frontend.op_resolver import OpResolver

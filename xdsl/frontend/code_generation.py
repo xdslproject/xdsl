@@ -1,18 +1,18 @@
 import ast
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
+
 import xdsl.dialects.affine as affine
 import xdsl.dialects.arith as arith
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
-from xdsl.frontend.python_code_check import FunctionMap
 import xdsl.frontend.symref as symref
-
-from dataclasses import dataclass, field
-from typing import Any, Dict, List
 from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
 from xdsl.frontend.op_inserter import OpInserter
 from xdsl.frontend.op_resolver import OpResolver
+from xdsl.frontend.python_code_check import FunctionMap
 from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, SSAValue
 
