@@ -13,6 +13,7 @@ from xdsl.parser import Parser as IRParser
 import pytest
 
 from xdsl.printer import Printer
+from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCasts
 
 
@@ -37,6 +38,7 @@ def test_lower_memref():
             module_op = parser.parse_module()
             RISCVStackMemrefLower().apply(ctx, module_op)
             RISCVLowerArith().apply(ctx, module_op)
+            LowerRISCVFunc().apply(ctx, module_op)
             ReconcileUnrealizedCasts().apply(ctx, module_op)
             printer.print(module_op)
             module_op.verify()

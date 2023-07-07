@@ -12,9 +12,10 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.dialects import builtin
+from warnings import warn
 
 
-class RemoveUselessUnrealizedConversionCast(RewritePattern):
+class RemoveUselessConversionCast(RewritePattern):
     """
     An `unrealized_conversion_cast` operation represents an unrealized conversion from one set of types to another,
     that is used to enable the inter-mixing of different type systems.
@@ -63,6 +64,9 @@ class RemoveUselessUnrealizedConversionCast(RewritePattern):
                                 use.operation.inputs, cast.results
                             )
                         ):
+                            warn(
+                                f"Unable to remove cast {cast} because it is not unifiable with its uses"
+                            )
                             return
                         casts_to_visit.append(use.operation)
                     else:
@@ -73,8 +77,13 @@ class RemoveUselessUnrealizedConversionCast(RewritePattern):
                 # (e.g. {A -> B, B -> A})
                 # otherwise it means the cast is not unifiable with its uses
                 assert len(cast.results) == len(op.inputs)
-                is_cycle = all(r.typ == i.typ for r, i in zip(cast.results, op.inputs))
-                if is_live and not is_cycle:
+                has_trivial_cycle = all(
+                    r.typ == i.typ for r, i in zip(cast.results, op.inputs)
+                )
+                if is_live and not has_trivial_cycle:
+                    warn(
+                        f"Unable to remove cast {cast} because it is not unifiable with its uses"
+                    )
                     return
 
                 if not has_any_uses or is_live:
@@ -96,6 +105,6 @@ class ReconcileUnrealizedCasts(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
-            RemoveUselessUnrealizedConversionCast(),
+            RemoveUselessConversionCast(),
         )
         walker.rewrite_module(op)
