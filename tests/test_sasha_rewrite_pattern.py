@@ -109,9 +109,11 @@ def test_add_0():
 
 @rewrite_pattern_query
 def add_zero_query(root: arith.Addi, rhs_input: arith.Constant):
-    assert isa(root.rhs, OpResult)
-    assert root.rhs.op == rhs_input
-    assert rhs_input.value == IntegerAttr.from_int_and_width(0, 32)
+    return (
+        isa(root.rhs, OpResult)
+        and root.rhs.op == rhs_input
+        and rhs_input.value == IntegerAttr.from_int_and_width(0, 32)
+    )
 
 
 def test_query_builder():

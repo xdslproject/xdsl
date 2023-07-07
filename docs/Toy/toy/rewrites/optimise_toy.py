@@ -22,8 +22,7 @@ from ..dialects.toy import ConstantOp, ReshapeOp, TensorTypeF64, TransposeOp
 
 @rewrite_pattern_query
 def simplify_redundant_transpose_query(root: TransposeOp, input: TransposeOp):
-    assert isa(root.arg, OpResult)
-    assert root.arg.op == input
+    return isa(root.arg, OpResult) and root.arg.op == input
 
 
 @query_rewrite_pattern(simplify_redundant_transpose_query)
@@ -35,8 +34,7 @@ def simplify_redundant_transpose(
 
 @rewrite_pattern_query
 def reshape_reshape_query(root: ReshapeOp, input: ReshapeOp):
-    assert isa(root.arg, OpResult)
-    assert root.arg.op == input
+    return isa(root.arg, OpResult) and root.arg.op == input
 
 
 @query_rewrite_pattern(reshape_reshape_query)
@@ -48,8 +46,7 @@ def reshape_reshape(rewriter: PatternRewriter, root: ReshapeOp, input: ReshapeOp
 
 @rewrite_pattern_query
 def fold_constant_reshape_query(root: ReshapeOp, input: ConstantOp):
-    assert isa(root.arg, OpResult)
-    assert root.arg.op == input
+    return isa(root.arg, OpResult) and root.arg.op == input
 
 
 @query_rewrite_pattern(fold_constant_reshape_query)

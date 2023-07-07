@@ -243,6 +243,11 @@ class QueryRewritePattern(RewritePattern):
 
 
 @dataclass
+class ConstraintConjunction:
+    ...
+
+
+@dataclass
 class _QBVC:
     """
     Query builder variable contents
@@ -403,7 +408,7 @@ class PatternQuery(Generic[_P], Query):
     pass
 
 
-def rewrite_pattern_query(func: Callable[_P, None]) -> PatternQuery[_P]:
+def rewrite_pattern_query(func: Callable[_P, bool]) -> PatternQuery[_P]:
     params = list(inspect.signature(func).parameters.items())
 
     assert "root" in (name for name, _ in params)
