@@ -121,7 +121,7 @@ class NumberExprAST(ExprAST):
         return ExprASTKind.Expr_Num
 
     def inner_dump(self, prefix: str, dumper: Dumper):
-        dumper.append(prefix, " {:.6e}".format(self.val))
+        dumper.append(prefix, f" {self.val:.6e}")
 
 
 @dataclass
