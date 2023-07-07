@@ -146,7 +146,7 @@ class PatternRewriter:
         """
         self.has_done_action = True
         if op == self.current_operation:
-            return self.erase_matched_op()
+            return self.erase_matched_op(safe_erase)
         if not self._can_modify_op(op):
             raise Exception(
                 "PatternRewriter can only erase operations that are the matched operation"
