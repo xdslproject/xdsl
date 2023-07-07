@@ -51,7 +51,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
     idx: int
 
-    def __init__(self) -> None:
+    def __init__(self, limit_registers: int = 0) -> None:
         self.idx = 0
 
         """
@@ -68,6 +68,10 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             ],
             FloatRegisterType: list(Register.RV32F_INDEX_BY_NAME.keys()),
         }
+
+        for reg_type, reg_set in self.register_sets.items():
+            if limit_registers:
+                self.register_sets[reg_type] = reg_set[:limit_registers]
 
     @staticmethod
     def _is_allocated(reg: SSAValue) -> bool:
@@ -140,12 +144,14 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 class RegisterAllocatorBlockNaive(RegisterAllocator):
     idx: int
 
-    def __init__(self) -> None:
+    def __init__(self, limit_registers: int = 0) -> None:
         self.idx = 0
+        _ = limit_registers
 
         """
-        Since we've got neither right now a handling of a consistent ABI nor of a calling convention,
-        let's just assume that we have all the registers available for our use except the one explicitly reserved by the default riscv ABI.
+        Since we've got neither right now a handling of a consistent ABI nor of a
+        calling convention, let's just assume that we have all the registers available
+        for our use except the one explicitly reserved by the default riscv ABI.
         """
 
         self.integer_available_registers = list(Register.RV32I_INDEX_BY_NAME.keys())
@@ -201,8 +207,9 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 class RegisterAllocatorJRegs(RegisterAllocator):
     idx: int
 
-    def __init__(self) -> None:
+    def __init__(self, limit_registers: int = 0) -> None:
         self.idx = 0
+        _ = limit_registers
 
     def allocate_registers(self, module: ModuleOp) -> None:
         """
