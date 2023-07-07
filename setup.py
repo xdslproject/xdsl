@@ -21,7 +21,7 @@ reqs = []
 for ir in required:
     if ir[0:3] == "git":
         name = ir.split("/")[-1]
-        reqs += ["%s @ %s@main" % (name, ir)]
+        reqs += [f"{name} @ {ir}@main"]
     else:
         reqs += [ir]
 
