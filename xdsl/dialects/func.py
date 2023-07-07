@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence, Union, cast
+from typing import Sequence, cast
 
 from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolRefAttr
 from xdsl.ir import (

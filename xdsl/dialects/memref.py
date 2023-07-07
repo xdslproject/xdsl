@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Iterable, Sequence, TypeAlias, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
