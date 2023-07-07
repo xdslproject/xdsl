@@ -240,7 +240,7 @@ class FuncOp(IRDLOperation):
                 )
 
         if arg not in self.args:
-            raise ValueError("Arg {} does not belong to this function".format(arg))
+            raise ValueError(f"Arg {arg} does not belong to this function")
 
         arg.type = new_type
         self.update_function_type()
