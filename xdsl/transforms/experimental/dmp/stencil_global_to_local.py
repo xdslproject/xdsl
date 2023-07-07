@@ -537,10 +537,10 @@ def can_loop_invariant_code_move(op: Operation):
 
     for arg in op.operands:
         if not isinstance(arg, OpResult):
-            print("{} is not opresult".format(arg))
+            print(f"{arg} is not opresult")
             return False
         if not isinstance(arg.owner, _LOOP_INVARIANT_OPS):
-            print("{} is not loop invariant".format(arg))
+            print(f"{arg} is not loop invariant")
             return False
         if not can_loop_invariant_code_move(arg.owner):
             return False
