@@ -313,11 +313,11 @@ class Desymrefier:
             self._prune_unused_reads(block)
 
             # Find all symbols that are still in use in this block.
-            symbol_worklist: set[str] = set(
+            symbol_worklist: set[str] = {
                 symbol
                 for symbol in get_symbols(block)
                 if symbol not in prepared_symbols
-            )
+            }
             if len(symbol_worklist) == 0:
                 return
 

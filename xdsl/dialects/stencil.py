@@ -59,7 +59,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
         ints = parser.parse_comma_separated_list(
             parser.Delimiter.ANGLE, lambda: parser.parse_integer(allow_boolean=False)
         )
-        return [ArrayAttr((IntAttr(i) for i in ints))]
+        return [ArrayAttr(IntAttr(i) for i in ints)]
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print(f'<{", ".join((str(e) for e in self))}>')

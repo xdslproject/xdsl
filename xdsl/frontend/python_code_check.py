@@ -424,7 +424,7 @@ class CheckAndInlineConstants:
             # this then all constants above `i` must have been already inlined.
             # Hence, it is sufficient to check the function body only.
             if isinstance(stmt, ast.FunctionDef):
-                new_defined_variables = set([arg.arg for arg in stmt.args.args])
+                new_defined_variables = {arg.arg for arg in stmt.args.args}
                 CheckAndInlineConstants.run_with_variables(
                     stmt.body, new_defined_variables, file
                 )

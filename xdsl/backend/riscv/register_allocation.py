@@ -58,7 +58,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         Assume that all the registers are available except the ones explicitly reserved
         by the default RISCV ABI
         """
-        self.reserved_registers = set(["zero", "sp", "gp", "tp", "fp", "s0"])
+        self.reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
 
         self.register_sets = {
             RegisterType: [
@@ -155,7 +155,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
         """
 
         self.integer_available_registers = list(Register.RV32I_INDEX_BY_NAME.keys())
-        reserved_registers = set(["zero", "sp", "gp", "tp", "fp", "s0"])
+        reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
         self.integer_available_registers = [
             reg
             for reg in self.integer_available_registers

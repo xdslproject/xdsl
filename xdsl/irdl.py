@@ -971,7 +971,7 @@ def opt_successor_def(
 
 
 # Exclude `object`
-_OPERATION_DICT_KEYS = set(key for cls in Operation.mro()[:-1] for key in cls.__dict__)
+_OPERATION_DICT_KEYS = {key for cls in Operation.mro()[:-1] for key in cls.__dict__}
 
 
 @dataclass(kw_only=True)
@@ -1846,7 +1846,7 @@ def irdl_param_attr_get_param_type_hints(cls: type[_PAttrT]) -> list[tuple[str, 
     return res
 
 
-_PARAMETRIZED_ATTRIBUTE_DICT_KEYS = set(
+_PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
     key
     for dict_seq in (
         (cls.__dict__ for cls in ParametrizedAttribute.mro()[::-1]),
@@ -1854,7 +1854,7 @@ _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = set(
     )
     for dict in dict_seq
     for key in dict
-)
+}
 
 
 @dataclass
