@@ -280,7 +280,7 @@ class AttrParser(BaseParser):
         def unimplemented() -> NoReturn:
             raise ParseError(
                 self._current_token.span,
-                "Builtin {} is not supported yet!".format(name),
+                f"Builtin {name} is not supported yet!",
             )
 
         builtin_parsers: dict[str, Callable[[], ParametrizedAttribute]] = {
@@ -1094,7 +1094,7 @@ class AttrParser(BaseParser):
                 128: Float128Type,
             }.get(width, None)
             if type is None:
-                self.raise_error("Unsupported floating point width: {}".format(width))
+                self.raise_error(f"Unsupported floating point width: {width}")
             self._consume_token()
             return type()
 

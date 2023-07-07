@@ -283,7 +283,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                     width
                 )
             )
-        raise ValueError("MPI Datatype Conversion: Unsupported type {}".format(typ))
+        raise ValueError(f"MPI Datatype Conversion: Unsupported type {typ}")
 
     def _mpi_name(self, op: mpi.MPIBaseOp) -> str:
         """

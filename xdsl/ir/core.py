@@ -716,9 +716,7 @@ class Operation(IRNode):
             try:
                 operand_idx = self._operands.index(operand)
             except ValueError as err:
-                raise ValueError(
-                    "{} is not an operand of {}.".format(operand, self)
-                ) from err
+                raise ValueError(f"{operand} is not an operand of {self}.") from err
         else:
             operand_idx = operand
 
