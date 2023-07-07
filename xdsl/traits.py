@@ -147,17 +147,19 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
                     f"instead of {trait.parameters.name}"
                 )
 
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block
+
     for region in op.regions:
         if len(region.blocks) == 0:
-            from xdsl.ir import Block
-
             region.add_block(Block())
 
         for block in region.blocks:
             if (last_op := block.last_op) is None or not last_op.has_trait(
                 IsTerminator
             ):
-                block.add_op(trait.parameters.create())
+                with ImplicitBuilder(block):
+                    trait.parameters.create()
 
 
 class IsolatedFromAbove(OpTrait):
