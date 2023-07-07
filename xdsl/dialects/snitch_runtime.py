@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     VarOperand,
@@ -429,7 +429,7 @@ The different SSR data movers.
 ssr_dm = i32
 
 """
-The different dimensions - those determine how many levels of nesting a loop can have.
+The different dimensions - those determine how many levels of nesting a loop can have, used in read and write operations.
 The snitch system handles cases with up to 4, but this can be extended.
     SNRT_SSR_1D = 0,
     SNRT_SSR_2D = 1,
@@ -442,28 +442,41 @@ ssr_dim = i32
 class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     """
     Configure an SSR data mover for an n-dimensional loop nest.
+    bounds (limits of loop) and strides (increments of size) are ordered from inner-most to outer-most loops.
+
+    for example:
+    for (i = 0; i < 5; i++) { //bounds[1] = 5 and strides[1] = 1
+        for (j = 0; j < 6; j+=2) { //bounds[0] = 6 and strides[0] = 2
+            //whatever
+        }
+    }
     """
 
-    name = "snrt.ssr_loop_1d"
     data_mover: Operand = operand_def(ssr_dm)
     bounds: VarOperand = var_operand_def(IndexType)
-    indices: VarOperand = var_operand_def(IndexType)
-
+    strides: VarOperand = var_operand_def(IndexType)
     irdl_options = [AttrSizedOperandSegments()]
 
     def verify_(self) -> None:
-        if len(self.bounds) != len(self.indices):
+        if len(self.bounds) != len(self.strides):
             raise VerifyException(
-                f"the length of bounds ({len(self.bounds)}) and indices ({len(self.indices)}) must be equal."
+                f"the length of bounds ({len(self.bounds)}) and strides ({len(self.strides)}) must be equal."
             )
+        if len(self.strides) != self.num:
+            raise VerifyException(f"")
 
     def __init__(
         self,
         data_mover: Operation | SSAValue,
         bounds: Sequence[Operation | SSAValue],
-        indices: Sequence[Operation | SSAValue],
+        strides: Sequence[Operation | SSAValue],
     ):
-        super().__init__(operands=[data_mover, bounds, indices])
+        super().__init__(operands=[data_mover, bounds, strides])
+
+    @property
+    @abstractmethod
+    def num(self) -> int:
+        raise NotImplementedError()
 
 
 @irdl_op_definition
@@ -474,6 +487,10 @@ class SsrLoop1dOp(SsrLoopBaseOp):
 
     name = "snrt.ssr_loop_1d"
 
+    @property
+    def num(self) -> int:
+        return 1
+
 
 @irdl_op_definition
 class SsrLoop2dOp(SsrLoopBaseOp):
@@ -482,6 +499,10 @@ class SsrLoop2dOp(SsrLoopBaseOp):
     """
 
     name = "snrt.ssr_loop_2d"
+
+    @property
+    def num(self) -> int:
+        return 2
 
 
 @irdl_op_definition
@@ -492,17 +513,22 @@ class SsrLoop3dOp(SsrLoopBaseOp):
 
     name = "snrt.ssr_loop_3d"
 
+    @property
+    def num(self) -> int:
+        return 3
+
 
 @irdl_op_definition
 class SsrLoop4dOp(SsrLoopBaseOp):
     """
     Configure an SSR data mover for a 4D loop nest.
-    b0: Inner-most bound (limit of loop)
-    b3: Outer-most bound (limit of loop)
-    s0: increment size of inner-most loop
     """
 
     name = "snrt.ssr_loop_4d"
+
+    @property
+    def num(self) -> int:
+        return 4
 
 
 @irdl_op_definition
@@ -558,7 +584,7 @@ class SsrReadWriteBaseOperation(SnitchRuntimeBaseOperation, ABC):
 @irdl_op_definition
 class SsrReadOp(SsrReadWriteBaseOperation):
     """
-    Start a streaming read.
+    Start a streaming read with a given dimensionality.
     """
 
     name = "snrt.ssr_read"
@@ -567,7 +593,7 @@ class SsrReadOp(SsrReadWriteBaseOperation):
 @irdl_op_definition
 class SsrWriteOp(SsrReadWriteBaseOperation):
     """
-    Start a streaming write.
+    Start a streaming write with a given dimensionality.
     """
 
     name = "snrt.ssr_write"
