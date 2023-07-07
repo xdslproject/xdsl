@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-allocate-registers{allocation_strategy=LivenessBlockNaive limit_registers=2} %s --print-op-generic | filecheck %s
+// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive limit_registers=2}" %s --print-op-generic | filecheck %s
 
 "builtin.module"() ({
   %0 = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<>
