@@ -1433,7 +1433,7 @@ def irdl_op_verify_arg_list(
                 construct == VarIRConstruct.OPERAND
                 or construct == VarIRConstruct.RESULT
             ):
-                arg_def.constr.verify(arg.typ, constraint_vars)
+                arg_def.constr.verify(arg.type, constraint_vars)
             elif construct == VarIRConstruct.REGION:
                 if isinstance(arg_def, SingleBlockRegionDef) and len(arg.blocks) != 1:
                     raise VerifyException(

@@ -486,7 +486,7 @@ class PlusCustomFormatOp(IRDLOperation):
         return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=[type])
 
     def print(self, printer: Printer):
-        printer.print(" ", self.lhs, " + ", self.rhs, " : ", self.res.typ)
+        printer.print(" ", self.lhs, " + ", self.rhs, " : ", self.res.type)
 
 
 def test_generic_format():

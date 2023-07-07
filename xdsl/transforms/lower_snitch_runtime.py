@@ -101,8 +101,8 @@ class AddExternalFuncs(RewritePattern, ABC):
             if "snrt" not in op.callee.string_value():
                 continue
             funcs_to_emit[op.callee.string_value()] = (
-                [arg.typ for arg in op.arguments],
-                [res.typ for res in op.results],
+                [arg.type for arg in op.arguments],
+                [res.type for res in op.results],
             )
 
         for name, types in funcs_to_emit.items():

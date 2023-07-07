@@ -49,7 +49,7 @@ class PrintFormatOp(IRDLOperation):
         def print_val_and_type(ssa_val: SSAValue):
             printer.print_ssa_value(ssa_val)
             printer.print_string(" : ")
-            printer.print_attribute(ssa_val.typ)
+            printer.print_attribute(ssa_val.type)
 
         if len(self.format_vals) > 0:
             printer.print_string(", ")
@@ -68,7 +68,7 @@ class PrintFormatOp(IRDLOperation):
             args.append(arg := parser.parse_operand())
             parser.parse_characters(":", " - all arguments must have a type")
             typ = parser.parse_type()
-            if arg.typ != typ:
+            if arg.type != typ:
                 parser.raise_error(f"Parsed ssa vlue {arg} must be of type {typ}")
 
         attr_dict = parser.parse_optional_attr_dict()

@@ -49,9 +49,9 @@ class LargerOperandTrait(OpTrait):
         # These asserts should be exceptions in a non-testing environment.
         assert len(op.results) == 1
         assert len(op.operands) == 1
-        assert isinstance(op.results[0].typ, IntegerType)
-        assert isinstance(op.operands[0].typ, IntegerType)
-        if op.results[0].typ.width.data >= op.operands[0].typ.width.data:
+        assert isinstance(op.results[0].type, IntegerType)
+        assert isinstance(op.operands[0].type, IntegerType)
+        if op.results[0].type.width.data >= op.operands[0].type.width.data:
             raise VerifyException(
                 "Operation has a result bitwidth greater "
                 "or equal to the operand bitwidth."
@@ -75,12 +75,12 @@ class BitwidthSumLessThanTrait(OpTrait):
         sum_bitwidth = 0
         for operand in op.operands:
             # This assert should be an exception in a non-testing environment.
-            assert isinstance(operand.typ, IntegerType)
-            sum_bitwidth += operand.typ.width.data
+            assert isinstance(operand.type, IntegerType)
+            sum_bitwidth += operand.type.width.data
         for result in op.results:
             # This assert should be an exception in a non-testing environment.
-            assert isinstance(result.typ, IntegerType)
-            sum_bitwidth += result.typ.width.data
+            assert isinstance(result.type, IntegerType)
+            sum_bitwidth += result.type.width.data
 
         if sum_bitwidth >= self.max_sum:
             raise VerifyException(
