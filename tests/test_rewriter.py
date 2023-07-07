@@ -469,7 +469,7 @@ def test_erase_op():
         assert constant_op is not None
         rewriter.erase_op(constant_op, safe_erase=False)
 
+    rewrite_and_compare(prog, expected, transformation_unsafe)
+
     with pytest.raises(Exception):
         rewrite_and_compare(prog, expected, transformation_safe)
-
-    rewrite_and_compare(prog, expected, transformation_unsafe)
