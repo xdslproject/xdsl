@@ -30,7 +30,7 @@ def test_empty_program():
     with redirect_stdout(f):
         opt.run()
 
-    with open(filename, "r") as file:
+    with open(filename) as file:
         expected = file.read()
         assert f.getvalue().strip() == expected.strip()
 
@@ -83,9 +83,9 @@ def test_print_to_file():
     opt = xDSLOptMain(args=[filename_in, "-o", filename_out])
     opt.run()
 
-    with open(filename_in, "r") as file:
+    with open(filename_in) as file:
         inp = file.read()
-    with open(filename_out, "r") as file:
+    with open(filename_out) as file:
         expected = file.read()
 
     assert inp.strip() == expected.strip()
@@ -111,7 +111,7 @@ def test_operation_deletion():
     f = StringIO("")
     with redirect_stdout(f):
         opt.run()
-    with open(filename_out, "r") as file:
+    with open(filename_out) as file:
         expected = file.read()
 
     assert f.getvalue().strip() == expected.strip()
@@ -151,9 +151,9 @@ def test_split_input():
 
     opt = xDSLOptMain(args=[filename_in, flag, "-o", filename_out])
     opt.run()
-    with open(filename_in, "r") as file:
+    with open(filename_in) as file:
         inp = file.read()
-    with open(filename_out, "r") as file:
+    with open(filename_out) as file:
         expected = file.read()
 
     assert inp.strip() == expected.strip()

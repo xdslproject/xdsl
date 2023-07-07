@@ -47,7 +47,7 @@ def run_on_files(file_names: Iterable[str], mlir_path: str, ctx: MLContext):
     n_parsed_files = 0
 
     for file_name in file_names:
-        contents = open(file_name, "r").read()
+        contents = open(file_name).read()
         print("Parsing file: " + file_name)
         splitted_contents = split_mlir_file(contents)
         print(f"File has been split into {len(splitted_contents)} sub-files.")

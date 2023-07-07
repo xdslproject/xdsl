@@ -12,7 +12,7 @@ from ..frontend.parser import Parser
 def test_convert_ast():
     ast_toy = Path("docs/Toy/examples/ast.toy")
 
-    with open(ast_toy, "r") as f:
+    with open(ast_toy) as f:
         parser = Parser(ast_toy, f.read())
 
     module_ast = parser.parseModule()
@@ -62,7 +62,7 @@ def test_convert_ast():
 def test_convert_scalar():
     scalar_toy = Path("docs/Toy/examples/scalar.toy")
 
-    with open(scalar_toy, "r") as f:
+    with open(scalar_toy) as f:
         parser = Parser(scalar_toy, f.read())
 
     module_ast = parser.parseModule()
