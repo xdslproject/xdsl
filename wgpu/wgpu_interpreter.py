@@ -63,8 +63,18 @@ class WGPUFunctions:
         fn main(@builtin(global_invocation_id) index: vec3<u32>) {{
         """
         )
-
+        count = 0
         for operation in op.body.ops:
+            match operation:
+                case memref.Load():
+                    operation.res.name_hint = f"v{count}"
+                case memref.Store():
+                    operation.value.name_hint = f"v{count}"
+                case gpu.ReturnOp():
+                    pass
+                case _:
+                    operation.result.name_hint = f"v{count}"
+            count += 1
             self.print(operation, out_stream)
         out_stream.write(
             f"""
@@ -96,7 +106,8 @@ class WGPUFunctions:
         )
 
         for operation in op.body.ops:
-            self.print(operation, out_stream)
+            operation.results.name_hint = "i"
+            self.print(operation.results.name_hint, out_stream)
         out_stream.write(
             f"""
             }}
@@ -111,7 +122,7 @@ class WGPUFunctions:
 
     @print.register
     def _(self, op: gpu.BlockIdOp, out_stream: IO[str]):
-        print(op.name)
+        # print(op.name)
         dim = str(op.dimension.value.param).replace('"', "")
         name_hint = op.result.name_hint
         input_type = op.result.typ
@@ -211,7 +222,7 @@ class WGPUFunctions:
 
     @print.register
     def _(self, op: arith.Addi, out_stream: IO[str]):
-        print(op.lhs)
+        print(op.lhs.name_hint)
         op_name_hint = op.result.name_hint
         lhs = op.lhs.name_hint
         rhs = op.rhs.name_hint
