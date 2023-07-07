@@ -1,6 +1,9 @@
-from xdsl.dialects import printf as print_dialect, test, builtin
-from xdsl.transforms import printf_to_llvm
 import pytest
+
+from xdsl.dialects import builtin
+from xdsl.dialects import printf as print_dialect
+from xdsl.dialects import test
+from xdsl.transforms import printf_to_llvm
 
 
 @pytest.mark.parametrize(

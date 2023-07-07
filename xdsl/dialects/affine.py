@@ -11,18 +11,17 @@ from xdsl.dialects.builtin import (
     ShapedType,
 )
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine.affine_expr import AffineExpr
 from xdsl.ir.affine.affine_map import AffineMap
-from xdsl.traits import IsTerminator
 from xdsl.irdl import (
+    AnyAttr,
     ConstraintVar,
+    IRDLOperation,
+    VarOperand,
     VarOpResult,
     attr_def,
     irdl_op_definition,
-    VarOperand,
-    AnyAttr,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     region_def,
@@ -30,6 +29,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.traits import IsTerminator
 
 
 @irdl_op_definition

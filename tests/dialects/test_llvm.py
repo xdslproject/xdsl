@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.dialects import llvm, builtin, arith
+from xdsl.dialects import arith, builtin, llvm
 from xdsl.utils.exceptions import VerifyException
 
 

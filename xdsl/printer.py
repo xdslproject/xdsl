@@ -3,68 +3,69 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from typing import (
+    Any,
+    Callable,
+    Dict,
     Iterable,
+    List,
+    Optional,
     Sequence,
     TypeVar,
-    Any,
-    Dict,
-    Optional,
-    List,
     cast,
-    Callable,
 )
 
-from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
-from xdsl.ir import (
-    BlockArgument,
-    TypeAttribute,
-    SSAValue,
-    Block,
-    Attribute,
-    Region,
-    Operation,
-    Data,
-    ParametrizedAttribute,
-)
-from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyIntegerAttr,
     AnyFloatAttr,
+    AnyIntegerAttr,
     AnyUnrankedTensorType,
     AnyVectorType,
+    ArrayAttr,
     BFloat16Type,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
-    Float128Type,
+    DictionaryAttr,
     Float16Type,
     Float32Type,
     Float64Type,
     Float80Type,
+    Float128Type,
     FloatAttr,
     FloatData,
+    FunctionType,
     IndexType,
+    IntAttr,
+    IntegerAttr,
     IntegerType,
+    LocationAttr,
     NoneAttr,
     OpaqueAttr,
     Signedness,
     StridedLayoutAttr,
     StringAttr,
     SymbolRefAttr,
-    IntegerAttr,
-    ArrayAttr,
-    IntAttr,
     TensorType,
     UnitAttr,
-    FunctionType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
     VectorType,
-    DictionaryAttr,
 )
+from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Data,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
+from xdsl.utils.diagnostic import Diagnostic
 
 indentNumSpaces = 2
 
@@ -73,6 +74,7 @@ indentNumSpaces = 2
 class Printer:
     stream: Optional[Any] = field(default=None)
     print_generic_format: bool = field(default=False)
+    print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
     _indent: int = field(default=0, init=False)
@@ -273,6 +275,8 @@ class Printer:
         self.print(arg)
         if print_type:
             self.print(" : ", arg.typ)
+            if self.print_debuginfo:
+                self.print(" loc(unknown)")
 
     def print_region(
         self,
@@ -338,6 +342,10 @@ class Printer:
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
+            return
+
+        if isinstance(attribute, LocationAttr):
+            self.print("loc(unknown)")
             return
 
         if isinstance(attribute, IntegerType):
@@ -682,6 +690,8 @@ class Printer:
             self.print("(")
             self.print_list(op.results, lambda result: self.print_attribute(result.typ))
             self.print(")")
+        if self.print_debuginfo:
+            self.print(" loc(unknown)")
 
     def print_op(self, op: Operation) -> None:
         begin_op_pos = self._current_column

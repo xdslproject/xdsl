@@ -1,16 +1,10 @@
 import pytest
-
 from conftest import assert_print_op
+
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    i32,
-    ModuleOp,
-    i64,
-    IntegerType,
-)
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32, i64
+from xdsl.dialects.func import Call, FuncOp, Return
 from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import VerifyException
 

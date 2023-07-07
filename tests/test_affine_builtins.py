@@ -57,3 +57,14 @@ def test_quasiaffine_map():
     assert map3.eval([4], [13]) == [-13]
     assert map3.eval([5], [10]) == [-9]
     assert map3.eval([6], [11]) == [-11]
+
+
+def test_helpers():
+    m0 = AffineMap.constant_map(0)
+    assert m0 == AffineMap(0, 0, [AffineExpr.constant(0)])
+    m1 = AffineMap.point_map(0, 1)
+    assert m1 == AffineMap(0, 0, [AffineExpr.constant(0), AffineExpr.constant(1)])
+    m2 = AffineMap.identity(2)
+    assert m2 == AffineMap(2, 0, [AffineExpr.dimension(0), AffineExpr.dimension(1)])
+    m3 = AffineMap.empty()
+    assert m3 == AffineMap(0, 0, [])

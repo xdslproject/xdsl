@@ -4,20 +4,20 @@ from typing import Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.traits import HasParent, IsTerminator
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
+    IRDLOperation,
     Operand,
     VarOperand,
     VarOpResult,
     irdl_op_definition,
-    IRDLOperation,
     operand_def,
     region_def,
     var_operand_def,
     var_result_def,
 )
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -69,6 +69,12 @@ class For(IRDLOperation):
                 f"{len(self.body.block.args)}. The body must have the induction "
                 f"variable and loop-carried variables as arguments."
             )
+        if self.body.block.args and (iter_var := self.body.block.args[0]):
+            if not isinstance(iter_var.typ, IndexType):
+                raise VerifyException(
+                    f"The first block argument of the body is of type {iter_var.typ}"
+                    " instead of index"
+                )
         for idx, arg in enumerate(self.iter_args):
             if self.body.block.args[idx + 1].typ != arg.typ:
                 raise VerifyException(
@@ -81,7 +87,7 @@ class For(IRDLOperation):
                 self.body.block.last_op, Yield
             ):
                 raise VerifyException(
-                    "The scf.for's body does not end with a scf.yield. A scf.for loop "
+                    "The scf.for's body does not end with an scf.yield. A scf.for loop "
                     "with loop-carried variables must yield their values at the end of "
                     "its body."
                 )

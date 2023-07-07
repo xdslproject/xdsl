@@ -1,28 +1,24 @@
 from __future__ import annotations
-from typing import Union, Sequence, cast
 
-from xdsl.utils.deprecation import deprecated
-from xdsl.dialects.builtin import (
-    StringAttr,
-    FunctionType,
-    SymbolRefAttr,
-)
+from typing import Sequence, Union, cast
+
+from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolRefAttr
 from xdsl.ir import (
-    SSAValue,
-    Operation,
-    Block,
-    Region,
     Attribute,
-    Dialect,
+    Block,
     BlockArgument,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    IRDLOperation,
+    VarOperand,
     VarOpResult,
     attr_def,
     irdl_op_definition,
-    VarOperand,
-    AnyAttr,
-    IRDLOperation,
     opt_attr_def,
     region_def,
     var_operand_def,
@@ -33,10 +29,11 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     CallableOpInterface,
     HasParent,
-    IsTerminator,
     IsolatedFromAbove,
+    IsTerminator,
     SymbolOpInterface,
 )
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 

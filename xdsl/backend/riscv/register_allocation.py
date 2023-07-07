@@ -1,12 +1,8 @@
 from abc import ABC
-from xdsl.ir import SSAValue
+
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import (
-    Register,
-    RegisterType,
-    FloatRegisterType,
-    RISCVOp,
-)
+from xdsl.dialects.riscv import FloatRegisterType, Register, RegisterType, RISCVOp
+from xdsl.ir import SSAValue
 
 
 class RegisterAllocator(ABC):

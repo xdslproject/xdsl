@@ -1,48 +1,45 @@
 from dataclasses import dataclass
-from typing import Literal, TypeVar, Iterable, cast
-
+from typing import Iterable, Literal, TypeVar, cast
 from warnings import warn
 
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    GreedyRewritePatternApplier,
-    op_type_rewrite_pattern,
-)
-from xdsl.ir import (
-    Block,
-    MLContext,
-    Region,
-    Operation,
-    SSAValue,
-    OpResult,
-    BlockArgument,
-)
-from xdsl.irdl import Attribute
+from xdsl.dialects import arith, builtin, gpu, memref, scf
 from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
-from xdsl.dialects import memref, arith, scf, builtin, gpu
-
-from xdsl.dialects.stencil import CastOp
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
     BufferOp,
+    CastOp,
+    ExternalLoadOp,
+    ExternalStoreOp,
     FieldType,
+    IndexOp,
     LoadOp,
     ReturnOp,
     StencilBoundsAttr,
     StencilType,
     StoreOp,
     TempType,
-    ExternalLoadOp,
-    ExternalStoreOp,
-    IndexOp,
 )
+from xdsl.ir import (
+    Block,
+    BlockArgument,
+    MLContext,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
+from xdsl.irdl import Attribute
 from xdsl.passes import ModulePass
-
+from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 

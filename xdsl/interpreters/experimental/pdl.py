@@ -3,14 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import IO, Any
 
-from xdsl.ir import Attribute, MLContext, TypeAttribute, OpResult, Operation, SSAValue
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-)
-from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
+from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
+from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 

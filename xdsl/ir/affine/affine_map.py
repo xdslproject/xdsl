@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .affine_expr import AffineExpr
@@ -18,6 +19,10 @@ class AffineMap:
     @staticmethod
     def constant_map(value: int) -> AffineMap:
         return AffineMap(0, 0, [AffineExpr.constant(value)])
+
+    @staticmethod
+    def point_map(*values: int) -> AffineMap:
+        return AffineMap(0, 0, [AffineExpr.constant(value) for value in values])
 
     @staticmethod
     def identity(rank: int) -> AffineMap:

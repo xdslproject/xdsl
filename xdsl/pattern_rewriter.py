@@ -4,18 +4,10 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import UnionType
-from typing import (
-    Callable,
-    TypeVar,
-    Union,
-    get_args,
-    get_origin,
-    Iterable,
-    Sequence,
-)
+from typing import Callable, Iterable, Sequence, TypeVar, Union, get_args, get_origin
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, Region, Block, BlockArgument, Attribute, SSAValue
+from xdsl.ir import Attribute, Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.rewriter import Rewriter
 
 

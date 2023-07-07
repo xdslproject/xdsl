@@ -1,7 +1,7 @@
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext, Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import RewritePattern, PatternRewriter, PatternRewriteWalker
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
 from xdsl.traits import Pure
 
 

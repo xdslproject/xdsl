@@ -1,13 +1,12 @@
 from pathlib import Path
 
-from xdsl.ir import OpResult, SSAValue
-from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
 from xdsl.builder import Builder, ImplicitBuilder
-
-from ..frontend.parser import Parser
-from ..frontend.ir_gen import IRGen
+from xdsl.dialects.builtin import FunctionType, ModuleOp, f64
+from xdsl.ir import OpResult, SSAValue
 
 from ..dialects import toy
+from ..frontend.ir_gen import IRGen
+from ..frontend.parser import Parser
 
 
 def test_convert_ast():

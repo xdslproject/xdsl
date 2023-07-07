@@ -3,31 +3,30 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Annotated, Generic, TypeVar
 
-from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
-    ContainerOf,
-    Float16Type,
-    Float64Type,
-    IndexType,
-    IntAttr,
-    IntegerType,
-    Float32Type,
-    IntegerAttr,
-    FloatAttr,
-    Attribute,
     AnyFloat,
     AnyIntegerAttr,
+    Attribute,
+    ContainerOf,
+    Float16Type,
+    Float32Type,
+    Float64Type,
+    FloatAttr,
+    IndexType,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
 )
 from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
-from xdsl.ir import Operation, SSAValue, Dialect, OpResult
+from xdsl.ir import Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AnyOf,
     ConstraintVar,
+    IRDLOperation,
+    Operand,
     attr_def,
     irdl_op_definition,
-    AnyAttr,
-    Operand,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     result_def,
@@ -36,6 +35,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))

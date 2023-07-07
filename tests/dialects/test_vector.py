@@ -1,26 +1,26 @@
-import pytest
-
 from typing import List
 
+import pytest
+
 from xdsl.dialects.builtin import (
+    IndexType,
     IntegerAttr,
+    IntegerType,
+    VectorType,
     i1,
     i32,
     i64,
-    IntegerType,
-    IndexType,
-    VectorType,
 )
-from xdsl.dialects.memref import MemRefType, AnyIntegerAttr
+from xdsl.dialects.memref import AnyIntegerAttr, MemRefType
 from xdsl.dialects.vector import (
+    FMA,
     Broadcast,
+    Createmask,
     Load,
     Maskedload,
     Maskedstore,
-    Store,
-    FMA,
     Print,
-    Createmask,
+    Store,
 )
 from xdsl.ir import OpResult
 from xdsl.irdl import Attribute

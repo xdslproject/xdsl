@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.dialects.affine import For, Yield
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, IntegerType
-from xdsl.ir import Attribute, Region, Block
+from xdsl.ir import Attribute, Block, Region
 from xdsl.ir.affine.affine_expr import AffineExpr
 
 
