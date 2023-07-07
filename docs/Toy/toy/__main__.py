@@ -33,7 +33,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
 
     path = args.source
 
-    with open(path, "r") as f:
+    with open(path) as f:
         match path.suffix:
             case ".toy":
                 parser = ToyParser(path, f.read())
