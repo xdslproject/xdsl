@@ -23,7 +23,7 @@ from ..frontend.toy_ast import (
 def test_parse_ast():
     ast_toy = Path("docs/Toy/examples/ast.toy")
 
-    with open(ast_toy, "r") as f:
+    with open(ast_toy) as f:
         parser = Parser(ast_toy, f.read())
 
     parsed_module_ast = parser.parseModule()
@@ -187,7 +187,7 @@ def test_parse_error():
 def test_parse_scalar():
     ast_toy = Path("docs/Toy/examples/scalar.toy")
 
-    with open(ast_toy, "r") as f:
+    with open(ast_toy) as f:
         parser = Parser(ast_toy, f.read())
 
     parsed_module_ast = parser.parseModule()
