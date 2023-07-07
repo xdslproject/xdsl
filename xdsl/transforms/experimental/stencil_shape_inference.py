@@ -60,9 +60,9 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
 class LoadOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        field = op.field.typ
+        field = op.field.type
         assert isa(field, FieldType[Attribute])
-        temp = op.res.typ
+        temp = op.res.type
         assert isa(temp, TempType[Attribute])
 
         assert_subset(field, temp)
@@ -71,7 +71,7 @@ class LoadOpShapeInference(RewritePattern):
 class StoreOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
-        temp = op.temp.typ
+        temp = op.temp.type
 
         assert isa(temp, TempType[Attribute])
         temp_lb = None
@@ -82,7 +82,7 @@ class StoreOpShapeInference(RewritePattern):
 
         temp_lb = IndexAttr.min(op.lb, temp_lb)
         temp_ub = IndexAttr.max(op.ub, temp_ub)
-        op.temp.typ = TempType(tuple(zip(temp_lb, temp_ub)), temp.element_type)
+        op.temp.type = TempType(tuple(zip(temp_lb, temp_ub)), temp.element_type)
 
 
 class AccessOpShapeInference(RewritePattern):
@@ -90,25 +90,25 @@ class AccessOpShapeInference(RewritePattern):
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter):
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
-        assert isa(op.temp.typ, TempType[Attribute])
+        assert isa(op.temp.type, TempType[Attribute])
         assert isinstance(op.temp, BlockArgument)
         assert op.temp.block.parent_op() is apply
-        assert isa(apply.res[0].typ, TempType[Attribute]), f"{apply.res[0]}"
+        assert isa(apply.res[0].type, TempType[Attribute]), f"{apply.res[0]}"
 
-        temp_typ = op.temp.typ
+        temp_typ = op.temp.type
         temp_lb = None
         temp_ub = None
         if isinstance(temp_typ.bounds, StencilBoundsAttr):
             temp_lb = temp_typ.bounds.lb
             temp_ub = temp_typ.bounds.ub
-        output_size = apply.res[0].typ.bounds
+        output_size = apply.res[0].type.bounds
         assert isinstance(output_size, StencilBoundsAttr)
 
         lb = IndexAttr.min(output_size.lb + op.offset, temp_lb)
         ub = IndexAttr.max(output_size.ub + op.offset, temp_ub)
         ntyp = TempType(tuple(zip(lb, ub)), temp_typ.element_type)
 
-        op.temp.typ = ntyp
+        op.temp.type = ntyp
 
 
 class ApplyOpShapeInference(RewritePattern):
@@ -116,22 +116,22 @@ class ApplyOpShapeInference(RewritePattern):
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         if len(op.res) < 1:
             return
-        res_typ = op.res[0].typ
+        res_typ = op.res[0].type
         assert isa(res_typ, TempType[Attribute])
         assert isinstance(res_typ.bounds, StencilBoundsAttr)
         ntyp = res_typ
         assert isinstance(ntyp.bounds, StencilBoundsAttr)
 
         for i, arg in enumerate(op.region.block.args):
-            if not isa(arg.typ, TempType[Attribute]):
+            if not isa(arg.type, TempType[Attribute]):
                 continue
-            op.operands[i].typ = arg.typ
+            op.operands[i].type = arg.type
 
 
 class BufferOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
-        op.temp.typ = op.res.typ
+        op.temp.type = op.res.type
 
 
 ShapeInference = GreedyRewritePatternApplier(

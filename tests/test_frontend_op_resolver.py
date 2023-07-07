@@ -42,8 +42,8 @@ def test_resolves_ops():
     assert isinstance(addi_op, Addi)
     assert addi_op.operands[0] == a.results[0]
     assert addi_op.operands[1] == b.results[0]
-    assert isinstance(addi_op.results[0].typ, IntegerType)
-    assert addi_op.results[0].typ.width.data == 32
+    assert isinstance(addi_op.results[0].type, IntegerType)
+    assert addi_op.results[0].type.width.data == 32
 
     c = Constant.from_float_and_width(5.0, f32)
     mulf = OpResolver.resolve_op("xdsl.frontend.dialects.arith", "mulf")
@@ -52,7 +52,7 @@ def test_resolves_ops():
     assert isinstance(mulf_op, Mulf)
     assert mulf_op.operands[0] == c.results[0]
     assert mulf_op.operands[1] == c.results[0]
-    assert isinstance(mulf_op.results[0].typ, Float32Type)
+    assert isinstance(mulf_op.results[0].type, Float32Type)
 
 
 def test_resolves_overloads():
@@ -65,8 +65,8 @@ def test_resolves_overloads():
     assert isinstance(addi_op, Addi)
     assert addi_op.operands[0] == a.results[0]
     assert addi_op.operands[1] == b.results[0]
-    assert isinstance(addi_op.results[0].typ, IntegerType)
-    assert addi_op.results[0].typ.width.data == 64
+    assert isinstance(addi_op.results[0].type, IntegerType)
+    assert addi_op.results[0].type.width.data == 64
 
     c = Constant.from_float_and_width(5.0, f64)
     mulf = OpResolver.resolve_op_overload("__mul__", builtin._Float64)
@@ -75,4 +75,4 @@ def test_resolves_overloads():
     assert isinstance(mulf_op, Mulf)
     assert mulf_op.operands[0] == c.results[0]
     assert mulf_op.operands[1] == c.results[0]
-    assert isinstance(mulf_op.results[0].typ, Float64Type)
+    assert isinstance(mulf_op.results[0].type, Float64Type)

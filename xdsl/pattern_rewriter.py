@@ -209,7 +209,7 @@ class PatternRewriter:
                 "Cannot modify blocks that are not contained in the matched operation"
             )
         self.has_done_action = True
-        arg.typ = new_type
+        arg.type = new_type
 
     def insert_block_argument(
         self, block: Block, index: int, typ: Attribute

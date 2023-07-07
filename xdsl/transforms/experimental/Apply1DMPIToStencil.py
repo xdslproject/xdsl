@@ -20,8 +20,8 @@ class ApplyMPIToExternalLoad(RewritePattern):
     def match_and_rewrite(
         self, op: stencil.ExternalLoadOp, rewriter: PatternRewriter, /
     ):
-        assert isa(op.field.typ, memref.MemRefType[AnyNumericType])
-        memref_type: memref.MemRefType[AnyNumericType] = op.field.typ
+        assert isa(op.field.type, memref.MemRefType[AnyNumericType])
+        memref_type: memref.MemRefType[AnyNumericType] = op.field.type
         if len(memref_type.shape) <= 1:
             return
         mpi_operations: List[Operation] = []

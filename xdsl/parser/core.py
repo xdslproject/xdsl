@@ -269,10 +269,10 @@ class Parser(AttrParser):
 
         # Check that the type is consistent
         resolved = self.ssa_values[name][operand.index]
-        if resolved.typ != type:
+        if resolved.type != type:
             self.raise_error(
                 f"operand is used with type {type}, but has been "
-                f"previously used or defined with type {resolved.typ}",
+                f"previously used or defined with type {resolved.type}",
                 operand.span,
             )
 
@@ -446,13 +446,13 @@ class Parser(AttrParser):
                     )
 
                 result = values[index]
-                if value.typ != result.typ:
+                if value.type != result.type:
                     result_name = f"%{name}"
                     if tuple_size != 1:
                         result_name = f"%{name}#{index}"
                     self.raise_error(
                         f"Result {result_name} is defined with "
-                        f"type {result.typ}, but used with type {value.typ}",
+                        f"type {result.type}, but used with type {value.type}",
                         span,
                     )
                 value.replace_by(result)
