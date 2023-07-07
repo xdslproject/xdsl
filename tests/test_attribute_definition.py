@@ -104,11 +104,6 @@ class IntListData(Data[list[int]]):
         printer.print_list(self.data, lambda x: printer.print_string(str(x)))
         printer.print_string("]")
 
-    def verify(self) -> None:
-        # We must override verify on Attribute
-        # https://github.com/xdslproject/xdsl/issues/1075
-        ...
-
 
 def test_non_class_data():
     """Test the definition of a Data with a non-class parameter."""
