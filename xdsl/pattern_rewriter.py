@@ -146,7 +146,7 @@ class PatternRewriter:
         """
         self.has_done_action = True
         if op == self.current_operation:
-            return self.erase_matched_op()
+            return self.erase_matched_op(safe_erase)
         if not self._can_modify_op(op):
             raise Exception(
                 "PatternRewriter can only erase operations that are the matched operation"
@@ -209,7 +209,7 @@ class PatternRewriter:
                 "Cannot modify blocks that are not contained in the matched operation"
             )
         self.has_done_action = True
-        arg.typ = new_type
+        arg.type = new_type
 
     def insert_block_argument(
         self, block: Block, index: int, typ: Attribute

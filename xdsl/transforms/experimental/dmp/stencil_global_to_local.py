@@ -70,14 +70,14 @@ class LowerHaloExchangeToMpi(RewritePattern):
         assert op.nodes is not None
         exchanges = list(op.swaps)
 
-        assert isa(op.input_stencil.typ, memref.MemRefType[Attribute])
+        assert isa(op.input_stencil.type, memref.MemRefType[Attribute])
 
         rewriter.replace_matched_op(
             list(
                 generate_mpi_calls_for(
                     op.input_stencil,
                     exchanges,
-                    op.input_stencil.typ.element_type,
+                    op.input_stencil.type.element_type,
                     op.nodes,
                     emit_init=self.init,
                 )
@@ -226,13 +226,13 @@ def _div_mod(i: SSAValue, div: int, mod: int) -> list[Operation]:
     assert div > 0, "cannot work with negatives here!"
     assert mod > 0, "cannot work with negatives here!"
     # make sure we operate on an integer
-    assert isinstance(i.typ, builtin.IntegerType | builtin.IndexType)
+    assert isinstance(i.type, builtin.IntegerType | builtin.IndexType)
     # we can use unsigned arithmetic here, because all we do is divide by positive
     # numbers and modulo positive numbers
     return [
-        div_v := arith.Constant.from_int_and_width(div, i.typ),
+        div_v := arith.Constant.from_int_and_width(div, i.type),
         div_res := arith.DivUI(i, div_v),
-        mod_v := arith.Constant.from_int_and_width(mod, i.typ),
+        mod_v := arith.Constant.from_int_and_width(mod, i.type),
         arith.RemUI(div_res, mod_v),
     ]
 
@@ -300,7 +300,7 @@ def generate_mpi_calls_for(
             yield mpi.Isend.get(
                 unwrap_out.ptr,
                 unwrap_out.len,
-                unwrap_out.typ,
+                unwrap_out.type,
                 dest_rank,
                 tag,
                 req_send,
@@ -314,7 +314,7 @@ def generate_mpi_calls_for(
             yield mpi.Irecv.get(
                 unwrap_in.ptr,
                 unwrap_in.len,
-                unwrap_in.typ,
+                unwrap_in.type,
                 dest_rank,
                 tag,
                 req_recv,
@@ -373,10 +373,10 @@ def generate_memcpy(
     `field` as specified by `ex`
 
     """
-    assert isa(field.typ, memref.MemRefType[Attribute])
+    assert isa(field.type, memref.MemRefType[Attribute])
 
     subview = memref.Subview.from_static_parameters(
-        field, field.typ, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
+        field, field.type, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
     )
     if receive:
         copy = memref.CopyOp(buffer, subview)
@@ -537,10 +537,10 @@ def can_loop_invariant_code_move(op: Operation):
 
     for arg in op.operands:
         if not isinstance(arg, OpResult):
-            print("{} is not opresult".format(arg))
+            print(f"{arg} is not opresult")
             return False
         if not isinstance(arg.owner, _LOOP_INVARIANT_OPS):
-            print("{} is not loop invariant".format(arg))
+            print(f"{arg} is not loop invariant")
             return False
         if not can_loop_invariant_code_move(arg.owner):
             return False
@@ -579,14 +579,14 @@ class DmpSwapShapeInference:
             if not isinstance(use.operation, stencil.ApplyOp):
                 continue
             assert use.operation.res
-            res_typ = cast(stencil.TempType[Attribute], use.operation.res[0].typ)
+            res_typ = cast(stencil.TempType[Attribute], use.operation.res[0].type)
             assert isinstance(res_typ.bounds, stencil.StencilBoundsAttr)
             core_lb = res_typ.bounds.lb
             core_ub = res_typ.bounds.ub
             break
 
         # this shouldn't have changed since the op was created!
-        temp = op.input_stencil.typ
+        temp = op.input_stencil.type
         assert isa(temp, stencil.TempType[Attribute])
         assert isinstance(temp.bounds, stencil.StencilBoundsAttr)
         buff_lb = temp.bounds.lb

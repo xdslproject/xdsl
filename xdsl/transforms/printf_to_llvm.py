@@ -115,19 +115,19 @@ class PrintlnOpToPrintfCall(RewritePattern):
         for part in _format_string_spec_from_print_op(op):
             if isinstance(part, str):
                 format_str += part
-            elif isinstance(part.typ, builtin.IndexType):
+            elif isinstance(part.type, builtin.IndexType):
                 # index must be cast to fixed bitwidth before printing
                 casts.append(new_val := arith.IndexCastOp.get(part, builtin.i64))
                 args.append(new_val.result)
                 format_str += "%li"
-            elif part.typ == builtin.f32:
+            elif part.type == builtin.f32:
                 # f32 must be promoted to f64 before printing
                 casts.append(new_val := arith.ExtFOp.get(part, builtin.f64))
                 args.append(new_val.result)
                 format_str += "%f"
             else:
                 args.append(part)
-                format_str += _format_str_for_typ(part.typ)
+                format_str += _format_str_for_typ(part.type)
 
         globl = self._construct_global(format_str + "\n")
         self.collected_global_symbs[globl.sym_name.data] = globl

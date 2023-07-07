@@ -154,7 +154,7 @@ class HaloExchangeDecl(ParametrizedAttribute):
         printer.print_list(self.size, lambda x: printer.print_string(str(x)))
         printer.print_string("] source offset [")
         printer.print_list(self.source_offset, lambda x: printer.print_string(str(x)))
-        printer.print_string("] to {}>".format(list(self.neighbor)))
+        printer.print_string(f"] to {list(self.neighbor)}>")
 
     # TODO: def parse_parameters()
 
@@ -287,7 +287,7 @@ class HaloShapeInformation(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         dims = zip(self.buff_lb, self.core_lb, self.core_ub, self.buff_ub)
         printer.print_string("<")
-        printer.print_string("x".join("{}".format(list(vals)) for vals in dims))
+        printer.print_string("x".join(f"{list(vals)}" for vals in dims))
         printer.print_string(">")
 
     @staticmethod

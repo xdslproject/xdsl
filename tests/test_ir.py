@@ -165,7 +165,7 @@ def test_op_clone():
     b_value = cast(IntegerAttr[IntegerType], b.value)
 
     assert b_value.value.data == 1
-    assert b_value.typ.width.data == 32
+    assert b_value.type.width.data == 32
 
 
 def test_op_clone_with_regions():

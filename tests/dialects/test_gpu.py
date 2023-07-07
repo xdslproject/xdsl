@@ -44,11 +44,11 @@ def test_alloc():
     alloc = AllocOp(typ, is_async=True)
 
     assert isinstance(alloc, AllocOp)
-    assert alloc.result.typ is typ
+    assert alloc.result.type is typ
     assert len(alloc.asyncDependencies) == 0
     assert len(alloc.dynamicSizes) == 0
     assert alloc.asyncToken is not None
-    assert isinstance(alloc.asyncToken.typ, AsyncTokenType)
+    assert isinstance(alloc.asyncToken.type, AsyncTokenType)
     assert alloc.hostShared is None
 
     dyntyp = memref.MemRefType.from_element_type_and_shape(
@@ -66,7 +66,7 @@ def test_alloc():
     )
 
     assert isinstance(full_alloc, AllocOp)
-    assert full_alloc.result.typ is dyntyp
+    assert full_alloc.result.type is dyntyp
     assert len(full_alloc.asyncDependencies) == 1
     assert full_alloc.asyncDependencies[0] is token
     assert len(full_alloc.dynamicSizes) == 3
@@ -93,7 +93,7 @@ def test_all_reduce():
     assert all_reduce.op is op
     assert all_reduce.operand is init.result
     assert all_reduce.uniform is None
-    assert all_reduce.result.typ is all_reduce.operand.typ
+    assert all_reduce.result.type is all_reduce.operand.type
 
     body_block = Block(arg_types=[builtin.IndexType(), builtin.IndexType()])
 
@@ -108,7 +108,7 @@ def test_all_reduce():
     assert all_reduce_body.op is None
     assert all_reduce_body.operand is init.result
     assert all_reduce_body.uniform is None
-    assert all_reduce_body.result.typ is all_reduce_body.operand.typ
+    assert all_reduce_body.result.type is all_reduce_body.operand.type
 
 
 def test_barrier():
@@ -148,7 +148,7 @@ def test_dealloc():
     )
 
     assert dealloc.asyncToken is not None
-    assert isinstance(dealloc.asyncToken.typ, AsyncTokenType)
+    assert isinstance(dealloc.asyncToken.type, AsyncTokenType)
     assert dealloc.buffer is alloc.result
     assert dealloc.asyncDependencies == tuple([alloc.asyncToken])
 
@@ -256,7 +256,7 @@ def test_launch():
     assert nd_launch.blockSizeY is ten.result
     assert nd_launch.blockSizeZ is ten.result
     assert nd_launch.asyncToken is not None
-    assert nd_launch.asyncToken.typ == AsyncTokenType()
+    assert nd_launch.asyncToken.type == AsyncTokenType()
     assert nd_launch.asyncDependencies == tuple()
     assert nd_launch.dynamicSharedMemorySize is ten.result
 
@@ -305,7 +305,7 @@ def test_launchfunc():
     assert launch.blockSizeY is ten.result
     assert launch.blockSizeZ is ten.result
     assert launch.asyncToken is not None
-    assert launch.asyncToken.typ == AsyncTokenType()
+    assert launch.asyncToken.type == AsyncTokenType()
     assert launch.asyncDependencies == tuple()
     assert launch.dynamicSharedMemorySize is ten.result
     assert tuple(a.owner for a in launch.kernelOperands) == tuple(args)
@@ -337,7 +337,7 @@ def test_memcpy():
     assert memcpy2.dst is host_alloc.memref
     assert memcpy2.asyncDependencies == tuple([alloc.asyncToken])
     assert memcpy2.asyncToken is not None
-    assert isinstance(memcpy2.asyncToken.typ, AsyncTokenType)
+    assert isinstance(memcpy2.asyncToken.type, AsyncTokenType)
 
 
 def test_num_subgroups():

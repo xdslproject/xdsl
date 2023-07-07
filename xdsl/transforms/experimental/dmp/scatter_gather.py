@@ -141,8 +141,8 @@ class LowerDmpGather(RewritePattern):
 
         # calc offset
 
-        assert isa(op.local_field.typ, memref.MemRefType[Attribute])
-        el_typ = op.local_field.typ.element_type
+        assert isa(op.local_field.type, memref.MemRefType[Attribute])
+        el_typ = op.local_field.type.element_type
 
         lbs = [
             arith.Constant.from_int_and_width(shape_info.halo_size(x), idx)
@@ -207,10 +207,10 @@ class LowerDmpGather(RewritePattern):
             mpi.GatherOp(
                 unwrapped_local.ptr,
                 unwrapped_local.len,
-                unwrapped_local.typ,
+                unwrapped_local.type,
                 unwrapped_global.ptr,
                 unwrapped_local.len,
-                unwrapped_local.typ,
+                unwrapped_local.type,
                 root_rank,
             )
         )

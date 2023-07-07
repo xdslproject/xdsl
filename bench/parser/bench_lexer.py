@@ -27,7 +27,7 @@ def run_on_files(file_names: Iterable[str]):
     for file_name in file_names:
         print("Lexing file: " + file_name)
         try:
-            contents = open(file_name, "r").read()
+            contents = open(file_name).read()
             input = Input(contents, file_name)
             file_time = timeit.timeit(
                 lambda: lex_file(input), number=args.num_iterations
