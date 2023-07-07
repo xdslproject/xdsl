@@ -1,13 +1,12 @@
 import argparse
 from pathlib import Path
 
-from xdsl.printer import Printer
 from xdsl.parser import Parser as IRParser
+from xdsl.printer import Printer
 
+from .compiler import context, transform
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser as ToyParser
-from .compiler import context, transform
-
 from .interpreter import Interpreter, ToyFunctions
 
 parser = argparse.ArgumentParser(description="Process Toy file")
@@ -34,7 +33,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
 
     path = args.source
 
-    with open(path, "r") as f:
+    with open(path) as f:
         match path.suffix:
             case ".toy":
                 parser = ToyParser(path, f.read())

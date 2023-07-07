@@ -2,36 +2,36 @@ from __future__ import annotations
 
 from abc import ABC
 from enum import Enum
-from typing import cast, TypeVar, Generic, Sequence
+from typing import Generic, Sequence, TypeVar, cast
 
-from xdsl.utils.hints import isa
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import IntegerType, Signedness, StringAttr, AnyFloat, i32
+from xdsl.dialects.builtin import AnyFloat, IntegerType, Signedness, StringAttr, i32
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (
-    Operation,
     Attribute,
-    SSAValue,
+    Dialect,
+    Operation,
     OpResult,
     ParametrizedAttribute,
-    Dialect,
+    SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
+    IRDLOperation,
     Operand,
-    attr_def,
-    irdl_op_definition,
-    irdl_attr_definition,
+    OptOperand,
     OptOpResult,
     ParameterDef,
-    OptOperand,
-    IRDLOperation,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_operand_def,
-    result_def,
     opt_result_def,
+    result_def,
 )
+from xdsl.utils.hints import isa
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
 
@@ -663,13 +663,13 @@ class UnwrapMemrefOp(MPIBaseOp):
 
     ptr: OpResult = result_def(llvm.LLVMPointerType)
     len: OpResult = result_def(i32)
-    typ: OpResult = result_def(DataType)
+    type: OpResult = result_def(DataType)
 
     @staticmethod
     def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
         ssa_val = SSAValue.get(ref)
-        assert isinstance(ssa_val.typ, MemRefType)
-        elem_typ = cast(MemRefType[AnyNumericType], ssa_val.typ).element_type
+        assert isinstance(ssa_val.type, MemRefType)
+        elem_typ = cast(MemRefType[AnyNumericType], ssa_val.type).element_type
 
         return UnwrapMemrefOp.build(
             operands=[ref],
@@ -754,10 +754,10 @@ class VectorGetOp(MPIBaseOp):
     @staticmethod
     def get(vect: SSAValue | Operation, element: SSAValue | Operation) -> VectorGetOp:
         ssa_val = SSAValue.get(vect)
-        assert isa(ssa_val.typ, VectorType[VectorWrappable])
+        assert isa(ssa_val.type, VectorType[VectorWrappable])
 
         return VectorGetOp.build(
-            result_types=[ssa_val.typ.wrapped_type], operands=[vect, element]
+            result_types=[ssa_val.type.wrapped_type], operands=[vect, element]
         )
 
 

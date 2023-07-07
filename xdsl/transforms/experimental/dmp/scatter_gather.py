@@ -1,24 +1,24 @@
 from dataclasses import dataclass
 
-from xdsl.utils.hints import isa
-from xdsl.ir import MLContext, BlockArgument, Attribute
-from xdsl.dialects import builtin, mpi, arith, scf, memref
+from xdsl.builder import Builder
+from xdsl.dialects import arith, builtin, memref, mpi, scf
 from xdsl.dialects.experimental import dmp
-from xdsl.transforms.experimental.dmp.decompositions import (
-    DomainDecompositionStrategy,
+from xdsl.ir import Attribute, BlockArgument, MLContext
+from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
+)
+from xdsl.transforms.experimental.dmp.decompositions import DomainDecompositionStrategy
+from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
+    _grid_coords_from_rank,  # type: ignore[reportPrivateUsage]
 )
 from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
     DmpDecompositionPass,
-    _grid_coords_from_rank,  # type: ignore[reportPrivateUsage]
 )
-from xdsl.pattern_rewriter import (
-    RewritePattern,
-    PatternRewriter,
-    PatternRewriteWalker,
-    op_type_rewrite_pattern,
-    GreedyRewritePatternApplier,
-)
-from xdsl.builder import Builder
+from xdsl.utils.hints import isa
 
 idx = builtin.IndexType()
 
@@ -141,8 +141,8 @@ class LowerDmpGather(RewritePattern):
 
         # calc offset
 
-        assert isa(op.local_field.typ, memref.MemRefType[Attribute])
-        el_typ = op.local_field.typ.element_type
+        assert isa(op.local_field.type, memref.MemRefType[Attribute])
+        el_typ = op.local_field.type.element_type
 
         lbs = [
             arith.Constant.from_int_and_width(shape_info.halo_size(x), idx)
@@ -207,10 +207,10 @@ class LowerDmpGather(RewritePattern):
             mpi.GatherOp(
                 unwrapped_local.ptr,
                 unwrapped_local.len,
-                unwrapped_local.typ,
+                unwrapped_local.type,
                 unwrapped_global.ptr,
                 unwrapped_local.len,
-                unwrapped_local.typ,
+                unwrapped_local.type,
                 root_rank,
             )
         )

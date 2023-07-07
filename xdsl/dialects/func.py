@@ -1,28 +1,24 @@
 from __future__ import annotations
-from typing import Union, Sequence, cast
 
-from xdsl.utils.deprecation import deprecated
-from xdsl.dialects.builtin import (
-    StringAttr,
-    FunctionType,
-    SymbolRefAttr,
-)
+from typing import Sequence, Union, cast
+
+from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolRefAttr
 from xdsl.ir import (
-    SSAValue,
-    Operation,
-    Block,
-    Region,
     Attribute,
-    Dialect,
+    Block,
     BlockArgument,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    IRDLOperation,
+    VarOperand,
     VarOpResult,
     attr_def,
     irdl_op_definition,
-    VarOperand,
-    AnyAttr,
-    IRDLOperation,
     opt_attr_def,
     region_def,
     var_operand_def,
@@ -33,10 +29,11 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     CallableOpInterface,
     HasParent,
-    IsTerminator,
     IsolatedFromAbove,
+    IsTerminator,
     SymbolOpInterface,
 )
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -89,7 +86,7 @@ class FuncOp(IRDLOperation):
 
         # TODO: how to verify that there is a terminator?
         entry_block: Block = self.body.blocks[0]
-        block_arg_types = [arg.typ for arg in entry_block.args]
+        block_arg_types = [arg.type for arg in entry_block.args]
         if self.function_type.inputs.data != tuple(block_arg_types):
             raise VerifyException(
                 "Expected entry block arguments to have the same types as the function "
@@ -243,9 +240,9 @@ class FuncOp(IRDLOperation):
                 )
 
         if arg not in self.args:
-            raise ValueError("Arg {} does not belong to this function".format(arg))
+            raise ValueError(f"Arg {arg} does not belong to this function")
 
-        arg.typ = new_type
+        arg.type = new_type
         self.update_function_type()
 
     def update_function_type(self):
@@ -261,10 +258,10 @@ class FuncOp(IRDLOperation):
         return_type: tuple[Attribute] = self.function_type.outputs.data
 
         if return_op is not None:
-            return_type = tuple(arg.typ for arg in return_op.operands)
+            return_type = tuple(arg.type for arg in return_op.operands)
 
         self.attributes["function_type"] = FunctionType.from_lists(
-            [arg.typ for arg in self.args],
+            [arg.type for arg in self.args],
             return_type,
         )
 
@@ -339,7 +336,7 @@ class Return(IRDLOperation):
         assert isinstance(func_op, FuncOp)
 
         function_return_types = func_op.function_type.outputs.data
-        return_types = tuple(arg.typ for arg in self.arguments)
+        return_types = tuple(arg.type for arg in self.arguments)
         if function_return_types != return_types:
             raise VerifyException(
                 "Expected arguments to have the same types as the function output types"
@@ -359,7 +356,9 @@ class Return(IRDLOperation):
             printer.print(" ")
             printer.print_list(self.arguments, printer.print_ssa_value)
             printer.print(" : ")
-            printer.print_list((x.typ for x in self.arguments), printer.print_attribute)
+            printer.print_list(
+                (x.type for x in self.arguments), printer.print_attribute
+            )
 
     @classmethod
     def parse(cls: type[Return], parser: Parser) -> Return:
@@ -381,7 +380,7 @@ class Return(IRDLOperation):
                 parser.raise_error("Expected the same number of types and arguments!")
             for arg, typ in zip(args, types):
                 # can we do this?
-                if arg.typ != typ:
+                if arg.type != typ:
                     assert False
                     # TODO: what error to raise here?
 

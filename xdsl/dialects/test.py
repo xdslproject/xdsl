@@ -1,19 +1,20 @@
 from __future__ import annotations
+
 from xdsl.ir import Data, Dialect, TypeAttribute
-from xdsl.traits import IsTerminator
 from xdsl.irdl import (
-    VarOpResult,
+    IRDLOperation,
     VarOperand,
+    VarOpResult,
     VarRegion,
     irdl_attr_definition,
     irdl_op_definition,
-    IRDLOperation,
     var_operand_def,
     var_region_def,
     var_result_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator
 
 
 @irdl_op_definition
@@ -59,7 +60,7 @@ class TestType(Data[str], TypeAttribute):
     name = "test.type"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:

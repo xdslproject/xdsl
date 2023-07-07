@@ -1,15 +1,14 @@
 from pathlib import Path
 
+from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.ir import MLContext
-from xdsl.dialects.builtin import ModuleOp, Builtin
 
-from .rewrites.optimise_toy import OptimiseToy
-from .rewrites.shape_inference import ShapeInferencePass
-from .rewrites.inline_toy import InlineToyPass
-
+from .dialects import toy
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
-from .dialects import toy
+from .rewrites.inline_toy import InlineToyPass
+from .rewrites.optimise_toy import OptimiseToy
+from .rewrites.shape_inference import ShapeInferencePass
 
 
 def context() -> MLContext:

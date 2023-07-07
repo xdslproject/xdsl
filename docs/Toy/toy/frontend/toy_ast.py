@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Generator, List, Optional, Callable, Iterable
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from typing import Callable, Generator, Iterable, List, Optional
 
 from .location import Location
 
@@ -121,7 +121,7 @@ class NumberExprAST(ExprAST):
         return ExprASTKind.Expr_Num
 
     def inner_dump(self, prefix: str, dumper: Dumper):
-        dumper.append(prefix, " {:.6e}".format(self.val))
+        dumper.append(prefix, f" {self.val:.6e}")
 
 
 @dataclass

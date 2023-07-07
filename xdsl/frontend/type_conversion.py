@@ -1,9 +1,9 @@
 import ast
+from dataclasses import dataclass, field
+from typing import Any, Dict, Type, TypeAlias, _GenericAlias  # type: ignore
+
 import xdsl.dialects.builtin as xdsl_builtin
 import xdsl.frontend.dialects.builtin as frontend_builtin
-
-from dataclasses import dataclass, field
-from typing import Any, Dict, _GenericAlias, Type, TypeAlias  # type: ignore
 from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.ir import Attribute

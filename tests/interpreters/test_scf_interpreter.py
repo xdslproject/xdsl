@@ -1,13 +1,12 @@
 import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import arith, scf, func
-from xdsl.dialects.builtin import ModuleOp, IndexType, i1, i32
+from xdsl.dialects import arith, func, scf
+from xdsl.dialects.builtin import IndexType, ModuleOp, i1, i32
 from xdsl.interpreter import Interpreter
-
 from xdsl.interpreters.arith import ArithFunctions
-from xdsl.interpreters.scf import ScfFunctions
 from xdsl.interpreters.func import FuncFunctions
+from xdsl.interpreters.scf import ScfFunctions
 from xdsl.ir.core import BlockArgument
 
 index = IndexType()

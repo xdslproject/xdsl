@@ -1,31 +1,32 @@
 from __future__ import annotations
 
+from enum import Enum
+from typing import Sequence
+
 from xdsl.dialects.builtin import (
-    ArrayAttr,
     AffineMapAttr,
-    StringAttr,
     AnyShapedType,
     AnyTensorType,
+    ArrayAttr,
+    StringAttr,
 )
-from xdsl.ir import Dialect, Attribute, Region, SSAValue, Data, Operation
-from xdsl.printer import Printer
-from xdsl.parser import Parser
-from xdsl.traits import IsTerminator
+from xdsl.ir import Attribute, Data, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
-    irdl_op_definition,
-    irdl_attr_definition,
+    AttrSizedOperandSegments,
     IRDLOperation,
     VarOperand,
+    VarOpResult,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
+    opt_attr_def,
+    region_def,
     var_operand_def,
     var_result_def,
-    VarOpResult,
-    region_def,
-    attr_def,
-    AttrSizedOperandSegments,
-    opt_attr_def,
 )
-from typing import Sequence
-from enum import Enum
+from xdsl.parser.attribute_parser import AttrParser
+from xdsl.printer import Printer
+from xdsl.traits import IsTerminator
 
 
 class IteratorType(Enum):
@@ -41,7 +42,7 @@ class IteratorTypeAttr(Data[IteratorType]):
     name = "linalg.iterator_type"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> IteratorType:
+    def parse_parameter(parser: AttrParser) -> IteratorType:
         if parser.parse_optional_keyword("parallel") is not None:
             return IteratorType.PARALLEL
         if parser.parse_optional_keyword("reduction") is not None:

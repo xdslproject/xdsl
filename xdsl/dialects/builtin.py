@@ -1,58 +1,56 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from math import prod
 from typing import (
-    Iterable,
-    Mapping,
-    TypeAlias,
-    List,
-    cast,
-    Type,
-    Sequence,
     TYPE_CHECKING,
     Any,
-    TypeVar,
-    overload,
-    Iterator,
     Generic,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Sequence,
+    Type,
+    TypeAlias,
+    TypeVar,
+    cast,
+    overload,
 )
 
-from math import prod
-
 from xdsl.ir import (
+    Attribute,
+    AttributeCovT,
+    AttributeInvT,
     Block,
     BlockOps,
     Data,
-    TypeAttribute,
-    ParametrizedAttribute,
-    Operation,
-    Region,
-    Attribute,
     Dialect,
+    Operation,
+    ParametrizedAttribute,
+    Region,
     SSAValue,
-    AttributeCovT,
-    AttributeInvT,
+    TypeAttribute,
 )
 from xdsl.ir.affine import AffineMap
-
 from xdsl.irdl import (
     AllOf,
-    VarOpResult,
-    VarOperand,
-    VarRegion,
-    attr_def,
-    irdl_attr_definition,
-    attr_constr_coercion,
-    irdl_to_attr_constraint,
-    irdl_op_definition,
-    ParameterDef,
+    AnyAttr,
+    AttrConstraint,
     Generic,
     GenericData,
-    AttrConstraint,
-    AnyAttr,
     IRDLOperation,
+    ParameterDef,
+    VarOperand,
+    VarOpResult,
+    VarRegion,
+    attr_constr_coercion,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
+    irdl_to_attr_constraint,
     region_def,
     var_operand_def,
     var_region_def,
@@ -62,7 +60,7 @@ from xdsl.traits import IsolatedFromAbove, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
 
 
@@ -130,7 +128,7 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         super().__init__(tuple(param))
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> tuple[AttributeCovT]:
+    def parse_parameter(parser: AttrParser) -> tuple[AttributeCovT]:
         data = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_attribute
         )
@@ -177,7 +175,7 @@ class StringAttr(Data[str]):
     name = "string"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -226,7 +224,7 @@ class IntAttr(Data[int]):
     name = "int"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> int:
+    def parse_parameter(parser: AttrParser) -> int:
         data = parser.parse_integer()
         return data
 
@@ -249,7 +247,7 @@ class SignednessAttr(Data[Signedness]):
     name = "signedness"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> Signedness:
+    def parse_parameter(parser: AttrParser) -> Signedness:
         if parser.parse_optional_keyword("signless") is not None:
             return Signedness.SIGNLESS
         if parser.parse_optional_keyword("signed") is not None:
@@ -299,6 +297,16 @@ class UnitAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
+class LocationAttr(ParametrizedAttribute):
+    """
+    An attribute representing source code location.
+    Only supports unknown locations for now.
+    """
+
+    name = "loc"
+
+
+@irdl_attr_definition
 class IndexType(ParametrizedAttribute):
     name = "index"
 
@@ -313,7 +321,7 @@ _IntegerAttrTypInv = TypeVar("_IntegerAttrTypInv", bound=IntegerType | IndexType
 class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     name = "integer"
     value: ParameterDef[IntAttr]
-    typ: ParameterDef[_IntegerAttrTyp]
+    type: ParameterDef[_IntegerAttrTyp]
 
     @overload
     def __init__(
@@ -345,24 +353,24 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
         return IntegerAttr(value, IndexType())
 
     def verify(self) -> None:
-        if isinstance(self.typ, IntegerType):
-            match self.typ.signedness.data:
+        if isinstance(self.type, IntegerType):
+            match self.type.signedness.data:
                 case Signedness.SIGNLESS:
-                    min_value = -(1 << self.typ.width.data)
-                    max_value = 1 << self.typ.width.data
+                    min_value = -(1 << self.type.width.data)
+                    max_value = 1 << self.type.width.data
                 case Signedness.SIGNED:
-                    min_value = -(1 << (self.typ.width.data - 1))
-                    max_value = (1 << (self.typ.width.data - 1)) - 1
+                    min_value = -(1 << (self.type.width.data - 1))
+                    max_value = (1 << (self.type.width.data - 1)) - 1
                 case Signedness.UNSIGNED:
                     min_value = 0
-                    max_value = (1 << self.typ.width.data) - 1
+                    max_value = (1 << self.type.width.data) - 1
                 case _:
                     assert False, "unreachable"
 
             if not (min_value <= self.value.data <= max_value):
                 raise VerifyException(
                     f"Integer value {self.value.data} is out of range for "
-                    f"type {self.typ} which supports values in the "
+                    f"type {self.type} which supports values in the "
                     f"range [{min_value}, {max_value}]"
                 )
 
@@ -410,7 +418,7 @@ class FloatData(Data[float]):
     name = "float_data"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> float:
+    def parse_parameter(parser: AttrParser) -> float:
         return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
@@ -475,7 +483,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
     name = "dictionary"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> dict[str, Attribute]:
+    def parse_parameter(parser: AttrParser) -> dict[str, Attribute]:
         return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -1067,7 +1075,7 @@ class AffineMapAttr(Data[AffineMap]):
     name = "affine_map"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> AffineMap:
+    def parse_parameter(parser: AttrParser) -> AffineMap:
         data = parser.parse_affine_map()
         return data
 
@@ -1283,6 +1291,7 @@ Builtin = Dialect(
         DenseResourceAttr,
         UnitAttr,
         FloatData,
+        LocationAttr,
         NoneAttr,
         OpaqueAttr,
         # Types

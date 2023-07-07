@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-
 from inspect import isclass
+from types import FunctionType, GenericAlias, UnionType
 from typing import (
     Annotated,
     Any,
@@ -21,20 +21,18 @@ from typing import (
     get_type_hints,
     overload,
 )
-from types import UnionType, GenericAlias, FunctionType
 
 from xdsl.ir import (
     Attribute,
     Block,
     Data,
+    Operation,
     OpResult,
     OpTrait,
-    Operation,
     ParametrizedAttribute,
     Region,
     SSAValue,
 )
-
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     PyRDLAttrDefinitionError,
@@ -1435,7 +1433,7 @@ def irdl_op_verify_arg_list(
                 construct == VarIRConstruct.OPERAND
                 or construct == VarIRConstruct.RESULT
             ):
-                arg_def.constr.verify(arg.typ, constraint_vars)
+                arg_def.constr.verify(arg.type, constraint_vars)
             elif construct == VarIRConstruct.REGION:
                 if isinstance(arg_def, SingleBlockRegionDef) and len(arg.blocks) != 1:
                     raise VerifyException(

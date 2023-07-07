@@ -1,9 +1,10 @@
-from xdsl.dialects.builtin import f32, AffineMapAttr
-from xdsl.ir.affine import AffineMap, AffineExpr
-from xdsl.printer import Printer
-from xdsl.builder import Builder
 from typing import Any
+
+from xdsl.builder import Builder
 from xdsl.dialects import arith, func, linalg, memref
+from xdsl.dialects.builtin import AffineMapAttr, f32
+from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.printer import Printer
 
 
 def test_linalg_on_memrefs():
