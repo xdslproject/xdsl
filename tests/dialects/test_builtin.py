@@ -1,26 +1,29 @@
 from typing import Sequence
+
 import pytest
 
+from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
     AnyTensorType,
+    ArrayAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
+    FloatAttr,
+    FloatData,
+    IntAttr,
     NoneAttr,
     StridedLayoutAttr,
-    i32,
-    f32,
-    FloatAttr,
-    ArrayAttr,
-    IntAttr,
-    FloatData,
     SymbolRefAttr,
+    UnrealizedConversionCastOp,
+    VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
     VectorRankConstraint,
-    VectorBaseTypeAndRankConstraint,
+    VectorType,
+    f32,
+    i32,
+    i64,
 )
-from xdsl.dialects.builtin import i32, i64, VectorType, UnrealizedConversionCastOp
-from xdsl.dialects.arith import Constant
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException

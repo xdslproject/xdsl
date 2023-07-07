@@ -1,4 +1,5 @@
 from typing import cast
+
 from xdsl.dialects import arith
 from xdsl.dialects.builtin import AnyFloatAttr, AnyIntegerAttr
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls

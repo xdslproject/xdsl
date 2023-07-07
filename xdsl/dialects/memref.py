@@ -1,55 +1,47 @@
 from __future__ import annotations
 
-from typing import (
-    TYPE_CHECKING,
-    Iterable,
-    Sequence,
-    TypeVar,
-    Optional,
-    TypeAlias,
-    cast,
-)
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, TypeAlias, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    ArrayAttr,
+    ContainerType,
+    DenseArrayBase,
     DenseIntOrFPElementsAttr,
+    IndexType,
     IntAttr,
     IntegerAttr,
-    DenseArrayBase,
-    IndexType,
+    IntegerType,
+    NoneAttr,
     ShapedType,
     StridedLayoutAttr,
-    ArrayAttr,
-    NoneAttr,
-    SymbolRefAttr,
-    i64,
     StringAttr,
+    SymbolRefAttr,
     UnitAttr,
     i32,
-    IntegerType,
-    ContainerType,
+    i64,
 )
 from xdsl.ir import (
     Attribute,
-    TypeAttribute,
-    Operation,
-    SSAValue,
-    ParametrizedAttribute,
     Dialect,
+    Operation,
     OpResult,
+    ParametrizedAttribute,
+    SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    Attribute,
+    AttrSizedOperandSegments,
+    Generic,
+    IRDLOperation,
+    Operand,
+    ParameterDef,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    ParameterDef,
-    Generic,
-    Attribute,
-    AnyAttr,
-    Operand,
-    VarOperand,
-    AttrSizedOperandSegments,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     result_def,
@@ -59,7 +51,7 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import AttrParser
     from xdsl.printer import Printer
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
@@ -124,7 +116,7 @@ class MemRefType(
         return MemRefType([shape, referenced_type, layout, memory_space])
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in memref attribute")
         shape = parser.parse_attribute()
         parser.parse_punctuation(",", " between shape and element type parameters")

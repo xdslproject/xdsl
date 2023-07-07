@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Generator, List, Optional, Callable, Iterable
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from typing import Callable, Generator, Iterable, List, Optional
 
 from .location import Location
 

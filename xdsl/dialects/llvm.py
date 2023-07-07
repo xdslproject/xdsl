@@ -2,56 +2,58 @@ from __future__ import annotations
 
 from enum import Enum
 from types import EllipsisType
-from typing import Sequence, Literal
+from typing import Literal, Sequence
 
-from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
-    StringAttr,
-    ArrayAttr,
-    DenseArrayBase,
-    IntAttr,
-    NoneAttr,
-    IntegerType,
-    IntegerAttr,
     AnyIntegerAttr,
+    ArrayAttr,
+    ContainerType,
+    DenseArrayBase,
     IndexType,
-    UnitAttr,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    NoneAttr,
+    StringAttr,
     SymbolRefAttr,
+    UnitAttr,
     i32,
     i64,
-    ContainerType,
 )
 from xdsl.ir import (
-    TypeAttribute,
-    ParametrizedAttribute,
     Attribute,
-    Dialect,
-    OpResult,
-    Operation,
-    SSAValue,
-    Region,
     Data,
+    Dialect,
+    Operation,
+    OpResult,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
+    IRDLOperation,
     Operand,
+    OptOperand,
     ParameterDef,
-    AnyAttr,
+    VarOperand,
+    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    VarOperand,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
+    opt_operand_def,
     region_def,
     result_def,
     var_operand_def,
+    var_result_def,
 )
-
-from xdsl.utils.exceptions import VerifyException
-
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -91,7 +93,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         printer.print(")>")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", " in LLVM struct")
         struct_name = parser.parse_optional_str_literal()
         if struct_name is None:
@@ -128,7 +130,7 @@ class LLVMPointerType(
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         if parser.parse_optional_characters("<") is None:
             return [NoneAttr(), NoneAttr()]
         type = parser.parse_optional_type()
@@ -172,7 +174,7 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         if parser.parse_optional_characters("<") is None:
             return [NoneAttr(), NoneAttr()]
         size = IntAttr(parser.parse_integer())
@@ -243,7 +245,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         printer.print_string(")>")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", " in llvm.func parameters")
         if parser.parse_optional_characters("void"):
             output = LLVMVoidType()
@@ -299,7 +301,7 @@ class LinkageAttr(ParametrizedAttribute):
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", "llvm.linkage parameter expected")
         # The linkage string is output from xDSL as a string (and accepted by MLIR as such)
         # however it is always output from MLIR without quotes. Therefore need to determine
@@ -673,31 +675,74 @@ class NullOp(IRDLOperation):
 
 
 @irdl_op_definition
-class LLVMExtractValue(IRDLOperation):
+class ExtractValueOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmextractvalue-mlirllvmextractvalueop
+    """
+
     name = "llvm.extractvalue"
 
     position: DenseArrayBase = attr_def(DenseArrayBase)
-    container: Operand = operand_def(AnyAttr())
+    container: Operand = operand_def(Attribute)
 
-    res: OpResult = result_def(AnyAttr())
+    res: OpResult = result_def(Attribute)
+
+    def __init__(
+        self,
+        position: DenseArrayBase,
+        container: SSAValue | Operation,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[container],
+            attributes={
+                "position": position,
+            },
+            result_types=[result_type],
+        )
 
 
 @irdl_op_definition
-class LLVMInsertValue(IRDLOperation):
+class InsertValueOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertvalue-mlirllvminsertvalueop
+    """
+
     name = "llvm.insertvalue"
 
     position: DenseArrayBase = attr_def(DenseArrayBase)
-    container: Operand = operand_def(AnyAttr())
-    value: Operand = operand_def(AnyAttr())
+    container: Operand = operand_def(Attribute)
+    value: Operand = operand_def(Attribute)
 
-    res: OpResult = result_def(AnyAttr())
+    res: OpResult = result_def(Attribute)
+
+    def __init__(
+        self,
+        position: DenseArrayBase,
+        container: SSAValue,
+        value: SSAValue,
+    ):
+        super().__init__(
+            operands=[container, value],
+            attributes={
+                "position": position,
+            },
+            result_types=[container.typ],
+        )
 
 
 @irdl_op_definition
-class LLVMMLIRUndef(IRDLOperation):
+class UndefOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop
+    """
+
     name = "llvm.mlir.undef"
 
-    res: OpResult = result_def(AnyAttr())
+    res: OpResult = result_def(Attribute)
+
+    def __init__(self, result_type: Attribute):
+        super().__init__(result_types=[result_type])
 
 
 @irdl_op_definition
@@ -839,7 +884,7 @@ class CallingConventionAttr(ParametrizedAttribute):
         printer.print_string("<" + self.convention.data + ">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
         for conv in LLVM_CALLING_CONVS:
             if parser.parse_optional_characters(conv) is not None:
@@ -887,6 +932,61 @@ class FuncOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ReturnOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmreturn-mlirllvmreturnop
+    """
+
+    name = "llvm.return"
+
+    arg: OptOperand = opt_operand_def(Attribute)
+
+    traits = frozenset((IsTerminator(),))
+
+    def __init__(self, value: Attribute | None = None):
+        super().__init__(attributes={"value": value})
+
+
+@irdl_op_definition
+class ConstantOp(IRDLOperation):
+    name = "llvm.mlir.constant"
+    result: OpResult = result_def(Attribute)
+    value: Attribute = attr_def(Attribute)
+
+    def __init__(self, value: Attribute, typ: Attribute):
+        super().__init__(attributes={"value": value}, result_types=[typ])
+
+
+@irdl_op_definition
+class CallIntrinsicOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop
+    """
+
+    name = "llvm.call_intrinsic"
+
+    intrin: StringAttr = attr_def(StringAttr)
+    args: VarOperand = var_operand_def()
+    ress: VarOpResult = var_result_def()
+
+    def __init__(
+        self,
+        intrin: StringAttr | str,
+        args: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+    ):
+        if isinstance(intrin, str):
+            intrin = StringAttr(intrin)
+        super().__init__(
+            operands=args,
+            result_types=(result_types,),
+            attributes={
+                "intrin": intrin,
+            },
+        )
+
+
 class FastMathFlag(Enum):
     REASSOC = "reassoc"
     NO_NANS = "nnan"
@@ -897,7 +997,7 @@ class FastMathFlag(Enum):
     APPROX_FUNC = "afn"
 
     @staticmethod
-    def try_parse(parser: Parser) -> set[FastMathFlag] | None:
+    def try_parse(parser: AttrParser) -> set[FastMathFlag] | None:
         if parser.parse_optional_characters("none") is not None:
             return set[FastMathFlag]()
         if parser.parse_optional_characters("fast") is not None:
@@ -934,7 +1034,7 @@ class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
         super().__init__(tuple(flags_))
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> tuple[FastMathFlag, ...]:
+    def parse_parameter(parser: AttrParser) -> tuple[FastMathFlag, ...]:
         flags = FastMathFlag.try_parse(parser)
         if flags is None:
             return tuple()
@@ -989,9 +1089,9 @@ class CallOp(IRDLOperation):
 
 LLVM = Dialect(
     [
-        LLVMExtractValue,
-        LLVMInsertValue,
-        LLVMMLIRUndef,
+        ExtractValueOp,
+        InsertValueOp,
+        UndefOp,
         AllocaOp,
         GEPOp,
         IntToPtrOp,
@@ -1002,6 +1102,9 @@ LLVM = Dialect(
         AddressOfOp,
         FuncOp,
         CallOp,
+        ReturnOp,
+        ConstantOp,
+        CallIntrinsicOp,
     ],
     [
         LLVMStructType,

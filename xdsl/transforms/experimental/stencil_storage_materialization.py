@@ -1,17 +1,12 @@
 from xdsl.dialects import builtin
-from xdsl.dialects.stencil import (
-    ApplyOp,
-    BufferOp,
-    StoreOp,
-)
-
+from xdsl.dialects.stencil import ApplyOp, BufferOp, StoreOp
 from xdsl.ir import MLContext, SSAValue
 from xdsl.ir.core import OpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )

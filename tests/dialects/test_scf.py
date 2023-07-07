@@ -2,16 +2,18 @@
 Test the usage of scf dialect.
 """
 
-import pytest
 from typing import cast
-from xdsl.ir.core import BlockArgument
+
+import pytest
+
 from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import Region, IndexType, ModuleOp, i32, i64
+from xdsl.dialects.builtin import IndexType, ModuleOp, Region, i32, i64
 from xdsl.dialects.cf import Block
-from xdsl.dialects.scf import For, ParallelOp, If, Yield, ReduceOp, ReduceReturnOp
+from xdsl.dialects.scf import For, If, ParallelOp, ReduceOp, ReduceReturnOp, Yield
 from xdsl.dialects.test import TestTermOp
-from xdsl.utils.exceptions import VerifyException, DiagnosticException
+from xdsl.ir.core import BlockArgument
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
 def test_for_with_loop_carried_verify():

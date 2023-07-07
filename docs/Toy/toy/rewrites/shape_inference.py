@@ -1,13 +1,11 @@
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext, Operation
-from xdsl.dialects.builtin import (
-    ModuleOp,
-)
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    PatternRewriteWalker,
-    op_type_rewrite_pattern,
-    RewritePattern,
     PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
 from xdsl.transforms.dead_code_elimination import dce
 

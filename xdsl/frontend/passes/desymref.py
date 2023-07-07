@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from typing import Callable
+
+from xdsl.dialects import builtin
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
-from xdsl.dialects import builtin
 
 # Background
 # ==========

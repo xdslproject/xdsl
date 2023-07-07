@@ -4,22 +4,11 @@ Test the definition and usage of traits and interfaces.
 
 from __future__ import annotations
 
-import pytest
-
 from abc import ABC
 from dataclasses import dataclass
 
-from xdsl.ir import OpResult, OpTrait, Operation
-from xdsl.irdl import (
-    Operand,
-    attr_def,
-    irdl_op_definition,
-    IRDLOperation,
-    operand_def,
-    result_def,
-)
-from xdsl.traits import SymbolOpInterface
-from xdsl.utils.exceptions import VerifyException
+import pytest
+
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntegerAttr,
@@ -29,6 +18,17 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.ir import Operation, OpResult, OpTrait
+from xdsl.irdl import (
+    IRDLOperation,
+    Operand,
+    attr_def,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+)
+from xdsl.traits import SymbolOpInterface
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
 

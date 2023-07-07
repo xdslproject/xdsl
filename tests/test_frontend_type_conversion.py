@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from sys import _getframe  # type: ignore
 from typing import Any, Callable, Generic, Literal, Tuple, TypeAlias, TypeVar
+
 import pytest
 
 from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore

@@ -1,5 +1,5 @@
 from xdsl.builder import Builder
-from xdsl.dialects import builtin, arith, memref
+from xdsl.dialects import arith, builtin, memref
 from xdsl.dialects.gpu import (
     AllocOp,
     AllReduceOp,
@@ -9,6 +9,7 @@ from xdsl.dialects.gpu import (
     BlockDimOp,
     BlockIdOp,
     DeallocOp,
+    DimensionAttr,
     GlobalIdOp,
     GridDimOp,
     HostRegisterOp,
@@ -19,7 +20,6 @@ from xdsl.dialects.gpu import (
     MemcpyOp,
     ModuleEndOp,
     ModuleOp,
-    DimensionAttr,
     NumSubgroupsOp,
     SetDefaultDeviceOp,
     SubgroupIdOp,

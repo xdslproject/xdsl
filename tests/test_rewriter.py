@@ -1,12 +1,13 @@
 from typing import Callable
+
 from conftest import assert_print_op
 
-from xdsl.dialects.arith import Arith, Constant, Addi
-from xdsl.dialects.builtin import ModuleOp, Builtin, i32, i64
-from xdsl.dialects.test import Test
-from xdsl.dialects.scf import Scf, Yield
+from xdsl.dialects.arith import Addi, Arith, Constant
+from xdsl.dialects.builtin import Builtin, ModuleOp, i32, i64
 from xdsl.dialects.func import Func
-from xdsl.ir import MLContext, Block
+from xdsl.dialects.scf import Scf, Yield
+from xdsl.dialects.test import Test
+from xdsl.ir import Block, MLContext
 from xdsl.parser import Parser
 from xdsl.rewriter import Rewriter
 

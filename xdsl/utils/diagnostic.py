@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from io import StringIO
 from typing import NoReturn
 
-from xdsl.ir import IRNode, Block, Operation, Region
+from xdsl.ir import Block, IRNode, Operation, Region
 from xdsl.utils.exceptions import DiagnosticException
 
 

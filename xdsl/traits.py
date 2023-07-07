@@ -1,12 +1,14 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+
 import abc
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
+
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.ir import Operation, Region
     from xdsl.dialects.builtin import StringAttr
+    from xdsl.ir import Operation, Region
 
 
 @dataclass(frozen=True)
@@ -92,14 +94,14 @@ class NoTerminator(OpTrait):
 
 class SingleBlockImplicitTerminator(OpTrait):
     """
-    Checks and adds if missing the specified terminator to an operation which has
-    single-block region.
+    Checks the existence of the specified terminator to an operation which has
+    single-block regions.
+    The conditions for the implicit creation of the terminator depend on the operation
+    and occur during its creation using the `ensure_terminator` method.
 
     This should be fully compatible with MLIR's Trait:
     https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator
     """
-
-    parameters: type[Operation]
 
     def verify(self, op: Operation) -> None:
         for region in op.regions:

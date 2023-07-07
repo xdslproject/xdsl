@@ -2,27 +2,27 @@ from pathlib import Path
 from typing import List, NoReturn, TypeVar, cast, overload
 
 from .lexer import (
+    EOFToken,
+    IdentifierToken,
+    NumberToken,
     OperatorToken,
     Token,
     tokenize,
-    NumberToken,
-    EOFToken,
-    IdentifierToken,
 )
 from .toy_ast import (
     BinaryExprAST,
-    ExprAST,
-    NumberExprAST,
-    FunctionAST,
-    ModuleAST,
-    LiteralExprAST,
-    VarDeclExprAST,
-    VarType,
-    VariableExprAST,
-    ReturnExprAST,
-    PrintExprAST,
     CallExprAST,
+    ExprAST,
+    FunctionAST,
+    LiteralExprAST,
+    ModuleAST,
+    NumberExprAST,
+    PrintExprAST,
     PrototypeAST,
+    ReturnExprAST,
+    VarDeclExprAST,
+    VariableExprAST,
+    VarType,
 )
 
 

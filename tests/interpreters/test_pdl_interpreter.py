@@ -1,17 +1,16 @@
 from io import StringIO
-from xdsl.builder import Builder, ImplicitBuilder
 
-from xdsl.ir import MLContext, OpResult
+from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, pdl
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr
+from xdsl.interpreters.experimental.pdl import PDLRewritePattern
+from xdsl.ir import MLContext, OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
-    PatternRewriteWalker,
 )
-
-from xdsl.interpreters.experimental.pdl import PDLRewritePattern
 
 
 class SwapInputs(RewritePattern):

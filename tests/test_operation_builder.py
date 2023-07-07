@@ -2,44 +2,43 @@ from __future__ import annotations
 
 import pytest
 
-from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.arith import Constant
+from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.test import TestTermOp
-
 from xdsl.ir import Block, OpResult, Region
-from xdsl.traits import IsTerminator
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     AttrSizedRegionSegments,
+    AttrSizedResultSegments,
     AttrSizedSuccessorSegments,
-    OptOperand,
-    OptRegion,
+    IRDLOperation,
     Operand,
+    OptOperand,
+    OptOpResult,
+    OptRegion,
     OptSuccessor,
     Successor,
+    VarOperand,
     VarOpResult,
     VarRegion,
     VarSuccessor,
     attr_def,
     irdl_op_definition,
-    AttrSizedResultSegments,
-    VarOperand,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    OptOpResult,
+    operand_def,
     opt_attr_def,
+    opt_operand_def,
     opt_region_def,
+    opt_result_def,
     opt_successor_def,
     region_def,
     result_def,
-    opt_result_def,
     successor_def,
+    var_operand_def,
     var_region_def,
     var_result_def,
-    operand_def,
-    opt_operand_def,
-    var_operand_def,
     var_successor_def,
 )
+from xdsl.traits import IsTerminator
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_

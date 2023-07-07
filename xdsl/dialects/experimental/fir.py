@@ -1,19 +1,32 @@
-from xdsl.ir import ParametrizedAttribute, TypeAttribute, Dialect, Attribute
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    AnyIntegerAttr,
+    ArrayAttr,
+    IndexType,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    StringAttr,
+    SymbolRefAttr,
+    TupleType,
+    UnitAttr,
+)
+from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
-    Operand,
-    OpResult,
-    OptOpResult,
-    VarOperand,
-    ParameterDef,
-    OptOperand,
-    VarRegion,
-    attr_def,
-    irdl_op_definition,
-    irdl_attr_definition,
-    VarOpResult,
     Attribute,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOperand,
+    OptOpResult,
+    ParameterDef,
+    VarOperand,
+    VarOpResult,
+    VarRegion,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -23,21 +36,8 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.dialects.builtin import (
-    StringAttr,
-    IntegerType,
-    ArrayAttr,
-    UnitAttr,
-    IntAttr,
-    AnyIntegerAttr,
-    IntegerAttr,
-    IndexType,
-    SymbolRefAttr,
-    TupleType,
-    AnyFloat,
-)
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.parser import Parser
 
 
 @irdl_attr_definition
@@ -66,7 +66,7 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
         printer.print(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         # This is complicated by the fact we need to parse tuple
         # here also as the buildin dialect does not support this
         # yet
@@ -190,7 +190,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
         printer.print(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         # We need extra work here as the builtin tuple is not being supported
         # yet, therefore handle this here
         def parse_interval() -> IntegerAttr[IntegerType] | DeferredAttr:
@@ -260,7 +260,7 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
         printer.print(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         def parse_value():
             if parser.parse_optional_punctuation("?"):
                 return DeferredAttr()
@@ -293,7 +293,7 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
         printer.print(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
         s = parser.parse_integer(allow_boolean=False)
         parser.parse_characters(">")
@@ -345,7 +345,7 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
         printer.print(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
         s = parser.parse_integer(allow_boolean=False)
         parser.parse_characters(">")

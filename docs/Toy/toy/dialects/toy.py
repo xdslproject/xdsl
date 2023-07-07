@@ -3,58 +3,47 @@ Toy language dialect from MLIR tutorial.
 """
 
 from __future__ import annotations
-from abc import ABC, abstractmethod
 
+from abc import ABC, abstractmethod
 from typing import TypeAlias, cast
 
-from xdsl.ir import (
-    Dialect,
-    Operation,
-    SSAValue,
-    Attribute,
-    Block,
-    Region,
-    OpResult,
-)
-
 from xdsl.dialects.builtin import (
+    DenseIntOrFPElementsAttr,
     Float64Type,
     FunctionType,
+    StringAttr,
     SymbolRefAttr,
     TensorType,
     UnrankedTensorType,
     f64,
-    DenseIntOrFPElementsAttr,
-    StringAttr,
 )
+from xdsl.ir import Attribute, Block, Dialect, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import (
-    Operand,
-    OptOperand,
-    VarOpResult,
-    attr_def,
-    opt_attr_def,
-    region_def,
-    var_operand_def,
-    var_result_def,
-    VarOperand,
-    irdl_op_definition,
     AnyAttr,
     IRDLOperation,
-    result_def,
+    Operand,
+    OptOperand,
+    VarOperand,
+    VarOpResult,
+    attr_def,
+    irdl_op_definition,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
+    region_def,
+    result_def,
+    var_operand_def,
+    var_result_def,
 )
-
-from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
-
 from xdsl.traits import (
     CallableOpInterface,
-    Pure,
-    OpTrait,
-    SymbolOpInterface,
     IsTerminator,
+    OpTrait,
+    Pure,
+    SymbolOpInterface,
 )
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
