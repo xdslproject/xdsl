@@ -1,7 +1,8 @@
 from conftest import assert_print_op
 
+from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Muli
-from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, i32, i64
+from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
 from xdsl.dialects.scf import If, Scf
 from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.parser import Parser
@@ -20,6 +21,7 @@ def rewrite_and_compare(prog: str, expected_prog: str, walker: PatternRewriteWal
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
     ctx.register_dialect(Scf)
+    ctx.register_dialect(test.Test)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
@@ -877,6 +879,75 @@ def test_move_region_contents_to_new_regions():
             new_region = rewriter.move_region_contents_to_new_regions(old_if.regions[0])
             new_if = If.get(old_if.cond, [], new_region, Region([Block()]))
             rewriter.insert_op_after(new_if, old_if)
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+    )
+
+
+def test_insert_same_block():
+    """Test rewriter on ops without results"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() {"label" = "a"} : () -> i32
+  %1 = "test.op"() {"label" = "b"} : () -> i32
+  %2 = "test.op"() {"label" = "c"} : () -> i32
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() {"label" = "alloc"} : () -> i32
+  %1 = "test.op"() {"label" = "a"} : () -> i32
+  "test.op"(%0) {"label" = "init"} : (i32) -> ()
+  %2 = "test.op"() {"label" = "c"} : () -> i32
+  "test.op"(%0) {"label" = "dealloc"} : (i32) -> ()
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.attributes["label"] != StringAttr("b"):
+                return
+
+            block = op.parent
+
+            if block is None:
+                return
+
+            last_op = block.last_op
+            assert last_op is not None
+
+            alloc = test.TestOp.build(
+                operands=((),),
+                attributes={"label": StringAttr("alloc")},
+                regions=((),),
+                result_types=((i32,),),
+            )
+            init = test.TestOp.build(
+                operands=(alloc.res,),
+                attributes={"label": StringAttr("init")},
+                regions=((),),
+                result_types=((),),
+            )
+            dealloc = test.TestOp.build(
+                operands=(alloc.res,),
+                attributes={"label": StringAttr("dealloc")},
+                regions=((),),
+                result_types=((),),
+            )
+
+            # Allocate before first use
+            rewriter.insert_op_at_start(alloc, block)
+            # Deallocate after last use
+            rewriter.insert_op_before(dealloc, last_op)
+            # Init instead of creating, and replace result with allocated value
+            rewriter.replace_matched_op(init, alloc.res)
 
     rewrite_and_compare(
         prog,

@@ -40,9 +40,15 @@ class PatternRewriter:
             return True
         if op.parent is None:
             return self.current_operation.get_toplevel_object() is not op
-        return self._can_modify_block(op.parent)
+        return self._can_modify_op_in_block(op.parent)
 
     def _can_modify_block(self, block: Block) -> bool:
+        """Check if the block can be modified by this rewriter."""
+        if block is self.current_operation.parent:
+            return True
+        return self._can_modify_op_in_block(block)
+
+    def _can_modify_op_in_block(self, block: Block) -> bool:
         """Check if the block and its children can be modified by this rewriter."""
         if block.parent is None:
             return True  # Toplevel operation of current_operation is always a ModuleOp
