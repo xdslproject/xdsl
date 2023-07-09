@@ -51,7 +51,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, Pure
+from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -1087,66 +1087,6 @@ class CallOp(IRDLOperation):
                 "fastmathFlags": fastmath,
             },
         )
-
-
-@irdl_op_definition
-class FAddOp(IRDLOperation):
-    """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmfadd-mlirllvmfaddop
-    """
-
-    name = "llvm.fadd"
-
-    lhs: Operand = operand_def(Attribute)
-    rhs: Operand = operand_def(Attribute)
-    res: OpResult = result_def(Attribute)
-
-    traits = frozenset((Pure(),))
-
-    def __init__(
-        self,
-        lhs: SSAValue,
-        rhs: SSAValue,
-    ):
-        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
-
-    def verify_(self) -> None:
-        if self.lhs.type != self.rhs.type:
-            raise VerifyException("lhs.type must equal rhs.typ")
-        if self.lhs.type != self.res.type:
-            raise VerifyException("lhs.type must equal res.typ")
-        if self.rhs.type != self.res.type:
-            raise VerifyException("rhs.type must equal res.typ")
-
-
-@irdl_op_definition
-class FMulOp(IRDLOperation):
-    """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmfmul-mlirllvmfmulop
-    """
-
-    name = "llvm.fmul"
-
-    lhs: Operand = operand_def(Attribute)
-    rhs: Operand = operand_def(Attribute)
-    res: OpResult = result_def(Attribute)
-
-    traits = frozenset((Pure(),))
-
-    def __init__(
-        self,
-        lhs: SSAValue,
-        rhs: SSAValue,
-    ):
-        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
-
-    def verify_(self) -> None:
-        if self.lhs.type != self.rhs.type:
-            raise VerifyException("lhs.type must equal rhs.typ")
-        if self.lhs.type != self.res.type:
-            raise VerifyException("lhs.type must equal res.typ")
-        if self.rhs.type != self.res.type:
-            raise VerifyException("rhs.type must equal res.typ")
 
 
 LLVM = Dialect(

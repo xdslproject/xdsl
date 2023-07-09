@@ -5,7 +5,6 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     IntegerType,
     ModuleOp,
-    VectorType,
 )
 from xdsl.ir import MLContext
 from xdsl.ir.core import Operation
@@ -63,40 +62,6 @@ class LowerReturnOp(RewritePattern):
         assert op.arg is None, "Only support return with no arguments for now"
 
         rewriter.replace_matched_op(riscv_func.ReturnOp(()))
-
-
-class LowerFAddOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: llvm.FAddOp, rewriter: PatternRewriter):
-        assert isinstance(op.lhs.type, VectorType), "Only support vector add for now"
-        rewriter.replace_matched_op(
-            [
-                res := riscv.CustomAssemblyInstructionOp(
-                    "vector.copy", (op.lhs,), (riscv.RegisterType(riscv.Register()),)
-                ),
-                riscv.CustomAssemblyInstructionOp(
-                    "vector.add", (res.results[0], op.rhs), ()
-                ),
-            ],
-            [res.results[0]],
-        )
-
-
-class LowerFMulOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: llvm.FMulOp, rewriter: PatternRewriter):
-        assert isinstance(op.lhs.type, VectorType), "Only support vector mul for now"
-        rewriter.replace_matched_op(
-            [
-                res := riscv.CustomAssemblyInstructionOp(
-                    "vector.copy", (op.lhs,), (riscv.RegisterType(riscv.Register()),)
-                ),
-                riscv.CustomAssemblyInstructionOp(
-                    "vector.mul", (res.results[0], op.rhs), ()
-                ),
-            ],
-            [res.results[0]],
-        )
 
 
 class LowerConstantOp(DataDirectiveRewritePattern):
@@ -262,8 +227,6 @@ class LowerLLVM(ModulePass):
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(LowerFuncOp()).rewrite_module(op)
         PatternRewriteWalker(LowerReturnOp()).rewrite_module(op)
-        PatternRewriteWalker(LowerFAddOp()).rewrite_module(op)
-        PatternRewriteWalker(LowerFMulOp()).rewrite_module(op)
         PatternRewriteWalker(LowerConstantOp()).rewrite_module(op)
         PatternRewriteWalker(LowerCallIntrinsicOp()).rewrite_module(op)
         PatternRewriteWalker(LowerUndefOp()).rewrite_module(op)
