@@ -1,14 +1,10 @@
 import pytest
 
+from xdsl.dialects import arith, memref
+from xdsl.dialects.builtin import IndexType, ModuleOp, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.memref import MemrefFunctions, MemrefValue
-from xdsl.dialects import memref, arith
-from xdsl.dialects.builtin import (
-    IndexType,
-    ModuleOp,
-    i32,
-)
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.utils.exceptions import InterpretationError
 
