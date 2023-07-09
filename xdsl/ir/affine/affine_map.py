@@ -16,9 +16,6 @@ class AffineMap:
     num_symbols: int
     results: list[AffineExpr]
 
-    def is_constant(self) -> bool:
-        return not self.num_dims and not self.num_symbols
-
     @staticmethod
     def constant_map(value: int) -> AffineMap:
         return AffineMap(0, 0, [AffineExpr.constant(value)])

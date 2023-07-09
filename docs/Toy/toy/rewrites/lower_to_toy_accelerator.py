@@ -44,7 +44,7 @@ class LowerAffineForOp(RewritePattern):
             inner_for.lower_bound.data,
             inner_for.upper_bound.data,
         )
-        if not all(bound.is_constant for bound in all_bounds):
+        if any(bound.num_dims or bound.num_symbols for bound in all_bounds):
             # Loop is not made of constant values
             return
 
