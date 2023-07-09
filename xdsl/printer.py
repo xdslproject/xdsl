@@ -3,49 +3,41 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from typing import (
+    Any,
+    Callable,
+    Dict,
     Iterable,
+    List,
+    Optional,
     Sequence,
     TypeVar,
-    Any,
-    Dict,
-    Optional,
-    List,
     cast,
-    Callable,
 )
 
-from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
-from xdsl.ir import (
-    BlockArgument,
-    TypeAttribute,
-    SSAValue,
-    Block,
-    Attribute,
-    Region,
-    Operation,
-    Data,
-    ParametrizedAttribute,
-)
-from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyIntegerAttr,
     AnyFloatAttr,
+    AnyIntegerAttr,
     AnyUnrankedTensorType,
     AnyVectorType,
+    ArrayAttr,
     BFloat16Type,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
-    Float128Type,
+    DictionaryAttr,
     Float16Type,
     Float32Type,
     Float64Type,
     Float80Type,
+    Float128Type,
     FloatAttr,
     FloatData,
+    FunctionType,
     IndexType,
+    IntAttr,
+    IntegerAttr,
     IntegerType,
     LocationAttr,
     NoneAttr,
@@ -54,18 +46,26 @@ from xdsl.dialects.builtin import (
     StridedLayoutAttr,
     StringAttr,
     SymbolRefAttr,
-    IntegerAttr,
-    ArrayAttr,
-    IntAttr,
     TensorType,
     UnitAttr,
-    FunctionType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
     VectorType,
-    DictionaryAttr,
 )
+from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Data,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
+from xdsl.utils.diagnostic import Diagnostic
 
 indentNumSpaces = 2
 
@@ -274,7 +274,7 @@ class Printer:
         """
         self.print(arg)
         if print_type:
-            self.print(" : ", arg.typ)
+            self.print(" : ", arg.type)
             if self.print_debuginfo:
                 self.print(" loc(unknown)")
 
@@ -391,7 +391,7 @@ class Printer:
             attribute = cast(AnyIntegerAttr, attribute)
 
             # boolean shorthands
-            if isinstance((typ := attribute.typ), IntegerType) and typ.width.data == 1:
+            if isinstance((typ := attribute.type), IntegerType) and typ.width.data == 1:
                 self.print("false" if attribute.value.data == 0 else "true")
                 return
 
@@ -675,12 +675,12 @@ class Printer:
 
         # Print the operation type
         self.print(" : (")
-        self.print_list(op.operands, lambda operand: self.print_attribute(operand.typ))
+        self.print_list(op.operands, lambda operand: self.print_attribute(operand.type))
         self.print(") -> ")
         if len(op.results) == 0:
             self.print("()")
         elif len(op.results) == 1:
-            typ = op.results[0].typ
+            typ = op.results[0].type
             # Handle ambiguous case
             if isinstance(typ, FunctionType):
                 self.print("(", typ, ")")
@@ -688,7 +688,9 @@ class Printer:
                 self.print(typ)
         else:
             self.print("(")
-            self.print_list(op.results, lambda result: self.print_attribute(result.typ))
+            self.print_list(
+                op.results, lambda result: self.print_attribute(result.type)
+            )
             self.print(")")
         if self.print_debuginfo:
             self.print(" loc(unknown)")

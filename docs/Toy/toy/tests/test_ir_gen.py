@@ -1,19 +1,18 @@
 from pathlib import Path
 
-from xdsl.ir import OpResult, SSAValue
-from xdsl.dialects.builtin import FunctionType, f64, ModuleOp
 from xdsl.builder import Builder, ImplicitBuilder
-
-from ..frontend.parser import Parser
-from ..frontend.ir_gen import IRGen
+from xdsl.dialects.builtin import FunctionType, ModuleOp, f64
+from xdsl.ir import OpResult, SSAValue
 
 from ..dialects import toy
+from ..frontend.ir_gen import IRGen
+from ..frontend.parser import Parser
 
 
 def test_convert_ast():
     ast_toy = Path("docs/Toy/examples/ast.toy")
 
-    with open(ast_toy, "r") as f:
+    with open(ast_toy) as f:
         parser = Parser(ast_toy, f.read())
 
     module_ast = parser.parseModule()
@@ -63,7 +62,7 @@ def test_convert_ast():
 def test_convert_scalar():
     scalar_toy = Path("docs/Toy/examples/scalar.toy")
 
-    with open(scalar_toy, "r") as f:
+    with open(scalar_toy) as f:
         parser = Parser(scalar_toy, f.read())
 
     module_ast = parser.parseModule()

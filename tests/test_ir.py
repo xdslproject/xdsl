@@ -1,43 +1,28 @@
-import pytest
-
 from typing import cast
 
-from xdsl.dialects.arith import Arith, Addi, Subi, Constant
-from xdsl.dialects.builtin import (
-    Builtin,
-    IntegerType,
-    i32,
-    i64,
-    IntegerAttr,
-    ModuleOp,
-)
-from xdsl.dialects.func import Func
+import pytest
+
+from xdsl.dialects.arith import Addi, Arith, Constant, Subi
+from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp, i32, i64
 from xdsl.dialects.cf import Cf
+from xdsl.dialects.func import Func
 from xdsl.dialects.scf import If
 from xdsl.dialects.test import TestOp, TestTermOp
-
-from xdsl.ir import (
-    MLContext,
-    Operation,
-    Block,
-    Region,
-    ErasedSSAValue,
-    SSAValue,
-)
-from xdsl.traits import IsTerminator
-from xdsl.parser import Parser
+from xdsl.ir import Block, ErasedSSAValue, MLContext, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    Successor,
     VarRegion,
     irdl_op_definition,
-    Operand,
     operand_def,
-    var_region_def,
-    Successor,
     successor_def,
+    var_region_def,
 )
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.parser import Parser
+from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_ops_accessor():
@@ -180,7 +165,7 @@ def test_op_clone():
     b_value = cast(IntegerAttr[IntegerType], b.value)
 
     assert b_value.value.data == 1
-    assert b_value.typ.width.data == 32
+    assert b_value.type.width.data == 32
 
 
 def test_op_clone_with_regions():

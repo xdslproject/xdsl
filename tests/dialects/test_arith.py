@@ -1,51 +1,45 @@
 from typing import TypeVar
+
 import pytest
 
 from xdsl.dialects.arith import (
+    Addf,
     Addi,
+    AndI,
     BinaryOperation,
-    Constant,
-    DivUI,
-    DivSI,
-    Subi,
-    FloorDivSI,
     CeilDivSI,
     CeilDivUI,
-    RemUI,
-    RemSI,
-    MinUI,
-    MinSI,
-    MaxUI,
-    MaxSI,
-    AndI,
-    OrI,
-    XOrI,
-    ShLI,
-    ShRUI,
-    ShRSI,
-    Cmpi,
-    Addf,
-    Subf,
-    Mulf,
-    Divf,
-    Maxf,
-    Minf,
-    IndexCastOp,
-    FPToSIOp,
-    SIToFPOp,
-    ExtFOp,
-    TruncFOp,
     Cmpf,
+    Cmpi,
+    Constant,
+    Divf,
+    DivSI,
+    DivUI,
+    ExtFOp,
+    FloorDivSI,
+    FPToSIOp,
+    IndexCastOp,
+    Maxf,
+    MaxSI,
+    MaxUI,
+    Minf,
+    MinSI,
+    MinUI,
+    Mulf,
     Negf,
+    OrI,
+    RemSI,
+    RemUI,
+    ShLI,
+    ShRSI,
+    ShRUI,
+    SIToFPOp,
+    Subf,
+    Subi,
+    TruncFOp,
+    XOrI,
 )
-from xdsl.dialects.builtin import (
-    i32,
-    i64,
-    f32,
-    f64,
-    IndexType,
-    IntegerType,
-)
+from xdsl.dialects.builtin import IndexType, IntegerType, f32, f64, i32, i64
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 
@@ -92,7 +86,7 @@ class Test_integer_arith_construction:
         assert isinstance(op, OpClass)
         assert op.lhs.owner is self.a
         assert op.rhs.owner is self.b
-        assert op.result.typ == self.operand_typ
+        assert op.result.type == self.operand_typ
 
     def test_Cmpi(self):
         _ = Cmpi.get(self.a, self.b, 2)
@@ -123,8 +117,8 @@ def test_index_cast_op():
     a = Constant.from_int_and_width(0, 32)
     cast = IndexCastOp.get(a, IndexType())
 
-    assert cast.result.typ == IndexType()
-    assert cast.input.typ == i32
+    assert cast.result.type == IndexType()
+    assert cast.input.type == i32
     assert cast.input.owner == a
 
 
@@ -135,8 +129,8 @@ def test_cast_fp_and_si_ops():
 
     assert fp.input == a.result
     assert fp.result == si.input
-    assert isinstance(si.result.typ, IntegerType)
-    assert fp.result.typ == f32
+    assert isinstance(si.result.type, IntegerType)
+    assert fp.result.type == f32
 
 
 def test_negf_op():
@@ -146,8 +140,8 @@ def test_negf_op():
     b = Constant.from_float_and_width(1.0, f64)
     neg_b = Negf.get(b)
 
-    assert neg_a.result.typ == f32
-    assert neg_b.result.typ == f64
+    assert neg_a.result.type == f32
+    assert neg_b.result.type == f64
 
 
 def test_extend_truncate_fpops():
@@ -157,9 +151,9 @@ def test_extend_truncate_fpops():
     trunc_op = TruncFOp.get(b, f32)
 
     assert ext_op.input == a.result
-    assert ext_op.result.typ == f64
+    assert ext_op.result.type == f64
     assert trunc_op.input == b.result
-    assert trunc_op.result.typ == f32
+    assert trunc_op.result.type == f32
 
 
 def test_cmpf_from_mnemonic():
@@ -186,8 +180,8 @@ def test_cmpf_from_mnemonic():
     cmpf_ops = [Cmpf.get(a, b, operations[i]) for i in range(len(operations))]
 
     for index, op in enumerate(cmpf_ops):
-        assert op.lhs.typ == f64
-        assert op.rhs.typ == f64
+        assert op.lhs.type == f64
+        assert op.rhs.type == f64
         assert op.predicate.value.data == index
 
 
@@ -197,8 +191,8 @@ def test_cmpf_get():
 
     cmpf_op = Cmpf.get(a, b, 1)
 
-    assert cmpf_op.lhs.typ == f32
-    assert cmpf_op.rhs.typ == f32
+    assert cmpf_op.lhs.type == f32
+    assert cmpf_op.rhs.type == f32
     assert cmpf_op.predicate.value.data == 1
 
 

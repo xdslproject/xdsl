@@ -3,14 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import IO, Any
 
-from xdsl.ir import Attribute, MLContext, TypeAttribute, OpResult, Operation, SSAValue
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-)
-from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
+from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
+from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -42,7 +39,7 @@ class PDLMatcher:
             assert isinstance(pdl_op.value_type.op, pdl.TypeOp)
 
             if not self.match_type(
-                pdl_op.value_type, pdl_op.value_type.op, xdsl_val.typ
+                pdl_op.value_type, pdl_op.value_type.op, xdsl_val.type
             ):
                 return False
 
@@ -110,7 +107,7 @@ class PDLMatcher:
             ), "Only handle integer types for now"
 
             if not self.match_type(
-                pdl_op.value_type, pdl_op.value_type.op, xdsl_attr.typ
+                pdl_op.value_type, pdl_op.value_type.op, xdsl_attr.type
             ):
                 return False
 
@@ -167,7 +164,7 @@ class PDLMatcher:
         for pdl_result, xdsl_result in zip(pdl_results, xdsl_results):
             assert isinstance(pdl_result, OpResult)
             assert isinstance(pdl_result.op, pdl.TypeOp)
-            if not self.match_type(pdl_result, pdl_result.op, xdsl_result.typ):
+            if not self.match_type(pdl_result, pdl_result.op, xdsl_result.type):
                 return False
 
         self.matching_context[ssa_val] = xdsl_op

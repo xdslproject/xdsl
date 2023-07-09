@@ -64,7 +64,7 @@ def test_is_init():
     assert op.is_structurally_equivalent(op2)
 
     assert op.expected == i32
-    assert op.output.typ == AttributeType()
+    assert op.output.type == AttributeType()
 
 
 def test_parametric_init():
@@ -87,7 +87,7 @@ def test_parametric_init():
 
     assert op.base_type == SymbolRefAttr("complex")
     assert op.args == (val1, val2)
-    assert op.output.typ == AttributeType()
+    assert op.output.type == AttributeType()
 
 
 def test_any_init():
@@ -96,7 +96,7 @@ def test_any_init():
     op2 = AnyOp.create(result_types=[AttributeType()])
 
     assert op.is_structurally_equivalent(op2)
-    assert op.output.typ == AttributeType()
+    assert op.output.type == AttributeType()
 
 
 @pytest.mark.parametrize("op_type", [AllOfOp, AnyOfOp])
@@ -110,4 +110,4 @@ def test_any_all_of_init(op_type: type[AllOfOp | AnyOfOp]):
     assert op.is_structurally_equivalent(op2)
 
     assert op.args == (val1, val2)
-    assert op.output.typ == AttributeType()
+    assert op.output.type == AttributeType()

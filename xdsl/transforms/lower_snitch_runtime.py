@@ -1,16 +1,17 @@
 from abc import ABC
-from xdsl.ir import MLContext, Attribute
-from xdsl.dialects.builtin import i32, ModuleOp
-from xdsl.dialects import snitch_runtime, func
+
+from xdsl.dialects import func, snitch_runtime
+from xdsl.dialects.builtin import ModuleOp, i32
+from xdsl.dialects.snitch_runtime import tx_id
+from xdsl.ir import Attribute, MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
-    PatternRewriteWalker,
-    GreedyRewritePatternApplier,
 )
-from xdsl.dialects.snitch_runtime import tx_id
 
 
 class LowerGetInfoOpToFunc(RewritePattern, ABC):
@@ -100,8 +101,8 @@ class AddExternalFuncs(RewritePattern, ABC):
             if "snrt" not in op.callee.string_value():
                 continue
             funcs_to_emit[op.callee.string_value()] = (
-                [arg.typ for arg in op.arguments],
-                [res.typ for res in op.results],
+                [arg.type for arg in op.arguments],
+                [res.type for res in op.results],
             )
 
         for name, types in funcs_to_emit.items():

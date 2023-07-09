@@ -1,7 +1,9 @@
-import versioneer
-from setuptools import find_packages, setup
-from pathlib import Path
 import re
+from pathlib import Path
+
+from setuptools import find_packages, setup
+
+import versioneer
 
 # Add README.md as long description
 this_directory = Path(__file__).parent
@@ -19,7 +21,7 @@ reqs = []
 for ir in required:
     if ir[0:3] == "git":
         name = ir.split("/")[-1]
-        reqs += ["%s @ %s@main" % (name, ir)]
+        reqs += [f"{name} @ {ir}@main"]
     else:
         reqs += [ir]
 

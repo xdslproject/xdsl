@@ -1,19 +1,32 @@
-from xdsl.ir import ParametrizedAttribute, TypeAttribute, Dialect, Attribute
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    AnyIntegerAttr,
+    ArrayAttr,
+    IndexType,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    StringAttr,
+    SymbolRefAttr,
+    TupleType,
+    UnitAttr,
+)
+from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
-    Operand,
-    OpResult,
-    OptOpResult,
-    VarOperand,
-    ParameterDef,
-    OptOperand,
-    VarRegion,
-    attr_def,
-    irdl_op_definition,
-    irdl_attr_definition,
-    VarOpResult,
     Attribute,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    OpResult,
+    OptOperand,
+    OptOpResult,
+    ParameterDef,
+    VarOperand,
+    VarOpResult,
+    VarRegion,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -23,21 +36,8 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.dialects.builtin import (
-    StringAttr,
-    IntegerType,
-    ArrayAttr,
-    UnitAttr,
-    IntAttr,
-    AnyIntegerAttr,
-    IntegerAttr,
-    IndexType,
-    SymbolRefAttr,
-    TupleType,
-    AnyFloat,
-)
-from xdsl.printer import Printer
 from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 
 
 @irdl_attr_definition

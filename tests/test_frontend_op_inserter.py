@@ -1,7 +1,7 @@
 import pytest
 
-from xdsl.dialects.arith import Addi, Constant
 from xdsl.dialects.affine import For
+from xdsl.dialects.arith import Addi, Constant
 from xdsl.dialects.builtin import i32
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.frontend.op_inserter import OpInserter

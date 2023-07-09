@@ -1,14 +1,14 @@
 import pytest
 
+from xdsl.dialects.arith import Arith
+from xdsl.dialects.builtin import Builtin
+from xdsl.dialects.cf import Cf
+from xdsl.dialects.func import Func
 from xdsl.ir import MLContext, Operation
 from xdsl.parser import Parser
-from xdsl.dialects.builtin import Builtin
-from xdsl.dialects.func import Func
-from xdsl.dialects.arith import Arith
-from xdsl.dialects.cf import Cf
-from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (
+from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (  # noqa
     get_immutable_copy,
-)  # noqa
+)
 
 program_region = """
 "builtin.module"() ({

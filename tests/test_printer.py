@@ -1,29 +1,31 @@
 from __future__ import annotations
 
-import pytest
 from io import StringIO
 
-from xdsl.dialects.arith import Arith, Addi, Constant
+import pytest
+from conftest import assert_print_op
+
+from xdsl.dialects.arith import Addi, Arith, Constant
 from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, UnitAttr, i32
 from xdsl.dialects.func import Func
 from xdsl.dialects.test import Test, TestOp
 from xdsl.ir import (
     Attribute,
-    MLContext,
-    OpResult,
-    Operation,
-    ParametrizedAttribute,
     Block,
+    MLContext,
+    Operation,
+    OpResult,
+    ParametrizedAttribute,
     Region,
 )
 from xdsl.irdl import (
+    IRDLOperation,
     Operand,
     ParameterDef,
-    VarOpResult,
     VarOperand,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     result_def,
@@ -33,8 +35,6 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
-
-from conftest import assert_print_op
 from xdsl.utils.exceptions import ParseError
 
 
@@ -486,7 +486,7 @@ class PlusCustomFormatOp(IRDLOperation):
         return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=[type])
 
     def print(self, printer: Printer):
-        printer.print(" ", self.lhs, " + ", self.rhs, " : ", self.res.typ)
+        printer.print(" ", self.lhs, " + ", self.rhs, " : ", self.res.type)
 
 
 def test_generic_format():

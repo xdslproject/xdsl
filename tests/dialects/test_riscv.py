@@ -1,12 +1,10 @@
-from xdsl.builder import Builder
-from xdsl.utils.test_value import TestSSAValue
-from xdsl.dialects import riscv
-
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
-
-from xdsl.utils.exceptions import VerifyException
-
 import pytest
+
+from xdsl.builder import Builder
+from xdsl.dialects import riscv
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_add_op():
@@ -15,14 +13,14 @@ def test_add_op():
     add_op = riscv.AddOp(a1, a2, rd=riscv.Registers.A0)
     a0 = add_op.rd
 
-    assert a1.typ is add_op.rs1.typ
-    assert a2.typ is add_op.rs2.typ
-    assert isinstance(a0.typ, riscv.RegisterType)
-    assert isinstance(a1.typ, riscv.RegisterType)
-    assert isinstance(a2.typ, riscv.RegisterType)
-    assert a0.typ.data.name == "a0"
-    assert a1.typ.data.name == "a1"
-    assert a2.typ.data.name == "a2"
+    assert a1.type is add_op.rs1.type
+    assert a2.type is add_op.rs2.type
+    assert isinstance(a0.type, riscv.RegisterType)
+    assert isinstance(a1.type, riscv.RegisterType)
+    assert isinstance(a2.type, riscv.RegisterType)
+    assert a0.type.data.name == "a0"
+    assert a1.type.data.name == "a1"
+    assert a2.type.data.name == "a2"
 
 
 def test_csr_op():

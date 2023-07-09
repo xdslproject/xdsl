@@ -3,58 +3,47 @@ Toy language dialect from MLIR tutorial.
 """
 
 from __future__ import annotations
-from abc import ABC, abstractmethod
 
+from abc import ABC, abstractmethod
 from typing import TypeAlias, cast
 
-from xdsl.ir import (
-    Dialect,
-    Operation,
-    SSAValue,
-    Attribute,
-    Block,
-    Region,
-    OpResult,
-)
-
 from xdsl.dialects.builtin import (
+    DenseIntOrFPElementsAttr,
     Float64Type,
     FunctionType,
+    StringAttr,
     SymbolRefAttr,
     TensorType,
     UnrankedTensorType,
     f64,
-    DenseIntOrFPElementsAttr,
-    StringAttr,
 )
+from xdsl.ir import Attribute, Block, Dialect, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import (
-    Operand,
-    OptOperand,
-    VarOpResult,
-    attr_def,
-    opt_attr_def,
-    region_def,
-    var_operand_def,
-    var_result_def,
-    VarOperand,
-    irdl_op_definition,
     AnyAttr,
     IRDLOperation,
-    result_def,
+    Operand,
+    OptOperand,
+    VarOperand,
+    VarOpResult,
+    attr_def,
+    irdl_op_definition,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
+    region_def,
+    result_def,
+    var_operand_def,
+    var_result_def,
 )
-
-from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
-
 from xdsl.traits import (
     CallableOpInterface,
-    Pure,
-    OpTrait,
-    SymbolOpInterface,
     IsTerminator,
+    OpTrait,
+    Pure,
+    SymbolOpInterface,
 )
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
@@ -103,10 +92,10 @@ class ConstantOp(IRDLOperation):
         return ConstantOp(DenseIntOrFPElementsAttr.tensor_from_list([value], f64, []))
 
     def verify_(self) -> None:
-        if not self.res.typ == self.value.type:
+        if not self.res.type == self.value.type:
             raise VerifyException(
                 "Expected value and result types to be equal: "
-                f"{self.res.typ}, {self.value.type}"
+                f"{self.res.type}, {self.value.type}"
             )
 
     def get_type(self) -> TensorTypeF64:
@@ -126,14 +115,14 @@ class InferAddOpShapeTrait(ToyShapeInferenceTrait):
         if not isinstance(op, AddOp):
             raise TypeError
         if not (
-            isinstance(op.lhs.typ, TensorType) and isinstance(op.rhs.typ, TensorType)
+            isinstance(op.lhs.type, TensorType) and isinstance(op.rhs.type, TensorType)
         ):
             return
-        assert op.lhs.typ.get_shape() == op.rhs.typ.get_shape()
-        if isinstance(op.res.typ, TensorType):
-            assert op.lhs.typ.get_shape() == op.res.typ.get_shape()
+        assert op.lhs.type.get_shape() == op.rhs.type.get_shape()
+        if isinstance(op.res.type, TensorType):
+            assert op.lhs.type.get_shape() == op.res.type.get_shape()
         else:
-            op.res.typ = op.lhs.typ
+            op.res.type = op.lhs.type
 
 
 @irdl_op_definition
@@ -151,10 +140,10 @@ class AddOp(IRDLOperation):
     traits = frozenset((Pure(), InferAddOpShapeTrait()))
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
-        if isa(lhs.typ, TensorTypeF64):
-            result_typ = lhs.typ
+        if isa(lhs.type, TensorTypeF64):
+            result_typ = lhs.type
         else:
-            result_typ = rhs.typ
+            result_typ = rhs.type
         super().__init__(result_types=[result_typ], operands=[lhs, rhs])
 
     def verify_(self):
@@ -163,11 +152,11 @@ class AddOp(IRDLOperation):
         shape = None
         for arg in args:
             # Expect shapes to be the same whenever they are defined, no check for unranked
-            if isinstance(arg.typ, TensorType):
+            if isinstance(arg.type, TensorType):
                 if shape is None:
-                    shape = arg.typ.shape
+                    shape = arg.type.shape
                 else:
-                    if shape != arg.typ.shape:
+                    if shape != arg.type.shape:
                         raise VerifyException(
                             "Expected AddOp args to have the same shape"
                         )
@@ -241,7 +230,7 @@ class FuncOp(IRDLOperation):
             raise VerifyException("Expected last op of FuncOp to be a ReturnOp")
 
         operand = last_op.input
-        operand_typ = None if operand is None else operand.typ
+        operand_typ = None if operand is None else operand.type
 
         return_typs = self.function_type.outputs.data
 
@@ -293,15 +282,15 @@ class InferMulOpShapeTrait(ToyShapeInferenceTrait):
             raise TypeError
 
         if not (
-            isinstance(op.lhs.typ, TensorType) and isinstance(op.rhs.typ, TensorType)
+            isinstance(op.lhs.type, TensorType) and isinstance(op.rhs.type, TensorType)
         ):
             return
 
-        assert op.lhs.typ.get_shape() == op.rhs.typ.get_shape()
-        if isinstance(op.res.typ, TensorType):
-            assert op.lhs.typ.get_shape() == op.res.typ.get_shape()
+        assert op.lhs.type.get_shape() == op.rhs.type.get_shape()
+        if isinstance(op.res.type, TensorType):
+            assert op.lhs.type.get_shape() == op.res.type.get_shape()
         else:
-            op.res.typ = op.lhs.typ
+            op.res.type = op.lhs.type
 
 
 @irdl_op_definition
@@ -319,10 +308,10 @@ class MulOp(IRDLOperation):
     traits = frozenset((Pure(), InferMulOpShapeTrait()))
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
-        if isa(lhs.typ, TensorTypeF64):
-            result_typ = lhs.typ
+        if isa(lhs.type, TensorTypeF64):
+            result_typ = lhs.type
         else:
-            result_typ = rhs.typ
+            result_typ = rhs.type
         super().__init__(result_types=[result_typ], operands=[lhs, rhs])
 
     def verify_(self):
@@ -331,11 +320,11 @@ class MulOp(IRDLOperation):
         shape = None
         for arg in args:
             # Expect shapes to be the same whenever they are defined, no check for unranked
-            if isinstance(arg.typ, TensorType):
+            if isinstance(arg.type, TensorType):
                 if shape is None:
-                    shape = arg.typ.shape
+                    shape = arg.type.shape
                 else:
-                    if shape != arg.typ.shape:
+                    if shape != arg.type.shape:
                         raise VerifyException(
                             "Expected MulOp args to have the same shape"
                         )
@@ -399,26 +388,26 @@ class ReshapeOp(IRDLOperation):
     traits = frozenset((Pure(),))
 
     def __init__(self, arg: SSAValue, shape: list[int]):
-        if not isa(arg.typ, AnyTensorTypeF64):
+        if not isa(arg.type, AnyTensorTypeF64):
             raise ValueError(
-                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected"
+                f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
                 " {AnyTensorTypeF64}"
             )
-        element_type = arg.typ.element_type
+        element_type = arg.type.element_type
         t = TensorTypeF64.from_type_and_list(element_type, shape)
         return super().__init__(result_types=[t], operands=[arg])
 
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
-        if not isa(arg.typ, AnyTensorTypeF64):
+        if not isa(arg.type, AnyTensorTypeF64):
             raise ValueError(
-                f"Unexpected arg of type {arg.typ} passed to ReshapeOp, expected"
+                f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
                 " {AnyTensorTypeF64}"
             )
         return ReshapeOp.create(result_types=[t], operands=[arg])
 
     def verify_(self):
-        result_type = self.res.typ
+        result_type = self.res.type
         assert isa(result_type, TensorTypeF64)
         if not len(result_type.shape.data):
             raise VerifyException("Reshape operation result shape should be defined")
@@ -430,16 +419,16 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
         if not isinstance(op, TransposeOp):
             raise TypeError
 
-        if not isinstance(op.arg.typ, TensorType):
+        if not isinstance(op.arg.type, TensorType):
             return
 
-        arg_shape = op.arg.typ.get_shape()
+        arg_shape = op.arg.type.get_shape()
         res_shape = arg_shape[::-1]
 
-        if isinstance(op.res.typ, TensorType):
-            assert res_shape == op.res.typ.get_shape()
+        if isinstance(op.res.type, TensorType):
+            assert res_shape == op.res.type.get_shape()
         else:
-            op.res.typ = TensorType.from_type_and_list(f64, res_shape)
+            op.res.type = TensorType.from_type_and_list(f64, res_shape)
 
 
 @irdl_op_definition
@@ -452,18 +441,18 @@ class TransposeOp(IRDLOperation):
 
     def __init__(self, arg: SSAValue):
         output_type: TensorTypeF64 | UnrankedTensorTypeF64
-        if isa(arg.typ, TensorTypeF64):
-            element_type = arg.typ.element_type
+        if isa(arg.type, TensorTypeF64):
+            element_type = arg.type.element_type
             output_type = TensorType.from_type_and_list(
-                element_type, list(reversed(arg.typ.get_shape()))
+                element_type, list(reversed(arg.type.get_shape()))
             )
         else:
-            if not isa(arg.typ, UnrankedTensorTypeF64):
+            if not isa(arg.type, UnrankedTensorTypeF64):
                 raise ValueError(
-                    f"Unexpected operand of type {arg.typ} passed to TransposeOp, "
+                    f"Unexpected operand of type {arg.type} passed to TransposeOp, "
                     "expected {TensorTypeF64 | UnrankedTensorTypeF64}"
                 )
-            output_type = arg.typ
+            output_type = arg.type
 
         super().__init__(operands=[arg], result_types=[output_type])
 
@@ -474,15 +463,15 @@ class InferCastOpShapeTrait(ToyShapeInferenceTrait):
         if not isinstance(op, CastOp):
             raise TypeError
 
-        if not isinstance(op.arg.typ, TensorType):
+        if not isinstance(op.arg.type, TensorType):
             return
 
-        shape = op.arg.typ.get_shape()
+        shape = op.arg.type.get_shape()
 
-        if isinstance(op.res.typ, TensorType):
-            assert shape == op.res.typ.get_shape()
+        if isinstance(op.res.type, TensorType):
+            assert shape == op.res.type.get_shape()
         else:
-            op.res.typ = TensorType.from_type_and_list(f64, shape)
+            op.res.type = TensorType.from_type_and_list(f64, shape)
 
 
 @irdl_op_definition
