@@ -1,6 +1,6 @@
 from typing import Any, TypeVar, cast
-from xdsl.dialects import affine
 
+from xdsl.dialects import affine
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,

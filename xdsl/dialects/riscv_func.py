@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from xdsl.ir import Operation, SSAValue, Dialect, Attribute, Region
-from xdsl.traits import CallableOpInterface, HasParent, IsTerminator, SymbolOpInterface
-from xdsl.utils.exceptions import VerifyException
-
+from xdsl.dialects import riscv
+from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IntegerType, StringAttr
+from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     OptOpResult,
-    VarOpResult,
     VarOperand,
+    VarOpResult,
     attr_def,
     irdl_op_definition,
     opt_attr_def,
@@ -19,8 +18,8 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IntegerType, StringAttr
-from xdsl.dialects import riscv
+from xdsl.traits import CallableOpInterface, HasParent, IsTerminator, SymbolOpInterface
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition

@@ -1,8 +1,9 @@
 from abc import ABC
 from typing import Sequence
+
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
-from xdsl.dialects.riscv import AssemblyInstructionArg, RISCVInstruction, RegisterType
+from xdsl.dialects.riscv import AssemblyInstructionArg, RegisterType, RISCVInstruction
 from xdsl.ir.core import Block, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -135,15 +136,15 @@ class BranchOperation(IRDLOperation, RISCVInstruction, ABC):
         # Types of arguments must match arg types of blocks
 
         for op_arg, block_arg in zip(self.then_arguments, self.then_block.args):
-            if op_arg.typ != block_arg.typ:
+            if op_arg.type != block_arg.type:
                 raise VerifyException(
-                    f"Block arg types must match {op_arg.typ} {block_arg.typ}"
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
                 )
 
         for op_arg, block_arg in zip(self.else_arguments, self.else_block.args):
-            if op_arg.typ != block_arg.typ:
+            if op_arg.type != block_arg.type:
                 raise VerifyException(
-                    f"Block arg types must match {op_arg.typ} {block_arg.typ}"
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
                 )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -268,9 +269,9 @@ class JOp(IRDLOperation, RISCVInstruction):
         # Types of arguments must match arg types of blocks
 
         for op_arg, block_arg in zip(self.block_arguments, self.successor.args):
-            if op_arg.typ != block_arg.typ:
+            if op_arg.type != block_arg.type:
                 raise VerifyException(
-                    f"Block arg types must match {op_arg.typ} {block_arg.typ}"
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
                 )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:

@@ -3,32 +3,38 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import IO, TypeAlias, Sequence
+from typing import IO, Sequence, TypeAlias
 
-from xdsl.traits import IsTerminator, NoTerminator
-
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    Signedness,
+    StringAttr,
+    UnitAttr,
+)
 from xdsl.ir import (
-    Dialect,
-    Operation,
-    Region,
-    SSAValue,
     Attribute,
     Data,
+    Dialect,
+    Operation,
     OpResult,
+    Region,
+    SSAValue,
     TypeAttribute,
 )
-
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     OptOperand,
     OptRegion,
     OptSingleBlockRegion,
+    VarOperand,
     VarOpResult,
     attr_def,
-    irdl_op_definition,
     irdl_attr_definition,
-    VarOperand,
-    Operand,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -37,18 +43,9 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
-    IntegerType,
-    ModuleOp,
-    Signedness,
-    UnitAttr,
-    IntegerAttr,
-    StringAttr,
-)
+from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -442,11 +439,11 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     elif isinstance(arg, FloatRegisterType):
         return arg.register_name
     else:
-        if isinstance(arg.typ, RegisterType):
-            reg = arg.typ.register_name
+        if isinstance(arg.type, RegisterType):
+            reg = arg.type.register_name
             return reg
-        elif isinstance(arg.typ, FloatRegisterType):
-            reg = arg.typ.register_name
+        elif isinstance(arg.type, FloatRegisterType):
+            reg = arg.type.register_name
             return reg
     assert False
 
@@ -930,12 +927,12 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.writeonly:
             return
-        if not isinstance(self.rd.typ, RegisterType):
+        if not isinstance(self.rd.type, RegisterType):
             return
-        if self.rd.typ.data.name is not None and self.rd.typ.data.name != "zero":
+        if self.rd.type.data.name is not None and self.rd.type.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.typ.data.name}'"
+                f"not '{self.rd.type.data.name}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -988,12 +985,12 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.readonly:
             return
-        if not isinstance(self.rs1.typ, RegisterType):
+        if not isinstance(self.rs1.type, RegisterType):
             return
-        if self.rs1.typ.data.name is not None and self.rs1.typ.data.name != "zero":
+        if self.rs1.type.data.name is not None and self.rs1.type.data.name != "zero":
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.typ.data.name}'"
+                f"not '{self.rs1.type.data.name}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1044,12 +1041,12 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if self.writeonly is None:
             return
-        if not isinstance(self.rd.typ, RegisterType):
+        if not isinstance(self.rd.type, RegisterType):
             return
-        if self.rd.typ.data.name is not None and self.rd.typ.data.name != "zero":
+        if self.rd.type.data.name is not None and self.rd.type.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.typ.data.name}'"
+                f"not '{self.rd.type.data.name}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:

@@ -1,12 +1,11 @@
 # pyright: reportMissingTypeStubs=false
 
+from functools import reduce
 from typing import IO, ClassVar
 
-from riscemu.types.instruction import Instruction
 from riscemu.instructions.instruction_set import InstructionSet
+from riscemu.types.instruction import Instruction
 from riscemu.types.int32 import Int32
-
-from functools import reduce
 
 from xdsl.interpreters.shaped_array import ShapedArray
 

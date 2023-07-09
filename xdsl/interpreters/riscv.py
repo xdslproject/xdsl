@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Generic, Iterator, TypeAlias, TypeVar
 
+from xdsl.dialects import riscv
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, ModuleOp
 from xdsl.interpreter import (
     Interpreter,
@@ -11,8 +12,6 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-
-from xdsl.dialects import riscv
 from xdsl.ir.core import Operation
 from xdsl.utils.exceptions import InterpretationError
 

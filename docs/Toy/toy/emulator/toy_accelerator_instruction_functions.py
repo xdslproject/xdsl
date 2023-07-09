@@ -1,4 +1,5 @@
 from typing import Generic, TypeVar
+
 from xdsl.dialects import riscv
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import Buffer, RiscvFunctions

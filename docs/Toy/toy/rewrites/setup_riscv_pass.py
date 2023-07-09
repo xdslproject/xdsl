@@ -1,18 +1,13 @@
 from collections import Counter
 from dataclasses import dataclass, field
-from xdsl.dialects import riscv, riscv_func
 
+from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir.core import (
-    Block,
-    MLContext,
-    Operation,
-    Region,
-)
+from xdsl.ir.core import Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
@@ -96,7 +91,7 @@ class ChangeBlockArgumentTypes(RewritePattern):
         """
         for block in op.func_body.blocks:
             for arg in block.args:
-                if not isinstance(arg.typ, riscv.RegisterType):
+                if not isinstance(arg.type, riscv.RegisterType):
                     rewriter.modify_block_argument_type(
                         arg, riscv.RegisterType(riscv.Register())
                     )

@@ -1,10 +1,10 @@
 import argparse
-
 from pathlib import Path
 from typing import Any
+
+from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import Float64Type
 from xdsl.interpreter import InterpreterFunctions, impl_cast, register_impls
-
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.builtin import BuiltinFunctions
@@ -12,28 +12,22 @@ from xdsl.interpreters.cf import CfFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
-from xdsl.interpreters.riscv_cf import RiscvCfFunctions
 from xdsl.interpreters.riscv import Buffer
+from xdsl.interpreters.riscv_cf import RiscvCfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.scf import ScfFunctions
-
-from xdsl.dialects import memref, riscv
-
-from xdsl.printer import Printer
 from xdsl.parser import Parser as IRParser
+from xdsl.printer import Printer
 
-from .frontend.ir_gen import IRGen
-from .frontend.parser import Parser as ToyParser
 from .compiler import context, emulate_riscv, transform
-
-from .interpreter import Interpreter, ToyFunctions
-
+from .emulator.toy_accelerator_functions import ToyAcceleratorFunctions
 from .emulator.toy_accelerator_instruction_functions import (
     ShapedArrayBuffer,
     ToyAcceleratorInstructionFunctions,
 )
-from .emulator.toy_accelerator_functions import ToyAcceleratorFunctions
-
+from .frontend.ir_gen import IRGen
+from .frontend.parser import Parser as ToyParser
+from .interpreter import Interpreter, ToyFunctions
 
 parser = argparse.ArgumentParser(description="Process Toy file")
 parser.add_argument("source", type=Path, help="toy source file")
@@ -89,7 +83,7 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
 
     path = args.source
 
-    with open(path, "r") as f:
+    with open(path) as f:
         match path.suffix:
             case ".toy":
                 parser = ToyParser(path, f.read())

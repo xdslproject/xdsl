@@ -1,13 +1,9 @@
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
-from xdsl.ir.core import (
-    Attribute,
-    MLContext,
-    SSAValue,
-)
+from xdsl.ir.core import Attribute, MLContext, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
@@ -35,7 +31,7 @@ class ReconcileUnrealizedCasts(RewritePattern):
         old_indices: list[int] = []
 
         for i, (o, r) in enumerate(zip(op.operands, op.results)):
-            if o.typ == r.typ:
+            if o.type == r.type:
                 r.replace_by(o)
                 continue
 
@@ -45,7 +41,7 @@ class ReconcileUnrealizedCasts(RewritePattern):
                 else:
                     # There is a use of the result that is not a cast.
                     new_inputs.append(o)
-                    new_result_types.append(r.typ)
+                    new_result_types.append(r.type)
                     old_indices.append(i)
 
         if not new_inputs:

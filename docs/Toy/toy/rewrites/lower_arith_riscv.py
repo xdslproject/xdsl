@@ -9,14 +9,14 @@ from xdsl.ir.core import MLContext, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
 
-from .setup_riscv_pass import DataDirectiveRewritePattern
 from .lower_riscv_cf import cast_values_to_registers
+from .setup_riscv_pass import DataDirectiveRewritePattern
 
 
 class LowerConstantOp(DataDirectiveRewritePattern):
@@ -40,7 +40,7 @@ class LowerConstantOp(DataDirectiveRewritePattern):
                 constant_ptr := riscv.LiOp(label),
                 constant := riscv.LwOp(constant_ptr.rd, 0),
                 UnrealizedConversionCastOp.get(
-                    constant.results, tuple(r.typ for r in op.results)
+                    constant.results, tuple(r.type for r in op.results)
                 ),
             ]
         )
@@ -165,7 +165,7 @@ class LowerCmpiOp(DataDirectiveRewritePattern):
             case _:
                 assert False, f"Unexpected comparison predicate {op.predicate}"
 
-        cast_op = UnrealizedConversionCastOp.get((res,), (op.result.typ,))
+        cast_op = UnrealizedConversionCastOp.get((res,), (op.result.type,))
 
         new_ops.append(cast_op)
 
@@ -178,7 +178,7 @@ class LowerAddiOp(RewritePattern):
         lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
 
         add = riscv.AddOp(lhs, rhs)
-        cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.typ,))
+        cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.type,))
 
         rewriter.replace_matched_op((add, cast))
 
@@ -190,7 +190,7 @@ class LowerAddfOp(RewritePattern):
 
         # TODO: use floating point addition later
         add = riscv.AddOp(lhs, rhs)
-        cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.typ,))
+        cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.type,))
 
         rewriter.replace_matched_op((add, cast))
 
@@ -202,7 +202,7 @@ class LowerMulfOp(RewritePattern):
 
         # TODO: use floating point multiplication later
         add = riscv.MulOp(lhs, rhs)
-        cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.typ,))
+        cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.type,))
 
         rewriter.replace_matched_op((add, cast))
 

@@ -14,6 +14,6 @@ class BuiltinFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         return tuple(
-            interpreter.cast_value(o.typ, r.typ, arg)
+            interpreter.cast_value(o.type, r.type, arg)
             for (o, r, arg) in zip(op.operands, op.results, args)
         )

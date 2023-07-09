@@ -1,4 +1,4 @@
-from xdsl.ir import MLContext
+from xdsl.dialects import llvm, riscv, riscv_func
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyIntegerAttr,
@@ -7,16 +7,15 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     VectorType,
 )
-from xdsl.dialects import llvm
+from xdsl.ir import MLContext
 from xdsl.ir.core import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    PatternRewriteWalker,
-    op_type_rewrite_pattern,
-    RewritePattern,
     PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-from xdsl.dialects import riscv, riscv_func
 from xdsl.transforms.dead_code_elimination import dce
 from xdsl.utils.hints import isa
 
@@ -69,7 +68,7 @@ class LowerReturnOp(RewritePattern):
 class LowerFAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: llvm.FAddOp, rewriter: PatternRewriter):
-        assert isinstance(op.lhs.typ, VectorType), "Only support vector add for now"
+        assert isinstance(op.lhs.type, VectorType), "Only support vector add for now"
         rewriter.replace_matched_op(
             [
                 res := riscv.CustomAssemblyInstructionOp(
@@ -86,7 +85,7 @@ class LowerFAddOp(RewritePattern):
 class LowerFMulOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: llvm.FMulOp, rewriter: PatternRewriter):
-        assert isinstance(op.lhs.typ, VectorType), "Only support vector mul for now"
+        assert isinstance(op.lhs.type, VectorType), "Only support vector mul for now"
         rewriter.replace_matched_op(
             [
                 res := riscv.CustomAssemblyInstructionOp(
@@ -138,7 +137,7 @@ class LowerCallIntrinsicOp(RewritePattern):
     def match_and_rewrite(self, op: llvm.CallIntrinsicOp, rewriter: PatternRewriter):
         rewriter.replace_matched_op(
             riscv.CustomAssemblyInstructionOp(
-                op.intrin, op.operands, [res.typ for res in op.results]
+                op.intrin, op.operands, [res.type for res in op.results]
             )
         )
 
@@ -148,7 +147,7 @@ class LowerUndefOp(RewritePattern):
     def match_and_rewrite(self, op: llvm.UndefOp, rewriter: PatternRewriter):
         # TODO: clean up stack when returning from function
 
-        res_type = op.res.typ
+        res_type = op.res.type
         assert isinstance(res_type, llvm.LLVMStructType)
         type_name = res_type.struct_name
         type_size = 0
@@ -175,7 +174,7 @@ class LowerUndefOp(RewritePattern):
 class LowerInsertValueOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: llvm.InsertValueOp, rewriter: PatternRewriter):
-        res_type = op.res.typ
+        res_type = op.res.type
         assert isinstance(res_type, llvm.LLVMStructType)
         type_name = res_type.struct_name
 
@@ -212,7 +211,7 @@ class LowerInsertValueOp(RewritePattern):
 class LowerExtractValueOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: llvm.InsertValueOp, rewriter: PatternRewriter):
-        res_type = op.res.typ
+        res_type = op.res.type
         assert isinstance(res_type, llvm.LLVMStructType)
         type_name = res_type.struct_name
 

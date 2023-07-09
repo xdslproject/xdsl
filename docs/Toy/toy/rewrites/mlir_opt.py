@@ -1,6 +1,6 @@
-from io import StringIO
 import shutil
 import subprocess
+from io import StringIO
 
 from attr import dataclass
 

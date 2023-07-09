@@ -1,14 +1,13 @@
+from xdsl.dialects import memref, printf, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir.core import Attribute, MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
-from xdsl.dialects import printf, riscv, memref
 from xdsl.utils.hints import isa
 
 
@@ -17,7 +16,7 @@ class LowerPrintOp(RewritePattern):
     def match_and_rewrite(self, op: printf.PrintFormatOp, rewriter: PatternRewriter):
         assert op.format_str.data == "{}"
         param = op.format_vals[0]
-        memref_typ = param.typ
+        memref_typ = param.type
         assert isa(memref_typ, memref.MemRefType[Attribute])
         shape = memref_typ.get_shape()
         assert len(shape) == 2

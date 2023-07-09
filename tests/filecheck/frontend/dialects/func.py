@@ -1,8 +1,8 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
 from xdsl.frontend.dialects.builtin import i32
+from xdsl.frontend.program import FrontendProgram
 
 p = FrontendProgram()
 with CodeContext(p):

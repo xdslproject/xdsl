@@ -1,21 +1,13 @@
 from __future__ import annotations
-from types import TracebackType
 
-from typing import Callable, ClassVar, Sequence, TypeAlias, overload
-import threading
 import contextlib
-
+import threading
 from dataclasses import dataclass, field
-from xdsl.dialects.builtin import ArrayAttr
+from types import TracebackType
+from typing import Callable, ClassVar, Sequence, TypeAlias, overload
 
-from xdsl.ir import (
-    Operation,
-    OperationInvT,
-    Attribute,
-    Region,
-    Block,
-    BlockArgument,
-)
+from xdsl.dialects.builtin import ArrayAttr
+from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
 
 
 @dataclass

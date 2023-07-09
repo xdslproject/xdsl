@@ -1,41 +1,40 @@
 from __future__ import annotations
 
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
 from typing import Iterable, NoReturn
 
-from xdsl.ir import SSAValue, Block, Region
-from xdsl.dialects.builtin import ModuleOp, f64, TensorType, UnrankedTensorType
 from xdsl.builder import Builder
+from xdsl.dialects.builtin import ModuleOp, TensorType, UnrankedTensorType, f64
+from xdsl.ir import Block, Region, SSAValue
 
+from ..dialects.toy import (
+    AddOp,
+    ConstantOp,
+    FuncOp,
+    FunctionType,
+    GenericCallOp,
+    MulOp,
+    PrintOp,
+    ReshapeOp,
+    ReturnOp,
+    TensorTypeF64,
+    TransposeOp,
+    UnrankedTensorTypeF64,
+)
 from .location import Location
 from .toy_ast import (
+    BinaryExprAST,
+    CallExprAST,
+    ExprAST,
+    FunctionAST,
     LiteralExprAST,
     ModuleAST,
     NumberExprAST,
-    PrototypeAST,
-    VariableExprAST,
-    VarDeclExprAST,
-    ReturnExprAST,
     PrintExprAST,
-    FunctionAST,
-    ExprAST,
-    CallExprAST,
-    BinaryExprAST,
-)
-
-from ..dialects.toy import (
-    TensorTypeF64,
-    UnrankedTensorTypeF64,
-    AddOp,
-    MulOp,
-    FuncOp,
-    FunctionType,
-    ReturnOp,
-    ConstantOp,
-    GenericCallOp,
-    TransposeOp,
-    ReshapeOp,
-    PrintOp,
+    PrototypeAST,
+    ReturnExprAST,
+    VarDeclExprAST,
+    VariableExprAST,
 )
 
 
@@ -184,7 +183,7 @@ class IRGen:
                 return_op = last_op
                 if return_op.input is not None:
                     return_arg = return_op.input
-                    return_types = [return_arg.typ]
+                    return_types = [return_arg.type]
         if return_op is None:
             self.builder.insert(ReturnOp())
 

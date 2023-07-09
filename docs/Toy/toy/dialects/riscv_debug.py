@@ -1,15 +1,8 @@
 from __future__ import annotations
 
-from xdsl.ir import Operation, SSAValue, Dialect
-
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_op_definition,
-    Operand,
-    operand_def,
-)
-
 from xdsl.dialects import riscv
+from xdsl.ir import Dialect, Operation, SSAValue
+from xdsl.irdl import IRDLOperation, Operand, irdl_op_definition, operand_def
 
 
 @irdl_op_definition

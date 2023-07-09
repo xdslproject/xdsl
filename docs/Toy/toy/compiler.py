@@ -1,46 +1,35 @@
 from io import StringIO
 from pathlib import Path
 
-
-from xdsl.ir import MLContext
-from xdsl.dialects.builtin import ModuleOp, Builtin
-from xdsl.transforms.dead_code_elimination import DeadCodeElimination
-from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
-
+from xdsl.dialects import cf, printf, riscv, riscv_func, scf
+from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.interpreters.riscv_emulator import run_riscv
+from xdsl.ir import MLContext
+from xdsl.transforms.dead_code_elimination import DeadCodeElimination
+from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
+from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
-from .rewrites.optimise_toy import OptimiseToy
-from .rewrites.shape_inference import ShapeInferencePass
-from .rewrites.inline_toy import InlineToyPass
-
+from .dialects import toy
+from .emulator.toy_accelerator_instructions import ToyAccelerator
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
-
-from .rewrites.optimise_toy import OptimiseToy
-from .rewrites.shape_inference import ShapeInferencePass
 from .rewrites.inline_toy import InlineToyPass
-from .rewrites.lower_toy_affine import LowerToAffinePass
+from .rewrites.lower_arith_riscv import LowerArithRiscvPass
+from .rewrites.lower_func_riscv_func import LowerFuncToRiscvFunc
+from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
+from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
+from .rewrites.lower_riscv_cf import LowerCfRiscvCfPass
+from .rewrites.lower_scf_riscv import LowerScfRiscvPass
 from .rewrites.lower_to_toy_accelerator import (
     LowerToToyAccelerator,
     LowerToyAccelerator,
 )
+from .rewrites.lower_toy_affine import LowerToAffinePass
 from .rewrites.mlir_opt import MLIROptPass
-from .rewrites.setup_riscv_pass import FinalizeRiscvPass, SetupRiscvPass
-from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
-
-from .rewrites.lower_riscv_cf import LowerCfRiscvCfPass
-
-from .rewrites.lower_scf_riscv import LowerScfRiscvPass
-from .rewrites.lower_arith_riscv import LowerArithRiscvPass
-from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
-from .rewrites.lower_func_riscv_func import LowerFuncToRiscvFunc
+from .rewrites.optimise_toy import OptimiseToy
 from .rewrites.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
-
-from .emulator.toy_accelerator_instructions import ToyAccelerator
-
-from .dialects import toy
-from xdsl.dialects import riscv, riscv_func, cf, scf, printf
+from .rewrites.setup_riscv_pass import FinalizeRiscvPass, SetupRiscvPass
+from .rewrites.shape_inference import ShapeInferencePass
 
 
 def context() -> MLContext:

@@ -10,6 +10,7 @@ lit<17.0.0
 pre-commit==3.3.3
 git+https://github.com/AntonLydike/riscemu.git@fcf701840b579be8073076208b7e65beccb1e1d8#egg=riscemu
 asv<0.6
+isort==5.12.0
 # pyright has to be the last line and fixed with `==`. The CI parses this file
 # in `.github/parse_pyright_version.py` and installs the according version for
 # typechecking.

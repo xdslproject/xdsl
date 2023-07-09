@@ -6,29 +6,22 @@ expects that all calls have been inlined, and all shapes have been resolved.
 
 from itertools import product
 from typing import Callable, Sequence, TypeAlias, TypeVar, cast
-from xdsl.builder import Builder
 
-from xdsl.dialects.builtin import (
-    IndexType,
-    IntegerAttr,
-    ModuleOp,
-    f64,
-    Float64Type,
-)
-from xdsl.dialects import affine, arith, memref, func
+from xdsl.builder import Builder
+from xdsl.dialects import affine, arith, func, memref
+from xdsl.dialects.builtin import Float64Type, IndexType, IntegerAttr, ModuleOp, f64
 from xdsl.dialects.printf import PrintFormatOp
 from xdsl.ir.core import Block, MLContext, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
 
 from ..dialects import toy
-
 
 # region Helpers
 
@@ -93,14 +86,14 @@ def build_affine_for(
 
     # Create a region and a block for the body.
     # The argument of the region is the loop induction variable.
-    block_arg_types = (IndexType(), *(arg.typ for arg in iter_args))
+    block_arg_types = (IndexType(), *(arg.type for arg in iter_args))
     block = Block(arg_types=block_arg_types)
     induction_var, *rest = block.args
     region = Region(block)
 
     op = affine.For.from_region(
         (*lb_operands, *ub_operands, *iter_args),
-        tuple(iter_arg.typ for iter_arg in iter_args),
+        tuple(iter_arg.type for iter_arg in iter_args),
         affine.AffineMapAttr(lb_map),
         affine.AffineMapAttr(ub_map),
         region,
@@ -274,7 +267,7 @@ def lower_op_to_loops(
     rewriter: PatternRewriter,
     process_iteration: LoopIterationFn,
 ):
-    tensor_type = cast(toy.TensorTypeF64, op.res.typ)
+    tensor_type = cast(toy.TensorTypeF64, op.res.type)
 
     # insert an allocation and deallocation for the result of this operation.
     memref_type = convert_tensor_to_memref(tensor_type)
@@ -352,7 +345,7 @@ class ConstantOpLowering(RewritePattern):
         # When lowering the constant operation, we allocate and assign the constant
         # values to a corresponding memref allocation.
 
-        tensor_type = cast(toy.TensorTypeF64, op.res.typ)
+        tensor_type = cast(toy.TensorTypeF64, op.res.type)
         memref_type = convert_tensor_to_memref(tensor_type)
         alloc = insert_alloc_and_dealloc(memref_type, op, rewriter)
 

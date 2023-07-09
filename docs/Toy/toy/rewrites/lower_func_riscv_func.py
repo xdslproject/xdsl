@@ -1,12 +1,12 @@
-from xdsl.ir import MLContext
-from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects import func, riscv_func
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    PatternRewriteWalker,
-    op_type_rewrite_pattern,
-    RewritePattern,
     PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
 
 

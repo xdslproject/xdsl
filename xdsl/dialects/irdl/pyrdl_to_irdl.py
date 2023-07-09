@@ -1,4 +1,5 @@
 from xdsl.builder import Builder
+from xdsl.dialects.irdl import AnyOp
 from xdsl.dialects.irdl.irdl import (
     AttributeOp,
     DialectOp,
@@ -8,12 +9,7 @@ from xdsl.dialects.irdl.irdl import (
     ResultsOp,
 )
 from xdsl.ir.core import Block, Dialect, ParametrizedAttribute, Region, SSAValue
-from xdsl.irdl import (
-    AttrConstraint,
-    IRDLOperation,
-)
-
-from xdsl.dialects.irdl import AnyOp
+from xdsl.irdl import AttrConstraint, IRDLOperation
 
 
 def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue:

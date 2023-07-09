@@ -1,58 +1,56 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from math import prod
 from typing import (
-    Iterable,
-    Mapping,
-    TypeAlias,
-    List,
-    cast,
-    Type,
-    Sequence,
     TYPE_CHECKING,
     Any,
-    TypeVar,
-    overload,
-    Iterator,
     Generic,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Sequence,
+    Type,
+    TypeAlias,
+    TypeVar,
+    cast,
+    overload,
 )
 
-from math import prod
-
 from xdsl.ir import (
+    Attribute,
+    AttributeCovT,
+    AttributeInvT,
     Block,
     BlockOps,
     Data,
-    TypeAttribute,
-    ParametrizedAttribute,
-    Operation,
-    Region,
-    Attribute,
     Dialect,
+    Operation,
+    ParametrizedAttribute,
+    Region,
     SSAValue,
-    AttributeCovT,
-    AttributeInvT,
+    TypeAttribute,
 )
 from xdsl.ir.affine import AffineMap
-
 from xdsl.irdl import (
     AllOf,
-    VarOpResult,
-    VarOperand,
-    VarRegion,
-    attr_def,
-    irdl_attr_definition,
-    attr_constr_coercion,
-    irdl_to_attr_constraint,
-    irdl_op_definition,
-    ParameterDef,
+    AnyAttr,
+    AttrConstraint,
     Generic,
     GenericData,
-    AttrConstraint,
-    AnyAttr,
     IRDLOperation,
+    ParameterDef,
+    VarOperand,
+    VarOpResult,
+    VarRegion,
+    attr_constr_coercion,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
+    irdl_to_attr_constraint,
     region_def,
     var_operand_def,
     var_region_def,
@@ -323,7 +321,7 @@ _IntegerAttrTypInv = TypeVar("_IntegerAttrTypInv", bound=IntegerType | IndexType
 class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     name = "integer"
     value: ParameterDef[IntAttr]
-    typ: ParameterDef[_IntegerAttrTyp]
+    type: ParameterDef[_IntegerAttrTyp]
 
     @overload
     def __init__(
@@ -355,24 +353,24 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
         return IntegerAttr(value, IndexType())
 
     def verify(self) -> None:
-        if isinstance(self.typ, IntegerType):
-            match self.typ.signedness.data:
+        if isinstance(self.type, IntegerType):
+            match self.type.signedness.data:
                 case Signedness.SIGNLESS:
-                    min_value = -(1 << self.typ.width.data)
-                    max_value = 1 << self.typ.width.data
+                    min_value = -(1 << self.type.width.data)
+                    max_value = 1 << self.type.width.data
                 case Signedness.SIGNED:
-                    min_value = -(1 << (self.typ.width.data - 1))
-                    max_value = (1 << (self.typ.width.data - 1)) - 1
+                    min_value = -(1 << (self.type.width.data - 1))
+                    max_value = (1 << (self.type.width.data - 1)) - 1
                 case Signedness.UNSIGNED:
                     min_value = 0
-                    max_value = (1 << self.typ.width.data) - 1
+                    max_value = (1 << self.type.width.data) - 1
                 case _:
                     assert False, "unreachable"
 
             if not (min_value <= self.value.data <= max_value):
                 raise VerifyException(
                     f"Integer value {self.value.data} is out of range for "
-                    f"type {self.typ} which supports values in the "
+                    f"type {self.type} which supports values in the "
                     f"range [{min_value}, {max_value}]"
                 )
 

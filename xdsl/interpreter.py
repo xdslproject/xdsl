@@ -8,13 +8,13 @@ from typing import (
     Generator,
     Iterable,
     NamedTuple,
+    ParamSpec,
     TypeAlias,
     TypeVar,
-    ParamSpec,
 )
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import OperationInvT, SSAValue, Operation
+from xdsl.ir import Operation, OperationInvT, SSAValue
 from xdsl.ir.core import Attribute, Block, Region
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError

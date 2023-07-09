@@ -1,14 +1,8 @@
 from __future__ import annotations
 
-
 from typing import Any
 
-from xdsl.interpreter import (
-    Interpreter,
-    InterpreterFunctions,
-    register_impls,
-    impl,
-)
+from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 
 from ..dialects import toy_accelerator
 

@@ -1,16 +1,17 @@
 from dataclasses import dataclass, field
 from typing import cast
+
+from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext, OpResult, Operation
+from xdsl.ir import MLContext, Operation, OpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriteWalker,
-    op_type_rewrite_pattern,
-    RewritePattern,
     PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-from xdsl.dialects import riscv, riscv_func
 
 
 class LowerSyscallOp(RewritePattern):
@@ -53,7 +54,7 @@ class LowerSyscallOp(RewritePattern):
             ops.append(gr)
             res = gr.res
 
-            mv = riscv.MVOp(res, rd=cast(riscv.RegisterType, op.result.typ))
+            mv = riscv.MVOp(res, rd=cast(riscv.RegisterType, op.result.type))
             ops.append(mv)
             new_results = mv.results
 

@@ -1,15 +1,14 @@
+from xdsl.dialects import affine, arith, memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir.core import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
-from xdsl.dialects import affine, arith, memref, riscv
 
 from ..dialects import toy_accelerator
 
@@ -75,7 +74,7 @@ class LowerAffineForOp(RewritePattern):
 
             # This is a transpose op
 
-            memref_typ = load.memref.typ
+            memref_typ = load.memref.type
             assert isinstance(memref_typ, memref.MemRefType)
             rows, cols = memref_typ.shape
 
@@ -145,7 +144,7 @@ class LowerTransposeOp(RewritePattern):
 class LowerBinOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy_accelerator.BinOp, rewriter: PatternRewriter):
-        typ = op.dest.typ
+        typ = op.dest.type
         assert isinstance(typ, memref.MemRefType)
         size = typ.element_count()
 

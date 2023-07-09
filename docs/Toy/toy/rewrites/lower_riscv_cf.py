@@ -1,17 +1,16 @@
 from typing import Sequence
 
+from xdsl.dialects import arith, builtin, cf, riscv, riscv_cf, riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir.core import MLContext, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
-from xdsl.dialects import arith, cf, riscv, riscv_cf, builtin, riscv_func
 
 
 def cast_values_to_registers(

@@ -1,16 +1,16 @@
 from __future__ import annotations
+
 import abc
 from typing import Annotated
 
 from xdsl.dialects.builtin import AnyIntegerAttr, ArrayAttr
 from xdsl.dialects.memref import MemRefType
-
-from xdsl.ir import Attribute, Operation, SSAValue, Dialect
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     ConstraintVar,
+    IRDLOperation,
     attr_def,
     irdl_op_definition,
-    IRDLOperation,
     operand_def,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -42,23 +42,23 @@ class Transpose(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(self.source.typ, MemRefType):
+        if not isinstance(self.source.type, MemRefType):
             raise VerifyException(
-                f"Invalid transpose source type {self.source.typ}, expected MemRefType"
+                f"Invalid transpose source type {self.source.type}, expected MemRefType"
             )
-        if not isinstance(self.destination.typ, MemRefType):
+        if not isinstance(self.destination.type, MemRefType):
             raise VerifyException(
-                f"Invalid transpose destination type {self.destination.typ}, expected MemRefType"
+                f"Invalid transpose destination type {self.destination.type}, expected MemRefType"
             )
 
         expected_source_shape = ArrayAttr((self.source_rows, self.source_cols))
-        source_shape = self.source.typ.shape
+        source_shape = self.source.type.shape
 
         if source_shape != expected_source_shape:
             raise VerifyException(f"Transpose source shape mismatch")
 
         expected_destination_shape = ArrayAttr((self.source_cols, self.source_rows))
-        destination_shape = self.destination.typ.shape
+        destination_shape = self.destination.type.shape
 
         if destination_shape != expected_destination_shape:
             raise VerifyException(f"Transpose source shape mismatch")

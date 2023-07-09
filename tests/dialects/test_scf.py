@@ -2,16 +2,18 @@
 Test the usage of scf dialect.
 """
 
-import pytest
 from typing import cast
-from xdsl.ir.core import BlockArgument
+
+import pytest
+
 from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import Region, IndexType, ModuleOp, i32, i64
+from xdsl.dialects.builtin import IndexType, ModuleOp, Region, i32, i64
 from xdsl.dialects.cf import Block
-from xdsl.dialects.scf import For, ParallelOp, If, Yield, ReduceOp, ReduceReturnOp
+from xdsl.dialects.scf import For, If, ParallelOp, ReduceOp, ReduceReturnOp, Yield
 from xdsl.dialects.test import TestTermOp
-from xdsl.utils.exceptions import VerifyException, DiagnosticException
+from xdsl.ir.core import BlockArgument
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
 def test_for_with_loop_carried_verify():
@@ -35,7 +37,7 @@ def test_for_with_loop_carried_verify():
     assert for_op.body is body
 
     assert len(for_op.results) == 1
-    assert for_op.results[0].typ == carried.result.typ
+    assert for_op.results[0].type == carried.result.type
     assert tuple(for_op.operands) == (
         lower.result,
         upper.result,
@@ -350,10 +352,10 @@ def test_reduce_op():
     reduce_op = ReduceOp.get(init_val, Block(arg_types=[i32, i32]))
 
     assert reduce_op.argument is init_val.results[0]
-    assert reduce_op.argument.typ is i32
+    assert reduce_op.argument.type is i32
     assert len(reduce_op.body.blocks) == 1
     assert len(reduce_op.body.block.args) == 2
-    assert reduce_op.body.block.args[0].typ == reduce_op.body.block.args[0].typ == i32
+    assert reduce_op.body.block.args[0].type == reduce_op.body.block.args[0].type == i32
 
 
 def test_reduce_op_num_block_args():
@@ -442,7 +444,7 @@ def test_reduce_return_op():
     rro = ReduceReturnOp.get(reduce_constant)
 
     assert rro.result is reduce_constant.results[0]
-    assert rro.result.typ is i32
+    assert rro.result.type is i32
 
 
 def test_reduce_return_type_is_operand_type():

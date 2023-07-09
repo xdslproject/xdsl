@@ -1,5 +1,4 @@
 import re
-
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
@@ -63,7 +62,7 @@ def tokenize(file: Path, program: str | None = None):
     tokens: List[Token] = []
 
     if program is None:
-        with open(file, "r") as f:
+        with open(file) as f:
             program = f.read()
 
     text = ""

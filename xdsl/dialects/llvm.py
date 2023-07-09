@@ -2,47 +2,45 @@ from __future__ import annotations
 
 from enum import Enum
 from types import EllipsisType
-from typing import Sequence, Literal
-from xdsl.traits import IsTerminator
+from typing import Literal, Sequence
 
-from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
-    StringAttr,
-    ArrayAttr,
-    DenseArrayBase,
-    IntAttr,
-    NoneAttr,
-    IntegerType,
-    IntegerAttr,
     AnyIntegerAttr,
+    ArrayAttr,
+    ContainerType,
+    DenseArrayBase,
     IndexType,
-    UnitAttr,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    NoneAttr,
+    StringAttr,
     SymbolRefAttr,
+    UnitAttr,
     i32,
     i64,
-    ContainerType,
 )
 from xdsl.ir import (
-    TypeAttribute,
-    ParametrizedAttribute,
     Attribute,
-    Dialect,
-    OpResult,
-    Operation,
-    SSAValue,
-    Region,
     Data,
+    Dialect,
+    Operation,
+    OpResult,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
+    IRDLOperation,
     Operand,
     OptOperand,
     ParameterDef,
+    VarOperand,
     VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    VarOperand,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -51,12 +49,11 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import Pure
-
-from xdsl.utils.exceptions import VerifyException
-
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator, Pure
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -243,7 +240,9 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         printer.print(" (")
         printer.print_list(self.inputs, printer.print_attribute)
         if self.is_variadic:
-            printer.print(", ...")
+            if self.inputs:
+                printer.print(", ")
+            printer.print("...")
 
         printer.print_string(")>")
 
@@ -480,7 +479,7 @@ class GEPOp(IRDLOperation):
 
         # convert a potential Operation into an SSAValue
         ptr_val = SSAValue.get(ptr)
-        ptr_type = ptr_val.typ
+        ptr_type = ptr_val.type
 
         if not isinstance(ptr_type, LLVMPointerType):
             raise ValueError("Input must be a pointer")
@@ -612,13 +611,13 @@ class LoadOp(IRDLOperation):
     def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
             ptr = SSAValue.get(ptr)
-            assert isinstance(ptr.typ, LLVMPointerType)
+            assert isinstance(ptr.type, LLVMPointerType)
 
-            if isinstance(ptr.typ.type, NoneAttr):
+            if isinstance(ptr.type.type, NoneAttr):
                 raise ValueError(
                     "llvm.load requires either a result type or a typed pointer!"
                 )
-            result_type = ptr.typ.type
+            result_type = ptr.type.type
 
         return LoadOp.build(operands=[ptr], result_types=[result_type])
 
@@ -730,7 +729,7 @@ class InsertValueOp(IRDLOperation):
             attributes={
                 "position": position,
             },
-            result_types=[container.typ],
+            result_types=[container.type],
         )
 
 
@@ -1109,15 +1108,15 @@ class FAddOp(IRDLOperation):
         lhs: SSAValue,
         rhs: SSAValue,
     ):
-        super().__init__(operands=[lhs, rhs], result_types=[lhs.typ])
+        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
 
     def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ:
-            raise VerifyException("lhs.typ must equal rhs.typ")
-        if self.lhs.typ != self.res.typ:
-            raise VerifyException("lhs.typ must equal res.typ")
-        if self.rhs.typ != self.res.typ:
-            raise VerifyException("rhs.typ must equal res.typ")
+        if self.lhs.type != self.rhs.type:
+            raise VerifyException("lhs.type must equal rhs.typ")
+        if self.lhs.type != self.res.type:
+            raise VerifyException("lhs.type must equal res.typ")
+        if self.rhs.type != self.res.type:
+            raise VerifyException("rhs.type must equal res.typ")
 
 
 @irdl_op_definition
@@ -1139,15 +1138,15 @@ class FMulOp(IRDLOperation):
         lhs: SSAValue,
         rhs: SSAValue,
     ):
-        super().__init__(operands=[lhs, rhs], result_types=[lhs.typ])
+        super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
 
     def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ:
-            raise VerifyException("lhs.typ must equal rhs.typ")
-        if self.lhs.typ != self.res.typ:
-            raise VerifyException("lhs.typ must equal res.typ")
-        if self.rhs.typ != self.res.typ:
-            raise VerifyException("rhs.typ must equal res.typ")
+        if self.lhs.type != self.rhs.type:
+            raise VerifyException("lhs.type must equal rhs.typ")
+        if self.lhs.type != self.res.type:
+            raise VerifyException("lhs.type must equal res.typ")
+        if self.rhs.type != self.res.type:
+            raise VerifyException("rhs.type must equal res.typ")
 
 
 LLVM = Dialect(

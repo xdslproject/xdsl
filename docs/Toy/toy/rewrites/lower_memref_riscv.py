@@ -1,17 +1,16 @@
 from math import prod
 from typing import Any, Sequence, cast
 
+from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir.core import MLContext, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
-from xdsl.dialects import memref, riscv
 
 from .lower_riscv_cf import cast_values_to_registers
 
@@ -19,9 +18,9 @@ from .lower_riscv_cf import cast_values_to_registers
 class LowerMemrefAllocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter):
-        assert isinstance(op.memref.typ, memref.MemRefType)
-        memref_typ = cast(memref.MemRefType[Any], op.memref.typ)
-        size = prod(op.memref.typ.get_shape())
+        assert isinstance(op.memref.type, memref.MemRefType)
+        memref_typ = cast(memref.MemRefType[Any], op.memref.type)
+        size = prod(op.memref.type.get_shape())
         rewriter.replace_matched_op(
             [
                 size_op := riscv.LiOp(size, comment="memref alloc size"),
@@ -73,8 +72,8 @@ class LowerMemrefStoreOp(RewritePattern):
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
         value, mem, *indices = cast_values_to_registers(op.operands, rewriter)
 
-        assert isinstance(op.memref.typ, memref.MemRefType)
-        memref_typ = cast(memref.MemRefType[Any], op.memref.typ)
+        assert isinstance(op.memref.type, memref.MemRefType)
+        memref_typ = cast(memref.MemRefType[Any], op.memref.type)
         shape = memref_typ.get_shape()
 
         ptr = insert_shape_ops(mem, indices, shape, rewriter)
@@ -92,8 +91,8 @@ class LowerMemrefLoadOp(RewritePattern):
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
         mem, *indices = cast_values_to_registers(op.operands, rewriter)
 
-        assert isinstance(op.memref.typ, memref.MemRefType)
-        memref_typ = cast(memref.MemRefType[Any], op.memref.typ)
+        assert isinstance(op.memref.type, memref.MemRefType)
+        memref_typ = cast(memref.MemRefType[Any], op.memref.type)
         shape = memref_typ.get_shape()
         ptr = insert_shape_ops(mem, indices, shape, rewriter)
         rewriter.replace_matched_op(

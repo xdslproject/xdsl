@@ -11,18 +11,17 @@ from xdsl.dialects.builtin import (
     ShapedType,
 )
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Attribute, Operation, SSAValue, Block, Region, Dialect
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine.affine_expr import AffineExpr
 from xdsl.ir.affine.affine_map import AffineMap
-from xdsl.traits import IsTerminator
 from xdsl.irdl import (
+    AnyAttr,
     ConstraintVar,
+    IRDLOperation,
+    VarOperand,
     VarOpResult,
     attr_def,
     irdl_op_definition,
-    VarOperand,
-    AnyAttr,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     region_def,
@@ -30,6 +29,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.traits import IsTerminator
 
 
 @irdl_op_definition
@@ -53,15 +53,15 @@ class For(IRDLOperation):
         if len(self.operands) != len(self.results):
             raise Exception("Expected the same amount of operands and results")
 
-        operand_types = [SSAValue.get(op).typ for op in self.operands]
-        if operand_types != [res.typ for res in self.results]:
+        operand_types = [SSAValue.get(op).type for op in self.operands]
+        if operand_types != [res.type for res in self.results]:
             raise Exception(
                 "Expected all operands and result pairs to have matching types"
             )
 
         entry_block: Block = self.body.blocks[0]
         block_arg_types = [IndexType()] + operand_types
-        arg_types = [arg.typ for arg in entry_block.args]
+        arg_types = [arg.type for arg in entry_block.args]
         if block_arg_types != arg_types:
             raise Exception(
                 "Expected BlockArguments to have the same types as the operands"
@@ -120,11 +120,11 @@ class Store(IRDLOperation):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
-            if not isinstance(memref.typ, MemRefType):
+            if not isinstance(memref.type, MemRefType):
                 raise ValueError(
                     "affine.store memref operand must be of type MemrefType"
                 )
-            memref_type = cast(MemRefType[Attribute], memref.typ)
+            memref_type = cast(MemRefType[Attribute], memref.type)
             rank = memref_type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
         super().__init__(
@@ -156,21 +156,21 @@ class Load(IRDLOperation):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
-            if not isinstance(memref.typ, ShapedType):
+            if not isinstance(memref.type, ShapedType):
                 raise ValueError(
                     "affine.store memref operand must be of type ShapedType"
                 )
-            memref_type = cast(MemRefType[Attribute], memref.typ)
+            memref_type = cast(MemRefType[Attribute], memref.type)
             rank = memref_type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
         if result_type is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
-            if not isinstance(memref.typ, ContainerType):
+            if not isinstance(memref.type, ContainerType):
                 raise ValueError(
                     "affine.store memref operand must be of type ContainerType"
                 )
-            memref_type = cast(ContainerType[Any], memref.typ)
+            memref_type = cast(ContainerType[Any], memref.type)
             result_type = memref_type.get_element_type()
 
         super().__init__(
