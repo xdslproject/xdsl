@@ -1,7 +1,8 @@
 import re
 from pathlib import Path
+from typing import Mapping, cast
 
-from setuptools import find_packages, setup
+from setuptools import Command, find_packages, setup
 
 import versioneer
 
@@ -17,7 +18,7 @@ with open("requirements.txt") as f:
 with open("requirements-optional.txt") as f:
     optionals = f.read().splitlines()
 
-reqs = []
+reqs: list[str] = []
 for ir in required:
     if ir[0:3] == "git":
         name = ir.split("/")[-1]
@@ -34,7 +35,7 @@ for mreqs, mode in zip(
         "extras",
     ],
 ):
-    opt_reqs = []
+    opt_reqs: list[str] = []
     for ir in mreqs:
         # For conditionals like pytest=2.1; python == 3.6
         if ";" in ir:
@@ -57,8 +58,8 @@ for mreqs, mode in zip(
 
 setup(
     name="xdsl",
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version=cast(str, versioneer.get_version()),
+    cmdclass=cast(Mapping[str, type[Command]], versioneer.get_cmdclass()),
     description="xDSL",
     long_description=long_description,
     long_description_content_type="text/markdown",
