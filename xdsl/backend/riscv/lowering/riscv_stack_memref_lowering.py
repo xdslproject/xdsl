@@ -42,7 +42,8 @@ class LowerMemrefAlloca(RewritePattern):
 
         rewriter.replace_matched_op(
             [
-                stack_alloc := riscv.MVOp(riscv.GetRegisterOp(riscv.Registers.SP)),
+                sp := riscv.GetRegisterOp(riscv.Registers.SP),
+                stack_alloc := riscv.MVOp(sp),
                 riscv.AddiOp(stack_alloc, -total_size, rd=riscv.Registers.SP),
                 UnrealizedConversionCastOp.get(stack_alloc.results, (reference_type,)),
             ]
@@ -64,7 +65,6 @@ def insert_shape_ops(
     def get_power_of_two(value: int) -> int:
         return int(math.log2(value))
 
-    # A * N + mem
     if len(shape) == 1:
         rewriter.insert_op_before_matched_op(
             [
