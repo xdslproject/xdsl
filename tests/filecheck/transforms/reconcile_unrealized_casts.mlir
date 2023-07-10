@@ -78,13 +78,13 @@ builtin.module {
 
     // -----
 
-    func.func @failure_cycle(%arg0: i64) -> i32 {
+    func.func @failure_chain(%arg0: i64) -> i32 {
         %0 = "builtin.unrealized_conversion_cast"(%arg0) : (i64) -> i1
         %1 = "builtin.unrealized_conversion_cast"(%0) : (i1) -> i32
         func.return %1 : i32
     }
 
-    // CHECK-NEXT:    func.func @failure_cycle(%arg0_5 : i64) -> i32 {
+    // CHECK-NEXT:    func.func @failure_chain(%arg0_5 : i64) -> i32 {
     // CHECK-NEXT:      %4 = "builtin.unrealized_conversion_cast"(%arg0_5) : (i64) -> i1
     // CHECK-NEXT:      %5 = "builtin.unrealized_conversion_cast"(%4) : (i1) -> i32
     // CHECK-NEXT:      func.return %5 : i32
