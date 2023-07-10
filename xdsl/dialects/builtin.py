@@ -309,21 +309,21 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
-_IntegerAttrTyp = TypeVar(
-    "_IntegerAttrTyp", bound=IntegerType | IndexType, covariant=True
+_IntegerAttrType = TypeVar(
+    "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
-_IntegerAttrTypInv = TypeVar("_IntegerAttrTypInv", bound=IntegerType | IndexType)
+_IntegerAttrTypeInv = TypeVar("_IntegerAttrTypeInv", bound=IntegerType | IndexType)
 
 
 @irdl_attr_definition
-class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
+class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
     name = "integer"
     value: ParameterDef[IntAttr]
-    type: ParameterDef[_IntegerAttrTyp]
+    type: ParameterDef[_IntegerAttrType]
 
     @overload
     def __init__(
-        self: IntegerAttr[_IntegerAttrTyp], value: int | IntAttr, typ: _IntegerAttrTyp
+        self: IntegerAttr[_IntegerAttrType], value: int | IntAttr, typ: _IntegerAttrType
     ) -> None:
         ...
 
@@ -423,20 +423,20 @@ class FloatData(Data[float]):
         printer.print_string(f"{self.data}")
 
 
-_FloatAttrTyp = TypeVar("_FloatAttrTyp", bound=AnyFloat, covariant=True)
+_FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
-_FloatAttrTypInv = TypeVar("_FloatAttrTypInv", bound=AnyFloat)
+_FloatAttrTypeInv = TypeVar("_FloatAttrTypeInv", bound=AnyFloat)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
+class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
     name = "float"
 
     value: ParameterDef[FloatData]
-    type: ParameterDef[_FloatAttrTyp]
+    type: ParameterDef[_FloatAttrType]
 
     @overload
-    def __init__(self, data: float | FloatData, type: _FloatAttrTyp) -> None:
+    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None:
         ...
 
     @overload
@@ -444,7 +444,7 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
         ...
 
     def __init__(
-        self, data: float | FloatData, type: int | _FloatAttrTyp | AnyFloat
+        self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
     ) -> None:
         if isinstance(data, float):
             data = FloatData(data)
