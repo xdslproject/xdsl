@@ -89,5 +89,23 @@ builtin.module {
     // CHECK-NEXT:      %5 = "builtin.unrealized_conversion_cast"(%4) : (i1) -> i32
     // CHECK-NEXT:      func.return %5 : i32
     // CHECK-NEXT:    }
+
+
+    func.func @cycle_singleblock_var_ops(%arg0: i64, %arg1: i64) -> i64 {
+        %0, %1 = "builtin.unrealized_conversion_cast"(%arg0, %arg1) : (i64, i64) -> (i16, i16)
+        %2, %3 = "builtin.unrealized_conversion_cast"(%0, %1) : (i16, i16) -> (i1, i1)
+        %4, %5 = "builtin.unrealized_conversion_cast"(%2, %3) : (i1, i1) -> (i64, i64)
+        %6, %7 = "builtin.unrealized_conversion_cast"(%2, %3) : (i1, i1) -> (i16, i16)
+        %8, %9 = "builtin.unrealized_conversion_cast"(%6, %7) : (i16, i16) -> (i64, i64)
+        %10 = "test.op"(%4, %5, %8, %9) : (i64, i64, i64, i64) -> i64
+        func.return %10 : i64
+    }
+
+    // CHECK-NEXT:    func.func @cycle_singleblock_var_ops(%{{.*}} : i64, %{{.*}} : i64) -> i64 {
+    // CHECK-NEXT:      %6 = "test.op"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) : (i64, i64, i64, i64) -> i64
+    // CHECK-NEXT:      func.return %6 : i64
+    // CHECK-NEXT:    }
+
+
 }
 // CHECK-NEXT:  }

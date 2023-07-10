@@ -93,11 +93,11 @@ class RemoveUselessConversionCast(RewritePattern):
                 else:
                     pending_casts.appendleft(cast)
 
-            for cast in finalized_casts:
+            for cast in filter(lambda c: c.parent is not None, finalized_casts):
                 # replace the uses of this cast by the inputs of the root cast
                 PatternRewriter(cast).replace_matched_op([], op.inputs)
 
-            for cast in pending_casts:
+            for cast in filter(lambda c: c.parent is not None, pending_casts):
                 # remove other casts in the chain in the right order
                 PatternRewriter(cast).erase_matched_op()
 
