@@ -58,6 +58,7 @@ from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
 from xdsl.transforms.printf_to_llvm import PrintfToLLVM
+from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCasts
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
@@ -113,6 +114,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         RISCVLowerArith,
         StencilShapeInferencePass,
         StencilStorageMaterializationPass,
+        ReconcileUnrealizedCasts,
     ]
 
 
