@@ -38,7 +38,10 @@ def test_empty_program():
 @pytest.mark.parametrize(
     "args, expected_error",
     [
-        (["tests/xdsl_opt/not_module.mlir"], "builtin.module operation expected"),
+        (
+            ["--no-implicit-module", "tests/xdsl_opt/not_module.mlir"],
+            "builtin.module operation expected",
+        ),
         (["tests/xdsl_opt/empty_program.wrong"], "Unrecognized file extension 'wrong'"),
     ],
 )

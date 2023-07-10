@@ -59,6 +59,7 @@ class MLContext:
     """Contains structures for operations/attributes registration."""
 
     allow_unregistered: bool = field(default=False)
+    allow_implicit_module: bool = field(default=True)
 
     _registeredOps: dict[str, type[Operation]] = field(init=False, default_factory=dict)
     _registeredAttrs: dict[str, type[Attribute]] = field(

@@ -165,6 +165,7 @@ class xDSLOptMain:
         self.args = arg_parser.parse_args(args=args)
 
         self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
+        self.ctx.allow_implicit_module = not self.args.no_implicit_module
 
         self.setup_pipeline()
 
@@ -267,6 +268,14 @@ class xDSLOptMain:
             action="store_true",
             help="Allow the parsing of unregistered dialects.",
         )
+
+        arg_parser.add_argument(
+            "--no-implicit-module",
+            default=False,
+            action="store_true",
+            help="Disable implicit addition of a top-level module op during parsing.",
+        )
+
         arg_parser.add_argument(
             "--split-input-file",
             default=False,
