@@ -38,20 +38,20 @@ def test_dimension():
 
 
 def test_alloc():
-    typ = memref.MemRefType.from_element_type_and_shape(
+    memref_type = memref.MemRefType.from_element_type_and_shape(
         builtin.Float32Type(), [10, 10, 10]
     )
-    alloc = AllocOp(typ, is_async=True)
+    alloc = AllocOp(memref_type, is_async=True)
 
     assert isinstance(alloc, AllocOp)
-    assert alloc.result.type is typ
+    assert alloc.result.type is memref_type
     assert len(alloc.asyncDependencies) == 0
     assert len(alloc.dynamicSizes) == 0
     assert alloc.asyncToken is not None
     assert isinstance(alloc.asyncToken.type, AsyncTokenType)
     assert alloc.hostShared is None
 
-    dyntyp = memref.MemRefType.from_element_type_and_shape(
+    dyn_type = memref.MemRefType.from_element_type_and_shape(
         builtin.Float32Type(), [-1, -1, -1]
     )
     ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
@@ -59,14 +59,14 @@ def test_alloc():
     token = alloc.asyncToken
 
     full_alloc = AllocOp(
-        return_type=dyntyp,
+        return_type=dyn_type,
         dynamic_sizes=dynamic_sizes,
         host_shared=True,
         async_dependencies=[token],
     )
 
     assert isinstance(full_alloc, AllocOp)
-    assert full_alloc.result.type is dyntyp
+    assert full_alloc.result.type is dyn_type
     assert len(full_alloc.asyncDependencies) == 1
     assert full_alloc.asyncDependencies[0] is token
     assert len(full_alloc.dynamicSizes) == 3
@@ -136,10 +136,10 @@ def test_block_id():
 
 
 def test_dealloc():
-    typ = memref.MemRefType.from_element_type_and_shape(
+    memref_type = memref.MemRefType.from_element_type_and_shape(
         builtin.Float32Type(), [10, 10, 10]
     )
-    alloc = AllocOp(typ, is_async=True)
+    alloc = AllocOp(memref_type, is_async=True)
 
     assert alloc.asyncToken is not None  # For pyright
 
@@ -152,7 +152,7 @@ def test_dealloc():
     assert dealloc.buffer is alloc.result
     assert dealloc.asyncDependencies == tuple([alloc.asyncToken])
 
-    alloc2 = AllocOp(typ, is_async=True)
+    alloc2 = AllocOp(memref_type, is_async=True)
     sync_dealloc = DeallocOp(buffer=alloc2.result)
 
     assert sync_dealloc.asyncToken is None
@@ -312,11 +312,11 @@ def test_launchfunc():
 
 
 def test_memcpy():
-    typ = memref.MemRefType.from_element_type_and_shape(
+    memref_type = memref.MemRefType.from_element_type_and_shape(
         builtin.Float32Type(), [10, 10, 10]
     )
     host_alloc = memref.Alloc.get(builtin.Float32Type(), 0, [10, 10, 10])
-    alloc = AllocOp(typ, is_async=True)
+    alloc = AllocOp(memref_type, is_async=True)
 
     assert alloc.asyncToken is not None  # for Pyright
 
