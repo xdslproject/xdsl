@@ -378,9 +378,9 @@ class Return(IRDLOperation):
             )
             if len(args) != len(types):
                 parser.raise_error("Expected the same number of types and arguments!")
-            for arg, typ in zip(args, types):
+            for arg, arg_type in zip(args, types):
                 # can we do this?
-                if arg.type != typ:
+                if arg.type != arg_type:
                     assert False
                     # TODO: what error to raise here?
 
