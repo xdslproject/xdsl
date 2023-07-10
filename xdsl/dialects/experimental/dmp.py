@@ -89,13 +89,13 @@ class HaloExchangeDecl(ParametrizedAttribute):
         source_offset: Sequence[int],
         neighbor: Sequence[int],
     ):
-        typ = builtin.i64
+        data_type = builtin.i64
         super().__init__(
             [
-                builtin.DenseArrayBase.from_list(typ, offset),
-                builtin.DenseArrayBase.from_list(typ, size),
-                builtin.DenseArrayBase.from_list(typ, source_offset),
-                builtin.DenseArrayBase.from_list(typ, neighbor),
+                builtin.DenseArrayBase.from_list(data_type, offset),
+                builtin.DenseArrayBase.from_list(data_type, size),
+                builtin.DenseArrayBase.from_list(data_type, source_offset),
+                builtin.DenseArrayBase.from_list(data_type, neighbor),
             ]
         )
 
@@ -242,10 +242,10 @@ class HaloShapeInformation(ParametrizedAttribute):
         core_ub: stencil.IndexAttr,
         buff_ub: stencil.IndexAttr,
     ):
-        typ = builtin.i64
+        data_type = builtin.i64
         return HaloShapeInformation(
             [
-                builtin.DenseArrayBase.from_list(typ, tuple(data))
+                builtin.DenseArrayBase.from_list(data_type, tuple(data))
                 for data in (buff_lb, buff_ub, core_lb, core_ub)
             ]
         )
@@ -321,9 +321,9 @@ class HaloShapeInformation(ParametrizedAttribute):
                 break
         parser.parse_characters(">")
 
-        typ = builtin.i64
+        data_type = builtin.i64
         return [
-            builtin.DenseArrayBase.from_list(typ, data)
+            builtin.DenseArrayBase.from_list(data_type, data)
             for data in (buff_lb, buff_ub, core_lb, core_ub)
         ]
 
