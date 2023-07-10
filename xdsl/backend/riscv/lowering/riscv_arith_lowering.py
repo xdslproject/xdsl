@@ -1,5 +1,7 @@
 import ctypes
+
 from xdsl.backend.riscv.lowering.lower_utils import cast_values_to_registers
+from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
     Float32Type,
     FloatAttr,
@@ -12,12 +14,11 @@ from xdsl.ir.core import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.dialects import arith, riscv
 from xdsl.transforms.dead_code_elimination import dce
 
 
@@ -33,20 +34,20 @@ def convert_float_to_int(value: float) -> int:
 class LowerArithConstant(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter) -> None:
-        if isinstance(op.result.typ, arith.IntegerType) and isinstance(
+        if isinstance(op.result.type, arith.IntegerType) and isinstance(
             op.value, IntegerAttr
         ):
-            if op.result.typ.width.data <= 32:
+            if op.result.type.width.data <= 32:
                 rewriter.replace_matched_op(
                     [
                         li := riscv.LiOp(op.value.value.data),
-                        UnrealizedConversionCastOp.get(li.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(li.results, (op.result.type,)),
                     ]
                 )
             else:
                 raise NotImplementedError("Only 32 bit integers are supported for now")
         elif isinstance(op.value, FloatAttr):
-            if isinstance(op.result.typ, Float32Type):
+            if isinstance(op.result.type, Float32Type):
                 rewriter.replace_matched_op(
                     [
                         lui := riscv.LiOp(
@@ -54,16 +55,18 @@ class LowerArithConstant(RewritePattern):
                             rd=riscv.RegisterType(riscv.Register()),
                         ),
                         fld := riscv.FCvtSWOp(lui.rd),
-                        UnrealizedConversionCastOp.get(fld.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(fld.results, (op.result.type,)),
                     ]
                 )
             else:
                 raise NotImplementedError("Only 32 bit floats are supported")
-        elif isinstance(op.result.typ, IndexType) and isinstance(op.value, IntegerAttr):
+        elif isinstance(op.result.type, IndexType) and isinstance(
+            op.value, IntegerAttr
+        ):
             rewriter.replace_matched_op(
                 [
                     li := riscv.LiOp(op.value.value.data),
-                    UnrealizedConversionCastOp.get(li.results, (op.result.typ,)),
+                    UnrealizedConversionCastOp.get(li.results, (op.result.type,)),
                 ]
             )
         else:
@@ -91,7 +94,7 @@ class LowerArithAddi(RewritePattern):
         rewriter.replace_matched_op(
             [
                 add := riscv.AddOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(add.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(add.results, (op.result.type,)),
             ]
         )
 
@@ -103,7 +106,7 @@ class LowerArithSubi(RewritePattern):
         rewriter.replace_matched_op(
             [
                 sub := riscv.SubOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(sub.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(sub.results, (op.result.type,)),
             ]
         )
 
@@ -115,7 +118,7 @@ class LowerArithMuli(RewritePattern):
         rewriter.replace_matched_op(
             [
                 mul := riscv.MulOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(mul.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(mul.results, (op.result.type,)),
             ]
         )
 
@@ -127,7 +130,7 @@ class LowerArithDivUI(RewritePattern):
         rewriter.replace_matched_op(
             [
                 divu := riscv.DivuOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(divu.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(divu.results, (op.result.type,)),
             ]
         )
 
@@ -139,7 +142,7 @@ class LowerArithDivSI(RewritePattern):
         rewriter.replace_matched_op(
             [
                 div := riscv.DivOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(div.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(div.results, (op.result.type,)),
             ]
         )
 
@@ -171,7 +174,7 @@ class LowerArithRemUI(RewritePattern):
         rewriter.replace_matched_op(
             [
                 remu := riscv.RemuOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(remu.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(remu.results, (op.result.type,)),
             ]
         )
 
@@ -183,7 +186,7 @@ class LowerArithRemSI(RewritePattern):
         rewriter.replace_matched_op(
             [
                 rem := riscv.RemOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(rem.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(rem.results, (op.result.type,)),
             ]
         )
 
@@ -225,7 +228,7 @@ class LowerArithCmpi(RewritePattern):
                         xor_op := riscv.XorOp(lhs, rhs),
                         seqz_op := riscv.SltiuOp(xor_op, 1),
                         UnrealizedConversionCastOp.get(
-                            seqz_op.results, (op.result.typ,)
+                            seqz_op.results, (op.result.type,)
                         ),
                     ]
                 )
@@ -237,7 +240,7 @@ class LowerArithCmpi(RewritePattern):
                         xor_op := riscv.XorOp(lhs, rhs),
                         snez_op := riscv.SltuOp(zero, xor_op),
                         UnrealizedConversionCastOp.get(
-                            snez_op.results, (op.result.typ,)
+                            snez_op.results, (op.result.type,)
                         ),
                     ]
                 )
@@ -247,7 +250,7 @@ class LowerArithCmpi(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         slt := riscv.SltOp(lhs, rhs),
-                        UnrealizedConversionCastOp.get(slt.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(slt.results, (op.result.type,)),
                     ]
                 )
             # sle
@@ -256,7 +259,7 @@ class LowerArithCmpi(RewritePattern):
                     [
                         slt := riscv.SltOp(lhs, rhs),
                         xori := riscv.XoriOp(slt, 1),
-                        UnrealizedConversionCastOp.get(xori.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(xori.results, (op.result.type,)),
                     ]
                 )
             # ult
@@ -264,7 +267,7 @@ class LowerArithCmpi(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         sltu := riscv.SltuOp(lhs, rhs),
-                        UnrealizedConversionCastOp.get(sltu.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(sltu.results, (op.result.type,)),
                     ]
                 )
             # ule
@@ -273,7 +276,7 @@ class LowerArithCmpi(RewritePattern):
                     [
                         sltu := riscv.SltuOp(lhs, rhs),
                         xori := riscv.XoriOp(sltu, 1),
-                        UnrealizedConversionCastOp.get(xori.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(xori.results, (op.result.type,)),
                     ]
                 )
             # ugt
@@ -281,7 +284,7 @@ class LowerArithCmpi(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         sltu := riscv.SltuOp(rhs, lhs),
-                        UnrealizedConversionCastOp.get(sltu.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(sltu.results, (op.result.type,)),
                     ]
                 )
             # uge
@@ -290,7 +293,7 @@ class LowerArithCmpi(RewritePattern):
                     [
                         sltu := riscv.SltuOp(rhs, lhs),
                         xori := riscv.XoriOp(sltu, 1),
-                        UnrealizedConversionCastOp.get(xori.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(xori.results, (op.result.type,)),
                     ]
                 )
             case _:
@@ -310,7 +313,7 @@ class LowerArithAndI(RewritePattern):
         rewriter.replace_matched_op(
             [
                 and_ := riscv.AndOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(and_.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(and_.results, (op.result.type,)),
             ]
         )
 
@@ -322,7 +325,7 @@ class LowerArithOrI(RewritePattern):
         rewriter.replace_matched_op(
             [
                 or_ := riscv.OrOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(or_.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(or_.results, (op.result.type,)),
             ]
         )
 
@@ -334,7 +337,7 @@ class LowerArithXOrI(RewritePattern):
         rewriter.replace_matched_op(
             [
                 xor := riscv.XorOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(xor.results, (op.result.type,)),
             ]
         )
 
@@ -346,7 +349,7 @@ class LowerArithShLI(RewritePattern):
         rewriter.replace_matched_op(
             [
                 sll := riscv.SllOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(sll.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(sll.results, (op.result.type,)),
             ]
         )
 
@@ -358,7 +361,7 @@ class LowerArithShRUI(RewritePattern):
         rewriter.replace_matched_op(
             [
                 srl := riscv.SrlOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(srl.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(srl.results, (op.result.type,)),
             ]
         )
 
@@ -370,7 +373,7 @@ class LowerArithShRSI(RewritePattern):
         rewriter.replace_matched_op(
             [
                 sra := riscv.SraOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(sra.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(sra.results, (op.result.type,)),
             ]
         )
 
@@ -382,7 +385,7 @@ class LowerArithAddf(RewritePattern):
         rewriter.replace_matched_op(
             [
                 fadds := riscv.FAddSOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(fadds.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(fadds.results, (op.result.type,)),
             ]
         )
 
@@ -394,7 +397,7 @@ class LowerArithSubf(RewritePattern):
         rewriter.replace_matched_op(
             [
                 fsubs := riscv.FSubSOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(fsubs.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(fsubs.results, (op.result.type,)),
             ]
         )
 
@@ -406,7 +409,7 @@ class LowerArithMulf(RewritePattern):
         rewriter.replace_matched_op(
             [
                 fmuls := riscv.FMulSOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(fmuls.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(fmuls.results, (op.result.type,)),
             ]
         )
 
@@ -418,7 +421,7 @@ class LowerArithDivf(RewritePattern):
         rewriter.replace_matched_op(
             [
                 fdivs := riscv.FMulSOp(lhs, rhs),
-                UnrealizedConversionCastOp.get(fdivs.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(fdivs.results, (op.result.type,)),
             ]
         )
 
@@ -430,7 +433,7 @@ class LowerArithNegf(RewritePattern):
         rewriter.replace_matched_op(
             [
                 fsgnjns := riscv.FSgnJNSOp(operand[0], operand[0]),
-                UnrealizedConversionCastOp.get(fsgnjns.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(fsgnjns.results, (op.result.type,)),
             ]
         )
 
@@ -457,7 +460,7 @@ class LowerArithCmpf(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         li := riscv.LiOp(0),
-                        UnrealizedConversionCastOp.get(li.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(li.results, (op.result.type,)),
                     ]
                 )
             # oeq
@@ -465,7 +468,7 @@ class LowerArithCmpf(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         feq := riscv.FeqSOP(lhs, rhs),
-                        UnrealizedConversionCastOp.get(feq.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(feq.results, (op.result.type,)),
                     ]
                 )
             # ogt
@@ -473,7 +476,7 @@ class LowerArithCmpf(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         ogt := riscv.FltSOP(rhs, lhs),
-                        UnrealizedConversionCastOp.get(ogt.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(ogt.results, (op.result.type,)),
                     ]
                 )
             # oge
@@ -481,7 +484,7 @@ class LowerArithCmpf(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         fle := riscv.FleSOP(rhs, lhs),
-                        UnrealizedConversionCastOp.get(fle.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(fle.results, (op.result.type,)),
                     ]
                 )
             # olt
@@ -489,7 +492,7 @@ class LowerArithCmpf(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         olt := riscv.FltSOP(lhs, rhs),
-                        UnrealizedConversionCastOp.get(olt.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(olt.results, (op.result.type,)),
                     ]
                 )
             # ole
@@ -497,7 +500,7 @@ class LowerArithCmpf(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         fle := riscv.FleSOP(lhs, rhs),
-                        UnrealizedConversionCastOp.get(fle.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(fle.results, (op.result.type,)),
                     ]
                 )
             # one
@@ -507,7 +510,7 @@ class LowerArithCmpf(RewritePattern):
                         flt1 := riscv.FltSOP(lhs, rhs),
                         flt2 := riscv.FltSOP(rhs, lhs),
                         or_ := riscv.OrOp(flt2, flt1),
-                        UnrealizedConversionCastOp.get(or_.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(or_.results, (op.result.type,)),
                     ]
                 )
             # ord
@@ -517,7 +520,7 @@ class LowerArithCmpf(RewritePattern):
                         feq1 := riscv.FeqSOP(lhs, lhs),
                         feq2 := riscv.FeqSOP(rhs, rhs),
                         and_ := riscv.AndOp(feq2, feq1),
-                        UnrealizedConversionCastOp.get(and_.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(and_.results, (op.result.type,)),
                     ]
                 )
             # ueq
@@ -528,7 +531,7 @@ class LowerArithCmpf(RewritePattern):
                         flt2 := riscv.FltSOP(rhs, lhs),
                         or_ := riscv.OrOp(flt2, flt1),
                         xor := riscv.XoriOp(or_, 1),
-                        UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(xor.results, (op.result.type,)),
                     ]
                 )
             # ugt
@@ -537,7 +540,7 @@ class LowerArithCmpf(RewritePattern):
                     [
                         fle := riscv.FleSOP(lhs, rhs),
                         xor := riscv.XoriOp(fle, 1),
-                        UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(xor.results, (op.result.type,)),
                     ]
                 )
             # uge
@@ -546,7 +549,7 @@ class LowerArithCmpf(RewritePattern):
                     [
                         fle := riscv.FltSOP(lhs, rhs),
                         xor := riscv.XoriOp(fle, 1),
-                        UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(xor.results, (op.result.type,)),
                     ]
                 )
             # ult
@@ -555,7 +558,7 @@ class LowerArithCmpf(RewritePattern):
                     [
                         fle := riscv.FleSOP(rhs, lhs),
                         xor := riscv.XoriOp(fle, 1),
-                        UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(xor.results, (op.result.type,)),
                     ]
                 )
             # ule
@@ -568,7 +571,7 @@ class LowerArithCmpf(RewritePattern):
                     [
                         feq := riscv.FeqSOP(lhs, rhs),
                         xor := riscv.XoriOp(feq, 1),
-                        UnrealizedConversionCastOp.get(xor.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(xor.results, (op.result.type,)),
                     ]
                 )
             # uno
@@ -579,7 +582,7 @@ class LowerArithCmpf(RewritePattern):
                         feq2 := riscv.FeqSOP(rhs, rhs),
                         and_ := riscv.AndOp(feq2, feq1),
                         riscv.XoriOp(and_, 1),
-                        UnrealizedConversionCastOp.get(and_.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(and_.results, (op.result.type,)),
                     ]
                 )
             # true
@@ -587,7 +590,7 @@ class LowerArithCmpf(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         li := riscv.LiOp(1),
-                        UnrealizedConversionCastOp.get(li.results, (op.result.typ,)),
+                        UnrealizedConversionCastOp.get(li.results, (op.result.type,)),
                     ]
                 )
             case _:
@@ -601,7 +604,7 @@ class LowerArithSIToFPOp(RewritePattern):
         rewriter.replace_matched_op(
             [
                 fcvtsw := riscv.FCvtSWOp(input[0]),
-                UnrealizedConversionCastOp.get(fcvtsw.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(fcvtsw.results, (op.result.type,)),
             ]
         )
 
@@ -613,7 +616,7 @@ class LowerArithFPToSIOp(RewritePattern):
         rewriter.replace_matched_op(
             [
                 fcvtws := riscv.FCvtWSOp(input[0]),
-                UnrealizedConversionCastOp.get(fcvtws.results, (op.result.typ,)),
+                UnrealizedConversionCastOp.get(fcvtws.results, (op.result.type,)),
             ]
         )
 

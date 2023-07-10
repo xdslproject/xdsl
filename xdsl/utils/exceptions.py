@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from xdsl.parser import Span
     from xdsl.ir import Attribute
+    from xdsl.parser import Span
     from xdsl.utils.parse_pipeline import Token
 
 

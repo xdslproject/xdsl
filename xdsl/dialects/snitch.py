@@ -9,17 +9,12 @@ that aims at generating.
 """
 
 from abc import ABC
-
 from dataclasses import dataclass
 
-from xdsl.dialects.riscv import RegisterType
-
 from xdsl.dialects.builtin import AnyIntegerAttr
-
+from xdsl.dialects.riscv import RegisterType
 from xdsl.ir import Dialect, Operation, SSAValue
-
-from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, Operand, operand_def
-
+from xdsl.irdl import IRDLOperation, Operand, attr_def, irdl_op_definition, operand_def
 from xdsl.utils.exceptions import VerifyException
 
 

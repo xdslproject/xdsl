@@ -6,8 +6,8 @@ that is inherited from the different parsers used in xDSL.
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Callable, Iterable, NoReturn, TypeVar, overload
-from xdsl.utils.exceptions import ParseError
 
+from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, Token
 
 

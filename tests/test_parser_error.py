@@ -3,10 +3,10 @@ from pytest import raises
 from xdsl.ir import MLContext
 from xdsl.irdl import (
     AnyAttr,
-    irdl_op_definition,
     IRDLOperation,
     VarOperand,
     VarOpResult,
+    irdl_op_definition,
     var_operand_def,
     var_result_def,
 )

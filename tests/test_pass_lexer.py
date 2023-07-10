@@ -2,10 +2,10 @@ import pytest
 
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import (
-    Token,
     PipelineLexer,
-    parse_pipeline,
     PipelinePassSpec,
+    Token,
+    parse_pipeline,
 )
 
 Kind = Token.Kind

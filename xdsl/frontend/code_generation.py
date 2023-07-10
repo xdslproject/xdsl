@@ -1,18 +1,18 @@
 import ast
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
+
 import xdsl.dialects.affine as affine
 import xdsl.dialects.arith as arith
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
 import xdsl.dialects.func as func
 import xdsl.dialects.scf as scf
-from xdsl.frontend.python_code_check import FunctionMap
 import xdsl.frontend.symref as symref
-
-from dataclasses import dataclass, field
-from typing import Any, Dict, List
 from xdsl.frontend.exception import CodeGenerationException, FrontendProgramException
 from xdsl.frontend.op_inserter import OpInserter
 from xdsl.frontend.op_resolver import OpResolver
+from xdsl.frontend.python_code_check import FunctionMap
 from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.ir import Attribute, Block, Region, SSAValue
 
@@ -154,18 +154,20 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         rhs = self.inserter.get_operand()
         self.visit(node.left)
         lhs = self.inserter.get_operand()
-        if lhs.typ != rhs.typ:
+        if lhs.type != rhs.type:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
                 f"Expected the same types for binary operation '{op_name}', "
-                f"but got {lhs.typ} and {rhs.typ}.",
+                f"but got {lhs.type} and {rhs.type}.",
             )
 
         # Look-up what is the frontend type we deal with to resolve the binary
         # operation.
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[lhs.typ.__class__]
+        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
+            lhs.type.__class__
+        ]
 
         overload_name = python_AST_operator_to_python_overload[op_name]
         try:
@@ -229,18 +231,20 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         rhs = self.inserter.get_operand()
         self.visit(node.left)
         lhs = self.inserter.get_operand()
-        if lhs.typ != rhs.typ:
+        if lhs.type != rhs.type:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
                 f"Expected the same types for comparison operator '{op_name}',"
-                f" but got {lhs.typ} and {rhs.typ}.",
+                f" but got {lhs.type} and {rhs.type}.",
             )
 
         # Resolve the comparison operation to an xdsl operation class
         python_op = python_AST_cmpop_to_python_overload[op_name]
-        frontend_type = self.type_converter.xdsl_to_frontend_type_map[lhs.typ.__class__]
+        frontend_type = self.type_converter.xdsl_to_frontend_type_map[
+            lhs.type.__class__
+        ]
 
         try:
             op = OpResolver.resolve_op_overload(python_op, frontend_type)
@@ -331,12 +335,12 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         else:
             self.visit(args[0])
         start = self.inserter.get_operand()
-        if not isinstance(start.typ, builtin.IndexType):
+        if not isinstance(start.type, builtin.IndexType):
             raise CodeGenerationException(
                 self.file,
                 args[0].lineno,
                 args[0].col_offset,
-                f"Expected 'index' type for loop start, got '{start.typ}'.",
+                f"Expected 'index' type for loop start, got '{start.type}'.",
             )
 
         # Process loop end.
@@ -346,12 +350,12 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             arg = args[1]
         self.visit(arg)
         end = self.inserter.get_operand()
-        if not isinstance(end.typ, builtin.IndexType):
+        if not isinstance(end.type, builtin.IndexType):
             raise CodeGenerationException(
                 self.file,
                 arg.lineno,
                 arg.col_offset,
-                f"Expected 'index' type for loop end, got '{end.typ}'.",
+                f"Expected 'index' type for loop end, got '{end.type}'.",
             )
 
         # Process loop step.
@@ -361,12 +365,12 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             step = arith.Constant.from_int_and_width(1, builtin.IndexType())
             self.inserter.insert_op(step)
         step = self.inserter.get_operand()
-        if not isinstance(step.typ, builtin.IndexType):
+        if not isinstance(step.type, builtin.IndexType):
             raise CodeGenerationException(
                 self.file,
                 args[2].lineno,
                 args[2].col_offset,
-                f"Expected 'index' type for loop step, got '{step.typ}'.",
+                f"Expected 'index' type for loop step, got '{step.type}'.",
             )
 
         return start, end, step
@@ -548,7 +552,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             self.visit(expr)
             result = self.inserter.get_operand()
             self.inserter.insert_op(scf.Yield.get(result))
-            return result.typ, region
+            return result.type, region
 
         # Generate code for both branches.
         true_type, true_region = visit_expr(node.body)
@@ -612,7 +616,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 "function body.",
             )
 
-        func_name = parent_op.sym_name.data
+        callee = parent_op.sym_name.data
         func_return_types = parent_op.function_type.outputs.data
 
         if node.value is None:
@@ -623,7 +627,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     node.lineno,
                     node.col_offset,
                     f"Expected non-zero number of return types in function "
-                    f"'{func_name}', but got 0.",
+                    f"'{callee}', but got 0.",
                 )
             self.inserter.insert_op(func.Return())
         else:
@@ -637,18 +641,18 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    f"Expected no return types in function '{func_name}'.",
+                    f"Expected no return types in function '{callee}'.",
                 )
 
             for i in range(len(operands)):
-                if func_return_types[i] != operands[i].typ:
+                if func_return_types[i] != operands[i].type:
                     raise CodeGenerationException(
                         self.file,
                         node.lineno,
                         node.col_offset,
                         f"Type signature and the type of the return value do "
                         f"not match at position {i}: expected {func_return_types[i]},"
-                        f" got {operands[i].typ}.",
+                        f" got {operands[i].type}.",
                     )
 
             self.inserter.insert_op(func.Return(*operands))

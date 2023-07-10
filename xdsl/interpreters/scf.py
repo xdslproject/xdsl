@@ -1,6 +1,6 @@
 from typing import Any
-from xdsl.dialects import scf
 
+from xdsl.dialects import scf
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -14,6 +14,13 @@ from xdsl.interpreter import (
 
 @register_impls
 class ScfFunctions(InterpreterFunctions):
+    @impl(scf.If)
+    def run_if(self, interpreter: Interpreter, op: scf.If, args: tuple[Any, ...]):
+        (cond,) = args
+        region = op.true_region if cond else op.false_region
+        results = interpreter.run_ssacfg_region(region, ())
+        return results
+
     @impl(scf.For)
     def run_for(
         self, interpreter: Interpreter, op: scf.For, args: PythonValues

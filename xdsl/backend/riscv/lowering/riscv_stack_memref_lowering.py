@@ -1,20 +1,21 @@
 import math
 from typing import Any, Sequence, cast
+
 from xdsl.backend.riscv.lowering.lower_utils import (
     cast_values_to_registers,
     get_type_size,
 )
+from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import AnyFloat, ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir.core import Attribute, MLContext, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
-    PatternRewriteWalker,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.dialects import memref, riscv
 from xdsl.transforms.dead_code_elimination import dce
 
 
@@ -41,10 +42,9 @@ class LowerMemrefAlloca(RewritePattern):
 
         rewriter.replace_matched_op(
             [
-                sp := riscv.GetRegisterOp(riscv.Registers.SP),
-                stack_alloc := riscv.AddiOp(sp, total_size),
-                mv := riscv.MVOp(stack_alloc, rd=riscv.Registers.SP),
-                UnrealizedConversionCastOp.get(mv.results, (reference_type,)),
+                stack_alloc := riscv.MVOp(riscv.GetRegisterOp(riscv.Registers.SP)),
+                riscv.AddiOp(stack_alloc, -total_size, rd=riscv.Registers.SP),
+                UnrealizedConversionCastOp.get(stack_alloc.results, (reference_type,)),
             ]
         )
 
@@ -61,12 +61,17 @@ def insert_shape_ops(
     """
     assert len(shape) == len(indices)
 
+    def get_power_of_two(value: int) -> int:
+        return int(math.log2(value))
+
+    # A * N + mem
     if len(shape) == 1:
         rewriter.insert_op_before_matched_op(
             [
-                size := riscv.LiOp(get_type_size(element)),
-                idx := riscv.MulOp(indices[0], size),
-                ptr := riscv.AddOp(mem, idx),
+                size := riscv.SlliOp(
+                    indices[0], get_power_of_two(get_type_size(element))
+                ),
+                ptr := riscv.AddOp(mem, size),
             ]
         )
     else:
@@ -86,13 +91,12 @@ class LowerMemrefStore(RewritePattern):
         ptr = insert_shape_ops(mem, memref_typ.element_type, indices, shape, rewriter)
         rewriter.replace_matched_op(
             [
-                mem_loc := riscv.AddOp(ptr, mem),
                 riscv.FSwOp(
-                    mem_loc, value, 0, comment=f"store value to memref of shape {shape}"
+                    ptr, value, 0, comment=f"store value to memref of shape {shape}"
                 )
                 if isinstance(memref_typ.element_type, AnyFloat)
                 else riscv.SwOp(
-                    mem_loc, value, 0, comment=f"store value to memref of shape {shape}"
+                    ptr, value, 0, comment=f"store value to memref of shape {shape}"
                 ),
             ],
             [],
@@ -111,13 +115,12 @@ class LowerMemrefLoad(RewritePattern):
         ptr = insert_shape_ops(mem, memref_typ.element_type, indices, shape, rewriter)
         rewriter.replace_matched_op(
             [
-                mem_loc := riscv.AddOp(ptr, mem),
                 lw := riscv.FLwOp(
-                    mem_loc, 0, comment=f"load value from memref of shape {shape}"
+                    ptr, 0, comment=f"load value from memref of shape {shape}"
                 )
                 if isinstance(memref_typ.element_type, AnyFloat)
                 else riscv.LwOp(
-                    mem_loc, 0, comment=f"load value from memref of shape {shape}"
+                    ptr, 0, comment=f"load value from memref of shape {shape}"
                 ),
                 UnrealizedConversionCastOp.get(lw.results, (memref_typ.element_type,)),
             ],

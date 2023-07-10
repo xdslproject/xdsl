@@ -1,11 +1,10 @@
 import ast
-
 from dataclasses import dataclass, field
 from typing import Sequence
+
 from xdsl.frontend.block import is_block
 from xdsl.frontend.const import is_constant, is_constant_stmt
 from xdsl.frontend.exception import CodeGenerationException
-
 
 # Type aliases for simplicity.
 BlockMap = dict[str, ast.FunctionDef]
@@ -425,7 +424,7 @@ class CheckAndInlineConstants:
             # this then all constants above `i` must have been already inlined.
             # Hence, it is sufficient to check the function body only.
             if isinstance(stmt, ast.FunctionDef):
-                new_defined_variables = set([arg.arg for arg in stmt.args.args])
+                new_defined_variables = {arg.arg for arg in stmt.args.args}
                 CheckAndInlineConstants.run_with_variables(
                     stmt.body, new_defined_variables, file
                 )
