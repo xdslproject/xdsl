@@ -19,11 +19,10 @@ from xdsl.dialects.experimental.hls import (
     PragmaPipeline,
     PragmaUnroll,
     PragmaDataflow,
-    HLSStreamType,
     HLSStream,
 )
 from xdsl.dialects import llvm
-from xdsl.dialects.llvm import AllocaOp, LLVMPointerType, LLVMStructType, GEPOp
+from xdsl.dialects.llvm import AllocaOp, LLVMPointerType, GEPOp, LLVMStructType
 
 from xdsl.passes import ModulePass
 
@@ -41,7 +40,10 @@ class LowerHLSStreamToAlloca(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStream, rewriter: PatternRewriter, /):
-        hls_elem_type = op.elem_type.types.data[0]
+        if isa(op.elem_type, LLVMStructType):
+            hls_elem_type = op.elem_type.types.data[0]
+        else:
+            hls_elem_type = op.elem_type
 
         if not self.set_stream_depth_declaration:
             stream_depth_func = llvm.FuncOp(
@@ -54,7 +56,6 @@ class LowerHLSStreamToAlloca(RewritePattern):
             self.set_stream_depth_declaration = True
 
         # As can be seen on the compiled synthetic stream benchmark of the FPL paper
-        elem_type = LLVMStructType.from_type_list([op.elem_type])
         size = Constant.from_int_and_width(512, i32)
         alloca = AllocaOp.get(size, op.elem_type)
         gep = GEPOp.get(
