@@ -447,7 +447,7 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     for example:
     for (i = 0; i < 5; i++) { //bounds[1] = 5 and strides[1] = 1
         for (j = 0; j < 6; j+=2) { //bounds[0] = 6 and strides[0] = 2
-            //whatever
+            ...
         }
     }
     """
@@ -463,7 +463,9 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
                 f"the length of bounds ({len(self.bounds)}) and strides ({len(self.strides)}) must be equal."
             )
         if len(self.strides) != self.num:
-            raise VerifyException(f"")
+            raise VerifyException(
+                f"Epected {self.num} bounds and strides, got {len(self.strides)}"
+            )
 
     def __init__(
         self,
