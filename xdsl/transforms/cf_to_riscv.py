@@ -1,15 +1,15 @@
 from abc import ABC
+
+from xdsl.dialects import cf, riscv
+from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir import MLContext
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects import cf
-from xdsl.dialects import riscv
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
-    PatternRewriteWalker,
-    GreedyRewritePatternApplier,
 )
 
 
@@ -26,15 +26,22 @@ class LowerConditionalBranchToRISCV(RewritePattern, ABC):
                 str(parent_region.get_block_index(op.else_block))
             )
 
-            zero = riscv.GetRegisterOp(riscv.Registers.ZERO).res
-            cond = riscv.GetRegisterOp(riscv.Registers.T0).res
-            op.cond.replace_by(cond)
-            branch = riscv.BeqOp(cond, zero, then_label.label)
+            cond = UnrealizedConversionCastOp.get(
+                [op.cond], [riscv.RegisterType(riscv.Register())]
+            )
+            print(cond)
+            zero = riscv.GetRegisterOp(riscv.Registers.ZERO)
+            branch = riscv.BeqOp(cond.results[0], zero, then_label.label)
+            print(branch)
 
-            rewriter.insert_op_at_start(then_label, op.then_block)
-            rewriter.insert_op_at_start(else_label, op.else_block)
+            print(op.then_block.parent)
+            # then_block = op.region.detach_block(op.then_block)
+            # else_block = op.region.detach_block(op.else_block)
 
-            rewriter.replace_matched_op(branch)
+            # rewriter.insert_op_at_start(then_label, then_block)
+            # rewriter.insert_op_at_start(else_label, else_block)
+
+            rewriter.replace_matched_op([cond, zero, branch])
 
 
 class CfToRISCV(ModulePass):

@@ -1456,6 +1456,8 @@ class BeqOp(RsRsOffIntegerOperation):
 
     name = "riscv.beq"
 
+    traits = frozenset([IsTerminator()])
+
 
 @irdl_op_definition
 class BneOp(RsRsOffIntegerOperation):
