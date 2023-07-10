@@ -8,13 +8,13 @@ from typing import (
     Generator,
     Iterable,
     NamedTuple,
+    ParamSpec,
     TypeAlias,
     TypeVar,
-    ParamSpec,
 )
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import OperationInvT, SSAValue, Operation
+from xdsl.ir import Operation, OperationInvT, SSAValue
 from xdsl.ir.core import Block, Region
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
@@ -350,52 +350,58 @@ class Interpreter:
         body = interface.get_callable_region(op)
 
         results = self.run_ssacfg_region(body, inputs, name)
-        self.interpreter_assert(
-            results is not None, f"Expected {op.name} body to have a terminator"
-        )
         assert results is not None
         return results
 
-    def run_block(self, block: Block, args: PythonValues) -> PythonValues | None:
-        """
-        Interpret a basic block, using `args` as the block argument values.
-        The terminator of this block is expected either to call its successor or return
-        the results for the region directly.
-        """
-        self.set_values(zip(block.args, args))
-
-        op: Operation | None = block.first_op
-
-        while op is not None:
-            inputs = self.get_values(op.operands)
-            result = self._impls.run(self, op, inputs)
-            self.interpreter_assert(
-                len(op.results) == len(result.values),
-                "Incorrect number of results",
-            )
-            self.set_values(zip(op.results, result.values))
-
-            if result.terminator_value is not None:
-                # Only support region termination for now
-                return result.terminator_value.values
-
-            # Set up next iteration
-            op = op.next_op
-
     def run_ssacfg_region(
         self, region: Region, args: PythonValues, name: str = "unknown"
-    ) -> PythonValues | None:
+    ) -> PythonValues:
         """
         Interpret an SSACFG-semantic Region.
         Creates a new scope, then executes the first block in the region. The first block
         is expected to return the results of the region directly.
         """
+        results = ()
         if not region.blocks:
-            return ()
-        self.push_scope(name)
+            return results
+
+        scope_count = 0
         block = region.blocks[0]
-        results = self.run_block(block, args)
-        self.pop_scope()
+
+        while block is not None:
+            self.push_scope(name)
+            scope_count += 1
+            self.set_values(zip(block.args, args))
+
+            op: Operation | None = block.first_op
+            block = None
+
+            while op is not None:
+                inputs = self.get_values(op.operands)
+                result = self._impls.run(self, op, inputs)
+                self.interpreter_assert(
+                    len(op.results) == len(result.values),
+                    f"Incorrect number of results for op {op.name}",
+                )
+                self.set_values(zip(op.results, result.values))
+
+                if result.terminator_value is not None:
+                    match result.terminator_value:
+                        case ReturnedValues():
+                            # update results and break out of outer loop
+                            results = result.terminator_value.values
+                            break
+                        case Successor():
+                            # block won't be None, so only break out of inner loop
+                            block, args = result.terminator_value
+                            break
+
+                # Set up next iteration
+                op = op.next_op
+
+        # Pop as many scopes as we entered blocks
+        for _ in range(scope_count):
+            self.pop_scope()
         return results
 
     def get_op_for_symbol(self, symbol: str) -> Operation:
@@ -421,7 +427,12 @@ class ReturnedValues(NamedTuple):
     values: PythonValues
 
 
-TerminatorValue: TypeAlias = ReturnedValues
+class Successor(NamedTuple):
+    block: Block
+    args: PythonValues
+
+
+TerminatorValue: TypeAlias = ReturnedValues | Successor
 
 
 class OpImplResult(NamedTuple):

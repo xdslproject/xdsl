@@ -14,8 +14,8 @@ from typing import (
     get_args,
     get_origin,
 )
-from xdsl.ir import ParametrizedAttribute
 
+from xdsl.ir import ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 
 _T = TypeVar("_T")

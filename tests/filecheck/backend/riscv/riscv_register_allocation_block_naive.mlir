@@ -33,6 +33,9 @@
   %29 = "riscv.li"() {"immediate" = 3 : i32} : () -> !riscv.reg<>
   %30 = "riscv.li"() {"immediate" = 2 : i32} : () -> !riscv.reg<>
   %31 = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+  %32 = "riscv.fcvt.s.w"(%30) : (!riscv.reg<>) -> !riscv.freg<>
+  %33 = "riscv.fcvt.s.w"(%31) : (!riscv.reg<>) -> !riscv.freg<>
+  %34 = "riscv.fadd.s"(%32, %33) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 }) : () -> ()
 
 // CHECK:      "builtin.module"() ({
@@ -68,4 +71,7 @@
 // CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 3 : i32} : () -> !riscv.reg<j1>
 // CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 2 : i32} : () -> !riscv.reg<j2>
 // CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<j3>
+// CHECK-NEXT:  %{{\d+}} = "riscv.fcvt.s.w"(%{{\d+}}) : (!riscv.reg<j2>) -> !riscv.freg<ft11>
+// CHECK-NEXT:  %{{\d+}} = "riscv.fcvt.s.w"(%{{\d+}}) : (!riscv.reg<j3>) -> !riscv.freg<ft10>
+// CHECK-NEXT:  %{{\d+}} = "riscv.fadd.s"(%{{\d+}}, %{{\d+}}) : (!riscv.freg<ft11>, !riscv.freg<ft10>) -> !riscv.freg<ft9>
 // CHECK-NEXT: }) : () -> ()

@@ -2,23 +2,21 @@
 Rewrite patterns for lowering snitch → riscv.
 """
 
-from typing import Tuple
 from dataclasses import dataclass
-from xdsl.passes import ModulePass
+from typing import Tuple
 
+from xdsl.dialects import builtin, riscv, snitch
+from xdsl.dialects.builtin import IntegerAttr, i32
 from xdsl.ir import MLContext
 from xdsl.irdl import Operand
-
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    RewritePattern,
-    PatternRewriter,
-    op_type_rewrite_pattern,
-    PatternRewriteWalker,
     GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-
-from xdsl.dialects.builtin import IntegerAttr, i32
-from xdsl.dialects import snitch, riscv, builtin
 
 
 @dataclass(frozen=True)

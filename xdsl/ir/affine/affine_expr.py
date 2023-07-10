@@ -1,6 +1,7 @@
 from __future__ import annotations
-from enum import Enum, auto
+
 from dataclasses import dataclass
+from enum import Enum, auto
 
 
 class _AffineExprKind(Enum):
@@ -214,6 +215,8 @@ class AffineExpr:
         return self.__add__(other)
 
     def __neg__(self) -> AffineExpr:
+        if isinstance(self._impl, _AffineConstantExprStorage):
+            return AffineExpr.constant(-self._impl.value)
         return self * -1
 
     def __sub__(self, other: AffineExpr | int) -> AffineExpr:
@@ -251,7 +254,7 @@ class AffineExpr:
             # TODO (#1087): MLIR also supports multiplication by symbols also, making
             # maps semi-affine. Currently, we do not implement semi-affine maps.
             raise NotImplementedError(
-                "Multiplication with non-constant (semi-affine) is not supported yet"
+                f"Multiplication with non-constant (semi-affine) is not supported yet self: {self} other: {other}"
             )
         # TODO (#1086): Simplify multiplication here before returning.
         return AffineExpr(_AffineBinaryOpExprStorage(_AffineExprKind.Mul, self, other))
