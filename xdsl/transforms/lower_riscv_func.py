@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from typing import cast
 
 from xdsl.dialects import riscv, riscv_func
@@ -82,6 +83,18 @@ class LowerRISCVFuncOp(RewritePattern):
         rewriter.replace_matched_op(riscv.LabelOp(op.sym_name.data, region=label_body))
 
 
+class InsertExitSyscallOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
+        if op.sym_name.data != "main":
+            return
+        return_op = op.func_body.block.last_op
+        assert isinstance(return_op, riscv_func.ReturnOp)
+
+        EXIT = 93
+        rewriter.insert_op_before(riscv_func.SyscallOp(EXIT), return_op)
+
+
 class LowerRISCVFuncReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.ReturnOp, rewriter: PatternRewriter):
@@ -115,10 +128,17 @@ class LowerRISCVCallOp(RewritePattern):
         rewriter.replace_matched_op(ops, new_results=new_results)
 
 
+@dataclass
 class LowerRISCVFunc(ModulePass):
     name = "lower-riscv-func"
 
+    insert_exit_syscall: bool = field(default=False)
+
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        if self.insert_exit_syscall:
+            PatternRewriteWalker(
+                InsertExitSyscallOp(), apply_recursively=False
+            ).rewrite_module(op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
