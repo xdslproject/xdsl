@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence, Union, cast
+from typing import Sequence, cast
 
 from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolRefAttr
 from xdsl.ir import (
@@ -308,8 +308,8 @@ class Call(IRDLOperation):
 
     @staticmethod
     def get(
-        callee: Union[str, SymbolRefAttr],
-        arguments: Sequence[Union[SSAValue, Operation]],
+        callee: str | SymbolRefAttr,
+        arguments: Sequence[SSAValue | Operation],
         return_types: Sequence[Attribute],
     ) -> Call:
         if isinstance(callee, str):

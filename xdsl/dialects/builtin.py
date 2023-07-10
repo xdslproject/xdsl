@@ -10,10 +10,8 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
-    List,
     Mapping,
     Sequence,
-    Type,
     TypeAlias,
     TypeVar,
     cast,
@@ -110,7 +108,7 @@ class ArrayOfConstraint(AttrConstraint):
 
     elem_constr: AttrConstraint
 
-    def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
+    def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
         self.elem_constr = attr_constr_coercion(constr)
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
@@ -1221,7 +1219,7 @@ class ModuleOp(IRDLOperation):
 
     def __init__(
         self,
-        ops: List[Operation] | Region,
+        ops: list[Operation] | Region,
         attributes: Mapping[str, Attribute] | None = None,
     ):
         if attributes is None:

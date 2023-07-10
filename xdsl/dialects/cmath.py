@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Union
-
 from xdsl.dialects.builtin import Float32Type, Float64Type
 from xdsl.ir import (
     Dialect,
@@ -68,9 +66,7 @@ class Mul(IRDLOperation):
             raise VerifyException("expect all input and output types to be equal")
 
     @staticmethod
-    def get(
-        operand1: Union[Operation, SSAValue], operand2: Union[Operation, SSAValue]
-    ) -> Mul:
+    def get(operand1: Operation | SSAValue, operand2: Operation | SSAValue) -> Mul:
         operand1 = SSAValue.get(operand1)
         return Mul.build(operands=[operand1, operand2], result_types=[operand1.type])
 
