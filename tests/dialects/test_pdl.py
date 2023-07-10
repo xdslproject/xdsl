@@ -126,19 +126,19 @@ def test_build_results_with_index_and_type():
 
 
 def test_build_type():
-    typ = pdl.TypeOp()
-    assert typ.constantType is None
+    pdl_type = pdl.TypeOp()
+    assert pdl_type.constantType is None
 
-    typ = pdl.TypeOp(i32)
-    assert typ.constantType == i32
+    pdl_type = pdl.TypeOp(i32)
+    assert pdl_type.constantType == i32
 
 
 def test_build_types():
-    typ = pdl.TypesOp()
-    assert typ.constantTypes is None
+    pdl_type = pdl.TypesOp()
+    assert pdl_type.constantTypes is None
 
-    typ = pdl.TypesOp((i32, i64, i32))
-    assert typ.constantTypes == ArrayAttr((i32, i64, i32))
+    pdl_type = pdl.TypesOp((i32, i64, i32))
+    assert pdl_type.constantTypes == ArrayAttr((i32, i64, i32))
 
 
 def test_build_operand():

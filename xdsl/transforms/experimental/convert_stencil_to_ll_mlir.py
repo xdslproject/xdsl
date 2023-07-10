@@ -65,9 +65,9 @@ class CastOpToMemref(RewritePattern):
         assert isa(op.result.type, FieldType[Attribute])
         assert isinstance(op.result.type.bounds, StencilBoundsAttr)
 
-        result_typ = StencilToMemRefType(op.result.type)
+        result_type = StencilToMemRefType(op.result.type)
 
-        cast = memref.Cast.get(op.field, result_typ)
+        cast = memref.Cast.get(op.field, result_type)
 
         if self.target == "gpu":
             unranked = memref.Cast.get(
@@ -230,9 +230,9 @@ class ApplyOpToParallel(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        res_typ = op.res[0].type
-        assert isa(res_typ, TempType[Attribute])
-        assert isinstance(res_typ.bounds, StencilBoundsAttr)
+        res_type = op.res[0].type
+        assert isa(res_type, TempType[Attribute])
+        assert isinstance(res_type.bounds, StencilBoundsAttr)
 
         # Get this apply's ReturnOp
         body_block = op.region.blocks[0]
@@ -240,21 +240,21 @@ class ApplyOpToParallel(RewritePattern):
 
         body = prepare_apply_body(op, rewriter)
         body.block.add_op(scf.Yield.get())
-        dim = res_typ.get_num_dims()
+        dim = res_type.get_num_dims()
 
         # Then create the corresponding scf.parallel
         boilerplate_ops = [
             *(
                 lowerBounds := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
-                    for x in res_typ.bounds.lb
+                    for x in res_type.bounds.lb
                 ]
             ),
             one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
             *(
                 upperBounds := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
-                    for x in res_typ.bounds.ub
+                    for x in res_type.bounds.ub
                 ]
             ),
         ]
@@ -433,13 +433,13 @@ class UpdateLoopCarriedVarTypes(RewritePattern):
     def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter, /):
         for i in range(len(op.iter_args)):
             block_arg = op.body.block.args[i + 1]
-            iter_typ = op.iter_args[i].type
-            if block_arg.type != iter_typ:
-                rewriter.modify_block_argument_type(block_arg, iter_typ)
+            iter_type = op.iter_args[i].type
+            if block_arg.type != iter_type:
+                rewriter.modify_block_argument_type(block_arg, iter_type)
             y = cast(scf.Yield, op.body.ops.last)
-            y.arguments[i].type = iter_typ
-            if op.res[i].type != iter_typ:
-                op.res[i].type = iter_typ
+            y.arguments[i].type = iter_type
+            if op.res[i].type != iter_type:
+                op.res[i].type = iter_type
 
 
 @dataclass
