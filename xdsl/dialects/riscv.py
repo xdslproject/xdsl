@@ -377,7 +377,9 @@ class RISCVOp(Operation, ABC):
         attributes = cls.parse_attributes(parser)
         more_attributes = parser.parse_optional_attr_dict()
         if not set(attributes).isdisjoint(more_attributes):
-            parser.raise_error("Duplicated attribute names")
+            parser.raise_error(
+                f"Duplicated attribute names. {attributes} and {more_attributes} is not disjoint."
+            )
         attributes |= more_attributes
         successors = parser.parse_optional_successors() or list()
         regions = list[Region]()
@@ -600,7 +602,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             printer.print_string_literal(self.immediate.data)
         else:
             printer.print(self.immediate.value.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"immediate"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -664,7 +666,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         if self.rd is not None:
             printer.print(", ")
             printer.print(self.rd.data.name)
-        return set(self.irdl_definition.attributes.keys())
+        return {"immediate", "rd"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -730,7 +732,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             printer.print_string_literal(self.immediate.data)
         else:
             printer.print(self.immediate.value.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"immediate"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -847,7 +849,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         if self.rd is not None:
             printer.print(", ")
             printer.print(self.rd.data.name)
-        return set(self.irdl_definition.attributes.keys())
+        return {"immediate", "rd"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -940,7 +942,7 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             printer.print_string_literal(self.offset.data)
         else:
             printer.print(self.offset.value.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"offset"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -995,7 +997,7 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     def print_attributes(self, printer: Printer, first: bool) -> set[str]:
         printer.print(" " if first else ", ")
         printer.print(self.immediate.value.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"immediate"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1110,7 +1112,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
         printer.print(self.csr.value.data)
         if self.writeonly is not None:
             printer.print(", w")
-        return set(self.irdl_definition.attributes.keys())
+        return {"csr", "writeonly"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1192,7 +1194,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
         printer.print(self.csr.value.data)
         if self.readonly is not None:
             printer.print(", r")
-        return set(self.irdl_definition.attributes.keys())
+        return {"csr", "readonly"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1275,7 +1277,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
         if self.immediate is not None:
             printer.print(", ")
             printer.print(self.immediate.value.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"csr", "immediate", "writeonly"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1346,7 +1348,7 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
         printer.print(self.csr.value.data)
         printer.print(", ")
         printer.print(self.immediate.value.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"csr", "immediate"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2322,7 +2324,7 @@ class LabelOp(IRDLOperation, RISCVOp):
     def print_attributes(self, printer: Printer, first: bool) -> set[str]:
         printer.print(" " if first else ", ")
         printer.print_string_literal(self.label.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"label"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2387,7 +2389,7 @@ class DirectiveOp(IRDLOperation, RISCVOp):
         if self.value is not None:
             printer.print(", ")
             printer.print_string_literal(self.value.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"directive", "value"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2460,7 +2462,7 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
     def print_attributes(self, printer: Printer, first: bool) -> set[str]:
         printer.print(" " if first else ", ")
         printer.print_string_literal(self.instruction_name.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"instruction_name"}
 
     def print(self, printer: Printer):
         self.print_attributes(printer, True)
@@ -2911,7 +2913,7 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             printer.print_string_literal(self.immediate.data)
         else:
             printer.print(self.immediate.value.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"immediate"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2973,7 +2975,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             printer.print_string_literal(self.immediate.data)
         else:
             printer.print(self.immediate.value.data)
-        return set(self.irdl_definition.attributes.keys())
+        return {"immediate"}
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:

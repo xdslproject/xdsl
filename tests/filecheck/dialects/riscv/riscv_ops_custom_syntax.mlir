@@ -265,7 +265,7 @@
   // CHECK-NEXT: riscv.fsw %0, %f0, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
 
   "riscv.jal"() {"immediate" = 1 : i32, "test" = "hello", "comment" = "world"} : () -> ()
-  // CHECK-NEXT: riscv.jal 1 {"test" = "hello"} : () -> ()
+  // CHECK-NEXT: riscv.jal 1 {"test" = "hello", "comment" = "world"} : () -> ()
 
   // Unconditional Branch Instructions
   "riscv.ret"() : () -> ()
