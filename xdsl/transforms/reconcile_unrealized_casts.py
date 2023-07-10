@@ -1,18 +1,19 @@
-from collections import deque
 import itertools
+from collections import deque
 from typing import Iterable
+from warnings import warn
+
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.ir.core import Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    RewritePattern,
     PatternRewriter,
     PatternRewriteWalker,
+    RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.dialects import builtin
-from warnings import warn
 
 
 class RemoveUselessConversionCast(RewritePattern):
@@ -78,7 +79,7 @@ class RemoveUselessConversionCast(RewritePattern):
                 # otherwise it means the cast is not unifiable with its uses
                 assert len(cast.results) == len(op.inputs)
                 has_trivial_cycle = all(
-                    r.typ == i.typ for r, i in zip(cast.results, op.inputs)
+                    r.type == i.type for r, i in zip(cast.results, op.inputs)
                 )
                 if is_live and not has_trivial_cycle:
                     warn(
