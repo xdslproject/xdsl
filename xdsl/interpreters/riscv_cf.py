@@ -9,6 +9,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.interpreters.comparisons import unsigned_less_than
 
 
 @register_impls
@@ -75,7 +76,7 @@ class RiscvCfFunctions(InterpreterFunctions):
         op: riscv_cf.BltuOp,
         args: tuple[Any, ...],
     ):
-        return self.run_branch(interpreter, op, args[0] < args[1])
+        return self.run_branch(interpreter, op, unsigned_less_than(args[0], args[1]))
 
     @impl_terminator(riscv_cf.BgeuOp)
     def run_bgeu(
@@ -84,4 +85,6 @@ class RiscvCfFunctions(InterpreterFunctions):
         op: riscv_cf.BgeuOp,
         args: tuple[Any, ...],
     ):
-        return self.run_branch(interpreter, op, args[0] >= args[1])
+        return self.run_branch(
+            interpreter, op, args[0] == args[1] or unsigned_less_than(args[1], args[0])
+        )
