@@ -1,9 +1,8 @@
 import pytest
 
-from xdsl.dialects.builtin import i32, StringAttr
-
-from xdsl.ir import Block, OpResult, BlockArgument, SSAValue
-from xdsl.irdl import irdl_op_definition, IRDLOperation, result_def
+from xdsl.dialects.builtin import StringAttr, i32
+from xdsl.ir import Block, BlockArgument, OpResult, SSAValue
+from xdsl.irdl import IRDLOperation, irdl_op_definition, result_def
 
 
 @irdl_op_definition

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 
 from .affine_expr import AffineExpr
@@ -14,6 +15,22 @@ class AffineMap:
     num_dims: int
     num_symbols: int
     results: list[AffineExpr]
+
+    @staticmethod
+    def constant_map(value: int) -> AffineMap:
+        return AffineMap(0, 0, [AffineExpr.constant(value)])
+
+    @staticmethod
+    def point_map(*values: int) -> AffineMap:
+        return AffineMap(0, 0, [AffineExpr.constant(value) for value in values])
+
+    @staticmethod
+    def identity(rank: int) -> AffineMap:
+        return AffineMap(rank, 0, [AffineExpr.dimension(dim) for dim in range(rank)])
+
+    @staticmethod
+    def empty() -> AffineMap:
+        return AffineMap(0, 0, [])
 
     def eval(self, dims: list[int], symbols: list[int]) -> list[int]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""

@@ -2,10 +2,7 @@ from xdsl.builder import Builder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
-
-from xdsl.transforms.riscv_register_allocation import (
-    RISCVRegisterAllocation,
-)
+from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 
 def context() -> MLContext:
@@ -59,6 +56,10 @@ def simple_linear_riscv():
             v15 = riscv.MulOp(v12, v8).rd
             v16 = riscv.AddOp(v14, v15).rd
 
+            v18 = riscv.FCvtSWOp(v16).rd
+            v19 = riscv.FCvtSWOp(v18).rd
+            _ = riscv.FAddSOp(v18, v19).rd
+
             riscv.MVOp(v16, rd=riscv.Registers.A0)
             riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
             riscv.EcallOp()
@@ -97,6 +98,10 @@ def simple_linear_riscv_allocated():
             v14 = riscv.SubOp(v13, v5, rd=riscv.Registers.S2).rd
             v15 = riscv.MulOp(v12, v8, rd=riscv.Registers.A7).rd
             v16 = riscv.AddOp(v14, v15, rd=riscv.Registers.A6).rd
+
+            v18 = riscv.FCvtSWOp(v16, rd=riscv.Registers.FT11).rd
+            v19 = riscv.FCvtSWOp(v18, rd=riscv.Registers.FT10).rd
+            _ = riscv.FAddSOp(v18, v19, rd=riscv.Registers.FT9).rd
 
             riscv.MVOp(v16, rd=riscv.Registers.A0)
             riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd

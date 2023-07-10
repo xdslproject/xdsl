@@ -1,14 +1,17 @@
 from __future__ import annotations
+
 from abc import ABC
 from dataclasses import dataclass
-from typing import Sequence, TypeGuard, Any
+from typing import Any, Sequence, TypeGuard
+
 from immutabledict import immutabledict
+
 from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
-    OpResult,
     Operation,
+    OpResult,
     Region,
     SSAValue,
 )
@@ -23,7 +26,7 @@ class ISSAValue(ABC):
     or a basic block argument.
     """
 
-    typ: Attribute
+    type: Attribute
     users: IList[IOperation]
 
     def _add_user(self, op: IOperation):
@@ -72,7 +75,7 @@ class IBlockArg(ISSAValue):
         return self is __o
 
     def __repr__(self) -> str:
-        return "BlockArg(type:" + self.typ.name + ("attached") + ")"  # type: ignore
+        return "BlockArg(type:" + self.type.name + ("attached") + ")"  # type: ignore
 
 
 @dataclass(frozen=True)
@@ -210,7 +213,7 @@ class IBlock:
 
     @property
     def arg_types(self) -> list[Attribute]:
-        frozen_arg_types = [arg.typ for arg in self.args]
+        frozen_arg_types = [arg.type for arg in self.args]
         return frozen_arg_types
 
     def __hash__(self) -> int:
@@ -279,7 +282,7 @@ class IBlock:
             # The IBlock that will house this IBlockArg is not constructed yet.
             # After construction the block field will be set by the IBlock.
             immutable_arg = IBlockArg(
-                arg.typ, IList([]), None, arg.index  # type: ignore
+                arg.type, IList([]), None, arg.index  # type: ignore
             )
             args.append(immutable_arg)
             value_map[arg] = immutable_arg
@@ -426,7 +429,7 @@ class IOperation:
 
     @property
     def result_types(self) -> list[Attribute]:
-        return [result.typ for result in self.results]
+        return [result.type for result in self.results]
 
     def to_mutable(
         self,
@@ -451,7 +454,7 @@ class IOperation:
                 print(f"ERROR: op {self.name} uses SSAValue before definition")
                 # Continuing to enable printing the IR including missing
                 # operands for investigation
-                mutable_operands.append(OpResult(operand.typ, None, 0))  # type: ignore
+                mutable_operands.append(OpResult(operand.type, None, 0))  # type: ignore
 
         mutable_successors: list[Block] = []
         for successor in self.successors:
@@ -472,7 +475,7 @@ class IOperation:
 
         new_op: Operation = self.op_type.create(
             operands=mutable_operands,
-            result_types=[result.typ for result in self.results],
+            result_types=[result.type for result in self.results],
             attributes=dict(self.attributes),
             successors=mutable_successors,
             regions=mutable_regions,
@@ -548,7 +551,7 @@ class IOperation:
             op.name,
             op_type,
             operands,
-            [result.typ for result in op.results],
+            [result.type for result in op.results],
             attributes,
             successors,
             regions,

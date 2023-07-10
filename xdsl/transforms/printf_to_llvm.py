@@ -1,18 +1,16 @@
-from typing import Iterable
 import hashlib
 import re
+from typing import Iterable
 
-from xdsl.ir import SSAValue, Attribute, MLContext, Operation
-from xdsl.dialects import print, builtin, arith, llvm
+from xdsl.dialects import arith, builtin, llvm, printf
+from xdsl.ir import Attribute, MLContext, Operation, SSAValue
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
-    PatternRewriteWalker,
 )
-
-from xdsl.passes import ModulePass
-
 
 i8 = builtin.IntegerType(8)
 
@@ -49,10 +47,12 @@ def _key_from_str(val: str) -> str:
     return f"{legalize_str_for_symbol_name(val[:10])}_{h.hexdigest()}"
 
 
-def _format_string_spec_from_print_op(op: print.PrintLnOp) -> Iterable[str | SSAValue]:
+def _format_string_spec_from_print_op(
+    op: printf.PrintFormatOp,
+) -> Iterable[str | SSAValue]:
     """
     Translates the op:
-    print.println "val = {}, val2 = {}", %1 : i32, %2 : f32
+    printf.print_format "val = {}, val2 = {}", %1 : i32, %2 : f32
 
     into this sequence:
     ["val = ", %1, ", val2 = ", %2]
@@ -106,7 +106,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
         )
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: print.PrintLnOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: printf.PrintFormatOp, rewriter: PatternRewriter, /):
         format_str = ""
         args: list[SSAValue] = []
         casts: list[Operation] = []
@@ -115,19 +115,19 @@ class PrintlnOpToPrintfCall(RewritePattern):
         for part in _format_string_spec_from_print_op(op):
             if isinstance(part, str):
                 format_str += part
-            elif isinstance(part.typ, builtin.IndexType):
+            elif isinstance(part.type, builtin.IndexType):
                 # index must be cast to fixed bitwidth before printing
                 casts.append(new_val := arith.IndexCastOp.get(part, builtin.i64))
                 args.append(new_val.result)
                 format_str += "%li"
-            elif part.typ == builtin.f32:
+            elif part.type == builtin.f32:
                 # f32 must be promoted to f64 before printing
                 casts.append(new_val := arith.ExtFOp.get(part, builtin.f64))
                 args.append(new_val.result)
                 format_str += "%f"
             else:
                 args.append(part)
-                format_str += _format_str_for_typ(part.typ)
+                format_str += _format_str_for_typ(part.type)
 
         globl = self._construct_global(format_str + "\n")
         self.collected_global_symbs[globl.sym_name.data] = globl
@@ -143,8 +143,8 @@ class PrintlnOpToPrintfCall(RewritePattern):
         )
 
 
-class PrintToPrintf(ModulePass):
-    name = "print-to-printf"
+class PrintfToLLVM(ModulePass):
+    name = "printf-to-llvm"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         add_printf_call = PrintlnOpToPrintfCall()

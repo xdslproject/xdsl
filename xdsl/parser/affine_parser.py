@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from xdsl.parser.core import Parser, ParserState, Token, ParseError
 from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.parser.base_parser import BaseParser
+from xdsl.parser.core import ParserState, Token
+from xdsl.utils.exceptions import ParseError
 
 
-class AffineParser(Parser):
+class AffineParser(BaseParser):
     _BINOP_PRECEDENCE = {
         "+": 10,
         "-": 10,
@@ -15,7 +17,7 @@ class AffineParser(Parser):
     }
 
     def __init__(self, state: ParserState) -> None:
-        self.resume_from_state(state)
+        self._resume_from(state)
 
     def _parse_primary(self, dims: list[str], syms: list[str]) -> AffineExpr:
         """
@@ -84,7 +86,9 @@ class AffineParser(Parser):
             rhs = self._parse_primary(dims, syms)
             next_prec = self._get_token_precedence()
             if tok_prec < next_prec:
-                rhs = self._parse_binop_rhs(rhs, tok_prec, dims, syms)
+                # Increase the precision of the current operator to parse
+                # it before the next one in case they have same precedence.
+                rhs = self._parse_binop_rhs(rhs, tok_prec + 1, dims, syms)
             lhs = self._create_binop_expr(lhs, rhs, binop)
 
     # TODO: Extend to semi-affine maps

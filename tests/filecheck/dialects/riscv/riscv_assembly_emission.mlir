@@ -172,6 +172,66 @@
   // RV32I/RV64I: 2.5 Control Transfer Instructions (cont'd)
   // terminators
 
+  // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
+  %f0 = "riscv.fcvt.s.w"(%0) : (!riscv.reg<zero>) -> !riscv.freg<j5>
+  // CHECK-NEXT: fcvt.s.w j5, zero
+  %f1 = "riscv.fcvt.s.wu"(%1) : (!riscv.reg<j1>) -> !riscv.freg<j6>
+  // CHECK-NEXT: fcvt.s.wu j6, j1
+  %f2 = "riscv.fcvt.s.wu"(%1) : (!riscv.reg<j1>) -> !riscv.freg<j7>
+  // CHECK-NEXT: fcvt.s.wu j7, j1
+  %fmadd = "riscv.fmadd.s"(%f0, %f1, %f2) : (!riscv.freg<j5>, !riscv.freg<j6>, !riscv.freg<j7>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fmadd.s j8, j5, j6, j7
+  %fmsub = "riscv.fmsub.s"(%f0, %f1, %f2) : (!riscv.freg<j5>, !riscv.freg<j6>, !riscv.freg<j7>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fmsub.s j8, j5, j6, j7
+  %fnmsub = "riscv.fnmsub.s"(%f0, %f1, %f2) : (!riscv.freg<j5>, !riscv.freg<j6>, !riscv.freg<j7>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fnmsub.s j8, j5, j6, j7
+  %fnmadd = "riscv.fnmadd.s"(%f0, %f1, %f2) : (!riscv.freg<j5>, !riscv.freg<j6>, !riscv.freg<j7>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fnmadd.s j8, j5, j6, j7
+  %fadd = "riscv.fadd.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fadd.s j8, j5, j6
+  %fsub = "riscv.fsub.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fsub.s j8, j5, j6
+  %fmul = "riscv.fmul.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fmul.s j8, j5, j6
+  %fdiv = "riscv.fdiv.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fdiv.s j8, j5, j6
+  %fsqrt = "riscv.fsqrt.s"(%f0) : (!riscv.freg<j5>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fsqrt.s j8, j5
+  %fsgnj = "riscv.fsgnj.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fsgnj.s j8, j5, j6
+  %fsgnjn = "riscv.fsgnjn.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fsgnjn.s j8, j5, j6
+  %fsgnjx = "riscv.fsgnjx.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fsgnjx.s j8, j5, j6
+  %fmin = "riscv.fmin.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fmin.s j8, j5, j6
+  %fmax = "riscv.fmax.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fmax.s j8, j5, j6
+  %fcvtws = "riscv.fcvt.w.s"(%f0) : (!riscv.freg<j5>) -> !riscv.reg<j8>
+  // CHECK-NEXT: fcvt.w.s j8, j5
+  %fcvtwus = "riscv.fcvt.wu.s"(%f0) : (!riscv.freg<j5>) -> !riscv.reg<j8>
+  // CHECK-NEXT: fcvt.wu.s j8, j5
+  %fmvxw = "riscv.fmv.x.w"(%f0) : (!riscv.freg<j5>) -> !riscv.reg<j8>
+  // CHECK-NEXT: fmv.x.w j8, j5
+  %feq = "riscv.feq.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.reg<j8>
+  // CHECK-NEXT: feq.s j8, j5, j6
+  %flt = "riscv.flt.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.reg<j8>
+  // CHECK-NEXT: flt.s j8, j5, j6
+  %fle = "riscv.fle.s"(%f0, %f1) : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.reg<j8>
+  // CHECK-NEXT: fle.s j8, j5, j6
+  %fclass = "riscv.fclass.s"(%f0) : (!riscv.freg<j5>) -> !riscv.reg<j8>
+  // CHECK-NEXT: fclass.s j8, j5
+  %fcvtsw = "riscv.fcvt.s.w"(%0) : (!riscv.reg<zero>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fcvt.s.w j8, zero
+  %fcvtswu = "riscv.fcvt.s.wu"(%0) : (!riscv.reg<zero>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fcvt.s.wu j8, zero
+  %fmvwx = "riscv.fmv.w.x"(%0) : (!riscv.reg<zero>) -> !riscv.freg<j8>
+  // CHECK-NEXT: fmv.w.x j8, zero
+  %flw = "riscv.flw"(%0) {"immediate" = 1 : i32}: (!riscv.reg<zero>) -> !riscv.freg<j8>
+  // CHECK-NEXT: flw j8, zero, 1
+  "riscv.fsw"(%0, %f0) {"immediate" = 1 : i32} : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
+  // CHECK-NEXT: fsw zero, j5, 1
+
   // Unconditional Branch Instructions
   "riscv.ret"() : () -> () // pseudo-instruction
   // CHECK-NEXT: ret

@@ -2,8 +2,8 @@ from contextlib import redirect_stdout
 from io import StringIO
 
 import pytest
-from xdsl.dialects import builtin
 
+from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import DiagnosticException
@@ -30,7 +30,7 @@ def test_empty_program():
     with redirect_stdout(f):
         opt.run()
 
-    with open(filename, "r") as file:
+    with open(filename) as file:
         expected = file.read()
         assert f.getvalue().strip() == expected.strip()
 
@@ -45,10 +45,8 @@ def test_empty_program():
 def test_error_on_run(args: list[str], expected_error: str):
     opt = xDSLOptMain(args=args)
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match=expected_error):
         opt.run()
-
-    assert expected_error in e.value.args[0]
 
 
 @pytest.mark.parametrize(
@@ -85,9 +83,9 @@ def test_print_to_file():
     opt = xDSLOptMain(args=[filename_in, "-o", filename_out])
     opt.run()
 
-    with open(filename_in, "r") as file:
+    with open(filename_in) as file:
         inp = file.read()
-    with open(filename_out, "r") as file:
+    with open(filename_out) as file:
         expected = file.read()
 
     assert inp.strip() == expected.strip()
@@ -113,7 +111,7 @@ def test_operation_deletion():
     f = StringIO("")
     with redirect_stdout(f):
         opt.run()
-    with open(filename_out, "r") as file:
+    with open(filename_out) as file:
         expected = file.read()
 
     assert f.getvalue().strip() == expected.strip()
@@ -153,9 +151,9 @@ def test_split_input():
 
     opt = xDSLOptMain(args=[filename_in, flag, "-o", filename_out])
     opt.run()
-    with open(filename_in, "r") as file:
+    with open(filename_in) as file:
         inp = file.read()
-    with open(filename_out, "r") as file:
+    with open(filename_out) as file:
         expected = file.read()
 
     assert inp.strip() == expected.strip()

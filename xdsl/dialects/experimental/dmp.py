@@ -12,30 +12,29 @@ from __future__ import annotations
 from math import prod
 from typing import Sequence
 
-from xdsl.printer import Printer
-from xdsl.parser import Parser
-from xdsl.utils.hints import isa
-from xdsl.dialects import stencil
+from xdsl.dialects import builtin, memref, stencil
 from xdsl.ir import (
-    Operation,
-    Region,
-    SSAValue,
-    ParametrizedAttribute,
     Attribute,
     Dialect,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
 )
 from xdsl.irdl import (
-    Operand,
-    attr_def,
-    irdl_op_definition,
-    irdl_attr_definition,
-    ParameterDef,
     IRDLOperation,
+    Operand,
+    ParameterDef,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     region_def,
 )
-from xdsl.dialects import builtin, memref
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
+from xdsl.utils.hints import isa
 
 # helpers for named dimensions:
 DIM_X = 0
@@ -155,7 +154,7 @@ class HaloExchangeDecl(ParametrizedAttribute):
         printer.print_list(self.size, lambda x: printer.print_string(str(x)))
         printer.print_string("] source offset [")
         printer.print_list(self.source_offset, lambda x: printer.print_string(str(x)))
-        printer.print_string("] to {}>".format(list(self.neighbor)))
+        printer.print_string(f"] to {list(self.neighbor)}>")
 
     # TODO: def parse_parameters()
 
@@ -288,11 +287,11 @@ class HaloShapeInformation(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         dims = zip(self.buff_lb, self.core_lb, self.core_ub, self.buff_ub)
         printer.print_string("<")
-        printer.print_string("x".join("{}".format(list(vals)) for vals in dims))
+        printer.print_string("x".join(f"{list(vals)}" for vals in dims))
         printer.print_string(">")
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         """
         Parses the attribute, the format of it is:
 
@@ -358,7 +357,7 @@ class NodeGrid(ParametrizedAttribute):
         return prod(self.as_tuple())
 
     @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    def parse_parameters(parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
 
         shape: list[int] = [parser.parse_integer(allow_negative=False)]

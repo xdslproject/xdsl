@@ -1,22 +1,23 @@
 from __future__ import annotations
+
 from typing import Sequence
 
 from xdsl.dialects.builtin import (
     IndexType,
+    VectorBaseTypeAndRankConstraint,
+    VectorBaseTypeConstraint,
+    VectorRankConstraint,
     VectorType,
     i1,
-    VectorRankConstraint,
-    VectorBaseTypeConstraint,
-    VectorBaseTypeAndRankConstraint,
 )
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Attribute, Operation, SSAValue, Dialect, OpResult
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AnyAttr,
-    irdl_op_definition,
+    IRDLOperation,
     Operand,
     VarOperand,
-    IRDLOperation,
+    irdl_op_definition,
     operand_def,
     result_def,
     var_operand_def,
@@ -33,26 +34,26 @@ class Load(IRDLOperation):
     res: OpResult = result_def(VectorType)
 
     def verify_(self):
-        assert isa(self.memref.typ, MemRefType[Attribute])
-        assert isa(self.res.typ, VectorType[Attribute])
+        assert isa(self.memref.type, MemRefType[Attribute])
+        assert isa(self.res.type, VectorType[Attribute])
 
-        if self.memref.typ.element_type != self.res.typ.element_type:
+        if self.memref.type.element_type != self.res.type.element_type:
             raise VerifyException(
                 "MemRef element type should match the Vector element type."
             )
 
-        if self.memref.typ.get_num_dims() != len(self.indices):
+        if self.memref.type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
     def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
         ref = SSAValue.get(ref)
-        assert assert_isa(ref.typ, MemRefType[Attribute])
+        assert assert_isa(ref.type, MemRefType[Attribute])
 
         return Load.build(
             operands=[ref, indices],
             result_types=[
-                VectorType.from_element_type_and_shape(ref.typ.element_type, [1])
+                VectorType.from_element_type_and_shape(ref.type.element_type, [1])
             ],
         )
 
@@ -65,15 +66,15 @@ class Store(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType)
 
     def verify_(self):
-        assert isa(self.memref.typ, MemRefType[Attribute])
-        assert isa(self.vector.typ, VectorType[Attribute])
+        assert isa(self.memref.type, MemRefType[Attribute])
+        assert isa(self.vector.type, VectorType[Attribute])
 
-        if self.memref.typ.element_type != self.vector.typ.element_type:
+        if self.memref.type.element_type != self.vector.type.element_type:
             raise VerifyException(
                 "MemRef element type should match the Vector element type."
             )
 
-        if self.memref.typ.get_num_dims() != len(self.indices):
+        if self.memref.type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each dimension.")
 
     @staticmethod
@@ -92,9 +93,9 @@ class Broadcast(IRDLOperation):
     vector: OpResult = result_def(VectorType)
 
     def verify_(self):
-        assert isa(self.vector.typ, VectorType[Attribute])
+        assert isa(self.vector.type, VectorType[Attribute])
 
-        if self.source.typ != self.vector.typ.element_type:
+        if self.source.type != self.vector.type.element_type:
             raise VerifyException(
                 "Source operand and result vector must have the same element type."
             )
@@ -104,7 +105,7 @@ class Broadcast(IRDLOperation):
         return Broadcast.build(
             operands=[source],
             result_types=[
-                VectorType.from_element_type_and_shape(SSAValue.get(source).typ, [1])
+                VectorType.from_element_type_and_shape(SSAValue.get(source).type, [1])
             ],
         )
 
@@ -118,25 +119,25 @@ class FMA(IRDLOperation):
     res: OpResult = result_def(VectorType)
 
     def verify_(self):
-        assert isa(self.lhs.typ, VectorType[Attribute])
-        assert isa(self.rhs.typ, VectorType[Attribute])
-        assert isa(self.acc.typ, VectorType[Attribute])
-        assert isa(self.res.typ, VectorType[Attribute])
+        assert isa(self.lhs.type, VectorType[Attribute])
+        assert isa(self.rhs.type, VectorType[Attribute])
+        assert isa(self.acc.type, VectorType[Attribute])
+        assert isa(self.res.type, VectorType[Attribute])
 
-        lhs_shape = self.lhs.typ.get_shape()
-        rhs_shape = self.rhs.typ.get_shape()
-        acc_shape = self.acc.typ.get_shape()
-        res_shape = self.res.typ.get_shape()
+        lhs_shape = self.lhs.type.get_shape()
+        rhs_shape = self.rhs.type.get_shape()
+        acc_shape = self.acc.type.get_shape()
+        res_shape = self.res.type.get_shape()
 
-        if self.res.typ.element_type != self.lhs.typ.element_type:
+        if self.res.type.element_type != self.lhs.type.element_type:
             raise VerifyException(
                 "Result vector type must match with all source vectors. Found different types for result vector and lhs vector."
             )
-        elif self.res.typ.element_type != self.rhs.typ.element_type:
+        elif self.res.type.element_type != self.rhs.type.element_type:
             raise VerifyException(
                 "Result vector type must match with all source vectors. Found different types for result vector and rhs vector."
             )
-        elif self.res.typ.element_type != self.acc.typ.element_type:
+        elif self.res.type.element_type != self.acc.type.element_type:
             raise VerifyException(
                 "Result vector type must match with all source vectors. Found different types for result vector and acc vector."
             )
@@ -159,12 +160,12 @@ class FMA(IRDLOperation):
         lhs: Operation | SSAValue, rhs: Operation | SSAValue, acc: Operation | SSAValue
     ) -> FMA:
         lhs = SSAValue.get(lhs)
-        assert assert_isa(lhs.typ, VectorType[Attribute])
+        assert assert_isa(lhs.type, VectorType[Attribute])
 
         return FMA.build(
             operands=[lhs, rhs, acc],
             result_types=[
-                VectorType.from_element_type_and_shape(lhs.typ.element_type, [1])
+                VectorType.from_element_type_and_shape(lhs.type.element_type, [1])
             ],
         )
 
@@ -179,15 +180,15 @@ class Maskedload(IRDLOperation):
     res: OpResult = result_def(VectorRankConstraint(1))
 
     def verify_(self):
-        memref_typ = self.memref.typ
+        memref_typ = self.memref.type
         assert isa(memref_typ, MemRefType[Attribute])
         memref_element_type = memref_typ.element_type
 
-        res_typ = self.res.typ
+        res_typ = self.res.type
         assert isa(res_typ, VectorType[Attribute])
         res_element_type = res_typ.element_type
 
-        passthrough_typ = self.passthrough.typ
+        passthrough_typ = self.passthrough.type
         assert isa(passthrough_typ, VectorType[Attribute])
         passthrough_element_type = passthrough_typ.element_type
 
@@ -213,12 +214,12 @@ class Maskedload(IRDLOperation):
         passthrough: SSAValue | Operation,
     ) -> Maskedload:
         memref = SSAValue.get(memref)
-        assert assert_isa(memref.typ, MemRefType[Attribute])
+        assert assert_isa(memref.type, MemRefType[Attribute])
 
         return Maskedload.build(
             operands=[memref, indices, mask, passthrough],
             result_types=[
-                VectorType.from_element_type_and_shape(memref.typ.element_type, [1])
+                VectorType.from_element_type_and_shape(memref.type.element_type, [1])
             ],
         )
 
@@ -232,14 +233,14 @@ class Maskedstore(IRDLOperation):
     value_to_store: Operand = operand_def(VectorRankConstraint(1))
 
     def verify_(self):
-        memref_typ = self.memref.typ
+        memref_typ = self.memref.type
         assert isa(memref_typ, MemRefType[Attribute])
         memref_element_type = memref_typ.element_type
 
-        value_to_store_typ = self.value_to_store.typ
+        value_to_store_typ = self.value_to_store.type
         assert isa(value_to_store_typ, VectorType[Attribute])
 
-        mask_typ = self.mask.typ
+        mask_typ = self.mask.type
         assert isa(mask_typ, VectorType[Attribute])
 
         if memref_element_type != value_to_store_typ.element_type:
@@ -282,8 +283,8 @@ class Createmask(IRDLOperation):
     mask_vector: OpResult = result_def(VectorBaseTypeConstraint(i1))
 
     def verify_(self):
-        assert isa(self.mask_vector.typ, VectorType[Attribute])
-        if self.mask_vector.typ.get_num_dims() != len(self.mask_operands):
+        assert isa(self.mask_vector.type, VectorType[Attribute])
+        if self.mask_vector.type.get_num_dims() != len(self.mask_operands):
             raise VerifyException(
                 "Expected an operand value for each dimension of resultant mask."
             )

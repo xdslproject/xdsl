@@ -1,23 +1,29 @@
 from __future__ import annotations
-from typing import IO, ClassVar
-
-from riscemu.config import RunConfig
-from riscemu import RV32I, RV32M
-from riscemu.CPU import UserModeCPU
-from riscemu.parser import AssemblyFileLoader
-from riscemu.instructions.instruction_set import InstructionSet
-from riscemu.types.instruction import Instruction
 
 from io import StringIO
+from typing import IO, ClassVar
+
+from riscemu import RV32F, RV32I, RV32M
+from riscemu.config import RunConfig
+from riscemu.CPU import UserModeCPU
+from riscemu.instructions.instruction_set import InstructionSet
+from riscemu.parser import AssemblyFileLoader
+from riscemu.types.instruction import Instruction
 
 
 class RV_Debug(InstructionSet):
     stream: ClassVar[IO[str] | None] = None
 
     # riscemu matches `instruction_` prefixes, so this will be called by `print reg`
+
     def instruction_print(self, ins: Instruction):
         reg = ins.get_reg(0)
         value = self.regs.get(reg)
+        print(value, file=type(self).stream)
+
+    def instruction_print_float(self, ins: Instruction):
+        reg = ins.get_reg(0)
+        value = self.regs.get_f(reg).value
         print(value, file=type(self).stream)
 
     def __eq__(self, __value: object) -> bool:
@@ -42,7 +48,7 @@ def run_riscv(
         unlimited_registers=unlimited_regs,
     )
 
-    cpu = UserModeCPU([RV32I, RV32M, RV_Debug, *extensions], cfg)
+    cpu = UserModeCPU([RV32I, RV32M, RV32F, RV_Debug, *extensions], cfg)
     cpu.setup_stack()
 
     io = StringIO(code)

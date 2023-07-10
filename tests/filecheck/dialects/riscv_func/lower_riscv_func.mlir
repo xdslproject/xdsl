@@ -18,12 +18,12 @@
 // CHECK-NEXT:     "riscv.ecall"() : () -> ()
 
     "riscv_func.func"() ({
-        %0 = "riscv_func.call"() {"func_name" = "get_one"} : () -> !riscv.reg<>
-        %1 = "riscv_func.call"() {"func_name" = "get_one"} : () -> !riscv.reg<>
-        %2 = "riscv_func.call"(%0, %1) {"func_name" = "add"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-        "riscv_func.call"(%2) {"func_name" = "my_print"} : (!riscv.reg<>) -> ()
+        %0 = "riscv_func.call"() {"callee" = "get_one"} : () -> !riscv.reg<>
+        %1 = "riscv_func.call"() {"callee" = "get_one"} : () -> !riscv.reg<>
+        %2 = "riscv_func.call"(%0, %1) {"callee" = "add"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        "riscv_func.call"(%2) {"callee" = "my_print"} : (!riscv.reg<>) -> ()
         "riscv_func.return"() : () -> ()
-    }) {"func_name" = "main"} : () -> ()
+    }) {"sym_name" = "main"} : () -> ()
 
 // CHECK-NEXT:     "riscv.label"() ({
 // CHECK-NEXT:         "riscv.jal"() {"immediate" = #riscv.label<"get_one">} : () -> ()
@@ -45,7 +45,7 @@
 
     "riscv_func.func"() ({
         "riscv_func.return"() : () -> ()
-    }) {"func_name" = "my_print"} : () -> ()
+    }) {"sym_name" = "my_print"} : () -> ()
 
 // CHECK-NEXT:     "riscv.label"() ({
 // CHECK-NEXT:         "riscv.ret"() : () -> ()
@@ -54,7 +54,7 @@
     "riscv_func.func"() ({
         %0 = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
         "riscv_func.return"(%0) : (!riscv.reg<>) -> ()
-    }) {"func_name" = "get_one"} : () -> ()
+    }) {"sym_name" = "get_one"} : () -> ()
 
 // CHECK-NEXT:     "riscv.label"() ({
 // CHECK-NEXT:         %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
@@ -66,7 +66,7 @@
     ^0(%0 : !riscv.reg<>, %1 : !riscv.reg<>):
         %2 = "riscv.add"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         "riscv_func.return"(%2) : (!riscv.reg<>) -> ()
-    }) {"func_name" = "add"} : () -> ()
+    }) {"sym_name" = "add"} : () -> ()
 
 // CHECK-NEXT:     "riscv.label"() ({
 // CHECK-NEXT:         %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a0>
