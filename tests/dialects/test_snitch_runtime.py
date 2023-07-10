@@ -1,10 +1,8 @@
-from xdsl.dialects import builtin
-from xdsl.utils.test_value import TestSSAValue
-from xdsl.dialects import arith, snitch_runtime
-
-from xdsl.utils.exceptions import VerifyException
-
 import pytest
+
+from xdsl.dialects import arith, builtin, snitch_runtime
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_ssr_loop_op():

@@ -1,21 +1,21 @@
 from abc import ABC, abstractmethod
+from typing import Annotated, Generic, Sequence, TypeVar
+
+from xdsl.dialects.builtin import IndexType, i32, i64
+from xdsl.ir import Attribute, Dialect, OpResult
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    VarOperand,
-    irdl_op_definition,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     Operation,
     SSAValue,
+    VarOperand,
+    irdl_op_definition,
     operand_def,
     result_def,
-    ConstraintVar,
     var_operand_def,
 )
-from xdsl.ir import OpResult, Dialect, Attribute
-from xdsl.dialects.builtin import i32, i64, IndexType
-from typing import Generic, Sequence, TypeVar, Annotated
-
 from xdsl.utils.exceptions import VerifyException
 
 # Transfer ID
