@@ -1,7 +1,6 @@
 from typing import Sequence
 
-from xdsl.dialects import riscv
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import AnyFloat
 from xdsl.ir.core import Attribute, OpResult, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
@@ -14,7 +13,7 @@ def cast_values_to_registers(
         return []
     types = [
         riscv.FloatRegisterType(riscv.Register())
-        if isinstance(op.typ, AnyFloat)
+        if isinstance(op.type, AnyFloat)
         else riscv.RegisterType(riscv.Register())
         for op in operands
     ]

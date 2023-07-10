@@ -37,7 +37,7 @@ class LowerMemrefAlloca(RewritePattern):
                 f"Dynamically sized alloca is not supported {op.dynamic_sizes}"
             )
 
-        reference_type = cast(memref.MemRefType[Attribute], op.memref.typ)
+        reference_type = cast(memref.MemRefType[Attribute], op.memref.type)
         total_size = get_memref_size(reference_type)
 
         rewriter.replace_matched_op(
@@ -84,8 +84,8 @@ class LowerMemrefStore(RewritePattern):
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter) -> None:
         value, mem, *indices = cast_values_to_registers(op.operands, rewriter)
 
-        assert isinstance(op.memref.typ, memref.MemRefType)
-        memref_typ = cast(memref.MemRefType[Any], op.memref.typ)
+        assert isinstance(op.memref.type, memref.MemRefType)
+        memref_typ = cast(memref.MemRefType[Any], op.memref.type)
         shape = memref_typ.get_shape()
 
         ptr = insert_shape_ops(mem, memref_typ.element_type, indices, shape, rewriter)
@@ -108,8 +108,8 @@ class LowerMemrefLoad(RewritePattern):
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter) -> None:
         mem, *indices = cast_values_to_registers(op.operands, rewriter)
 
-        assert isinstance(op.memref.typ, memref.MemRefType)
-        memref_typ = cast(memref.MemRefType[Any], op.memref.typ)
+        assert isinstance(op.memref.type, memref.MemRefType)
+        memref_typ = cast(memref.MemRefType[Any], op.memref.type)
         shape = memref_typ.get_shape()
 
         ptr = insert_shape_ops(mem, memref_typ.element_type, indices, shape, rewriter)
