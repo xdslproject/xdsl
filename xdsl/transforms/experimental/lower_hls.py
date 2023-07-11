@@ -141,7 +141,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ParallelOp, rewriter: PatternRewriter, /):
         ii = Constant.from_int_and_width(1, i32)
-        hls_pipeline_op: Operation = PragmaPipeline.get(ii)
+        hls_pipeline_op: Operation = PragmaPipeline(ii)
 
         lb: VarOperand = op.lowerBound
         ub: VarOperand = op.upperBound
