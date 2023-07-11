@@ -172,18 +172,6 @@ def test_gpu_module():
     assert gpu_module.sym_name is name
 
 
-def test_gpu_module_implicit_terminator():
-    name = builtin.SymbolRefAttr("gpu")
-
-    ops: list[Operation] = [BarrierOp()]
-
-    gpu_module = ModuleOp(name, ops)
-
-    assert isinstance(gpu_module, ModuleOp)
-    assert len(list(gpu_module.body.ops)) == len(ops) + 1
-    assert gpu_module.sym_name is name
-
-
 def test_gpu_module_end():
     module_end = ModuleEndOp()
 

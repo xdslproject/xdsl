@@ -453,4 +453,4 @@ def test_empty_else():
         ]
     )
 
-    assert len(cast(If, list(m.ops)[1]).false_region.blocks) == 1
+    assert len(cast(If, list(m.ops)[1]).false_region.blocks) == 0

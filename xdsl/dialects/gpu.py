@@ -48,7 +48,6 @@ from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
     SingleBlockImplicitTerminator,
-    ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -371,9 +370,6 @@ class ModuleOp(IRDLOperation):
 
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
         super().__init__(attributes={"sym_name": name}, regions=[ops])
-
-        for trait in self.get_traits_of_type(SingleBlockImplicitTerminator):
-            ensure_terminator(self, trait)
 
 
 @irdl_op_definition

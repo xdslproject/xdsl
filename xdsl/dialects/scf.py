@@ -17,12 +17,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import (
-    HasParent,
-    IsTerminator,
-    SingleBlockImplicitTerminator,
-    ensure_terminator,
-)
+from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -48,7 +43,7 @@ class While(IRDLOperation):
             if self.after_region.block.args[idx].type != res.type:
                 raise Exception(
                     f"Block arguments with wrong type, expected {res.type}, "
-                    f"got {self.after_region.block.args[idx].typ}"
+                    f"got {self.after_region.block.args[idx].type}"
                 )
 
     @staticmethod
@@ -101,18 +96,11 @@ class If(IRDLOperation):
         if false_region is None:
             false_region = Region()
 
-        if_op = If.build(
+        return If.build(
             operands=[cond],
             result_types=[return_types],
             regions=[true_region, false_region],
         )
-
-        # ensure a yield terminator only if there are no produced results
-        if len(if_op.output) == 0:
-            for trait in if_op.get_traits_of_type(SingleBlockImplicitTerminator):
-                ensure_terminator(if_op, trait)
-
-        return if_op
 
 
 @irdl_op_definition
@@ -176,18 +164,11 @@ class For(IRDLOperation):
         if isinstance(body, Block):
             body = [body]
 
-        for_op = For.build(
+        return For.build(
             operands=[lb, ub, step, iter_args],
             result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
         )
-
-        # ensure a yield terminator only if there are no loop-carried variables
-        if len(for_op.iter_args) == 0:
-            for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):
-                ensure_terminator(for_op, trait)
-
-        return for_op
 
 
 @irdl_op_definition
@@ -213,16 +194,11 @@ class ParallelOp(IRDLOperation):
         body: Region | Sequence[Block] | Sequence[Operation],
         initVals: Sequence[SSAValue | Operation] = [],
     ) -> ParallelOp:
-        parallel_op = ParallelOp.build(
+        return ParallelOp.build(
             operands=[lowerBounds, upperBounds, steps, initVals],
             regions=[body],
             result_types=[[SSAValue.get(a).type for a in initVals]],
         )
-
-        for trait in parallel_op.get_traits_of_type(SingleBlockImplicitTerminator):
-            ensure_terminator(parallel_op, trait)
-
-        return parallel_op
 
     def verify_(self) -> None:
         # This verifies the scf.parallel operation, as can be seen it's fairly complex
