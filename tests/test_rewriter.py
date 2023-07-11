@@ -1,5 +1,6 @@
 from typing import Callable
 
+import pytest
 from conftest import assert_print_op
 
 from xdsl.dialects.arith import Addi, Arith, Constant
@@ -446,3 +447,34 @@ def test_no_result_rewriter():
         rewriter.replace_op(return_op, [new_op])
 
     rewrite_and_compare(prog, expected, transformation)
+
+
+# Test erase operation
+def test_erase_op():
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "arith.addi"(%1, %1) : (i32, i32) -> i32
+}) : () -> ()
+"""
+
+    def transformation_safe(module: ModuleOp, rewriter: Rewriter) -> None:
+        constant_op = module.ops.first
+        assert constant_op is not None
+        rewriter.erase_op(constant_op, safe_erase=True)
+
+    def transformation_unsafe(module: ModuleOp, rewriter: Rewriter) -> None:
+        constant_op = module.ops.first
+        assert constant_op is not None
+        rewriter.erase_op(constant_op, safe_erase=False)
+
+    rewrite_and_compare(prog, expected, transformation_unsafe)
+
+    with pytest.raises(Exception):
+        rewrite_and_compare(prog, expected, transformation_safe)

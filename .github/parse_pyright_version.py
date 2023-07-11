@@ -1,6 +1,4 @@
-import os
-
-f = open("requirements-optional.txt", "r")
+f = open("requirements-optional.txt")
 
 line = f.readlines()[-1]
 

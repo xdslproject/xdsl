@@ -62,17 +62,17 @@ class CastOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
-        assert isa(op.result.typ, FieldType[Attribute])
-        assert isinstance(op.result.typ.bounds, StencilBoundsAttr)
+        assert isa(op.result.type, FieldType[Attribute])
+        assert isinstance(op.result.type.bounds, StencilBoundsAttr)
 
-        result_typ = StencilToMemRefType(op.result.typ)
+        result_typ = StencilToMemRefType(op.result.type)
 
         cast = memref.Cast.get(op.field, result_typ)
 
         if self.target == "gpu":
             unranked = memref.Cast.get(
                 cast.dest,
-                memref.UnrankedMemrefType.from_type(op.result.typ.element_type),
+                memref.UnrankedMemrefType.from_type(op.result.type.element_type),
             )
             register = gpu.HostRegisterOp(unranked.dest)
             rewriter.insert_op_after_matched_op([unranked, register])
@@ -126,11 +126,11 @@ class ReturnOpToMemref(RewritePattern):
             if target is None:
                 break
 
-            assert isinstance(target.typ, builtin.ShapedType)
+            assert isinstance(target.type, builtin.ShapedType)
 
             assert (block := op.parent_block()) is not None
 
-            dims = target.typ.get_num_dims()
+            dims = target.type.get_num_dims()
 
             args = collectBlockArguments(dims, block)
 
@@ -181,10 +181,10 @@ class IndexOpToLoopSSA(RewritePattern):
 class LoadOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        field = op.field.typ
+        field = op.field.type
         assert isa(field, FieldType[Attribute])
         assert isa(field.bounds, StencilBoundsAttr)
-        temp = op.res.typ
+        temp = op.res.type
         assert isa(temp, TempType[Attribute])
         assert isa(temp.bounds, StencilBoundsAttr)
 
@@ -230,7 +230,7 @@ class ApplyOpToParallel(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        res_typ = op.res[0].typ
+        res_typ = op.res[0].type
         assert isa(res_typ, TempType[Attribute])
         assert isinstance(res_typ.bounds, StencilBoundsAttr)
 
@@ -303,28 +303,28 @@ class ApplyOpToParallel(RewritePattern):
         # Handle returnd values
         for result in op.res:
             assert isa(
-                result.typ, TempType[Attribute]
+                result.type, TempType[Attribute]
             ), f"Expected return value to be a !{TempType.name}"
             assert isinstance(
-                result.typ.bounds, StencilBoundsAttr
-            ), f"Expected output to be sized before lowering. {result.typ}"
-            shape = result.typ.get_shape()
-            element_type = result.typ.element_type
+                result.type.bounds, StencilBoundsAttr
+            ), f"Expected output to be sized before lowering. {result.type}"
+            shape = result.type.get_shape()
+            element_type = result.type.element_type
 
             # If it is buffered, allocate the buffer
             if any(isinstance(use.operation, BufferOp) for use in result.uses):
                 alloc = memref.Alloc.get(element_type, shape=shape)
-                alloc_type = alloc.memref.typ
+                alloc_type = alloc.memref.type
                 assert isa(alloc_type, MemRefType[Attribute])
 
-                offset = list(-result.typ.bounds.lb)
+                offset = list(-result.type.bounds.lb)
 
                 view = memref.Subview.from_static_parameters(
                     alloc,
                     alloc_type,
                     offset,
                     shape,
-                    [1] * result.typ.get_num_dims(),
+                    [1] * result.type.get_num_dims(),
                 )
                 rewriter.insert_op_before_matched_op((alloc, view))
                 update_return_target(self.return_targets, result, view.result)
@@ -333,7 +333,7 @@ class ApplyOpToParallel(RewritePattern):
         # Handle input buffer deallocation
         for input in op.args:
             # Is this input a temp buffer?
-            if isinstance(input.typ, TempType) and isinstance(input.owner, BufferOp):
+            if isinstance(input.type, TempType) and isinstance(input.owner, BufferOp):
                 block = op.parent_block()
                 assert block is not None
                 self_index = block.get_operation_index(op)
@@ -361,7 +361,7 @@ class AccessOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
-        temp = op.temp.typ
+        temp = op.temp.type
         assert isa(temp, TempType[Attribute])
         assert isinstance(temp.bounds, StencilBoundsAttr)
 
@@ -424,7 +424,7 @@ class StencilTypeConversionFuncOp(RewritePattern):
         op.attributes["function_type"] = FunctionType.from_lists(inputs, outputs)
         if op.body.blocks:
             for inp, arg in zip(inputs, op.body.blocks[0].args):
-                if inp != arg.typ:
+                if inp != arg.type:
                     rewriter.modify_block_argument_type(arg, inp)
 
 
@@ -433,13 +433,13 @@ class UpdateLoopCarriedVarTypes(RewritePattern):
     def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter, /):
         for i in range(len(op.iter_args)):
             block_arg = op.body.block.args[i + 1]
-            iter_typ = op.iter_args[i].typ
-            if block_arg.typ != iter_typ:
+            iter_typ = op.iter_args[i].type
+            if block_arg.type != iter_typ:
                 rewriter.modify_block_argument_type(block_arg, iter_typ)
             y = cast(scf.Yield, op.body.ops.last)
-            y.arguments[i].typ = iter_typ
-            if op.res[i].typ != iter_typ:
-                op.res[i].typ = iter_typ
+            y.arguments[i].type = iter_typ
+            if op.res[i].type != iter_typ:
+                op.res[i].type = iter_typ
 
 
 @dataclass
@@ -452,15 +452,15 @@ class StencilStoreToSubview(RewritePattern):
 
         for store in stores:
             field = store.field
-            assert isa(field.typ, FieldType[Attribute])
-            assert isa(field.typ.bounds, StencilBoundsAttr)
+            assert isa(field.type, FieldType[Attribute])
+            assert isa(field.type.bounds, StencilBoundsAttr)
             temp = store.temp
-            assert isa(temp.typ, TempType[Attribute])
-            offsets = [i for i in -field.typ.bounds.lb]
-            sizes = [i for i in temp.typ.get_shape()]
+            assert isa(temp.type, TempType[Attribute])
+            offsets = [i for i in -field.type.bounds.lb]
+            sizes = [i for i in temp.type.get_shape()]
             subview = memref.Subview.from_static_parameters(
                 field,
-                StencilToMemRefType(field.typ),
+                StencilToMemRefType(field.type),
                 offsets,
                 sizes,
                 [1] * len(sizes),
@@ -488,10 +488,10 @@ class BufferOpCleanUp(RewritePattern):
 class TrivialExternalLoadOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
-        assert isa(op.result.typ, FieldType[Attribute])
-        op.result.typ = StencilToMemRefType(op.result.typ)
+        assert isa(op.result.type, FieldType[Attribute])
+        op.result.type = StencilToMemRefType(op.result.type)
 
-        if op.field.typ == op.result.typ:
+        if op.field.type == op.result.type:
             rewriter.replace_matched_op([], [op.field])
         pass
 

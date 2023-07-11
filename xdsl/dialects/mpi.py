@@ -663,13 +663,13 @@ class UnwrapMemrefOp(MPIBaseOp):
 
     ptr: OpResult = result_def(llvm.LLVMPointerType)
     len: OpResult = result_def(i32)
-    typ: OpResult = result_def(DataType)
+    type: OpResult = result_def(DataType)
 
     @staticmethod
     def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
         ssa_val = SSAValue.get(ref)
-        assert isinstance(ssa_val.typ, MemRefType)
-        elem_typ = cast(MemRefType[AnyNumericType], ssa_val.typ).element_type
+        assert isinstance(ssa_val.type, MemRefType)
+        elem_typ = cast(MemRefType[AnyNumericType], ssa_val.type).element_type
 
         return UnwrapMemrefOp.build(
             operands=[ref],
@@ -754,10 +754,10 @@ class VectorGetOp(MPIBaseOp):
     @staticmethod
     def get(vect: SSAValue | Operation, element: SSAValue | Operation) -> VectorGetOp:
         ssa_val = SSAValue.get(vect)
-        assert isa(ssa_val.typ, VectorType[VectorWrappable])
+        assert isa(ssa_val.type, VectorType[VectorWrappable])
 
         return VectorGetOp.build(
-            result_types=[ssa_val.typ.wrapped_type], operands=[vect, element]
+            result_types=[ssa_val.type.wrapped_type], operands=[vect, element]
         )
 
 

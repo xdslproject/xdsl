@@ -103,6 +103,8 @@ class SingleBlockImplicitTerminator(OpTrait):
     https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator
     """
 
+    parameters: type[Operation]
+
     def verify(self, op: Operation) -> None:
         for region in op.regions:
             if len(region.blocks) > 1:

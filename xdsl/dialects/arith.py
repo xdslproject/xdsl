@@ -62,7 +62,7 @@ class Constant(IRDLOperation):
         if isinstance(value, FloatAttr):
             typ = value.type
         else:
-            typ = value.typ
+            typ = value.type
         super().__init__(operands=[], result_types=[typ], attributes={"value": value})
 
     @staticmethod
@@ -133,7 +133,7 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
         result_type: Attribute | None = None,
     ):
         if result_type is None:
-            result_type = SSAValue.get(operand1).typ
+            result_type = SSAValue.get(operand1).type
         super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
     @classmethod
@@ -151,7 +151,7 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
         printer.print(", ")
         printer.print_ssa_value(self.rhs)
         printer.print(" : ")
-        printer.print_attribute(self.result.typ)
+        printer.print_attribute(self.result.type)
 
     def __hash__(self) -> int:
         return id(self)
@@ -328,10 +328,10 @@ class ComparisonOperation:
 
     @staticmethod
     def _validate_operand_types(operand1: SSAValue, operand2: SSAValue):
-        if operand1.typ != operand2.typ:
+        if operand1.type != operand2.type:
             raise TypeError(
                 f"Comparison operands must have same type, but "
-                f"provided {operand1.typ} and {operand2.typ}"
+                f"provided {operand1.type} and {operand2.type}"
             )
 
 
@@ -488,9 +488,9 @@ class Select(IRDLOperation):
 
     # TODO replace with trait
     def verify_(self) -> None:
-        if self.cond.typ != IntegerType(1):
+        if self.cond.type != IntegerType(1):
             raise VerifyException("Condition has to be of type !i1")
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+        if self.lhs.type != self.rhs.type or self.rhs.type != self.result.type:
             raise VerifyException("expect all input and output types to be equal")
 
     @staticmethod
@@ -501,7 +501,7 @@ class Select(IRDLOperation):
     ) -> Select:
         operand2 = SSAValue.get(operand2)
         return Select.build(
-            operands=[operand1, operand2, operand3], result_types=[operand2.typ]
+            operands=[operand1, operand2, operand3], result_types=[operand2.type]
         )
 
 
@@ -540,7 +540,7 @@ class Negf(IRDLOperation):
         return Negf.build(
             attributes={"fastmath": fastmath},
             operands=[operand],
-            result_types=[operand.typ],
+            result_types=[operand.type],
         )
 
 

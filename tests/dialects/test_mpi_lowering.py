@@ -32,8 +32,8 @@ def check_emitted_function_signature(
         # check that the argument type is correct (if constraint present)
         if typ is not None:
             assert isinstance(
-                arg.typ, typ
-            ), f"Expected argument to be of type {typ} (got {arg.typ} instead)"
+                arg.type, typ
+            ), f"Expected argument to be of type {typ} (got {arg.type} instead)"
 
 
 @irdl_op_definition
@@ -95,7 +95,7 @@ def test_lower_mpi_wait_with_status():
 
     assert len(result) == 1
     assert result[0] is not None
-    assert isinstance(result[0].typ, llvm.LLVMPointerType)
+    assert isinstance(result[0].type, llvm.LLVMPointerType)
     call = extract_func_call(ops)
     assert call is not None
     assert call.callee.string_value() == "MPI_Wait"
@@ -109,7 +109,7 @@ def test_lower_mpi_comm_rank():
 
     assert len(result) == 1
     assert result[0] is not None
-    assert result[0].typ == i32
+    assert result[0].type == i32
 
     # check signature of emitted function call
     # int MPI_Comm_rank(MPI_Comm comm, int *rank)
@@ -125,7 +125,7 @@ def test_lower_mpi_comm_size():
 
     assert len(result) == 1
     assert result[0] is not None
-    assert result[0].typ == i32
+    assert result[0].type == i32
 
     # check signature of emitted function call
     # int MPI_Comm_size(MPI_Comm comm, int *size)
@@ -416,7 +416,7 @@ def test_lower_mpi_vec_get():
 
     assert len(res) == 1
     assert res[0] is not None
-    assert isinstance(res[0].typ, llvm.LLVMPointerType)
+    assert isinstance(res[0].type, llvm.LLVMPointerType)
     assert len(ops) > 0
 
 

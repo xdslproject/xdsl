@@ -115,13 +115,13 @@ class Span:
         """
         info = self.input.get_lines_containing(self)
         if info is None:
-            return "Unknown location of span {}. Error: ".format(msg)
+            return f"Unknown location of span {msg}. Error: "
         lines, offset_of_first_line, line_no = info
         # Offset relative to the first line:
         offset = self.start - offset_of_first_line
         remaining_len = max(self.len, 1)
         capture = StringIO()
-        print("{}:{}:{}".format(self.input.name, line_no, offset), file=capture)
+        print(f"{self.input.name}:{line_no}:{offset}", file=capture)
         for line in lines:
             print(line, file=capture)
             if remaining_len < 0:
@@ -484,7 +484,7 @@ class Lexer:
 
         raise ParseError(
             Span(start_pos, start_pos + 1, self.input),
-            "Unexpected character: {}".format(current_char),
+            f"Unexpected character: {current_char}",
         )
 
     _bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.]*")

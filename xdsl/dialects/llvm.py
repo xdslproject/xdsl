@@ -240,7 +240,9 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         printer.print(" (")
         printer.print_list(self.inputs, printer.print_attribute)
         if self.is_variadic:
-            printer.print(", ...")
+            if self.inputs:
+                printer.print(", ")
+            printer.print("...")
 
         printer.print_string(")>")
 
@@ -477,7 +479,7 @@ class GEPOp(IRDLOperation):
 
         # convert a potential Operation into an SSAValue
         ptr_val = SSAValue.get(ptr)
-        ptr_type = ptr_val.typ
+        ptr_type = ptr_val.type
 
         if not isinstance(ptr_type, LLVMPointerType):
             raise ValueError("Input must be a pointer")
@@ -609,13 +611,13 @@ class LoadOp(IRDLOperation):
     def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
             ptr = SSAValue.get(ptr)
-            assert isinstance(ptr.typ, LLVMPointerType)
+            assert isinstance(ptr.type, LLVMPointerType)
 
-            if isinstance(ptr.typ.type, NoneAttr):
+            if isinstance(ptr.type.type, NoneAttr):
                 raise ValueError(
                     "llvm.load requires either a result type or a typed pointer!"
                 )
-            result_type = ptr.typ.type
+            result_type = ptr.type.type
 
         return LoadOp.build(operands=[ptr], result_types=[result_type])
 
@@ -727,7 +729,7 @@ class InsertValueOp(IRDLOperation):
             attributes={
                 "position": position,
             },
-            result_types=[container.typ],
+            result_types=[container.type],
         )
 
 

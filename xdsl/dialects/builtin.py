@@ -10,10 +10,8 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
-    List,
     Mapping,
     Sequence,
-    Type,
     TypeAlias,
     TypeVar,
     cast,
@@ -110,7 +108,7 @@ class ArrayOfConstraint(AttrConstraint):
 
     elem_constr: AttrConstraint
 
-    def __init__(self, constr: Attribute | Type[Attribute] | AttrConstraint):
+    def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
         self.elem_constr = attr_constr_coercion(constr)
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
@@ -321,7 +319,7 @@ _IntegerAttrTypInv = TypeVar("_IntegerAttrTypInv", bound=IntegerType | IndexType
 class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
     name = "integer"
     value: ParameterDef[IntAttr]
-    typ: ParameterDef[_IntegerAttrTyp]
+    type: ParameterDef[_IntegerAttrTyp]
 
     @overload
     def __init__(
@@ -353,24 +351,24 @@ class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
         return IntegerAttr(value, IndexType())
 
     def verify(self) -> None:
-        if isinstance(self.typ, IntegerType):
-            match self.typ.signedness.data:
+        if isinstance(self.type, IntegerType):
+            match self.type.signedness.data:
                 case Signedness.SIGNLESS:
-                    min_value = -(1 << self.typ.width.data)
-                    max_value = 1 << self.typ.width.data
+                    min_value = -(1 << self.type.width.data)
+                    max_value = 1 << self.type.width.data
                 case Signedness.SIGNED:
-                    min_value = -(1 << (self.typ.width.data - 1))
-                    max_value = (1 << (self.typ.width.data - 1)) - 1
+                    min_value = -(1 << (self.type.width.data - 1))
+                    max_value = (1 << (self.type.width.data - 1)) - 1
                 case Signedness.UNSIGNED:
                     min_value = 0
-                    max_value = (1 << self.typ.width.data) - 1
+                    max_value = (1 << self.type.width.data) - 1
                 case _:
                     assert False, "unreachable"
 
             if not (min_value <= self.value.data <= max_value):
                 raise VerifyException(
                     f"Integer value {self.value.data} is out of range for "
-                    f"type {self.typ} which supports values in the "
+                    f"type {self.type} which supports values in the "
                     f"range [{min_value}, {max_value}]"
                 )
 
@@ -1221,7 +1219,7 @@ class ModuleOp(IRDLOperation):
 
     def __init__(
         self,
-        ops: List[Operation] | Region,
+        ops: list[Operation] | Region,
         attributes: Mapping[str, Attribute] | None = None,
     ):
         if attributes is None:

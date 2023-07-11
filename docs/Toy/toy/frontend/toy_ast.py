@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Generator, Iterable, List, Optional
+from typing import Callable, Generator, Iterable
 
 from .location import Location
 
@@ -12,7 +12,7 @@ INDENT = 2
 @dataclass
 class VarType:
     "A variable type with shape information."
-    shape: List[int]
+    shape: list[int]
 
 
 class ExprASTKind(Enum):
@@ -28,7 +28,7 @@ class ExprASTKind(Enum):
 
 @dataclass()
 class Dumper:
-    lines: List[str]
+    lines: list[str]
     indentation: int = 0
 
     def append(self, prefix: str, line: str):
@@ -98,7 +98,7 @@ class VarDeclExprAST(ExprAST):
 @dataclass
 class ReturnExprAST(ExprAST):
     "Expression class for a return operator."
-    expr: Optional[ExprAST]
+    expr: ExprAST | None
 
     @property
     def kind(self):
@@ -121,14 +121,14 @@ class NumberExprAST(ExprAST):
         return ExprASTKind.Expr_Num
 
     def inner_dump(self, prefix: str, dumper: Dumper):
-        dumper.append(prefix, " {:.6e}".format(self.val))
+        dumper.append(prefix, f" {self.val:.6e}")
 
 
 @dataclass
 class LiteralExprAST(ExprAST):
     "Expression class for a literal value."
-    values: List[LiteralExprAST | NumberExprAST]
-    dims: List[int]
+    values: list[LiteralExprAST | NumberExprAST]
+    dims: list[int]
 
     @property
     def kind(self):
@@ -191,7 +191,7 @@ class BinaryExprAST(ExprAST):
 class CallExprAST(ExprAST):
     "Expression class for function calls."
     callee: str
-    args: List[ExprAST]
+    args: list[ExprAST]
 
     @property
     def kind(self):
@@ -232,7 +232,7 @@ class PrototypeAST:
 
     loc: Location
     name: str
-    args: List[VariableExprAST]
+    args: list[VariableExprAST]
 
     def dump(self):
         dumper = Dumper([])
