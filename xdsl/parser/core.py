@@ -107,10 +107,10 @@ class Parser(AttrParser):
         self.forward_block_references = dict()
         self.forward_ssa_references = dict()
 
-    def parse_module(self) -> ModuleOp:
+    def parse_module(self, allow_implicit_module: bool = True) -> ModuleOp:
         module_op: Operation
 
-        if not self.ctx.allow_implicit_module:
+        if not allow_implicit_module:
             parsed_op = self.parse_optional_operation()
 
             if parsed_op is None:

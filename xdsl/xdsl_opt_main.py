@@ -165,7 +165,6 @@ class xDSLOptMain:
         self.args = arg_parser.parse_args(args=args)
 
         self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
-        self.ctx.allow_implicit_module = not self.args.no_implicit_module
 
         self.setup_pipeline()
 
@@ -319,7 +318,7 @@ class xDSLOptMain:
                 self.ctx,
                 io.read(),
                 self.get_input_name(),
-            ).parse_module()
+            ).parse_module(not self.args.no_implicit_module)
 
         self.available_frontends["mlir"] = parse_mlir
 
