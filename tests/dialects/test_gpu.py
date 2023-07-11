@@ -168,7 +168,7 @@ def test_gpu_module():
     gpu_module = ModuleOp(name, ops)
 
     assert isinstance(gpu_module, ModuleOp)
-    assert len(list(gpu_module.body.ops)) == len(ops)
+    assert list(gpu_module.body.ops) == ops
     assert gpu_module.sym_name is name
 
 
