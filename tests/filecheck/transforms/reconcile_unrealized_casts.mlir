@@ -106,6 +106,19 @@ builtin.module {
     // CHECK-NEXT:      func.return %6 : i64
     // CHECK-NEXT:    }
 
+    func.func @mismatch_size_cast_use(%arg0: i64, %arg1: i64) -> i64 {
+        %0, %1 = "builtin.unrealized_conversion_cast"(%arg0, %arg1) : (i64, i64) -> (i16, i16)
+        %3 = "builtin.unrealized_conversion_cast"(%0) : (i16) -> (i1)
+        %10 = "test.op"(%3, %3) : (i1, i1) -> i64
+        func.return %10 : i64
+    }
+
+    // CHECK-NEXT:    func.func @mismatch_size_cast_use(%{{.*}} : i64, %{{.*}} : i64) -> i64 {
+    // CHECK-NEXT:      %7, %8 = "builtin.unrealized_conversion_cast"(%{{.*}}, %{{.*}}) : (i64, i64) -> (i16, i16)
+    // CHECK-NEXT:      %9 = "builtin.unrealized_conversion_cast"(%7) : (i16) -> i1
+    // CHECK-NEXT:      %10 = "test.op"(%9, %9) : (i1, i1) -> i64
+    // CHECK-NEXT:      func.return %10 : i64
+    // CHECK-NEXT:    }
 
 }
 // CHECK-NEXT:  }
