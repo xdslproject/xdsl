@@ -3,11 +3,9 @@ from typing import Callable
 import pytest
 from conftest import assert_print_op
 
+from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant
 from xdsl.dialects.builtin import Builtin, ModuleOp, i32, i64
-from xdsl.dialects.func import Func
-from xdsl.dialects.scf import Scf, Yield
-from xdsl.dialects.test import Test
 from xdsl.ir import Block, MLContext
 from xdsl.parser import Parser
 from xdsl.rewriter import Rewriter
@@ -19,9 +17,7 @@ def rewrite_and_compare(
     ctx = MLContext()
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
-    ctx.register_dialect(Scf)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Test)
+    ctx.register_dialect(test.Test)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
@@ -160,11 +156,11 @@ def test_inline_block_at_end():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         ops_iter = iter(module.ops)
         next(ops_iter)
-        if_op = next(ops_iter)
+        test_op = next(ops_iter)
         module_block = module.regions[0].blocks[0]
-        if_block = if_op.regions[0].blocks[0]
+        test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_at_end(if_block, module_block)
+        rewriter.inline_block_at_end(test_block, module_block)
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -194,10 +190,10 @@ def test_inline_block_before():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         ops_iter = iter(module.ops)
         next(ops_iter)
-        if_op = next(ops_iter)
-        if_block = if_op.regions[0].blocks[0]
+        test_op = next(ops_iter)
+        test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_before(if_block, if_op)
+        rewriter.inline_block_before(test_block, test_op)
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -227,10 +223,10 @@ def test_inline_block_after():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         ops_iter = iter(module.ops)
         constant_op = next(ops_iter)
-        if_op = next(ops_iter)
-        if_block = if_op.regions[0].blocks[0]
+        test_op = next(ops_iter)
+        test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_after(if_block, constant_op)
+        rewriter.inline_block_after(test_block, constant_op)
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -429,20 +425,20 @@ def test_no_result_rewriter():
     """Test rewriter on ops without results"""
     prog = """\
 "builtin.module"() ({
-  "func.return"() : () -> ()
+  "test.termop"() : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  "scf.yield"() : () -> ()
+  "test.op"() : () -> ()
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         return_op = module.ops.first
         assert return_op is not None
-        new_op = Yield.get()
+        new_op = test.TestOp.create()
 
         rewriter.replace_op(return_op, [new_op])
 
