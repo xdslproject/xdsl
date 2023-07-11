@@ -16,7 +16,7 @@ from xdsl.pattern_rewriter import (
 )
 
 
-class RemoveUselessConversionCast(RewritePattern):
+class ReconcileUnrealizedCasts(RewritePattern):
     """
     An `unrealized_conversion_cast` operation represents an unrealized conversion from one set of types to another,
     that is used to enable the inter-mixing of different type systems.
@@ -28,7 +28,7 @@ class RemoveUselessConversionCast(RewritePattern):
     def match_and_rewrite(
         self, op: builtin.UnrealizedConversionCastOp, rewriter: PatternRewriter
     ) -> None:
-        # We remove severals cast in a single pass, which should not happen
+        # We remove several casts in a single pass, which should not happen
         # with the current implementation of the pattern rewriter.
         # The rewriter is not notified of our deletions, so we need to
         # ignore casts that have already been removed earlier in the pass (i.e: no parent anymore).
@@ -59,7 +59,7 @@ class RemoveUselessConversionCast(RewritePattern):
 
                 for use in gen_all_uses_cast(cast):
                     if isinstance(use.operation, builtin.UnrealizedConversionCastOp):
-                        # early check, for sure we are not able to remove such a cast
+                        # early check, it's definitely not an unifiable cast
                         if any(
                             r != i
                             for r, i in itertools.zip_longest(
@@ -106,11 +106,11 @@ def reconcile_unrealized_casts(op: ModuleOp):
     """
     Removes all `builtin.unrealized_conversion_cast` operations that are not needed in a module.
     """
-    walker = PatternRewriteWalker(RemoveUselessConversionCast())
+    walker = PatternRewriteWalker(ReconcileUnrealizedCasts())
     walker.rewrite_module(op)
 
 
-class ReconcileUnrealizedCasts(ModulePass):
+class ReconcileUnrealizedCastsPass(ModulePass):
     name = "reconcile-unrealized-casts"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
