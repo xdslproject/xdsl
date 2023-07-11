@@ -53,10 +53,9 @@ class While(IRDLOperation):
         before: Region | Sequence[Operation] | Sequence[Block],
         after: Region | Sequence[Operation] | Sequence[Block],
     ) -> While:
-        op = While.build(
+        return While.build(
             operands=operands, result_types=result_types, regions=[before, after]
         )
-        return op
 
 
 @irdl_op_definition
