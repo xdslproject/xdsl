@@ -17,34 +17,61 @@ from xdsl.builder import Builder
 from xdsl.passes import ModulePass
 
 from xdsl.dialects.scf import Yield, If
-from xdsl.dialects.func import Call
+from xdsl.dialects.func import Call, FuncOp
 
 from xdsl.dialects.experimental.math import CopySignOp, AbsFOp
 
 
 @dataclass
 class ReplaceCopySignOpByXilinxMath(RewritePattern):
+    def __init__(self, op: builtin.ModuleOp):
+        self.module = op
+        self.func_def_declaration = False
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CopySignOp, rewriter: PatternRewriter, /):
-        call = Call.get("copysign", [op.lhs, op.rhs], [f64])
+        if not self.func_def_declaration:
+            func_def = FuncOp.external("llvm.copysign.f64", [f64, f64], [f64])
+            self.module.body.block.add_op(func_def)
+            self.func_def_declaration = True
+
+        call = Call.get("llvm.copysign.f64", [op.lhs, op.rhs], [f64])
 
         rewriter.replace_matched_op([call])
 
 
 @dataclass
 class ReplaceMaxfByXilinxMath(RewritePattern):
+    def __init__(self, op: builtin.ModuleOp):
+        self.module = op
+        self.func_def_declaration = False
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: Maxf, rewriter: PatternRewriter, /):
-        call = Call.get("fmax", [op.lhs, op.rhs], [f64])
+        if not self.func_def_declaration:
+            func_def = FuncOp.external("llvm.maxnum.f64", [f64, f64], [f64])
+            self.module.body.block.add_op(func_def)
+            self.func_def_declaration = True
+
+        call = Call.get("llvm.maxnum.f64", [op.lhs, op.rhs], [f64])
 
         rewriter.replace_matched_op([call])
 
 
 @dataclass
 class ReplaceAbsOpByXilinxMath(RewritePattern):
+    def __init__(self, op: builtin.ModuleOp):
+        self.module = op
+        self.func_def_declaration = False
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AbsFOp, rewriter: PatternRewriter, /):
-        call = Call.get("fabs", [op.operand], [f64])
+        if not self.func_def_declaration:
+            func_def = FuncOp.external("llvm.fabs.f64", [f64], [f64])
+            self.module.body.block.add_op(func_def)
+            self.func_def_declaration = True
+
+        call = Call.get("llvm.fabs.f64", [op.operand], [f64])
 
         rewriter.replace_matched_op([call])
 
@@ -166,11 +193,11 @@ class ReplaceIncompatibleFPGA(ModulePass):
         walkers = gen_greedy_walkers(
             [
                 # ReplaceCopySignOpByEquivalent(),
-                ReplaceCopySignOpByXilinxMath(),
+                ReplaceCopySignOpByXilinxMath(op),
                 # ReplaceMaxfOpByEquivalent(),
-                ReplaceMaxfByXilinxMath(),
+                ReplaceMaxfByXilinxMath(op),
                 # ReplaceAbsOpByEquivalent(),
-                ReplaceAbsOpByXilinxMath(),
+                ReplaceAbsOpByXilinxMath(op),
             ]
         )
 
