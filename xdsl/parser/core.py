@@ -107,15 +107,36 @@ class Parser(AttrParser):
         self.forward_block_references = dict()
         self.forward_ssa_references = dict()
 
-    def parse_module(self) -> ModuleOp:
-        op = self.parse_optional_operation()
+    def parse_module(self, allow_implicit_module: bool = True) -> ModuleOp:
+        module_op: Operation
 
-        if op is None:
-            self.raise_error("Could not parse entire input!")
+        if not allow_implicit_module:
+            parsed_op = self.parse_optional_operation()
 
-        if not isinstance(op, ModuleOp):
-            self._resume_from(0)
-            self.raise_error("builtin.module operation expected", 0)
+            if parsed_op is None:
+                self.raise_error("Could not parse entire input!")
+
+            if not isinstance(parsed_op, ModuleOp):
+                self._resume_from(0)
+                self.raise_error("builtin.module operation expected", 0)
+
+            module_op = parsed_op
+        else:
+            parsed_ops: list[Operation] = []
+
+            while self._current_token.kind != Token.Kind.EOF:
+                if (parsed_op := self.parse_optional_operation()) is None:
+                    self.raise_error("Could not parse entire input!")
+                parsed_ops.append(parsed_op)
+
+            if len(parsed_ops) == 0:
+                self.raise_error("Could not parse entire input!")
+
+            module_op = (
+                parsed_ops[0]
+                if isinstance(parsed_ops[0], ModuleOp) and len(parsed_ops) == 1
+                else ModuleOp(parsed_ops)
+            )
 
         if self.forward_ssa_references:
             value_names = ", ".join(
@@ -126,7 +147,7 @@ class Parser(AttrParser):
             else:
                 self.raise_error(f"value {value_names} was used but not defined")
 
-        return op
+        return module_op
 
     def _get_block_from_name(self, block_name: Span) -> Block:
         """
