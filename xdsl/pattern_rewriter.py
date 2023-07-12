@@ -218,7 +218,7 @@ class PatternRewriter:
         arg.type = new_type
 
     def insert_block_argument(
-        self, block: Block, index: int, typ: Attribute
+        self, block: Block, index: int, arg_type: Attribute
     ) -> BlockArgument:
         """
         Insert a new block argument.
@@ -229,7 +229,7 @@ class PatternRewriter:
                 "Cannot modify blocks that are not contained in the matched operation"
             )
         self.has_done_action = True
-        return block.insert_arg(typ, index)
+        return block.insert_arg(arg_type, index)
 
     def erase_block_argument(self, arg: BlockArgument, safe_erase: bool = True) -> None:
         """

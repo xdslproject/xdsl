@@ -117,8 +117,8 @@ class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
     wrapped_type: ParameterDef[_VectorT]
 
     @staticmethod
-    def of(typ: type[_VectorT]) -> VectorType[_VectorT]:
-        return VectorType([typ([])])
+    def of(dtype: type[_VectorT]) -> VectorType[_VectorT]:
+        return VectorType([dtype([])])
 
 
 class StatusTypeField(Enum):
@@ -669,11 +669,11 @@ class UnwrapMemrefOp(MPIBaseOp):
     def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
         ssa_val = SSAValue.get(ref)
         assert isinstance(ssa_val.type, MemRefType)
-        elem_typ = cast(MemRefType[AnyNumericType], ssa_val.type).element_type
+        elem_type = cast(MemRefType[AnyNumericType], ssa_val.type).element_type
 
         return UnwrapMemrefOp.build(
             operands=[ref],
-            result_types=[llvm.LLVMPointerType.typed(elem_typ), i32, DataType()],
+            result_types=[llvm.LLVMPointerType.typed(elem_type), i32, DataType()],
         )
 
 
@@ -697,8 +697,8 @@ class GetDtypeOp(MPIBaseOp):
     result: OpResult = result_def(DataType)
 
     @staticmethod
-    def get(typ: Attribute):
-        return GetDtypeOp.build(result_types=[DataType()], attributes={"dtype": typ})
+    def get(dtype: Attribute):
+        return GetDtypeOp.build(result_types=[DataType()], attributes={"dtype": dtype})
 
 
 @irdl_op_definition

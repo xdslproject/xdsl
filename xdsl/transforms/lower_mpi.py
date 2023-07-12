@@ -239,7 +239,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
             self._translate_to_mpi_type(type_attr), i32
         )
 
-    def _translate_to_mpi_type(self, typ: Attribute) -> int:
+    def _translate_to_mpi_type(self, mpi_type: Attribute) -> int:
         """
         This translates an xDSL type to a corresponding MPI type
 
@@ -253,13 +253,13 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                 [u]i32  -> MPI_UNSIGNED / MPI_INT
                 [u]i64  -> MPI_UNSIGNED_LONG_LONG / MPI_LONG_LONG_INT
         """
-        if isinstance(typ, builtin.Float32Type):
+        if isinstance(mpi_type, builtin.Float32Type):
             return self.info.MPI_FLOAT
-        if isinstance(typ, builtin.Float64Type):
+        if isinstance(mpi_type, builtin.Float64Type):
             return self.info.MPI_DOUBLE
-        if isinstance(typ, IntegerType):
-            width: int = typ.width.data
-            if typ.signedness.data == Signedness.UNSIGNED:
+        if isinstance(mpi_type, IntegerType):
+            width: int = mpi_type.width.data
+            if mpi_type.signedness.data == Signedness.UNSIGNED:
                 # unsigned branch
                 if width == 8:
                     return self.info.MPI_UNSIGNED_CHAR
@@ -283,7 +283,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                     width
                 )
             )
-        raise ValueError(f"MPI Datatype Conversion: Unsupported type {typ}")
+        raise ValueError(f"MPI Datatype Conversion: Unsupported type {mpi_type}")
 
     def _mpi_name(self, op: mpi.MPIBaseOp) -> str:
         """
@@ -621,13 +621,13 @@ class LowerMpiUnwrapMemrefOp(_MPIToLLVMRewriteBase):
         count_ops, count_ssa_val = self._emit_memref_counts(op.ref)
         extract_ptr_ops, ptr = self._memref_get_llvm_ptr(op.ref)
 
-        elem_typ = cast(MemRefType[mpi.AnyNumericType], op.ref.type).element_type
+        elem_type = cast(MemRefType[mpi.AnyNumericType], op.ref.type).element_type
 
         return [
             *extract_ptr_ops,
             *count_ops,
-            typ := mpi.GetDtypeOp.get(elem_typ),
-        ], [ptr.results[0], count_ssa_val, typ.result]
+            dtype := mpi.GetDtypeOp.get(elem_type),
+        ], [ptr.results[0], count_ssa_val, dtype.result]
 
 
 class LowerMpiGetDtype(_MPIToLLVMRewriteBase):
@@ -639,8 +639,8 @@ class LowerMpiGetDtype(_MPIToLLVMRewriteBase):
         self, op: mpi.GetDtypeOp
     ) -> tuple[list[Operation], list[SSAValue | None]]:
         return [
-            typ := self._emit_mpi_type_load(op.dtype),
-        ], [typ.results[0]]
+            dtype := self._emit_mpi_type_load(op.dtype),
+        ], [dtype.results[0]]
 
 
 class LowerMpiAllocateType(_MPIToLLVMRewriteBase):

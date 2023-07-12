@@ -309,38 +309,40 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
-_IntegerAttrTyp = TypeVar(
-    "_IntegerAttrTyp", bound=IntegerType | IndexType, covariant=True
+_IntegerAttrType = TypeVar(
+    "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
-_IntegerAttrTypInv = TypeVar("_IntegerAttrTypInv", bound=IntegerType | IndexType)
+_IntegerAttrTypeInv = TypeVar("_IntegerAttrTypeInv", bound=IntegerType | IndexType)
 
 
 @irdl_attr_definition
-class IntegerAttr(Generic[_IntegerAttrTyp], ParametrizedAttribute):
+class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
     name = "integer"
     value: ParameterDef[IntAttr]
-    type: ParameterDef[_IntegerAttrTyp]
+    type: ParameterDef[_IntegerAttrType]
 
     @overload
     def __init__(
-        self: IntegerAttr[_IntegerAttrTyp], value: int | IntAttr, typ: _IntegerAttrTyp
+        self: IntegerAttr[_IntegerAttrType],
+        value: int | IntAttr,
+        value_type: _IntegerAttrType,
     ) -> None:
         ...
 
     @overload
     def __init__(
-        self: IntegerAttr[IntegerType], value: int | IntAttr, typ: int
+        self: IntegerAttr[IntegerType], value: int | IntAttr, value_type: int
     ) -> None:
         ...
 
     def __init__(
-        self, value: int | IntAttr, typ: int | IntegerType | IndexType
+        self, value: int | IntAttr, value_type: int | IntegerType | IndexType
     ) -> None:
         if isinstance(value, int):
             value = IntAttr(value)
-        if isinstance(typ, int):
-            typ = IntegerType(typ)
-        super().__init__([value, typ])
+        if isinstance(value_type, int):
+            value_type = IntegerType(value_type)
+        super().__init__([value, value_type])
 
     @staticmethod
     def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
@@ -423,20 +425,20 @@ class FloatData(Data[float]):
         printer.print_string(f"{self.data}")
 
 
-_FloatAttrTyp = TypeVar("_FloatAttrTyp", bound=AnyFloat, covariant=True)
+_FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
-_FloatAttrTypInv = TypeVar("_FloatAttrTypInv", bound=AnyFloat)
+_FloatAttrTypeInv = TypeVar("_FloatAttrTypeInv", bound=AnyFloat)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
+class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
     name = "float"
 
     value: ParameterDef[FloatData]
-    type: ParameterDef[_FloatAttrTyp]
+    type: ParameterDef[_FloatAttrType]
 
     @overload
-    def __init__(self, data: float | FloatData, type: _FloatAttrTyp) -> None:
+    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None:
         ...
 
     @overload
@@ -444,7 +446,7 @@ class FloatAttr(Generic[_FloatAttrTyp], ParametrizedAttribute):
         ...
 
     def __init__(
-        self, data: float | FloatData, type: int | _FloatAttrTyp | AnyFloat
+        self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
     ) -> None:
         if isinstance(data, float):
             data = FloatData(data)
@@ -869,9 +871,10 @@ class DenseIntOrFPElementsAttr(
 
     @staticmethod
     def vector_from_list(
-        data: Sequence[int] | Sequence[float], typ: IntegerType | IndexType | AnyFloat
+        data: Sequence[int] | Sequence[float],
+        data_type: IntegerType | IndexType | AnyFloat,
     ) -> DenseIntOrFPElementsAttr:
-        t = VectorType.from_element_type_and_shape(typ, [len(data)])
+        t = VectorType.from_element_type_and_shape(data_type, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
@@ -881,10 +884,10 @@ class DenseIntOrFPElementsAttr(
         | Sequence[IntegerAttr[IndexType]]
         | Sequence[IntegerAttr[IntegerType]]
         | Sequence[AnyFloatAttr],
-        typ: IntegerType | IndexType | AnyFloat,
+        data_type: IntegerType | IndexType | AnyFloat,
         shape: Sequence[int],
     ) -> DenseIntOrFPElementsAttr:
-        t = AnyTensorType.from_type_and_list(typ, shape)
+        t = AnyTensorType.from_type_and_list(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
@@ -929,56 +932,56 @@ class DenseArrayBase(ParametrizedAttribute):
 
     @staticmethod
     def create_dense_int_or_index(
-        typ: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
+        data_type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int):
             attr_list = [IntAttr(d) for d in cast(Sequence[int], data)]
         else:
             attr_list = cast(Sequence[IntAttr], data)
 
-        return DenseArrayBase([typ, ArrayAttr(attr_list)])
+        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
 
     @staticmethod
     def create_dense_float(
-        typ: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
+        data_type: AnyFloat, data: Sequence[int | float] | Sequence[FloatData]
     ) -> DenseArrayBase:
         if len(data) and isinstance(data[0], int | float):
             attr_list = [FloatData(float(d)) for d in cast(Sequence[int | float], data)]
         else:
             attr_list = cast(Sequence[FloatData], data)
 
-        return DenseArrayBase([typ, ArrayAttr(attr_list)])
+        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
 
     @overload
     @staticmethod
     def from_list(
-        type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
+        data_type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
     ) -> DenseArrayBase:
         ...
 
     @overload
     @staticmethod
     def from_list(
-        type: Attribute, data: Sequence[int | float] | Sequence[FloatData]
+        data_type: Attribute, data: Sequence[int | float] | Sequence[FloatData]
     ) -> DenseArrayBase:
         ...
 
     @staticmethod
     def from_list(
-        type: Attribute,
+        data_type: Attribute,
         data: Sequence[int]
         | Sequence[int | float]
         | Sequence[IntAttr]
         | Sequence[FloatData],
     ) -> DenseArrayBase:
-        if isinstance(type, IndexType | IntegerType):
+        if isinstance(data_type, IndexType | IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
-            return DenseArrayBase.create_dense_int_or_index(type, _data)
-        elif isinstance(type, AnyFloat):
+            return DenseArrayBase.create_dense_int_or_index(data_type, _data)
+        elif isinstance(data_type, AnyFloat):
             _data = cast(Sequence[int | float] | Sequence[FloatData], data)
-            return DenseArrayBase.create_dense_float(type, _data)
+            return DenseArrayBase.create_dense_float(data_type, _data)
         else:
-            raise TypeError(f"Unsupported element type {type}")
+            raise TypeError(f"Unsupported element type {data_type}")
 
     def as_tuple(self) -> tuple[int, ...] | tuple[float, ...]:
         """

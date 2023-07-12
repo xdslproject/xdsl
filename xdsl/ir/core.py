@@ -683,7 +683,8 @@ class Operation(IRNode):
         self.operands = operands
 
         self.results = [
-            OpResult(typ, self, idx) for (idx, typ) in enumerate(result_types)
+            OpResult(result_type, self, idx)
+            for (idx, result_type) in enumerate(result_types)
         ]
         self.attributes = dict(attributes)
         self.successors = list(successors)
@@ -1163,7 +1164,8 @@ class Block(IRNode):
     ):
         super().__init__()
         self._args = tuple(
-            BlockArgument(typ, self, index) for index, typ in enumerate(arg_types)
+            BlockArgument(arg_type, self, index)
+            for index, arg_type in enumerate(arg_types)
         )
         self._first_op = None
         self._last_op = None
@@ -1202,7 +1204,8 @@ class Block(IRNode):
     def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
         b = Block()
         b._args = tuple(
-            BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
+            BlockArgument(arg_type, b, index)
+            for index, arg_type in enumerate(arg_types)
         )
         return b
 
@@ -1212,7 +1215,8 @@ class Block(IRNode):
         b = Block()
         if arg_types:
             b._args = tuple(
-                BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
+                BlockArgument(arg_type, b, index)
+                for index, arg_type in enumerate(arg_types)
             )
         b.add_ops(ops)
         return b
@@ -1228,14 +1232,14 @@ class Block(IRNode):
         b.add_ops(f(*b.args))
         return b
 
-    def insert_arg(self, typ: Attribute, index: int) -> BlockArgument:
+    def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
         """
         Insert a new argument with a given type to the arguments list at a specific index.
         Returns the new argument.
         """
         if index < 0 or index > len(self._args):
             raise Exception("Unexpected index")
-        new_arg = BlockArgument(typ, self, index)
+        new_arg = BlockArgument(arg_type, self, index)
         for arg in self._args[index:]:
             arg.index += 1
         self._args = tuple(chain(self._args[:index], [new_arg], self._args[index:]))

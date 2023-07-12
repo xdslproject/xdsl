@@ -381,26 +381,29 @@ class Printer:
             attribute = cast(AnyIntegerAttr, attribute)
 
             # boolean shorthands
-            if isinstance((typ := attribute.type), IntegerType) and typ.width.data == 1:
+            if (
+                isinstance((attr_type := attribute.type), IntegerType)
+                and attr_type.width.data == 1
+            ):
                 self.print("false" if attribute.value.data == 0 else "true")
                 return
 
             width = attribute.parameters[0]
-            typ = attribute.parameters[1]
+            attr_type = attribute.parameters[1]
             assert isinstance(width, IntAttr)
             self.print(width.data)
             self.print(" : ")
-            self.print_attribute(typ)
+            self.print_attribute(attr_type)
             return
 
         if isinstance(attribute, FloatAttr):
             value = attribute.value
-            typ = cast(
+            attr_type = cast(
                 FloatAttr[Float16Type | Float32Type | Float64Type], attribute
             ).type
             self.print(f"{value.data:.6e}")
             self.print(" : ")
-            self.print_attribute(typ)
+            self.print_attribute(attr_type)
             return
 
         # Complex types have MLIR shorthands but XDSL does not.
@@ -670,12 +673,12 @@ class Printer:
         if len(op.results) == 0:
             self.print("()")
         elif len(op.results) == 1:
-            typ = op.results[0].type
+            res_type = op.results[0].type
             # Handle ambiguous case
-            if isinstance(typ, FunctionType):
-                self.print("(", typ, ")")
+            if isinstance(res_type, FunctionType):
+                self.print("(", res_type, ")")
             else:
-                self.print(typ)
+                self.print(res_type)
         else:
             self.print("(")
             self.print_list(
