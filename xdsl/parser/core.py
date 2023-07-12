@@ -124,7 +124,9 @@ class Parser(AttrParser):
         else:
             parsed_ops: list[Operation] = []
 
-            while (parsed_op := self.parse_optional_operation()) is not None:
+            while self._current_token.kind != Token.Kind.EOF:
+                if (parsed_op := self.parse_optional_operation()) is None:
+                    self.raise_error("Could not parse entire input!")
                 parsed_ops.append(parsed_op)
 
             if len(parsed_ops) == 0:
