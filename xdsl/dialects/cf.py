@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Sequence, Union
+from typing import Sequence
 
 from xdsl.dialects.builtin import IntegerType, StringAttr
 from xdsl.ir import Block, Dialect, Operation, SSAValue
@@ -44,7 +44,7 @@ class Branch(IRDLOperation):
     traits = frozenset([IsTerminator()])
 
     @staticmethod
-    def get(dest: Block, *ops: Union[Operation, SSAValue]) -> Branch:
+    def get(dest: Block, *ops: Operation | SSAValue) -> Branch:
         return Branch.build(operands=[[op for op in ops]], successors=[dest])
 
 
@@ -65,11 +65,11 @@ class ConditionalBranch(IRDLOperation):
 
     @staticmethod
     def get(
-        cond: Union[Operation, SSAValue],
+        cond: Operation | SSAValue,
         then_block: Block,
-        then_ops: Sequence[Union[Operation, SSAValue]],
+        then_ops: Sequence[Operation | SSAValue],
         else_block: Block,
-        else_ops: Sequence[Union[Operation, SSAValue]],
+        else_ops: Sequence[Operation | SSAValue],
     ) -> ConditionalBranch:
         return ConditionalBranch.build(
             operands=[cond, then_ops, else_ops], successors=[then_block, else_block]

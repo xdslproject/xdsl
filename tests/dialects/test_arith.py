@@ -47,9 +47,9 @@ _BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
 
 
 class Test_integer_arith_construction:
-    operand_typ = i32
-    a = Constant.from_int_and_width(1, operand_typ)
-    b = Constant.from_int_and_width(1, operand_typ)
+    operand_type = i32
+    a = Constant.from_int_and_width(1, operand_type)
+    b = Constant.from_int_and_width(1, operand_type)
 
     @pytest.mark.parametrize(
         "OpClass",
@@ -75,18 +75,18 @@ class Test_integer_arith_construction:
             ShRSI,
         ],
     )
-    @pytest.mark.parametrize("return_typ", [None, operand_typ])
+    @pytest.mark.parametrize("return_type", [None, operand_type])
     def test_arith_ops_init(
         self,
         OpClass: type[BinaryOperation[_BinOpArgT]],
-        return_typ: Attribute,
+        return_type: Attribute,
     ):
         op = OpClass(self.a, self.b)
 
         assert isinstance(op, OpClass)
         assert op.lhs.owner is self.a
         assert op.rhs.owner is self.b
-        assert op.result.type == self.operand_typ
+        assert op.result.type == self.operand_type
 
     def test_Cmpi(self):
         _ = Cmpi.get(self.a, self.b, 2)

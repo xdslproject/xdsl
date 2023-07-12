@@ -141,10 +141,10 @@ class AddOp(IRDLOperation):
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.type, TensorTypeF64):
-            result_typ = lhs.type
+            result_type = lhs.type
         else:
-            result_typ = rhs.type
-        super().__init__(result_types=[result_typ], operands=[lhs, rhs])
+            result_type = rhs.type
+        super().__init__(result_types=[result_type], operands=[lhs, rhs])
 
     def verify_(self):
         args = [self.lhs, self.rhs]
@@ -230,21 +230,21 @@ class FuncOp(IRDLOperation):
             raise VerifyException("Expected last op of FuncOp to be a ReturnOp")
 
         operand = last_op.input
-        operand_typ = None if operand is None else operand.type
+        operand_type = None if operand is None else operand.type
 
-        return_typs = self.function_type.outputs.data
+        return_types = self.function_type.outputs.data
 
-        if len(return_typs):
-            if len(return_typs) == 1:
-                return_typ = return_typs[0]
+        if len(return_types):
+            if len(return_types) == 1:
+                return_type = return_types[0]
             else:
                 raise VerifyException(
                     "Expected return type of func to have 0 or 1 values"
                 )
         else:
-            return_typ = None
+            return_type = None
 
-        if operand_typ != return_typ:
+        if operand_type != return_type:
             raise VerifyException(
                 "Expected return value to match return type of function"
             )
@@ -309,10 +309,10 @@ class MulOp(IRDLOperation):
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.type, TensorTypeF64):
-            result_typ = lhs.type
+            result_type = lhs.type
         else:
-            result_typ = rhs.type
-        super().__init__(result_types=[result_typ], operands=[lhs, rhs])
+            result_type = rhs.type
+        super().__init__(result_types=[result_type], operands=[lhs, rhs])
 
     def verify_(self):
         args = [self.lhs, self.rhs]

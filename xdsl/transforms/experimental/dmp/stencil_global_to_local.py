@@ -579,10 +579,10 @@ class DmpSwapShapeInference:
             if not isinstance(use.operation, stencil.ApplyOp):
                 continue
             assert use.operation.res
-            res_typ = cast(stencil.TempType[Attribute], use.operation.res[0].type)
-            assert isinstance(res_typ.bounds, stencil.StencilBoundsAttr)
-            core_lb = res_typ.bounds.lb
-            core_ub = res_typ.bounds.ub
+            res_type = cast(stencil.TempType[Attribute], use.operation.res[0].type)
+            assert isinstance(res_type.bounds, stencil.StencilBoundsAttr)
+            core_lb = res_type.bounds.lb
+            core_ub = res_type.bounds.ub
             break
 
         # this shouldn't have changed since the op was created!

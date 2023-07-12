@@ -956,8 +956,8 @@ class ConstantOp(IRDLOperation):
     result: OpResult = result_def(Attribute)
     value: Attribute = attr_def(Attribute)
 
-    def __init__(self, value: Attribute, typ: Attribute):
-        super().__init__(attributes={"value": value}, result_types=[typ])
+    def __init__(self, value: Attribute, value_type: Attribute):
+        super().__init__(attributes={"value": value}, result_types=[value_type])
 
 
 @irdl_op_definition

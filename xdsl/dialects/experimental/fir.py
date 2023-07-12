@@ -73,19 +73,19 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
         parser.parse_characters("<")
         has_tuple = parser.parse_optional_keyword("tuple")
         if has_tuple is None:
-            typ = parser.parse_type()
+            param_type = parser.parse_type()
             parser.parse_characters(">")
-            return [typ]
+            return [param_type]
         else:
             # If its a tuple then there are any number of types
             def parse_types():
                 return parser.parse_type()
 
-            values = parser.parse_comma_separated_list(
+            param_types = parser.parse_comma_separated_list(
                 parser.Delimiter.ANGLE, parse_types
             )
             parser.parse_characters(">")
-            return [TupleType(values)]
+            return [TupleType(param_types)]
 
 
 @irdl_attr_definition
