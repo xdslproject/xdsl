@@ -47,6 +47,10 @@ def test_empty_program():
             "Could not parse entire input",
         ),
         (
+            ["tests/xdsl_opt/incomplete_program_residual.mlir"],
+            "Could not parse entire input",
+        ),
+        (
             ["tests/xdsl_opt/incomplete_program.mlir"],
             "Could not parse entire input",
         ),
