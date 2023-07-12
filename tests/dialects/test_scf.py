@@ -285,7 +285,8 @@ def test_parallel_verify_yield_zero_ops():
     p = ParallelOp.get([lbi], [ubi], [si], body)
     with pytest.raises(
         VerifyException,
-        match="scf.yield contains 1 operands but this must be 0 inside an scf.parallel",
+        match="Single-block region terminator scf.yield has 1 operands "
+        "but 0 expected inside an scf.parallel",
     ):
         p.verify()
 

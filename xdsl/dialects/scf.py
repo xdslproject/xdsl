@@ -257,8 +257,8 @@ class ParallelOp(IRDLOperation):
         # Ensure that the number of operands in scf.yield is exactly zero
         if (last_op := self.body.block.last_op) is not None and last_op.operands:
             raise VerifyException(
-                f"scf.yield contains {len(last_op.operands)} operands but this must be "
-                "0 inside an scf.parallel"
+                f"Single-block region terminator scf.yield has {len(last_op.operands)} "
+                "operands but 0 expected inside an scf.parallel"
             )
 
         # Ensure that the number of reductions matches the
