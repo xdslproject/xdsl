@@ -53,7 +53,7 @@ def add_end_label(block: Block) -> riscv.LabelOp | None:
         label_str = "bb" + str(block_idx) + "end"
         label_op = riscv.LabelOp(label_str)
 
-        parent_region.insert_block(Block([label_op, riscv.NopOp()]), block_idx)
+        parent_region.insert_block(Block([label_op, riscv.NopOp()]), block_idx + 1)
 
         return label_op
 
