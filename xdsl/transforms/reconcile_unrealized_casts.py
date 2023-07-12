@@ -18,10 +18,12 @@ from xdsl.pattern_rewriter import (
 
 class ReconcileUnrealizedCasts(RewritePattern):
     """
-    An `unrealized_conversion_cast` operation represents an unrealized conversion from one set of types to another,
-    that is used to enable the inter-mixing of different type systems.
+    An `unrealized_conversion_cast` operation represents an unrealized conversion
+    from one set of types to another, that is used to enable the inter-mixing
+    of different type systems.
 
-    This pattern rewriter removes `unrealized_conversion_cast` operations that are not needed.
+    This pattern rewriter removes `unrealized_conversion_cast` operations
+    that are not needed.
     """
 
     @op_type_rewrite_pattern
@@ -31,7 +33,8 @@ class ReconcileUnrealizedCasts(RewritePattern):
         # We remove several casts in a single pass, which should not happen
         # with the current implementation of the pattern rewriter.
         # The rewriter is not notified of our deletions, so we need to
-        # ignore casts that have already been removed earlier in the pass (i.e: no parent anymore).
+        # ignore casts that have already been removed earlier in the pass
+        #  (i.e: no parent anymore).
 
         if op.parent is not None:
             # casts that either have no uses or have at least
@@ -67,7 +70,8 @@ class ReconcileUnrealizedCasts(RewritePattern):
                             )
                         ):
                             warn(
-                                f"Unable to remove cast {cast} because it is not unifiable with its uses"
+                                f"Unable to remove cast {cast} because "
+                                "it is not unifiable with its uses"
                             )
                             return
                         casts_to_visit.append(use.operation)
@@ -75,8 +79,8 @@ class ReconcileUnrealizedCasts(RewritePattern):
                         is_live = True
                     has_any_uses = True
 
-                # check that either there is a trivial cycle we can remove because types are homogeneous
-                # (e.g. {A -> B, B -> A})
+                # check that either there is a trivial cycle we can remove
+                # because types are homogeneous (e.g. {A -> B, B -> A})
                 # otherwise it means the cast is not unifiable with its uses
                 assert len(cast.results) == len(op.inputs)
                 has_trivial_cycle = all(
@@ -84,7 +88,9 @@ class ReconcileUnrealizedCasts(RewritePattern):
                 )
                 if is_live and not has_trivial_cycle:
                     warn(
-                        f"Unable to remove cast {cast} because it is not unifiable with its uses"
+                        "Unable to remove cast "
+                        f"{cast} because it is not unifiable "
+                        "with its uses"
                     )
                     return
 
@@ -104,7 +110,8 @@ class ReconcileUnrealizedCasts(RewritePattern):
 
 def reconcile_unrealized_casts(op: ModuleOp):
     """
-    Removes all `builtin.unrealized_conversion_cast` operations that are not needed in a module.
+    Removes all `builtin.unrealized_conversion_cast` operations
+    that are not needed anymore in a module.
     """
     walker = PatternRewriteWalker(ReconcileUnrealizedCasts())
     walker.rewrite_module(op)
