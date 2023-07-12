@@ -142,7 +142,7 @@ class LowerDmpGather(RewritePattern):
         # calc offset
 
         assert isa(op.local_field.type, memref.MemRefType[Attribute])
-        el_typ = op.local_field.type.element_type
+        el_type = op.local_field.type.element_type
 
         lbs = [
             arith.Constant.from_int_and_width(shape_info.halo_size(x), idx)
@@ -156,7 +156,7 @@ class LowerDmpGather(RewritePattern):
         ]
 
         ops = [
-            tmp_buff := memref.Alloc.get(el_typ, 32, local_domain),
+            tmp_buff := memref.Alloc.get(el_type, 32, local_domain),
             # lower bounds:
             *lbs,
             # upper bounds:

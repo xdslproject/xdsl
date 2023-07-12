@@ -70,7 +70,7 @@ def _format_string_spec_from_print_op(
         yield format_str[-1]
 
 
-def _format_str_for_typ(t: Attribute):
+def _format_str_for_type(t: Attribute):
     match t:
         case builtin.f64:
             return "%f"
@@ -127,7 +127,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
                 format_str += "%f"
             else:
                 args.append(part)
-                format_str += _format_str_for_typ(part.type)
+                format_str += _format_str_for_type(part.type)
 
         globl = self._construct_global(format_str + "\n")
         self.collected_global_symbs[globl.sym_name.data] = globl

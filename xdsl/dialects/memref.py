@@ -180,9 +180,9 @@ class Load(IRDLOperation):
         if not isinstance(self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_typ = cast(MemRefType[Attribute], self.memref.type)
+        memref_type = cast(MemRefType[Attribute], self.memref.type)
 
-        if memref_typ.element_type != self.res.type:
+        if memref_type.element_type != self.res.type:
             raise Exception("expected return type to match the MemRef element type")
 
         if self.memref.type.get_num_dims() != len(self.indices):
@@ -191,9 +191,11 @@ class Load(IRDLOperation):
     @staticmethod
     def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
         ssa_value = SSAValue.get(ref)
-        typ = ssa_value.type
-        typ = cast(MemRefType[Attribute], typ)
-        return Load.build(operands=[ref, indices], result_types=[typ.element_type])
+        ssa_value_type = ssa_value.type
+        ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
+        return Load.build(
+            operands=[ref, indices], result_types=[ssa_value_type.element_type]
+        )
 
 
 @irdl_op_definition
@@ -207,9 +209,9 @@ class Store(IRDLOperation):
         if not isinstance(self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_typ = cast(MemRefType[Attribute], self.memref.type)
+        memref_type = cast(MemRefType[Attribute], self.memref.type)
 
-        if memref_typ.element_type != self.value.type:
+        if memref_type.element_type != self.value.type:
             raise Exception("Expected value type to match the MemRef element type")
 
         if self.memref.type.get_num_dims() != len(self.indices):
@@ -344,14 +346,14 @@ class Global(IRDLOperation):
     @staticmethod
     def get(
         sym_name: StringAttr,
-        typ: Attribute,
+        sym_type: Attribute,
         initial_value: Attribute,
         sym_visibility: StringAttr = StringAttr("private"),
     ) -> Global:
         return Global.build(
             attributes={
                 "sym_name": sym_name,
-                "type": typ,
+                "type": sym_type,
                 "initial_value": initial_value,
                 "sym_visibility": sym_visibility,
             }
@@ -462,7 +464,7 @@ class Subview(IRDLOperation):
 
         layout = StridedLayoutAttr(layout_strides, layout_offset)
 
-        return_typ = MemRefType.from_element_type_and_shape(
+        return_type = MemRefType.from_element_type_and_shape(
             source_type.element_type,
             result_sizes,
             layout,
@@ -471,7 +473,7 @@ class Subview(IRDLOperation):
 
         return Subview.build(
             operands=[source, [], [], []],
-            result_types=[return_typ],
+            result_types=[return_type],
             attributes={
                 "static_offsets": DenseArrayBase.from_list(i64, offsets),
                 "static_sizes": DenseArrayBase.from_list(i64, sizes),

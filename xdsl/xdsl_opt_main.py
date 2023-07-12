@@ -58,6 +58,7 @@ from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
 from xdsl.transforms.printf_to_llvm import PrintfToLLVM
+from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
@@ -113,6 +114,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         RISCVLowerArith,
         StencilShapeInferencePass,
         StencilStorageMaterializationPass,
+        ReconcileUnrealizedCastsPass,
     ]
 
 
@@ -267,6 +269,14 @@ class xDSLOptMain:
             action="store_true",
             help="Allow the parsing of unregistered dialects.",
         )
+
+        arg_parser.add_argument(
+            "--no-implicit-module",
+            default=False,
+            action="store_true",
+            help="Disable implicit addition of a top-level module op during parsing.",
+        )
+
         arg_parser.add_argument(
             "--split-input-file",
             default=False,
@@ -310,7 +320,7 @@ class xDSLOptMain:
                 self.ctx,
                 io.read(),
                 self.get_input_name(),
-            ).parse_module()
+            ).parse_module(not self.args.no_implicit_module)
 
         self.available_frontends["mlir"] = parse_mlir
 

@@ -396,20 +396,20 @@ def test_memref_dma_wait():
 
 
 def test_memref_copy():
-    typ = MemRefType.from_element_type_and_shape(i32, [4])
-    typ3 = MemRefType.from_element_type_and_shape(i32, [3])
-    typ64 = MemRefType.from_element_type_and_shape(i64, [4])
-    source = TestSSAValue(typ)
-    destination = TestSSAValue(typ)
+    i32type4 = MemRefType.from_element_type_and_shape(i32, [4])
+    i32type3 = MemRefType.from_element_type_and_shape(i32, [3])
+    i64type4 = MemRefType.from_element_type_and_shape(i64, [4])
+    source = TestSSAValue(i32type4)
+    destination = TestSSAValue(i32type4)
 
     copy = CopyOp(source, destination)
 
     copy.verify()
     assert isinstance(copy, CopyOp)
-    assert copy.source.type == typ
-    assert copy.destination.type == typ
+    assert copy.source.type == i32type4
+    assert copy.destination.type == i32type4
 
-    destination = TestSSAValue(typ3)
+    destination = TestSSAValue(i32type3)
 
     copy = CopyOp(source, destination)
 
@@ -418,7 +418,7 @@ def test_memref_copy():
     ):
         copy.verify()
 
-    destination = TestSSAValue(typ64)
+    destination = TestSSAValue(i64type4)
 
     copy = CopyOp(source, destination)
 

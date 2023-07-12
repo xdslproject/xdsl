@@ -18,9 +18,9 @@ class MemrefValue(Enum):
 class MemrefFunctions(InterpreterFunctions):
     @impl(memref.Alloc)
     def run_alloc(self, interpreter: Interpreter, op: memref.Alloc, args: tuple[()]):
-        memref_typ = cast(memref.MemRefType[Attribute], op.memref.type)
+        memref_type = cast(memref.MemRefType[Attribute], op.memref.type)
 
-        shape = memref_typ.get_shape()
+        shape = memref_type.get_shape()
         size = prod(shape)
         data = [MemrefValue.Allocated] * size
 
