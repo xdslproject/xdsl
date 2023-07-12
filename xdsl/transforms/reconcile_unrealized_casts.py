@@ -34,7 +34,7 @@ class ReconcileUnrealizedCasts(RewritePattern):
         # with the current implementation of the pattern rewriter.
         # The rewriter is not notified of our deletions, so we need to
         # ignore casts that have already been removed earlier in the pass
-        #  (i.e: no parent anymore).
+        # (i.e: no parent anymore).
 
         if op.parent is not None:
             # casts that either have no uses or have at least
