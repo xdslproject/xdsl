@@ -267,6 +267,14 @@ class xDSLOptMain:
             action="store_true",
             help="Allow the parsing of unregistered dialects.",
         )
+
+        arg_parser.add_argument(
+            "--no-implicit-module",
+            default=False,
+            action="store_true",
+            help="Disable implicit addition of a top-level module op during parsing.",
+        )
+
         arg_parser.add_argument(
             "--split-input-file",
             default=False,
@@ -310,7 +318,7 @@ class xDSLOptMain:
                 self.ctx,
                 io.read(),
                 self.get_input_name(),
-            ).parse_module()
+            ).parse_module(not self.args.no_implicit_module)
 
         self.available_frontends["mlir"] = parse_mlir
 
