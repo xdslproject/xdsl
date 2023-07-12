@@ -11,7 +11,6 @@ pre-commit==3.3.3
 riscemu==2.1.0
 asv<0.6
 isort==5.12.0
-typing-extensions<4.8
 # pyright has to be the last line and fixed with `==`. The CI parses this file
 # in `.github/parse_pyright_version.py` and installs the according version for
 # typechecking.
