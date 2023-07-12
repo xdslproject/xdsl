@@ -64,19 +64,26 @@ class LowerSyscallOp(RewritePattern):
 class LowerRISCVFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
-        body = op.func_body.block
-        first_op = body.first_op
-        assert first_op is not None
-        while len(body.args):
-            # arguments are passed to riscv functions via a0, a1, ...
-            # replace arguments with `GetRegisterOp`s
-            index = len(body.args) - 1
-            last_arg = body.args[-1]
-            get_reg_op = riscv.GetRegisterOp(riscv.Register(f"a{index}"))
-            last_arg.replace_by(get_reg_op.res)
-            rewriter.insert_op_before(get_reg_op, first_op)
-            first_op = get_reg_op
-            rewriter.erase_block_argument(last_arg)
+        # TODO CFToRISCV lowering
+        # body = op.func_body.block
+        # first_op = body.first_op
+        # assert first_op is not None
+        for body in op.func_body.blocks:
+            first_op = body.first_op
+            # assert first_op is not None
+            if first_op is None:
+                pass
+            else:
+                while len(body.args):
+                    # arguments are passed to riscv functions via a0, a1, ...
+                    # replace arguments with `GetRegisterOp`s
+                    index = len(body.args) - 1
+                    last_arg = body.args[-1]
+                    get_reg_op = riscv.GetRegisterOp(riscv.Register(f"a{index}"))
+                    last_arg.replace_by(get_reg_op.res)
+                    rewriter.insert_op_before(get_reg_op, first_op)
+                    first_op = get_reg_op
+                    rewriter.erase_block_argument(last_arg)
 
         label_body = rewriter.move_region_contents_to_new_regions(op.func_body)
 
