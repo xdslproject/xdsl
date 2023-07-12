@@ -11,10 +11,8 @@ from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
 
 
-def _try_remove_cast(op: builtin.UnrealizedConversionCastOp):
-    # We remove several casts in a single pass, which should not happen
-    # with the current implementation of the pattern rewriter.
-    # The rewriter is not notified of our deletions, so we need to
+def _try_remove_cast_chain(op: builtin.UnrealizedConversionCastOp):
+    # We remove several casts in a single pass, so we need to
     # ignore casts that have already been removed earlier in the pass
     # (i.e: no parent anymore).
 
@@ -99,7 +97,7 @@ def reconcile_unrealized_casts(module: ModuleOp):
         lambda op: isinstance(op, builtin.UnrealizedConversionCastOp), module.walk()
     ):
         assert isinstance(op, builtin.UnrealizedConversionCastOp)
-        _try_remove_cast(op)
+        _try_remove_cast_chain(op)
 
 
 class ReconcileUnrealizedCastsPass(ModulePass):
