@@ -93,10 +93,9 @@ def reconcile_unrealized_casts(module: ModuleOp):
     Removes all `builtin.unrealized_conversion_cast` operations
     that are not needed anymore in a module.
     """
-    for op in filter(
-        lambda op: isinstance(op, builtin.UnrealizedConversionCastOp), module.walk()
-    ):
-        assert isinstance(op, builtin.UnrealizedConversionCastOp)
+    for op in module.walk():
+        if not isinstance(op, builtin.UnrealizedConversionCastOp):
+            continue
         _try_remove_cast_chain(op)
 
 
