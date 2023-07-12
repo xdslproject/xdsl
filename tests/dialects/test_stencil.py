@@ -95,8 +95,8 @@ def test_stencil_return_multiple_ResultType():
 
 
 def test_stencil_cast_op_verifier():
-    typ = FieldType(3, f32)
-    field = TestSSAValue(typ)
+    field_type = FieldType(3, f32)
+    field = TestSSAValue(field_type)
 
     # check that correct op verifies correctly
     cast = CastOp.get(field, StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))))
@@ -624,10 +624,10 @@ def test_external_store():
 
 def test_buffer():
     temp = TestSSAValue(TempType((5), f32))
-    res_typ = TempType((5), f32)
+    res_type = TempType((5), f32)
 
-    buffer = BufferOp.build(operands=[temp], result_types=[res_typ])
+    buffer = BufferOp.build(operands=[temp], result_types=[res_type])
 
     assert isinstance(buffer, BufferOp)
     assert buffer.temp == temp
-    assert buffer.res.type == res_typ
+    assert buffer.res.type == res_type

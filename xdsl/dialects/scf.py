@@ -197,12 +197,12 @@ class ParallelOp(IRDLOperation):
         # matches the corresponding initVals type
         num_reductions = self.count_number_reduction_ops()
         for reduction in range(num_reductions):
-            typ = self.get_arg_type_of_nth_reduction_op(reduction)
+            arg_type = self.get_arg_type_of_nth_reduction_op(reduction)
             initValsType = self.initVals[reduction].type
-            if initValsType != typ:
+            if initValsType != arg_type:
                 raise VerifyException(
                     f"Miss match on scf.parallel argument and reduction op type number {reduction} "
-                    f", parallel argment is of type {initValsType} whereas reduction operation is of type {typ}"
+                    f", parallel argment is of type {initValsType} whereas reduction operation is of type {arg_type}"
                 )
 
         # Ensure that scf.yield is the last operation in the block as this is required
@@ -232,12 +232,12 @@ class ParallelOp(IRDLOperation):
         # scf.parallel result type (there is no result type on scf.reduce, hence we check the
         # operand type)
         for reduction in range(num_reductions):
-            typ = self.get_arg_type_of_nth_reduction_op(reduction)
-            resultType = self.res[reduction].type
-            if resultType != typ:
+            arg_type = self.get_arg_type_of_nth_reduction_op(reduction)
+            res_type = self.res[reduction].type
+            if res_type != arg_type:
                 raise VerifyException(
                     f"Miss match on scf.parallel result type and reduction op type number {reduction} "
-                    f", parallel argment is of type {resultType} whereas reduction operation is of type {typ}"
+                    f", parallel argment is of type {res_type} whereas reduction operation is of type {arg_type}"
                 )
 
     def count_number_reduction_ops(self) -> int:

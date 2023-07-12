@@ -28,12 +28,12 @@ def check_emitted_function_signature(
     call = extract_func_call(ops, name)
     assert call is not None, f"Missing {func.Call.name} op to {name} in output!"
     assert len(call.arguments) == len(types)
-    for arg, typ in zip(call.arguments, types):
+    for arg, arg_type in zip(call.arguments, types):
         # check that the argument type is correct (if constraint present)
-        if typ is not None:
+        if arg_type is not None:
             assert isinstance(
-                arg.type, typ
-            ), f"Expected argument to be of type {typ} (got {arg.type} instead)"
+                arg.type, arg_type
+            ), f"Expected argument to be of type {arg_type} (got {arg.type} instead)"
 
 
 @irdl_op_definition
@@ -484,8 +484,8 @@ def test_mpi_type_conversion():
         for sign in (Signedness.UNSIGNED, Signedness.SIGNLESS, Signedness.SIGNED):
             sign_str = "UNSIGNED_" if sign == Signedness.UNSIGNED else ""
             name = "CHAR" if width == 8 else "SHORT"
-            typ = IntegerType(width, sign)
-            checks.append((typ, getattr(info, f"MPI_{sign_str}{name}")))
+            mpi_type = IntegerType(width, sign)
+            checks.append((mpi_type, getattr(info, f"MPI_{sign_str}{name}")))
 
     for type, target in checks:
         # we test a private member function here, so we ignore pyright
