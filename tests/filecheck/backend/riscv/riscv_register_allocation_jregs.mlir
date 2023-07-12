@@ -1,12 +1,12 @@
 // RUN: xdsl-opt -p riscv-allocate-registers{allocation_strategy=GlobalJRegs} %s --print-op-generic | filecheck %s
 
 "builtin.module"() ({
-  %0 = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<>
+  %0 = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<x$>
   %1 = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<s0>
-  %3 = "riscv.fcvt.s.w"(%0) : (!riscv.reg<>) -> !riscv.freg<>
-  %4 = "riscv.fcvt.s.w"(%1) : (!riscv.reg<s0>) -> !riscv.freg<>
-  %5 = "riscv.fadd.s"(%3, %4) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-  %2 = "riscv.add"(%0, %1) : (!riscv.reg<>, !riscv.reg<s0>) -> !riscv.reg<>
+  %3 = "riscv.fcvt.s.w"(%0) : (!riscv.reg<x$>) -> !riscv.freg<f$>
+  %4 = "riscv.fcvt.s.w"(%1) : (!riscv.reg<s0>) -> !riscv.freg<f$>
+  %5 = "riscv.fadd.s"(%3, %4) : (!riscv.freg<f$>, !riscv.freg<f$>) -> !riscv.freg<f$>
+  %2 = "riscv.add"(%0, %1) : (!riscv.reg<x$>, !riscv.reg<s0>) -> !riscv.reg<x$>
 }) : () -> ()
 
 // CHECK:      "builtin.module"() ({
