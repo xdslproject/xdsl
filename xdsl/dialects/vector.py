@@ -180,17 +180,17 @@ class Maskedload(IRDLOperation):
     res: OpResult = result_def(VectorRankConstraint(1))
 
     def verify_(self):
-        memref_typ = self.memref.type
-        assert isa(memref_typ, MemRefType[Attribute])
-        memref_element_type = memref_typ.element_type
+        memref_type = self.memref.type
+        assert isa(memref_type, MemRefType[Attribute])
+        memref_element_type = memref_type.element_type
 
-        res_typ = self.res.type
-        assert isa(res_typ, VectorType[Attribute])
-        res_element_type = res_typ.element_type
+        res_type = self.res.type
+        assert isa(res_type, VectorType[Attribute])
+        res_element_type = res_type.element_type
 
-        passthrough_typ = self.passthrough.type
-        assert isa(passthrough_typ, VectorType[Attribute])
-        passthrough_element_type = passthrough_typ.element_type
+        passthrough_type = self.passthrough.type
+        assert isa(passthrough_type, VectorType[Attribute])
+        passthrough_element_type = passthrough_type.element_type
 
         if memref_element_type != res_element_type:
             raise VerifyException(
@@ -203,7 +203,7 @@ class Maskedload(IRDLOperation):
                 "element type. Found different element types for memref and passthrough."
             )
 
-        if memref_typ.get_num_dims() != len(self.indices):
+        if memref_type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each memref dimension.")
 
     @staticmethod
@@ -233,27 +233,27 @@ class Maskedstore(IRDLOperation):
     value_to_store: Operand = operand_def(VectorRankConstraint(1))
 
     def verify_(self):
-        memref_typ = self.memref.type
-        assert isa(memref_typ, MemRefType[Attribute])
-        memref_element_type = memref_typ.element_type
+        memref_type = self.memref.type
+        assert isa(memref_type, MemRefType[Attribute])
+        memref_element_type = memref_type.element_type
 
-        value_to_store_typ = self.value_to_store.type
-        assert isa(value_to_store_typ, VectorType[Attribute])
+        value_to_store_type = self.value_to_store.type
+        assert isa(value_to_store_type, VectorType[Attribute])
 
-        mask_typ = self.mask.type
-        assert isa(mask_typ, VectorType[Attribute])
+        mask_type = self.mask.type
+        assert isa(mask_type, VectorType[Attribute])
 
-        if memref_element_type != value_to_store_typ.element_type:
+        if memref_element_type != value_to_store_type.element_type:
             raise VerifyException(
                 "MemRef element type should match the stored vector type. "
                 "Obtained types were "
                 + str(memref_element_type)
                 + " and "
-                + str(value_to_store_typ.element_type)
+                + str(value_to_store_type.element_type)
                 + "."
             )
 
-        if memref_typ.get_num_dims() != len(self.indices):
+        if memref_type.get_num_dims() != len(self.indices):
             raise VerifyException("Expected an index for each memref dimension.")
 
     @staticmethod

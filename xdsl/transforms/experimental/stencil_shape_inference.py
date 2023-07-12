@@ -27,10 +27,12 @@ from xdsl.utils.hints import isa
 _OpT = TypeVar("_OpT", bound=Operation)
 
 
-def all_matching_uses(op_res: Iterable[SSAValue], typ: type[_OpT]) -> Iterable[_OpT]:
+def all_matching_uses(
+    op_res: Iterable[SSAValue], op_type: type[_OpT]
+) -> Iterable[_OpT]:
     for res in op_res:
         for use in res.uses:
-            if isinstance(use.operation, typ):
+            if isinstance(use.operation, op_type):
                 yield use.operation
 
 
@@ -48,10 +50,10 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
     for apply in applies:
         # assert apply.lb is not None and apply.ub is not None
         assert apply.res
-        res_typ = cast(TempType[Attribute], apply.res[0])
-        assert isinstance(res_typ.bounds, StencilBoundsAttr)
-        shape_lb = IndexAttr.min(res_typ.bounds.lb, shape_lb)
-        shape_ub = IndexAttr.max(res_typ.bounds.ub, shape_ub)
+        res_type = cast(TempType[Attribute], apply.res[0])
+        assert isinstance(res_type.bounds, StencilBoundsAttr)
+        shape_lb = IndexAttr.min(res_type.bounds.lb, shape_lb)
+        shape_ub = IndexAttr.max(res_type.bounds.ub, shape_ub)
 
     assert shape_lb is not None and shape_ub is not None
     return shape_lb, shape_ub
@@ -95,20 +97,20 @@ class AccessOpShapeInference(RewritePattern):
         assert op.temp.block.parent_op() is apply
         assert isa(apply.res[0].type, TempType[Attribute]), f"{apply.res[0]}"
 
-        temp_typ = op.temp.type
+        temp_type = op.temp.type
         temp_lb = None
         temp_ub = None
-        if isinstance(temp_typ.bounds, StencilBoundsAttr):
-            temp_lb = temp_typ.bounds.lb
-            temp_ub = temp_typ.bounds.ub
+        if isinstance(temp_type.bounds, StencilBoundsAttr):
+            temp_lb = temp_type.bounds.lb
+            temp_ub = temp_type.bounds.ub
         output_size = apply.res[0].type.bounds
         assert isinstance(output_size, StencilBoundsAttr)
 
         lb = IndexAttr.min(output_size.lb + op.offset, temp_lb)
         ub = IndexAttr.max(output_size.ub + op.offset, temp_ub)
-        ntyp = TempType(tuple(zip(lb, ub)), temp_typ.element_type)
+        ntype = TempType(tuple(zip(lb, ub)), temp_type.element_type)
 
-        op.temp.type = ntyp
+        op.temp.type = ntype
 
 
 class ApplyOpShapeInference(RewritePattern):
@@ -116,11 +118,11 @@ class ApplyOpShapeInference(RewritePattern):
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         if len(op.res) < 1:
             return
-        res_typ = op.res[0].type
-        assert isa(res_typ, TempType[Attribute])
-        assert isinstance(res_typ.bounds, StencilBoundsAttr)
-        ntyp = res_typ
-        assert isinstance(ntyp.bounds, StencilBoundsAttr)
+        res_type = op.res[0].type
+        assert isa(res_type, TempType[Attribute])
+        assert isinstance(res_type.bounds, StencilBoundsAttr)
+        ntype = res_type
+        assert isinstance(ntype.bounds, StencilBoundsAttr)
 
         for i, arg in enumerate(op.region.block.args):
             if not isa(arg.type, TempType[Attribute]):

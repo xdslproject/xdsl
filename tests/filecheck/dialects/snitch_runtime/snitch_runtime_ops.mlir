@@ -78,6 +78,44 @@
         // CHECK: transfer_id_4 = "snrt.dma_start_2d"(%dst_32, %src_32, %dst_stride, %src_stride, %size_2, %repeat) : (i32, i32, index, index, index, index) -> i32
         "snrt.dma_wait_all"() : () -> ()
         // CHECK: "snrt.dma_wait_all"() : () -> ()
+
+        // SSR Operations
+        %dm = "arith.constant"() {"value" = 0: i32} : () -> i32
+        %b0 = "arith.constant"() {"value" = 100: index} : () -> index
+        %i0 = "arith.constant"() {"value" = 101: index} : () -> index
+        "snrt.ssr_loop_1d"(%dm, %b0, %i0) {"operand_segment_sizes" = array<i32: 1, 1, 1>} : (i32, index, index) -> ()
+        // CHECK: "snrt.ssr_loop_1d"(%dm, %b0, %i0) {"operand_segment_sizes" = array<i32: 1, 1, 1>} : (i32, index, index) -> ()
+        %b1 = "arith.constant"() {"value" = 102: index} : () -> index
+        %i1 = "arith.constant"() {"value" = 103: index} : () -> index
+        "snrt.ssr_loop_2d"(%dm, %b0, %b1, %i0, %i1) {"operand_segment_sizes" = array<i32: 1, 2, 2>}  : (i32, index, index, index, index) -> ()
+        // CHECK: "snrt.ssr_loop_2d"(%dm, %b0, %b1, %i0, %i1) {"operand_segment_sizes" = array<i32: 1, 2, 2>}  : (i32, index, index, index, index) -> ()
+        %b2 = "arith.constant"() {"value" = 104: index} : () -> index
+        %i2 = "arith.constant"() {"value" = 105: index} : () -> index
+        "snrt.ssr_loop_3d"(%dm, %b0, %b1, %b2, %i0, %i1, %i2) {"operand_segment_sizes" = array<i32: 1, 3, 3>} : (i32, index, index, index, index, index, index) -> ()
+        // CHECK: "snrt.ssr_loop_3d"(%dm, %b0, %b1, %b2, %i0, %i1, %i2) {"operand_segment_sizes" = array<i32: 1, 3, 3>} : (i32, index, index, index, index, index, index) -> ()
+        %b3 = "arith.constant"() {"value" = 106: index} : () -> index
+        %i3 = "arith.constant"() {"value" = 107: index} : () -> index
+        "snrt.ssr_loop_4d"(%dm, %b0, %b1, %b2, %b3, %i0, %i1, %i2, %i3) {"operand_segment_sizes" = array<i32: 1, 4, 4>} : (i32, index, index, index, index, index, index, index, index) -> ()
+        //CHECK: "snrt.ssr_loop_4d"(%dm, %b0, %b1, %b2, %b3, %i0, %i1, %i2, %i3) {"operand_segment_sizes" = array<i32: 1, 4, 4>} : (i32, index, index, index, index, index, index, index, index) -> ()
+        %dm2 = "arith.constant"() {"value" = 1: i32} : () -> i32
+        %count = "arith.constant"() {"value" = 20: index} : () -> index
+        "snrt.ssr_repeat"(%dm2, %count) : (i32, index) -> ()
+        // CHECK: "snrt.ssr_repeat"(%dm2, %count) : (i32, index) -> ()
+        "snrt.ssr_enable"() : () -> ()
+        // CHECK: "snrt.ssr_enable"() : () -> ()
+        "snrt.ssr_disable"() : () -> ()
+        // CHECK: "snrt.ssr_disable"() : () -> ()
+        %dm3 = "arith.constant"() {"value" = 2: i32} : () -> i32
+        %dim = "arith.constant"() {"value" = 1: i32} : () -> i32
+        %ptr = "arith.constant"() {"value" = 0: i32} : () -> i32
+        "snrt.ssr_read"(%dm3, %dim, %ptr) : (i32, i32, i32) -> ()
+        // CHECK: "snrt.ssr_read"(%dm3, %dim, %ptr) : (i32, i32, i32) -> ()
+        "snrt.ssr_write"(%dm3, %dim, %ptr) : (i32, i32, i32) -> ()
+        // CHECK: "snrt.ssr_write"(%dm3, %dim, %ptr) : (i32, i32, i32) -> ()
+        "snrt.fpu_fence"() : () -> ()
+        // CHECK: "snrt.fpu_fence"() : () -> ()
+
+
         "func.return"() : () -> ()
     }) {"sym_name" = "main", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
 }) : () -> ()

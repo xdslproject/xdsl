@@ -156,11 +156,11 @@ class AllocOp(IRDLOperation):
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
         assert isinstance(self.result.type, memref.MemRefType)
-        typ: memref.MemRefType[Attribute] = self.result.type
-        ndyn_typ = len([i for i in typ.shape.data if i.value.data == -1])
-        if ndyn != ndyn_typ:
+        res_type: memref.MemRefType[Attribute] = self.result.type
+        ndyn_type = len([i for i in res_type.shape.data if i.value.data == -1])
+        if ndyn != ndyn_type:
             raise VerifyException(
-                f"Expected {ndyn_typ} dynamic sizes, got {ndyn}. All "
+                f"Expected {ndyn_type} dynamic sizes, got {ndyn}. All "
                 "dynamic sizes need to be set in the alloc operation."
             )
 

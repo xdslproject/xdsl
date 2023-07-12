@@ -589,8 +589,8 @@ class OperandDef(OperandOrResultDef):
     constr: AttrConstraint
     """The operand constraint."""
 
-    def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
-        self.constr = attr_constr_coercion(typ)
+    def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
+        self.constr = attr_constr_coercion(attr)
 
 
 Operand: TypeAlias = SSAValue
@@ -619,8 +619,8 @@ class ResultDef(OperandOrResultDef):
     constr: AttrConstraint
     """The result constraint."""
 
-    def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
-        self.constr = attr_constr_coercion(typ)
+    def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
+        self.constr = attr_constr_coercion(attr)
 
 
 @dataclass(init=False)
@@ -694,10 +694,10 @@ class AttributeDef:
 
     def __init__(
         self,
-        typ: Attribute | type[Attribute] | AttrConstraint,
+        attr: Attribute | type[Attribute] | AttrConstraint,
         attr_name: str | None = None,
     ):
-        self.constr = attr_constr_coercion(typ)
+        self.constr = attr_constr_coercion(attr)
         self.attr_name = attr_name
 
 
@@ -707,10 +707,10 @@ class OptAttributeDef(AttributeDef):
 
     def __init__(
         self,
-        typ: Attribute | type[Attribute] | AttrConstraint,
+        attr: Attribute | type[Attribute] | AttrConstraint,
         attr_name: str | None = None,
     ):
-        super().__init__(typ, attr_name=attr_name)
+        super().__init__(attr, attr_name=attr_name)
 
 
 class SuccessorDef:

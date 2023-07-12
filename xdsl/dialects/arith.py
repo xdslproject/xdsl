@@ -58,35 +58,38 @@ class Constant(IRDLOperation):
     value: Attribute = attr_def(Attribute)
 
     def __init__(self, value: AnyIntegerAttr | FloatAttr[AnyFloat]):
-        typ: IntegerType | IndexType | AnyFloat
+        value_type: IntegerType | IndexType | AnyFloat
         if isinstance(value, FloatAttr):
-            typ = value.type
+            value_type = value.type
         else:
-            typ = value.type
-        super().__init__(operands=[], result_types=[typ], attributes={"value": value})
+            value_type = value.type
+        super().__init__(
+            operands=[], result_types=[value_type], attributes={"value": value}
+        )
 
     @staticmethod
-    def from_attr(attr: Attribute, typ: Attribute) -> Constant:
-        return Constant.create(result_types=[typ], attributes={"value": attr})
+    def from_attr(attr: Attribute, value_type: Attribute) -> Constant:
+        return Constant.create(result_types=[value_type], attributes={"value": attr})
 
     @staticmethod
     def from_int_and_width(
-        val: int | IntAttr, typ: int | IntegerType | IndexType
+        value: int | IntAttr, value_type: int | IntegerType | IndexType
     ) -> Constant:
-        if isinstance(typ, int):
-            typ = IntegerType(typ)
+        if isinstance(value_type, int):
+            value_type = IntegerType(value_type)
         return Constant.create(
-            result_types=[typ], attributes={"value": IntegerAttr(val, typ)}
+            result_types=[value_type],
+            attributes={"value": IntegerAttr(value, value_type)},
         )
 
     # To add tests for this constructor
     @staticmethod
     def from_float_and_width(
-        val: float | FloatAttr[_FloatTypeT], typ: _FloatTypeT
+        value: float | FloatAttr[_FloatTypeT], value_type: _FloatTypeT
     ) -> Constant:
-        if isinstance(val, float):
-            val = FloatAttr(val, typ)
-        return Constant.create(result_types=[typ], attributes={"value": val})
+        if isinstance(value, float):
+            value = FloatAttr(value, value_type)
+        return Constant.create(result_types=[value_type], attributes={"value": value})
 
     def print(self, printer: Printer):
         attrs = self.attributes.copy()
@@ -575,8 +578,8 @@ class FPToSIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: IntegerType):
-        return FPToSIOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: IntegerType):
+        return FPToSIOp.build(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -587,8 +590,8 @@ class SIToFPOp(IRDLOperation):
     result: OpResult = result_def(AnyFloat)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: AnyFloat):
-        return SIToFPOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: AnyFloat):
+        return SIToFPOp.build(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -599,8 +602,8 @@ class ExtFOp(IRDLOperation):
     result: OpResult = result_def(AnyFloat)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: AnyFloat):
-        return ExtFOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: AnyFloat):
+        return ExtFOp.build(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -611,8 +614,8 @@ class TruncFOp(IRDLOperation):
     result: OpResult = result_def(AnyFloat)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: AnyFloat):
-        return ExtFOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: AnyFloat):
+        return ExtFOp.build(operands=[op], result_types=[target_type])
 
 
 Arith = Dialect(
