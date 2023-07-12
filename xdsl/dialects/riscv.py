@@ -1365,6 +1365,9 @@ class NopOp(NullaryOperation):
 
     name = "riscv.nop"
 
+    # TODO CFToRISCV lowering
+    traits = frozenset([IsTerminator()])
+
 
 # endregion
 
@@ -1397,6 +1400,9 @@ class JOp(RdImmJumpOperation):
     """
 
     name = "riscv.j"
+
+    # TODO CFToRISCV lowering
+    traits = frozenset([IsTerminator()])
 
     def __init__(
         self,
@@ -1470,6 +1476,9 @@ class BneOp(RsRsOffIntegerOperation):
     """
 
     name = "riscv.bne"
+
+    # TODO CFToRISCV lowering
+    traits = frozenset([IsTerminator()])
 
 
 @irdl_op_definition
@@ -1964,14 +1973,16 @@ class LabelOp(IRDLOperation, RISCVOp):
     name = "riscv.label"
     label: LabelAttr = attr_def(LabelAttr)
     comment: StringAttr | None = opt_attr_def(StringAttr)
-    data: OptRegion = opt_region_def("single_block")
+    # TODO CFToRISCV lowering
+    data: OptRegion = opt_region_def()
 
-    traits = frozenset([NoTerminator()])
+    # TODO CFToRISCV lowering
+    # traits = frozenset([NoTerminator()])
 
     def __init__(
         self,
         label: str | LabelAttr,
-        region: OptSingleBlockRegion = None,
+        region: OptRegion = None,
         *,
         comment: str | StringAttr | None = None,
     ):
