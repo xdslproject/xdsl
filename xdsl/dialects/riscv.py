@@ -150,8 +150,8 @@ class IntegerRegisterType(RegisterType):
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> Register:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> Register:
         name = parser.parse_optional_identifier()
         if name is None:
             return Register()
@@ -186,8 +186,8 @@ class FloatRegisterType(RegisterType):
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> Register:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> Register:
         name = parser.parse_optional_identifier()
         if name is None:
             return Register()
@@ -312,8 +312,8 @@ class SImm12Attr(IntegerAttr[IntegerType]):
 class LabelAttr(Data[str]):
     name = "riscv.label"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> str:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:

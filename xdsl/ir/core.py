@@ -423,9 +423,9 @@ class Data(Generic[DataElement], Attribute, ABC):
         Data[Any].__init__(attr, params)
         return attr
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def parse_parameter(parser: AttrParser) -> DataElement:
+    def parse_parameter(cls, parser: AttrParser) -> DataElement:
         """Parse the attribute parameter."""
 
     @abstractmethod
@@ -460,8 +460,8 @@ class ParametrizedAttribute(Attribute):
         ParametrizedAttribute.__init__(attr, params)
         return attr
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 

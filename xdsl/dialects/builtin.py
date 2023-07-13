@@ -125,8 +125,8 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
         super().__init__(tuple(param))
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> tuple[AttributeCovT]:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT]:
         data = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_attribute
         )
@@ -172,8 +172,8 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 class StringAttr(Data[str]):
     name = "string"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> str:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -221,8 +221,8 @@ class SymbolRefAttr(ParametrizedAttribute):
 class IntAttr(Data[int]):
     name = "int"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> int:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> int:
         data = parser.parse_integer()
         return data
 
@@ -244,8 +244,8 @@ class Signedness(Enum):
 class SignednessAttr(Data[Signedness]):
     name = "signedness"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> Signedness:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> Signedness:
         if parser.parse_optional_keyword("signless") is not None:
             return Signedness.SIGNLESS
         if parser.parse_optional_keyword("signed") is not None:
@@ -417,8 +417,8 @@ AnyFloat: TypeAlias = (
 class FloatData(Data[float]):
     name = "float_data"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> float:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> float:
         return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
@@ -482,8 +482,8 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 class DictionaryAttr(GenericData[dict[str, Attribute]]):
     name = "dictionary"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> dict[str, Attribute]:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> dict[str, Attribute]:
         return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -1075,8 +1075,8 @@ class AffineMapAttr(Data[AffineMap]):
 
     name = "affine_map"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> AffineMap:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> AffineMap:
         data = parser.parse_affine_map()
         return data
 
