@@ -13,10 +13,8 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.transforms.experimental.dmp.decompositions import DomainDecompositionStrategy
 from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
-    _grid_coords_from_rank,  # type: ignore[reportPrivateUsage]
-)
-from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
     DmpDecompositionPass,
+    _grid_coords_from_rank,  # type: ignore[reportPrivateUsage]
 )
 from xdsl.utils.hints import isa
 

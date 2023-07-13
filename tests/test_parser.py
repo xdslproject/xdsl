@@ -64,7 +64,7 @@ def test_dictionary_attr_with_keyword_missing(text: str):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
 
-    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() == None
+    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() is None
 
 
 @pytest.mark.parametrize(

@@ -550,10 +550,10 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
 
     assert isinstance(program, ModuleOp)
 
-    assert program.is_structurally_equivalent(program.regions[0]) == False
-    assert program.is_structurally_equivalent(program.regions[0].blocks[0]) == False
-    assert program.regions[0].is_structurally_equivalent(program) == False
-    assert program.regions[0].blocks[0].is_structurally_equivalent(program) == False
+    assert program.is_structurally_equivalent(program.regions[0]) is False
+    assert program.is_structurally_equivalent(program.regions[0].blocks[0]) is False
+    assert program.regions[0].is_structurally_equivalent(program) is False
+    assert program.regions[0].blocks[0].is_structurally_equivalent(program) is False
 
     func_op = program.ops.first
     assert func_op is not None
