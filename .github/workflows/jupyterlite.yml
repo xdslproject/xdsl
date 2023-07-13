@@ -24,7 +24,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install jupyterlite[all]==0.1.0b17 libarchive-c build pyodide-build==0.22.0
+          python -m pip install jupyterlite[all]==0.1.0 libarchive-c build pyodide-build==0.23.4
 
       - name: Build xDSL source distribution
         run: |
@@ -52,7 +52,7 @@ jobs:
 
           cd pyodide
           git fetch --all
-          git checkout 0.22.0a3
+          git checkout 0.23.4
           python -m pip install -U -r requirements.txt
           sudo apt update && sudo apt install f2c
 
