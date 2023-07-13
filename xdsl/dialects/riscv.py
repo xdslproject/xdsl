@@ -160,9 +160,13 @@ class RegisterType(Data[Register], TypeAttribute):
         printer.print_string(name)
 
     def verify(self) -> None:
-        if self.data.name is None or self.data.name.startswith("j"):
+        name = self.data.name
+        if name is None or name.startswith("j"):
             return
-        assert self.data.name in Register.RV32I_INDEX_BY_NAME.keys()
+        if name not in Register.RV32I_INDEX_BY_NAME.keys():
+            raise VerifyException(
+                f"{name} not in {Register.RV32I_INDEX_BY_NAME.keys()}"
+            )
 
 
 @irdl_attr_definition
@@ -196,9 +200,13 @@ class FloatRegisterType(Data[Register], TypeAttribute):
         printer.print_string(name)
 
     def verify(self) -> None:
-        if self.data.name is None or self.data.name.startswith("j"):
+        name = self.data.name
+        if name is None or name.startswith("j"):
             return
-        assert self.data.name in Register.RV32F_INDEX_BY_NAME.keys()
+        if name not in Register.RV32F_INDEX_BY_NAME.keys():
+            raise VerifyException(
+                f"{name} not in {Register.RV32F_INDEX_BY_NAME.keys()}"
+            )
 
 
 class Registers(ABC):
