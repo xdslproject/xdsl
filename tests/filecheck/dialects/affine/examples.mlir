@@ -12,8 +12,8 @@
       %val = "memref.load"(%ref, %i) : (memref<128xi32>, index) -> i32
       %res = "arith.addi"(%sum, %val) : (i32, i32) -> i32
       "affine.yield"(%res) : (i32) -> ()
-    }) {"lower_bound" = 0 : index, "upper_bound" = 256 : index, "step" = 1 : index} : (i32) -> i32
-    "func.return"(%r) : (i32) -> ()
+    }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : (i32) -> i32
+    func.return %r : i32
   }) {"sym_name" = "sum_vec", "function_type" = (memref<128xi32>) -> i32, "sym_visibility" = "private"} : () -> ()
 
   // CHECK:      "func.func"() ({
@@ -24,7 +24,7 @@
   // CHECK-NEXT:     %{{.*}} = "memref.load"(%{{.*}}, %{{.*}}) : (memref<128xi32>, index) -> i32
   // CHECK-NEXT:     %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
   // CHECK-NEXT:     "affine.yield"(%{{.*}}) : (i32) -> ()
-  // CHECK-NEXT:   }) {"lower_bound" = 0 : index, "upper_bound" = 256 : index, "step" = 1 : index} : (i32) -> i32
+  // CHECK-NEXT:   }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : (i32) -> i32
   // CHECK-NEXT:   "func.return"(%{{.*}}) : (i32) -> ()
   // CHECK-NEXT: }) {"sym_name" = "sum_vec", "function_type" = (memref<128xi32>) -> i32, "sym_visibility" = "private"} : () -> ()
 
@@ -45,9 +45,12 @@
           %9 = "arith.mulf"(%6, %7) : (f32, f32) -> f32
           %10 = "arith.addf"(%8, %9) : (f32, f32) -> f32
           "memref.store"(%10, %2, %3, %4) : (f32, memref<256x256xf32>, index, index) -> ()
-        }) {"lower_bound" = 0 : index, "upper_bound" = 256 : index, "step" = 1 : index} : () -> ()
-      }) {"lower_bound" = 0 : index, "upper_bound" = 256 : index, "step" = 1 : index} : () -> ()
-    }) {"lower_bound" = 0 : index, "upper_bound" = 256 : index, "step" = 1 : index} : () -> ()
+          "affine.yield"() : () -> ()
+        }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : () -> ()
+        "affine.yield"() : () -> ()
+      }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : () -> ()
+      "affine.yield"() : () -> ()
+    }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : () -> ()
     "func.return"(%2) : (memref<256x256xf32>) -> ()
   }) {"sym_name" = "affine_mm", "function_type" = (memref<256x256xf32>, memref<256x256xf32>, memref<256x256xf32>) -> memref<256x256xf32>, "sym_visibility" = "private"} : () -> ()
 
@@ -65,9 +68,12 @@
   //CHECK-NEXT:         %{{.*}} = "arith.mulf"(%{{.*}}, %{{.*}}) : (f32, f32) -> f32
   //CHECK-NEXT:         %{{.*}} = "arith.addf"(%{{.*}}, %{{.*}}) : (f32, f32) -> f32
   //CHECK-NEXT:         "memref.store"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) : (f32, memref<256x256xf32>, index, index) -> ()
-  //CHECK-NEXT:       }) {"lower_bound" = 0 : index, "upper_bound" = 256 : index, "step" = 1 : index} : () -> ()
-  //CHECK-NEXT:     }) {"lower_bound" = 0 : index, "upper_bound" = 256 : index, "step" = 1 : index} : () -> ()
-  //CHECK-NEXT:   }) {"lower_bound" = 0 : index, "upper_bound" = 256 : index, "step" = 1 : index} : () -> ()
+  //CHECK-NEXT:         "affine.yield"() : () -> ()
+  //CHECK-NEXT:       }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : () -> ()
+  //CHECK-NEXT:       "affine.yield"() : () -> ()
+  //CHECK-NEXT:     }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : () -> ()
+  //CHECK-NEXT:     "affine.yield"() : () -> ()
+  //CHECK-NEXT:   }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : () -> ()
   //CHECK-NEXT:   "func.return"(%{{.*}}) : (memref<256x256xf32>) -> ()
   //CHECK-NEXT: }) {"sym_name" = "affine_mm", "function_type" = (memref<256x256xf32>, memref<256x256xf32>, memref<256x256xf32>) -> memref<256x256xf32>, "sym_visibility" = "private"} : () -> ()
 

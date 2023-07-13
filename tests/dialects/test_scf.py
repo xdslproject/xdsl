@@ -1,33 +1,84 @@
-import pytest
+"""
+Test the usage of scf dialect.
+"""
+
 from typing import cast
+
+import pytest
+
 from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import Region, IndexType, ModuleOp, i32, i64
+from xdsl.dialects.builtin import IndexType, ModuleOp, Region, i32, i64
 from xdsl.dialects.cf import Block
-from xdsl.dialects.scf import For, ParallelOp, If, Yield, ReduceOp, ReduceReturnOp
-from xdsl.utils.exceptions import VerifyException, DiagnosticException
+from xdsl.dialects.scf import For, If, ParallelOp, ReduceOp, ReduceReturnOp, Yield
+from xdsl.dialects.test import TestTermOp
+from xdsl.ir.core import BlockArgument
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
-def test_for():
-    lb = Constant.from_int_and_width(0, IndexType())
-    ub = Constant.from_int_and_width(42, IndexType())
+def test_for_with_loop_carried_verify():
+    """Test for with loop-carried variables"""
+
+    lower = Constant.from_int_and_width(0, IndexType())
+    upper = Constant.from_int_and_width(42, IndexType())
     step = Constant.from_int_and_width(3, IndexType())
     carried = Constant.from_int_and_width(1, IndexType())
-    bodyblock = Block(arg_types=[IndexType()])
-    body = Region(bodyblock)
-    f = For.get(lb, ub, step, [carried], body)
 
-    assert f.lb is lb.result
-    assert f.ub is ub.result
-    assert f.step is step.result
-    assert f.iter_args == tuple([carried.result])
-    assert f.body is body
+    @Builder.implicit_region((IndexType(), IndexType()))
+    def body(_: tuple[BlockArgument, ...]) -> None:
+        Yield.get(carried)
 
-    assert len(f.results) == 1
-    assert f.results[0].typ == carried.result.typ
-    assert f.operands == (lb.result, ub.result, step.result, carried.result)
-    assert f.regions == [body]
-    assert f.attributes == {}
+    for_op = For.get(lower, upper, step, [carried], body)
+
+    assert for_op.lb is lower.result
+    assert for_op.ub is upper.result
+    assert for_op.step is step.result
+    assert for_op.iter_args == tuple([carried.result])
+    assert for_op.body is body
+
+    assert len(for_op.results) == 1
+    assert for_op.results[0].type == carried.result.type
+    assert tuple(for_op.operands) == (
+        lower.result,
+        upper.result,
+        step.result,
+        carried.result,
+    )
+    assert for_op.regions == [body]
+    assert for_op.attributes == {}
+
+    for_op.verify()
+
+
+def test_for_without_loop_carried_verify():
+    """Test for without loop-carried variables"""
+
+    lower = Constant.from_int_and_width(0, IndexType())
+    upper = Constant.from_int_and_width(42, IndexType())
+    step = Constant.from_int_and_width(3, IndexType())
+
+    @Builder.implicit_region((IndexType(),))
+    def body(_: tuple[BlockArgument, ...]) -> None:
+        Yield.get()
+
+    for_op = For.get(lower, upper, step, [], body)
+
+    assert for_op.lb is lower.result
+    assert for_op.ub is upper.result
+    assert for_op.step is step.result
+    assert for_op.iter_args == tuple()
+    assert for_op.body is body
+
+    assert len(for_op.results) == 0
+    assert tuple(for_op.operands) == (
+        lower.result,
+        upper.result,
+        step.result,
+    )
+    assert for_op.regions == [body]
+    assert for_op.attributes == {}
+
+    for_op.verify()
 
 
 def test_parallel_no_init_vals():
@@ -234,15 +285,18 @@ def test_parallel_verify_yield_last_op():
     # This should verify
     p.verify()
 
-    p2 = ParallelOp.get([lbi], [ubi], [si], Region(Block(arg_types=[IndexType()])))
-    with pytest.raises(VerifyException):
+    # TODO this should be removed once SingleBlockImplicitTerminator is
+    # implemented
+    # gh issue: https://github.com/xdslproject/xdsl/issues/1148
+    b2 = Block(arg_types=[IndexType()])
+    b2.add_op(Constant.from_int_and_width(1, IndexType()))
+    b2.add_op(TestTermOp.create())
+    p2 = ParallelOp.get([lbi], [ubi], [si], Region(b2))
+    with pytest.raises(
+        VerifyException,
+        match="scf.parallel region must terminate with an scf.yield",
+    ):
         p2.verify()
-
-    b3 = Block(arg_types=[IndexType()])
-    b3.add_op(Constant.from_int_and_width(1, IndexType()))
-    p3 = ParallelOp.get([lbi], [ubi], [si], Region(b3))
-    with pytest.raises(VerifyException):
-        p3.verify()
 
 
 def test_parallel_verify_yield_zero_ops():
@@ -298,31 +352,55 @@ def test_reduce_op():
     reduce_op = ReduceOp.get(init_val, Block(arg_types=[i32, i32]))
 
     assert reduce_op.argument is init_val.results[0]
-    assert reduce_op.argument.typ is i32
+    assert reduce_op.argument.type is i32
     assert len(reduce_op.body.blocks) == 1
     assert len(reduce_op.body.block.args) == 2
-    assert reduce_op.body.block.args[0].typ == reduce_op.body.block.args[0].typ == i32
+    assert reduce_op.body.block.args[0].type == reduce_op.body.block.args[0].type == i32
 
 
 def test_reduce_op_num_block_args():
     init_val = Constant.from_int_and_width(10, i32)
+    reduce_constant = Constant.from_int_and_width(100, i32)
 
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[i32, i32, i32])).verify()
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[i32])).verify()
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[])).verify()
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce block must have exactly two arguments, but ",
+    ):
+        rro = ReduceReturnOp.get(reduce_constant)
+        ReduceOp.get(init_val, Block([rro], arg_types=[i32, i32, i32])).verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce block must have exactly two arguments, but ",
+    ):
+        rro = ReduceReturnOp.get(reduce_constant)
+        ReduceOp.get(init_val, Block([rro], arg_types=[i32])).verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce block must have exactly two arguments, but ",
+    ):
+        rro = ReduceReturnOp.get(reduce_constant)
+        ReduceOp.get(init_val, Block([rro], arg_types=[])).verify()
 
 
 def test_reduce_op_num_block_arg_types():
     init_val = Constant.from_int_and_width(10, i32)
+    reduce_constant = Constant.from_int_and_width(100, i32)
 
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[i32, i64])).verify()
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce block argument types must be the same but have",
+    ):
+        rro = ReduceReturnOp.get(reduce_constant)
+        ReduceOp.get(init_val, Block([rro], arg_types=[i32, i64])).verify()
 
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[i64, i32])).verify()
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce block argument types must be the same but have",
+    ):
+        rro = ReduceReturnOp.get(reduce_constant)
+        ReduceOp.get(init_val, Block([rro], arg_types=[i64, i32])).verify()
 
 
 def test_reduce_op_num_block_arg_types_match_operand_type():
@@ -341,14 +419,13 @@ def test_reduce_return_op_at_end():
     init_val = Constant.from_int_and_width(10, i32)
     ReduceOp.get(init_val, reduce_block).verify()
 
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, Block(arg_types=[i32, i32])).verify()
-
-    reduce_constant.detach()
-    reduce_block2 = Block(arg_types=[i32, i32])
-    reduce_block2.add_ops([reduce_constant])
-    with pytest.raises(VerifyException):
-        ReduceOp.get(init_val, reduce_block2).verify()
+    with pytest.raises(
+        VerifyException,
+        match="Block inside scf.reduce must terminate with an scf.reduce.return",
+    ):
+        ReduceOp.get(
+            init_val, Block([TestTermOp.create()], arg_types=[i32, i32])
+        ).verify()
 
 
 def test_reduce_return_type_is_arg_type():
@@ -367,37 +444,22 @@ def test_reduce_return_op():
     rro = ReduceReturnOp.get(reduce_constant)
 
     assert rro.result is reduce_constant.results[0]
-    assert rro.result.typ is i32
+    assert rro.result.type is i32
 
 
-def test_reduce_return_op_not_part_of_reduce():
+def test_reduce_return_type_is_operand_type():
     reduce_constant = Constant.from_int_and_width(100, i32)
-    rro = ReduceReturnOp.get(reduce_constant)
-    with pytest.raises(Exception):
-        rro.verify()
+    reduce_constant_wrong_type = Constant.from_int_and_width(100, i64)
+    rro = ReduceReturnOp.get(reduce_constant_wrong_type)
     reduce_block = Block(arg_types=[i32, i32])
     reduce_block.add_ops([reduce_constant, rro])
-    with pytest.raises(Exception):
-        rro.verify()
-    region = Region(reduce_block)
-    with pytest.raises(Exception):
-        rro.verify()
 
-    region.detach_block(reduce_block)
     init_val = Constant.from_int_and_width(10, i32)
-    ReduceOp.get(init_val, reduce_block)
-    rro.verify()
-
-
-def test_reduce_return_op_not_at_end():
-    reduce_constant = Constant.from_int_and_width(100, i32)
-    rro = ReduceReturnOp.get(reduce_constant)
-    reduce_block = Block(arg_types=[i32, i32])
-    reduce_block.add_ops([rro, reduce_constant])
-    init_val = Constant.from_int_and_width(10, i32)
-    ReduceOp.get(init_val, reduce_block)
-    with pytest.raises(VerifyException):
-        rro.verify()
+    with pytest.raises(
+        VerifyException,
+        match="scf.reduce.return result type at end of scf.reduce block must",
+    ):
+        ReduceOp.get(init_val, reduce_block).verify()
 
 
 def test_empty_else():

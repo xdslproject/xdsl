@@ -4,21 +4,31 @@ Test the definition and usage of traits and interfaces.
 
 from __future__ import annotations
 
-import pytest
-
 from abc import ABC
 from dataclasses import dataclass
 
-from xdsl.ir import OpResult, OpTrait, Operation
+import pytest
+
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    IntegerAttr,
+    IntegerType,
+    StringAttr,
+    i1,
+    i32,
+    i64,
+)
+from xdsl.ir import Operation, OpResult, OpTrait
 from xdsl.irdl import (
-    Operand,
-    irdl_op_definition,
     IRDLOperation,
+    Operand,
+    attr_def,
+    irdl_op_definition,
     operand_def,
     result_def,
 )
+from xdsl.traits import SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
-from xdsl.dialects.builtin import IntegerType, i1, i32, i64
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -39,9 +49,9 @@ class LargerOperandTrait(OpTrait):
         # These asserts should be exceptions in a non-testing environment.
         assert len(op.results) == 1
         assert len(op.operands) == 1
-        assert isinstance(op.results[0].typ, IntegerType)
-        assert isinstance(op.operands[0].typ, IntegerType)
-        if op.results[0].typ.width.data >= op.operands[0].typ.width.data:
+        assert isinstance(op.results[0].type, IntegerType)
+        assert isinstance(op.operands[0].type, IntegerType)
+        if op.results[0].type.width.data >= op.operands[0].type.width.data:
             raise VerifyException(
                 "Operation has a result bitwidth greater "
                 "or equal to the operand bitwidth."
@@ -65,12 +75,12 @@ class BitwidthSumLessThanTrait(OpTrait):
         sum_bitwidth = 0
         for operand in op.operands:
             # This assert should be an exception in a non-testing environment.
-            assert isinstance(operand.typ, IntegerType)
-            sum_bitwidth += operand.typ.width.data
+            assert isinstance(operand.type, IntegerType)
+            sum_bitwidth += operand.type.width.data
         for result in op.results:
             # This assert should be an exception in a non-testing environment.
-            assert isinstance(result.typ, IntegerType)
-            sum_bitwidth += result.typ.width.data
+            assert isinstance(result.type, IntegerType)
+            sum_bitwidth += result.type.width.data
 
         if sum_bitwidth >= self.max_sum:
             raise VerifyException(
@@ -240,3 +250,48 @@ def test_get_trait_specialized():
     assert OpWithInterface.get_traits_of_type(GetNumResultsTrait) == [
         GetNumResultsTraitForOpWithOneResult()
     ]
+
+
+def test_symbol_op_interface():
+    """
+    Test that operations that conform to SymbolOpInterface have necessary attributes.
+    """
+
+    @irdl_op_definition
+    class NoSymNameOp(IRDLOperation):
+        name = "no_sym_name"
+        traits = frozenset((SymbolOpInterface(),))
+
+    op0 = NoSymNameOp()
+
+    with pytest.raises(
+        VerifyException, match='Operation no_sym_name must have a "sym_name" attribute'
+    ):
+        op0.verify()
+
+    @irdl_op_definition
+    class SymNameWrongTypeOp(IRDLOperation):
+        name = "wrong_sym_name_type"
+
+        sym_name: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+        traits = frozenset((SymbolOpInterface(),))
+
+    op1 = SymNameWrongTypeOp(
+        attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)}
+    )
+
+    with pytest.raises(
+        VerifyException,
+        match='Operation wrong_sym_name_type must have a "sym_name" attribute',
+    ):
+        op1.verify()
+
+    @irdl_op_definition
+    class SymNameOp(IRDLOperation):
+        name = "sym_name"
+
+        sym_name = attr_def(StringAttr)
+        traits = frozenset((SymbolOpInterface(),))
+
+    op2 = SymNameOp(attributes={"sym_name": StringAttr("symbol_name")})
+    op2.verify()

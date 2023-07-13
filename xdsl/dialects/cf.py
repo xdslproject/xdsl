@@ -1,24 +1,24 @@
 from __future__ import annotations
-from collections.abc import Sequence
 
-from typing import Union, Sequence
+from collections.abc import Sequence
+from typing import Sequence
 
 from xdsl.dialects.builtin import IntegerType, StringAttr
-from xdsl.ir import SSAValue, Operation, Block, Dialect
-from xdsl.traits import IsTerminator
+from xdsl.ir import Block, Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    attr_def,
-    irdl_op_definition,
-    VarOperand,
     AnyAttr,
-    Operand,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
     Successor,
+    VarOperand,
+    attr_def,
+    irdl_op_definition,
     operand_def,
     successor_def,
     var_operand_def,
 )
+from xdsl.traits import IsTerminator
 
 
 @irdl_op_definition
@@ -44,7 +44,7 @@ class Branch(IRDLOperation):
     traits = frozenset([IsTerminator()])
 
     @staticmethod
-    def get(dest: Block, *ops: Union[Operation, SSAValue]) -> Branch:
+    def get(dest: Block, *ops: Operation | SSAValue) -> Branch:
         return Branch.build(operands=[[op for op in ops]], successors=[dest])
 
 
@@ -65,11 +65,11 @@ class ConditionalBranch(IRDLOperation):
 
     @staticmethod
     def get(
-        cond: Union[Operation, SSAValue],
+        cond: Operation | SSAValue,
         then_block: Block,
-        then_ops: Sequence[Union[Operation, SSAValue]],
+        then_ops: Sequence[Operation | SSAValue],
         else_block: Block,
-        else_ops: Sequence[Union[Operation, SSAValue]],
+        else_ops: Sequence[Operation | SSAValue],
     ) -> ConditionalBranch:
         return ConditionalBranch.build(
             operands=[cond, then_ops, else_ops], successors=[then_block, else_block]

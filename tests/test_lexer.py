@@ -1,7 +1,7 @@
 import pytest
 
-from xdsl.utils.lexer import Input, Lexer, Token
 from xdsl.utils.exceptions import ParseError
+from xdsl.utils.lexer import Input, Lexer, Token
 
 
 def get_token(input: str) -> Token:

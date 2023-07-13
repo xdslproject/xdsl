@@ -1,16 +1,10 @@
 import pytest
-
 from conftest import assert_print_op
+
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects.arith import Addi, Constant
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    i32,
-    ModuleOp,
-    i64,
-    IntegerType,
-)
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32, i64
+from xdsl.dialects.func import Call, FuncOp, Return
 from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import VerifyException
 
@@ -93,6 +87,7 @@ def test_wrong_blockarg_types():
     b = Block(arg_types=(i32,))
     with ImplicitBuilder(b) as (arg0,):
         Addi(arg0, arg0)
+        Return()
     r = Region(b)
     f = FuncOp.from_region("f", [i32, i32], [], r)
 
@@ -111,21 +106,21 @@ def test_func_rewriting_helpers():
     """
     func = FuncOp("test", ((i32, i32, i32), ()))
     with ImplicitBuilder(func.body):
-        Return.get()
+        Return()
 
     func.replace_argument_type(2, i64)
     assert func.function_type.inputs.data[2] is i64
-    assert func.args[2].typ is i64
+    assert func.args[2].type is i64
 
     func.replace_argument_type(func.args[0], i64)
     assert func.function_type.inputs.data[0] is i64
-    assert func.args[0].typ is i64
+    assert func.args[0].type is i64
 
     # check negaitve index
     i8 = IntegerType(8)
     func.replace_argument_type(-2, i8)
     assert func.function_type.inputs.data[1] is i8
-    assert func.args[1].typ is i8
+    assert func.args[1].type is i8
 
     with pytest.raises(IndexError):
         func.replace_argument_type(3, i64)
@@ -143,7 +138,7 @@ def test_func_rewriting_helpers():
 def test_func_get_return_op():
     func_w_ret = FuncOp("test", ((i32, i32, i32), ()))
     with ImplicitBuilder(func_w_ret.body) as (a, _, _):
-        Return.get(a)
+        Return(a)
 
     func = FuncOp("test", ((i32, i32, i32), ()))
 
@@ -167,11 +162,11 @@ def test_call():
     b = Constant.from_int_and_width(2, i32)
 
     # Create a block using the types of a, b
-    block0 = Block(arg_types=[a.result.typ, b.result.typ])
+    block0 = Block(arg_types=[a.result.type, b.result.type])
     # Create a Addi operation to use the args of the block
     c = Addi(block0.args[0], block0.args[1])
     # Create a return operation and add it in the block
-    ret0 = Return.get(c)
+    ret0 = Return(c)
     block0.add_ops([c, ret0])
     # Create a region with the block
     region = Region(block0)
@@ -179,12 +174,12 @@ def test_call():
     # Create a func0 that gets the block args as arguments, returns the resulting
     # type of c and has the region as body
     func0 = FuncOp.from_region(
-        "func0", [block0.args[0].typ, block0.args[1].typ], [c.result.typ], region
+        "func0", [block0.args[0].type, block0.args[1].type], [c.result.type], region
     )
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
-    call0 = Call.get(func0.sym_name.data, [a, b], [ret0.arguments[0].typ])
+    call0 = Call.get(func0.sym_name.data, [a, b], [ret0.arguments[0].type])
 
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, b, call0])
@@ -215,22 +210,22 @@ def test_call_II():
     a = Constant.from_int_and_width(1, i32)
 
     # Create a block using the type of a
-    block0 = Block(arg_types=[a.result.typ])
+    block0 = Block(arg_types=[a.result.type])
     # Create a Addi operation to use the args of the block
     c = Addi(block0.args[0], block0.args[0])
     # Create a return operation and add it in the block
-    ret0 = Return.get(c)
+    ret0 = Return(c)
     block0.add_ops([c, ret0])
     # Create a region with the block
     region = Region(block0)
 
     # Create a func0 that gets the block args as arguments, returns the resulting
     # type of c and has the region as body
-    func0 = FuncOp.from_region("func1", [block0.args[0].typ], [c.result.typ], region)
+    func0 = FuncOp.from_region("func1", [block0.args[0].type], [c.result.type], region)
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
-    call0 = Call.get(func0.sym_name.data, [a], [ret0.arguments[0].typ])
+    call0 = Call.get(func0.sym_name.data, [a], [ret0.arguments[0].type])
 
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, call0])
@@ -259,7 +254,7 @@ def test_return():
     c = Constant.from_int_and_width(3, i32)
 
     # Use these operations to create a Return operation
-    ret0 = Return.get(a, b, c)
+    ret0 = Return(a, b, c)
     assert len(ret0.operands) == 3
 
 

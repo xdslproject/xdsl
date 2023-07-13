@@ -1,8 +1,8 @@
 import pytest
-from xdsl.ir import Block
 
 import xdsl.dialects.pdl as pdl
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, StringAttr, i32, i64
+from xdsl.ir import Block
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -36,7 +36,7 @@ def test_build_anr():
     assert anr.attributes["name"] == StringAttr("anr")
     assert anr.args == (type_val,)
     assert len(anr.results) == 1
-    assert [r.typ for r in anr.results] == [attribute_type]
+    assert [r.type for r in anr.results] == [attribute_type]
 
 
 def test_build_rewrite():
@@ -106,7 +106,7 @@ def test_build_resultS():
 
     assert res.parent_ == op_val
     assert res.index is None
-    assert res.val.typ == pdl.RangeType(pdl.ValueType())
+    assert res.val.type == pdl.RangeType(pdl.ValueType())
 
 
 def test_build_results_with_index():
@@ -114,7 +114,7 @@ def test_build_results_with_index():
 
     assert res.parent_ == op_val
     assert res.index == IntegerAttr.from_int_and_width(1, 32)
-    assert res.val.typ == pdl.RangeType(pdl.ValueType())
+    assert res.val.type == pdl.RangeType(pdl.ValueType())
 
 
 def test_build_results_with_index_and_type():
@@ -122,23 +122,23 @@ def test_build_results_with_index_and_type():
 
     assert res.parent_ == op_val
     assert res.index == IntegerAttr.from_int_and_width(1, 32)
-    assert res.val.typ == pdl.ValueType()
+    assert res.val.type == pdl.ValueType()
 
 
 def test_build_type():
-    typ = pdl.TypeOp()
-    assert typ.constantType is None
+    pdl_type = pdl.TypeOp()
+    assert pdl_type.constantType is None
 
-    typ = pdl.TypeOp(i32)
-    assert typ.constantType == i32
+    pdl_type = pdl.TypeOp(i32)
+    assert pdl_type.constantType == i32
 
 
 def test_build_types():
-    typ = pdl.TypesOp()
-    assert typ.constantTypes is None
+    pdl_type = pdl.TypesOp()
+    assert pdl_type.constantTypes is None
 
-    typ = pdl.TypesOp((i32, i64, i32))
-    assert typ.constantTypes == ArrayAttr((i32, i64, i32))
+    pdl_type = pdl.TypesOp((i32, i64, i32))
+    assert pdl_type.constantTypes == ArrayAttr((i32, i64, i32))
 
 
 def test_build_operand():
@@ -155,7 +155,7 @@ def test_range():
     range_op = pdl.RangeOp((val1, val2, val3))
 
     assert range_op.arguments == (val1, val2, val3)
-    assert range_op.result.typ == pdl.RangeType(pdl.ValueType())
+    assert range_op.result.type == pdl.RangeType(pdl.ValueType())
 
 
 def test_empty_range():
@@ -163,7 +163,7 @@ def test_empty_range():
     empty_range = pdl.RangeOp((), return_type)
 
     assert len(empty_range.arguments) == 0
-    assert empty_range.result.typ == return_type
+    assert empty_range.result.type == return_type
 
 
 def test_range_cannot_infer():

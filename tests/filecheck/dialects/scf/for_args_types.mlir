@@ -1,14 +1,23 @@
-// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s
+
 "builtin.module"() ({
-  %lb = "arith.constant"() {"value" = 0 : i32} : () -> index
-  %ub = "arith.constant"() {"value" = 42 : index} : () -> index
-  %step = "arith.constant"() {"value" = 7 : index} : () -> index
-  %lbi = "arith.constant"() {"value" = 0 : i32} : () -> i32
-  %ubi = "arith.constant"() {"value" = 42 : index} : () -> i32
-  %stepi = "arith.constant"() {"value" = 7 : index} : () -> i32
-// CHECK: i32 should be of base attribute index
-  "scf.for"(%lbi, %ub, %step) ({
+  %lbi = "test.op"() : () -> !test.type<"int">
+  %x:2 = "test.op"() : () -> (index, index) // ub, step
+// CHECK: !test.type<"int"> should be of base attribute index
+  "scf.for"(%lbi, %x#0, %x#1) ({
   ^0(%iv : index):
     "scf.yield"() : () -> ()
-  }) : (i32, index, index) -> ()
+  }) : (!test.type<"int">, index, index) -> ()
 }) : () -> ()
+
+// -----
+
+"builtin.module"() ({
+  %x:3 = "test.op"() : () -> (index, index, index) // lb, ub, step
+  "scf.for"(%x#0, %x#1, %x#2) ({
+  ^0(%iv : !test.type<"int">):
+    "scf.yield"() : () -> ()
+  }) : (index, index, index) -> ()
+}) : () -> ()
+
+// CHECK: The first block argument of the body is of type !test.type<"int"> instead of index

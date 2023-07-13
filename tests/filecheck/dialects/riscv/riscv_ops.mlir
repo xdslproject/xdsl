@@ -55,6 +55,7 @@
   // CHECK-NEXT: "riscv.nop"() : () -> ()
 
   // RV32I/RV64I: 2.5 Control Transfer Instructions
+  // terminators continue at the end of module
 
   // Unconditional Branch Instructions
   "riscv.jal"() {"immediate" = 1 : i32} : () -> ()
@@ -75,10 +76,6 @@
   // CHECK-NEXT: "riscv.jalr"(%0) {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : (!riscv.reg<>) -> ()
   "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
   // CHECK-NEXT: "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
-
-  "riscv.ret"() : () -> ()
-  // CHECK-NEXT: "riscv.ret"() : () -> ()
-
 
   // Conditional Branch Instructions
   "riscv.beq"(%0, %1) {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
@@ -194,4 +191,77 @@
   "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()
   // CHECK-NEXT: "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()
 
+  // RV32I/RV64I: 2.5 Control Transfer Instructions (cont'd)
+  // terminators
+
+  // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
+  %f0 = "riscv.get_float_register"() : () -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.get_float_register"() : () -> !riscv.freg<>
+  %f1 = "riscv.get_float_register"() : () -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.get_float_register"() : () -> !riscv.freg<>
+  %f2 = "riscv.get_float_register"() : () -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.get_float_register"() : () -> !riscv.freg<>
+
+  %fmadd_s = "riscv.fmadd.s"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fmadd.s"(%{{.*}}, %{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  %fmsub_s = "riscv.fmsub.s"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fmsub.s"(%{{.*}}, %{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  %fnmsub_s = "riscv.fnmsub.s"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fnmsub.s"(%{{.*}}, %{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  %fnmadd_s = "riscv.fnmadd.s"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fnmadd.s"(%{{.*}}, %{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+  %fadd_s = "riscv.fadd.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fadd.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  %fsub_s = "riscv.fsub.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fsub.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  %fmul_s = "riscv.fmul.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fmul.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  %fdiv_s = "riscv.fdiv.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fdiv.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  %fsqrt_s = "riscv.fsqrt.s"(%f0) : (!riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fsqrt.s"(%{{.*}}) : (!riscv.freg<>) -> !riscv.freg<>
+
+  %fsgnj_s = "riscv.fsgnj.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fsgnj.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  %fsgnjn_s = "riscv.fsgnjn.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fsgnjn.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  %fsgnjx_s = "riscv.fsgnjx.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fsgnjx.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+  %fmin_s = "riscv.fmin.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fmin.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  %fmax_s = "riscv.fmax.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fmax.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+  %fcvt_w_s = "riscv.fcvt.w.s"(%f0) : (!riscv.freg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fcvt.w.s"(%{{.*}}) : (!riscv.freg<>) -> !riscv.reg<>
+  %fcvt_wu_s = "riscv.fcvt.wu.s"(%f0) : (!riscv.freg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fcvt.wu.s"(%{{.*}}) : (!riscv.freg<>) -> !riscv.reg<>
+  %fmv_x_w = "riscv.fmv.x.w"(%f0) : (!riscv.freg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fmv.x.w"(%{{.*}}) : (!riscv.freg<>) -> !riscv.reg<>
+
+  %feq_s = "riscv.feq.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.feq.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.reg<>
+  %flt_s = "riscv.flt.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.flt.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.reg<>
+  %fle_s = "riscv.fle.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fle.s"(%{{.*}}, %{{.*}}) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.reg<>
+  %fclass_s = "riscv.fclass.s"(%f0) : (!riscv.freg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fclass.s"(%{{.*}}) : (!riscv.freg<>) -> !riscv.reg<>
+  %fcvt_s_w = "riscv.fcvt.s.w"(%0) : (!riscv.reg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fcvt.s.w"(%{{.*}}) : (!riscv.reg<>) -> !riscv.freg<>
+  %fcvt_s_wu = "riscv.fcvt.s.wu"(%0) : (!riscv.reg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fcvt.s.wu"(%{{.*}}) : (!riscv.reg<>) -> !riscv.freg<>
+  %fmv_w_x = "riscv.fmv.w.x"(%0) : (!riscv.reg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.fmv.w.x"(%{{.*}}) : (!riscv.reg<>) -> !riscv.freg<>
+
+  %flw = "riscv.flw"(%0) {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.freg<>
+  // CHECK-NEXT: %{{.*}} = "riscv.flw"(%{{.*}}) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.freg<>
+  "riscv.fsw"(%0, %f0) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.freg<>) -> ()
+  // CHECK-NEXT: "riscv.fsw"(%{{.*}}, %{{.*}}) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.freg<>) -> ()
+
+  // Unconditional Branch Instructions
+  "riscv.ret"() : () -> ()
+  // CHECK-NEXT: "riscv.ret"() : () -> ()
 }) : () -> ()

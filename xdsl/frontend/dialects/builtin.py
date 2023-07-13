@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import xdsl.dialects.builtin as builtin
+from typing import Any, Callable, Generic, Literal, TypeAlias, TypeVar
 
-from typing import Any, Callable, Generic, TypeAlias, TypeVar, Literal
+import xdsl.dialects.builtin as builtin
 from xdsl.dialects.builtin import Signedness
 
 

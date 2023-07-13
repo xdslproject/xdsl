@@ -1,16 +1,12 @@
 import argparse
 from pathlib import Path
 
-from xdsl.printer import Printer
 from xdsl.parser import Parser as IRParser
+from xdsl.printer import Printer
 
+from .compiler import context, transform
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser as ToyParser
-from .compiler import context
-from .rewrites.optimise_toy import OptimiseToy
-from .rewrites.shape_inference import ShapeInferencePass
-from .rewrites.inline_toy import InlineToyPass
-
 from .interpreter import Interpreter, ToyFunctions
 
 parser = argparse.ArgumentParser(description="Process Toy file")
@@ -20,23 +16,24 @@ parser.add_argument(
     dest="emit",
     choices=[
         "ast",
-        "ir-toy",
-        "ir-toy-opt",
-        "ir-toy-inline",
-        "ir-toy-infer-shapes",
-        "interpret",
+        "toy",
+        "toy-opt",
+        "toy-inline",
+        "toy-infer-shapes",
     ],
-    default="interpret",
-    help="Action to perform on source file (default: interpret)",
+    default="toy-infer-shapes",
+    help="Action to perform on source file (default: toy-infer-shapes)",
 )
+parser.add_argument("--ir", dest="ir", action="store_true")
+parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
 
 
-def main(path: Path, emit: str):
+def main(path: Path, emit: str, ir: bool, print_generic: bool):
     ctx = context()
 
     path = args.source
 
-    with open(path, "r") as f:
+    with open(path) as f:
         match path.suffix:
             case ".toy":
                 parser = ToyParser(path, f.read())
@@ -54,41 +51,20 @@ def main(path: Path, emit: str):
                 print(f"Unknown file format {path}")
                 return
 
-    if emit == "ir-toy":
-        printer = Printer()
+    transform(ctx, module_op, target=emit)
+
+    if ir:
+        printer = Printer(print_generic_format=print_generic)
         printer.print(module_op)
         return
 
-    OptimiseToy().apply(ctx, module_op)
-
-    if emit == "ir-toy-opt":
-        printer = Printer()
-        printer.print(module_op)
-        return
-
-    InlineToyPass().apply(ctx, module_op)
-
-    if emit == "ir-toy-inline":
-        printer = Printer()
-        printer.print(module_op)
-        return
-
-    ShapeInferencePass().apply(ctx, module_op)
-
-    if emit == "ir-toy-infer-shapes":
-        printer = Printer()
-        printer.print(module_op)
-        return
-
-    if emit == "interpret":
-        interpreter = Interpreter(module_op)
-        interpreter.register_implementations(ToyFunctions())
-        interpreter.run_module()
-        return
+    interpreter = Interpreter(module_op)
+    interpreter.register_implementations(ToyFunctions())
+    interpreter.call_op("main", ())
 
     print(f"Unknown option {emit}")
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.source, args.emit)
+    main(args.source, args.emit, args.ir, args.print_generic)

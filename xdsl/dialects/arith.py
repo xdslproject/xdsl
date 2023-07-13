@@ -4,29 +4,29 @@ from dataclasses import dataclass
 from typing import Annotated, Generic, TypeVar
 
 from xdsl.dialects.builtin import (
-    ContainerOf,
-    Float16Type,
-    Float64Type,
-    IndexType,
-    IntAttr,
-    IntegerType,
-    Float32Type,
-    IntegerAttr,
-    FloatAttr,
-    Attribute,
     AnyFloat,
     AnyIntegerAttr,
+    Attribute,
+    ContainerOf,
+    Float16Type,
+    Float32Type,
+    Float64Type,
+    FloatAttr,
+    IndexType,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
 )
 from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
-from xdsl.ir import Operation, SSAValue, Dialect, OpResult
+from xdsl.ir import Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AnyOf,
     ConstraintVar,
+    IRDLOperation,
+    Operand,
     attr_def,
     irdl_op_definition,
-    AnyAttr,
-    Operand,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     result_def,
@@ -35,6 +35,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
@@ -56,28 +57,62 @@ class Constant(IRDLOperation):
     result: OpResult = result_def(AnyAttr())
     value: Attribute = attr_def(Attribute)
 
+    def __init__(self, value: AnyIntegerAttr | FloatAttr[AnyFloat]):
+        value_type: IntegerType | IndexType | AnyFloat
+        if isinstance(value, FloatAttr):
+            value_type = value.type
+        else:
+            value_type = value.type
+        super().__init__(
+            operands=[], result_types=[value_type], attributes={"value": value}
+        )
+
     @staticmethod
-    def from_attr(attr: Attribute, typ: Attribute) -> Constant:
-        return Constant.create(result_types=[typ], attributes={"value": attr})
+    def from_attr(attr: Attribute, value_type: Attribute) -> Constant:
+        return Constant.create(result_types=[value_type], attributes={"value": attr})
 
     @staticmethod
     def from_int_and_width(
-        val: int | IntAttr, typ: int | IntegerType | IndexType
+        value: int | IntAttr, value_type: int | IntegerType | IndexType
     ) -> Constant:
-        if isinstance(typ, int):
-            typ = IntegerType(typ)
+        if isinstance(value_type, int):
+            value_type = IntegerType(value_type)
         return Constant.create(
-            result_types=[typ], attributes={"value": IntegerAttr(val, typ)}
+            result_types=[value_type],
+            attributes={"value": IntegerAttr(value, value_type)},
         )
 
     # To add tests for this constructor
     @staticmethod
     def from_float_and_width(
-        val: float | FloatAttr[_FloatTypeT], typ: _FloatTypeT
+        value: float | FloatAttr[_FloatTypeT], value_type: _FloatTypeT
     ) -> Constant:
-        if isinstance(val, float):
-            val = FloatAttr(val, typ)
-        return Constant.create(result_types=[typ], attributes={"value": val})
+        if isinstance(value, float):
+            value = FloatAttr(value, value_type)
+        return Constant.create(result_types=[value_type], attributes={"value": value})
+
+    def print(self, printer: Printer):
+        attrs = self.attributes.copy()
+        attrs.pop("value")
+
+        printer.print_op_attributes(attrs)
+
+        printer.print(" ")
+        printer.print_attribute(self.value)
+
+    @classmethod
+    def parse(cls: type[Constant], parser: Parser) -> Constant:
+        attrs = parser.parse_optional_attr_dict()
+
+        p0 = parser.pos
+        value = parser.parse_attribute()
+
+        if not isa(value, AnyIntegerAttr | FloatAttr[AnyFloat]):
+            parser.raise_error("Invalid constant value", p0, parser.pos)
+
+        c = Constant(value)
+        c.attributes.update(attrs)
+        return c
 
 
 _T = TypeVar("_T", bound=Attribute)
@@ -101,7 +136,7 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
         result_type: Attribute | None = None,
     ):
         if result_type is None:
-            result_type = SSAValue.get(operand1).typ
+            result_type = SSAValue.get(operand1).type
         super().__init__(operands=[operand1, operand2], result_types=[result_type])
 
     @classmethod
@@ -119,7 +154,7 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
         printer.print(", ")
         printer.print_ssa_value(self.rhs)
         printer.print(" : ")
-        printer.print_attribute(self.result.typ)
+        printer.print_attribute(self.result.type)
 
     def __hash__(self) -> int:
         return id(self)
@@ -296,10 +331,10 @@ class ComparisonOperation:
 
     @staticmethod
     def _validate_operand_types(operand1: SSAValue, operand2: SSAValue):
-        if operand1.typ != operand2.typ:
+        if operand1.type != operand2.type:
             raise TypeError(
                 f"Comparison operands must have same type, but "
-                f"provided {operand1.typ} and {operand2.typ}"
+                f"provided {operand1.type} and {operand2.type}"
             )
 
 
@@ -456,9 +491,9 @@ class Select(IRDLOperation):
 
     # TODO replace with trait
     def verify_(self) -> None:
-        if self.cond.typ != IntegerType(1):
+        if self.cond.type != IntegerType(1):
             raise VerifyException("Condition has to be of type !i1")
-        if self.lhs.typ != self.rhs.typ or self.rhs.typ != self.result.typ:
+        if self.lhs.type != self.rhs.type or self.rhs.type != self.result.type:
             raise VerifyException("expect all input and output types to be equal")
 
     @staticmethod
@@ -469,7 +504,7 @@ class Select(IRDLOperation):
     ) -> Select:
         operand2 = SSAValue.get(operand2)
         return Select.build(
-            operands=[operand1, operand2, operand3], result_types=[operand2.typ]
+            operands=[operand1, operand2, operand3], result_types=[operand2.type]
         )
 
 
@@ -508,7 +543,7 @@ class Negf(IRDLOperation):
         return Negf.build(
             attributes={"fastmath": fastmath},
             operands=[operand],
-            result_types=[operand.typ],
+            result_types=[operand.type],
         )
 
 
@@ -543,8 +578,8 @@ class FPToSIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: IntegerType):
-        return FPToSIOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: IntegerType):
+        return FPToSIOp.build(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -555,8 +590,8 @@ class SIToFPOp(IRDLOperation):
     result: OpResult = result_def(AnyFloat)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: AnyFloat):
-        return SIToFPOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: AnyFloat):
+        return SIToFPOp.build(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -567,8 +602,8 @@ class ExtFOp(IRDLOperation):
     result: OpResult = result_def(AnyFloat)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: AnyFloat):
-        return ExtFOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: AnyFloat):
+        return ExtFOp.build(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -579,8 +614,8 @@ class TruncFOp(IRDLOperation):
     result: OpResult = result_def(AnyFloat)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: AnyFloat):
-        return ExtFOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: AnyFloat):
+        return ExtFOp.build(operands=[op], result_types=[target_type])
 
 
 Arith = Dialect(

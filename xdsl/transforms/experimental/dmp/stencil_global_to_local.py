@@ -1,50 +1,29 @@
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import TypeVar, Iterable, Callable, cast, ClassVar
+from typing import Callable, ClassVar, Iterable, TypeVar, cast
 
-from xdsl.builder import Builder
+from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
+from xdsl.dialects.experimental import dmp
+from xdsl.ir import Block, MLContext, Operation, OpResult, Region, SSAValue
+from xdsl.irdl import Attribute
 from xdsl.passes import ModulePass
-
-from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
-    GreedyRewritePatternApplier,
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import Rewriter
-from xdsl.ir import (
-    BlockArgument,
-    MLContext,
-    Operation,
-    SSAValue,
-    Block,
-    Region,
-    OpResult,
+from xdsl.transforms.experimental.dmp.decompositions import (
+    DomainDecompositionStrategy,
+    GridSlice2d,
+    HorizontalSlices2D,
 )
-from xdsl.irdl import Attribute
-from xdsl.dialects import (
-    builtin,
-    mpi,
-    memref,
-    arith,
-    scf,
-    func,
-    stencil,
-    print as print_dia,
-)
-from xdsl.dialects.experimental import dmp
-
 from xdsl.transforms.experimental.stencil_shape_inference import (
     StencilShapeInferencePass,
 )
-
-from xdsl.transforms.experimental.dmp.decompositions import (
-    DomainDecompositionStrategy,
-    HorizontalSlices2D,
-    GridSlice2d,
-)
+from xdsl.utils.hints import isa
 
 _T = TypeVar("_T", bound=Attribute)
 
@@ -61,7 +40,7 @@ class ChangeStoreOpSizes(RewritePattern):
             integer_attr.data == 0 for integer_attr in op.lb.array.data
         ), "lb must be 0"
         shape: tuple[int, ...] = tuple(
-            (integer_attr.data for integer_attr in op.ub.array.data)
+            integer_attr.data for integer_attr in op.ub.array.data
         )
         new_shape = self.strategy.calc_resize(shape)
         op.ub = stencil.IndexAttr.get(*new_shape)
@@ -93,14 +72,14 @@ class LowerHaloExchangeToMpi(RewritePattern):
         assert op.nodes is not None
         exchanges = list(op.swaps)
 
-        assert isa(op.input_stencil.typ, memref.MemRefType[Attribute])
+        assert isa(op.input_stencil.type, memref.MemRefType[Attribute])
 
         rewriter.replace_matched_op(
             list(
                 generate_mpi_calls_for(
                     op.input_stencil,
                     exchanges,
-                    op.input_stencil.typ.element_type,
+                    op.input_stencil.type.element_type,
                     op.nodes,
                     emit_init=self.init,
                     emit_debug=self.debug_prints,
@@ -250,13 +229,13 @@ def _div_mod(i: SSAValue, div: int, mod: int) -> list[Operation]:
     assert div > 0, "cannot work with negatives here!"
     assert mod > 0, "cannot work with negatives here!"
     # make sure we operate on an integer
-    assert isinstance(i.typ, builtin.IntegerType | builtin.IndexType)
+    assert isinstance(i.type, builtin.IntegerType | builtin.IndexType)
     # we can use unsigned arithmetic here, because all we do is divide by positive
     # numbers and modulo positive numbers
     return [
-        div_v := arith.Constant.from_int_and_width(div, i.typ),
+        div_v := arith.Constant.from_int_and_width(div, i.type),
         div_res := arith.DivUI(i, div_v),
-        mod_v := arith.Constant.from_int_and_width(mod, i.typ),
+        mod_v := arith.Constant.from_int_and_width(mod, i.type),
         arith.RemUI(div_res, mod_v),
     ]
 
@@ -289,9 +268,10 @@ def generate_mpi_calls_for(
 
     for i, ex in enumerate(exchanges):
         # generate a temp buffer to store the data in
-        alloc_outbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        reduced_size = [i for i in ex.size if i != 1]
+        alloc_outbound = memref.Alloc.get(dtype, 64, reduced_size)
         alloc_outbound.memref.name_hint = f"send_buff_ex{i}"
-        alloc_inbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        alloc_inbound = memref.Alloc.get(dtype, 64, reduced_size)
         alloc_inbound.memref.name_hint = f"recv_buff_ex{i}"
         yield from (alloc_outbound, alloc_inbound)
 
@@ -321,7 +301,7 @@ def generate_mpi_calls_for(
             yield unwrap_out
 
             if emit_debug:
-                yield print_dia.PrintLnOp(
+                yield printf.PrintFormatOp(
                     f"Rank {{}}: sending {ex.source_area()} -> {{}}", rank, dest_rank
                 )
 
@@ -329,7 +309,7 @@ def generate_mpi_calls_for(
             yield mpi.Isend.get(
                 unwrap_out.ptr,
                 unwrap_out.len,
-                unwrap_out.typ,
+                unwrap_out.type,
                 dest_rank,
                 tag,
                 req_send,
@@ -343,7 +323,7 @@ def generate_mpi_calls_for(
             yield mpi.Irecv.get(
                 unwrap_in.ptr,
                 unwrap_in.len,
-                unwrap_in.typ,
+                unwrap_in.type,
                 dest_rank,
                 tag,
                 req_recv,
@@ -380,11 +360,11 @@ def generate_mpi_calls_for(
                                 source,
                                 ex,
                                 buffer.memref,
-                                reverse=True,
+                                receive=True,
                             )
                         )
                         + [
-                            print_dia.PrintLnOp(
+                            printf.PrintFormatOp(
                                 f"Rank {{}} receiving from {ex.neighbor}",
                                 rank,
                             )
@@ -399,79 +379,29 @@ def generate_mpi_calls_for(
 
 
 def generate_memcpy(
-    source: SSAValue, ex: dmp.HaloExchangeDecl, dest: SSAValue, reverse: bool = False
+    field: SSAValue, ex: dmp.HaloExchangeDecl, buffer: SSAValue, receive: bool = False
 ) -> list[Operation]:
     """
     This function generates a memcpy routine to copy over the parts
-    specified by the `ex` from `source` into `dest`.
+    specified by the `field` from `field` into `buffer`.
 
-    If reverse=True, it instead copy from `dest` into the parts of
-    `source` as specified by `ex`
+    If receive=True, it instead copy from `buffer` into the parts of
+    `field` as specified by `ex`
 
     """
-    assert ex.dim == 2, "Cannot handle non-2d case of memcpy yet!"
+    assert isa(field.type, memref.MemRefType[Attribute])
 
-    idx = builtin.IndexType()
-
-    x0 = arith.Constant.from_int_and_width(ex.offset[0], idx)
-    x0.result.name_hint = "x0"
-    y0 = arith.Constant.from_int_and_width(ex.offset[1], idx)
-    y0.result.name_hint = "y0"
-    x_len = arith.Constant.from_int_and_width(ex.size[0], idx)
-    x_len.result.name_hint = "x_len"
-    y_len = arith.Constant.from_int_and_width(ex.size[1], idx)
-    y_len.result.name_hint = "y_len"
-    cst0 = arith.Constant.from_int_and_width(0, idx)
-    cst1 = arith.Constant.from_int_and_width(1, idx)
-
-    @Builder.implicit_region([idx, idx])
-    def loop_body(args: tuple[BlockArgument, ...]):
-        """
-        Loop body of the scf.parallel() that iterates the following domain:
-        i = (0->x_len), y = (0->y_len)
-        """
-        i, j = args
-        i.name_hint = "i"
-        j.name_hint = "j"
-
-        # x = i + x0
-        # y = i + y0
-        x = arith.Addi(i, x0)
-        y = arith.Addi(j, y0)
-
-        x.result.name_hint = "x"
-        y.result.name_hint = "y"
-
-        # linearized_idx = (j * x_len) + i
-        dest_idx = arith.Muli(j, x_len)
-        linearized_idx = arith.Addi(dest_idx, i)
-        linearized_idx.result.name_hint = "linearized_idx"
-
-        if reverse:
-            load = memref.Load.get(dest, [linearized_idx])
-            memref.Store.get(load, source, [x, y])
-        else:
-            load = memref.Load.get(source, [x, y])
-            memref.Store.get(load, dest, [linearized_idx])
-
-        scf.Yield.get()
-
-    loop = scf.ParallelOp.get(
-        [cst0, cst0],
-        [x_len, y_len],
-        [cst1, cst1],
-        loop_body,
-        [],
+    subview = memref.Subview.from_static_parameters(
+        field, field.type, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
     )
+    if receive:
+        copy = memref.CopyOp(buffer, subview)
+    else:
+        copy = memref.CopyOp(subview, buffer)
 
     return [
-        x0,
-        y0,
-        x_len,
-        y_len,
-        cst0,
-        cst1,
-        loop,
+        subview,
+        copy,
     ]
 
 
@@ -623,10 +553,10 @@ def can_loop_invariant_code_move(op: Operation):
 
     for arg in op.operands:
         if not isinstance(arg, OpResult):
-            print("{} is not opresult".format(arg))
+            print(f"{arg} is not opresult")
             return False
         if not isinstance(arg.owner, _LOOP_INVARIANT_OPS):
-            print("{} is not loop invariant".format(arg))
+            print(f"{arg} is not loop invariant")
             return False
         if not can_loop_invariant_code_move(arg.owner):
             return False
@@ -665,14 +595,14 @@ class DmpSwapShapeInference:
             if not isinstance(use.operation, stencil.ApplyOp):
                 continue
             assert use.operation.res
-            res_typ = cast(stencil.TempType[Attribute], use.operation.res[0].typ)
-            assert isinstance(res_typ.bounds, stencil.StencilBoundsAttr)
-            core_lb = res_typ.bounds.lb
-            core_ub = res_typ.bounds.ub
+            res_type = cast(stencil.TempType[Attribute], use.operation.res[0].type)
+            assert isinstance(res_type.bounds, stencil.StencilBoundsAttr)
+            core_lb = res_type.bounds.lb
+            core_ub = res_type.bounds.ub
             break
 
         # this shouldn't have changed since the op was created!
-        temp = op.input_stencil.typ
+        temp = op.input_stencil.type
         assert isa(temp, stencil.TempType[Attribute])
         assert isinstance(temp.bounds, stencil.StencilBoundsAttr)
         buff_lb = temp.bounds.lb

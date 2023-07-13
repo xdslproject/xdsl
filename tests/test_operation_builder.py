@@ -2,43 +2,43 @@ from __future__ import annotations
 
 import pytest
 
-from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.arith import Constant
-
+from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
+from xdsl.dialects.test import TestTermOp
 from xdsl.ir import Block, OpResult, Region
-from xdsl.traits import IsTerminator
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     AttrSizedRegionSegments,
+    AttrSizedResultSegments,
     AttrSizedSuccessorSegments,
-    OptOperand,
-    OptRegion,
+    IRDLOperation,
     Operand,
+    OptOperand,
+    OptOpResult,
+    OptRegion,
     OptSuccessor,
     Successor,
+    VarOperand,
     VarOpResult,
     VarRegion,
     VarSuccessor,
     attr_def,
     irdl_op_definition,
-    AttrSizedResultSegments,
-    VarOperand,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    OptOpResult,
+    operand_def,
     opt_attr_def,
+    opt_operand_def,
     opt_region_def,
+    opt_result_def,
     opt_successor_def,
     region_def,
     result_def,
-    opt_result_def,
     successor_def,
+    var_operand_def,
     var_region_def,
     var_result_def,
-    operand_def,
-    opt_operand_def,
-    var_operand_def,
     var_successor_def,
 )
+from xdsl.traits import IsTerminator
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_
@@ -58,7 +58,7 @@ class ResultOp(IRDLOperation):
 def test_result_builder():
     op = ResultOp.build(result_types=[StringAttr("")])
     op.verify()
-    assert [res.typ for res in op.results] == [StringAttr("")]
+    assert [res.type for res in op.results] == [StringAttr("")]
 
 
 def test_result_builder_exception():
@@ -80,7 +80,7 @@ def test_opt_result_builder():
     op1.verify()
     op2.verify()
     op3.verify()
-    assert [res.typ for res in op1.results] == [StringAttr("")]
+    assert [res.type for res in op1.results] == [StringAttr("")]
     assert len(op2.results) == 0
     assert len(op3.results) == 0
 
@@ -100,7 +100,7 @@ class VarResultOp(IRDLOperation):
 def test_var_result_builder():
     op = VarResultOp.build(result_types=[[StringAttr("0"), StringAttr("1")]])
     op.verify()
-    assert [res.typ for res in op.results] == [
+    assert [res.type for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
     ]
@@ -123,7 +123,7 @@ def test_two_var_result_builder():
         ]
     )
     op.verify()
-    assert [res.typ for res in op.results] == [
+    assert [res.type for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
@@ -143,7 +143,7 @@ def test_two_var_result_builder2():
         ]
     )
     op.verify()
-    assert [res.typ for res in op.results] == [
+    assert [res.type for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
@@ -173,7 +173,7 @@ def test_var_mixed_builder():
         ]
     )
     op.verify()
-    assert [res.typ for res in op.results] == [
+    assert [res.type for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
@@ -206,14 +206,14 @@ def test_operand_builder_operation():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = OperandOp.build(operands=[op1])
     op2.verify()
-    assert op2.operands == (op1.res,)
+    assert tuple(op2.operands) == (op1.res,)
 
 
 def test_operand_builder_value():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = OperandOp.build(operands=[op1.res])
     op2.verify()
-    assert op2.operands == (op1.res,)
+    assert tuple(op2.operands) == (op1.res,)
 
 
 def test_operand_builder_exception():
@@ -255,7 +255,7 @@ def test_var_operand_builder():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = VarOperandOp.build(operands=[[op1, op1]])
     op2.verify()
-    assert op2.operands == (op1.res, op1.res)
+    assert tuple(op2.operands) == (op1.res, op1.res)
 
 
 @irdl_op_definition
@@ -271,7 +271,7 @@ def test_two_var_operand_builder():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = TwoVarOperandOp.build(operands=[[op1, op1], [op1, op1]])
     op2.verify()
-    assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 2])
@@ -281,7 +281,7 @@ def test_two_var_operand_builder2():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = TwoVarOperandOp.build(operands=[[op1], [op1, op1, op1]])
     op2.verify()
-    assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
@@ -357,12 +357,12 @@ def test_region_op_blocks():
 
 
 def test_region_op_ops():
-    op1 = RegionOp.build(regions=[[Block()]])
-    op2 = RegionOp.build(regions=[[Block()]])
-    op = RegionOp.build(regions=[[op1, op2]])
+    op1 = RegionOp.build(regions=[[Block([TestTermOp.create()])]])
+    op2 = RegionOp.build(regions=[[Block([TestTermOp.create()])]])
+    op = RegionOp.build(regions=[[op1, op2, TestTermOp.create()]])
     op.verify()
     assert len(op.region.blocks) == 1
-    assert len(op.region.blocks[0].ops) == 2
+    assert len(op.region.blocks[0].ops) == 3
 
 
 def test_noop_region():
@@ -384,7 +384,7 @@ class SBRegionOp(IRDLOperation):
 
 
 def test_sbregion_one_block():
-    op = SBRegionOp.build(regions=[[Block()]])
+    op = SBRegionOp.build(regions=[[Block([TestTermOp.create()])]])
     op.verify()
     assert len(op.region.blocks) == 1
 
@@ -418,7 +418,7 @@ class OptSBRegionOp(IRDLOperation):
 
 
 def test_opt_sbregion_one_block():
-    op1 = OptSBRegionOp.build(regions=[[[Block()]]])
+    op1 = OptSBRegionOp.build(regions=[[[Block([TestTermOp.create()])]]])
     op2 = OptSBRegionOp.build(regions=[[]])
     op1.verify()
     op2.verify()
@@ -449,7 +449,7 @@ class VarSBRegionOp(IRDLOperation):
 
 
 def test_var_sbregion_one_block():
-    op1 = VarSBRegionOp.build(regions=[[[Block()]]])
+    op1 = VarSBRegionOp.build(regions=[[[Block([TestTermOp.create()])]]])
     op2 = VarSBRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op1.verify()
     op2.verify()

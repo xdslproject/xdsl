@@ -1,16 +1,16 @@
 from typing import List
-from xdsl.ir import Operation, MLContext, TypeAttribute
+
+from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
+from xdsl.ir import MLContext, Operation, TypeAttribute
 from xdsl.irdl import Operand
-from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (
-    RewritePattern,
-    PatternRewriter,
-    op_type_rewrite_pattern,
-    PatternRewriteWalker,
     GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-from xdsl.dialects import builtin, llvm, arith, mpi, memref, scf
-from xdsl.dialects import stencil
+from xdsl.utils.hints import isa
 
 AnyNumericType = builtin.AnyFloat | builtin.IntegerType
 
@@ -20,8 +20,8 @@ class ApplyMPIToExternalLoad(RewritePattern):
     def match_and_rewrite(
         self, op: stencil.ExternalLoadOp, rewriter: PatternRewriter, /
     ):
-        assert isa(op.field.typ, memref.MemRefType[AnyNumericType])
-        memref_type: memref.MemRefType[AnyNumericType] = op.field.typ
+        assert isa(op.field.type, memref.MemRefType[AnyNumericType])
+        memref_type: memref.MemRefType[AnyNumericType] = op.field.type
         if len(memref_type.shape) <= 1:
             return
         mpi_operations: List[Operation] = []
