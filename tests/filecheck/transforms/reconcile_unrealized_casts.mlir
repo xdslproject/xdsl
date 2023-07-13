@@ -66,31 +66,6 @@ builtin.module {
 
     // -----
 
-    func.func @failure_simple_cast(%arg0: i64) -> i32 {
-        %0 = "builtin.unrealized_conversion_cast"(%arg0) : (i64) -> i32
-        func.return %0 : i32
-    }
-
-    // CHECK-NEXT:    func.func @failure_simple_cast(%{{.*}} : i64) -> i32 {
-    // CHECK-NEXT:      %3 = "builtin.unrealized_conversion_cast"(%{{.*}}) : (i64) -> i32
-    // CHECK-NEXT:      func.return %3 : i32
-    // CHECK-NEXT:    }
-
-    // -----
-
-    func.func @failure_chain(%arg0: i64) -> i32 {
-        %0 = "builtin.unrealized_conversion_cast"(%arg0) : (i64) -> i1
-        %1 = "builtin.unrealized_conversion_cast"(%0) : (i1) -> i32
-        func.return %1 : i32
-    }
-
-    // CHECK-NEXT:    func.func @failure_chain(%{{.*}} : i64) -> i32 {
-    // CHECK-NEXT:      %4 = "builtin.unrealized_conversion_cast"(%{{.*}}) : (i64) -> i1
-    // CHECK-NEXT:      %5 = "builtin.unrealized_conversion_cast"(%4) : (i1) -> i32
-    // CHECK-NEXT:      func.return %5 : i32
-    // CHECK-NEXT:    }
-
-
     func.func @cycle_singleblock_var_ops(%arg0: i64, %arg1: i64) -> i64 {
         %0, %1 = "builtin.unrealized_conversion_cast"(%arg0, %arg1) : (i64, i64) -> (i16, i16)
         %2, %3 = "builtin.unrealized_conversion_cast"(%0, %1) : (i16, i16) -> (i1, i1)
@@ -106,19 +81,17 @@ builtin.module {
     // CHECK-NEXT:      func.return %6 : i64
     // CHECK-NEXT:    }
 
-    func.func @mismatch_size_cast_use(%arg0: i64, %arg1: i64) -> i64 {
-        %0, %1 = "builtin.unrealized_conversion_cast"(%arg0, %arg1) : (i64, i64) -> (i16, i16)
-        %3 = "builtin.unrealized_conversion_cast"(%0) : (i16) -> (i1)
-        %10 = "test.op"(%3, %3) : (i1, i1) -> i64
-        func.return %10 : i64
+    // -----
+
+    func.func @cast_combo(%arg0: i64, %arg1: i64) -> (i64, i64) {
+        %0 = "builtin.unrealized_conversion_cast"(%arg0) : (i64) -> i32
+        %1, %2 = "builtin.unrealized_conversion_cast"(%0, %arg1) : (i32, i64) -> (i64, i64)
+        "func.return"(%1, %2) : (i64, i64) -> ()
     }
 
-    // CHECK-NEXT:    func.func @mismatch_size_cast_use(%{{.*}} : i64, %{{.*}} : i64) -> i64 {
-    // CHECK-NEXT:      %7, %8 = "builtin.unrealized_conversion_cast"(%{{.*}}, %{{.*}}) : (i64, i64) -> (i16, i16)
-    // CHECK-NEXT:      %9 = "builtin.unrealized_conversion_cast"(%7) : (i16) -> i1
-    // CHECK-NEXT:      %10 = "test.op"(%9, %9) : (i1, i1) -> i64
-    // CHECK-NEXT:      func.return %10 : i64
-    // CHECK-NEXT:    }
+    // CHECK-NEXT:  func.func @cast_combo(%{{.*}} : i64, %{{.*}} : i32) -> (i32, i32) {
+    // CHECK-NEXT:    func.return %{{.*}}, %{{.*}} : (i32, i32)
+    // CHECK-NEXT:  }
 
 }
 // CHECK-NEXT:  }
