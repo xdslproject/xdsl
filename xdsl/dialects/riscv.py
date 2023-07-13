@@ -186,15 +186,14 @@ class RegisterType(GenericData[RegisterT], TypeAttribute):
         name = self.data.name
         if name is None or name.startswith("j"):
             return
-        assert (
-            name in self.register_class.ABI_INDEX_BY_NAME.keys()
-        ), f"{name} is not in {self.register_class.ABI_INDEX_BY_NAME.keys()}"
+        if name not in self.register_class.ABI_INDEX_BY_NAME.keys():
+            raise VerifyException(
+                f"{name} is not in {self.register_class.ABI_INDEX_BY_NAME.keys()}"
+            )
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
-        # TODO
-        assert len(args) == 0
-        return BaseAttr(args[0])
+        raise NotImplementedError()
 
 
 @irdl_attr_definition
