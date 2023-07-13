@@ -59,8 +59,8 @@ class TestType(Data[str], TypeAttribute):
 
     name = "test.type"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> str:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:

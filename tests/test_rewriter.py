@@ -3,10 +3,9 @@ from typing import Callable
 import pytest
 from conftest import assert_print_op
 
+from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant
 from xdsl.dialects.builtin import Builtin, ModuleOp, i32, i64
-from xdsl.dialects.func import Func
-from xdsl.dialects.scf import Scf, Yield
 from xdsl.ir import Block, MLContext
 from xdsl.parser import Parser
 from xdsl.rewriter import Rewriter
@@ -18,8 +17,7 @@ def rewrite_and_compare(
     ctx = MLContext()
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Arith)
-    ctx.register_dialect(Scf)
-    ctx.register_dialect(Func)
+    ctx.register_dialect(test.Test)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
@@ -135,97 +133,100 @@ def test_replace_op_new_results():
 
 def test_inline_block_at_end():
     """Test the inlining of a block at end."""
+
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  }) : (i1) -> ()
+  %0 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
+    %1 = "test.op"() : () -> !test.type<"int">
+  }) : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
   ^0:
-  }) : (i1) -> ()
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  }) : () -> ()
+  %1 = "test.op"() : () -> !test.type<"int">
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         ops_iter = iter(module.ops)
         next(ops_iter)
-        if_op = next(ops_iter)
+        test_op = next(ops_iter)
         module_block = module.regions[0].blocks[0]
-        if_block = if_op.regions[0].blocks[0]
+        test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_at_end(if_block, module_block)
+        rewriter.inline_block_at_end(test_block, module_block)
 
     rewrite_and_compare(prog, expected, transformation)
 
 
 def test_inline_block_before():
     """Test the inlining of a block before an operation."""
+
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  }) : (i1) -> ()
+  %0 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
+    %1 = "test.op"() : () -> !test.type<"int">
+  }) : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  "scf.if"(%0) ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
   ^0:
-  }) : (i1) -> ()
+  }) : () -> ()
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         ops_iter = iter(module.ops)
         next(ops_iter)
-        if_op = next(ops_iter)
-        if_block = if_op.regions[0].blocks[0]
+        test_op = next(ops_iter)
+        test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_before(if_block, if_op)
+        rewriter.inline_block_before(test_block, test_op)
 
     rewrite_and_compare(prog, expected, transformation)
 
 
 def test_inline_block_after():
     """Test the inlining of a block after an operation."""
+
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  "scf.if"(%0) ({
-    %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  }) : (i1) -> ()
+  %0 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
+    %1 = "test.op"() : () -> !test.type<"int">
+  }) : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  "scf.if"(%0) ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() : () -> !test.type<"int">
+  "test.op"() ({
   ^0:
-  }) : (i1) -> ()
+  }) : () -> ()
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         ops_iter = iter(module.ops)
         constant_op = next(ops_iter)
-        if_op = next(ops_iter)
-        if_block = if_op.regions[0].blocks[0]
+        test_op = next(ops_iter)
+        test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_after(if_block, constant_op)
+        rewriter.inline_block_after(test_block, constant_op)
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -424,20 +425,20 @@ def test_no_result_rewriter():
     """Test rewriter on ops without results"""
     prog = """\
 "builtin.module"() ({
-  "func.return"() : () -> ()
+  "test.termop"() : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  "scf.yield"() : () -> ()
+  "test.op"() : () -> ()
 }) : () -> ()
 """
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         return_op = module.ops.first
         assert return_op is not None
-        new_op = Yield.get()
+        new_op = test.TestOp.create()
 
         rewriter.replace_op(return_op, [new_op])
 
