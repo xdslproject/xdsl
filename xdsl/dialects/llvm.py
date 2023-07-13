@@ -1035,8 +1035,8 @@ class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
 
         super().__init__(tuple(flags_))
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> tuple[FastMathFlag, ...]:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[FastMathFlag, ...]:
         flags = FastMathFlag.try_parse(parser)
         if flags is None:
             return tuple()

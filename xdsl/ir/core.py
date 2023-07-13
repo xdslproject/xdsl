@@ -423,9 +423,9 @@ class Data(Generic[DataElement], Attribute, ABC):
         Data[Any].__init__(attr, params)
         return attr
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def parse_parameter(parser: AttrParser) -> DataElement:
+    def parse_parameter(cls, parser: AttrParser) -> DataElement:
         """Parse the attribute parameter."""
 
     @abstractmethod
