@@ -1,4 +1,5 @@
 import pytest
+
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, cf, func
 from xdsl.dialects.builtin import ModuleOp, i32
@@ -49,7 +50,7 @@ def sum_to_op():
         func.Return(result)
 
     func.FuncOp(
-        "triangle", ((i32,), (i32,)), Region([prologue, loop_iter, loop_body, epilogue])
+        "sum_to", ((i32,), (i32,)), Region([prologue, loop_iter, loop_body, epilogue])
     )
 
 
@@ -58,10 +59,10 @@ def sum_to_interp(n: int) -> int:
     interpreter.register_implementations(CfFunctions())
     interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(ArithFunctions())
-    (result,) = interpreter.call_op("triangle", (n,))
+    (result,) = interpreter.call_op("sum_to", (n,))
     return result
 
 
 @pytest.mark.parametrize("n", (0, 1, 2, 3, 4))
-def test_triangle(n: int):
+def test_sum_to(n: int):
     assert sum_to_fn(n) == sum_to_interp(n)

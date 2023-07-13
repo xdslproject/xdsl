@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-
 from inspect import isclass
+from types import FunctionType, GenericAlias, UnionType
 from typing import (
     Annotated,
     Any,
@@ -21,20 +21,18 @@ from typing import (
     get_type_hints,
     overload,
 )
-from types import UnionType, GenericAlias, FunctionType
 
 from xdsl.ir import (
     Attribute,
     Block,
     Data,
+    Operation,
     OpResult,
     OpTrait,
-    Operation,
     ParametrizedAttribute,
     Region,
     SSAValue,
 )
-
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     PyRDLAttrDefinitionError,
@@ -591,8 +589,8 @@ class OperandDef(OperandOrResultDef):
     constr: AttrConstraint
     """The operand constraint."""
 
-    def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
-        self.constr = attr_constr_coercion(typ)
+    def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
+        self.constr = attr_constr_coercion(attr)
 
 
 Operand: TypeAlias = SSAValue
@@ -621,8 +619,8 @@ class ResultDef(OperandOrResultDef):
     constr: AttrConstraint
     """The result constraint."""
 
-    def __init__(self, typ: Attribute | type[Attribute] | AttrConstraint):
-        self.constr = attr_constr_coercion(typ)
+    def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
+        self.constr = attr_constr_coercion(attr)
 
 
 @dataclass(init=False)
@@ -696,10 +694,10 @@ class AttributeDef:
 
     def __init__(
         self,
-        typ: Attribute | type[Attribute] | AttrConstraint,
+        attr: Attribute | type[Attribute] | AttrConstraint,
         attr_name: str | None = None,
     ):
-        self.constr = attr_constr_coercion(typ)
+        self.constr = attr_constr_coercion(attr)
         self.attr_name = attr_name
 
 
@@ -709,10 +707,10 @@ class OptAttributeDef(AttributeDef):
 
     def __init__(
         self,
-        typ: Attribute | type[Attribute] | AttrConstraint,
+        attr: Attribute | type[Attribute] | AttrConstraint,
         attr_name: str | None = None,
     ):
-        super().__init__(typ, attr_name=attr_name)
+        super().__init__(attr, attr_name=attr_name)
 
 
 class SuccessorDef:
@@ -973,7 +971,7 @@ def opt_successor_def(
 
 
 # Exclude `object`
-_OPERATION_DICT_KEYS = set(key for cls in Operation.mro()[:-1] for key in cls.__dict__)
+_OPERATION_DICT_KEYS = {key for cls in Operation.mro()[:-1] for key in cls.__dict__}
 
 
 @dataclass(kw_only=True)
@@ -1435,7 +1433,7 @@ def irdl_op_verify_arg_list(
                 construct == VarIRConstruct.OPERAND
                 or construct == VarIRConstruct.RESULT
             ):
-                arg_def.constr.verify(arg.typ, constraint_vars)
+                arg_def.constr.verify(arg.type, constraint_vars)
             elif construct == VarIRConstruct.REGION:
                 if isinstance(arg_def, SingleBlockRegionDef) and len(arg.blocks) != 1:
                     raise VerifyException(
@@ -1786,9 +1784,7 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     new_attrs["verify_"] = verify_
 
-    return type(
-        cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs}
-    )  # type: ignore
+    return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})  # type: ignore
 
 
 #  ____        _
@@ -1848,7 +1844,7 @@ def irdl_param_attr_get_param_type_hints(cls: type[_PAttrT]) -> list[tuple[str, 
     return res
 
 
-_PARAMETRIZED_ATTRIBUTE_DICT_KEYS = set(
+_PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
     key
     for dict_seq in (
         (cls.__dict__ for cls in ParametrizedAttribute.mro()[::-1]),
@@ -1856,7 +1852,7 @@ _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = set(
     )
     for dict in dict_seq
     for key in dict
-)
+}
 
 
 @dataclass

@@ -93,3 +93,14 @@ def test_composition():
     assert map3.eval([1, 2], []) == [-1, -8]
     assert map3.eval([3, 4], []) == [-2, -18]
     assert map3.eval([5, 6], []) == [-3, -28]
+
+
+def test_helpers():
+    m0 = AffineMap.constant_map(0)
+    assert m0 == AffineMap(0, 0, [AffineExpr.constant(0)])
+    m1 = AffineMap.point_map(0, 1)
+    assert m1 == AffineMap(0, 0, [AffineExpr.constant(0), AffineExpr.constant(1)])
+    m2 = AffineMap.identity(2)
+    assert m2 == AffineMap(2, 0, [AffineExpr.dimension(0), AffineExpr.dimension(1)])
+    m3 = AffineMap.empty()
+    assert m3 == AffineMap(0, 0, [])

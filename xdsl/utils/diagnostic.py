@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from io import StringIO
 from typing import NoReturn
 
-from xdsl.ir import IRNode, Block, Operation, Region
+from xdsl.ir import Block, IRNode, Operation, Region
 from xdsl.utils.exceptions import DiagnosticException
 
 
@@ -34,8 +35,7 @@ class Diagnostic:
         elif isinstance(toplevel, Block):
             p.print_block(toplevel)
         elif isinstance(toplevel, Region):
-            # TOFIX: Is that ever used. Revisit the whole exception
-            p._print_region(toplevel)  # TOFIX #type: ignore
+            p.print_region(toplevel)
         else:
             assert "xDSL internal error: get_toplevel_object returned unknown construct"
 

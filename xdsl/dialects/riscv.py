@@ -3,31 +3,37 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import IO, Iterable, TypeAlias, Sequence
+from typing import IO, Sequence, TypeAlias
 
-from xdsl.traits import IsTerminator, NoTerminator
-
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    Signedness,
+    StringAttr,
+    UnitAttr,
+)
 from xdsl.ir import (
-    Dialect,
-    Operation,
-    Region,
-    SSAValue,
     Attribute,
     Data,
+    Dialect,
+    Operation,
     OpResult,
+    Region,
+    SSAValue,
     TypeAttribute,
 )
-
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     OptRegion,
     OptSingleBlockRegion,
+    VarOperand,
     VarOpResult,
     attr_def,
-    irdl_op_definition,
     irdl_attr_definition,
-    VarOperand,
-    Operand,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_region_def,
@@ -35,18 +41,9 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
-    IntegerType,
-    ModuleOp,
-    Signedness,
-    UnitAttr,
-    IntegerAttr,
-    StringAttr,
-)
+from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -148,7 +145,7 @@ class RegisterType(Data[Register], TypeAttribute):
         return self.data.name
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> Register:
+    def parse_parameter(parser: AttrParser) -> Register:
         name = parser.parse_optional_identifier()
         if name is None:
             return Register()
@@ -184,7 +181,7 @@ class FloatRegisterType(Data[Register], TypeAttribute):
         return self.data.name
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> Register:
+    def parse_parameter(parser: AttrParser) -> Register:
         name = parser.parse_optional_identifier()
         if name is None:
             return Register()
@@ -310,7 +307,7 @@ class LabelAttr(Data[str]):
     name = "riscv.label"
 
     @staticmethod
-    def parse_parameter(parser: Parser) -> str:
+    def parse_parameter(parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -327,8 +324,8 @@ class RISCVOp(Operation, ABC):
         raise NotImplementedError()
 
 
-_AssemblyInstructionArg: TypeAlias = (
-    AnyIntegerAttr | LabelAttr | SSAValue | RegisterType | str | None
+AssemblyInstructionArg: TypeAlias = (
+    AnyIntegerAttr | LabelAttr | SSAValue | RegisterType | str
 )
 
 
@@ -348,7 +345,7 @@ class RISCVInstruction(RISCVOp):
     """
 
     @abstractmethod
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         """
         The arguments to the instruction, in the order they should be printed in the
         assembly.
@@ -365,7 +362,12 @@ class RISCVInstruction(RISCVOp):
     def assembly_line(self) -> str | None:
         # default assembly code generator
         instruction_name = self.assembly_instruction_name()
-        return _assembly_line(instruction_name, self.assembly_line_args(), self.comment)
+        arg_str = ", ".join(
+            _assembly_arg_str(arg)
+            for arg in self.assembly_line_args()
+            if arg is not None
+        )
+        return _assembly_line(instruction_name, arg_str, self.comment)
 
 
 # region Assembly printing
@@ -380,46 +382,46 @@ def _append_comment(line: str, comment: StringAttr | None) -> str:
     return f"{line}{padding} # {comment.data}"
 
 
+def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
+    if isa(arg, AnyIntegerAttr):
+        return f"{arg.value.data}"
+    elif isinstance(arg, int):
+        return f"{arg}"
+    elif isinstance(arg, LabelAttr):
+        return arg.data
+    elif isinstance(arg, str):
+        return arg
+    elif isinstance(arg, RegisterType):
+        return arg.register_name
+    elif isinstance(arg, FloatRegisterType):
+        return arg.register_name
+    else:
+        if isinstance(arg.type, RegisterType):
+            reg = arg.type.register_name
+            return reg
+        elif isinstance(arg.type, FloatRegisterType):
+            reg = arg.type.register_name
+            return reg
+    assert False
+
+
 def _assembly_line(
     name: str,
-    args: Iterable[_AssemblyInstructionArg],
+    arg_str: str,
     comment: StringAttr | None = None,
     is_indented: bool = True,
 ) -> str:
-    arg_strs: list[str] = []
-
-    for arg in args:
-        if arg is None:
-            continue
-        elif isa(arg, AnyIntegerAttr):
-            arg_strs.append(f"{arg.value.data}")
-        elif isinstance(arg, LabelAttr):
-            arg_strs.append(arg.data)
-        elif isinstance(arg, str):
-            arg_strs.append(arg)
-        elif isinstance(arg, RegisterType):
-            arg_strs.append(arg.register_name)
-        elif isinstance(arg, FloatRegisterType):
-            arg_strs.append(arg.register_name)
-        else:
-            if isinstance(arg.typ, RegisterType):
-                reg = arg.typ.register_name
-                arg_strs.append(reg)
-            elif isinstance(arg.typ, FloatRegisterType):
-                reg = arg.typ.register_name
-                arg_strs.append(reg)
-
     code = "    " if is_indented else ""
     code += name
-    if arg_strs:
-        code += f" {', '.join(arg_strs)}"
+    if arg_str:
+        code += f" {arg_str}"
     code = _append_comment(code, comment)
     return code
 
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
     for op in module.body.walk():
-        assert isinstance(op, RISCVOp)
+        assert isinstance(op, RISCVOp), f"{op}"
         asm = op.assembly_line()
         if asm is not None:
             print(asm, file=output)
@@ -471,7 +473,7 @@ class RdRsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             result_types=[rd],
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
 
 
@@ -510,7 +512,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             },
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
 
 
@@ -552,7 +554,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
             }
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.immediate
 
 
@@ -596,7 +598,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             },
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
 
 
@@ -677,7 +679,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
             },
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.rs1, self.immediate
 
 
@@ -709,7 +711,7 @@ class RdRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes={"comment": comment},
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs
 
 
@@ -748,7 +750,7 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             },
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.offset
 
 
@@ -787,7 +789,7 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             },
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.immediate
 
 
@@ -805,7 +807,7 @@ class RsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             operands=[rs1, rs2],
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2
 
 
@@ -828,7 +830,7 @@ class NullaryOperation(IRDLOperation, RISCVInstruction, ABC):
             },
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return ()
 
 
@@ -876,15 +878,15 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.writeonly:
             return
-        if not isinstance(self.rd.typ, RegisterType):
+        if not isinstance(self.rd.type, RegisterType):
             return
-        if self.rd.typ.data.name is not None and self.rd.typ.data.name != "zero":
+        if self.rd.type.data.name is not None and self.rd.type.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.typ.data.name}'"
+                f"not '{self.rd.type.data.name}'"
             )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.rs1
 
 
@@ -934,15 +936,15 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.readonly:
             return
-        if not isinstance(self.rs1.typ, RegisterType):
+        if not isinstance(self.rs1.type, RegisterType):
             return
-        if self.rs1.typ.data.name is not None and self.rs1.typ.data.name != "zero":
+        if self.rs1.type.data.name is not None and self.rs1.type.data.name != "zero":
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.typ.data.name}'"
+                f"not '{self.rs1.type.data.name}'"
             )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.rs1
 
 
@@ -990,15 +992,15 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if self.writeonly is None:
             return
-        if not isinstance(self.rd.typ, RegisterType):
+        if not isinstance(self.rd.type, RegisterType):
             return
-        if self.rd.typ.data.name is not None and self.rd.typ.data.name != "zero":
+        if self.rd.type.data.name is not None and self.rd.type.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.typ.data.name}'"
+                f"not '{self.rd.type.data.name}'"
             )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.csr, self.immediate
 
 
@@ -1042,7 +1044,7 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
             result_types=[rd],
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.immediate
 
 
@@ -1409,7 +1411,7 @@ class JOp(RdImmJumpOperation):
     ):
         super().__init__(immediate, rd=Registers.ZERO, comment=comment)
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         # J op is a special case of JalOp with zero return register
         return (self.immediate,)
 
@@ -1599,6 +1601,15 @@ class LwOp(RdRsImmIntegerOperation):
 
     name = "riscv.lw"
 
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rd)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
+
 
 @irdl_op_definition
 class SbOp(RsRsImmIntegerOperation):
@@ -1638,6 +1649,15 @@ class SwOp(RsRsImmIntegerOperation):
     """
 
     name = "riscv.sw"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rs2)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
 
 
 # endregion
@@ -2034,11 +2054,11 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 
     def assembly_line(self) -> str | None:
         if self.value is not None and self.value.data:
-            value = self.value.data
+            arg_str = _assembly_arg_str(self.value.data)
         else:
-            value = None
+            arg_str = ""
 
-        return _assembly_line(self.directive.data, (value,), is_indented=False)
+        return _assembly_line(self.directive.data, arg_str, is_indented=False)
 
 
 @irdl_op_definition
@@ -2091,7 +2111,7 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
     def assembly_instruction_name(self) -> str:
         return self.instruction_name.data
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return *self.results, *self.operands
 
 
@@ -2265,7 +2285,7 @@ class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             result_types=[rd],
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2, self.rs3
 
 
@@ -2302,7 +2322,7 @@ class RdRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             result_types=[rd],
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
 
 
@@ -2339,7 +2359,7 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             result_types=[rd],
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
 
 
@@ -2371,7 +2391,7 @@ class RdRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes={"comment": comment},
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs
 
 
@@ -2403,7 +2423,7 @@ class RdRsFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes={"comment": comment},
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs
 
 
@@ -2435,7 +2455,7 @@ class RdRsIntegerFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes={"comment": comment},
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs
 
 
@@ -2472,7 +2492,7 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             },
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.immediate
 
 
@@ -2515,7 +2535,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             },
         )
 
-    def assembly_line_args(self) -> tuple[_AssemblyInstructionArg, ...]:
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
 
 

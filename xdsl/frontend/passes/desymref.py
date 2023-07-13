@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from typing import Callable
+
+from xdsl.dialects import builtin
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
-from xdsl.dialects import builtin
 
 # Background
 # ==========
@@ -312,11 +313,11 @@ class Desymrefier:
             self._prune_unused_reads(block)
 
             # Find all symbols that are still in use in this block.
-            symbol_worklist: set[str] = set(
+            symbol_worklist: set[str] = {
                 symbol
                 for symbol in get_symbols(block)
                 if symbol not in prepared_symbols
-            )
+            }
             if len(symbol_worklist) == 0:
                 return
 

@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from xdsl.parser import Parser
-from xdsl.printer import Printer
+from xdsl.dialects import builtin
+from xdsl.ir import Dialect, Operation, SSAValue, VerifyException
 from xdsl.irdl import (
     IRDLOperation,
-    irdl_op_definition,
     VarOperand,
     attr_def,
+    irdl_op_definition,
     var_operand_def,
 )
-from xdsl.dialects import builtin
-from xdsl.ir import Dialect, SSAValue, Operation, VerifyException
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 
 
 @irdl_op_definition
@@ -49,7 +49,7 @@ class PrintFormatOp(IRDLOperation):
         def print_val_and_type(ssa_val: SSAValue):
             printer.print_ssa_value(ssa_val)
             printer.print_string(" : ")
-            printer.print_attribute(ssa_val.typ)
+            printer.print_attribute(ssa_val.type)
 
         if len(self.format_vals) > 0:
             printer.print_string(", ")
@@ -67,9 +67,9 @@ class PrintFormatOp(IRDLOperation):
         while parser.parse_optional_characters(",") is not None:
             args.append(arg := parser.parse_operand())
             parser.parse_characters(":", " - all arguments must have a type")
-            typ = parser.parse_type()
-            if arg.typ != typ:
-                parser.raise_error(f"Parsed ssa vlue {arg} must be of type {typ}")
+            arg_type = parser.parse_type()
+            if arg.type != arg_type:
+                parser.raise_error(f"Parsed ssa vlue {arg} must be of type {arg_type}")
 
         attr_dict = parser.parse_optional_attr_dict()
 

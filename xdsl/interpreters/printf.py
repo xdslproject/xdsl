@@ -1,7 +1,6 @@
 from typing import Any
 
 from xdsl.dialects.printf import PrintFormatOp
-
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 
 

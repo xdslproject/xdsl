@@ -1,24 +1,23 @@
 from __future__ import annotations
-from typing import Union
 
 from xdsl.dialects.builtin import Float32Type, Float64Type
 from xdsl.ir import (
-    TypeAttribute,
-    ParametrizedAttribute,
-    Operation,
     Dialect,
+    Operation,
     OpResult,
+    ParametrizedAttribute,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
-    irdl_op_definition,
-    irdl_attr_definition,
-    Operand,
-    ParameterDef,
-    ParamAttrConstraint,
     AnyOf,
-    VerifyException,
     IRDLOperation,
+    Operand,
+    ParamAttrConstraint,
+    ParameterDef,
+    VerifyException,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     result_def,
 )
@@ -41,9 +40,9 @@ class Norm(IRDLOperation):
 
     # TODO replace with trait
     def verify_(self) -> None:
-        if not isinstance(self.op.typ, ComplexType):
+        if not isinstance(self.op.type, ComplexType):
             raise VerifyException("Expected complex type")
-        if self.op.typ.data != self.res.typ:
+        if self.op.type.data != self.res.type:
             raise VerifyException("expect all input and output types to be equal")
 
 
@@ -63,15 +62,13 @@ class Mul(IRDLOperation):
 
     # TODO replace with trait
     def verify_(self) -> None:
-        if self.lhs.typ != self.rhs.typ and self.rhs.typ != self.result.typ:
+        if self.lhs.type != self.rhs.type and self.rhs.type != self.result.type:
             raise VerifyException("expect all input and output types to be equal")
 
     @staticmethod
-    def get(
-        operand1: Union[Operation, SSAValue], operand2: Union[Operation, SSAValue]
-    ) -> Mul:
+    def get(operand1: Operation | SSAValue, operand2: Operation | SSAValue) -> Mul:
         operand1 = SSAValue.get(operand1)
-        return Mul.build(operands=[operand1, operand2], result_types=[operand1.typ])
+        return Mul.build(operands=[operand1, operand2], result_types=[operand1.type])
 
 
 CMath = Dialect([Norm, Mul], [ComplexType])

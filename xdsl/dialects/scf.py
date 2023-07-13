@@ -4,20 +4,20 @@ from typing import Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.traits import HasParent, IsTerminator
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
+    IRDLOperation,
     Operand,
     VarOperand,
     VarOpResult,
     irdl_op_definition,
-    IRDLOperation,
     operand_def,
     region_def,
     var_operand_def,
     var_result_def,
 )
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -69,11 +69,17 @@ class For(IRDLOperation):
                 f"{len(self.body.block.args)}. The body must have the induction "
                 f"variable and loop-carried variables as arguments."
             )
-        for idx, arg in enumerate(self.iter_args):
-            if self.body.block.args[idx + 1].typ != arg.typ:
+        if self.body.block.args and (iter_var := self.body.block.args[0]):
+            if not isinstance(iter_var.type, IndexType):
                 raise VerifyException(
-                    f"Block arguments with wrong type, expected {arg.typ}, "
-                    f"got {self.body.block.args[idx].typ}. Arguments after the "
+                    f"The first block argument of the body is of type {iter_var.type}"
+                    " instead of index"
+                )
+        for idx, arg in enumerate(self.iter_args):
+            if self.body.block.args[idx + 1].type != arg.type:
+                raise VerifyException(
+                    f"Block arguments with wrong type, expected {arg.type}, "
+                    f"got {self.body.block.args[idx].type}. Arguments after the "
                     f"induction variable must match the carried variables."
                 )
         if len(self.iter_args) > 0:
@@ -81,7 +87,7 @@ class For(IRDLOperation):
                 self.body.block.last_op, Yield
             ):
                 raise VerifyException(
-                    "The scf.for's body does not end with a scf.yield. A scf.for loop "
+                    "The scf.for's body does not end with an scf.yield. A scf.for loop "
                     "with loop-carried variables must yield their values at the end of "
                     "its body."
                 )
@@ -93,9 +99,9 @@ class For(IRDLOperation):
                     f"The scf.for must yield its carried variables."
                 )
             for idx, arg in enumerate(yieldop.arguments):
-                if self.iter_args[idx].typ != arg.typ:
+                if self.iter_args[idx].type != arg.type:
                     raise VerifyException(
-                        f"Expected {self.iter_args[idx].typ}, got {arg.typ}. The "
+                        f"Expected {self.iter_args[idx].type}, got {arg.type}. The "
                         f"scf.for's scf.yield must match carried variables types."
                     )
 
@@ -111,7 +117,7 @@ class For(IRDLOperation):
             body = [body]
         op = For.build(
             operands=[lb, ub, step, iter_args],
-            result_types=[[SSAValue.get(a).typ for a in iter_args]],
+            result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
         )
         return op
@@ -141,7 +147,7 @@ class ParallelOp(IRDLOperation):
         return ParallelOp.build(
             operands=[lowerBounds, upperBounds, steps, initVals],
             regions=[body],
-            result_types=[[SSAValue.get(a).typ for a in initVals]],
+            result_types=[[SSAValue.get(a).type for a in initVals]],
         )
 
     def verify_(self) -> None:
@@ -181,7 +187,7 @@ class ParallelOp(IRDLOperation):
 
         # Check each induction variable argument is present in the block arguments
         # and the block argument is of type index
-        if not all([isinstance(a.typ, IndexType) for a in body_args]):
+        if not all([isinstance(a.type, IndexType) for a in body_args]):
             raise VerifyException(
                 f"scf.parallel's block must have an index argument"
                 " for each induction variable"
@@ -191,12 +197,12 @@ class ParallelOp(IRDLOperation):
         # matches the corresponding initVals type
         num_reductions = self.count_number_reduction_ops()
         for reduction in range(num_reductions):
-            typ = self.get_arg_type_of_nth_reduction_op(reduction)
-            initValsType = self.initVals[reduction].typ
-            if initValsType != typ:
+            arg_type = self.get_arg_type_of_nth_reduction_op(reduction)
+            initValsType = self.initVals[reduction].type
+            if initValsType != arg_type:
                 raise VerifyException(
                     f"Miss match on scf.parallel argument and reduction op type number {reduction} "
-                    f", parallel argment is of type {initValsType} whereas reduction operation is of type {typ}"
+                    f", parallel argment is of type {initValsType} whereas reduction operation is of type {arg_type}"
                 )
 
         # Ensure that scf.yield is the last operation in the block as this is required
@@ -226,12 +232,12 @@ class ParallelOp(IRDLOperation):
         # scf.parallel result type (there is no result type on scf.reduce, hence we check the
         # operand type)
         for reduction in range(num_reductions):
-            typ = self.get_arg_type_of_nth_reduction_op(reduction)
-            resultType = self.res[reduction].typ
-            if resultType != typ:
+            arg_type = self.get_arg_type_of_nth_reduction_op(reduction)
+            res_type = self.res[reduction].type
+            if res_type != arg_type:
                 raise VerifyException(
                     f"Miss match on scf.parallel result type and reduction op type number {reduction} "
-                    f", parallel argment is of type {resultType} whereas reduction operation is of type {typ}"
+                    f", parallel argment is of type {res_type} whereas reduction operation is of type {arg_type}"
                 )
 
     def count_number_reduction_ops(self) -> int:
@@ -246,7 +252,7 @@ class ParallelOp(IRDLOperation):
         for op in self.body.block.ops:
             if isinstance(op, ReduceOp):
                 if found == index:
-                    return op.argument.typ
+                    return op.argument.type
                 found += 1
         return None
 
@@ -272,16 +278,16 @@ class ReduceOp(IRDLOperation):
                 f"{len(self.body.block.args)} were provided"
             )
 
-        if self.body.block.args[0].typ != self.body.block.args[1].typ:
+        if self.body.block.args[0].type != self.body.block.args[1].type:
             raise VerifyException(
                 "scf.reduce block argument types must be the same but have "
-                f"{self.body.block.args[0].typ} and {self.body.block.args[1].typ}"
+                f"{self.body.block.args[0].type} and {self.body.block.args[1].type}"
             )
 
-        if self.body.block.args[0].typ != self.argument.typ:
+        if self.body.block.args[0].type != self.argument.type:
             raise VerifyException(
                 "scf.reduce block argument types must match the operand type "
-                f" but have {self.body.block.args[0].typ} and {self.argument.typ}"
+                f" but have {self.body.block.args[0].type} and {self.argument.type}"
             )
 
         last_op = self.body.block.last_op
@@ -291,11 +297,11 @@ class ReduceOp(IRDLOperation):
                 "Block inside scf.reduce must terminate with an scf.reduce.return"
             )
 
-        if last_op.result.typ != self.argument.typ:
+        if last_op.result.type != self.argument.type:
             raise VerifyException(
                 "scf.reduce.return result type at end of scf.reduce block must"
-                f" match the reduction operand type but have {last_op.result.typ} "
-                f"and {self.argument.typ}"
+                f" match the reduction operand type but have {last_op.result.type} "
+                f"and {self.argument.type}"
             )
 
 
@@ -325,17 +331,17 @@ class While(IRDLOperation):
     # TODO verify dependencies between scf.condition, scf.yield and the regions
     def verify_(self):
         for idx, arg in enumerate(self.arguments):
-            if self.before_region.block.args[idx].typ != arg.typ:
+            if self.before_region.block.args[idx].type != arg.type:
                 raise Exception(
-                    f"Block arguments with wrong type, expected {arg.typ}, "
-                    f"got {self.before_region.block.args[idx].typ}"
+                    f"Block arguments with wrong type, expected {arg.type}, "
+                    f"got {self.before_region.block.args[idx].type}"
                 )
 
         for idx, res in enumerate(self.res):
-            if self.after_region.block.args[idx].typ != res.typ:
+            if self.after_region.block.args[idx].type != res.type:
                 raise Exception(
-                    f"Block arguments with wrong type, expected {res.typ}, "
-                    f"got {self.after_region.block.args[idx].typ}"
+                    f"Block arguments with wrong type, expected {res.type}, "
+                    f"got {self.after_region.block.args[idx].type}"
                 )
 
     @staticmethod

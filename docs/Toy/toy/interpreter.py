@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from typing import Any, cast
 
 from xdsl.dialects.builtin import TensorType, VectorType
@@ -10,9 +9,9 @@ from xdsl.interpreter import (
     PythonValues,
     ReturnedValues,
     TerminatorValue,
+    impl,
     impl_terminator,
     register_impls,
-    impl,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
 
@@ -45,9 +44,9 @@ class ToyFunctions(InterpreterFunctions):
         (arg,) = args
         assert isinstance(arg, ShapedArray)
         arg = cast(ShapedArray[float], arg)
-        result_typ = op.results[0].typ
-        assert isinstance(result_typ, (VectorType, TensorType))
-        new_shape = list(result_typ.get_shape())
+        result_type = op.results[0].type
+        assert isinstance(result_type, (VectorType, TensorType))
+        new_shape = list(result_type.get_shape())
 
         return (ShapedArray(arg.data, new_shape),)
 
@@ -108,3 +107,9 @@ class ToyFunctions(InterpreterFunctions):
         result = ShapedArray(new_data, arg.shape[::-1])
 
         return (result,)
+
+    @impl(toy.CastOp)
+    def run_cast(
+        self, interpreter: Interpreter, op: toy.CastOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        return args

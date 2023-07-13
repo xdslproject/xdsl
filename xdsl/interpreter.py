@@ -8,13 +8,13 @@ from typing import (
     Generator,
     Iterable,
     NamedTuple,
+    ParamSpec,
     TypeAlias,
     TypeVar,
-    ParamSpec,
 )
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import OperationInvT, SSAValue, Operation
+from xdsl.ir import Operation, OperationInvT, SSAValue
 from xdsl.ir.core import Block, Region
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
@@ -350,15 +350,12 @@ class Interpreter:
         body = interface.get_callable_region(op)
 
         results = self.run_ssacfg_region(body, inputs, name)
-        self.interpreter_assert(
-            results is not None, f"Expected {op.name} body to have a terminator"
-        )
         assert results is not None
         return results
 
     def run_ssacfg_region(
         self, region: Region, args: PythonValues, name: str = "unknown"
-    ) -> PythonValues | None:
+    ) -> PythonValues:
         """
         Interpret an SSACFG-semantic Region.
         Creates a new scope, then executes the first block in the region. The first block
