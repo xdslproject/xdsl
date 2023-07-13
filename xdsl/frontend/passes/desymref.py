@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Callable
 
 from xdsl.dialects import builtin
 from xdsl.frontend import symref
