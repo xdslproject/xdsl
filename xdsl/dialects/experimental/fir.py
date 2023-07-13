@@ -65,8 +65,8 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
             printer.print(self.type)
         printer.print(">")
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         # This is complicated by the fact we need to parse tuple
         # here also as the buildin dialect does not support this
         # yet
@@ -189,8 +189,8 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             printer.print_string(">")
         printer.print(">")
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         # We need extra work here as the builtin tuple is not being supported
         # yet, therefore handle this here
         def parse_interval() -> IntegerAttr[IntegerType] | DeferredAttr:
@@ -259,8 +259,8 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
             printer.print_string(f"{self.to_index.data}")
         printer.print(">")
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         def parse_value():
             if parser.parse_optional_punctuation("?"):
                 return DeferredAttr()
@@ -292,8 +292,8 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
         printer.print_string(f"{self.indexes.data}")
         printer.print(">")
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
         s = parser.parse_integer(allow_boolean=False)
         parser.parse_characters(">")
@@ -344,8 +344,8 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
         printer.print_string(f"{self.kind.data}")
         printer.print(">")
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
         s = parser.parse_integer(allow_boolean=False)
         parser.parse_characters(">")

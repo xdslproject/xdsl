@@ -38,8 +38,8 @@ class BoolData(Data[bool]):
 
     name = "bool"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> bool:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> bool:
         if parser.parse_optional_keyword("True"):
             return True
         if parser.parse_optional_keyword("False"):
@@ -56,8 +56,8 @@ class IntData(Data[int]):
 
     name = "int"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> int:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> int:
         return parser.parse_integer()
 
     def print_parameter(self, printer: Printer):
@@ -70,8 +70,8 @@ class StringData(Data[str]):
 
     name = "str"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> str:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer):
@@ -95,8 +95,8 @@ class IntListData(Data[list[int]]):
 
     name = "int_list"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> list[int]:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> list[int]:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -399,8 +399,8 @@ _MissingGenericDataData = TypeVar("_MissingGenericDataData")
 class MissingGenericDataData(Data[_MissingGenericDataData]):
     name = "missing_genericdata"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> _MissingGenericDataData:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> _MissingGenericDataData:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -452,8 +452,8 @@ class DataListAttr(AttrConstraint):
 class ListData(GenericData[list[A]]):
     name = "list"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> list[A]:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> list[A]:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:

@@ -164,6 +164,7 @@
         ^bb0(%arg0: index):
             "gpu.return"() : () -> ()
         }) {"sym_name" = "foo", "kernel", "function_type" = () -> ()} : () -> ()
+        "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) : () -> ()
 
@@ -177,6 +178,7 @@
         ^bb0(%arg0: index):
             "gpu.return"(%arg0) : (index) -> ()
         }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> (index)} : () -> ()
+        "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) : () -> ()
 
