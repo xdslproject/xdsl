@@ -26,7 +26,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AttrConstraint,
-    BaseAttr,
     GenericData,
     IRDLOperation,
     Operand,
