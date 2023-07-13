@@ -59,6 +59,42 @@ def test_quasiaffine_map():
     assert map3.eval([6], [11]) == [-11]
 
 
+def test_composition_simple():
+    # map1 = (x, y) -> (x - y)
+    map1 = AffineMap(2, 0, [AffineExpr.dimension(0) - AffineExpr.dimension(1)])
+    # map2 = (x, y) -> (y, x)
+    map2 = AffineMap(2, 0, [AffineExpr.dimension(1), AffineExpr.dimension(0)])
+    # Compose
+    # map3 = (x, y) -> (y - x)
+    map3 = map1.compose(map2)
+
+    assert map3.eval([1, 2], []) == [1]
+    assert map3.eval([3, 4], []) == [1]
+    assert map3.eval([5, 6], []) == [1]
+    assert map3.eval([20, 10], []) == [-10]
+
+
+def test_composition():
+    # map1: (x, y) -> (x floordiv 2, 2 * x + 3 * y)
+    map1 = AffineMap(
+        2,
+        0,
+        [
+            AffineExpr.dimension(0).floor_div(2),
+            2 * AffineExpr.dimension(0) + 3 * AffineExpr.dimension(1),
+        ],
+    )
+    # map2: (x, y) -> (-x, -y)
+    map2 = AffineMap(2, 0, [-AffineExpr.dimension(0), -AffineExpr.dimension(1)])
+    # Compose
+    # map3: (x, y) -> (-x floordiv 2, -2 * x - 3 * y)
+    map3 = map1.compose(map2)
+
+    assert map3.eval([1, 2], []) == [-1, -8]
+    assert map3.eval([3, 4], []) == [-2, -18]
+    assert map3.eval([5, 6], []) == [-3, -28]
+
+
 def test_helpers():
     m0 = AffineMap.constant_map(0)
     assert m0 == AffineMap(0, 0, [AffineExpr.constant(0)])

@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import TYPE_CHECKING
+
+# Used for cyclic dependencies in type hints
+if TYPE_CHECKING:
+    from xdsl.ir.affine import AffineMap
 
 
 class _AffineExprKind(Enum):
@@ -128,6 +133,37 @@ class AffineExpr:
     @staticmethod
     def symbol(position: int) -> AffineExpr:
         return AffineExpr(_AffineDimExprStorage(_AffineExprKind.SymbolId, position))
+
+    def compose(self, map: AffineMap) -> AffineExpr:
+        """Compose the affine expression with the given affine map."""
+        if map.num_symbols != 0:
+            raise NotImplementedError("AffineMap with symbol not supported yet")
+
+        if isinstance(self._impl, _AffineConstantExprStorage):
+            return self
+
+        if isinstance(self._impl, _AffineDimExprStorage):
+            match self._impl.kind:
+                case _AffineExprKind.DimId:
+                    return map.results[self._impl.position]
+                case _AffineExprKind.SymbolId:
+                    return self
+                case _:
+                    raise ValueError(f"Unreachable")
+
+        if isinstance(self._impl, _AffineBinaryOpExprStorage):
+            lhs = self._impl.lhs.compose(map)
+            rhs = self._impl.rhs.compose(map)
+
+            return AffineExpr(
+                _AffineBinaryOpExprStorage(
+                    lhs=lhs,
+                    rhs=rhs,
+                    kind=self._impl.kind,
+                )
+            )
+
+        raise ValueError("Unreachable")
 
     def eval(self, dims: list[int], symbols: list[int]) -> int:
         """Evaluate the affine expression with the given dimension and symbol values."""
