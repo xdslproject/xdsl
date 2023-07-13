@@ -372,47 +372,6 @@ class RISCVInstruction(RISCVOp):
         return _assembly_line(instruction_name, arg_str, self.comment)
 
 
-class RISCVMemInstruction(RISCVOp):
-    """
-    Base class for operations that can be a part of RISC-V assembly printing. Must
-    represent an instruction in the RISC-V instruction set, and have the following format:
-
-    name val, imm(offset)           # comment
-
-    The name of the operation will be used as the RISC-V assembly instruction name.
-    """
-
-    comment: StringAttr | None = opt_attr_def(StringAttr)
-    """
-    An optional comment that will be printed along with the instruction.
-    """
-
-    @abstractmethod
-    def assembly_line_args(
-        self,
-    ) -> tuple[SSAValue, LabelAttr | AnyIntegerAttr, SSAValue]:
-        """
-        The arguments to the instruction, (value register, immediate, address register).
-        """
-        raise NotImplementedError()
-
-    def assembly_instruction_name(self) -> str:
-        """
-        By default, the name of the instruction is the same as the name of the operation.
-        """
-
-        return self.name.split(".", 1)[-1]
-
-    def assembly_line(self) -> str | None:
-        # default assembly code generator
-        instruction_name = self.assembly_instruction_name()
-        val, offset, ptr = (_assembly_arg_str(arg) for arg in self.assembly_line_args())
-        assert val is not None
-        assert offset is not None
-        assert ptr is not None
-        return _assembly_line(instruction_name, f"{val}, {offset}({ptr})", self.comment)
-
-
 # region Assembly printing
 
 
