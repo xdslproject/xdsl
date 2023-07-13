@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, NamedTuple
+from typing import Any
 
 import pytest
 
