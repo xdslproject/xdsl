@@ -41,7 +41,9 @@ class SyscallOp(IRDLOperation):
             operands=[operands],
             attributes={"syscall_num": num},
             result_types=[
-                riscv.IntegerRegisterType(riscv.Register()) if has_result else None
+                riscv.IntegerRegisterType(riscv.IntegerRegister())
+                if has_result
+                else None
             ],
         )
 
