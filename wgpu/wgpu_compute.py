@@ -88,9 +88,12 @@ new = """
                 
         @compute
         @workgroup_size(1)
-        fn main(@builtin(global_invocation_id) index: vec3<u32>) {
+        fn main(@builtin(global_invocation_id) global_invocation_id : vec3<u32>, 
+    @builtin(workgroup_id) workgroup_id : vec3<u32>,
+    @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
+    @builtin(num_workgroups) num_workgroups : vec3<u32>) {
         
-        let i: u32 = index.x;
+        let i: u32 = global_invocation_id.x;
         
                     let cst1 : u32 = 1u;
                     

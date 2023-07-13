@@ -63,7 +63,10 @@ class WGPUFunctions:
             f"""
     @compute
     @workgroup_size(1)
-    fn main(@builtin(global_invocation_id) index: vec3<u32>) {{
+    fn main(@builtin(global_invocation_id) global_invocation_id : vec3<u32>, 
+    @builtin(workgroup_id) workgroup_id : vec3<u32>,
+    @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
+    @builtin(num_workgroups) num_workgroups : vec3<u32>) {{
         """
         )
         for operation in op.body.ops:
@@ -93,7 +96,10 @@ class WGPUFunctions:
             f"""
     @compute
     @workgroup_size(1)
-    fn main(@builtin(global_invocation_id) indx: vec3<u32>) {{
+    fn main(@builtin(global_invocation_id) global_invocation_id : vec3<u32>, 
+    @builtin(workgroup_id) workgroup_id : vec3<u32>,
+    @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
+    @builtin(num_workgroups) num_workgroups : vec3<u32>) {{
         """
         )
 
@@ -112,11 +118,23 @@ class WGPUFunctions:
 
     @print.register
     def _(self, op: gpu.BlockIdOp, out_stream: IO[str]):
-        self.gpu_helper(op, out_stream)
+        dim = str(op.dimension.value.param).replace('"', "")
+        name_hint = self.wgsl_name(op.result)
+        input_type = op.result.typ
+        out_stream.write(
+            f"""
+                    let {name_hint}: u32 = workgroup_id.{dim};"""
+        )
 
     @print.register
     def _(self, op: gpu.ThreadIdOp , out_stream: IO[str]):
-        self.gpu_helper(op, out_stream)
+        dim = str(op.dimension.value.param).replace('"', "")
+        name_hint = self.wgsl_name(op.result)
+        input_type = op.result.typ
+        out_stream.write(
+            f"""
+                            let {name_hint}: u32 = local_invocation_id.{dim};"""
+        )
 
     @print.register
     def _(self, op: gpu.GridDimOp, out_stream: IO[str]):
