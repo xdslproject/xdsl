@@ -93,7 +93,7 @@ class WGPUFunctions:
             f"""
     @compute
     @workgroup_size(1)
-    fn main(@builtin(global_invocation_id) index: vec3<u32>) {{
+    fn main(@builtin(global_invocation_id) indx: vec3<u32>) {{
         """
         )
 
@@ -114,9 +114,9 @@ class WGPUFunctions:
     def _(self, op: gpu.BlockIdOp, out_stream: IO[str]):
         self.gpu_helper(op, out_stream)
 
-    # @print.register
-    # def _(self, op: gpu.ThreadIdOp , out_stream: IO[str]):
-    #     self.gpu_helper(op, out_stream)
+    @print.register
+    def _(self, op: gpu.ThreadIdOp , out_stream: IO[str]):
+        self.gpu_helper(op, out_stream)
 
     @print.register
     def _(self, op: gpu.GridDimOp, out_stream: IO[str]):
