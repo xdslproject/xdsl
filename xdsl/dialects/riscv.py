@@ -144,6 +144,11 @@ class RegisterType(Data[Register], TypeAttribute):
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
 
+    @property
+    def is_allocated(self) -> bool:
+        """Returns true if a RISCV register is allocated, otherwise false"""
+        return self.data.name is not None
+
     @staticmethod
     def parse_parameter(parser: AttrParser) -> Register:
         name = parser.parse_optional_identifier()
@@ -179,6 +184,11 @@ class FloatRegisterType(Data[Register], TypeAttribute):
         if self.data.name is None:
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
+
+    @property
+    def is_allocated(self) -> bool:
+        """Returns true if a RISCV register is allocated, otherwise false"""
+        return self.data.name is not None
 
     @staticmethod
     def parse_parameter(parser: AttrParser) -> Register:
