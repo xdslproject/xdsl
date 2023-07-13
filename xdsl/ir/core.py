@@ -460,8 +460,8 @@ class ParametrizedAttribute(Attribute):
         ParametrizedAttribute.__init__(attr, params)
         return attr
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 
