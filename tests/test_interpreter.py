@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
 from xdsl.interpreter import (
     Interpreter,
@@ -10,7 +11,9 @@ from xdsl.interpreter import (
     impl_cast,
     register_impls,
 )
+from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_import_functions():
@@ -63,11 +66,23 @@ def test_cast():
     interpreter.register_implementations(CastImpls())
 
     integer = Integer(42)
-    index = interpreter.cast_value(i32, IndexType(), integer)
-    assert isinstance(index, Index)
+    index0 = interpreter.cast_value(i32, IndexType(), integer)
+    assert isinstance(index0, Index)
 
     with pytest.raises(
         InterpretationError,
         match="Could not find cast implementation for types index, i32",
     ):
-        integer = interpreter.cast_value(IndexType(), i32, index)
+        integer = interpreter.cast_value(IndexType(), i32, index0)
+
+    # Test builtin cast
+    integer_value = TestSSAValue(i32)
+    cast_op = builtin.UnrealizedConversionCastOp.get(
+        (integer_value,), result_type=(IndexType(),)
+    )
+    interpreter.register_implementations(BuiltinFunctions())
+
+    results = interpreter.run_op(cast_op, (integer,))
+    assert len(results) == 1
+    index1 = results[0]
+    assert isinstance(index1, Index)
