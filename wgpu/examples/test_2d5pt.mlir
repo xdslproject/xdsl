@@ -41,8 +41,8 @@ builtin.module attributes {gpu.container_module} {
       %36 = arith.mulf %26, %arg6 : f32
       %37 = arith.mulf %29, %arg6 : f32
       %38 = arith.addf %36, %37 : f32
-      %39 = arith.addf %38, %33 : f32
-      %40 = arith.addf %35, %39 : f32
+      %temp = arith.addf %38, %33 : f32
+      %40 = arith.addf %35, %temp : f32
       %41 = arith.mulf %40, %arg8 : f32
       %42 = arith.addf %30, %arg9 : f32
       %43 = arith.addf %42, %41 : f32

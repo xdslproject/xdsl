@@ -119,7 +119,7 @@ new = """
 n = 20
 data = memoryview(bytearray(n * 4)).cast("i")
 for i in range(n):
-    data[i] = i
+    data[i] = 1
 
 # %% The short version, using memoryview
 

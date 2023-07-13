@@ -6,10 +6,23 @@ from typing import cast, IO
 from xdsl.dialects import builtin
 from xdsl.dialects import gpu, func, memref, arith, cf
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Operation
+from xdsl.ir import Operation, SSAValue
 
 
 class WGPUFunctions:
+    name_dict = dict()
+    count = 0
+
+    def wgsl_name(self, v: SSAValue):
+        if not v in self.name_dict.keys():
+            if v.name_hint is not None:
+                self.name_dict[v] = f'v{v.name_hint}'
+            else:
+                self.name_dict[v] = f'v{self.count}'
+                self.count += 1
+        print(self.name_dict)
+        return self.name_dict[v]
+
     @singledispatchmethod
     def print(self, op: Operation, out_stream: IO[str]):
         raise NotImplementedError(
@@ -29,52 +42,31 @@ class WGPUFunctions:
     def _(self, op: gpu.FuncOp, out_stream: IO[str]):
         print(f"Thats a gpu func : {op}")
         for arg in op.body.block.args:
-            # memref_typ = cast(MemRefType, arg.typ)
-            # print(arg.typ, memref_typ)
             auth = "read"
             for use in arg.uses:
-                match use.operation:
-                    case memref.Store():
-                        auth = "read_write"
-            match arg.typ:
-                case builtin.Float32Type():
-                    arguments = f"""
-                            @group(0) @binding({arg.index})
-                            var<storage,{auth}> data{arg.index + 1}: f32;
-                        """
-                    out_stream.write(arguments)
-                case builtin.IndexType():
-                    arguments = f"""
-                            @group(0) @binding({arg.index})
-                            var<storage,{auth}> data{arg.index + 1}: u32;
-                        """
-                    out_stream.write(arguments)
-                case MemRefType():
-                    memref_typ = cast(MemRefType, arg.typ)
-                    arguments = f"""
-                            @group(0) @binding({arg.index})
-                            var<storage,{auth}> data{arg.index + 1}: array<{memref_typ.element_type}>;
-                        """
-                    out_stream.write(arguments)
+                if isinstance(use.operation, memref.Store):
+                    auth = "read_write"
+            if isinstance(arg.typ, builtin.Float32Type):
+                arg_type = 'f32'
+            elif isinstance(arg.typ, builtin.IndexType):
+                arg_type = 'u32'
+            elif isinstance(arg.typ, MemRefType):
+                memref_typ = cast(MemRefType, arg.typ)
+                arg_type = f'array<{memref_typ.element_type}>'
+            arguments = f"""
+    @group(0) @binding({arg.index})
+    var<storage,{auth}> data{arg.index + 1}: {arg_type};
+            """
+            out_stream.write(arguments)
+
         out_stream.write(
             f"""
-        @compute
-        @workgroup_size(1)
-        fn main(@builtin(global_invocation_id) index: vec3<u32>) {{
+    @compute
+    @workgroup_size(1)
+    fn main(@builtin(global_invocation_id) index: vec3<u32>) {{
         """
         )
-        count = 0
         for operation in op.body.ops:
-            match operation:
-                case memref.Load():
-                    operation.res.name_hint = f"v{count}"
-                case memref.Store():
-                    operation.value.name_hint = f"v{count}"
-                case gpu.ReturnOp():
-                    pass
-                case _:
-                    operation.result.name_hint = f"v{count}"
-            count += 1
             self.print(operation, out_stream)
         out_stream.write(
             f"""
@@ -106,7 +98,6 @@ class WGPUFunctions:
         )
 
         for operation in op.body.ops:
-            operation.results.name_hint = "i"
             self.print(operation.results.name_hint, out_stream)
         out_stream.write(
             f"""
@@ -114,69 +105,46 @@ class WGPUFunctions:
             """
         )
 
+
     @print.register
     def _(self, op: gpu.ReturnOp, out_stream: IO[str]):
-        print(op.name, op.results)
-        # out_stream.write(f"""
-        # {op.results}""")
+        pass
 
     @print.register
     def _(self, op: gpu.BlockIdOp, out_stream: IO[str]):
-        # print(op.name)
-        dim = str(op.dimension.value.param).replace('"', "")
-        name_hint = op.result.name_hint
-        input_type = op.result.typ
-        out_stream.write(
-            f"""
-        let {name_hint}: u32 = {input_type}.{dim};"""
-        )
+        self.gpu_helper(op, out_stream)
 
-    @print.register
-    def _(self, op: gpu.ThreadIdOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).replace('"', "")
-        name_hint = op.result.name_hint
-        input_type = op.result.typ
-        out_stream.write(
-            f"""
-        let {name_hint}: u32 = {input_type}.{dim};"""
-        )
+    # @print.register
+    # def _(self, op: gpu.ThreadIdOp , out_stream: IO[str]):
+    #     self.gpu_helper(op, out_stream)
 
     @print.register
     def _(self, op: gpu.GridDimOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).replace('"', "")
-        name_hint = op.result.name_hint
-        input_type = op.result.typ
-        out_stream.write(
-            f"""
-        let {name_hint}: u32 = {input_type}.{dim};"""
-        )
+        self.gpu_helper(op, out_stream)
 
     @print.register
     def _(self, op: gpu.BlockDimOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).replace('"', "")
-        name_hint = op.result.name_hint
-        input_type = op.result.typ
-        out_stream.write(
-            f"""
-        let {name_hint}: u32 = {input_type}.{dim};"""
-        )
+        self.gpu_helper(op, out_stream)
 
     @print.register
     def _(self, op: gpu.GlobalIdOp, out_stream: IO[str]):
+        self.gpu_helper(op, out_stream)
+
+    def gpu_helper(self, op, out_stream: IO[str]):
         dim = str(op.dimension.value.param).replace('"', "")
-        name_hint = op.result.name_hint
+        name_hint = self.wgsl_name(op.result)
         input_type = op.result.typ
         out_stream.write(
             f"""
-        let {name_hint}: u32 = {input_type}.{dim};"""
+            let {name_hint}: u32 = {input_type}.{dim};"""
         )
 
     @print.register
     def _(self, op: memref.Load, out_stream: IO[str]):
         load_ref = op.memref.index
-        name_hint = op.res.name_hint
+        name_hint = self.wgsl_name(op.res)
         data_load = f"""data{load_ref + 1}"""
-        index = op.indices[0].name_hint
+        index = self.wgsl_name(op.indices[0])
         out_stream.write(
             f"""
         let {name_hint} = {data_load}[{index}];"""
@@ -184,10 +152,10 @@ class WGPUFunctions:
 
     @print.register
     def _(self, op: memref.Store, out_stream: IO[str]):
-        value = op.value.name_hint
+        value = self.wgsl_name(op.value)
         store_ref = op.memref.index
         data_store = f"""data{store_ref + 1}"""
-        index = op.indices[0].name_hint
+        index = self.wgsl_name(op.indices[0])
         out_stream.write(
             f"""
         {data_store}[{index}] = {value};"""
@@ -210,7 +178,7 @@ class WGPUFunctions:
         cons_type = op.result.typ
         if op.result.typ.name == 'index':
             cons_type = 'u32'
-        name_hint = op.result.name_hint
+        name_hint = self.wgsl_name(op.result)
         if cons_type == 'u32':
             if value == -1:
                 value = 4294967295
@@ -222,41 +190,42 @@ class WGPUFunctions:
 
     @print.register
     def _(self, op: arith.Addi, out_stream: IO[str]):
-        print(op.lhs.name_hint)
-        op_name_hint = op.result.name_hint
-        lhs = op.lhs.name_hint
-        rhs = op.rhs.name_hint
+        print(op.lhs)
+        op_name_hint = self.wgsl_name(op.result)
+        lhs = self.wgsl_name(op.lhs)
+        rhs = self.wgsl_name(op.rhs)
         out_stream.write(f"""
         let {op_name_hint} = {lhs} + {rhs};""")
 
     @print.register
     def _(self, op: arith.Muli, out_stream: IO[str]):
-        op_name_hint = op.result.name_hint
-        lhs = op.lhs.name_hint
-        rhs = op.rhs.name_hint
+        op_name_hint = self.wgsl_name(op.result)
+        lhs = self.wgsl_name(op.lhs)
+        rhs = self.wgsl_name(op.rhs)
         out_stream.write(f"""
         let {op_name_hint} = {lhs} * {rhs};""")
 
     @print.register
     def _(self, op: arith.Subi, out_stream: IO[str]):
-        op_name_hint = op.result.name_hint
-        lhs = op.lhs.name_hint
-        rhs = op.rhs.name_hint
+        op_name_hint = self.wgsl_name(op.result)
+        lhs = self.wgsl_name(op.lhs)
+        rhs = self.wgsl_name(op.rhs)
         out_stream.write(f"""
         let {op_name_hint} = {lhs} - {rhs};""")
+
     @print.register
     def _(self, op: arith.Mulf, out_stream: IO[str]):
-        op_name_hint = op.result.name_hint
-        lhs = op.lhs.name_hint
-        rhs = op.rhs.name_hint
+        op_name_hint = self.wgsl_name(op.result)
+        lhs = self.wgsl_name(op.lhs)
+        rhs = self.wgsl_name(op.rhs)
         out_stream.write(f"""
         let {op_name_hint} = {lhs} * {rhs};""")
 
     @print.register
     def _(self, op: arith.Addf, out_stream: IO[str]):
-        op_name_hint = op.result.name_hint
-        lhs = op.lhs.name_hint
-        rhs = op.rhs.name_hint
+        op_name_hint = self.wgsl_name(op.result)
+        lhs = self.wgsl_name(op.lhs)
+        rhs = self.wgsl_name(op.rhs)
         out_stream.write(f"""
         let {op_name_hint} = {lhs} + {rhs};""")
 
