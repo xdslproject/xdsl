@@ -86,8 +86,8 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
 
     value: ParameterDef[T]
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters(
             "<",
             ": gpu attributes currently have the #gpu<name value> syntax.",
