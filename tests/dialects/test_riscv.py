@@ -233,14 +233,14 @@ def test_immediate_shift_inst():
 
 
 def test_float_register():
-    with pytest.raises(VerifyException):
-        riscv.RegisterType(riscv.Register("ft9")).verify()
-    with pytest.raises(VerifyException):
-        riscv.FloatRegisterType(riscv.Register("a0")).verify()
+    with pytest.raises(VerifyException, match="not in"):
+        riscv.RegisterType(riscv.Register("ft9"))
+    with pytest.raises(VerifyException, match="not in"):
+        riscv.FloatRegisterType(riscv.Register("a0"))
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="Operation does not verify"):
         riscv.FAddSOp(a1, a2).verify()
 
     f1 = TestSSAValue(riscv.Registers.FT0)
