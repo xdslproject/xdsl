@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import singledispatchmethod
-from typing import cast, IO
+from typing import IO, cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects import gpu, func, memref, arith, cf
@@ -15,7 +15,7 @@ class WGSLPrinter:
     count = 0
 
     def wgsl_name(self, v: SSAValue):
-        if not v in self.name_dict.keys():
+        if v not in self.name_dict.keys():
             if v.name_hint is not None:
                 self.name_dict[v] = f"v{v.name_hint}"
             else:
@@ -61,20 +61,20 @@ class WGSLPrinter:
             out_stream.write(arguments)
 
         out_stream.write(
-            f"""
+            """
     @compute
     @workgroup_size(1)
     fn main(@builtin(global_invocation_id) global_invocation_id : vec3<u32>, 
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
-    @builtin(num_workgroups) num_workgroups : vec3<u32>) {{
+    @builtin(num_workgroups) num_workgroups : vec3<u32>) {
         """
         )
         for operation in op.body.ops:
             self.print(operation, out_stream)
         out_stream.write(
-            f"""
-            }}
+            """
+            }
             """
         )
 
