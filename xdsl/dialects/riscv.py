@@ -59,6 +59,11 @@ class Register:
     name: str | None = field(default=None)
     """The register name. Should be one of `ABI_INDEX_BY_NAME` or `None`"""
 
+    @property
+    def is_allocated(self) -> bool:
+        """Returns true if a RISCV register is allocated, otherwise false"""
+        return self.name is not None
+
     ABI_INDEX_BY_NAME: dict[str, int] = field(init=False)
 
 
@@ -157,6 +162,11 @@ class RegisterType(GenericData[RegisterT], TypeAttribute):
         if self.data.name is None:
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
+
+    @property
+    def is_allocated(self) -> bool:
+        """Returns true if a RISCV register is allocated, otherwise false"""
+        return self.data.is_allocated
 
     @classmethod
     def new_register(cls, name: str | None = None) -> RegisterT:
