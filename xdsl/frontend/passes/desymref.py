@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Callable
 
 from xdsl.dialects import builtin
 from xdsl.frontend import symref
@@ -298,9 +297,9 @@ class Desymrefier:
                         Rewriter.replace_op(read, [], [write.operands[0]])
 
     def _prune_unused_reads(self, block: Block):
-        is_unused_read: Callable[[Operation], bool] = (
-            lambda op: isinstance(op, symref.Fetch) and len(op.results[0].uses) == 0
-        )
+        def is_unused_read(op: Operation) -> bool:
+            return isinstance(op, symref.Fetch) and len(op.results[0].uses) == 0
+
         unused_reads = [op for op in block.ops if is_unused_read(op)]
         for read in unused_reads:
             Rewriter.erase_op(read)

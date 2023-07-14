@@ -33,7 +33,7 @@ def test_get_op():
         _ = ctx.get_op("dummy2")
 
     assert ctx.get_optional_op("dummy") == DummyOp
-    assert ctx.get_optional_op("dummy2") == None
+    assert ctx.get_optional_op("dummy2") is None
 
 
 def test_get_op_unregistered():
@@ -63,7 +63,7 @@ def test_get_attr():
         _ = ctx.get_attr("dummy_attr2")
 
     assert ctx.get_optional_attr("dummy_attr") == DummyAttr
-    assert ctx.get_optional_attr("dummy_attr2") == None
+    assert ctx.get_optional_attr("dummy_attr2") is None
 
 
 @pytest.mark.parametrize("is_type", [True, False])
