@@ -1,8 +1,7 @@
 import pytest
 
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, test
 from xdsl.dialects import printf as print_dialect
-from xdsl.dialects import test
 from xdsl.transforms import printf_to_llvm
 
 
