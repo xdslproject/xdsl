@@ -76,7 +76,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
     def _allocate(self, reg: SSAValue) -> bool:
         if isinstance(reg.type, self._register_types) and not reg.type.is_allocated:
-            # if we run out of real registers, allocate a j register
+            # If we run out of real registers, allocate a j register
             reg_type = type(reg.type)
             available_regs = self.register_sets.get(reg_type, [])
 
@@ -108,19 +108,19 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                         self._free(reg)
                     to_free.clear()
 
-                    # do not allocate registers on non-RISCV-ops
+                    # Do not allocate registers on non-RISCV-ops
                     if not isinstance(op, RISCVOp):
                         continue
 
-                    # allocate registers to operands since they are defined further up
+                    # Allocate registers to operands since they are defined further up
                     # in the use-def SSA chain
                     for operand in op.operands:
                         self._allocate(operand)
 
-                    # allocate registers to results if not already allocated,
+                    # Allocate registers to results if not already allocated,
                     # otherwise free that register since the SSA value is created here
                     for result in op.results:
-                        # unallocated results still need a register,
+                        # Unallocated results still need a register,
                         # so allocate and keep track of them to be freed
                         # before processing the next instruction
                         self._allocate(result)
@@ -161,7 +161,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                 register_sets = self.register_sets.copy()
 
                 for op in block.walk():
-                    # do not allocate registers on non-RISCV-ops
+                    # Do not allocate registers on non-RISCV-ops
                     if not isinstance(op, RISCVOp):
                         continue
 
@@ -171,7 +171,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                                 reg_type = type(result.type)
                                 available_regs = register_sets.get(reg_type, [])
 
-                                # if we run out of real registers, allocate a j register
+                                # If we run out of real registers, allocate a j register
                                 if not available_regs:
                                     result.type = reg_type(Register(f"j{self.idx}"))
                                     self.idx += 1
@@ -194,7 +194,7 @@ class RegisterAllocatorJRegs(RegisterAllocator):
         Sets unallocated registers to an infinite set of `j` registers
         """
         for op in module.walk():
-            # do not allocate registers on non-RISCV-ops
+            # Do not allocate registers on non-RISCV-ops
             if not isinstance(op, RISCVOp):
                 continue
 
