@@ -3,8 +3,7 @@ from __future__ import annotations
 from functools import singledispatchmethod
 from typing import IO, cast
 
-from xdsl.dialects import builtin
-from xdsl.dialects import gpu, func, memref, arith, cf
+from xdsl.dialects import arith, builtin, cf, func, gpu, memref
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue
 from xdsl.ir.core import Attribute

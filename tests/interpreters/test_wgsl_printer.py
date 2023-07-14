@@ -1,4 +1,5 @@
 from io import StringIO
+
 from xdsl.dialects import arith, memref
 from xdsl.dialects.builtin import IndexType, IntegerAttr, i32
 from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
