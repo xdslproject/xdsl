@@ -57,6 +57,11 @@ class Register:
     name: str | None = field(default=None)
     """The register name. Should be one of `ABI_INDEX_BY_NAME` or `None`"""
 
+    @property
+    def is_allocated(self) -> bool:
+        """Returns true if a RISCV register is allocated, otherwise false"""
+        return self.name is not None
+
     RV32I_INDEX_BY_NAME = {
         "zero": 0,
         "ra": 1,
@@ -147,7 +152,7 @@ class RegisterType(Data[Register], TypeAttribute):
     @property
     def is_allocated(self) -> bool:
         """Returns true if a RISCV register is allocated, otherwise false"""
-        return self.data.name is not None
+        return self.data.is_allocated
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> Register:
@@ -188,7 +193,7 @@ class FloatRegisterType(Data[Register], TypeAttribute):
     @property
     def is_allocated(self) -> bool:
         """Returns true if a RISCV register is allocated, otherwise false"""
-        return self.data.name is not None
+        return self.data.is_allocated
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> Register:
