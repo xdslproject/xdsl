@@ -48,10 +48,10 @@ from xdsl.utils.hints import (
 # pyright: reportMissingParameterType=false, reportUnknownParameterType=false
 
 
-def error(op: Operation, msg: str):
+def error(op: Operation, msg: str, e: Exception):
     diag = Diagnostic()
     diag.add_message(op, msg)
-    diag.raise_exception(f"{op.name} operation does not verify", op)
+    diag.raise_exception(f"{op.name} operation does not verify", op, type(e), e)
 
 
 class IRDLAnnotations(Enum):
@@ -1448,6 +1448,7 @@ def irdl_op_verify_arg_list(
                 op,
                 f"{get_construct_name(construct)} at position "
                 f"{arg_idx} does not verify!\n{e}",
+                e,
             )
 
     for def_idx, (_, arg_def) in enumerate(get_construct_defs(op_def, construct)):
