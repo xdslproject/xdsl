@@ -233,6 +233,9 @@ class HaloShapeInformation(ParametrizedAttribute):
 
     @property
     def dims(self) -> int:
+        """
+        Number of axis of the data (len(shape))
+        """
         return len(self.core_ub)
 
     @staticmethod
