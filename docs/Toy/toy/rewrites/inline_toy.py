@@ -82,7 +82,7 @@ class RemoveUnusedPrivateFunctions(RewritePattern):
                 if isinstance(op, toy.GenericCallOp)
             }
 
-        return not op.sym_name.data in self._used_funcs
+        return op.sym_name.data not in self._used_funcs
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.FuncOp, rewriter: PatternRewriter):
