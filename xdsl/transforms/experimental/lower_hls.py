@@ -9,9 +9,8 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.ir import Block, MLContext, Region, Operation, OpResult
 from xdsl.irdl import VarOperand, VarOpResult
-from xdsl.dialects.func import FuncOp, Return
-from xdsl.dialects.func import Call
-from xdsl.dialects import builtin
+from xdsl.dialects.func import FuncOp, Return, Call
+from xdsl.dialects import builtin, func
 from xdsl.dialects.builtin import i32, IndexType
 from xdsl.dialects.arith import Constant
 
@@ -20,6 +19,7 @@ from xdsl.dialects.experimental.hls import (
     PragmaUnroll,
     PragmaDataflow,
     HLSStream,
+    HLSStreamRead,
 )
 from xdsl.dialects import llvm
 from xdsl.dialects.llvm import AllocaOp, LLVMPointerType, GEPOp, LLVMStructType
@@ -30,6 +30,39 @@ from xdsl.dialects.scf import ParallelOp, For, Yield
 
 from typing import cast, Any
 from xdsl.utils.hints import isa
+
+
+@dataclass
+class LowerHLSStreamRead(RewritePattern):
+    def __init__(self, op: builtin.ModuleOp):
+        self.module = op
+        self.pop_declaration = False
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: HLSStreamRead, rewriter: PatternRewriter, /):
+        # The stream is an alloca of a struct of the elem_type. elem_type must be extracted from the struct
+        stream_alloca_pointer = op.stream.op.res.typ
+        struct_elem_type = stream_alloca_pointer.type
+        elem_type = struct_elem_type.types
+
+        if not self.pop_declaration:
+            pop_func = func.FuncOp.external(
+                "llvm.fpga.fifo.pop.stencil",
+                [LLVMPointerType.typed(*elem_type)],
+                [op.res.typ],
+            )
+
+            self.module.body.block.add_op(pop_func)
+
+            self.set_stream_depth_declaration = True
+
+        gep = GEPOp.get(
+            op.stream.op, [0, 0], result_type=LLVMPointerType.typed(*elem_type)
+        )
+
+        pop_call = func.Call.get("llvm.fpga.fifo.pop.stencil", [gep], [op.res.typ])
+
+        rewriter.replace_matched_op([gep, pop_call])
 
 
 @dataclass
@@ -235,11 +268,12 @@ class LowerHLSPass(ModulePass):
 
         walkers = gen_greedy_walkers(
             [
-                SCFParallelToHLSPipelinedFor(),
+                # SCFParallelToHLSPipelinedFor(),
                 PragmaPipelineToFunc(op),
                 PragmaUnrollToFunc(op),
                 PragmaDataflowToFunc(op),
                 LowerHLSStreamToAlloca(op),
+                LowerHLSStreamRead(op),
             ]
         )
 

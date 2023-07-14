@@ -3,6 +3,7 @@ from __future__ import annotations
 from xdsl.dialects.builtin import Attribute, ParametrizedAttribute, StringAttr
 from xdsl.ir import Operation, SSAValue, Dialect, TypeAttribute, OpResult
 from xdsl.irdl import (
+    AnyAttr,
     irdl_op_definition,
     irdl_attr_definition,
     Operand,
@@ -97,7 +98,35 @@ class HLSStream(IRDLOperation):
         return HLSStream.build(result_types=[stream_type], attributes=attrs)
 
 
+@irdl_op_definition
+class HLSStreamWrite(IRDLOperation):
+    name = "hls.write"
+    element: Operand = operand_def()
+    stream: Operand = operand_def(HLSStreamType)
+
+    def __init__(self, element: Operation, stream: HLSStreamType):
+        super().__init__(operands=[element, stream])
+
+
+@irdl_op_definition
+class HLSStreamRead(IRDLOperation):
+    name = "hls.read"
+    stream: Operand = operand_def(HLSStreamType)
+    res: OpResult = result_def(AnyAttr())
+
+    def __init__(self, stream: HLSStreamType):
+        super().__init__(operands=[stream], result_types=[stream.elem_type])
+
+
 HLS = Dialect(
-    [PragmaPipeline, PragmaUnroll, PragmaDataflow, PragmaArrayPartition, HLSStream],
+    [
+        PragmaPipeline,
+        PragmaUnroll,
+        PragmaDataflow,
+        PragmaArrayPartition,
+        HLSStream,
+        HLSStreamWrite,
+        HLSStreamRead,
+    ],
     [HLSStreamType],
 )
