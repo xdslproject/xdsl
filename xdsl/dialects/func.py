@@ -136,15 +136,10 @@ class FuncOp(IRDLOperation):
 
         # Parse return type
         if parser.parse_optional_punctuation("->"):
-            if parser.parse_optional_punctuation("(") is not None:
-                if parser.parse_optional_punctuation(")") is not None:
-                    return_types = []
-                else:
-                    return_types = parser.parse_comma_separated_list(
-                        parser.Delimiter.NONE, parser.parse_type
-                    )
-                    parser.parse_punctuation(")")
-            else:
+            return_types = parser.parse_optional_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
+            if return_types is None:
                 return_types = [parser.parse_type()]
         else:
             return_types = []
