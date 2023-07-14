@@ -10,7 +10,7 @@ from xdsl.ir import Operation, SSAValue
 from xdsl.ir.core import Attribute
 
 
-class WGPUFunctions:
+class WGSLPrinter:
     name_dict: dict[SSAValue, str] = dict()
     count = 0
 
@@ -56,7 +56,7 @@ class WGPUFunctions:
                 arg_type = f"array<{memref_typ.element_type}>"
             arguments = f"""
     @group(0) @binding({arg.index})
-    var<storage,{auth}> v{arg.name_hint}: {arg_type};
+    var<storage,{auth}> {self.wgsl_name(arg)}: {arg_type};
             """
             out_stream.write(arguments)
 
@@ -129,22 +129,22 @@ class WGPUFunctions:
 
     @print.register
     def _(self, op: memref.Load, out_stream: IO[str]):
-        load_ref = op.memref.name_hint
+        load_ref = self.wgsl_name(op.memref)
         name_hint = self.wgsl_name(op.res)
         index = ", ".join(self.wgsl_name(i) for i in op.indices)
         out_stream.write(
             f"""
-        let {name_hint} = v{load_ref}[{index}];"""
+        let {name_hint} = {load_ref}[{index}];"""
         )
 
     @print.register
     def _(self, op: memref.Store, out_stream: IO[str]):
         value = self.wgsl_name(op.value)
-        store_ref = op.memref.name_hint
+        store_ref = self.wgsl_name(op.memref)
         index = ", ".join(self.wgsl_name(i) for i in op.indices)
         out_stream.write(
             f"""
-        v{store_ref}[{index}] = {value};"""
+        {store_ref}[{index}] = {value};"""
         )
 
     @print.register
