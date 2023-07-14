@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from xdsl.ir.affine import AffineExpr
+from xdsl.ir.affine import AffineDimExpr, AffineExpr
 
 
 @dataclass
@@ -44,6 +44,30 @@ class AffineMap:
         return AffineMap(
             num_dims=self.num_dims,
             num_symbols=map.num_symbols,
+            results=results,
+        )
+
+    def inverse_permutation(self) -> AffineMap | None:
+        if self.num_symbols != 0:
+            raise ValueError(
+                f"Cannot invert AffineMap with symbols: {self.num_symbols}"
+            )
+        found_dims = [-1] * self.num_dims
+
+        for i, expr in enumerate(self.results):
+            match expr:
+                case AffineDimExpr():
+                    found_dims[expr.position] = i
+                case _:
+                    continue
+
+        if -1 in found_dims:
+            return None
+
+        results = [self.results[i] for i in found_dims]
+        return AffineMap(
+            num_dims=len(self.results),
+            num_symbols=0,
             results=results,
         )
 
