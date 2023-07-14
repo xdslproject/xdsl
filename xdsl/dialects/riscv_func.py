@@ -25,9 +25,9 @@ from xdsl.utils.exceptions import VerifyException
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args: VarOperand = var_operand_def(riscv.IntegerRegisterType)
+    args: VarOperand = var_operand_def(riscv.IntRegisterType)
     syscall_num: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
-    result: OptOpResult = opt_result_def(riscv.IntegerRegisterType)
+    result: OptOpResult = opt_result_def(riscv.IntRegisterType)
 
     def __init__(
         self,
@@ -41,9 +41,7 @@ class SyscallOp(IRDLOperation):
             operands=[operands],
             attributes={"syscall_num": num},
             result_types=[
-                riscv.IntegerRegisterType(riscv.IntegerRegister())
-                if has_result
-                else None
+                riscv.IntRegisterType(riscv.IntRegister()) if has_result else None
             ],
         )
 
@@ -63,15 +61,15 @@ class CallOp(IRDLOperation):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args: VarOperand = var_operand_def(riscv.IntegerRegisterType)
+    args: VarOperand = var_operand_def(riscv.IntRegisterType)
     callee: StringAttr = attr_def(StringAttr)
-    ress: VarOpResult = var_result_def(riscv.IntegerRegisterType)
+    ress: VarOpResult = var_result_def(riscv.IntRegisterType)
 
     def __init__(
         self,
         callee: StringAttr,
         args: Sequence[Operation | SSAValue],
-        result_types: Sequence[riscv.IntegerRegisterType],
+        result_types: Sequence[riscv.IntRegisterType],
         comment: StringAttr | None = None,
     ):
         super().__init__(
@@ -123,7 +121,7 @@ class ReturnOp(IRDLOperation):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values: VarOperand = var_operand_def(riscv.IntegerRegisterType)
+    values: VarOperand = var_operand_def(riscv.IntRegisterType)
     comment: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = frozenset([IsTerminator(), HasParent(FuncOp)])
