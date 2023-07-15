@@ -1,7 +1,7 @@
 from abc import ABC
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import FloatRegisterType, Register, RegisterType, RISCVOp
+from xdsl.dialects.riscv import FloatRegisterType, Register, RegisterAttr, RISCVOp
 from xdsl.ir import SSAValue
 
 
@@ -53,7 +53,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
     def __init__(self, limit_registers: int = 0) -> None:
         self.idx = 0
-        self._register_types = (RegisterType, FloatRegisterType)
+        self._register_types = (RegisterAttr, FloatRegisterType)
 
         """
         Assume that all the registers are available except the ones explicitly reserved
@@ -62,12 +62,12 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         self.reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
 
         self.register_sets = {
-            RegisterType: [
+            RegisterAttr: [
                 reg
-                for reg in Register.RV32I_INDEX_BY_NAME
+                for reg in RegisterAttr.RV32I_INDEX_BY_NAME
                 if reg not in self.reserved_registers
             ],
-            FloatRegisterType: list(Register.RV32F_INDEX_BY_NAME.keys()),
+            FloatRegisterType: list(RegisterAttr.RV32F_INDEX_BY_NAME.keys()),
         }
 
         for reg_type, reg_set in self.register_sets.items():
@@ -132,7 +132,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
     def __init__(self, limit_registers: int = 0) -> None:
         self.idx = 0
-        self._register_types = (RegisterType, FloatRegisterType)
+        self._register_types = (RegisterAttr, FloatRegisterType)
         _ = limit_registers
 
         """
@@ -142,12 +142,12 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
         reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
 
         self.register_sets = {
-            RegisterType: [
+            RegisterAttr: [
                 reg
-                for reg in Register.RV32I_INDEX_BY_NAME
+                for reg in RegisterAttr.RV32I_INDEX_BY_NAME
                 if reg not in reserved_registers
             ],
-            FloatRegisterType: list(Register.RV32F_INDEX_BY_NAME.keys()),
+            FloatRegisterType: list(RegisterAttr.RV32F_INDEX_BY_NAME.keys()),
         }
 
     def allocate_registers(self, module: ModuleOp) -> None:
@@ -186,7 +186,7 @@ class RegisterAllocatorJRegs(RegisterAllocator):
 
     def __init__(self, limit_registers: int = 0) -> None:
         self.idx = 0
-        self._register_types = (RegisterType, FloatRegisterType)
+        self._register_types = (RegisterAttr, FloatRegisterType)
         _ = limit_registers
 
     def allocate_registers(self, module: ModuleOp) -> None:
