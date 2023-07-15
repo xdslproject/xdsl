@@ -49,7 +49,6 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
-@irdl_attr_definition
 class RISCVRegisterAttr(Data[str], TypeAttribute, ABC):
     """
     A RISC-V register type.
