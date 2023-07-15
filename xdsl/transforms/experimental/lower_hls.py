@@ -41,24 +41,22 @@ class LowerHLSStreamRead(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStreamRead, rewriter: PatternRewriter, /):
         # The stream is an alloca of a struct of the elem_type. elem_type must be extracted from the struct
-        stream_alloca_pointer = op.stream.op.res.typ
-        struct_elem_type = stream_alloca_pointer.type
-        elem_type = struct_elem_type.types
+        p_struct_elem_type = op.operands[0].typ
+
+        elem_type = p_struct_elem_type.type.types
+        p_elem_type = LLVMPointerType.typed(*elem_type)
 
         if not self.pop_declaration:
             pop_func = func.FuncOp.external(
                 "llvm.fpga.fifo.pop.stencil",
-                [LLVMPointerType.typed(*elem_type)],
+                [p_elem_type],
                 [op.res.typ],
             )
 
             self.module.body.block.add_op(pop_func)
 
             self.set_stream_depth_declaration = True
-
-        gep = GEPOp.get(
-            op.stream.op, [0, 0], result_type=LLVMPointerType.typed(*elem_type)
-        )
+        gep = GEPOp.get(op.stream, [0, 0], result_type=p_elem_type)
 
         pop_call = func.Call.get("llvm.fpga.fifo.pop.stencil", [gep], [op.res.typ])
 
@@ -73,10 +71,13 @@ class LowerHLSStreamToAlloca(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStream, rewriter: PatternRewriter, /):
-        if isa(op.elem_type, LLVMStructType):
-            hls_elem_type = op.elem_type.types.data[0]
-        else:
-            hls_elem_type = op.elem_type
+        # We need to make sure that the type gets updated in the operations using the stream
+        uses = []
+
+        for use in op.result.uses:
+            uses.append(use)
+
+        hls_elem_type = op.elem_type
 
         if not self.set_stream_depth_declaration:
             stream_depth_func = llvm.FuncOp(
@@ -90,7 +91,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
 
         # As can be seen on the compiled synthetic stream benchmark of the FPL paper
         size = Constant.from_int_and_width(512, i32)
-        alloca = AllocaOp.get(size, op.elem_type)
+        alloca = AllocaOp.get(size, LLVMStructType.from_type_list([hls_elem_type]))
         gep = GEPOp.get(
             alloca, [0, 0], result_type=LLVMPointerType.typed(hls_elem_type)
         )
@@ -99,6 +100,14 @@ class LowerHLSStreamToAlloca(RewritePattern):
 
         rewriter.insert_op_after_matched_op([depth, gep, depth_call])
         rewriter.replace_matched_op([size, alloca])
+
+        for use in uses:
+            use.operation.operands[use.index].typ = alloca.res.typ
+
+            # This is specially important when the stream is an argument of ApplyOp
+            if use.operation.regions:
+                block_arg = use.operation.regions[0].block.args[use.index]
+                block_arg.typ = alloca.res.typ
 
 
 @dataclass

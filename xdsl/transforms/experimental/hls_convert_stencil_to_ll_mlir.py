@@ -70,7 +70,8 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             ]
         )
 
-        struct_type = LLVMStructType.from_type_list([func_arg_elem_type])
+        data_type = func_arg_elem_type
+        struct_data_type = LLVMStructType.from_type_list([func_arg_elem_type])
         struct_stencil_type = LLVMStructType.from_type_list([stencil_type])
 
         assert isinstance(field.typ, MemRefType)
@@ -81,8 +82,8 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         two_int = Constant.from_int_and_width(2, i32)
         shift_shape_x = arith.Subi(shape_x, two_int)
-        data_stream = HLSStream.get(struct_type)
-        stencil_stream = HLSStream.get(struct_stencil_type)
+        data_stream = HLSStream.get(data_type)
+        stencil_stream = HLSStream.get(stencil_type)
 
         threedload_call = Call.get(
             "load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
@@ -113,7 +114,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
                 "load_data",
                 [
                     func_arg.typ,
-                    LLVMPointerType.typed(data_stream.elem_type),
+                    LLVMPointerType.typed(
+                        LLVMStructType.from_type_list([data_stream.elem_type])
+                    ),
                     i32,
                     i32,
                     i32,
@@ -124,8 +127,12 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             shift_buffer_func = FuncOp.external(
                 "shift_buffer",
                 [
-                    LLVMPointerType.typed(data_stream.elem_type),
-                    LLVMPointerType.typed(stencil_stream.elem_type),
+                    LLVMPointerType.typed(
+                        LLVMStructType.from_type_list([data_stream.elem_type])
+                    ),
+                    LLVMPointerType.typed(
+                        LLVMStructType.from_type_list([stencil_stream.elem_type])
+                    ),
                     i32,
                     i32,
                     i32,
