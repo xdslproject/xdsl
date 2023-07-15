@@ -1,7 +1,6 @@
 from io import StringIO
 
-from xdsl.dialects import test
-from xdsl.dialects import arith, memref
+from xdsl.dialects import arith, memref, test
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i32
 from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
 from xdsl.utils.test_value import TestSSAValue
