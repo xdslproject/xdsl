@@ -138,7 +138,7 @@ class RegisterAttr(RISCVRegisterAttr):
 
 
 @irdl_attr_definition
-class FloatRegisterType(RISCVRegisterAttr):
+class FloatRegisterAttr(RISCVRegisterAttr):
     """
     A RISC-V register type.
     """
@@ -147,7 +147,7 @@ class FloatRegisterType(RISCVRegisterAttr):
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
-        return FloatRegisterType.RV32F_INDEX_BY_NAME
+        return FloatRegisterAttr.RV32F_INDEX_BY_NAME
 
     RV32F_INDEX_BY_NAME = {
         "ft0": 0,
@@ -222,38 +222,38 @@ class Registers(ABC):
     T5 = RegisterAttr("t5")
     T6 = RegisterAttr("t6")
 
-    FT0 = FloatRegisterType("ft0")
-    FT1 = FloatRegisterType("ft1")
-    FT2 = FloatRegisterType("ft2")
-    FT3 = FloatRegisterType("ft3")
-    FT4 = FloatRegisterType("ft4")
-    FT5 = FloatRegisterType("ft5")
-    FT6 = FloatRegisterType("ft6")
-    FT7 = FloatRegisterType("ft7")
-    FS0 = FloatRegisterType("fs0")
-    FS1 = FloatRegisterType("fs1")
-    FA0 = FloatRegisterType("fa0")
-    FA1 = FloatRegisterType("fa1")
-    FA2 = FloatRegisterType("fa2")
-    FA3 = FloatRegisterType("fa3")
-    FA4 = FloatRegisterType("fa4")
-    FA5 = FloatRegisterType("fa5")
-    FA6 = FloatRegisterType("fa6")
-    FA7 = FloatRegisterType("fa7")
-    FS2 = FloatRegisterType("fs2")
-    FS3 = FloatRegisterType("fs3")
-    FS4 = FloatRegisterType("fs4")
-    FS5 = FloatRegisterType("fs5")
-    FS6 = FloatRegisterType("fs6")
-    FS7 = FloatRegisterType("fs7")
-    FS8 = FloatRegisterType("fs8")
-    FS9 = FloatRegisterType("fs9")
-    FS10 = FloatRegisterType("fs10")
-    FS11 = FloatRegisterType("fs11")
-    FT8 = FloatRegisterType("ft8")
-    FT9 = FloatRegisterType("ft9")
-    FT10 = FloatRegisterType("ft10")
-    FT11 = FloatRegisterType("ft11")
+    FT0 = FloatRegisterAttr("ft0")
+    FT1 = FloatRegisterAttr("ft1")
+    FT2 = FloatRegisterAttr("ft2")
+    FT3 = FloatRegisterAttr("ft3")
+    FT4 = FloatRegisterAttr("ft4")
+    FT5 = FloatRegisterAttr("ft5")
+    FT6 = FloatRegisterAttr("ft6")
+    FT7 = FloatRegisterAttr("ft7")
+    FS0 = FloatRegisterAttr("fs0")
+    FS1 = FloatRegisterAttr("fs1")
+    FA0 = FloatRegisterAttr("fa0")
+    FA1 = FloatRegisterAttr("fa1")
+    FA2 = FloatRegisterAttr("fa2")
+    FA3 = FloatRegisterAttr("fa3")
+    FA4 = FloatRegisterAttr("fa4")
+    FA5 = FloatRegisterAttr("fa5")
+    FA6 = FloatRegisterAttr("fa6")
+    FA7 = FloatRegisterAttr("fa7")
+    FS2 = FloatRegisterAttr("fs2")
+    FS3 = FloatRegisterAttr("fs3")
+    FS4 = FloatRegisterAttr("fs4")
+    FS5 = FloatRegisterAttr("fs5")
+    FS6 = FloatRegisterAttr("fs6")
+    FS7 = FloatRegisterAttr("fs7")
+    FS8 = FloatRegisterAttr("fs8")
+    FS9 = FloatRegisterAttr("fs9")
+    FS10 = FloatRegisterAttr("fs10")
+    FS11 = FloatRegisterAttr("fs11")
+    FT8 = FloatRegisterAttr("ft8")
+    FT9 = FloatRegisterAttr("ft9")
+    FT10 = FloatRegisterAttr("ft10")
+    FT11 = FloatRegisterAttr("ft11")
 
 
 @irdl_attr_definition
@@ -377,13 +377,13 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         return arg
     elif isinstance(arg, RegisterAttr):
         return arg.register_name
-    elif isinstance(arg, FloatRegisterType):
+    elif isinstance(arg, FloatRegisterAttr):
         return arg.register_name
     else:
         if isinstance(arg.type, RegisterAttr):
             reg = arg.type.register_name
             return reg
-        elif isinstance(arg.type, FloatRegisterType):
+        elif isinstance(arg.type, FloatRegisterAttr):
             reg = arg.type.register_name
             return reg
     assert False
@@ -2196,14 +2196,14 @@ class GetFloatRegisterOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.get_float_register"
-    res: OpResult = result_def(FloatRegisterType)
+    res: OpResult = result_def(FloatRegisterAttr)
 
     def __init__(
         self,
-        register_type: FloatRegisterType | str,
+        register_type: FloatRegisterAttr | str,
     ):
         if isinstance(register_type, str):
-            register_type = FloatRegisterType(register_type)
+            register_type = FloatRegisterAttr(register_type)
         super().__init__(result_types=[register_type])
 
     def assembly_line(self) -> str | None:
@@ -2240,10 +2240,10 @@ class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     e.g: fused-multiply-add (FMA) instructions.
     """
 
-    rd: OpResult = result_def(FloatRegisterType)
-    rs1: Operand = operand_def(FloatRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
-    rs3: Operand = operand_def(FloatRegisterType)
+    rd: OpResult = result_def(FloatRegisterAttr)
+    rs1: Operand = operand_def(FloatRegisterAttr)
+    rs2: Operand = operand_def(FloatRegisterAttr)
+    rs3: Operand = operand_def(FloatRegisterAttr)
 
     def __init__(
         self,
@@ -2251,13 +2251,13 @@ class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         rs2: Operation | SSAValue,
         rs3: Operation | SSAValue,
         *,
-        rd: FloatRegisterType | str | None = None,
+        rd: FloatRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterType("")
+            rd = FloatRegisterAttr("")
         elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
+            rd = FloatRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2279,22 +2279,22 @@ class RdRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     take two floating-point input registers and a destination.
     """
 
-    rd: OpResult = result_def(FloatRegisterType)
-    rs1: Operand = operand_def(FloatRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
+    rd: OpResult = result_def(FloatRegisterAttr)
+    rs1: Operand = operand_def(FloatRegisterAttr)
+    rs2: Operand = operand_def(FloatRegisterAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: FloatRegisterType | str | None = None,
+        rd: FloatRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterType("")
+            rd = FloatRegisterAttr("")
         elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
+            rd = FloatRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2317,8 +2317,8 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(RegisterAttr)
-    rs1: Operand = operand_def(FloatRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
+    rs1: Operand = operand_def(FloatRegisterAttr)
+    rs2: Operand = operand_def(FloatRegisterAttr)
 
     def __init__(
         self,
@@ -2353,20 +2353,20 @@ class RdRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     input register and a floating destination register.
     """
 
-    rd: OpResult = result_def(FloatRegisterType)
-    rs: Operand = operand_def(FloatRegisterType)
+    rd: OpResult = result_def(FloatRegisterAttr)
+    rs: Operand = operand_def(FloatRegisterAttr)
 
     def __init__(
         self,
         rs: Operation | SSAValue,
         *,
-        rd: FloatRegisterType | str | None = None,
+        rd: FloatRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterType("")
+            rd = FloatRegisterAttr("")
         elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
+            rd = FloatRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -2386,7 +2386,7 @@ class RdRsFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(RegisterAttr)
-    rs: Operand = operand_def(FloatRegisterType)
+    rs: Operand = operand_def(FloatRegisterAttr)
 
     def __init__(
         self,
@@ -2417,20 +2417,20 @@ class RdRsIntegerFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     input register and a floating-point destination register.
     """
 
-    rd: OpResult = result_def(FloatRegisterType)
+    rd: OpResult = result_def(FloatRegisterAttr)
     rs: Operand = operand_def(RegisterAttr)
 
     def __init__(
         self,
         rs: Operation | SSAValue,
         *,
-        rd: FloatRegisterType | str | None = None,
+        rd: FloatRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterType("")
+            rd = FloatRegisterAttr("")
         elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
+            rd = FloatRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -2450,7 +2450,7 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rs1: Operand = operand_def(RegisterAttr)
-    rs2: Operand = operand_def(FloatRegisterType)
+    rs2: Operand = operand_def(FloatRegisterAttr)
     immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     def __init__(
@@ -2487,7 +2487,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     one immediate operand.
     """
 
-    rd: OpResult = result_def(FloatRegisterType)
+    rd: OpResult = result_def(FloatRegisterAttr)
     rs1: Operand = operand_def(RegisterAttr)
     immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
@@ -2496,7 +2496,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         immediate: int | AnyIntegerAttr | str | LabelAttr,
         *,
-        rd: FloatRegisterType | str | None = None,
+        rd: FloatRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -2505,9 +2505,9 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             immediate = LabelAttr(immediate)
 
         if rd is None:
-            rd = FloatRegisterType("")
+            rd = FloatRegisterAttr("")
         elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
+            rd = FloatRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -2975,7 +2975,7 @@ RISCV = Dialect(
     ],
     [
         RegisterAttr,
-        FloatRegisterType,
+        FloatRegisterAttr,
         LabelAttr,
     ],
 )

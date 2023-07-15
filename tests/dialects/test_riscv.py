@@ -236,7 +236,7 @@ def check_float_register():
     with pytest.raises(VerifyException):
         riscv.RegisterAttr("ft9")
     with pytest.raises(VerifyException):
-        riscv.FloatRegisterType("a0")
+        riscv.FloatRegisterAttr("a0")
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
