@@ -48,12 +48,10 @@ from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
-class RegisterAttr(Data[str], TypeAttribute):
+class RISCVRegisterAttr(Data[str], TypeAttribute, ABC):
     """
     A RISC-V register type.
     """
-
-    name = "riscv.reg"
 
     @property
     def register_name(self) -> str:
@@ -73,7 +71,7 @@ class RegisterAttr(Data[str], TypeAttribute):
         if name is None:
             return ""
         if not name.startswith("j"):
-            assert name in RegisterAttr.RV32I_INDEX_BY_NAME
+            assert name in cls.abi_index_by_name()
         return name
 
     def print_parameter(self, printer: Printer) -> None:
@@ -82,7 +80,25 @@ class RegisterAttr(Data[str], TypeAttribute):
     def verify(self) -> None:
         if not self.is_allocated or self.data.startswith("j"):
             return
-        assert self.data in RegisterAttr.RV32I_INDEX_BY_NAME
+        assert self.data in type(self).abi_index_by_name()
+
+    @classmethod
+    @abstractmethod
+    def abi_index_by_name(cls) -> dict[str, int]:
+        raise NotImplemented
+
+
+@irdl_attr_definition
+class RegisterAttr(RISCVRegisterAttr):
+    """
+    A RISC-V register type.
+    """
+
+    name = "riscv.reg"
+
+    @classmethod
+    def abi_index_by_name(cls) -> dict[str, int]:
+        return RegisterAttr.RV32I_INDEX_BY_NAME
 
     RV32I_INDEX_BY_NAME = {
         "zero": 0,
@@ -120,6 +136,19 @@ class RegisterAttr(Data[str], TypeAttribute):
         "t6": 31,
     }
 
+
+@irdl_attr_definition
+class FloatRegisterType(RISCVRegisterAttr):
+    """
+    A RISC-V register type.
+    """
+
+    name = "riscv.freg"
+
+    @classmethod
+    def abi_index_by_name(cls) -> dict[str, int]:
+        return FloatRegisterType.RV32F_INDEX_BY_NAME
+
     RV32F_INDEX_BY_NAME = {
         "ft0": 0,
         "ft1": 1,
@@ -154,44 +183,6 @@ class RegisterAttr(Data[str], TypeAttribute):
         "ft10": 30,
         "ft11": 31,
     }
-
-
-@irdl_attr_definition
-class FloatRegisterType(Data[str], TypeAttribute):
-    """
-    A RISC-V register type.
-    """
-
-    name = "riscv.freg"
-
-    @property
-    def register_name(self) -> str:
-        """Returns name if allocated, raises ValueError if not"""
-        if not self.is_allocated:
-            raise ValueError("Cannot get name for unallocated register")
-        return self.data
-
-    @property
-    def is_allocated(self) -> bool:
-        """Returns true if a RISCV register is allocated, otherwise false"""
-        return bool(self.data)
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
-        name = parser.parse_optional_identifier()
-        if name is None:
-            return ""
-        if not name.startswith("j"):
-            assert name in RegisterAttr.RV32F_INDEX_BY_NAME
-        return name
-
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(self.data)
-
-    def verify(self) -> None:
-        if not self.is_allocated or self.data.startswith("j"):
-            return
-        assert self.data in RegisterAttr.RV32F_INDEX_BY_NAME
 
 
 class Registers(ABC):

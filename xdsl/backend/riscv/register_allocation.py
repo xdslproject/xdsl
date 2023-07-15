@@ -67,7 +67,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 for reg in RegisterAttr.RV32I_INDEX_BY_NAME
                 if reg not in self.reserved_registers
             ],
-            FloatRegisterType: list(RegisterAttr.RV32F_INDEX_BY_NAME.keys()),
+            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
         }
 
         for reg_type, reg_set in self.register_sets.items():
@@ -147,7 +147,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                 for reg in RegisterAttr.RV32I_INDEX_BY_NAME
                 if reg not in reserved_registers
             ],
-            FloatRegisterType: list(RegisterAttr.RV32F_INDEX_BY_NAME.keys()),
+            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
         }
 
     def allocate_registers(self, module: ModuleOp) -> None:
