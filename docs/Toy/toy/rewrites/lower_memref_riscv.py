@@ -12,7 +12,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
-from .lower_riscv_cf import cast_values_to_registers
+from .lower_riscv_cf import cast_value_to_register
 
 
 class LowerMemrefAllocOp(RewritePattern):
@@ -70,7 +70,9 @@ def insert_shape_ops(
 class LowerMemrefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
-        value, mem, *indices = cast_values_to_registers(op.operands, rewriter)
+        value = cast_value_to_register(op.value, rewriter)
+        mem = cast_value_to_register(op.memref, rewriter)
+        indices = tuple(cast_value_to_register(index, rewriter) for index in op.indices)
 
         assert isinstance(op.memref.type, memref.MemRefType)
         memref_typ = cast(memref.MemRefType[Any], op.memref.type)
@@ -89,7 +91,8 @@ class LowerMemrefStoreOp(RewritePattern):
 class LowerMemrefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
-        mem, *indices = cast_values_to_registers(op.operands, rewriter)
+        mem = cast_value_to_register(op.memref, rewriter)
+        indices = tuple(cast_value_to_register(index, rewriter) for index in op.indices)
 
         assert isinstance(op.memref.type, memref.MemRefType)
         memref_typ = cast(memref.MemRefType[Any], op.memref.type)

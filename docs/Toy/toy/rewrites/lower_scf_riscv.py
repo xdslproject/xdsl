@@ -1,8 +1,6 @@
-from typing import Sequence
-
-from xdsl.dialects import builtin, riscv, scf
+from xdsl.dialects import riscv, scf
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir.core import MLContext, OpResult, SSAValue
+from xdsl.ir.core import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -12,16 +10,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
-
-def cast_values_to_registers(
-    operands: Sequence[SSAValue], rewriter: PatternRewriter
-) -> list[OpResult]:
-    if not operands:
-        return []
-    types = [riscv.RegisterType(riscv.Register()) for _ in range(len(operands))]
-    cast = builtin.UnrealizedConversionCastOp.get(operands, types)
-    rewriter.insert_op_before_matched_op(cast)
-    return cast.results
+from .lower_riscv_cf import cast_value_to_register
 
 
 class LowerForOp(RewritePattern):
@@ -32,7 +21,9 @@ class LowerForOp(RewritePattern):
         c = self.counter
         self.counter += 1
 
-        lb, ub, step = cast_values_to_registers(op.operands, rewriter)
+        lb = cast_value_to_register(op.lb, rewriter)
+        ub = cast_value_to_register(op.ub, rewriter)
+        step = cast_value_to_register(op.step, rewriter)
 
         rewriter.insert_op_before_matched_op(
             [

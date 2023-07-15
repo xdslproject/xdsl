@@ -15,7 +15,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
-from .lower_riscv_cf import cast_values_to_registers
+from .lower_riscv_cf import cast_value_to_register
 from .setup_riscv_pass import DataDirectiveRewritePattern
 
 
@@ -49,7 +49,8 @@ class LowerConstantOp(DataDirectiveRewritePattern):
 class LowerCmpiOp(DataDirectiveRewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpi, rewriter: PatternRewriter):
-        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        lhs = cast_value_to_register(op.lhs, rewriter)
+        rhs = cast_value_to_register(op.rhs, rewriter)
 
         new_ops: list[Operation]
 
@@ -175,7 +176,8 @@ class LowerCmpiOp(DataDirectiveRewritePattern):
 class LowerAddiOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter):
-        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        lhs = cast_value_to_register(op.lhs, rewriter)
+        rhs = cast_value_to_register(op.rhs, rewriter)
 
         add = riscv.AddOp(lhs, rhs)
         cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.type,))
@@ -186,7 +188,8 @@ class LowerAddiOp(RewritePattern):
 class LowerAddfOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addf, rewriter: PatternRewriter):
-        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        lhs = cast_value_to_register(op.lhs, rewriter)
+        rhs = cast_value_to_register(op.rhs, rewriter)
 
         # TODO: use floating point addition later
         add = riscv.AddOp(lhs, rhs)
@@ -198,7 +201,8 @@ class LowerAddfOp(RewritePattern):
 class LowerMulfOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Mulf, rewriter: PatternRewriter):
-        lhs, rhs = cast_values_to_registers([op.lhs, op.rhs], rewriter)
+        lhs = cast_value_to_register(op.lhs, rewriter)
+        rhs = cast_value_to_register(op.rhs, rewriter)
 
         # TODO: use floating point multiplication later
         add = riscv.MulOp(lhs, rhs)

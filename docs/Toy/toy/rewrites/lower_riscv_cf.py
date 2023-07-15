@@ -13,15 +13,11 @@ from xdsl.pattern_rewriter import (
 )
 
 
-def cast_values_to_registers(
-    operands: Sequence[SSAValue], rewriter: PatternRewriter
-) -> list[OpResult]:
-    if not operands:
-        return []
-    types = [riscv.RegisterType(riscv.Register()) for _ in range(len(operands))]
-    cast = builtin.UnrealizedConversionCastOp.get(operands, types)
+def cast_value_to_register(operand: SSAValue, rewriter: PatternRewriter) -> OpResult:
+    types = (riscv.RegisterType(riscv.Register()),)
+    cast = builtin.UnrealizedConversionCastOp.get((operand,), types)
     rewriter.insert_op_before_matched_op(cast)
-    return cast.results
+    return cast.results[0]
 
 
 def copy_registers(
@@ -56,7 +52,9 @@ class LowerBranchOp(RewritePattern):
     def match_and_rewrite(self, op: cf.Branch, rewriter: PatternRewriter):
         # block_args_to_registers(op.successor, rewriter)
 
-        new_operands = cast_values_to_registers(op.arguments, rewriter)
+        new_operands = tuple(
+            cast_value_to_register(arg, rewriter) for arg in op.arguments
+        )
         new_operands = copy_registers(new_operands, rewriter)
 
         rewriter.replace_matched_op(riscv_cf.JOp(new_operands, op.successor))
@@ -73,9 +71,13 @@ class LowerConditionalBranchOp(RewritePattern):
         # block_args_to_registers(op.then_block, rewriter)
         # block_args_to_registers(op.else_block, rewriter)
 
-        new_then_arguments = cast_values_to_registers(op.else_arguments, rewriter)
+        new_then_arguments = tuple(
+            cast_value_to_register(arg, rewriter) for arg in op.else_arguments
+        )
         new_then_arguments = copy_registers(new_then_arguments, rewriter)
-        new_else_arguments = cast_values_to_registers(op.then_arguments, rewriter)
+        new_else_arguments = tuple(
+            cast_value_to_register(arg, rewriter) for arg in op.then_arguments
+        )
         new_else_arguments = copy_registers(new_else_arguments, rewriter)
 
         then_block, else_block = op.else_block, op.then_block
@@ -87,7 +89,8 @@ class LowerConditionalBranchOp(RewritePattern):
 
         if isinstance(op.cond, OpResult) and isinstance(op.cond.op, arith.Cmpi):
             cmpi = op.cond.op
-            lhs, rhs = cast_values_to_registers([cmpi.lhs, cmpi.rhs], rewriter)
+            lhs = cast_value_to_register(cmpi.lhs, rewriter)
+            rhs = cast_value_to_register(cmpi.rhs, rewriter)
             match cmpi.predicate.value.data:
                 case 0:  # eq
                     rewriter.replace_matched_op(

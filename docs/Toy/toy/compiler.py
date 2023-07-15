@@ -7,6 +7,7 @@ from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
+from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 from .dialects import toy
@@ -27,7 +28,6 @@ from .rewrites.lower_to_toy_accelerator import (
 from .rewrites.lower_toy_affine import LowerToAffinePass
 from .rewrites.mlir_opt import MLIROptPass
 from .rewrites.optimise_toy import OptimiseToy
-from .rewrites.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from .rewrites.setup_riscv_pass import FinalizeRiscvPass, SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
 

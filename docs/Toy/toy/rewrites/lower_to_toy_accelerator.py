@@ -1,5 +1,5 @@
 from xdsl.dialects import affine, arith, memref, riscv
-from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir.core import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -11,6 +11,7 @@ from xdsl.pattern_rewriter import (
 )
 
 from ..dialects import toy_accelerator
+from .lower_riscv_cf import cast_value_to_register
 
 
 class LowerAffineForOp(RewritePattern):
@@ -121,20 +122,16 @@ class LowerTransposeOp(RewritePattern):
     def match_and_rewrite(
         self, op: toy_accelerator.Transpose, rewriter: PatternRewriter
     ):
+        destination = cast_value_to_register(op.destination, rewriter)
+        source = cast_value_to_register(op.source, rewriter)
+
         rewriter.replace_matched_op(
             [
-                inputs := UnrealizedConversionCastOp.get(
-                    (op.destination, op.source),
-                    (
-                        riscv.RegisterType(riscv.Register()),
-                        riscv.RegisterType(riscv.Register()),
-                    ),
-                ),
                 rows_op := riscv.LiOp(op.source_rows.value.data, comment="source rows"),
                 cols_op := riscv.LiOp(op.source_cols.value.data, comment="source cols"),
                 riscv.CustomAssemblyInstructionOp(
                     "tensor.transpose2d",
-                    inputs.results + [rows_op.rd, cols_op.rd],
+                    (destination, source, rows_op.rd, cols_op.rd),
                     (),
                 ),
             ]
@@ -151,26 +148,20 @@ class LowerBinOp(RewritePattern):
         instruction_name = (
             "buffer.add" if isinstance(op, toy_accelerator.Add) else "buffer.mul"
         )
-
+        dest = cast_value_to_register(op.dest, rewriter)
+        lhs = cast_value_to_register(op.lhs, rewriter)
+        rhs = cast_value_to_register(op.rhs, rewriter)
         rewriter.replace_matched_op(
             [
-                inputs := UnrealizedConversionCastOp.get(
-                    (op.dest, op.lhs, op.rhs),
-                    (
-                        riscv.RegisterType(riscv.Register()),
-                        riscv.RegisterType(riscv.Register()),
-                        riscv.RegisterType(riscv.Register()),
-                    ),
-                ),
                 size_op := riscv.LiOp(size, comment="size"),
                 riscv.CustomAssemblyInstructionOp(
                     "buffer.add",
-                    (size_op.rd, inputs.results[0], inputs.results[1]),
+                    (size_op.rd, dest, lhs),
                     (),
                 ),
                 riscv.CustomAssemblyInstructionOp(
                     instruction_name,
-                    (size_op.rd, inputs.results[0], inputs.results[2]),
+                    (size_op.rd, dest, rhs),
                     (),
                 ),
             ]
