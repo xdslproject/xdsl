@@ -23,6 +23,7 @@ from xdsl.dialects.mpi import MPI
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.printf import Printf
 from xdsl.dialects.riscv import RISCV, print_assembly, riscv_code
+from xdsl.dialects.riscv_cf import RISCV_CF
 from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.scf import Scf
 from xdsl.dialects.snitch import Snitch
@@ -82,6 +83,7 @@ def get_all_dialects() -> list[Dialect]:
         PDL,
         Printf,
         RISCV,
+        RISCV_CF,
         RISCV_Func,
         Scf,
         Snitch,
