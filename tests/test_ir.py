@@ -6,7 +6,6 @@ from xdsl.dialects.arith import Addi, Arith, Constant, Subi
 from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp, i32, i64
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
-from xdsl.dialects.scf import If
 from xdsl.dialects.test import TestOp, TestTermOp
 from xdsl.ir import Block, ErasedSSAValue, MLContext, Operation, Region, SSAValue
 from xdsl.irdl import (
@@ -169,17 +168,20 @@ def test_op_clone():
 
 
 def test_op_clone_with_regions():
-    cond = Constant.from_int_and_width(1, 1)
-    a = Constant.from_int_and_width(1, 32)
-    if_ = If.get(cond, [], Region([Block([a])]), Region([Block([a.clone()])]))
+    a = TestOp.create()
+    op0 = TestOp.create(regions=[Region([Block([a])]), Region([Block([a.clone()])])])
 
-    if2 = if_.clone()
+    cloned_op = op0.clone()
 
-    assert if2 is not if_
-    assert len(if2.true_region.ops) == 1
-    assert len(if2.false_region.ops) == 1
-    assert if2.true_region.op is not if_.true_region.op
-    assert if2.false_region.op is not if_.false_region.op
+    assert cloned_op is not op0
+    assert len(cloned_op.regions[0].ops) == 1
+    assert len(cloned_op.regions[1].ops) == 1
+
+    for op0_region, cloned_op_region in zip(op0.regions, cloned_op.regions):
+        for op0_region_op, cloned_region_op in zip(
+            op0_region.ops, cloned_op_region.ops
+        ):
+            assert op0_region_op is not cloned_region_op
 
 
 @irdl_op_definition
@@ -550,10 +552,10 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
 
     assert isinstance(program, ModuleOp)
 
-    assert program.is_structurally_equivalent(program.regions[0]) == False
-    assert program.is_structurally_equivalent(program.regions[0].blocks[0]) == False
-    assert program.regions[0].is_structurally_equivalent(program) == False
-    assert program.regions[0].blocks[0].is_structurally_equivalent(program) == False
+    assert program.is_structurally_equivalent(program.regions[0]) is False
+    assert program.is_structurally_equivalent(program.regions[0].blocks[0]) is False
+    assert program.regions[0].is_structurally_equivalent(program) is False
+    assert program.regions[0].blocks[0].is_structurally_equivalent(program) is False
 
     func_op = program.ops.first
     assert func_op is not None

@@ -59,6 +59,11 @@ class Register:
     name: str | None = field(default=None)
     """The register name. Should be one of `ABI_INDEX_BY_NAME` or `None`"""
 
+    @property
+    def is_allocated(self) -> bool:
+        """Returns true if a RISCV register is allocated, otherwise false"""
+        return self.name is not None
+
     RV32I_INDEX_BY_NAME = {
         "zero": 0,
         "ra": 1,
@@ -146,13 +151,18 @@ class RegisterType(Data[Register], TypeAttribute):
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> Register:
+    @property
+    def is_allocated(self) -> bool:
+        """Returns true if a RISCV register is allocated, otherwise false"""
+        return self.data.is_allocated
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> Register:
         name = parser.parse_optional_identifier()
         if name is None:
             return Register()
         if not name.startswith("j"):
-            assert name in Register.RV32I_INDEX_BY_NAME.keys()
+            assert name in Register.RV32I_INDEX_BY_NAME
         return Register(name)
 
     def print_parameter(self, printer: Printer) -> None:
@@ -164,7 +174,7 @@ class RegisterType(Data[Register], TypeAttribute):
     def verify(self) -> None:
         if self.data.name is None or self.data.name.startswith("j"):
             return
-        assert self.data.name in Register.RV32I_INDEX_BY_NAME.keys()
+        assert self.data.name in Register.RV32I_INDEX_BY_NAME
 
 
 @irdl_attr_definition
@@ -182,13 +192,18 @@ class FloatRegisterType(Data[Register], TypeAttribute):
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> Register:
+    @property
+    def is_allocated(self) -> bool:
+        """Returns true if a RISCV register is allocated, otherwise false"""
+        return self.data.is_allocated
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> Register:
         name = parser.parse_optional_identifier()
         if name is None:
             return Register()
         if not name.startswith("j"):
-            assert name in Register.RV32F_INDEX_BY_NAME.keys()
+            assert name in Register.RV32F_INDEX_BY_NAME
         return Register(name)
 
     def print_parameter(self, printer: Printer) -> None:
@@ -200,7 +215,7 @@ class FloatRegisterType(Data[Register], TypeAttribute):
     def verify(self) -> None:
         if self.data.name is None or self.data.name.startswith("j"):
             return
-        assert self.data.name in Register.RV32F_INDEX_BY_NAME.keys()
+        assert self.data.name in Register.RV32F_INDEX_BY_NAME
 
 
 class Registers(ABC):
@@ -308,8 +323,8 @@ class SImm12Attr(IntegerAttr[IntegerType]):
 class LabelAttr(Data[str]):
     name = "riscv.label"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> str:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:

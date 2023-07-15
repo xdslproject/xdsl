@@ -27,8 +27,8 @@ class BoolData(Data[bool]):
 
     name = "bool"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> bool:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> bool:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer):
@@ -41,8 +41,8 @@ class IntData(Data[int]):
 
     name = "int"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> int:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> int:
         return parser.parse_integer()
 
     def print_parameter(self, printer: Printer):

@@ -53,8 +53,8 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
     array: ParameterDef[ArrayAttr[IntAttr]]
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         ints = parser.parse_comma_separated_list(
             parser.Delimiter.ANGLE, lambda: parser.parse_integer(allow_boolean=False)
@@ -186,8 +186,8 @@ class StencilType(
     def get_element_type(self) -> _FieldTypeElement:
         return self.element_type
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         def parse_interval() -> tuple[int, int] | int:
             if parser.parse_optional_punctuation("?"):
                 return -1

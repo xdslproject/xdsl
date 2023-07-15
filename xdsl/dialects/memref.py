@@ -115,8 +115,8 @@ class MemRefType(
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([shape, referenced_type, layout, memory_space])
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in memref attribute")
         shape = parser.parse_attribute()
         parser.parse_punctuation(",", " between shape and element type parameters")

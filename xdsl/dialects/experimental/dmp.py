@@ -233,6 +233,9 @@ class HaloShapeInformation(ParametrizedAttribute):
 
     @property
     def dims(self) -> int:
+        """
+        Number of axis of the data (len(shape))
+        """
         return len(self.core_ub)
 
     @staticmethod
@@ -290,8 +293,8 @@ class HaloShapeInformation(ParametrizedAttribute):
         printer.print_string("x".join(f"{list(vals)}" for vals in dims))
         printer.print_string(">")
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """
         Parses the attribute, the format of it is:
 
@@ -356,8 +359,8 @@ class NodeGrid(ParametrizedAttribute):
     def node_count(self) -> int:
         return prod(self.as_tuple())
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
 
         shape: list[int] = [parser.parse_integer(allow_negative=False)]

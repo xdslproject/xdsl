@@ -18,3 +18,12 @@ typeCheckingMode = "strict"
 
 [tool.isort]
 profile = "black"
+
+[tool.ruff]
+select = ["E", "W", "I"]
+ignore = ["E741"]
+line-length = 300
+target-version = "py310"
+
+[tool.ruff.mccabe]
+max-complexity = 10

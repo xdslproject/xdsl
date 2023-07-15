@@ -58,7 +58,22 @@ class InterpreterFunctions:
             return lhs + rhs,
     ```
 
-    # TODO add cast docs
+    To register an implementation of a cast for UnrealizedConversionCastOp, use
+    `impl_cast`, like so:
+
+    ``` python
+    @register_impls
+    class ArithFunctions(InterpreterFunctions):
+        @impl_cast(IntegerType, IndexType)
+        def cast_integer_to_index(
+            self,
+            input_type: IntegerType,
+            output_type: IndexType,
+            value: Any,
+        ) -> Any:
+            # Both input and output represented by a Python `int`
+            return value
+    ```
     """
 
     @classmethod
@@ -168,7 +183,11 @@ def impl_cast(
     CastImpl[_FT, _AttributeInvT0, _AttributeInvT1],
 ]:
     """
-    Marks the Python implementation of a value cast from one type to another.
+    Marks the Python implementation of a value cast from one type to another. The
+    `cast_value` method on `Interpreter` will call into this implementation for matching
+    input and output types.
+
+    See `InterpreterFunctions` for more documentation.
     """
 
     def annot(
