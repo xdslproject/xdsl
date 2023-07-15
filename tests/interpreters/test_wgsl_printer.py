@@ -1,12 +1,56 @@
 from io import StringIO
 
-from xdsl.dialects import arith, memref, test
+from xdsl.dialects import arith, gpu, memref, test
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i32
 from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
 from xdsl.utils.test_value import TestSSAValue
 
 lhs_op = test.TestOp(operands=[[]], result_types=[IndexType()], regions=[[]])
 rhs_op = test.TestOp(operands=[[]], result_types=[IndexType()], regions=[[]])
+
+
+def test_gpu_global_id():
+    file = StringIO("")
+
+    global_id_x = gpu.GlobalIdOp(gpu.DimensionAttr.from_dimension("x"))
+
+    printer = WGSLPrinter()
+    printer.print(global_id_x, file)
+
+    assert "let v0: u32 = global_invocation_id.x;" in file.getvalue()
+
+
+def test_gpu_thread_id():
+    file = StringIO("")
+
+    thread_id_x = gpu.ThreadIdOp(gpu.DimensionAttr.from_dimension("x"))
+
+    printer = WGSLPrinter()
+    printer.print(thread_id_x, file)
+
+    assert "let v0: u32 = local_invocation_id.x;" in file.getvalue()
+
+
+def test_gpu_block_id():
+    file = StringIO("")
+
+    block_id_x = gpu.BlockIdOp(gpu.DimensionAttr.from_dimension("x"))
+
+    printer = WGSLPrinter()
+    printer.print(block_id_x, file)
+
+    assert "let v0: u32 = workgroup_id.x;" in file.getvalue()
+
+
+def test_gpu_grid_dim():
+    file = StringIO("")
+
+    num_workgroups = gpu.GridDimOp(gpu.DimensionAttr.from_dimension("x"))
+
+    printer = WGSLPrinter()
+    printer.print(num_workgroups, file)
+
+    assert "let v0: u32 = num_workgroups.x;" in file.getvalue()
 
 
 def test_arith_constant_unsigned():
@@ -125,3 +169,22 @@ def test_memref_load():
     printer.print(load, file)
 
     assert "let v1 = v0[v2, v3];" in file.getvalue()
+
+
+def test_memref_store():
+    file = StringIO("")
+
+    memref_type = memref.MemRefType.from_element_type_and_shape(i32, [10, 10])
+
+    memref_val = TestSSAValue(memref_type)
+    x = arith.Constant(IntegerAttr(2, IndexType()))
+    y = arith.Constant(IntegerAttr(4, IndexType()))
+
+    load = memref.Load.get(memref_val, [x, y])
+
+    store = memref.Store.get(load.res, memref_val, [x, y])
+
+    printer = WGSLPrinter()
+    printer.print(store, file)
+
+    assert "v1[v2, v3] = v0;" in file.getvalue()
