@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from io import StringIO
-from typing import IO, Sequence, TypeAlias
+from typing import IO, ClassVar, Sequence, TypeAlias
 
 from typing_extensions import Self
 
@@ -55,17 +55,21 @@ class RISCVRegisterAttr(Data[str], TypeAttribute, ABC):
     A RISC-V register type.
     """
 
+    _unallocated: ClassVar[Self | None] = None
+
+    @classmethod
+    @property
+    def unallocated(cls) -> Self:
+        if cls._unallocated is None:
+            cls._unallocated = cls("")
+        return cls._unallocated
+
     @property
     def register_name(self) -> str:
         """Returns name if allocated, raises ValueError if not"""
         if not self.is_allocated:
             raise ValueError("Cannot get name for unallocated register")
         return self.data
-
-    @classmethod
-    @property
-    def unallocated(cls) -> Self:
-        return cls("")
 
     @property
     def is_allocated(self) -> bool:
