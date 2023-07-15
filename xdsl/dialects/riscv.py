@@ -386,7 +386,7 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         elif isinstance(arg.type, FloatRegisterAttr):
             reg = arg.type.register_name
             return reg
-    assert False
+    assert False, f"{arg}"
 
 
 def _assembly_line(
