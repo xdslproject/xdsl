@@ -64,14 +64,14 @@ class LowerSyscallOp(RewritePattern):
 class LowerRISCVFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
-        body = op.func_body.block
-        first_op = body.first_op
+        first_block = op.func_body.blocks[0]
+        first_op = first_block.first_op
         assert first_op is not None
-        while len(body.args):
+        while len(first_block.args):
             # arguments are passed to riscv functions via a0, a1, ...
             # replace arguments with `GetRegisterOp`s
-            index = len(body.args) - 1
-            last_arg = body.args[-1]
+            index = len(first_block.args) - 1
+            last_arg = first_block.args[-1]
             get_reg_op = riscv.GetRegisterOp(riscv.Register(f"a{index}"))
             last_arg.replace_by(get_reg_op.res)
             rewriter.insert_op_before(get_reg_op, first_op)
@@ -85,14 +85,16 @@ class LowerRISCVFuncOp(RewritePattern):
 
 class InsertExitSyscallOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
-        if op.sym_name.data != "main":
+    def match_and_rewrite(self, op: riscv_func.ReturnOp, rewriter: PatternRewriter):
+        parent_op = op.parent_op()
+        if (
+            not isinstance(parent_op, riscv_func.FuncOp)
+            or parent_op.sym_name.data != "main"
+        ):
             return
-        return_op = op.func_body.block.last_op
-        assert isinstance(return_op, riscv_func.ReturnOp)
 
         EXIT = 93
-        rewriter.insert_op_before(riscv_func.SyscallOp(EXIT), return_op)
+        rewriter.insert_op_before(riscv_func.SyscallOp(EXIT), op)
 
 
 class LowerRISCVFuncReturnOp(RewritePattern):

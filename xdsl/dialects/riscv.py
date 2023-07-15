@@ -2000,14 +2000,14 @@ class LabelOp(IRDLOperation, RISCVOp):
     name = "riscv.label"
     label: LabelAttr = attr_def(LabelAttr)
     comment: StringAttr | None = opt_attr_def(StringAttr)
-    data: OptRegion = opt_region_def("single_block")
+    data: OptRegion = opt_region_def()
 
     traits = frozenset([NoTerminator()])
 
     def __init__(
         self,
         label: str | LabelAttr,
-        region: OptSingleBlockRegion = None,
+        region: OptRegion = None,
         *,
         comment: str | StringAttr | None = None,
     ):
