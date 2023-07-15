@@ -228,5 +228,15 @@ class WGSLPrinter:
         )
 
     @print.register
+    def _(self, op: arith.Subf, out_stream: IO[str]):
+        op_name_hint = self.wgsl_name(op.result)
+        lhs = self.wgsl_name(op.lhs)
+        rhs = self.wgsl_name(op.rhs)
+        out_stream.write(
+            f"""
+        let {op_name_hint} = {lhs} - {rhs};"""
+        )
+
+    @print.register
     def _(self, op: cf.Branch, out_stream: IO[str]):
         pass
