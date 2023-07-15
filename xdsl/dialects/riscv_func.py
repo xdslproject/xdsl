@@ -40,7 +40,7 @@ class SyscallOp(IRDLOperation):
         super().__init__(
             operands=[operands],
             attributes={"syscall_num": num},
-            result_types=[riscv.RegisterAttr("") if has_result else None],
+            result_types=[riscv.RegisterAttr.unallocated if has_result else None],
         )
 
     def verify_(self):

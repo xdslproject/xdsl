@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from io import StringIO
 from typing import IO, Sequence, TypeAlias
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntegerAttr,
@@ -59,6 +61,11 @@ class RISCVRegisterAttr(Data[str], TypeAttribute, ABC):
         if not self.is_allocated:
             raise ValueError("Cannot get name for unallocated register")
         return self.data
+
+    @classmethod
+    @property
+    def unallocated(cls) -> Self:
+        return cls("")
 
     @property
     def is_allocated(self) -> bool:
@@ -386,6 +393,8 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         elif isinstance(arg.type, FloatRegisterAttr):
             reg = arg.type.register_name
             return reg
+        else:
+            assert False, f"{arg.type}"
     assert False, f"{arg}"
 
 
@@ -443,7 +452,7 @@ class RdRsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr("")
+            rd = RegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = RegisterAttr(rd)
         if isinstance(comment, str):
@@ -482,7 +491,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
-            rd = RegisterAttr("")
+            rd = RegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = RegisterAttr(rd)
         if isinstance(comment, str):
@@ -568,7 +577,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             immediate = LabelAttr(immediate)
 
         if rd is None:
-            rd = RegisterAttr("")
+            rd = RegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = RegisterAttr(rd)
         if isinstance(comment, str):
@@ -684,7 +693,7 @@ class RdRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr("")
+            rd = RegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = RegisterAttr(rd)
         if isinstance(comment, str):
@@ -844,7 +853,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr("")
+            rd = RegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = RegisterAttr(rd)
         if isinstance(comment, str):
@@ -902,7 +911,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr("")
+            rd = RegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = RegisterAttr(rd)
         if isinstance(comment, str):
@@ -958,7 +967,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr("")
+            rd = RegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = RegisterAttr(rd)
         if isinstance(comment, str):
@@ -1014,7 +1023,7 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr("")
+            rd = RegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = RegisterAttr(rd)
         if isinstance(comment, str):
@@ -2255,7 +2264,7 @@ class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterAttr("")
+            rd = FloatRegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = FloatRegisterAttr(rd)
         if isinstance(comment, str):
@@ -2292,7 +2301,7 @@ class RdRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterAttr("")
+            rd = FloatRegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = FloatRegisterAttr(rd)
         if isinstance(comment, str):
@@ -2329,7 +2338,7 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr("")
+            rd = RegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = RegisterAttr(rd)
         if isinstance(comment, str):
@@ -2364,7 +2373,7 @@ class RdRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterAttr("")
+            rd = FloatRegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = FloatRegisterAttr(rd)
         if isinstance(comment, str):
@@ -2396,7 +2405,7 @@ class RdRsFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr("")
+            rd = RegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = RegisterAttr(rd)
         if isinstance(comment, str):
@@ -2428,7 +2437,7 @@ class RdRsIntegerFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterAttr("")
+            rd = FloatRegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = FloatRegisterAttr(rd)
         if isinstance(comment, str):
@@ -2505,7 +2514,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             immediate = LabelAttr(immediate)
 
         if rd is None:
-            rd = FloatRegisterAttr("")
+            rd = FloatRegisterAttr.unallocated
         elif isinstance(rd, str):
             rd = FloatRegisterAttr(rd)
         if isinstance(comment, str):
