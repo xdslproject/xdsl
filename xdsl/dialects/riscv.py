@@ -54,13 +54,13 @@ class Register:
     A RISC-V register.
     """
 
-    name: str | None = field(default=None)
+    name: str = field(default="")
     """The register name. Should be one of `ABI_INDEX_BY_NAME` or `None`"""
 
     @property
     def is_allocated(self) -> bool:
         """Returns true if a RISCV register is allocated, otherwise false"""
-        return self.name is not None
+        return bool(self.name)
 
 
 @irdl_attr_definition
@@ -74,7 +74,7 @@ class RegisterAttr(Data[Register], TypeAttribute):
     @property
     def register_name(self) -> str:
         """Returns name if allocated, raises ValueError if not"""
-        if self.data.name is None:
+        if not self.data.is_allocated:
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
 
@@ -94,12 +94,12 @@ class RegisterAttr(Data[Register], TypeAttribute):
 
     def print_parameter(self, printer: Printer) -> None:
         name = self.data.name
-        if name is None:
+        if not self.data.is_allocated:
             return
         printer.print_string(name)
 
     def verify(self) -> None:
-        if self.data.name is None or self.data.name.startswith("j"):
+        if not self.data.is_allocated or self.data.name.startswith("j"):
             return
         assert self.data.name in RegisterAttr.RV32I_INDEX_BY_NAME
 
@@ -186,7 +186,7 @@ class FloatRegisterType(Data[Register], TypeAttribute):
     @property
     def register_name(self) -> str:
         """Returns name if allocated, raises ValueError if not"""
-        if self.data.name is None:
+        if not self.data.is_allocated:
             raise ValueError("Cannot get name for unallocated register")
         return self.data.name
 
@@ -206,12 +206,12 @@ class FloatRegisterType(Data[Register], TypeAttribute):
 
     def print_parameter(self, printer: Printer) -> None:
         name = self.data.name
-        if name is None:
+        if not self.data.is_allocated:
             return
         printer.print_string(name)
 
     def verify(self) -> None:
-        if self.data.name is None or self.data.name.startswith("j"):
+        if not self.data.is_allocated or self.data.name.startswith("j"):
             return
         assert self.data.name in RegisterAttr.RV32F_INDEX_BY_NAME
 
@@ -895,7 +895,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rd.type, RegisterAttr):
             return
-        if self.rd.type.data.name is not None and self.rd.type.data.name != "zero":
+        if self.rd.type.is_allocated and self.rd.type.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
                 f"not '{self.rd.type.data.name}'"
@@ -953,7 +953,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rs1.type, RegisterAttr):
             return
-        if self.rs1.type.data.name is not None and self.rs1.type.data.name != "zero":
+        if self.rs1.type.is_allocated and self.rs1.type.data.name != "zero":
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
                 f"not '{self.rs1.type.data.name}'"
@@ -1009,7 +1009,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rd.type, RegisterAttr):
             return
-        if self.rd.type.data.name is not None and self.rd.type.data.name != "zero":
+        if self.rd.type.is_allocated and self.rd.type.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
                 f"not '{self.rd.type.data.name}'"
