@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.ir import Attribute, Data, Dialect, Operation, Region, SSAValue
-from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -105,27 +105,34 @@ class Generic(IRDLOperation):
             regions=[body],
         )
 
+    def get_indexing_maps(self) -> list[AffineMap]:
+        return [attr.data for attr in self.indexing_maps]
+
     def get_num_loops(self) -> int:
         return self.indexing_maps.data[0].data.num_dims
 
     def get_loops_to_shapes_map(self) -> AffineMap:
-        result_exprs: list[AffineExpr] = []
-        for map_attr in self.indexing_maps:
-            map = map_attr.data
-            result_exprs.extend(map.results)
+        result_exprs = [res for map in self.get_indexing_maps() for res in map.results]
 
         dims = self.get_num_loops()
-        # FIXME: Check for symbols also. Currently, we do not allow dynamic
-        # shapes so this is not possible.
-        syms = 0
 
+        # FIXME: Support symbols.
+        for map in self.get_indexing_maps():
+            if map.num_symbols != 0:
+                raise NotImplementedError(
+                    "Indexing maps with symbols not supported for now."
+                )
+
+        syms = 0
         return AffineMap(dims, syms, result_exprs)
 
     def get_shapes_to_loops_map(self) -> AffineMap:
         loops_to_shapes = self.get_loops_to_shapes_map()
         inverse = loops_to_shapes.inverse_permutation()
         if not inverse:
-            raise NotImplementedError("Non-invertible map")
+            raise NotImplementedError(
+                "Non-invertible maps need dynamic shapes, which are not implemented."
+            )
         return inverse
 
     def get_static_shapes(self) -> list[int]:
