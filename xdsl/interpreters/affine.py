@@ -65,7 +65,6 @@ class AffineFunctions(InterpreterFunctions):
 
         for i in range(lower_bound, upper_bound, step):
             for_results = interpreter.run_ssacfg_region(op.body, (i,))
-            assert for_results is not None, "affine blocks must have yields"
             assert not for_results, "affine block results not supported yet"
 
         return ()
@@ -74,6 +73,4 @@ class AffineFunctions(InterpreterFunctions):
     def run_yield(
         self, interpreter: Interpreter, op: affine.Yield, args: tuple[Any, ...]
     ):
-        assert not args, "Yield operands not supported yet"
-
         return ReturnedValues(args), ()
