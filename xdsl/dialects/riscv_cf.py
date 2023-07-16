@@ -66,11 +66,11 @@ class BranchOperation(IRDLOperation, RISCVInstruction, ABC):
         then_block_first_op = self.then_block.first_op
 
         if then_block_first_op is None:
-            raise VerifyException(f"riscv_cf branch op then block must not be empty")
+            raise VerifyException("riscv_cf branch op then block must not be empty")
 
         if not isinstance(then_block_first_op, riscv.LabelOp):
             raise VerifyException(
-                f"riscv_cf branch op then block first op must be a label"
+                "riscv_cf branch op then block first op must be a label"
             )
 
         # Types of arguments must match arg types of blocks
@@ -102,7 +102,7 @@ class BranchOperation(IRDLOperation, RISCVInstruction, ABC):
 
         if this_index + 1 != else_index:
             raise VerifyException(
-                f"riscv_cf branch op else block must be immediately after op"
+                "riscv_cf branch op else block must be immediately after op"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
