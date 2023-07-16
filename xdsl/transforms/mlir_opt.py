@@ -1,9 +1,7 @@
-from dataclasses import field
-from io import StringIO
 import shutil
 import subprocess
-
-from attr import dataclass
+from dataclasses import dataclass, field
+from io import StringIO
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir.core import MLContext

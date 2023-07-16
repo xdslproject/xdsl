@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p mlir-opt{arguments='--cse','--mlir-print-op-generic'} | filecheck %s
+// RUN: xdsl-opt %s -p mlir-opt{arguments='--cse','--mlir-print-op-generic'} --print-op-generic | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({
@@ -11,5 +11,5 @@
 // CHECK:         "builtin.module"() ({
 // CHECK-NEXT:      "func.func"() ({
 // CHECK-NEXT:        "func.return"() : () -> ()
-// CHECK-NEXT:      }) {function_type = () -> (), sym_name = "do_nothing"} : () -> ()
-// CHECK-NEXT:    }) : (index) -> ()
+// CHECK-NEXT:      }) {"function_type" = () -> (), "sym_name" = "do_nothing"} : () -> ()
+// CHECK-NEXT:    }) : () -> ()
