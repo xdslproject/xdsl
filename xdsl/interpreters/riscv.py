@@ -58,9 +58,25 @@ class Buffer(Generic[_T]):
 
 @register_impls
 class RiscvFunctions(InterpreterFunctions):
-    module_op: ModuleOp | None = None
-    data: dict[str, Any] = {}
+    module_op: ModuleOp
+    data: dict[str, Any]
     custom_instructions: dict[str, CustomInstructionFn] = {}
+
+    def __init__(
+        self,
+        module_op: ModuleOp,
+        *,
+        data: dict[str, Any] | None = None,
+        custom_instructions: dict[str, CustomInstructionFn] | None = None,
+    ):
+        super().__init__()
+        self.module_op = module_op
+        if data is None:
+            data = RiscvFunctions.get_data(module_op)
+        self.data = data
+        if custom_instructions is None:
+            custom_instructions = {}
+        self.custom_instructions = custom_instructions
 
     @staticmethod
     def get_data(module_op: ModuleOp) -> dict[str, Any]:
@@ -90,11 +106,6 @@ class RiscvFunctions(InterpreterFunctions):
             assert False, "Could not find data section"
 
     def get_value(self, op: Operation, key: str) -> Any:
-        module_op = op.get_toplevel_object()
-        assert isinstance(module_op, ModuleOp)
-        if module_op is not self.module_op:
-            self.module_op = module_op
-            self.data = RiscvFunctions.get_data(module_op)
         return self.data[key]
 
     def get_immediate_value(

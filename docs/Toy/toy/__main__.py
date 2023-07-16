@@ -153,7 +153,9 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
         interpreter.register_implementations(BufferMemrefConversion())
 
     if emit in ("riscv",):
-        interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
+        interpreter.register_implementations(
+            ToyAcceleratorInstructionFunctions(module_op)
+        )
         interpreter.register_implementations(RiscvCfFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
         interpreter.register_implementations(BuiltinFunctions())

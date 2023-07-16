@@ -1,6 +1,7 @@
 from typing import Generic, TypeVar
 
 from xdsl.dialects import riscv
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import Buffer, RiscvFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
@@ -14,16 +15,18 @@ class ShapedArrayBuffer(Generic[_T], ShapedArray[_T]):
 
 
 class ToyAcceleratorInstructionFunctions(RiscvFunctions):
-    def __init__(self):
-        super().__init__()
-        self.custom_instructions = {
-            "tensor.print2d": accelerator_tensor_print2d,
-            "tensor.transpose2d": accelerator_tensor_transpose2d,
-            "buffer.alloc": accelerator_buffer_alloc,
-            "buffer.add": accelerator_buffer_add,
-            "buffer.mul": accelerator_buffer_mul,
-            "print": print_,
-        }
+    def __init__(self, module_op: ModuleOp):
+        super().__init__(
+            module_op,
+            custom_instructions={
+                "tensor.print2d": accelerator_tensor_print2d,
+                "tensor.transpose2d": accelerator_tensor_transpose2d,
+                "buffer.alloc": accelerator_buffer_alloc,
+                "buffer.add": accelerator_buffer_add,
+                "buffer.mul": accelerator_buffer_mul,
+                "print": print_,
+            },
+        )
 
 
 def print_(
