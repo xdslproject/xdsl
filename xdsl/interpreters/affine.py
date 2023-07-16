@@ -1,4 +1,4 @@
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 
 from xdsl.dialects import affine
 from xdsl.interpreter import (
@@ -10,8 +10,6 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
-
-_T = TypeVar("_T")
 
 
 @register_impls
