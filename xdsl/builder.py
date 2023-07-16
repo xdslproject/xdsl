@@ -46,8 +46,6 @@ class Builder:
     @insertion_point.setter
     def insertion_point(self, insertion_point: Operation | None):
         self._insertion_point = insertion_point
-        if insertion_point is not None and insertion_point.parent is not None:
-            self.block = insertion_point.parent
         self._verify_insertion_point()
 
     def insert(self, op: OperationInvT) -> OperationInvT:

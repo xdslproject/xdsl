@@ -185,7 +185,7 @@ def build_affine_loop_nest_impl(
         # between constant- and variable-bound loops.
 
         loop = loop_creator_fn(builder, lbs[i], ubs[i], steps[i], body)
-        builder.insertion_point = loop.body.block.first_op
+        builder = Builder(loop.body.block, loop.body.block.first_op)
 
 
 def build_affine_loop_from_constants(
