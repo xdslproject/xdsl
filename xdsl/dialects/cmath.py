@@ -15,12 +15,12 @@ from xdsl.irdl import (
     Operand,
     ParamAttrConstraint,
     ParameterDef,
-    VerifyException,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     result_def,
 )
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_attr_definition

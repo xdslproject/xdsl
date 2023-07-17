@@ -3,13 +3,12 @@ from typing import Annotated, Generic, Sequence, TypeVar
 
 from xdsl.dialects.builtin import IndexType, i32, i64
 from xdsl.ir import Attribute, Dialect, OpResult
+from xdsl.ir.core import Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
     Operand,
-    Operation,
-    SSAValue,
     VarOperand,
     irdl_op_definition,
     operand_def,
