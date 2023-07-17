@@ -1,5 +1,5 @@
-from dataclasses import dataclass, field
 import re
+from dataclasses import dataclass, field
 from typing import Literal
 
 import pytest
