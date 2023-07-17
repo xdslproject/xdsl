@@ -1,6 +1,6 @@
 from __future__ import annotations
-import re
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
@@ -8,26 +8,28 @@ from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Generic,
     Iterable,
+    Iterator,
     Mapping,
     NoReturn,
     Protocol,
     Sequence,
     TypeVar,
     cast,
-    Iterator,
-    ClassVar,
+    overload,
 )
+
+from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
-from xdsl.traits import OpTrait, OpTraitInvT, IsTerminator, NoTerminator
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
-    from xdsl.printer import Printer
     from xdsl.irdl import ParamAttrDef
+    from xdsl.parser import AttrParser, Parser
+    from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
 
@@ -171,7 +173,7 @@ class SSAValue(ABC):
     An SSA variable is either an operation result, or a basic block argument.
     """
 
-    typ: Attribute
+    type: Attribute
     """Each SSA variable is associated to a type."""
 
     uses: set[Use] = field(init=False, default_factory=set, repr=False)
@@ -239,7 +241,7 @@ class SSAValue(ABC):
     def replace_by(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
         for use in self.uses.copy():
-            use.operation.replace_operand(use.index, value)
+            use.operation.operands[use.index] = value
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
@@ -256,7 +258,7 @@ class SSAValue(ABC):
                 "Attempting to delete SSA value that still has uses of result "
                 f"of operation:\n{self.owner}"
             )
-        self.replace_by(ErasedSSAValue(self.typ, self))
+        self.replace_by(ErasedSSAValue(self.type, self))
 
 
 @dataclass
@@ -276,7 +278,7 @@ class OpResult(SSAValue):
     def __repr__(self) -> str:
         return "<{}[{}] index: {}, operation: {}, uses: {}>".format(
             self.__class__.__name__,
-            self.typ,
+            self.type,
             self.index,
             self.op.name,
             len(self.uses),
@@ -307,7 +309,7 @@ class BlockArgument(SSAValue):
     def __repr__(self) -> str:
         return "<{}[{}] index: {}, uses: {}>".format(
             self.__class__.__name__,
-            self.typ,
+            self.type,
             self.index,
             len(self.uses),
         )
@@ -421,9 +423,9 @@ class Data(Generic[DataElement], Attribute, ABC):
         Data[Any].__init__(attr, params)
         return attr
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def parse_parameter(parser: Parser) -> DataElement:
+    def parse_parameter(cls, parser: AttrParser) -> DataElement:
         """Parse the attribute parameter."""
 
     @abstractmethod
@@ -458,8 +460,8 @@ class ParametrizedAttribute(Attribute):
         ParametrizedAttribute.__init__(attr, params)
         return attr
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 
@@ -515,6 +517,41 @@ class IRNode(ABC):
         ...
 
 
+@dataclass
+class OpOperands(Sequence[SSAValue]):
+    """
+    A view of the operand list of an operation.
+    Any modification to the view is reflected on the operation.
+    """
+
+    _op: Operation
+    """The operation owning the operands."""
+
+    @overload
+    def __getitem__(self, idx: int) -> SSAValue:
+        ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> Sequence[SSAValue]:
+        ...
+
+    def __getitem__(self, idx: int | slice) -> SSAValue | Sequence[SSAValue]:
+        return self._op._operands[idx]  # pyright: ignore[reportPrivateUsage]
+
+    def __setitem__(self, idx: int, operand: SSAValue) -> None:
+        operands = self._op._operands  # pyright: ignore[reportPrivateUsage]
+        operands[idx].remove_use(Use(self._op, idx))
+        operand.add_use(Use(self._op, idx))
+        new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
+        self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
+
+    def __iter__(self) -> Iterator[SSAValue]:
+        return iter(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
+    def __len__(self) -> int:
+        return len(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
+
 @dataclass(init=False)
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
@@ -522,7 +559,7 @@ class Operation(IRNode):
     name: ClassVar[str] = field(repr=False)
     """The operation name. Should be a static member of the class"""
 
-    _operands: tuple[SSAValue, ...]
+    _operands: tuple[SSAValue, ...] = field(default=())
     """The operation operands."""
 
     results: list[OpResult]
@@ -616,8 +653,8 @@ class Operation(IRNode):
         self._prev_op = new_op
 
     @property
-    def operands(self) -> tuple[SSAValue, ...]:
-        return self._operands
+    def operands(self) -> OpOperands:
+        return OpOperands(self)
 
     @operands.setter
     def operands(self, new: Sequence[SSAValue]):
@@ -643,11 +680,11 @@ class Operation(IRNode):
         super().__init__()
 
         # This is assumed to exist by Operation.operand setter.
-        self._operands = tuple()
-        self.operands = tuple(operands)
+        self.operands = operands
 
         self.results = [
-            OpResult(typ, self, idx) for (idx, typ) in enumerate(result_types)
+            OpResult(result_type, self, idx)
+            for (idx, result_type) in enumerate(result_types)
         ]
         self.attributes = dict(attributes)
         self.successors = list(successors)
@@ -670,27 +707,21 @@ class Operation(IRNode):
         Operation.__init__(op, operands, result_types, attributes, successors, regions)
         return op
 
+    @deprecated("Use op.operands.__setindex__ instead")
     def replace_operand(self, operand: int | SSAValue, new_operand: SSAValue) -> None:
         """
         Replace an operand with another operand.
-
         Raises ValueError if the specified operand is not an operand of this op
         """
         if isinstance(operand, SSAValue):
             try:
                 operand_idx = self._operands.index(operand)
             except ValueError as err:
-                raise ValueError(
-                    "{} is not an operand of {}.".format(operand, self)
-                ) from err
+                raise ValueError(f"{operand} is not an operand of {self}.") from err
         else:
             operand_idx = operand
 
-        self.operands = (
-            list(self._operands[:operand_idx])
-            + [new_operand]
-            + list(self._operands[operand_idx + 1 :])
-        )
+        self.operands[operand_idx] = new_operand
 
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
@@ -834,7 +865,7 @@ class Operation(IRNode):
             (value_mapper[operand] if operand in value_mapper else operand)
             for operand in self.operands
         ]
-        result_types = [res.typ for res in self.results]
+        result_types = [res.type for res in self.results]
         attributes = self.attributes.copy()
         successors = [
             (block_mapper[successor] if successor in block_mapper else successor)
@@ -868,10 +899,22 @@ class Operation(IRNode):
         return op
 
     @classmethod
-    def has_trait(cls, trait: type[OpTrait], parameters: Any = None) -> bool:
+    def has_trait(
+        cls,
+        trait: type[OpTrait],
+        parameters: Any = None,
+        value_if_unregistered: bool = True,
+    ) -> bool:
         """
         Check if the operation implements a trait with the given parameters.
+        If the operation is not registered, return value_if_unregisteed instead.
         """
+
+        from xdsl.dialects.builtin import UnregisteredOp
+
+        if issubclass(cls, UnregisteredOp):
+            return value_if_unregistered
+
         return cls.get_trait(trait, parameters) is not None
 
     @classmethod
@@ -1121,7 +1164,8 @@ class Block(IRNode):
     ):
         super().__init__()
         self._args = tuple(
-            BlockArgument(typ, self, index) for index, typ in enumerate(arg_types)
+            BlockArgument(arg_type, self, index)
+            for index, arg_type in enumerate(arg_types)
         )
         self._first_op = None
         self._last_op = None
@@ -1160,7 +1204,8 @@ class Block(IRNode):
     def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
         b = Block()
         b._args = tuple(
-            BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
+            BlockArgument(arg_type, b, index)
+            for index, arg_type in enumerate(arg_types)
         )
         return b
 
@@ -1170,7 +1215,8 @@ class Block(IRNode):
         b = Block()
         if arg_types:
             b._args = tuple(
-                BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
+                BlockArgument(arg_type, b, index)
+                for index, arg_type in enumerate(arg_types)
             )
         b.add_ops(ops)
         return b
@@ -1186,14 +1232,14 @@ class Block(IRNode):
         b.add_ops(f(*b.args))
         return b
 
-    def insert_arg(self, typ: Attribute, index: int) -> BlockArgument:
+    def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
         """
         Insert a new argument with a given type to the arguments list at a specific index.
         Returns the new argument.
         """
         if index < 0 or index > len(self._args):
             raise Exception("Unexpected index")
-        new_arg = BlockArgument(typ, self, index)
+        new_arg = BlockArgument(arg_type, self, index)
         for arg in self._args[index:]:
             arg.index += 1
         self._args = tuple(chain(self._args[:index], [new_arg], self._args[index:]))
@@ -1430,7 +1476,7 @@ class Block(IRNode):
         if len(self.args) != len(other.args) or len(self.ops) != len(other.ops):
             return False
         for arg, other_arg in zip(self.args, other.args):
-            if arg.typ != other_arg.typ:
+            if arg.type != other_arg.type:
                 return False
             context[arg] = other_arg
         # Add self to the context so Operations can check for identical parents
@@ -1654,7 +1700,7 @@ class Region(IRNode):
         # Populate the blocks with the cloned operations
         for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
-                new_block.insert_arg(block_arg.typ, idx)
+                new_block.insert_arg(block_arg.type, idx)
                 value_mapper[block_arg] = new_block.args[idx]
             for op in block.ops:
                 new_block.add_op(op.clone(value_mapper, block_mapper))

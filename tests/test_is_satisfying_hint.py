@@ -1,17 +1,16 @@
 from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
-from xdsl.ir import Attribute, ParametrizedAttribute
-from xdsl.irdl import ParameterDef, irdl_attr_definition
-from xdsl.utils.hints import isa
-
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    FloatData,
     IndexType,
     IntAttr,
-    FloatData,
     IntegerAttr,
     IntegerType,
 )
+from xdsl.ir import Attribute, ParametrizedAttribute
+from xdsl.irdl import ParameterDef, irdl_attr_definition
+from xdsl.utils.hints import isa
 
 
 class Class1:

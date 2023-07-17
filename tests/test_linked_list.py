@@ -1,6 +1,6 @@
-from xdsl.ir import Block
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import i32
+from xdsl.ir import Block
 
 
 def test_block_insert():

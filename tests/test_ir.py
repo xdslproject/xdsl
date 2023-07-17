@@ -1,43 +1,27 @@
-import pytest
-
 from typing import cast
 
-from xdsl.dialects.arith import Arith, Addi, Subi, Constant
-from xdsl.dialects.builtin import (
-    Builtin,
-    IntegerType,
-    i32,
-    i64,
-    IntegerAttr,
-    ModuleOp,
-)
-from xdsl.dialects.func import Func
-from xdsl.dialects.cf import Cf
-from xdsl.dialects.scf import If
-from xdsl.dialects.test import TestOp, TestTermOp
+import pytest
 
-from xdsl.ir import (
-    MLContext,
-    Operation,
-    Block,
-    Region,
-    ErasedSSAValue,
-    SSAValue,
-)
-from xdsl.traits import IsTerminator
-from xdsl.parser import Parser
+from xdsl.dialects.arith import Addi, Arith, Constant, Subi
+from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp, i32, i64
+from xdsl.dialects.cf import Cf
+from xdsl.dialects.func import Func
+from xdsl.dialects.test import TestOp, TestTermOp
+from xdsl.ir import Block, ErasedSSAValue, MLContext, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
+    Successor,
     VarRegion,
     irdl_op_definition,
-    Operand,
     operand_def,
-    var_region_def,
-    Successor,
     successor_def,
+    var_region_def,
 )
-from xdsl.utils.test_value import TestSSAValue
+from xdsl.parser import Parser
+from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_ops_accessor():
@@ -139,6 +123,37 @@ def test_ops_accessor_III():
         region0.detach_block(1)
 
 
+def test_op_operands_assign():
+    """Test that we can directly assign `op.operands`."""
+    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    op = TestOp.create(operands=[val1, val2])
+    op.operands = [val2, val1]
+    op.verify()
+
+    assert len(val1.uses) == 1
+    assert len(val2.uses) == 1
+    assert tuple(op.operands) == (val2, val1)
+
+
+def test_op_operands_indexing():
+    """Test `__getitem__`, `__setitem__`, and `__len__` on `op.operands`."""
+    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    op = TestOp.create(operands=[val1, val2])
+    op.verify()
+
+    assert op.operands[0] == val1
+    assert op.operands[1] == val2
+    assert op.operands[-1] == val2
+    assert op.operands[0:2] == (val1, val2)
+
+    op.operands[0] = val2
+    op.verify()
+
+    assert len(val1.uses) == 0
+    assert len(val2.uses) == 2
+    assert tuple(op.operands) == (val2, val2)
+
+
 def test_op_clone():
     a = Constant.from_int_and_width(1, 32)
     b = a.clone()
@@ -149,21 +164,24 @@ def test_op_clone():
     b_value = cast(IntegerAttr[IntegerType], b.value)
 
     assert b_value.value.data == 1
-    assert b_value.typ.width.data == 32
+    assert b_value.type.width.data == 32
 
 
 def test_op_clone_with_regions():
-    cond = Constant.from_int_and_width(1, 1)
-    a = Constant.from_int_and_width(1, 32)
-    if_ = If.get(cond, [], Region([Block([a])]), Region([Block([a.clone()])]))
+    a = TestOp.create()
+    op0 = TestOp.create(regions=[Region([Block([a])]), Region([Block([a.clone()])])])
 
-    if2 = if_.clone()
+    cloned_op = op0.clone()
 
-    assert if2 is not if_
-    assert len(if2.true_region.ops) == 1
-    assert len(if2.false_region.ops) == 1
-    assert if2.true_region.op is not if_.true_region.op
-    assert if2.false_region.op is not if_.false_region.op
+    assert cloned_op is not op0
+    assert len(cloned_op.regions[0].ops) == 1
+    assert len(cloned_op.regions[1].ops) == 1
+
+    for op0_region, cloned_op_region in zip(op0.regions, cloned_op.regions):
+        for op0_region_op, cloned_region_op in zip(
+            op0_region.ops, cloned_op_region.ops
+        ):
+            assert op0_region_op is not cloned_region_op
 
 
 @irdl_op_definition
@@ -534,10 +552,10 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
 
     assert isinstance(program, ModuleOp)
 
-    assert program.is_structurally_equivalent(program.regions[0]) == False
-    assert program.is_structurally_equivalent(program.regions[0].blocks[0]) == False
-    assert program.regions[0].is_structurally_equivalent(program) == False
-    assert program.regions[0].blocks[0].is_structurally_equivalent(program) == False
+    assert program.is_structurally_equivalent(program.regions[0]) is False
+    assert program.is_structurally_equivalent(program.regions[0].blocks[0]) is False
+    assert program.regions[0].is_structurally_equivalent(program) is False
+    assert program.regions[0].blocks[0].is_structurally_equivalent(program) is False
 
     func_op = program.ops.first
     assert func_op is not None
@@ -668,21 +686,6 @@ def test_op_custom_verify_is_done_last():
         b.verify()
     assert e.value.args[0] != "Custom Verification Check"
     assert "test.custom_verify_op operation does not verify" in e.value.args[0]
-
-
-def test_replace_operand():
-    cst0 = Constant.from_int_and_width(0, 32).result
-    cst1 = Constant.from_int_and_width(1, 32).result
-    add = Addi(cst0, cst1)
-
-    new_cst = Constant.from_int_and_width(2, 32).result
-    add.replace_operand(cst0, new_cst)
-
-    assert new_cst in add.operands
-    assert cst0 not in add.operands
-
-    with pytest.raises(ValueError):
-        add.replace_operand(cst0, new_cst)
 
 
 def test_block_walk():

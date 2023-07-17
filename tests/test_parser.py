@@ -1,23 +1,23 @@
+from io import StringIO
 from typing import cast
+
 import pytest
 
-from io import StringIO
-
 from xdsl.dialects.builtin import (
-    IntAttr,
-    DictionaryAttr,
-    StringAttr,
     ArrayAttr,
     Builtin,
+    DictionaryAttr,
+    IntAttr,
+    StringAttr,
     SymbolRefAttr,
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
+from xdsl.ir import Attribute, MLContext, ParametrizedAttribute, Region
 from xdsl.irdl import (
+    IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
-    IRDLOperation,
     region_def,
 )
 from xdsl.parser import Parser
@@ -64,7 +64,7 @@ def test_dictionary_attr_with_keyword_missing(text: str):
     ctx = MLContext()
     ctx.register_dialect(Builtin)
 
-    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() == None
+    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() is None
 
 
 @pytest.mark.parametrize(

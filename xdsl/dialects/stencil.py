@@ -1,51 +1,48 @@
 from __future__ import annotations
 
 from operator import add, lt, neg
-from typing import Sequence, TypeVar, cast, Iterable, Iterator
+from typing import Iterable, Iterator, Sequence, TypeVar, cast
 
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyIntegerAttr,
+    ArrayAttr,
     IntAttr,
     ParametrizedAttribute,
-    ArrayAttr,
-    AnyFloat,
 )
-from xdsl.dialects import memref
-
 from xdsl.ir import (
+    Attribute,
     Block,
+    Dialect,
+    Operation,
     OpResult,
     Region,
     SSAValue,
-    Operation,
-    Attribute,
-    Dialect,
     TypeAttribute,
 )
 from xdsl.irdl import (
-    attr_def,
-    opt_attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    ParameterDef,
-    VerifyException,
     Generic,
+    IRDLOperation,
     Operand,
+    ParameterDef,
     VarOperand,
     VarOpResult,
-    IRDLOperation,
+    VerifyException,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
+    opt_attr_def,
     region_def,
     result_def,
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsTerminator, IsolatedFromAbove
-from xdsl.utils.hints import isa
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator
+from xdsl.utils.hints import isa
 
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
 
@@ -56,13 +53,13 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
     array: ParameterDef[ArrayAttr[IntAttr]]
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         ints = parser.parse_comma_separated_list(
             parser.Delimiter.ANGLE, lambda: parser.parse_integer(allow_boolean=False)
         )
-        return [ArrayAttr((IntAttr(i) for i in ints))]
+        return [ArrayAttr(IntAttr(i) for i in ints)]
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print(f'<{", ".join((str(e) for e in self))}>')
@@ -189,8 +186,8 @@ class StencilType(
     def get_element_type(self) -> _FieldTypeElement:
         return self.element_type
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         def parse_interval() -> tuple[int, int] | int:
             if parser.parse_optional_punctuation("?"):
                 return -1
@@ -204,11 +201,11 @@ class StencilType(
         parser.parse_characters("<")
         bounds = [parse_interval()]
         parser.parse_shape_delimiter()
-        typ = parser.parse_optional_type()
-        while typ is None:
+        opt_type = parser.parse_optional_type()
+        while opt_type is None:
             bounds.append(parse_interval())
             parser.parse_shape_delimiter()
-            typ = parser.parse_optional_type()
+            opt_type = parser.parse_optional_type()
         parser.parse_characters(">")
         if isa(bounds, list[tuple[int, int]]):
             bounds = StencilBoundsAttr(bounds)
@@ -217,7 +214,7 @@ class StencilType(
         else:
             parser.raise_error("stencil types can only be fully dynamic or sized.")
 
-        return [bounds, typ]
+        return [bounds, opt_type]
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
@@ -240,7 +237,7 @@ class StencilType(
         | int
         | IntAttr
         | StencilBoundsAttr,
-        typ: _FieldTypeElement,
+        element_type: _FieldTypeElement,
     ) -> None:
         """
             A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
@@ -257,7 +254,7 @@ class StencilType(
             nbounds = IntAttr(bounds)
         else:
             nbounds = bounds
-        return super().__init__([nbounds, typ])
+        return super().__init__([nbounds, element_type])
 
 
 @irdl_attr_definition
@@ -343,16 +340,16 @@ class ApplyOp(IRDLOperation):
             raise VerifyException(
                 f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
             )
-        res_typ = cast(TempType[Attribute], self.res[0].typ)
+        res_type = cast(TempType[Attribute], self.res[0].type)
         for other in self.res[1:]:
-            other = cast(TempType[Attribute], other.typ)
-            if res_typ.bounds != other.bounds:
+            other = cast(TempType[Attribute], other.type)
+            if res_type.bounds != other.bounds:
                 raise VerifyException(f"Expected all output types bounds to be equals.")
 
     def get_rank(self) -> int:
-        res_typ = self.res[0].typ
-        assert isa(res_typ, TempType[Attribute])
-        return res_typ.get_num_dims()
+        res_type = self.res[0].type
+        assert isa(res_type, TempType[Attribute])
+        return res_type.get_num_dims()
 
 
 @irdl_op_definition
@@ -376,11 +373,11 @@ class CastOp(IRDLOperation):
     ) -> CastOp:
         """ """
         field_ssa = SSAValue.get(field)
-        assert isa(field_ssa.typ, FieldType[Attribute])
+        assert isa(field_ssa.type, FieldType[Attribute])
         if res_type is None:
             res_type = FieldType(
                 bounds,
-                field_ssa.typ.element_type,
+                field_ssa.type.element_type,
             )
         return CastOp.build(
             operands=[field],
@@ -389,23 +386,23 @@ class CastOp(IRDLOperation):
 
     def verify_(self) -> None:
         # this should be fine, verify() already checks them:
-        assert isa(self.field.typ, FieldType[Attribute])
-        assert isa(self.result.typ, FieldType[Attribute])
+        assert isa(self.field.type, FieldType[Attribute])
+        assert isa(self.result.type, FieldType[Attribute])
 
-        if isinstance(self.result.typ.bounds, IntAttr):
+        if isinstance(self.result.type.bounds, IntAttr):
             raise VerifyException("Output type's size must be explicit")
 
-        if self.field.typ.element_type != self.result.typ.element_type:
+        if self.field.type.element_type != self.result.type.element_type:
             raise VerifyException(
                 "Input and output fields must have the same element types"
             )
 
-        if self.field.typ.get_num_dims() != self.result.typ.get_num_dims():
+        if self.field.type.get_num_dims() != self.result.type.get_num_dims():
             raise VerifyException("Input and output types must have the same rank")
 
         if (
-            isinstance(self.field.typ.bounds, StencilBoundsAttr)
-            and self.field.typ.bounds != self.result.typ.bounds
+            isinstance(self.field.type.bounds, StencilBoundsAttr)
+            and self.field.type.bounds != self.result.type.bounds
         ):
             raise VerifyException(
                 "If input shape is not dynamic, it must be the same as output"
@@ -496,7 +493,7 @@ class AccessOp(IRDLOperation):
         offset: Sequence[int],
         offset_mapping: Sequence[int] | None = None,
     ):
-        temp_type = SSAValue.get(temp).typ
+        temp_type = SSAValue.get(temp).type
         assert isinstance(temp_type, TempType)
         temp_type = cast(TempType[Attribute], temp_type)
 
@@ -529,13 +526,13 @@ class AccessOp(IRDLOperation):
         # cf https://github.com/xdslproject/xdsl/issues/1112
         apply.verify_()
 
-        temp_typ = self.temp.typ
-        assert isa(temp_typ, TempType[Attribute])
-        if temp_typ.get_num_dims() != apply.get_rank():
+        temp_type = self.temp.type
+        assert isa(temp_type, TempType[Attribute])
+        if temp_type.get_num_dims() != apply.get_rank():
             if self.offset_mapping is None:
                 raise VerifyException(
                     f"Expected stencil.access operand to be of rank {apply.get_rank()} "
-                    f"to match its parent apply, got {temp_typ.get_num_dims()} without "
+                    f"to match its parent apply, got {temp_type.get_num_dims()} without "
                     f"explict offset mapping provided"
                 )
 
@@ -560,9 +557,9 @@ class AccessOp(IRDLOperation):
                         )
                 prev_offset = offset.data
 
-        if len(self.offset) != temp_typ.get_num_dims():
+        if len(self.offset) != temp_type.get_num_dims():
             raise VerifyException(
-                f"Expected offset's rank to be {temp_typ.get_num_dims()} to match the "
+                f"Expected offset's rank to be {temp_type.get_num_dims()} to match the "
                 f"operand's rank, got {len(self.offset)}"
             )
 
@@ -586,25 +583,25 @@ class LoadOp(IRDLOperation):
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
     ):
-        field_t = SSAValue.get(field).typ
-        assert isa(field_t, FieldType[Attribute])
+        field_type = SSAValue.get(field).type
+        assert isa(field_type, FieldType[Attribute])
 
         if lb is None or ub is None:
-            res_typ = TempType(field_t.get_num_dims(), field_t.element_type)
+            res_type = TempType(field_type.get_num_dims(), field_type.element_type)
         else:
-            res_typ = TempType(zip(lb, ub), field_t.element_type)
+            res_type = TempType(zip(lb, ub), field_type.element_type)
 
         return LoadOp.build(
             operands=[field],
-            result_types=[res_typ],
+            result_types=[res_type],
         )
 
     def verify_(self) -> None:
         for use in self.field.uses:
             if isa(use.operation, StoreOp):
                 raise VerifyException("Cannot Load and Store the same field!")
-        field = self.field.typ
-        temp = self.res.typ
+        field = self.field.type
+        temp = self.res.type
         assert isa(field, FieldType[Attribute])
         assert isa(temp, TempType[Attribute])
         if isinstance(field.bounds, StencilBoundsAttr) and isinstance(
@@ -631,13 +628,13 @@ class BufferOp(IRDLOperation):
 
     def __init__(self: IRDLOperation, temp: SSAValue | Operation):
         temp = SSAValue.get(temp)
-        super().__init__(operands=[temp], result_types=[temp.typ])
+        super().__init__(operands=[temp], result_types=[temp.type])
 
     def verify_(self) -> None:
-        if self.temp.typ != self.res.typ:
+        if self.temp.type != self.res.type:
             raise VerifyException(
-                f"Expected operand and result type to be equal, got ({self.temp.typ}) "
-                f"-> {self.res.typ}"
+                f"Expected operand and result type to be equal, got ({self.temp.type}) "
+                f"-> {self.res.type}"
             )
         if not isinstance(self.temp.owner, ApplyOp):
             raise VerifyException(
@@ -724,10 +721,10 @@ class ReturnOp(IRDLOperation):
 
     def verify_(self) -> None:
         types = [
-            o.typ.elem if isinstance(o.typ, ResultType) else o.typ for o in self.arg
+            o.type.elem if isinstance(o.type, ResultType) else o.type for o in self.arg
         ]
         apply = cast(ApplyOp, self.parent_op())
-        res_types = [cast(TempType[Attribute], r.typ).element_type for r in apply.res]
+        res_types = [cast(TempType[Attribute], r.type).element_type for r in apply.res]
         if len(types) != len(res_types):
             raise VerifyException(
                 f"stencil.return expected {len(res_types)} operands to match the parent "

@@ -1,55 +1,47 @@
 from __future__ import annotations
 
-from typing import (
-    TYPE_CHECKING,
-    Iterable,
-    Sequence,
-    TypeVar,
-    Optional,
-    TypeAlias,
-    cast,
-)
+from typing import TYPE_CHECKING, Iterable, Sequence, TypeAlias, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    ArrayAttr,
+    ContainerType,
+    DenseArrayBase,
     DenseIntOrFPElementsAttr,
+    IndexType,
     IntAttr,
     IntegerAttr,
-    DenseArrayBase,
-    IndexType,
+    IntegerType,
+    NoneAttr,
     ShapedType,
     StridedLayoutAttr,
-    ArrayAttr,
-    NoneAttr,
-    SymbolRefAttr,
-    i64,
     StringAttr,
+    SymbolRefAttr,
     UnitAttr,
     i32,
-    IntegerType,
-    ContainerType,
+    i64,
 )
 from xdsl.ir import (
     Attribute,
-    TypeAttribute,
-    Operation,
-    SSAValue,
-    ParametrizedAttribute,
     Dialect,
+    Operation,
     OpResult,
+    ParametrizedAttribute,
+    SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    Attribute,
+    AttrSizedOperandSegments,
+    Generic,
+    IRDLOperation,
+    Operand,
+    ParameterDef,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    ParameterDef,
-    Generic,
-    Attribute,
-    AnyAttr,
-    Operand,
-    VarOperand,
-    AttrSizedOperandSegments,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     result_def,
@@ -59,7 +51,7 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import AttrParser
     from xdsl.printer import Printer
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
@@ -123,8 +115,8 @@ class MemRefType(
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([shape, referenced_type, layout, memory_space])
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in memref attribute")
         shape = parser.parse_attribute()
         parser.parse_punctuation(",", " between shape and element type parameters")
@@ -185,23 +177,25 @@ class Load(IRDLOperation):
     # which is subject to change
 
     def verify_(self):
-        if not isinstance(self.memref.typ, MemRefType):
+        if not isinstance(self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_typ = cast(MemRefType[Attribute], self.memref.typ)
+        memref_type = cast(MemRefType[Attribute], self.memref.type)
 
-        if memref_typ.element_type != self.res.typ:
+        if memref_type.element_type != self.res.type:
             raise Exception("expected return type to match the MemRef element type")
 
-        if self.memref.typ.get_num_dims() != len(self.indices):
+        if self.memref.type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
 
     @staticmethod
     def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
         ssa_value = SSAValue.get(ref)
-        typ = ssa_value.typ
-        typ = cast(MemRefType[Attribute], typ)
-        return Load.build(operands=[ref, indices], result_types=[typ.element_type])
+        ssa_value_type = ssa_value.type
+        ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
+        return Load.build(
+            operands=[ref, indices], result_types=[ssa_value_type.element_type]
+        )
 
 
 @irdl_op_definition
@@ -212,15 +206,15 @@ class Store(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType)
 
     def verify_(self):
-        if not isinstance(self.memref.typ, MemRefType):
+        if not isinstance(self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_typ = cast(MemRefType[Attribute], self.memref.typ)
+        memref_type = cast(MemRefType[Attribute], self.memref.type)
 
-        if memref_typ.element_type != self.value.typ:
+        if memref_type.element_type != self.value.type:
             raise Exception("Expected value type to match the MemRef element type")
 
-        if self.memref.typ.get_num_dims() != len(self.indices):
+        if self.memref.type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")
 
     @staticmethod
@@ -250,7 +244,7 @@ class Alloc(IRDLOperation):
     def get(
         return_type: Attribute,
         alignment: int | None = None,
-        shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
+        shape: Iterable[int | AnyIntegerAttr] | None = None,
     ) -> Alloc:
         if shape is None:
             shape = [1]
@@ -283,7 +277,7 @@ class Alloca(IRDLOperation):
     def get(
         return_type: Attribute,
         alignment: int | AnyIntegerAttr | None = None,
-        shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
+        shape: Iterable[int | AnyIntegerAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
     ) -> Alloca:
         if shape is None:
@@ -352,14 +346,14 @@ class Global(IRDLOperation):
     @staticmethod
     def get(
         sym_name: StringAttr,
-        typ: Attribute,
+        sym_type: Attribute,
         initial_value: Attribute,
         sym_visibility: StringAttr = StringAttr("private"),
     ) -> Global:
         return Global.build(
             attributes={
                 "sym_name": sym_name,
-                "type": typ,
+                "type": sym_type,
                 "initial_value": initial_value,
                 "sym_visibility": sym_visibility,
             }
@@ -470,7 +464,7 @@ class Subview(IRDLOperation):
 
         layout = StridedLayoutAttr(layout_strides, layout_offset)
 
-        return_typ = MemRefType.from_element_type_and_shape(
+        return_type = MemRefType.from_element_type_and_shape(
             source_type.element_type,
             result_sizes,
             layout,
@@ -479,7 +473,7 @@ class Subview(IRDLOperation):
 
         return Subview.build(
             operands=[source, [], [], []],
-            result_types=[return_typ],
+            result_types=[return_type],
             attributes={
                 "static_offsets": DenseArrayBase.from_list(i64, offsets),
                 "static_sizes": DenseArrayBase.from_list(i64, sizes),
@@ -543,35 +537,35 @@ class DmaStartOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isa(self.src.typ, MemRefType[Attribute])
-        assert isa(self.dest.typ, MemRefType[Attribute])
-        assert isa(self.tag.typ, MemRefType[IntegerType])
+        assert isa(self.src.type, MemRefType[Attribute])
+        assert isa(self.dest.type, MemRefType[Attribute])
+        assert isa(self.tag.type, MemRefType[IntegerType])
 
-        if len(self.src.typ.shape) != len(self.src_indices):
+        if len(self.src.type.shape) != len(self.src_indices):
             raise VerifyException(
                 "Expected {} source indices (because of shape of src memref)".format(
-                    len(self.src.typ.shape)
+                    len(self.src.type.shape)
                 )
             )
 
-        if len(self.dest.typ.shape) != len(self.dest_indices):
+        if len(self.dest.type.shape) != len(self.dest_indices):
             raise VerifyException(
                 "Expected {} dest indices (because of shape of dest memref)".format(
-                    len(self.dest.typ.shape)
+                    len(self.dest.type.shape)
                 )
             )
 
-        if len(self.tag.typ.shape) != len(self.tag_indices):
+        if len(self.tag.type.shape) != len(self.tag_indices):
             raise VerifyException(
                 "Expected {} tag indices (because of shape of tag memref)".format(
-                    len(self.tag.typ.shape)
+                    len(self.tag.type.shape)
                 )
             )
 
-        if self.tag.typ.element_type != i32:
+        if self.tag.type.element_type != i32:
             raise VerifyException("Expected tag to be a memref of i32")
 
-        if self.dest.typ.memory_space == self.src.typ.memory_space:
+        if self.dest.type.memory_space == self.src.type.memory_space:
             raise VerifyException("Source and dest must have different memory spaces!")
 
 
@@ -599,14 +593,14 @@ class DmaWaitOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isa(self.tag.typ, MemRefType[Attribute])
+        assert isa(self.tag.type, MemRefType[Attribute])
 
-        if len(self.tag.typ.shape) != len(self.tag_indices):
+        if len(self.tag.type.shape) != len(self.tag_indices):
             raise VerifyException(
-                f"Expected {len(self.tag.typ.shape)} tag indices because of shape of tag memref"
+                f"Expected {len(self.tag.type.shape)} tag indices because of shape of tag memref"
             )
 
-        if self.tag.typ.element_type != i32:
+        if self.tag.type.element_type != i32:
             raise VerifyException("Expected tag to be a memref of i32")
 
 
@@ -620,8 +614,8 @@ class CopyOp(IRDLOperation):
         super().__init__([source, destination])
 
     def verify_(self) -> None:
-        source = cast(MemRefType[Attribute], self.source.typ)
-        destination = cast(MemRefType[Attribute], self.destination.typ)
+        source = cast(MemRefType[Attribute], self.source.type)
+        destination = cast(MemRefType[Attribute], self.destination.type)
         if source.get_shape() != destination.get_shape():
             raise VerifyException(
                 f"Expected source and destination to have the same shape."

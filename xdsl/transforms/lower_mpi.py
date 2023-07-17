@@ -1,24 +1,21 @@
 from abc import ABC
-from typing import TypeVar, cast
 from dataclasses import dataclass
-
 from math import prod
+from typing import TypeVar, cast
 
-from xdsl.passes import ModulePass
-
-from xdsl.utils.hints import isa
-from xdsl.dialects.builtin import Signedness, IntegerType, i32, i64, IndexType
+from xdsl.dialects import arith, builtin, func, llvm, memref, mpi
+from xdsl.dialects.builtin import IndexType, IntegerType, Signedness, i32, i64
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Operation, SSAValue, OpResult, Attribute, MLContext
-
+from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    RewritePattern,
-    PatternRewriter,
-    op_type_rewrite_pattern,
-    PatternRewriteWalker,
     GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-from xdsl.dialects import mpi, llvm, func, memref, arith, builtin
+from xdsl.utils.hints import isa
 
 
 @dataclass(frozen=True)
@@ -202,14 +199,14 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         It then returns a list of operations calculating that size, and
         an OpResult containing the calculated value.
         """
-        assert isinstance(ssa_val.typ, memref.MemRefType)
+        assert isinstance(ssa_val.type, memref.MemRefType)
 
         # Note: we only allow MemRef, not UnrankedMemref!
         # TODO: handle -1 in sizes
-        if not all(dim.value.data >= 0 for dim in ssa_val.typ.shape.data):
+        if not all(dim.value.data >= 0 for dim in ssa_val.type.shape.data):
             raise RuntimeError("MPI lowering does not support unknown-size memrefs!")
 
-        size = prod(dim.value.data for dim in ssa_val.typ.shape.data)
+        size = prod(dim.value.data for dim in ssa_val.type.shape.data)
 
         literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result
@@ -242,7 +239,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
             self._translate_to_mpi_type(type_attr), i32
         )
 
-    def _translate_to_mpi_type(self, typ: Attribute) -> int:
+    def _translate_to_mpi_type(self, mpi_type: Attribute) -> int:
         """
         This translates an xDSL type to a corresponding MPI type
 
@@ -256,13 +253,13 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                 [u]i32  -> MPI_UNSIGNED / MPI_INT
                 [u]i64  -> MPI_UNSIGNED_LONG_LONG / MPI_LONG_LONG_INT
         """
-        if isinstance(typ, builtin.Float32Type):
+        if isinstance(mpi_type, builtin.Float32Type):
             return self.info.MPI_FLOAT
-        if isinstance(typ, builtin.Float64Type):
+        if isinstance(mpi_type, builtin.Float64Type):
             return self.info.MPI_DOUBLE
-        if isinstance(typ, IntegerType):
-            width: int = typ.width.data
-            if typ.signedness.data == Signedness.UNSIGNED:
+        if isinstance(mpi_type, IntegerType):
+            width: int = mpi_type.width.data
+            if mpi_type.signedness.data == Signedness.UNSIGNED:
                 # unsigned branch
                 if width == 8:
                     return self.info.MPI_UNSIGNED_CHAR
@@ -286,7 +283,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                     width
                 )
             )
-        raise ValueError("MPI Datatype Conversion: Unsupported type {}".format(typ))
+        raise ValueError(f"MPI Datatype Conversion: Unsupported type {mpi_type}")
 
     def _mpi_name(self, op: mpi.MPIBaseOp) -> str:
         """
@@ -624,13 +621,13 @@ class LowerMpiUnwrapMemrefOp(_MPIToLLVMRewriteBase):
         count_ops, count_ssa_val = self._emit_memref_counts(op.ref)
         extract_ptr_ops, ptr = self._memref_get_llvm_ptr(op.ref)
 
-        elem_typ = cast(MemRefType[mpi.AnyNumericType], op.ref.typ).element_type
+        elem_type = cast(MemRefType[mpi.AnyNumericType], op.ref.type).element_type
 
         return [
             *extract_ptr_ops,
             *count_ops,
-            typ := mpi.GetDtypeOp.get(elem_typ),
-        ], [ptr.results[0], count_ssa_val, typ.result]
+            dtype := mpi.GetDtypeOp.get(elem_type),
+        ], [ptr.results[0], count_ssa_val, dtype.result]
 
 
 class LowerMpiGetDtype(_MPIToLLVMRewriteBase):
@@ -642,8 +639,8 @@ class LowerMpiGetDtype(_MPIToLLVMRewriteBase):
         self, op: mpi.GetDtypeOp
     ) -> tuple[list[Operation], list[SSAValue | None]]:
         return [
-            typ := self._emit_mpi_type_load(op.dtype),
-        ], [typ.results[0]]
+            dtype := self._emit_mpi_type_load(op.dtype),
+        ], [dtype.results[0]]
 
 
 class LowerMpiAllocateType(_MPIToLLVMRewriteBase):
@@ -679,9 +676,9 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
         location before going back to a pointer and setting this as the result
         """
 
-        assert isa(op.result.typ, mpi.VectorWrappable)
-        assert isa(op.vect.typ, llvm.LLVMPointerType)
-        datatype_size = self._get_mpi_dtype_size(op.result.typ)
+        assert isa(op.result.type, mpi.VectorWrappable)
+        assert isa(op.vect.type, llvm.LLVMPointerType)
+        datatype_size = self._get_mpi_dtype_size(op.result.type)
 
         return [
             ptr_int := llvm.PtrToIntOp.get(op.vect, i64),
@@ -690,7 +687,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
             idx_cast2 := arith.IndexCastOp.get(idx_cast1, i64),
             mul := arith.Muli(lit1, idx_cast2),
             add := arith.Addi(mul, ptr_int),
-            out_ptr := llvm.IntToPtrOp.get(add, op.vect.typ.type),
+            out_ptr := llvm.IntToPtrOp.get(add, op.vect.type.type),
         ], [out_ptr.results[0]]
 
 
@@ -762,8 +759,8 @@ class MpiAddExternalFuncDefs(RewritePattern):
             if op.callee.string_value() not in self.mpi_func_call_names:
                 continue
             funcs_to_emit[op.callee.string_value()] = (
-                [arg.typ for arg in op.arguments],
-                [res.typ for res in op.results],
+                [arg.type for arg in op.arguments],
+                [res.type for res in op.results],
             )
 
         # for each func found, add a FuncOp to the top of the module.
@@ -787,7 +784,7 @@ class LowerNullRequestOp(_MPIToLLVMRewriteBase):
 
         int MPI_Comm_size(MPI_Comm comm, int *size)
         """
-        assert isa(op.request.typ, llvm.LLVMPointerType)
+        assert isa(op.request.type, llvm.LLVMPointerType)
         return [
             val := arith.Constant.from_int_and_width(self.info.MPI_REQUEST_NULL, i32),
             llvm.StoreOp.get(val, op.request),
