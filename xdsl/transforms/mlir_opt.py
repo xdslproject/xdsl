@@ -14,7 +14,8 @@ from xdsl.printer import Printer
 @dataclass
 class MLIROptPass(ModulePass):
     """
-    A pass for calling the `mlir-opt` tool with specified parameters.
+    A pass for calling the `mlir-opt` tool with specified parameters. Will fail if
+    `mlir-opt` is not available.
     """
 
     name = "mlir-opt"
