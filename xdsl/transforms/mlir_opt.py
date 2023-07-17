@@ -9,6 +9,7 @@ from xdsl.parser.core import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import DiagnosticException
 
 
 @dataclass
@@ -39,13 +40,18 @@ class MLIROptPass(ModulePass):
             text=True,
         )
 
-        # Get the stdout output
-        stdout_output = completed_process.stdout
+        try:
+            completed_process.check_returncode()
 
-        parser = Parser(ctx, stdout_output)
+            # Get the stdout output
+            stdout_output = completed_process.stdout
 
-        new_module = parser.parse_module()
+            parser = Parser(ctx, stdout_output)
 
-        rewriter = PatternRewriter(op)
-        op.detach_region(op.body)
-        op.add_region(rewriter.move_region_contents_to_new_regions(new_module.body))
+            new_module = parser.parse_module()
+
+            rewriter = PatternRewriter(op)
+            op.detach_region(op.body)
+            op.add_region(rewriter.move_region_contents_to_new_regions(new_module.body))
+        except Exception as e:
+            raise DiagnosticException("Error executing mlir-opt pass") from e
