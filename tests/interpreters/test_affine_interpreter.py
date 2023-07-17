@@ -19,28 +19,52 @@ def module_op():
     with ImplicitBuilder(
         func.FuncOp(
             "my_func",
-            ((), (memref.MemRefType.from_element_type_and_shape(index, (2, 3)),)),
+            (
+                (),
+                (
+                    memref.MemRefType.from_element_type_and_shape(index, (2, 3)),
+                    memref.MemRefType.from_element_type_and_shape(index, (3, 2)),
+                ),
+            ),
         ).body
     ):
-        alloc_op = memref.Alloc.get(index, None, (2, 3))
+        alloc_op_0 = memref.Alloc.get(index, None, (2, 3))
+        alloc_op_1 = memref.Alloc.get(index, None, (3, 2))
 
         @Builder.implicit_region((index,))
-        def rows_region(args: tuple[Any, ...]):
+        def init_rows_region(args: tuple[Any, ...]):
             (row,) = args
 
             @Builder.implicit_region((index,))
-            def cols_region(args: tuple[Any, ...]):
+            def init_cols_region(args: tuple[Any, ...]):
                 (col,) = args
                 sum_op = arith.Addi(row, col)
-                affine.Store(sum_op.result, alloc_op.memref, (row, col))
+                affine.Store(sum_op.result, alloc_op_0.memref, (row, col))
                 affine.Yield.get()
 
-            affine.For.from_region((), (), 0, 3, cols_region)
+            affine.For.from_region((), (), 0, 3, init_cols_region)
 
             affine.Yield.get()
 
-        affine.For.from_region((), (), 0, 2, rows_region)
-        func.Return(alloc_op.memref)
+        affine.For.from_region((), (), 0, 2, init_rows_region)
+
+        @Builder.implicit_region((index,))
+        def transpose_rows_region(args: tuple[Any, ...]):
+            (row,) = args
+
+            @Builder.implicit_region((index,))
+            def transpose_cols_region(args: tuple[Any, ...]):
+                (col,) = args
+                res = affine.Load(alloc_op_0.memref, (row, col)).result
+                affine.Store(res, alloc_op_1.memref, (col, row))
+                affine.Yield.get()
+
+            affine.For.from_region((), (), 0, 3, transpose_cols_region)
+
+            affine.Yield.get()
+
+        affine.For.from_region((), (), 0, 2, transpose_rows_region)
+        func.Return(alloc_op_0.memref, alloc_op_1.memref)
 
 
 def test_functions():
@@ -54,4 +78,7 @@ def test_functions():
 
     res = interpreter.call_op("my_func", ())
 
-    assert res == (ShapedArray(data=[0, 1, 2, 1, 2, 3], shape=[2, 3]),)
+    assert res == (
+        ShapedArray(data=[0, 1, 2, 1, 2, 3], shape=[2, 3]),
+        ShapedArray(data=[0, 1, 1, 2, 2, 3], shape=[3, 2]),
+    )
