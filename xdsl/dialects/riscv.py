@@ -94,7 +94,7 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
     @classmethod
     @abstractmethod
     def abi_index_by_name(cls) -> dict[str, int]:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 @irdl_attr_definition
