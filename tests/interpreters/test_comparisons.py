@@ -1,11 +1,17 @@
 import pytest
 
-from xdsl.interpreters.comparisons import signed_less_than, unsigned_less_than
+from xdsl.interpreters.comparisons import (
+    signed_less_than,
+    signed_lower_bound,
+    signed_upper_bound,
+    unsigned_less_than,
+    unsigned_upper_bound,
+)
 
 BITWIDTH = 2
-UNSIGNED_UPPER_BOUND = 1 << BITWIDTH
-SIGNED_UPPER_BOUND = 1 << (BITWIDTH - 1)
-SIGNED_LOWER_BOUND = -SIGNED_UPPER_BOUND
+UNSIGNED_UPPER_BOUND = unsigned_upper_bound(BITWIDTH)
+SIGNED_UPPER_BOUND = signed_upper_bound(BITWIDTH)
+SIGNED_LOWER_BOUND = signed_lower_bound(BITWIDTH)
 
 UNSIGNED_RANGE = range(UNSIGNED_UPPER_BOUND)
 SIGNED_RANGE = range(SIGNED_LOWER_BOUND, SIGNED_UPPER_BOUND)
