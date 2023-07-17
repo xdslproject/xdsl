@@ -88,5 +88,5 @@ coverage-report-md:
 venv: requirements-optional.txt requirements.txt
 	python3 -m venv ${VENV_DIR}
 	source ${VENV_DIR}/bin/activate
-	pip install -r requirements-optional.txt -r requirements.txt
-	pip install -e ".[extras]"
+	python3 -m pip --require-virtualenv install -r requirements-optional.txt -r requirements.txt
+	python3 -m pip --require-virtualenv install -e ".[extras]"
