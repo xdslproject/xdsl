@@ -162,8 +162,6 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
 
     interpreter.call_op("main", ())
 
-    print(f"Unknown option {emit}")
-
 
 if __name__ == "__main__":
     args = parser.parse_args()
