@@ -56,7 +56,7 @@ class WGSLPrinter:
             arguments = f"""
     @group(0) @binding({arg.index})
     var<storage,{auth}> {self.wgsl_name(arg)}: {arg_type};
-            """
+"""
             out_stream.write(arguments)
 
         out_stream.write(
@@ -67,7 +67,7 @@ class WGSLPrinter:
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
     @builtin(num_workgroups) num_workgroups : vec3<u32>) {
-        """
+"""
         )
         for operation in op.body.ops:
             self.print(operation, out_stream)
