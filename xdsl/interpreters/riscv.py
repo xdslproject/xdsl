@@ -197,6 +197,20 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         return ()
 
+    @impl(riscv.GetRegisterOp)
+    def run_get_register(
+        self,
+        interpreter: Interpreter,
+        op: riscv.GetRegisterOp,
+        args: tuple[Any, ...],
+    ):
+        if op.res.type == riscv.Registers.ZERO:
+            return (0,)
+        else:
+            raise ValueError(
+                "Cannot interpret GetRegisterOp for registers other than ZERO"
+            )
+
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(
         self,
