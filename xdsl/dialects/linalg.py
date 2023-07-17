@@ -157,11 +157,11 @@ class Generic(IRDLOperation):
         for input in self.inputs:
             if isinstance(input.type, ShapedType):
                 for dim in input.type.get_shape():
-                    sizes.append(shape)
+                    sizes.append(dim)
         for output in self.outputs:
             if isinstance(output.type, ShapedType):
-                for shape in output.type.get_shape():
-                    sizes.append(shape)
+                for dim in output.type.get_shape():
+                    sizes.append(dim)
         return sizes
 
     def get_static_loop_ranges(self) -> list[int]:
