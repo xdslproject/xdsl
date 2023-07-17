@@ -43,7 +43,12 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, NoTerminator
+from xdsl.traits import (
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -81,8 +86,8 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
 
     value: ParameterDef[T]
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters(
             "<",
             ": gpu attributes currently have the #gpu<name value> syntax.",
@@ -340,18 +345,31 @@ class MemcpyOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ModuleEndOp(IRDLOperation):
+    name = "gpu.module_end"
+
+    # TODO circular dependency disallows this set of traits
+    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
+    # traits = frozenset([HasParent(ModuleOp), IsTerminator()])
+    traits = frozenset([IsTerminator()])
+
+    def __init__(self):
+        return super().__init__()
+
+
+@irdl_op_definition
 class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
     body: Region = region_def("single_block")
     sym_name: StringAttr = attr_def(StringAttr)
 
-    # TODO this requires the SingleBlockImplicitTerminator trait instead of
-    # NoTerminator
-    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
+    traits = frozenset(
+        [IsolatedFromAbove(), SingleBlockImplicitTerminator(ModuleEndOp)]
+    )
 
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
-        return super().__init__(attributes={"sym_name": name}, regions=[ops])
+        super().__init__(attributes={"sym_name": name}, regions=[ops])
 
 
 @irdl_op_definition
@@ -579,16 +597,6 @@ class LaunchFuncOp(IRDLOperation):
             result_types=[[AsyncTokenType()] if async_launch else []],
             attributes={"kernel": func},
         )
-
-
-@irdl_op_definition
-class ModuleEndOp(IRDLOperation):
-    name = "gpu.module_end"
-
-    traits = frozenset([HasParent(ModuleOp), IsTerminator()])
-
-    def __init__(self):
-        return super().__init__()
 
 
 @irdl_op_definition

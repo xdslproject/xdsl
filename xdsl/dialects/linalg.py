@@ -41,8 +41,8 @@ class IteratorType(Enum):
 class IteratorTypeAttr(Data[IteratorType]):
     name = "linalg.iterator_type"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> IteratorType:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> IteratorType:
         if parser.parse_optional_keyword("parallel") is not None:
             return IteratorType.PARALLEL
         if parser.parse_optional_keyword("reduction") is not None:

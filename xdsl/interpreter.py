@@ -15,7 +15,7 @@ from typing import (
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, OperationInvT, SSAValue
-from xdsl.ir.core import Block, Region
+from xdsl.ir.core import Attribute, Block, Region
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 
@@ -57,6 +57,23 @@ class InterpreterFunctions:
             print(lhs, rhs, lhs + rhs)
             return lhs + rhs,
     ```
+
+    To register an implementation of a cast for UnrealizedConversionCastOp, use
+    `impl_cast`, like so:
+
+    ``` python
+    @register_impls
+    class ArithFunctions(InterpreterFunctions):
+        @impl_cast(IntegerType, IndexType)
+        def cast_integer_to_index(
+            self,
+            input_type: IntegerType,
+            output_type: IndexType,
+            value: Any,
+        ) -> Any:
+            # Both input and output represented by a Python `int`
+            return value
+    ```
     """
 
     @classmethod
@@ -69,11 +86,28 @@ class InterpreterFunctions:
         except AttributeError as e:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
 
+    @classmethod
+    def _cast_impls(
+        cls,
+    ) -> Iterable[
+        tuple[
+            tuple[type[Attribute], type[Attribute]],
+            CastImpl[InterpreterFunctions, Attribute, Attribute],
+        ]
+    ]:
+        try:
+            impl_dict = getattr(cls, _CAST_IMPL_DICT)
+            return impl_dict.items()
+        except AttributeError as e:
+            raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
+
 
 _FT = TypeVar("_FT", bound=InterpreterFunctions)
 
 _IMPL_OP_TYPE = "__impl_op_type"
+_CAST_IMPL_TYPES = "__cast_impl_types"
 _IMPL_DICT = "__impl_dict"
+_CAST_IMPL_DICT = "__cast_impl_dict"
 
 P = ParamSpec("P")
 
@@ -141,6 +175,30 @@ def impl_terminator(
     return annot
 
 
+def impl_cast(
+    input_type: type[_AttributeInvT0],
+    output_type: type[_AttributeInvT1],
+) -> Callable[
+    [CastImpl[_FT, _AttributeInvT0, _AttributeInvT1]],
+    CastImpl[_FT, _AttributeInvT0, _AttributeInvT1],
+]:
+    """
+    Marks the Python implementation of a value cast from one type to another. The
+    `cast_value` method on `Interpreter` will call into this implementation for matching
+    input and output types.
+
+    See `InterpreterFunctions` for more documentation.
+    """
+
+    def annot(
+        func: CastImpl[_FT, _AttributeInvT0, _AttributeInvT1]
+    ) -> CastImpl[_FT, _AttributeInvT0, _AttributeInvT1]:
+        setattr(func, _CAST_IMPL_TYPES, (input_type, output_type))
+        return func
+
+    return annot
+
+
 def register_impls(ft: type[_FT]) -> type[_FT]:
     """
     Enumerates the methods on a given class, and registers the ones marked with
@@ -149,18 +207,29 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
 
     See `InterpreterFunctions`
     """
+
     impl_dict: _ImplDict = {}
+    cast_impl_dict: _CastImplDict = {}
+
     for cls in ft.mro():
         # Iterate from subclass through superclasses
         # Assign definitions, unless they've been redefined in a subclass
         for val in cls.__dict__.values():
             if _IMPL_OP_TYPE in val.__dir__():
-                # This is an annotated function
+                # This is an annotated operation implementation
                 op_type = getattr(val, _IMPL_OP_TYPE)
                 if op_type not in impl_dict:
                     # subclass overrides superclass definition
-                    impl_dict[op_type] = val  # type: ignore
+                    impl_dict[op_type] = val
+            elif _CAST_IMPL_TYPES in val.__dir__():
+                # This is an annotated cast implementation
+                types = getattr(val, _CAST_IMPL_TYPES)
+                if types not in cast_impl_dict:
+                    # subclass overrides superclass definition
+                    cast_impl_dict[types] = val
+
     setattr(ft, _IMPL_DICT, impl_dict)
+    setattr(ft, _CAST_IMPL_DICT, cast_impl_dict)
 
     return ft
 
@@ -177,6 +246,12 @@ class _InterpreterFunctionImpls:
         type[Operation],
         tuple[InterpreterFunctions, OpImpl[InterpreterFunctions, Operation]],
     ] = field(default_factory=dict)
+    _cast_impl_dict: dict[
+        tuple[type[Attribute], type[Attribute]],
+        tuple[
+            InterpreterFunctions, CastImpl[InterpreterFunctions, Attribute, Attribute]
+        ],
+    ] = field(default_factory=dict)
 
     def register_from(self, ft: InterpreterFunctions, /, override: bool):
         impls = ft._impls()  # pyright: ignore[reportPrivateUsage]
@@ -189,6 +264,16 @@ class _InterpreterFunctionImpls:
 
             self._impl_dict[op_type] = (ft, impl)
 
+        cast_impls = ft._cast_impls()  # pyright: ignore[reportPrivateUsage]
+        for types, impl in cast_impls:
+            if types in self._cast_impl_dict and not override:
+                raise ValueError(
+                    "Attempting to register implementation for cast with types "
+                    f"{types}, but types already registered"
+                )
+
+            self._cast_impl_dict[types] = (ft, impl)
+
     def run(
         self, interpreter: Interpreter, op: Operation, args: tuple[Any, ...]
     ) -> OpImplResult:
@@ -198,6 +283,20 @@ class _InterpreterFunctionImpls:
             )
         ft, impl = self._impl_dict[type(op)]
         return impl(ft, interpreter, op, args)
+
+    def cast(
+        self,
+        input_type: Attribute,
+        output_type: Attribute,
+        value: Any,
+    ) -> Any:
+        types = (type(input_type), type(output_type))
+        if types not in self._cast_impl_dict:
+            raise InterpretationError(
+                f"Could not find cast implementation for types {input_type}, {output_type}"
+            )
+        ft, impl = self._cast_impl_dict[types]
+        return impl(ft, input_type, output_type, value)
 
 
 @dataclass
@@ -404,6 +503,16 @@ class Interpreter:
             self.pop_scope()
         return results
 
+    def cast_value(self, o: Attribute, r: Attribute, value: Any) -> Any:
+        """
+        If the type of the operand and result are not the same, then look up the
+        user-provided conversion function.
+        """
+        if o == r:
+            return value
+
+        return self._impls.cast(o, r, value)
+
     def get_op_for_symbol(self, symbol: str) -> Operation:
         if symbol in self.symbol_table:
             return self.symbol_table[symbol]
@@ -458,4 +567,16 @@ OpImpl: TypeAlias = Callable[
     [_FT, Interpreter, OperationInvT, PythonValues], OpImplResult
 ]
 
+_AttributeInvT0 = TypeVar("_AttributeInvT0", bound=Attribute)
+_AttributeInvT1 = TypeVar("_AttributeInvT1", bound=Attribute)
+CastImpl: TypeAlias = Callable[
+    [_FT, _AttributeInvT0, _AttributeInvT1, Any],
+    Any,
+]
+
 _ImplDict: TypeAlias = dict[type[Operation], OpImpl[InterpreterFunctions, Operation]]
+
+_CastImplDict: TypeAlias = dict[
+    tuple[type[Attribute], type[Attribute]],
+    CastImpl[InterpreterFunctions, Attribute, Attribute],
+]

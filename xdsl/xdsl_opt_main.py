@@ -40,9 +40,6 @@ from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
     ConvertStencilToLLMLIRPass,
 )
-from xdsl.transforms.experimental.dmp.scatter_gather import (
-    DmpScatterGatherTrivialLowering,
-)
 from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
     GlobalStencilToLocalStencil2DHorizontal,
     LowerHaloToMPI,
@@ -58,6 +55,7 @@ from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
 from xdsl.transforms.printf_to_llvm import PrintfToLLVM
+from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
@@ -101,7 +99,6 @@ def get_all_passes() -> list[type[ModulePass]]:
         ConvertStencilToLLMLIRPass,
         DeadCodeElimination,
         DesymrefyPass,
-        DmpScatterGatherTrivialLowering,
         GlobalStencilToLocalStencil2DHorizontal,
         LowerHaloToMPI,
         LowerMPIPass,
@@ -113,6 +110,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         RISCVLowerArith,
         StencilShapeInferencePass,
         StencilStorageMaterializationPass,
+        ReconcileUnrealizedCastsPass,
     ]
 
 

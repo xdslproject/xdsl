@@ -10,7 +10,7 @@ from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 
-from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
+from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv  # noqa: E402
 
 ctx = MLContext()
 ctx.register_dialect(riscv.RISCV)
@@ -95,9 +95,9 @@ def test_multiply_add():
             )
             riscv.AddiOp(sp_muladd, -8, rd=riscv.Registers.SP)
             riscv.CommentOp("save the s registers we'll use on the stack")
-            riscv.SwOp(s0_muladd_0, sp_muladd, 0)
+            riscv.SwOp(sp_muladd, s0_muladd_0, 0)
             riscv.CommentOp("save the return address we'll use on the stack")
-            riscv.SwOp(ra_muladd, sp_muladd, 4)
+            riscv.SwOp(sp_muladd, ra_muladd, 4)
 
             # store third parameter, in a2 to the temporary register s0
             # guaranteed to be the same after call to multiply

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Sequence, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, Iterable, Sequence, TypeAlias, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -32,9 +32,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    Attribute,
     AttrSizedOperandSegments,
-    Generic,
     IRDLOperation,
     Operand,
     ParameterDef,
@@ -115,8 +113,8 @@ class MemRefType(
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([shape, referenced_type, layout, memory_space])
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in memref attribute")
         shape = parser.parse_attribute()
         parser.parse_punctuation(",", " between shape and element type parameters")

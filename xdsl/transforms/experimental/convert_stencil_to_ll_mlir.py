@@ -23,6 +23,7 @@ from xdsl.dialects.stencil import (
     TempType,
 )
 from xdsl.ir import (
+    Attribute,
     Block,
     BlockArgument,
     MLContext,
@@ -31,7 +32,6 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.irdl import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

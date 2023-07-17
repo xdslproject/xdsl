@@ -8,10 +8,11 @@ nbval<0.11
 filecheck<0.0.24
 lit<17.0.0
 pre-commit==3.3.3
+ruff==0.0.278
 riscemu==2.1.0
 asv<0.6
 isort==5.12.0
 # pyright has to be the last line and fixed with `==`. The CI parses this file
 # in `.github/parse_pyright_version.py` and installs the according version for
 # typechecking.
-pyright==1.1.316
+pyright==1.1.317
