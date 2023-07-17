@@ -8,11 +8,10 @@ import pytest
 
 from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import IndexType, ModuleOp, Region, i32, i64
-from xdsl.dialects.cf import Block
+from xdsl.dialects.builtin import IndexType, ModuleOp, i32, i64
 from xdsl.dialects.scf import For, If, ParallelOp, ReduceOp, ReduceReturnOp, Yield
 from xdsl.dialects.test import TestTermOp
-from xdsl.ir.core import BlockArgument
+from xdsl.ir.core import Block, BlockArgument, Region
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 

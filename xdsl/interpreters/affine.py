@@ -63,7 +63,8 @@ class AffineFunctions(InterpreterFunctions):
 
         for i in range(lower_bound, upper_bound, step):
             for_results = interpreter.run_ssacfg_region(op.body, (i,))
-            assert not for_results, "affine block results not supported yet"
+            if for_results:
+                raise NotImplementedError("affine block results not supported yet")
 
         return ()
 
