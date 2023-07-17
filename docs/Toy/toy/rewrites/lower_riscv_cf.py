@@ -50,8 +50,6 @@ class AddLabelsToBlocksInFunction(RewritePattern):
 class LowerBranchOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: cf.Branch, rewriter: PatternRewriter):
-        # block_args_to_registers(op.successor, rewriter)
-
         new_operands = tuple(
             cast_value_to_register(arg, rewriter) for arg in op.arguments
         )
@@ -67,9 +65,6 @@ class LowerConditionalBranchOp(RewritePattern):
         # case. The branch operations in riscv.cf require the else block to be immediately
         # following the current block. They also require that the first op of the then
         # block is a label.
-
-        # block_args_to_registers(op.then_block, rewriter)
-        # block_args_to_registers(op.else_block, rewriter)
 
         new_then_arguments = tuple(
             cast_value_to_register(arg, rewriter) for arg in op.else_arguments
