@@ -37,7 +37,6 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AttrConstraint,
-    Generic,
     GenericData,
     IRDLOperation,
     ParameterDef,

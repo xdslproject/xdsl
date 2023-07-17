@@ -232,17 +232,17 @@ def test_immediate_shift_inst():
     riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
 
 
-def check_float_register():
-    with pytest.raises(VerifyException):
+def test_float_register():
+    with pytest.raises(VerifyException, match="not in"):
         riscv.IntRegisterType(riscv.IntRegister("ft9"))
-    with pytest.raises(VerifyException):
+    with pytest.raises(VerifyException, match="not in"):
         riscv.FloatRegisterType(riscv.FloatRegister("a0"))
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
-    with pytest.raises(VerifyException):
-        riscv.FAddSOp(a1, a2)
+    with pytest.raises(VerifyException, match="Operation does not verify"):
+        riscv.FAddSOp(a1, a2).verify()
 
     f1 = TestSSAValue(riscv.Registers.FT0)
     f2 = TestSSAValue(riscv.Registers.FT1)
-    riscv.FAddSOp(f1, f2)
+    riscv.FAddSOp(f1, f2).verify()

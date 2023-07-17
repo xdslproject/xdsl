@@ -197,10 +197,8 @@ class RegisterType(GenericData[RegisterT], TypeAttribute):
         name = self.data.name
         if name is None or name.startswith("j"):
             return
-        if name not in self.register_class.ABI_INDEX_BY_NAME.keys():
-            raise VerifyException(
-                f"{name} is not in {self.register_class.ABI_INDEX_BY_NAME.keys()}"
-            )
+        if name not in self.register_class.ABI_INDEX_BY_NAME:
+            raise VerifyException(f"{name} not in RV32I")
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:

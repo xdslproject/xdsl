@@ -6,7 +6,6 @@ from typing import Annotated, Generic, TypeVar
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyIntegerAttr,
-    Attribute,
     ContainerOf,
     Float16Type,
     Float32Type,
@@ -19,6 +18,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
 from xdsl.ir import Dialect, Operation, OpResult, SSAValue
+from xdsl.ir.core import Attribute
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
