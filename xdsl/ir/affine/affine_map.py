@@ -48,6 +48,21 @@ class AffineMap:
         )
 
     def inverse_permutation(self) -> AffineMap | None:
+        """
+        Returns a map of codomain to domain dimensions such that the first
+        codomain dimension for a particular domain dimension is selected.
+        Returns an empty map if the input map is empty. Returns null map (not
+        empty map) if the map is not invertible (i.e. the map does not contain
+        a subset that is a permutation of full domain rank).
+
+        Prerequisites: The map should have no symbols.
+
+        Example:
+           (d0, d1, d2) -> (d1, d1, d0, d2, d1, d2, d1, d0)
+                             0       2   3
+        returns:
+           (d0, d1, d2, d3, d4, d5, d6, d7) -> (d2, d0, d3)
+        """
         if self.num_symbols != 0:
             raise ValueError(
                 f"Cannot invert AffineMap with symbols: {self.num_symbols}"
