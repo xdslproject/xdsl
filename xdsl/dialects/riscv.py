@@ -99,7 +99,7 @@ class RISCVRegisterAttr(Data[str], TypeAttribute, ABC):
 
 
 @irdl_attr_definition
-class RegisterAttr(RISCVRegisterAttr):
+class IntRegisterAttr(RISCVRegisterAttr):
     """
     A RISC-V register type.
     """
@@ -108,7 +108,7 @@ class RegisterAttr(RISCVRegisterAttr):
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
-        return RegisterAttr.RV32I_INDEX_BY_NAME
+        return IntRegisterAttr.RV32I_INDEX_BY_NAME
 
     RV32I_INDEX_BY_NAME = {
         "zero": 0,
@@ -198,39 +198,39 @@ class FloatRegisterAttr(RISCVRegisterAttr):
 class Registers(ABC):
     """Namespace for named register constants."""
 
-    ZERO = RegisterAttr("zero")
-    RA = RegisterAttr("ra")
-    SP = RegisterAttr("sp")
-    GP = RegisterAttr("gp")
-    TP = RegisterAttr("tp")
-    T0 = RegisterAttr("t0")
-    T1 = RegisterAttr("t1")
-    T2 = RegisterAttr("t2")
-    FP = RegisterAttr("fp")
-    S0 = RegisterAttr("s0")
-    S1 = RegisterAttr("s1")
-    A0 = RegisterAttr("a0")
-    A1 = RegisterAttr("a1")
-    A2 = RegisterAttr("a2")
-    A3 = RegisterAttr("a3")
-    A4 = RegisterAttr("a4")
-    A5 = RegisterAttr("a5")
-    A6 = RegisterAttr("a6")
-    A7 = RegisterAttr("a7")
-    S2 = RegisterAttr("s2")
-    S3 = RegisterAttr("s3")
-    S4 = RegisterAttr("s4")
-    S5 = RegisterAttr("s5")
-    S6 = RegisterAttr("s6")
-    S7 = RegisterAttr("s7")
-    S8 = RegisterAttr("s8")
-    S9 = RegisterAttr("s9")
-    S10 = RegisterAttr("s10")
-    S11 = RegisterAttr("s11")
-    T3 = RegisterAttr("t3")
-    T4 = RegisterAttr("t4")
-    T5 = RegisterAttr("t5")
-    T6 = RegisterAttr("t6")
+    ZERO = IntRegisterAttr("zero")
+    RA = IntRegisterAttr("ra")
+    SP = IntRegisterAttr("sp")
+    GP = IntRegisterAttr("gp")
+    TP = IntRegisterAttr("tp")
+    T0 = IntRegisterAttr("t0")
+    T1 = IntRegisterAttr("t1")
+    T2 = IntRegisterAttr("t2")
+    FP = IntRegisterAttr("fp")
+    S0 = IntRegisterAttr("s0")
+    S1 = IntRegisterAttr("s1")
+    A0 = IntRegisterAttr("a0")
+    A1 = IntRegisterAttr("a1")
+    A2 = IntRegisterAttr("a2")
+    A3 = IntRegisterAttr("a3")
+    A4 = IntRegisterAttr("a4")
+    A5 = IntRegisterAttr("a5")
+    A6 = IntRegisterAttr("a6")
+    A7 = IntRegisterAttr("a7")
+    S2 = IntRegisterAttr("s2")
+    S3 = IntRegisterAttr("s3")
+    S4 = IntRegisterAttr("s4")
+    S5 = IntRegisterAttr("s5")
+    S6 = IntRegisterAttr("s6")
+    S7 = IntRegisterAttr("s7")
+    S8 = IntRegisterAttr("s8")
+    S9 = IntRegisterAttr("s9")
+    S10 = IntRegisterAttr("s10")
+    S11 = IntRegisterAttr("s11")
+    T3 = IntRegisterAttr("t3")
+    T4 = IntRegisterAttr("t4")
+    T5 = IntRegisterAttr("t5")
+    T6 = IntRegisterAttr("t6")
 
     FT0 = FloatRegisterAttr("ft0")
     FT1 = FloatRegisterAttr("ft1")
@@ -319,7 +319,7 @@ class RISCVOp(Operation, ABC):
 
 
 AssemblyInstructionArg: TypeAlias = (
-    AnyIntegerAttr | LabelAttr | SSAValue | RegisterAttr | str
+    AnyIntegerAttr | LabelAttr | SSAValue | IntRegisterAttr | str
 )
 
 
@@ -385,12 +385,12 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         return arg.data
     elif isinstance(arg, str):
         return arg
-    elif isinstance(arg, RegisterAttr):
+    elif isinstance(arg, IntRegisterAttr):
         return arg.register_name
     elif isinstance(arg, FloatRegisterAttr):
         return arg.register_name
     else:
-        if isinstance(arg.type, RegisterAttr):
+        if isinstance(arg.type, IntRegisterAttr):
             reg = arg.type.register_name
             return reg
         elif isinstance(arg.type, FloatRegisterAttr):
@@ -442,22 +442,22 @@ class RdRsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called R-Type in the RISC-V specification.
     """
 
-    rd: OpResult = result_def(RegisterAttr)
-    rs1: Operand = operand_def(RegisterAttr)
-    rs2: Operand = operand_def(RegisterAttr)
+    rd: OpResult = result_def(IntRegisterAttr)
+    rs1: Operand = operand_def(IntRegisterAttr)
+    rs2: Operand = operand_def(IntRegisterAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr.unallocated
+            rd = IntRegisterAttr.unallocated
         elif isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -479,14 +479,14 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     immediate operand (e.g. U-Type and J-Type instructions in the RISC-V spec).
     """
 
-    rd: OpResult = result_def(RegisterAttr)
+    rd: OpResult = result_def(IntRegisterAttr)
     immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
         self,
         immediate: int | AnyIntegerAttr | str | LabelAttr,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -494,9 +494,9 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
-            rd = RegisterAttr.unallocated
+            rd = IntRegisterAttr.unallocated
         elif isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -520,7 +520,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rd: RegisterAttr | None = opt_attr_def(RegisterAttr)
+    rd: IntRegisterAttr | None = opt_attr_def(IntRegisterAttr)
     """
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
@@ -531,7 +531,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         self,
         immediate: int | AnyIntegerAttr | str | LabelAttr,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -539,7 +539,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -562,8 +562,8 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called I-Type in the RISC-V specification.
     """
 
-    rd: OpResult = result_def(RegisterAttr)
-    rs1: Operand = operand_def(RegisterAttr)
+    rd: OpResult = result_def(IntRegisterAttr)
+    rs1: Operand = operand_def(IntRegisterAttr)
     immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
@@ -571,7 +571,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         immediate: int | AnyIntegerAttr | str | LabelAttr,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -580,9 +580,9 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             immediate = LabelAttr(immediate)
 
         if rd is None:
-            rd = RegisterAttr.unallocated
+            rd = IntRegisterAttr.unallocated
         elif isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -617,7 +617,7 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
         rs1: Operation | SSAValue,
         immediate: int | AnyIntegerAttr | str | LabelAttr,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -639,8 +639,8 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     most sense as an attribute.
     """
 
-    rs1: Operand = operand_def(RegisterAttr)
-    rd: RegisterAttr | None = opt_attr_def(RegisterAttr)
+    rs1: Operand = operand_def(IntRegisterAttr)
+    rd: IntRegisterAttr | None = opt_attr_def(IntRegisterAttr)
     """
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
@@ -652,7 +652,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         immediate: int | AnyIntegerAttr | str | LabelAttr,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -661,7 +661,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
             immediate = LabelAttr(immediate)
 
         if isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
 
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -685,20 +685,20 @@ class RdRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     source register.
     """
 
-    rd: OpResult = result_def(RegisterAttr)
-    rs: Operand = operand_def(RegisterAttr)
+    rd: OpResult = result_def(IntRegisterAttr)
+    rs: Operand = operand_def(IntRegisterAttr)
 
     def __init__(
         self,
         rs: Operation | SSAValue,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr.unallocated
+            rd = IntRegisterAttr.unallocated
         elif isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -719,8 +719,8 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called B-Type in the RISC-V specification.
     """
 
-    rs1: Operand = operand_def(RegisterAttr)
-    rs2: Operand = operand_def(RegisterAttr)
+    rs1: Operand = operand_def(IntRegisterAttr)
+    rs2: Operand = operand_def(IntRegisterAttr)
     offset: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
@@ -758,8 +758,8 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called S-Type in the RISC-V specification.
     """
 
-    rs1: Operand = operand_def(RegisterAttr)
-    rs2: Operand = operand_def(RegisterAttr)
+    rs1: Operand = operand_def(IntRegisterAttr)
+    rs2: Operand = operand_def(IntRegisterAttr)
     immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     def __init__(
@@ -795,8 +795,8 @@ class RsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     registers.
     """
 
-    rs1: Operand = operand_def(RegisterAttr)
-    rs2: Operand = operand_def(RegisterAttr)
+    rs1: Operand = operand_def(IntRegisterAttr)
+    rs2: Operand = operand_def(IntRegisterAttr)
 
     def __init__(self, rs1: Operation | SSAValue, rs2: Operation | SSAValue):
         super().__init__(
@@ -841,8 +841,8 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
       returned in rd
     """
 
-    rd: OpResult = result_def(RegisterAttr)
-    rs1: Operand = operand_def(RegisterAttr)
+    rd: OpResult = result_def(IntRegisterAttr)
+    rs1: Operand = operand_def(IntRegisterAttr)
     csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
     writeonly: UnitAttr | None = opt_attr_def(UnitAttr)
 
@@ -852,13 +852,13 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
         csr: AnyIntegerAttr,
         *,
         writeonly: bool = False,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr.unallocated
+            rd = IntRegisterAttr.unallocated
         elif isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -874,7 +874,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.writeonly:
             return
-        if not isinstance(self.rd.type, RegisterAttr):
+        if not isinstance(self.rd.type, IntRegisterAttr):
             return
         if self.rd.type.is_allocated and self.rd.type.data != "zero":
             raise VerifyException(
@@ -899,8 +899,8 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
       to writing to a CSR takes place even if the mask in rs has no actual bits set.
     """
 
-    rd: OpResult = result_def(RegisterAttr)
-    rs1: Operand = operand_def(RegisterAttr)
+    rd: OpResult = result_def(IntRegisterAttr)
+    rs1: Operand = operand_def(IntRegisterAttr)
     csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
     readonly: UnitAttr | None = opt_attr_def(UnitAttr)
 
@@ -910,13 +910,13 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
         csr: AnyIntegerAttr,
         *,
         readonly: bool = False,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr.unallocated
+            rd = IntRegisterAttr.unallocated
         elif isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -932,7 +932,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if not self.readonly:
             return
-        if not isinstance(self.rs1.type, RegisterAttr):
+        if not isinstance(self.rs1.type, IntRegisterAttr):
             return
         if self.rs1.type.is_allocated and self.rs1.type.data != "zero":
             raise VerifyException(
@@ -955,7 +955,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
       returned in rd
     """
 
-    rd: OpResult = result_def(RegisterAttr)
+    rd: OpResult = result_def(IntRegisterAttr)
     csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
     writeonly: UnitAttr | None = opt_attr_def(UnitAttr)
     immediate: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
@@ -966,13 +966,13 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
         immediate: AnyIntegerAttr,
         *,
         writeonly: bool = False,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr.unallocated
+            rd = IntRegisterAttr.unallocated
         elif isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -988,7 +988,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     def verify_(self) -> None:
         if self.writeonly is None:
             return
-        if not isinstance(self.rd.type, RegisterAttr):
+        if not isinstance(self.rd.type, IntRegisterAttr):
             return
         if self.rd.type.is_allocated and self.rd.type.data != "zero":
             raise VerifyException(
@@ -1013,7 +1013,7 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
       place.
     """
 
-    rd: OpResult = result_def(RegisterAttr)
+    rd: OpResult = result_def(IntRegisterAttr)
     csr: AnyIntegerAttr = attr_def(AnyIntegerAttr)
     immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
@@ -1022,13 +1022,13 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
         csr: AnyIntegerAttr,
         immediate: AnyIntegerAttr,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr.unallocated
+            rd = IntRegisterAttr.unallocated
         elif isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1924,7 +1924,7 @@ class LiOp(RdImmIntegerOperation):
         self,
         immediate: int | AnyIntegerAttr | str | LabelAttr,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
@@ -2184,14 +2184,14 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
     """
 
     name = "riscv.get_register"
-    res: OpResult = result_def(RegisterAttr)
+    res: OpResult = result_def(IntRegisterAttr)
 
     def __init__(
         self,
-        register_type: RegisterAttr | str,
+        register_type: IntRegisterAttr | str,
     ):
         if isinstance(register_type, str):
-            register_type = RegisterAttr(register_type)
+            register_type = IntRegisterAttr(register_type)
         super().__init__(result_types=[register_type])
 
     def assembly_line(self) -> str | None:
@@ -2328,7 +2328,7 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     two floating-point input registers and an integer destination register.
     """
 
-    rd: OpResult = result_def(RegisterAttr)
+    rd: OpResult = result_def(IntRegisterAttr)
     rs1: Operand = operand_def(FloatRegisterAttr)
     rs2: Operand = operand_def(FloatRegisterAttr)
 
@@ -2337,13 +2337,13 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr.unallocated
+            rd = IntRegisterAttr.unallocated
         elif isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2397,20 +2397,20 @@ class RdRsFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     input register and an integer destination register.
     """
 
-    rd: OpResult = result_def(RegisterAttr)
+    rd: OpResult = result_def(IntRegisterAttr)
     rs: Operand = operand_def(FloatRegisterAttr)
 
     def __init__(
         self,
         rs: Operation | SSAValue,
         *,
-        rd: RegisterAttr | str | None = None,
+        rd: IntRegisterAttr | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = RegisterAttr.unallocated
+            rd = IntRegisterAttr.unallocated
         elif isinstance(rd, str):
-            rd = RegisterAttr(rd)
+            rd = IntRegisterAttr(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -2430,7 +2430,7 @@ class RdRsIntegerFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(FloatRegisterAttr)
-    rs: Operand = operand_def(RegisterAttr)
+    rs: Operand = operand_def(IntRegisterAttr)
 
     def __init__(
         self,
@@ -2461,7 +2461,7 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     (one integer and one floating-point) and an immediate.
     """
 
-    rs1: Operand = operand_def(RegisterAttr)
+    rs1: Operand = operand_def(IntRegisterAttr)
     rs2: Operand = operand_def(FloatRegisterAttr)
     immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
@@ -2500,7 +2500,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(FloatRegisterAttr)
-    rs1: Operand = operand_def(RegisterAttr)
+    rs1: Operand = operand_def(IntRegisterAttr)
     immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
 
     def __init__(
@@ -2986,7 +2986,7 @@ RISCV = Dialect(
         FSwOp,
     ],
     [
-        RegisterAttr,
+        IntRegisterAttr,
         FloatRegisterAttr,
         LabelAttr,
     ],

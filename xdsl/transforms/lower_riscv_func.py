@@ -54,7 +54,7 @@ class LowerSyscallOp(RewritePattern):
             ops.append(gr)
             res = gr.res
 
-            mv = riscv.MVOp(res, rd=cast(riscv.RegisterAttr, op.result.type))
+            mv = riscv.MVOp(res, rd=cast(riscv.IntRegisterAttr, op.result.type))
             ops.append(mv)
             new_results = mv.results
 

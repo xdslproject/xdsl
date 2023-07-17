@@ -25,9 +25,9 @@ from xdsl.utils.exceptions import VerifyException
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args: VarOperand = var_operand_def(riscv.RegisterAttr)
+    args: VarOperand = var_operand_def(riscv.IntRegisterAttr)
     syscall_num: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
-    result: OptOpResult = opt_result_def(riscv.RegisterAttr)
+    result: OptOpResult = opt_result_def(riscv.IntRegisterAttr)
 
     def __init__(
         self,
@@ -40,7 +40,7 @@ class SyscallOp(IRDLOperation):
         super().__init__(
             operands=[operands],
             attributes={"syscall_num": num},
-            result_types=[riscv.RegisterAttr.unallocated if has_result else None],
+            result_types=[riscv.IntRegisterAttr.unallocated if has_result else None],
         )
 
     def verify_(self):
@@ -59,15 +59,15 @@ class CallOp(IRDLOperation):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args: VarOperand = var_operand_def(riscv.RegisterAttr)
+    args: VarOperand = var_operand_def(riscv.IntRegisterAttr)
     callee: StringAttr = attr_def(StringAttr)
-    ress: VarOpResult = var_result_def(riscv.RegisterAttr)
+    ress: VarOpResult = var_result_def(riscv.IntRegisterAttr)
 
     def __init__(
         self,
         callee: StringAttr,
         args: Sequence[Operation | SSAValue],
-        result_types: Sequence[riscv.RegisterAttr],
+        result_types: Sequence[riscv.IntRegisterAttr],
         comment: StringAttr | None = None,
     ):
         super().__init__(
@@ -119,7 +119,7 @@ class ReturnOp(IRDLOperation):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values: VarOperand = var_operand_def(riscv.RegisterAttr)
+    values: VarOperand = var_operand_def(riscv.IntRegisterAttr)
     comment: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = frozenset([IsTerminator(), HasParent(FuncOp)])

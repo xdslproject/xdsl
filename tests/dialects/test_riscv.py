@@ -15,9 +15,9 @@ def test_add_op():
 
     assert a1.type is add_op.rs1.type
     assert a2.type is add_op.rs2.type
-    assert isinstance(a0.type, riscv.RegisterAttr)
-    assert isinstance(a1.type, riscv.RegisterAttr)
-    assert isinstance(a2.type, riscv.RegisterAttr)
+    assert isinstance(a0.type, riscv.IntRegisterAttr)
+    assert isinstance(a1.type, riscv.IntRegisterAttr)
+    assert isinstance(a2.type, riscv.IntRegisterAttr)
     assert a0.type.data == "a0"
     assert a1.type.data == "a1"
     assert a2.type.data == "a2"
@@ -234,7 +234,7 @@ def test_immediate_shift_inst():
 
 def check_float_register():
     with pytest.raises(VerifyException):
-        riscv.RegisterAttr("ft9")
+        riscv.IntRegisterAttr("ft9")
     with pytest.raises(VerifyException):
         riscv.FloatRegisterAttr("a0")
 

@@ -12,7 +12,7 @@ from abc import ABC
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import AnyIntegerAttr
-from xdsl.dialects.riscv import RegisterAttr
+from xdsl.dialects.riscv import IntRegisterAttr
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import IRDLOperation, Operand, attr_def, irdl_op_definition, operand_def
 from xdsl.utils.exceptions import VerifyException
@@ -34,8 +34,8 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     configuration value for a specific dimension handled by a streamer.
     """
 
-    stream: Operand = operand_def(RegisterAttr)
-    value: Operand = operand_def(RegisterAttr)
+    stream: Operand = operand_def(IntRegisterAttr)
+    value: Operand = operand_def(IntRegisterAttr)
     dimension: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     def __init__(
@@ -65,8 +65,8 @@ class SsrSetStreamConfigOperation(IRDLOperation, ABC):
     configuration value for a streamer.
     """
 
-    stream: Operand = operand_def(RegisterAttr)
-    value: Operand = operand_def(RegisterAttr)
+    stream: Operand = operand_def(IntRegisterAttr)
+    value: Operand = operand_def(IntRegisterAttr)
 
     def __init__(self, stream: Operation | SSAValue, value: Operation | SSAValue):
         super().__init__(operands=[stream, value])
