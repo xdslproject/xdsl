@@ -54,8 +54,7 @@ class IteratorTypeAttr(Data[IteratorType]):
         parser.raise_error("`parallel`, `reduction` or `window` expected")
 
     def print_parameter(self, printer: Printer) -> None:
-        data = self.data
-        match data:
+        match self.data:
             case IteratorType.PARALLEL:
                 printer.print_string("parallel")
             case IteratorType.REDUCTION:
@@ -136,16 +135,12 @@ class Generic(IRDLOperation):
         return inverse
 
     def get_static_shapes(self) -> list[int]:
-        sizes: list[int] = []
-        for input in self.inputs:
-            if isinstance(input.type, ShapedType):
-                for shape in input.type.get_shape():
-                    sizes.append(shape)
-        for output in self.outputs:
-            if isinstance(output.type, ShapedType):
-                for shape in output.type.get_shape():
-                    sizes.append(shape)
-        return sizes
+        return [
+            shape
+            for op in (*self.inputs, *self.outputs)
+            if isinstance(op.type, ShapedType)
+            for shape in op.type.get_shape()
+        ]
 
     def get_static_loop_ranges(self) -> list[int]:
         shapes_to_loops = self.get_shapes_to_loops_map()
