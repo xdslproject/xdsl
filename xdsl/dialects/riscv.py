@@ -87,9 +87,11 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
         printer.print_string(self.data)
 
     def verify(self) -> None:
-        if not self.is_allocated or self.data.startswith("j"):
+        name = self.data
+        if not self.is_allocated or name.startswith("j"):
             return
-        assert self.data in type(self).abi_index_by_name()
+        if name not in type(self).abi_index_by_name():
+            raise VerifyException(f"{name} not in RV32I")
 
     @classmethod
     @abstractmethod

@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     AnyArrayAttr,
     AnyFloat,
     AnyFloatAttr,
+    AnyIntegerAttr,
     AnyTensorType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -46,7 +47,7 @@ from xdsl.dialects.builtin import (
     VectorType,
     i64,
 )
-from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
+from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap
 from xdsl.parser.base_parser import BaseParser
