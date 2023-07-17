@@ -173,10 +173,8 @@ class RegisterType(Data[Register], TypeAttribute):
         name = self.data.name
         if name is None or name.startswith("j"):
             return
-        if name not in Register.RV32I_INDEX_BY_NAME.keys():
-            raise VerifyException(
-                f"{name} not in {Register.RV32I_INDEX_BY_NAME.keys()}"
-            )
+        if name not in Register.RV32I_INDEX_BY_NAME:
+            raise VerifyException(f"{name} not in RV32I")
 
 
 @irdl_attr_definition
@@ -218,10 +216,8 @@ class FloatRegisterType(Data[Register], TypeAttribute):
         name = self.data.name
         if name is None or name.startswith("j"):
             return
-        if name not in Register.RV32F_INDEX_BY_NAME.keys():
-            raise VerifyException(
-                f"{name} not in {Register.RV32F_INDEX_BY_NAME.keys()}"
-            )
+        if name not in Register.RV32F_INDEX_BY_NAME:
+            raise VerifyException(f"{name} not in RV32F")
 
 
 class Registers(ABC):
