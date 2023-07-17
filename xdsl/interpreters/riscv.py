@@ -150,6 +150,20 @@ class RiscvFunctions(InterpreterFunctions):
         else:
             return (args[0],)
 
+    @impl(riscv.SltiOp)
+    def run_slti(
+        self,
+        interpreter: Interpreter,
+        op: riscv.SltiOp,
+        args: tuple[Any, ...],
+    ):
+        assert len(args) == 2
+        if args[0] < args[1]:
+            value = self.get_immediate_value(op, op.immediate)
+            return (value,)
+        else:
+            return (args[0],)
+
     @impl(riscv.AddOp)
     def run_add(
         self,

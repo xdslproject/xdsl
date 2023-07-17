@@ -79,7 +79,7 @@ class LowerCmpiOp(DataDirectiveRewritePattern):
             case 2:  # slt
                 new_ops = [
                     copy := riscv.MVOp(lhs),
-                    eq := riscv.SltiuOp(rhs, 1, rd_operand=copy.rd),
+                    eq := riscv.SltiOp(rhs, 1, rd_operand=copy.rd),
                 ]
                 res = eq.rd
             # case 3:  # sle
