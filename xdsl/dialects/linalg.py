@@ -112,6 +112,12 @@ class Generic(IRDLOperation):
         return self.indexing_maps.data[0].data.num_dims
 
     def get_loops_to_shapes_map(self) -> AffineMap:
+        """
+        Returns a map to answer the question: "given an iteration space over
+        the codomain, what are the subshapes of the operands involved in the
+        computation".
+        The default behavior is to just concatenate all the indexing maps.
+        """
         result_exprs = [res for map in self.get_indexing_maps() for res in map.results]
 
         dims = self.get_num_loops()
@@ -127,6 +133,17 @@ class Generic(IRDLOperation):
         return AffineMap(dims, syms, result_exprs)
 
     def get_shapes_to_loops_map(self) -> AffineMap:
+        """
+        Returns a map to answer the question: "Given a list of operand ranges,
+        what is the subportion of the iteration space involved in the
+        computation". This is the inverse problem of `get_loops_to_shapes_map`.
+        Return the empty AffineMap when such an AffineMap cannot be
+        constructed. The default behavior is based on a very simple inference
+        procedure that only works with permutation affine maps. A more advanced
+        Tensor-Comprehension like inference is possible but has proven to be
+        ambiguous in unfavorable case. A safer and more robust alternative is
+        to allow each op to define its own AffineMap.
+        """
         loops_to_shapes = self.get_loops_to_shapes_map()
         inverse = loops_to_shapes.inverse_permutation()
         if not inverse:
