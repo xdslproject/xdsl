@@ -4,9 +4,11 @@ from xdsl.dialects import builtin
 from xdsl.ir import Dialect, Operation, SSAValue, VerifyException
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     VarOperand,
     attr_def,
     irdl_op_definition,
+    operand_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
@@ -85,9 +87,19 @@ class PrintFormatOp(IRDLOperation):
         return op
 
 
+@irdl_op_definition
+class PrintCharOp(IRDLOperation):
+    """
+    Print a single character
+
+    Equivalent to putchar in C.
+    """
+
+    name = "printf.print_char"
+    char: Operand = operand_def()
+
+
 Printf = Dialect(
-    [
-        PrintFormatOp,
-    ],
+    [PrintFormatOp, PrintCharOp],
     [],
 )
