@@ -22,7 +22,7 @@
 // CHECK:   %2 = "riscv.add"(%0, %1) : (!riscv.reg<ra>, !riscv.reg<s0>) -> !riscv.reg<t0>
 // CHECK:   %3 = "riscv.li"() {"immediate" = 29 : i32} : () -> !riscv.reg<ra>
 // CHECK:   %4 = "riscv.li"() {"immediate" = 28 : i32} : () -> !riscv.reg<t0>
-// CHECK:   %5 = "riscv.add"(%3, %4) : (!riscv.reg<ra>, !riscv.reg<t0>) -> !riscv.reg<j1>
+// CHECK:   %5 = "riscv.add"(%3, %4) : (!riscv.reg<ra>, !riscv.reg<t0>) -> !riscv.reg<jx1>
 // CHECK:   %6 = "riscv.li"() {"immediate" = 26 : i32} : () -> !riscv.reg<ra>
 // CHECK:   %7 = "riscv.li"() {"immediate" = 25 : i32} : () -> !riscv.reg<ra>
 // CHECK:   %8 = "riscv.li"() {"immediate" = 24 : i32} : () -> !riscv.reg<ra>
@@ -31,5 +31,5 @@
 // CHECK:   %11 = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<t0>
 // CHECK:   %12 = "riscv.fcvt.s.w"(%10) : (!riscv.reg<ra>) -> !riscv.freg<ft1>
 // CHECK:   %13 = "riscv.fcvt.s.w"(%11) : (!riscv.reg<t0>) -> !riscv.freg<ft0>
-// CHECK:   %14 = "riscv.fadd.s"(%12, %13) : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<j0>
+// CHECK:   %14 = "riscv.fadd.s"(%12, %13) : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<jf0>
 // CHECK: }) : () -> ()

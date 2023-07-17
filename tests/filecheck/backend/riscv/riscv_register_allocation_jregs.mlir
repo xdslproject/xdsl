@@ -10,10 +10,10 @@
 }) : () -> ()
 
 // CHECK:      "builtin.module"() ({
-// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<j0>
+// CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<jx0>
 // CHECK-NEXT:  %{{\d+}} = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<s0>
-// CHECK-NEXT:  %{{\d+}} = "riscv.fcvt.s.w"(%{{\d+}}) : (!riscv.reg<j0>) -> !riscv.freg<j1>
-// CHECK-NEXT:  %{{\d+}} = "riscv.fcvt.s.w"(%{{\d+}}) : (!riscv.reg<s0>) -> !riscv.freg<j2>
-// CHECK-NEXT:  %{{\d+}} = "riscv.fadd.s"(%{{\d+}}, %{{\d+}}) : (!riscv.freg<j1>, !riscv.freg<j2>) -> !riscv.freg<j3>
-// CHECK-NEXT:  %{{\d+}} = "riscv.add"(%{{\d+}}, %{{\d+}}) : (!riscv.reg<j0>, !riscv.reg<s0>) -> !riscv.reg<j4>
+// CHECK-NEXT:  %{{\d+}} = "riscv.fcvt.s.w"(%{{\d+}}) : (!riscv.reg<jx0>) -> !riscv.freg<jf1>
+// CHECK-NEXT:  %{{\d+}} = "riscv.fcvt.s.w"(%{{\d+}}) : (!riscv.reg<s0>) -> !riscv.freg<jf2>
+// CHECK-NEXT:  %{{\d+}} = "riscv.fadd.s"(%{{\d+}}, %{{\d+}}) : (!riscv.freg<jf1>, !riscv.freg<jf2>) -> !riscv.freg<jf3>
+// CHECK-NEXT:  %{{\d+}} = "riscv.add"(%{{\d+}}, %{{\d+}}) : (!riscv.reg<jx0>, !riscv.reg<s0>) -> !riscv.reg<jx4>
 // CHECK-NEXT: }) : () -> ()

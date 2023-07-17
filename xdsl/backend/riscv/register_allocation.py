@@ -1,12 +1,7 @@
 from abc import ABC
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import (
-    FloatRegisterType,
-    Register,
-    RegisterType,
-    RISCVOp,
-)
+from xdsl.dialects.riscv import FloatRegisterType, Register, RegisterType, RISCVOp
 from xdsl.ir import SSAValue
 
 
@@ -86,7 +81,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             available_regs = self.register_sets.get(reg_type, [])
 
             if not available_regs:
-                reg.type = reg_type(Register(f"j{self.idx}"))
+                reg.type = reg_type.generate(self.idx)
                 self.idx += 1
             else:
                 reg.type = reg_type(Register(available_regs.pop()))
@@ -178,7 +173,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
                                 # If we run out of real registers, allocate a j register
                                 if not available_regs:
-                                    result.type = reg_type(Register(f"j{self.idx}"))
+                                    result.type = reg_type.generate(self.idx)
                                     self.idx += 1
                                 else:
                                     result.type = reg_type(
@@ -207,5 +202,5 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                 if isinstance(result.type, self._register_types):
                     if not result.type.is_allocated:
                         reg_type = type(result.type)
-                        result.type = reg_type(Register(f"j{self.idx}"))
+                        result.type = reg_type.generate(self.idx)
                         self.idx += 1

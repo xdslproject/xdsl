@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from io import StringIO
 from typing import IO, Sequence, TypeAlias, TypeVar
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntegerAttr,
@@ -42,7 +44,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import AttrParser, ParseError, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -57,11 +59,6 @@ class Register:
 
     name: str | None = field(default=None)
     """The register name. Should be one of `ABI_INDEX_BY_NAME` or `None`"""
-
-    @property
-    def is_allocated(self) -> bool:
-        """Returns true if a RISCV register is allocated, otherwise false"""
-        return self.name is not None
 
     RV32I_INDEX_BY_NAME = {
         "zero": 0,
@@ -140,6 +137,32 @@ class BaseRegisterType(Data[Register], TypeAttribute):
     A RISC-V register type.
     """
 
+    UNALLOCATED: str
+    UNLIMITED: str
+
+    @property
+    def register_name(self) -> str:
+        return self.data.name or self.UNALLOCATED
+
+    @property
+    def is_allocated(self) -> bool:
+        """Returns true if a RISCV register is allocated, otherwise false"""
+        return self.data.name is not None and self.data.name != self.UNALLOCATED
+
+    @classmethod
+    def generate(cls, i: int) -> Self:
+        return cls(Register(cls.UNLIMITED.format(i)))
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(self.register_name)
+
+    @classmethod
+    def parse_optional_parameter(cls, parser: AttrParser) -> Register | None:
+        try:
+            return cls.parse_parameter(parser)
+        except ParseError:
+            return None
+
 
 @irdl_attr_definition
 class RegisterType(BaseRegisterType):
@@ -149,34 +172,20 @@ class RegisterType(BaseRegisterType):
 
     name = "riscv.reg"
     UNALLOCATED = "x$"
-
-    @property
-    def register_name(self) -> str:
-        return self.data.name or RegisterType.UNALLOCATED
-
-    @property
-    def is_allocated(self) -> bool:
-        """Returns true if a RISCV register is allocated, otherwise false"""
-        return self.data.is_allocated
+    UNLIMITED = "jx{}"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> Register:
         name = parser.parse_identifier()
         if name == cls.UNALLOCATED:
             return Register()
-        if not name.startswith("j"):
-            assert name in Register.RV32I_INDEX_BY_NAME
+        if not name.startswith("jx") and name not in Register.RV32I_INDEX_BY_NAME:
+            parser.raise_error(f"{name} not in RV32I")
         return Register(name)
-
-    def print_parameter(self, printer: Printer) -> None:
-        if (name := self.data.name) is not None:
-            printer.print_string(name)
-        else:
-            printer.print_string(RegisterType.UNALLOCATED)
 
     def verify(self) -> None:
         name = self.data.name
-        if name is None or name == RegisterType.UNALLOCATED or name.startswith("j"):
+        if name is None or name == self.UNALLOCATED or name.startswith("jx"):
             return
         if name not in Register.RV32I_INDEX_BY_NAME:
             raise VerifyException(f"{name} not in RV32I")
@@ -190,38 +199,20 @@ class FloatRegisterType(BaseRegisterType):
 
     name = "riscv.freg"
     UNALLOCATED = "f$"
-
-    @property
-    def register_name(self) -> str:
-        return self.data.name or RegisterType.UNALLOCATED
-
-    @property
-    def is_allocated(self) -> bool:
-        """Returns true if a RISCV register is allocated, otherwise false"""
-        return self.data.is_allocated
+    UNLIMITED = "jf{}"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> Register:
         name = parser.parse_identifier()
         if name == cls.UNALLOCATED:
             return Register()
-        if not name.startswith("j"):
-            assert name in Register.RV32F_INDEX_BY_NAME
+        if not name.startswith("jf") and name not in Register.RV32F_INDEX_BY_NAME:
+            parser.raise_error(f"{name} not in RV32F")
         return Register(name)
-
-    def print_parameter(self, printer: Printer) -> None:
-        if (name := self.data.name) is not None:
-            printer.print_string(name)
-        else:
-            printer.print_string(FloatRegisterType.UNALLOCATED)
 
     def verify(self) -> None:
         name = self.data.name
-        if (
-            name is None
-            or name == FloatRegisterType.UNALLOCATED
-            or name.startswith("j")
-        ):
+        if name is None or name == self.UNALLOCATED or name.startswith("jf"):
             return
         if name not in Register.RV32F_INDEX_BY_NAME:
             raise VerifyException(f"{name} not in RV32F")
@@ -375,15 +366,17 @@ class RISCVOp(Operation, ABC):
         printer.print_regions(self.regions)
 
         # Print the operation type
-        printer.print(" : (")
-        printer.print_list(
-            self.operands, lambda operand: printer.print_attribute(operand.type)
-        )
-        printer.print(") -> (")
-        printer.print_list(
-            self.results, lambda result: printer.print_attribute(result.type)
-        )
-        printer.print(")")
+        def print_fn(ssa_value: SSAValue):
+            if isinstance(ssa_value.type, BaseRegisterType):
+                ssa_value.type.print_parameter(printer)
+            else:
+                printer.print_attribute(ssa_value.type)
+
+        printer.print(" : ")
+        printer.print_list(self.operands, print_fn)
+        printer.print(" -> ")
+        printer.print_list(self.results, print_fn)
+        printer.print(" | ")
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -416,16 +409,48 @@ class RISCVOp(Operation, ABC):
             parser.parse_punctuation(")")
         result_types = list[Attribute]()
         parser.parse_punctuation(":")
-        parser.parse_punctuation("(")
-        while parser.parse_optional_type() is not None:
+        while True:
+            if parser.parse_optional_type() is not None:
+                pass
+            elif (reg_name := parser.parse_optional_identifier()) is not None:
+                reg = Register(reg_name)
+                reg_type = None
+                for register_type in (RegisterType, FloatRegisterType):
+                    try:
+                        reg_type = register_type(reg)
+                        reg_type.verify()
+                        break
+                    except VerifyException:
+                        pass
+                if reg_type is None:
+                    parser.raise_error("Unexpected type.")
+            else:
+                break
             parser.parse_optional_punctuation(",")
-        parser.parse_punctuation(")")
         parser.parse_punctuation("->")
-        parser.parse_punctuation("(")
-        while (result_type := parser.parse_optional_type()) is not None:
-            result_types.append(result_type)
+        while True:
+            if (result_type := parser.parse_optional_type()) is not None:
+                result_types.append(result_type)
+            elif (reg_name := parser.parse_optional_identifier()) is not None:
+                reg = Register(reg_name)
+                reg_type = None
+                for register_type in (RegisterType, FloatRegisterType):
+                    try:
+                        reg_type = register_type(reg)
+                        reg_type.verify()
+                        break
+                    except VerifyException:
+                        pass
+                if reg_type is None:
+                    parser.raise_error("Unexpected type.")
+                else:
+                    result_types.append(reg_type)
+            else:
+                break
             parser.parse_optional_punctuation(",")
-        parser.parse_punctuation(")")
+        parser.parse_punctuation("|")
+        if cls == GetFloatRegisterOp:
+            assert len(result_types) == 1
         return cls.create(
             operands=operands,
             result_types=result_types,
@@ -1128,7 +1153,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rd.type, RegisterType):
             return
-        if self.rd.type.data.name is not None and self.rd.type.data.name != "zero":
+        if self.rd.type.is_allocated and self.rd.type.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
                 f"not '{self.rd.type.data.name}'"
@@ -1210,7 +1235,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rs1.type, RegisterType):
             return
-        if self.rs1.type.data.name is not None and self.rs1.type.data.name != "zero":
+        if self.rs1.type.is_allocated and self.rs1.type.data.name != "zero":
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
                 f"not '{self.rs1.type.data.name}'"
@@ -1290,7 +1315,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rd.type, RegisterType):
             return
-        if self.rd.type.data.name is not None and self.rd.type.data.name != "zero":
+        if self.rd.type.is_allocated and self.rd.type.data.name != "zero":
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
                 f"not '{self.rd.type.data.name}'"
@@ -2512,67 +2537,9 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
         printer.print_string_literal(self.instruction_name.data)
         return {"instruction_name"}
 
-    def print(self, printer: Printer):
-        self.print_attributes(printer, True)
-        if self.operands:
-            printer.print(" ")
-            printer.print_list(self.operands, printer.print_ssa_value)
-        printer.print_successors(self.successors)
-        printer.print_regions(self.regions)
-
-        # Print the operation type
-        printer.print(" : (")
-        printer.print_list(
-            self.operands, lambda operand: printer.print_attribute(operand.type)
-        )
-        printer.print(") -> (")
-        printer.print_list(
-            self.results, lambda result: printer.print_attribute(result.type)
-        )
-        printer.print(")")
-
     @classmethod
     def parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         return {"instruction_name": StringAttr(parser.parse_str_literal())}
-
-    @classmethod
-    def parse(cls, parser: Parser):
-        attributes = cls.parse_attributes(parser)
-        operands = list[SSAValue]()
-        if (operand := parser.parse_optional_operand()) is not None:
-            operands.append(operand)
-            while (
-                parser.parse_optional_punctuation(",") is not None
-                and (operand := parser.parse_optional_operand()) is not None
-            ):
-                operands.append(operand)
-        successors = parser.parse_optional_successors() or list()
-        regions = list[Region]()
-        if parser.parse_optional_punctuation("(") is not None:
-            regions = parser.parse_comma_separated_list(
-                delimiter=parser.Delimiter.NONE,
-                parse=parser.parse_region,
-            )
-            parser.parse_punctuation(")")
-        result_types = list[Attribute]()
-        parser.parse_punctuation(":")
-        parser.parse_punctuation("(")
-        while parser.parse_optional_type() is not None:
-            parser.parse_optional_punctuation(",")
-        parser.parse_punctuation(")")
-        parser.parse_punctuation("->")
-        parser.parse_punctuation("(")
-        while (result_type := parser.parse_optional_type()) is not None:
-            result_types.append(result_type)
-            parser.parse_optional_punctuation(",")
-        parser.parse_punctuation(")")
-        return cls.create(
-            operands=operands,
-            result_types=result_types,
-            attributes=attributes,
-            successors=successors,
-            regions=regions,
-        )
 
 
 @irdl_op_definition

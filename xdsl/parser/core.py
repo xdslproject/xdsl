@@ -718,6 +718,7 @@ class Parser(AttrParser):
             self.raise_error(
                 f"Operation has {len(op.results)} results, "
                 f"but was given {n_bound_results} to bind."
+                f" {op_name} {op_type} {op} {n_bound_results} {bound_results}"
             )
 
         # Register the result SSA value names in the parser
