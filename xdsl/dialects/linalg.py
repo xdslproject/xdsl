@@ -156,7 +156,7 @@ class Generic(IRDLOperation):
         sizes: list[int] = []
         for input in self.inputs:
             if isinstance(input.type, ShapedType):
-                for shape in input.type.get_shape():
+                for dim in input.type.get_shape():
                     sizes.append(shape)
         for output in self.outputs:
             if isinstance(output.type, ShapedType):
