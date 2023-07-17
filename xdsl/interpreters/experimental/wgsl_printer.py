@@ -128,23 +128,43 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: memref.Load, out_stream: IO[str]):
+        memref_dimension = op.memref.type.get_num_dims()
+        memref_size = list(op.memref.type.get_shape())
         load_ref = self.wgsl_name(op.memref)
         name_hint = self.wgsl_name(op.res)
-        index = ", ".join(self.wgsl_name(i) for i in op.indices)
-        out_stream.write(
-            f"""
+        index = [self.wgsl_name(i) for i in op.indices]
+        if memref_dimension == 2:
+            index_value = f"{memref_size[0]} * {index[0]} + {index[1]}"
+            out_stream.write(
+                f"""
+        let {name_hint} = {load_ref}[{index_value}];"""
+            )
+        elif memref_dimension == 3:
+            index_value = f"{memref_size[1]} * {memref_size[2]} * {index[0]} + {memref_size[2]} * {index[1]} + {index[2]}"
+            out_stream.write(
+                f"""
         let {name_hint} = {load_ref}[{index}];"""
-        )
+            )
 
     @print.register
     def _(self, op: memref.Store, out_stream: IO[str]):
+        memref_dimension = op.memref.type.get_num_dims()
+        memref_size = list(op.memref.type.get_shape())
         value = self.wgsl_name(op.value)
         store_ref = self.wgsl_name(op.memref)
-        index = ", ".join(self.wgsl_name(i) for i in op.indices)
-        out_stream.write(
-            f"""
-        {store_ref}[{index}] = {value};"""
-        )
+        index = [self.wgsl_name(i) for i in op.indices]
+        if memref_dimension == 2:
+            index_value = f"{memref_size[0]} * {index[0]} + {index[1]}"
+            out_stream.write(
+                f"""
+        {store_ref}[{index_value}] = {value};"""
+            )
+        if memref_dimension == 3:
+            index_value = f"{memref_size[1]} * {memref_size[2]} * {index[0]} + {memref_size[2]} * {index[1]} + {index[2]}"
+            out_stream.write(
+                f"""
+        {store_ref}[{index_value}] = {value};"""
+            )
 
     @print.register
     def _(self, op: gpu.ModuleEndOp, out_stream: IO[str]):
