@@ -57,7 +57,6 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
     _unallocated: ClassVar[Self | None] = None
 
     @classmethod
-    @property
     def unallocated(cls) -> Self:
         if cls._unallocated is None:
             cls._unallocated = cls("")
@@ -455,7 +454,7 @@ class RdRsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated
+            rd = IntRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -494,7 +493,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
-            rd = IntRegisterType.unallocated
+            rd = IntRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -580,7 +579,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
             immediate = LabelAttr(immediate)
 
         if rd is None:
-            rd = IntRegisterType.unallocated
+            rd = IntRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -696,7 +695,7 @@ class RdRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated
+            rd = IntRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -856,7 +855,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated
+            rd = IntRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -914,7 +913,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated
+            rd = IntRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -970,7 +969,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated
+            rd = IntRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -1026,7 +1025,7 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated
+            rd = IntRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -2267,7 +2266,7 @@ class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterType.unallocated
+            rd = FloatRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = FloatRegisterType(rd)
         if isinstance(comment, str):
@@ -2304,7 +2303,7 @@ class RdRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterType.unallocated
+            rd = FloatRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = FloatRegisterType(rd)
         if isinstance(comment, str):
@@ -2341,7 +2340,7 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated
+            rd = IntRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -2376,7 +2375,7 @@ class RdRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterType.unallocated
+            rd = FloatRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = FloatRegisterType(rd)
         if isinstance(comment, str):
@@ -2408,7 +2407,7 @@ class RdRsFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = IntRegisterType.unallocated
+            rd = IntRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = IntRegisterType(rd)
         if isinstance(comment, str):
@@ -2440,7 +2439,7 @@ class RdRsIntegerFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if rd is None:
-            rd = FloatRegisterType.unallocated
+            rd = FloatRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = FloatRegisterType(rd)
         if isinstance(comment, str):
@@ -2517,7 +2516,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
             immediate = LabelAttr(immediate)
 
         if rd is None:
-            rd = FloatRegisterType.unallocated
+            rd = FloatRegisterType.unallocated()
         elif isinstance(rd, str):
             rd = FloatRegisterType(rd)
         if isinstance(comment, str):
