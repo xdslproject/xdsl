@@ -42,7 +42,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -485,6 +485,28 @@ class RdRsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        rs1 = parser.parse_operand()
+        parser.parse_punctuation(",")
+        rs2 = parser.parse_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        func_type = parser.parse_function_type()
+        return cls.create(
+            operands=[rs1, rs2],
+            result_types=func_type.outputs.data,
+            attributes=attributes,
+        )
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ")
+        printer.print_list(self.operands, printer.print_ssa_value)
+        if self.attributes:
+            printer.print(" ")
+            printer.print_op_attributes(self.attributes)
+        printer.print_operation_type(self)
 
 
 class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):

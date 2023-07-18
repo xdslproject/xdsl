@@ -71,7 +71,7 @@
 // CHECK-NEXT:     "riscv.label"() ({
 // CHECK-NEXT:         %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a0>
 // CHECK-NEXT:         %{{.*}} = "riscv.get_register"() : () -> !riscv.reg<a1>
-// CHECK-NEXT:         %{{.*}} = "riscv.add"(%{{.*}}, %{{.*}}) : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<>
+// CHECK-NEXT:         %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<>
 // CHECK-NEXT:         %{{.*}} = "riscv.mv"(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:         "riscv.ret"() : () -> ()
 // CHECK-NEXT:     }) {"label" = #riscv.label<"add">} : () -> ()
