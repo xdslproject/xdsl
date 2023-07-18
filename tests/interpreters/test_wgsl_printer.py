@@ -170,7 +170,7 @@ def test_memref_load():
     printer = WGSLPrinter()
     printer.print(load, file)
 
-    assert "let v1 = v0[10 * v2 + v3];" in file.getvalue()
+    assert "let v1 = v0[10 * v2 + 1 * v3];" in file.getvalue()
 
 
 def test_memref_store():
@@ -189,7 +189,7 @@ def test_memref_store():
     printer = WGSLPrinter()
     printer.print(store, file)
 
-    assert "v1[10 * v2 + v3] = v0;" in file.getvalue()
+    assert "v1[10 * v2 + 1 * v3] = v0;" in file.getvalue()
 
 
 def test_2d5pt():
