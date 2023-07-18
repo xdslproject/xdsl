@@ -316,19 +316,19 @@ builtin.module attributes {gpu.container_module} {
         let v14 = v12 + v8;
         let v15 = v14 + v0;
         let v16 = v13 + v0;
-        let v17 = varg3[260 * v15 + v16];
+        let v17 = varg3[260 * v15 + 1 * v16];
         let v18 = v14 + varg4;
         let v19 = v18 + v0;
-        let v20 = varg3[260 * v19 + v16];
+        let v20 = varg3[260 * v19 + 1 * v16];
         let v21 = v14 + varg2;
         let v22 = v21 + v0;
-        let v23 = varg3[260 * v22 + v16];
+        let v23 = varg3[260 * v22 + 1 * v16];
         let v24 = v13 + varg4;
         let v25 = v24 + v0;
-        let v26 = varg3[260 * v15 + v25];
+        let v26 = varg3[260 * v15 + 1 * v25];
         let v27 = v13 + varg2;
         let v28 = v27 + v0;
-        let v29 = varg3[260 * v15 + v28];
+        let v29 = varg3[260 * v15 + 1 * v28];
         let v30 = v17 * varg5;
         let v31 = v20 * varg6;
         let v32 = v23 * varg6;
@@ -344,7 +344,7 @@ builtin.module attributes {gpu.container_module} {
         let v41 = v30 + varg9;
         let v42 = v41 + v40;
         let v43 = v42 * varg10;
-        varg11[260 * v15 + v16] = v43;
+        varg11[260 * v15 + 1 * v16] = v43;
             }
 """
     context = MLContext()
