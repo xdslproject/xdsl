@@ -11,6 +11,7 @@ builtin.module {
     printf.print_format "{}", %144 : i32
     printf.print_format "{}", %144 : i32 {unit}
     "printf.print_char"(%12) : (i32) -> ()
+    "printf.print_int"(%12) : (i32) -> ()
 }
 
 // CHECK:       printf.print_format "Hello world!"
@@ -20,3 +21,4 @@ builtin.module {
 // CHECK-NEXT:  printf.print_format "{}", %0 : i32
 // CHECK-NEXT:  printf.print_format "{}", %0 : i32 {"unit"}
 // CHECK-NEXT:  "printf.print_char"(%{{.*}}) : (i32) -> ()
+// CHECK-NEXT:  "printf.print_int"(%{{.*}}) : (i32) -> ()

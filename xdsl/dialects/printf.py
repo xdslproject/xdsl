@@ -99,7 +99,17 @@ class PrintCharOp(IRDLOperation):
     char: Operand = operand_def()
 
 
+@irdl_op_definition
+class PrintIntOp(IRDLOperation):
+    """
+    Print a single Integer
+    """
+
+    name = "printf.print_int"
+    int: Operand = operand_def(builtin.IntegerType)
+
+
 Printf = Dialect(
-    [PrintFormatOp, PrintCharOp],
+    [PrintFormatOp, PrintCharOp, PrintIntOp],
     [],
 )
