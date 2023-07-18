@@ -25,7 +25,7 @@ class WGSLPrinter:
     @singledispatchmethod
     def print(self, op: Operation, out_stream: IO[str]) -> None:
         raise NotImplementedError(
-            f"Printing the {op.name} to WGSL is not implemented yet."
+            f"Printing of '{op.name}' to WGSL is not implemented yet."
         )
 
     @print.register
