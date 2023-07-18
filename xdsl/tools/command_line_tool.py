@@ -34,28 +34,23 @@ from xdsl.frontend.symref import Symref
 from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
-from xdsl.transforms.dead_code_elimination import DeadCodeElimination
-from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
-    ConvertStencilToLLMLIRPass,
+from xdsl.transforms import (
+    dead_code_elimination,
+    lower_mpi,
+    lower_riscv_func,
+    lower_snitch,
+    lower_snitch_runtime,
+    mlir_opt,
+    printf_to_llvm,
+    reconcile_unrealized_casts,
+    riscv_register_allocation,
 )
-from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
-    GlobalStencilToLocalStencil2DHorizontal,
-    LowerHaloToMPI,
+from xdsl.transforms.experimental import (
+    convert_stencil_to_ll_mlir,
+    stencil_shape_inference,
+    stencil_storage_materialization,
 )
-from xdsl.transforms.experimental.stencil_shape_inference import (
-    StencilShapeInferencePass,
-)
-from xdsl.transforms.experimental.stencil_storage_materialization import (
-    StencilStorageMaterializationPass,
-)
-from xdsl.transforms.lower_mpi import LowerMPIPass
-from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
-from xdsl.transforms.lower_snitch import LowerSnitchPass
-from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
-from xdsl.transforms.mlir_opt import MLIROptPass
-from xdsl.transforms.printf_to_llvm import PrintfToLLVM
-from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
-from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
+from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 
 
@@ -94,22 +89,22 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
-        ConvertStencilToLLMLIRPass,
-        DeadCodeElimination,
+        convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
+        dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
-        GlobalStencilToLocalStencil2DHorizontal,
-        LowerHaloToMPI,
-        LowerMPIPass,
-        LowerRISCVFunc,
-        LowerSnitchPass,
-        LowerSnitchRuntimePass,
-        MLIROptPass,
-        PrintfToLLVM,
-        RISCVRegisterAllocation,
+        stencil_global_to_local.GlobalStencilToLocalStencil2DHorizontal,
+        stencil_global_to_local.LowerHaloToMPI,
+        lower_mpi.LowerMPIPass,
+        lower_riscv_func.LowerRISCVFunc,
+        lower_snitch.LowerSnitchPass,
+        lower_snitch_runtime.LowerSnitchRuntimePass,
+        mlir_opt.MLIROptPass,
+        printf_to_llvm.PrintfToLLVM,
+        riscv_register_allocation.RISCVRegisterAllocation,
         RISCVLowerArith,
-        StencilShapeInferencePass,
-        StencilStorageMaterializationPass,
-        ReconcileUnrealizedCastsPass,
+        stencil_shape_inference.StencilShapeInferencePass,
+        stencil_storage_materialization.StencilStorageMaterializationPass,
+        reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
     ]
 
 
