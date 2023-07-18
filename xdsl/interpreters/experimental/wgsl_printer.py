@@ -128,12 +128,13 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: memref.Load, out_stream: IO[str]):
-        memref_dimension = op.memref.type.get_num_dims()
-        memref_size = list(op.memref.type.get_shape())
+        memref_type = cast(MemRefType[Attribute], op.memref.type)
+        memref_dimension = memref_type.get_num_dims()
+        memref_size = memref_type.get_shape()
         load_ref = self.wgsl_name(op.memref)
         name_hint = self.wgsl_name(op.res)
         indices = [self.wgsl_name(i) for i in op.indices]
-        index_values = []
+        index_values: list[str] = []
         for i in range(memref_dimension):
             product_of_dims = 1
             for dim in memref_size[i + 1 :]:
@@ -147,12 +148,13 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: memref.Store, out_stream: IO[str]):
-        memref_dimension = op.memref.type.get_num_dims()
-        memref_size = list(op.memref.type.get_shape())
+        memref_type = cast(MemRefType[Attribute], op.memref.type)
+        memref_dimension = memref_type.get_num_dims()
+        memref_size = memref_type.get_shape()
         value = self.wgsl_name(op.value)
         store_ref = self.wgsl_name(op.memref)
         indices = [self.wgsl_name(i) for i in op.indices]
-        index_values = []
+        index_values: list[str] = []
         for i in range(memref_dimension):
             product_of_dims = 1
             for dim in memref_size[i + 1 :]:
