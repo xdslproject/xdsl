@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from io import StringIO
-from typing import IO, ClassVar, Sequence, TypeAlias
+from typing import IO, ClassVar, Mapping, Sequence, TypeAlias
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    FunctionType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -17,6 +18,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    Block,
     Data,
     Dialect,
     Operation,
@@ -42,7 +44,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -317,6 +319,106 @@ class RISCVOp(Operation, ABC):
     @abstractmethod
     def assembly_line(self) -> str | None:
         raise NotImplementedError()
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        return cls.create(
+            operands=cls.parse_operands(parser),
+            successors=cls.parse_successors(parser),
+            regions=cls.parse_regions(parser),
+            attributes=cls.parse_attributes(parser),
+            result_types=cls.parse_result_types(parser)[1],
+        )
+
+    @classmethod
+    def parse_operands(cls, parser: Parser) -> Sequence[SSAValue]:
+        operands = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_operand
+        )
+        return operands
+
+    @classmethod
+    def parse_successors(cls, parser: Parser) -> Sequence[Block]:
+        return parser.parse_optional_successors() or []
+
+    @classmethod
+    def parse_result_types(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        args = parser.parse_comma_separated_list(
+            Parser.Delimiter.PAREN,
+            parser.parse_type,
+        )
+        parser.parse_punctuation("->")
+        if parser.parse_optional_punctuation("(") is None:
+            returns = [parser.parse_type()]
+        else:
+            returns = list[Attribute]()
+            if parser.parse_optional_punctuation(")") is None:
+                returns.append(parser.parse_type())
+                while parser.parse_optional_punctuation(",") is not None:
+                    returns.append(parser.parse_type())
+                parser.parse_punctuation(")")
+        return args, returns
+
+    @classmethod
+    def parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        return parser.parse_optional_attr_dict()
+
+    @classmethod
+    def parse_regions(cls, parser: Parser) -> Sequence[Region]:
+        if parser.parse_optional_punctuation("(") is not None:
+            regions = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_region
+            )
+            parser.parse_punctuation(")")
+            return regions
+        return []
+
+    def print(self, printer: Printer) -> None:
+        self.print_operands(printer)
+        self.print_successors(printer)
+        self.print_regions(printer)
+        self.print_attributes(printer)
+        self.print_types(printer)
+
+    def print_operands(self, printer: Printer) -> None:
+        printer.print("(")
+        printer.print_list(self.operands, printer.print_ssa_value)
+        printer.print(")")
+
+    def print_successors(self, printer: Printer) -> None:
+        printer.print_successors(self.successors)
+
+    def print_regions(self, printer: Printer) -> None:
+        printer.print_regions(self.regions)
+
+    def print_attributes(self, printer: Printer) -> None:
+        printer.print_op_attributes(self.attributes)
+
+    def print_types(self, printer: Printer) -> None:
+        printer.print(" : (")
+        printer.print_list(
+            self.operands, lambda operand: printer.print_attribute(operand.type)
+        )
+        printer.print(") -> ")
+        results = self.results
+        if len(results) == 0:
+            printer.print("()")
+        elif len(results) == 1:
+            res_type = results[0].type
+            # Handle ambiguous case
+            if isinstance(res_type, FunctionType):
+                printer.print("(", res_type, ")")
+            else:
+                printer.print(res_type)
+        else:
+            printer.print("(")
+            printer.print_list(
+                results, lambda result: printer.print_attribute(result.type)
+            )
+            printer.print(")")
 
 
 AssemblyInstructionArg: TypeAlias = (
