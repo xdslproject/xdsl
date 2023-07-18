@@ -13,4 +13,5 @@ Make sure to follow the steps in the checklist below *before* you submit this PR
  - [ ] Add some tags to categorize the PR
  - [ ] Request review from people you *know* have to sign off on these changes, you can leave it blank for now if you are not sure.
  - [ ] Tag people you wish to get feedback from (using @\<username>), they will then sort out the reviewers.
+ - [ ] Assign this PR to yourself
  - [ ] Delete this checklist and the line above it, only after you've completed all previous tasks.
