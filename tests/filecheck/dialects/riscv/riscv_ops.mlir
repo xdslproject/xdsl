@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
 "builtin.module"() ({
   %0 = "riscv.get_register"() : () -> !riscv.reg<>
   %1 = "riscv.get_register"() : () -> !riscv.reg<>
@@ -52,7 +52,7 @@
   %sra = "riscv.sra"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = "riscv.sra"(%{{.*}}, %{{.*}}) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
   "riscv.nop"() : () -> ()
-  // CHECK-NEXT: "riscv.nop"() : () -> ()
+  // CHECK-NEXT: riscv.nop
 
   // RV32I/RV64I: 2.5 Control Transfer Instructions
   // terminators continue at the end of module
@@ -139,7 +139,7 @@
 
   // Machine Mode Privileged Instructions
   "riscv.wfi"() : () -> ()
-  // CHECK-NEXT: "riscv.wfi"() : () -> ()
+  // CHECK-NEXT: riscv.wfi
 
 
   // RV32M/RV64M: 7 “M” Standard Extension for Integer Multiplication and Division
@@ -170,9 +170,9 @@
   // CHECK-NEXT: %{{.*}} = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
   // Environment Call and Breakpoints
   "riscv.ecall"() : () -> ()
-  // CHECK-NEXT: "riscv.ecall"() : () -> ()
+  // CHECK-NEXT: riscv.ecall
   "riscv.ebreak"() : () -> ()
-  // CHECK-NEXT: "riscv.ebreak"() : () -> ()
+  // CHECK-NEXT: riscv.ebreak
   "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
   // CHECK-NEXT: "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
   "riscv.directive"() ({
@@ -263,5 +263,5 @@
 
   // Unconditional Branch Instructions
   "riscv.ret"() : () -> ()
-  // CHECK-NEXT: "riscv.ret"() : () -> ()
+  // CHECK-NEXT: riscv.ret
 }) : () -> ()

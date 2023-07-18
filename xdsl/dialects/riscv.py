@@ -42,7 +42,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -842,6 +842,16 @@ class NullaryOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return ()
+
+    def print(self, printer: Printer):
+        if self.attributes:
+            printer.print(" ")
+            printer.print_op_attributes(self.attributes)
+
+    @classmethod
+    def parse(cls: type[Self], parser: Parser) -> Self:
+        attrs = parser.parse_optional_attr_dict()
+        return cls.create(attributes=attrs)
 
 
 class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
