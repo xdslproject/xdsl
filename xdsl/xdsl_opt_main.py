@@ -54,6 +54,7 @@ from xdsl.transforms.lower_mpi import LowerMPIPass
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
+from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.transforms.printf_to_llvm import PrintfToLLVM
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
@@ -105,6 +106,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         LowerRISCVFunc,
         LowerSnitchPass,
         LowerSnitchRuntimePass,
+        MLIROptPass,
         PrintfToLLVM,
         RISCVRegisterAllocation,
         RISCVLowerArith,
