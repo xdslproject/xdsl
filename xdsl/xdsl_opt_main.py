@@ -1,5 +1,4 @@
 import argparse
-import os
 import sys
 from io import StringIO
 from typing import IO, Callable, Dict, List, Sequence, Type
@@ -226,14 +225,7 @@ class xDSLOptMain(xDSLTool):
         # it's used for split input file
 
         chunks: List[IO[str]] = []
-        if self.args.input_file is None:
-            f = sys.stdin
-            file_extension = "mlir"
-        else:
-            f = open(self.args.input_file)
-            _, file_extension = os.path.splitext(self.args.input_file)
-            file_extension = file_extension.replace(".", "")
-
+        f, file_extension = self.get_input_stream()
         chunks = [f]
         if self.args.split_input_file:
             chunks = [StringIO(chunk) for chunk in f.read().split("// -----")]

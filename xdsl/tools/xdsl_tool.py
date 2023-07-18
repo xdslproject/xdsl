@@ -1,4 +1,6 @@
 import argparse
+import os
+import sys
 from typing import IO, Callable
 
 from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
@@ -156,6 +158,19 @@ class xDSLTool:
             action="store_true",
             help="Disable implicit addition of a top-level module op during parsing.",
         )
+
+    def get_input_stream(self) -> tuple[IO[str], str]:
+        """
+        Get the input stream to parse from, along with the file extension.
+        """
+        if self.args.input_file is None:
+            f = sys.stdin
+            file_extension = "mlir"
+        else:
+            f = open(self.args.input_file)
+            _, file_extension = os.path.splitext(self.args.input_file)
+            file_extension = file_extension.replace(".", "")
+        return f, file_extension
 
     def get_input_name(self):
         return self.args.input_file or "stdin"
