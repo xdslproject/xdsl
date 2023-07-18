@@ -813,7 +813,7 @@ class Parser(AttrParser):
         func_type_pos = self._current_token.span.start
 
         # Parse function type
-        func_type = self._parse_function_type()
+        func_type = self.parse_function_type()
 
         if len(args) != len(func_type.inputs):
             self.raise_error(
