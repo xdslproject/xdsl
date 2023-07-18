@@ -176,8 +176,8 @@ class WGSLPrinter:
             cons_type = "u32"
         name_hint = self.wgsl_name(op.result)
         if cons_type == "u32":
-            if value == -1:
-                value = 4294967295
+            if value < 0:
+                value = 4294967296 + value
             out_stream.write(
                 f"""
         let {name_hint} : {cons_type} = {value}u;"""
