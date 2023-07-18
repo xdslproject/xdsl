@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import singledispatchmethod
 from typing import IO, cast
 
-from xdsl.dialects import arith, builtin, cf, func, gpu, memref
+from xdsl.dialects import arith, builtin, gpu, memref
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue
 from xdsl.ir.core import Attribute
@@ -30,11 +30,8 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.ModuleOp, out_stream: IO[str]):
-        # print(f"Thats a module : {op}")
         for o in op.body.ops:
-            if isinstance(o, func.FuncOp):
-                self.print(o, out_stream)
-            elif isinstance(o, gpu.FuncOp):
+            if isinstance(o, gpu.FuncOp):
                 self.print(o, out_stream)
 
     @print.register
@@ -172,12 +169,6 @@ class WGSLPrinter:
         pass
 
     @print.register
-    def _(self, op: builtin.ModuleOp, out_stream: IO[str]):
-        # Just print the content
-        for o in op.ops:
-            self.print(o, out_stream)
-
-    @print.register
     def _(self, op: arith.Constant, out_stream: IO[str]):
         value = int(str(op.attributes.get("value")).split()[0])
         cons_type = op.result.type
@@ -256,7 +247,3 @@ class WGSLPrinter:
             f"""
         let {op_name_hint} = {lhs} - {rhs};"""
         )
-
-    @print.register
-    def _(self, op: cf.Branch, out_stream: IO[str]):
-        pass
