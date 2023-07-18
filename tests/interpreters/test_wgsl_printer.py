@@ -162,15 +162,13 @@ def test_memref_load():
     memref_type = memref.MemRefType.from_element_type_and_shape(i32, [10, 10])
 
     memref_val = TestSSAValue(memref_type)
-    x = arith.Constant(IntegerAttr(2, IndexType()))
-    y = arith.Constant(IntegerAttr(4, IndexType()))
 
-    load = memref.Load.get(memref_val, [x, y])
+    load = memref.Load.get(memref_val, [lhs_op.res[0], rhs_op.res[0]])
 
     printer = WGSLPrinter()
     printer.print(load, file)
 
-    assert "let v1 = v0[10 * v2 + 1 * v3];" in file.getvalue()
+    assert "v1 = v0[10 * v1 + 1 * v2];" in file.getvalue()
 
 
 def test_memref_store():
@@ -179,17 +177,15 @@ def test_memref_store():
     memref_type = memref.MemRefType.from_element_type_and_shape(i32, [10, 10])
 
     memref_val = TestSSAValue(memref_type)
-    x = arith.Constant(IntegerAttr(2, IndexType()))
-    y = arith.Constant(IntegerAttr(4, IndexType()))
 
-    load = memref.Load.get(memref_val, [x, y])
+    load = memref.Load.get(memref_val, [lhs_op.res[0], rhs_op.res[0]])
 
-    store = memref.Store.get(load.res, memref_val, [x, y])
+    store = memref.Store.get(load.res, memref_val, [lhs_op.res[0], rhs_op.res[0]])
 
     printer = WGSLPrinter()
     printer.print(store, file)
 
-    assert "v1[10 * v2 + 1 * v3] = v0;" in file.getvalue()
+    assert "v1[10 * v1 + 1 * v2] = v0;" in file.getvalue()
 
 
 def test_2d5pt():
