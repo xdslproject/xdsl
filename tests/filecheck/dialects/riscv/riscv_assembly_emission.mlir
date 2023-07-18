@@ -145,9 +145,9 @@
   %li = "riscv.li"() {"immediate" = 1 : i32}: () -> !riscv.reg<j0>
   // CHECK-NEXT: li j0, 1
   // Environment Call and Breakpoints
-  "riscv.ecall"() : () -> ()
+  riscv.ecall
   // CHECK-NEXT: ecall
-  "riscv.ebreak"() : () -> ()
+  riscv.ebreak
   // CHECK-NEXT: ebreak
   "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
   // CHECK-NEXT: .align 2
@@ -233,6 +233,6 @@
   // CHECK-NEXT: fsw zero, j5, 1
 
   // Unconditional Branch Instructions
-  "riscv.ret"() : () -> () // pseudo-instruction
+  riscv.ret // pseudo-instruction
   // CHECK-NEXT: ret
 }) : () -> ()
