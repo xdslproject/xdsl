@@ -13,6 +13,7 @@ from typing import (
     TypeVar,
 )
 
+from xdsl.dialects import gpu
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation, OperationInvT, SSAValue
 from xdsl.ir.core import Attribute, Block, Region

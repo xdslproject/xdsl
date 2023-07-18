@@ -48,6 +48,7 @@ from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
     SingleBlockImplicitTerminator,
+    SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -381,7 +382,7 @@ class FuncOp(IRDLOperation):
     function_type: FunctionType = attr_def(FunctionType)
     kernel: UnitAttr | None = opt_attr_def(UnitAttr)
 
-    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp)])
+    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface()])
 
     def verify_(self):
         entry_block: Block = self.body.blocks[0]
