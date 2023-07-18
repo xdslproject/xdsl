@@ -14,7 +14,7 @@ class WGSLPrinter:
     count = 0
 
     def wgsl_name(self, v: SSAValue):
-        if v not in self.name_dict.keys():
+        if v not in self.name_dict:
             if v.name_hint is not None:
                 self.name_dict[v] = f"v{v.name_hint}"
             else:
@@ -36,18 +36,17 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.FuncOp, out_stream: IO[str]):
-        print(f"Thats a gpu func : {op}")
         for arg in op.body.block.args:
             auth = "read"
             arg_type = ""
             for use in arg.uses:
                 if isinstance(use.operation, memref.Store):
                     auth = "read_write"
-            if isinstance(arg.type, builtin.Float32Type):
+            if arg.type == builtin.f32:
                 arg_type = "f32"
-            elif isinstance(arg.type, builtin.IndexType):
+            elif arg.type == builtin.IndexType():
                 arg_type = "u32"
-            elif isinstance(arg.type, MemRefType):
+            elif arg.type == MemRefType():
                 memref_typ = cast(MemRefType[Attribute], arg.type)
                 arg_type = f"array<{memref_typ.element_type}>"
             arguments = f"""
@@ -80,7 +79,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.BlockIdOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).replace('"', "")
+        dim = str(op.dimension.value.param).strip('"')
         name_hint = self.wgsl_name(op.result)
         out_stream.write(
             f"""
@@ -89,7 +88,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.ThreadIdOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).replace('"', "")
+        dim = str(op.dimension.value.param).strip('"')
         name_hint = self.wgsl_name(op.result)
         out_stream.write(
             f"""
@@ -98,7 +97,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.GridDimOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).replace('"', "")
+        dim = str(op.dimension.value.param).strip('"')
         name_hint = self.wgsl_name(op.result)
         out_stream.write(
             f"""
@@ -107,7 +106,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.BlockDimOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).replace('"', "")
+        dim = str(op.dimension.value.param).strip('"')
         name_hint = self.wgsl_name(op.result)
         out_stream.write(
             f"""
@@ -116,7 +115,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.GlobalIdOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).replace('"', "")
+        dim = str(op.dimension.value.param).strip('"')
         name_hint = self.wgsl_name(op.result)
         out_stream.write(
             f"""
@@ -154,6 +153,14 @@ class WGSLPrinter:
     def calculate_index(
         self, memref_dimension: int, memref_size: tuple[int], indices: list[str]
     ):
+        """
+        It is used for linearizing known sizes memref accesses.
+        """
+        for size in memref_size:
+            if size == -1:
+                raise NotImplementedError(
+                    "The WGSL translation only works with known sizes at the moment."
+                )
         index_values: list[str] = []
         for i in range(memref_dimension):
             product_of_dims = 1
@@ -171,7 +178,7 @@ class WGSLPrinter:
     def _(self, op: arith.Constant, out_stream: IO[str]):
         value = int(str(op.attributes.get("value")).split()[0])
         cons_type = op.result.type
-        if op.result.type.name == "index":
+        if isinstance(op.result.type, builtin.IndexType):
             cons_type = "u32"
         name_hint = self.wgsl_name(op.result)
         if cons_type == "u32":
