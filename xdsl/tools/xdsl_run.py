@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os
+import argparse
 import sys
 from xdsl.dialects.builtin import IndexType, StringAttr
 from xdsl.dialects.func import FuncOp
@@ -14,15 +14,34 @@ from xdsl.utils.hints import isa
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 
-class xDSLRunMain(xDSLOptMain):
+class xDSLRunMain(xDSLTool):
+    interpreter: Interpreter
+
+    def __init__(
+        self,
+        description: str = "xDSL modular runner",
+        args: Sequence[str] | None = None,
+    ):
+        self.available_frontends = {}
+
+        self.ctx = MLContext()
+        self.register_all_dialects()
+        self.register_all_frontends()
+        # arg handling
+        arg_parser = argparse.ArgumentParser(description=description)
+        self.register_all_arguments(arg_parser)
+        self.args = arg_parser.parse_args(args=args)
+
+        self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
+
+    def register_implementations(self, interpreter: Interpreter):
+        interpreter.register_implementations(func.FuncFunctions())
+        interpreter.register_implementations(arith.ArithFunctions())
+        interpreter.register_implementations(printf.PrintfFunctions())
+        interpreter.register_implementations(scf.ScfFunctions())
+
     def run(self):
-        if self.args.input_file is None:
-            input = sys.stdin
-            file_extension = "mlir"
-        else:
-            input = open(self.args.input_file)
-            _, file_extension = os.path.splitext(self.args.input_file)
-            file_extension = file_extension.replace(".", "")
+        input, file_extension = self.get_input_stream()
         try:
             module = self.parse_chunk(input, file_extension)
             if module is not None:
@@ -47,7 +66,7 @@ class xDSLRunMain(xDSLOptMain):
                             ret = interpreter.run_ssacfg_region(f.body, ())
                             return ret[0]
         finally:
-            if input is not sys.stdout:
+            if input is not sys.stdin:
                 input.close()
 
 
