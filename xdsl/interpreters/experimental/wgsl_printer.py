@@ -46,7 +46,7 @@ class WGSLPrinter:
                 arg_type = "f32"
             elif arg.type == builtin.IndexType():
                 arg_type = "u32"
-            elif arg.type == MemRefType():
+            elif isinstance(arg.type, MemRefType):
                 memref_typ = cast(MemRefType[Attribute], arg.type)
                 arg_type = f"array<{memref_typ.element_type}>"
             arguments = f"""
