@@ -666,9 +666,9 @@ class Printer:
         self.print_regions(op.regions)
         self.print_op_attributes(op.attributes)
         self.print(" : ")
-        self.print_operand_type(op)
+        self.print_operation_type(op)
 
-    def print_operand_type(self, op: Operation) -> None:
+    def print_operation_type(self, op: Operation) -> None:
         self.print("(")
         self.print_list(op.operands, lambda operand: self.print_attribute(operand.type))
         self.print(") -> ")
