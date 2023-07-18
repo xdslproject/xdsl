@@ -91,7 +91,12 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
         if not self.is_allocated or name.startswith("j"):
             return
         if name not in type(self).abi_index_by_name():
-            raise VerifyException(f"{name} not in RV32I")
+            raise VerifyException(f"{name} not in {self.instruction_set_name()}")
+
+    @classmethod
+    @abstractmethod
+    def instruction_set_name(cls) -> str:
+        raise NotImplementedError()
 
     @classmethod
     @abstractmethod
@@ -106,6 +111,10 @@ class IntRegisterType(RISCVRegisterType):
     """
 
     name = "riscv.reg"
+
+    @classmethod
+    def instruction_set_name(cls) -> str:
+        return "RV32I"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
@@ -155,6 +164,10 @@ class FloatRegisterType(RISCVRegisterType):
     """
 
     name = "riscv.freg"
+
+    @classmethod
+    def instruction_set_name(cls) -> str:
+        return "RV32F"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
@@ -1971,8 +1984,8 @@ class LabelOp(IRDLOperation, RISCVOp):
     ``` python
     @Builder.implicit_region
     def my_add():
-        a1_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A1))
-        a2_reg = TestSSAValue(riscv.RegisterType(riscv.Registers.A2))
+        a1_reg = TestSSAValue(riscv.Registers.A1)
+        a2_reg = TestSSAValue(riscv.Registers.A2)
         riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
 
     label_op = riscv.LabelOp("label1", my_add)
@@ -2069,8 +2082,8 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
     ``` python
     s0 = riscv.GetRegisterOp(Registers.s0).res
     s1 = riscv.GetRegisterOp(Registers.s1).res
-    rs2 = riscv.RegisterType(Registers.s2)
-    rs3 = riscv.RegisterType(Registers.s3)
+    rs2 = riscv.Registers.s2
+    rs3 = riscv.Registers.s3
     op = CustomAssemblyInstructionOp("my_instr", (s0, s1), (rs2, rs3))
 
     op.assembly_line()   # "my_instr s2, s3, s0, s1"
