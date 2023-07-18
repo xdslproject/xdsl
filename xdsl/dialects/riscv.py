@@ -332,9 +332,14 @@ class RISCVOp(Operation, ABC):
 
     @classmethod
     def parse_operands(cls, parser: Parser) -> Sequence[SSAValue]:
-        operands = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_operand
-        )
+        operands = list[SSAValue]()
+        if (operand := parser.parse_optional_operand()) is not None:
+            operands.append(operand)
+            while (
+                parser.parse_optional_punctuation(",") is not None
+                and (operand := parser.parse_optional_operand()) is not None
+            ):
+                operands.append(operand)
         return operands
 
     @classmethod
@@ -384,9 +389,9 @@ class RISCVOp(Operation, ABC):
         self.print_types(printer)
 
     def print_operands(self, printer: Printer) -> None:
-        printer.print("(")
+        if self.operands:
+            printer.print(" ")
         printer.print_list(self.operands, printer.print_ssa_value)
-        printer.print(")")
 
     def print_successors(self, printer: Printer) -> None:
         printer.print_successors(self.successors)
