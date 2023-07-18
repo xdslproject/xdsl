@@ -13,7 +13,7 @@ index = IndexType()
 @ModuleOp
 @Builder.implicit_region
 def my_module():
-    @Builder.implicit_region((riscv.RegisterType(riscv.Register()),))
+    @Builder.implicit_region((riscv.IntRegisterType.unallocated(),))
     def body(args: tuple[BlockArgument, ...]) -> None:
         riscv_func.ReturnOp(args)
 
