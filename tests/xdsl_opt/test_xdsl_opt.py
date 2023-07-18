@@ -6,7 +6,7 @@ import pytest
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
-from xdsl.tools.xdsl_tool import get_all_dialects
+from xdsl.tools.command_line_tool import get_all_dialects
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.xdsl_opt_main import get_all_passes, xDSLOptMain
 

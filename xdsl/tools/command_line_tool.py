@@ -113,7 +113,7 @@ def get_all_passes() -> list[type[ModulePass]]:
     ]
 
 
-class xDSLTool:
+class CommandLineTool:
     ctx: MLContext
     args: argparse.Namespace
     """

@@ -8,12 +8,12 @@ from xdsl.dialects.riscv import print_assembly, riscv_code
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.printer import Printer
-from xdsl.tools.xdsl_tool import get_all_passes, xDSLTool
+from xdsl.tools.command_line_tool import CommandLineTool, get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 
-class xDSLOptMain(xDSLTool):
+class xDSLOptMain(CommandLineTool):
     available_passes: Dict[str, Type[ModulePass]]
     """
     A mapping from pass names to functions that apply the pass to a ModuleOp.
