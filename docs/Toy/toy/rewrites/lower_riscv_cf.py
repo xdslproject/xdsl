@@ -14,7 +14,7 @@ from xdsl.pattern_rewriter import (
 
 
 def cast_value_to_register(operand: SSAValue, rewriter: PatternRewriter) -> OpResult:
-    types = (riscv.RegisterType(riscv.Register()),)
+    types = (riscv.IntRegisterType.unallocated(),)
     cast = builtin.UnrealizedConversionCastOp.get((operand,), types)
     rewriter.insert_op_before_matched_op(cast)
     return cast.results[0]

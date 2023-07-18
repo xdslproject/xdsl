@@ -47,7 +47,7 @@ class LowerArithConstant(RewritePattern):
             if isinstance(op.result.type, Float32Type):
                 lui = riscv.LiOp(
                     convert_float_to_int(op.value.value.data),
-                    rd=riscv.RegisterType(riscv.Register()),
+                    rd=riscv.IntRegisterType.unallocated(),
                 )
                 fld = riscv.FCvtSWOp(lui.rd)
                 rewriter.replace_op(op, [lui, fld])

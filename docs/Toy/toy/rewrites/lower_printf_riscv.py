@@ -25,7 +25,7 @@ class LowerPrintOp(RewritePattern):
                 rows := riscv.LiOp(shape[0]),
                 cols := riscv.LiOp(shape[1]),
                 input := UnrealizedConversionCastOp.get(
-                    (param,), (riscv.RegisterType(riscv.Register()),)
+                    (param,), (riscv.IntRegisterType.unallocated(),)
                 ),
                 riscv.CustomAssemblyInstructionOp(
                     "tensor.print2d", (input.results[0], rows.rd, cols.rd), ()

@@ -27,7 +27,7 @@ class LowerMemrefAllocOp(RewritePattern):
                 alloc_op := riscv.CustomAssemblyInstructionOp(
                     "buffer.alloc",
                     (size_op.rd,),
-                    (riscv.RegisterType(riscv.Register()),),
+                    (riscv.IntRegisterType.unallocated(),),
                 ),
                 UnrealizedConversionCastOp.get(alloc_op.results, (memref_typ,)),
             ]
@@ -104,7 +104,7 @@ class LowerMemrefLoadOp(RewritePattern):
                     ptr, 0, comment=f"load value from memref of shape {shape}"
                 ),
                 UnrealizedConversionCastOp.get(
-                    lw.results, (riscv.RegisterType(riscv.Register()),)
+                    lw.results, (riscv.IntRegisterType.unallocated(),)
                 ),
             ],
         )

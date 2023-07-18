@@ -91,9 +91,9 @@ class ChangeBlockArgumentTypes(RewritePattern):
         """
         for block in op.func_body.blocks:
             for arg in block.args:
-                if not isinstance(arg.type, riscv.RegisterType):
+                if not isinstance(arg.type, riscv.IntRegisterType):
                     rewriter.modify_block_argument_type(
-                        arg, riscv.RegisterType(riscv.Register())
+                        arg, riscv.IntRegisterType.unallocated()
                     )
 
 

@@ -58,21 +58,21 @@ parser.add_argument("--accelerate", dest="accelerate", action="store_true")
 
 @register_impls
 class BufferMemrefConversion(InterpreterFunctions):
-    @impl_cast(riscv.RegisterType, memref.MemRefType[Float64Type])
+    @impl_cast(riscv.IntRegisterType, memref.MemRefType[Float64Type])
     def cast_buffer_to_memref(
         self,
-        input_type: riscv.RegisterType,
+        input_type: riscv.IntRegisterType,
         output_type: memref.MemRefType[Float64Type],
         value: Any,
     ) -> Any:
         shape = output_type.get_shape()
         return ShapedArrayBuffer(value.data, list(shape))
 
-    @impl_cast(memref.MemRefType[Float64Type], riscv.RegisterType)
+    @impl_cast(memref.MemRefType[Float64Type], riscv.IntRegisterType)
     def cast_memref_to_buffer(
         self,
         input_type: memref.MemRefType[Float64Type],
-        output_type: riscv.RegisterType,
+        output_type: riscv.IntRegisterType,
         value: Any,
     ) -> Any:
         return Buffer(value.data)

@@ -3,7 +3,11 @@ from typing import Sequence
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import StringAttr
-from xdsl.dialects.riscv import AssemblyInstructionArg, RegisterType, RISCVInstruction
+from xdsl.dialects.riscv import (
+    AssemblyInstructionArg,
+    IntRegisterType,
+    RISCVInstruction,
+)
 from xdsl.ir.core import Block, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -69,11 +73,11 @@ class BranchOperation(IRDLOperation, RISCVInstruction, ABC):
     A base class for RISC-V branch operations. Lowers to RsRsOffOperation.
     """
 
-    rs1: Operand = operand_def(RegisterType)
-    rs2: Operand = operand_def(RegisterType)
+    rs1: Operand = operand_def(IntRegisterType)
+    rs2: Operand = operand_def(IntRegisterType)
 
-    then_arguments: VarOperand = var_operand_def(RegisterType)
-    else_arguments: VarOperand = var_operand_def(RegisterType)
+    then_arguments: VarOperand = var_operand_def(IntRegisterType)
+    else_arguments: VarOperand = var_operand_def(IntRegisterType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -241,7 +245,7 @@ class JOp(IRDLOperation, RISCVInstruction):
 
     name = "riscv_cf.j"
 
-    block_arguments: VarOperand = var_operand_def(RegisterType)
+    block_arguments: VarOperand = var_operand_def(IntRegisterType)
 
     successor = successor_def()
 
