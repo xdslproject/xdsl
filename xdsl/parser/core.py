@@ -638,6 +638,8 @@ class Parser(AttrParser):
         """
         Parse the list of operation regions.
         If no regions are present, returns an empty list.
+        Parse a list of regions with format:
+           regions-list ::= `(` region (`,` region)* `)`
         """
         if self._current_token.kind == Token.Kind.L_PAREN:
             return self.parse_comma_separated_list(
