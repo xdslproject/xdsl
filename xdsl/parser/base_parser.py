@@ -4,7 +4,7 @@ that is inherited from the different parsers used in xDSL.
 """
 
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 from typing import Callable, Iterable, NoReturn, TypeVar, overload
 
 from xdsl.utils.exceptions import ParseError
@@ -172,11 +172,11 @@ class BaseParser:
         Supported delimiters when parsing lists.
         """
 
-        PAREN = auto()
-        ANGLE = auto()
-        SQUARE = auto()
-        BRACES = auto()
-        NONE = auto()
+        PAREN = ("(", ")")
+        ANGLE = ("<", ">")
+        SQUARE = ("[", "]")
+        BRACES = ("{", "}")
+        NONE = None
 
     def parse_comma_separated_list(
         self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
@@ -187,43 +187,84 @@ class BaseParser:
         closed, or when an error is produced. If no delimiter is specified, at
         least one element is expected to be parsed.
         """
-        if delimiter == self.Delimiter.NONE:
-            pass
-        elif delimiter == self.Delimiter.PAREN:
-            self._parse_token(Token.Kind.L_PAREN, "Expected '('" + context_msg)
-            if self._parse_optional_token(Token.Kind.R_PAREN) is not None:
-                return []
-        elif delimiter == self.Delimiter.ANGLE:
-            self._parse_token(Token.Kind.LESS, "Expected '<'" + context_msg)
-            if self._parse_optional_token(Token.Kind.GREATER) is not None:
-                return []
-        elif delimiter == self.Delimiter.SQUARE:
-            self._parse_token(Token.Kind.L_SQUARE, "Expected '['" + context_msg)
-            if self._parse_optional_token(Token.Kind.R_SQUARE) is not None:
-                return []
-        elif delimiter == self.Delimiter.BRACES:
-            self._parse_token(Token.Kind.L_BRACE, "Expected '{'" + context_msg)
-            if self._parse_optional_token(Token.Kind.R_BRACE) is not None:
-                return []
-        else:
-            assert False, "Unknown delimiter"
+        # Parse the opening bracket, and possibly the closing bracket, if a delimiter
+        # was provided
+        match delimiter.value:
+            case None:
+                pass
+            case (left_punctuation, right_punctuation):
+                self.parse_punctuation(left_punctuation, context_msg)
+                if self.parse_optional_punctuation(right_punctuation) is not None:
+                    return []
 
+        # Parse the list of elements
         elems = [parse()]
         while self._parse_optional_token(Token.Kind.COMMA) is not None:
             elems.append(parse())
 
+        # Parse the closing bracket, if a delimiter was provided
+        match delimiter.value:
+            case None:
+                pass
+            case (_, right_punctuation):
+                self.parse_punctuation(right_punctuation, context_msg)
+
+        return elems
+
+    def parse_optional_comma_separated_list(
+        self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
+    ) -> list[_AnyInvT] | None:
+        """
+        Parses greedily a list of elements separated by commas, and delimited
+        by the specified delimiter. If no opening delimiter was found, return None.
+        The parsing stops when the delimiter is closed, or when an error is produced.
+        The NONE delimiter is not allowed by this method, use
+        `parse_optional_undelimited_comma_separated_list` instead.
+        """
+
         if delimiter == self.Delimiter.NONE:
-            pass
-        elif delimiter == self.Delimiter.PAREN:
-            self._parse_token(Token.Kind.R_PAREN, "Expected ')'" + context_msg)
-        elif delimiter == self.Delimiter.ANGLE:
-            self._parse_token(Token.Kind.GREATER, "Expected '>'" + context_msg)
-        elif delimiter == self.Delimiter.SQUARE:
-            self._parse_token(Token.Kind.R_SQUARE, "Expected ']'" + context_msg)
-        elif delimiter == self.Delimiter.BRACES:
-            self._parse_token(Token.Kind.R_BRACE, "Expected '}'" + context_msg)
-        else:
-            assert False, "Unknown delimiter"
+            raise ValueError(
+                "Cannot use `Delimiter.NONE` with "
+                "`parse_optional_comma_separated_list`. Use "
+                "`parse_optional_undelimited_comma_separated_list` instead."
+            )
+
+        # Parse the opening bracket, and possibly the closing bracket
+        left_punctuation, right_punctuation = delimiter.value
+        if self.parse_optional_punctuation(left_punctuation) is None:
+            return None
+        if self.parse_optional_punctuation(right_punctuation) is not None:
+            return []
+
+        # Parse the list of elements
+        elems = [parse()]
+        while self._parse_optional_token(Token.Kind.COMMA) is not None:
+            elems.append(parse())
+
+        # Parse the closing bracket
+        self.parse_punctuation(right_punctuation, context_msg)
+
+        return elems
+
+    def parse_optional_undelimited_comma_separated_list(
+        self,
+        parse_optional: Callable[[], _AnyInvT | None],
+        parse: Callable[[], _AnyInvT],
+    ) -> list[_AnyInvT] | None:
+        """
+        Parses greedily a list of elements separated by commas, and delimited
+        by the specified delimiter. Return None if no elements were parsed.
+        """
+        # Parse the first element, if it exist
+        first_elem = parse_optional()
+        if first_elem is None:
+            return None
+        elems = parse_optional()
+
+        # Parse the remaining elements
+        elems = [first_elem]
+        while self._parse_optional_token(Token.Kind.COMMA) is not None:
+            elems.append(parse())
 
         return elems
 
