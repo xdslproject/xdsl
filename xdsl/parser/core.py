@@ -791,7 +791,7 @@ class Parser(AttrParser):
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
         """
         # Parse arguments
-        args = self._parse_op_args_list()
+        args = self.parse_op_args_list()
 
         # Parse successors
         successors = self.parse_optional_successors()
@@ -878,7 +878,7 @@ class Parser(AttrParser):
             lambda: self.expect(self.parse_successor, "block-id expected"),
         )
 
-    def _parse_op_args_list(self) -> list[UnresolvedOperand]:
+    def parse_op_args_list(self) -> list[UnresolvedOperand]:
         """
         Parse a list of arguments with format:
            args-list ::= `(` value-use-list? `)`
