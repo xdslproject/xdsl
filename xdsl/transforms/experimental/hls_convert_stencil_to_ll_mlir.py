@@ -63,7 +63,7 @@ class StencilAccessToGEP(RewritePattern):
 class StencilExternalLoadToHLSExternalLoad(RewritePattern):
     module: builtin.ModuleOp
     shift_streams: list
-    load_data_declaration: bool = True
+    load_data_declaration: bool = False
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
