@@ -777,7 +777,7 @@ class Parser(AttrParser):
     def _parse_op_result_list(self) -> list[tuple[Span, int]]:
         """
         Parse the list of operation results.
-        If no results are present, return an empty list.
+        If no results are present, returns an empty list.
         Each result is a tuple of the span of the SSA value name (including the `%`),
         and the size of the value tuple (by default 1).
         """
