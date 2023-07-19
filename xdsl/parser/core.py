@@ -6,7 +6,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence, cast
 
-from xdsl.dialects.builtin import DictionaryAttr, ModuleOp, UnregisteredAttr
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DictionaryAttr,
+    ModuleOp,
+    UnregisteredAttr,
+)
 from xdsl.ir import (
     Attribute,
     Block,
@@ -792,6 +797,32 @@ class Parser(AttrParser):
     def parse_optional_attr_dict(self) -> dict[str, Attribute]:
         return self.parse_optional_dictionary_attr_dict()
 
+    def resolve_operands(
+        self, args: list[UnresolvedOperand], input_types: ArrayAttr[Attribute]
+    ) -> list[SSAValue]:
+        """
+        Resolve unresolved operands. For each operand in `args` and its corresponding input
+        type the following happens:
+
+        If the operand is not yet defined, it creates a forward reference.
+        If the operand is already defined, it returns the corresponding SSA value,
+        and checks that the type is consistent.
+
+        If the length of args and input_types does not match, an error is raised at
+        the current location.
+        """
+        func_type_pos = self._current_token.span.start
+        if len(args) != len(input_types):
+            self.raise_error(
+                f"expected {len(input_types)} operand types but had {len(args)}",
+                func_type_pos,
+            )
+
+        return [
+            self.resolve_operand(operand, type)
+            for operand, type in zip(args, input_types)
+        ]
+
     def _parse_generic_operation(self, op_type: type[Operation]) -> Operation:
         """
         Parse an operation with format:
@@ -819,23 +850,12 @@ class Parser(AttrParser):
 
         self.parse_punctuation(":", "function type signature expected")
 
-        func_type_pos = self._current_token.span.start
-
         # Parse function type
         func_type = self.parse_function_type()
 
-        if len(args) != len(func_type.inputs):
-            self.raise_error(
-                f"expected {len(func_type.inputs)} operand types but had {len(args)}",
-                func_type_pos,
-            )
+        operands = self.resolve_operands(args, func_type.inputs)
 
         self._parse_optional_location()
-
-        operands = [
-            self.resolve_operand(operand, type)
-            for operand, type in zip(args, func_type.inputs)
-        ]
 
         return op_type.create(
             operands=operands,
