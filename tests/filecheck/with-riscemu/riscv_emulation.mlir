@@ -24,6 +24,7 @@ builtin.module {
     "riscv.custom_assembly_instruction"(%3) {"instruction_name" = "print"} : (!riscv.reg<a0>) -> ()
     %4 = "riscv.li"() {"immediate" = 93 : si32} : () -> !riscv.reg<a7>
     "riscv.ecall"() : () -> ()
+    "riscv.ret"() : () -> ()
   }) {"label" = #riscv.label<"main">} : () -> ()
   "riscv.label"() ({
     "riscv.comment"() {"comment" = "no extra registers needed, so no need to deal with stack"} : () -> ()
