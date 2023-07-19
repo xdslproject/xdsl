@@ -853,9 +853,9 @@ class Parser(AttrParser):
         # Parse function type
         func_type = self.parse_function_type()
 
-        operands = self.resolve_operands(args, func_type.inputs)
-
         self._parse_optional_location()
+
+        operands = self.resolve_operands(args, func_type.inputs)
 
         return op_type.create(
             operands=operands,
