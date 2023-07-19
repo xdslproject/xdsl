@@ -227,7 +227,7 @@ class Printer:
 
         self.print(f"%{name}")
 
-    def _print_operand(self, operand: SSAValue) -> None:
+    def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
     def print_block_name(self, block: Block) -> None:
@@ -306,16 +306,16 @@ class Printer:
         self.print_list(regions, self.print_region)
         self.print(")")
 
-    def _print_operands(self, operands: Sequence[SSAValue]) -> None:
+    def print_operands(self, operands: Sequence[SSAValue]) -> None:
         if len(operands) == 0:
             self.print("()")
             return
 
         self.print("(")
-        self._print_operand(operands[0])
+        self.print_operand(operands[0])
         for operand in operands[1:]:
             self.print(", ")
-            self._print_operand(operand)
+            self.print_operand(operand)
         self.print(")")
 
     def print_paramattr_parameters(
@@ -660,7 +660,7 @@ class Printer:
         self.print("}")
 
     def print_op_with_default_format(self, op: Operation) -> None:
-        self._print_operands(op.operands)
+        self.print_operands(op.operands)
         self.print_successors(op.successors)
 
         self.print_regions(op.regions)
