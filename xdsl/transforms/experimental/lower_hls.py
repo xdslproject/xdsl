@@ -22,7 +22,14 @@ from xdsl.dialects.experimental.hls import (
     HLSStreamRead,
 )
 from xdsl.dialects import llvm
-from xdsl.dialects.llvm import AllocaOp, LLVMPointerType, GEPOp, LLVMStructType
+from xdsl.dialects.llvm import (
+    AllocaOp,
+    LLVMPointerType,
+    GEPOp,
+    LLVMStructType,
+    LoadOp,
+    StoreOp,
+)
 
 from xdsl.passes import ModulePass
 
@@ -56,11 +63,18 @@ class LowerHLSStreamRead(RewritePattern):
             self.module.body.block.add_op(pop_func)
 
             self.set_stream_depth_declaration = True
+        size = Constant.from_int_and_width(1, i32)
+
+        alloca = AllocaOp.get(size, *elem_type)
+
         gep = GEPOp.get(op.stream, [0, 0], result_type=p_elem_type)
 
         pop_call = func.Call.get("llvm.fpga.fifo.pop.stencil", [gep], [op.res.typ])
 
-        rewriter.replace_matched_op([gep, pop_call])
+        store = StoreOp.get(pop_call, alloca)
+        load = LoadOp.get(alloca)
+
+        rewriter.replace_matched_op([size, alloca, gep, pop_call, store, load])
 
 
 @dataclass
@@ -118,7 +132,6 @@ class PragmaPipelineToFunc(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: PragmaPipeline, rewriter: PatternRewriter, /):
         # TODO: can we retrieve data directly without having to go through IntegerAttr -> IntAttr?
-        # print("---->: ", op.ii.owner)
         # ii : i32 = op.ii.owner.value.value.data
         ii = cast(Any, op.ii.owner).value.value.data
 
@@ -191,7 +204,6 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
         res: VarOpResult = op.res
 
         for i in range(len(lb)):
-            # print(lb[i])
             cast(OpResult, lb[i]).op.detach()
             cast(OpResult, ub[i]).op.detach()
             cast(OpResult, step[i]).op.detach()

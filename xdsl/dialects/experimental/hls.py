@@ -114,8 +114,8 @@ class HLSStreamRead(IRDLOperation):
     stream: Operand = operand_def(HLSStreamType)
     res: OpResult = result_def(AnyAttr())
 
-    def __init__(self, stream: HLSStreamType):
-        super().__init__(operands=[stream], result_types=[stream.elem_type])
+    def __init__(self, stream: SSAValue | Operation):
+        super().__init__(operands=[stream], result_types=[stream.typ.element_type])
 
 
 HLS = Dialect(
