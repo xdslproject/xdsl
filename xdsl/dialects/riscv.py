@@ -851,7 +851,9 @@ class NullaryOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def parse(cls: type[Self], parser: Parser) -> Self:
         attrs = parser.parse_optional_attr_dict()
-        return cls.create(attributes=attrs)
+        op = cls()
+        op.attributes.update(attrs)
+        return op
 
 
 class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
