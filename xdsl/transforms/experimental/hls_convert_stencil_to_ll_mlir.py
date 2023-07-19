@@ -211,8 +211,8 @@ class ApplyOpToHLS(RewritePattern):
                 isinstance(_operand.op, HLSStream)
                 and _operand.op.attributes["inout"].value.data is IN
             ):
-                i += 1
                 indices_stream_to_read.append(i)
+            i += 1
 
         for arg_index in indices_stream_to_read:
             stream_to_read = op.region.block.args[arg_index]
