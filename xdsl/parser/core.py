@@ -634,6 +634,19 @@ class Parser(AttrParser):
             self.raise_error("Expected region!")
         return region
 
+    def parse_region_list(self) -> list[Region]:
+        """
+        Parse the list of operation regions.
+        If no regions are present, return an empty list.
+        Parse a list of regions with format:
+           regions-list ::= `(` region (`,` region)* `)`
+        """
+        if self._current_token.kind == Token.Kind.L_PAREN:
+            return self.parse_comma_separated_list(
+                self.Delimiter.PAREN, self.parse_region, " in operation region list"
+            )
+        return []
+
     def parse_op(self) -> Operation:
         return self.parse_operation()
 
@@ -799,11 +812,7 @@ class Parser(AttrParser):
             successors = []
 
         # Parse regions
-        regions = []
-        if self._current_token.kind == Token.Kind.L_PAREN:
-            regions = self.parse_comma_separated_list(
-                self.Delimiter.PAREN, self.parse_region, " in operation region list"
-            )
+        regions = self.parse_region_list()
 
         # Parse attribute dictionary
         attrs = self.parse_optional_attr_dict()

@@ -163,11 +163,11 @@ class AttrParser(BaseParser):
         return name, self.parse_attribute()
 
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
-        if self._current_token.kind != Token.Kind.L_BRACE:
-            return dict()
-        attrs = self.parse_comma_separated_list(
+        attrs = self.parse_optional_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
         )
+        if attrs is None:
+            return dict()
         return dict(attrs)
 
     def _parse_dialect_type_or_attribute_inner(
@@ -841,10 +841,10 @@ class AttrParser(BaseParser):
         For instance, [[0, 1, 2], [3, 4, 5]] will return [0, 1, 2, 3, 4, 5] for
         the data, and [2, 3] for the shape.
         """
-        if self._current_token.kind == Token.Kind.L_SQUARE:
-            res = self.parse_comma_separated_list(
-                self.Delimiter.SQUARE, self._parse_tensor_literal
-            )
+        res = self.parse_optional_comma_separated_list(
+            self.Delimiter.SQUARE, self._parse_tensor_literal
+        )
+        if res is not None:
             if len(res) == 0:
                 return [], [0]
             sub_literal_shape = res[0][1]
@@ -978,11 +978,11 @@ class AttrParser(BaseParser):
         Parse an array attribute, if present, with format:
             array-attr ::= `[` (attribute (`,` attribute)*)? `]`
         """
-        if self._current_token.kind != Token.Kind.L_SQUARE:
-            return None
-        attrs = self.parse_comma_separated_list(
+        attrs = self.parse_optional_comma_separated_list(
             self.Delimiter.SQUARE, self.parse_attribute
         )
+        if attrs is None:
+            return None
         return ArrayAttr(attrs)
 
     def parse_function_type(self) -> FunctionType:
@@ -1011,22 +1011,21 @@ class AttrParser(BaseParser):
         self.parse_punctuation("->")
 
         # Parse the returns
-        if self._current_token.kind == Token.Kind.L_PAREN:
-            returns = self.parse_comma_separated_list(
-                self.Delimiter.PAREN, self.parse_type
-            )
-        else:
+        returns = self.parse_optional_comma_separated_list(
+            self.Delimiter.PAREN, self.parse_type
+        )
+        if returns is None:
             returns = [self.parse_type()]
         return FunctionType.from_lists(args, returns)
 
     def parse_paramattr_parameters(
         self, skip_white_space: bool = True
     ) -> list[Attribute]:
-        if self._current_token.kind != Token.Kind.LESS:
-            return []
-        res = self.parse_comma_separated_list(
+        res = self.parse_optional_comma_separated_list(
             self.Delimiter.ANGLE, self.parse_attribute
         )
+        if res is None:
+            return []
         return res
 
     def _parse_optional_builtin_dict_attr(self) -> DictionaryAttr | None:
