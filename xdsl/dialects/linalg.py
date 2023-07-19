@@ -8,9 +8,11 @@ from xdsl.dialects.builtin import (
     AnyShapedType,
     AnyTensorType,
     ArrayAttr,
+    ShapedType,
     StringAttr,
 )
 from xdsl.ir import Attribute, Data, Dialect, Operation, Region, SSAValue
+from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -102,6 +104,69 @@ class Generic(IRDLOperation):
             },
             regions=[body],
         )
+
+    def get_indexing_maps(self) -> list[AffineMap]:
+        return [attr.data for attr in self.indexing_maps]
+
+    def get_num_loops(self) -> int:
+        return self.indexing_maps.data[0].data.num_dims
+
+    def get_loops_to_shapes_map(self) -> AffineMap:
+        """
+        Returns a map to answer the question: "given an iteration space over
+        the codomain, what are the subshapes of the operands involved in the
+        computation".
+        The default behavior is to just concatenate all the indexing maps.
+        """
+        result_exprs = [res for map in self.get_indexing_maps() for res in map.results]
+
+        dims = self.get_num_loops()
+
+        # FIXME: Support symbols.
+        for map in self.get_indexing_maps():
+            if map.num_symbols != 0:
+                raise NotImplementedError(
+                    "Indexing maps with symbols not supported for now."
+                )
+
+        syms = 0
+        return AffineMap(dims, syms, result_exprs)
+
+    def get_shapes_to_loops_map(self) -> AffineMap:
+        """
+        Returns a map to answer the question: "Given a list of operand ranges,
+        what is the subportion of the iteration space involved in the
+        computation". This is the inverse problem of `get_loops_to_shapes_map`.
+        Return the empty AffineMap when such an AffineMap cannot be
+        constructed. The default behavior is based on a very simple inference
+        procedure that only works with permutation affine maps. A more advanced
+        Tensor-Comprehension like inference is possible but has proven to be
+        ambiguous in unfavorable case. A safer and more robust alternative is
+        to allow each op to define its own AffineMap.
+        """
+        loops_to_shapes = self.get_loops_to_shapes_map()
+        inverse = loops_to_shapes.inverse_permutation()
+        if not inverse:
+            raise NotImplementedError(
+                "Non-invertible maps need dynamic shapes, which are not implemented."
+            )
+        return inverse
+
+    def get_static_shapes(self) -> list[int]:
+        sizes: list[int] = []
+        for input in self.inputs:
+            if isinstance(input.type, ShapedType):
+                for dim in input.type.get_shape():
+                    sizes.append(dim)
+        for output in self.outputs:
+            if isinstance(output.type, ShapedType):
+                for dim in output.type.get_shape():
+                    sizes.append(dim)
+        return sizes
+
+    def get_static_loop_ranges(self) -> list[int]:
+        shapes_to_loops = self.get_shapes_to_loops_map()
+        return shapes_to_loops.eval(self.get_static_shapes(), [])
 
 
 @irdl_op_definition

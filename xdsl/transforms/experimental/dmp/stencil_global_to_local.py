@@ -4,8 +4,7 @@ from typing import Callable, ClassVar, Iterable, TypeVar, cast
 
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
 from xdsl.dialects.experimental import dmp
-from xdsl.ir import Block, MLContext, Operation, OpResult, Region, SSAValue
-from xdsl.irdl import Attribute
+from xdsl.ir import Attribute, Block, MLContext, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

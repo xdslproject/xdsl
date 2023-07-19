@@ -12,12 +12,11 @@ from xdsl.dialects.builtin import (
     UnitAttr,
 )
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
+from xdsl.ir.core import OpResult
 from xdsl.irdl import (
-    Attribute,
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
-    OpResult,
     OptOperand,
     OptOpResult,
     ParameterDef,

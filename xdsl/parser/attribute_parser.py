@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     AnyArrayAttr,
     AnyFloat,
     AnyFloatAttr,
+    AnyIntegerAttr,
     AnyTensorType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -46,7 +47,7 @@ from xdsl.dialects.builtin import (
     VectorType,
     i64,
 )
-from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
+from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap
 from xdsl.parser.base_parser import BaseParser
@@ -984,18 +985,18 @@ class AttrParser(BaseParser):
             return None
         return ArrayAttr(attrs)
 
-    def _parse_function_type(self) -> FunctionType:
+    def parse_function_type(self) -> FunctionType:
         """
         Parse a function type.
             function-type ::= type-list `->` (type | type-list)
             type-list     ::= `(` `)` | `(` type (`,` type)* `)`
         """
         return self.expect(
-            self._parse_optional_function_type,
+            self.parse_optional_function_type,
             "function type expected",
         )
 
-    def _parse_optional_function_type(self) -> FunctionType | None:
+    def parse_optional_function_type(self) -> FunctionType | None:
         """
         Parse a function type, if present.
             function-type ::= type-list `->` (type | type-list)
@@ -1105,7 +1106,7 @@ class AttrParser(BaseParser):
         """
 
         # Check for a function type
-        if (function_type := self._parse_optional_function_type()) is not None:
+        if (function_type := self.parse_optional_function_type()) is not None:
             return function_type
 
         # Check for an integer or float type
