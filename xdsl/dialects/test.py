@@ -6,6 +6,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     VarRegion,
+    VarSuccessor,
     irdl_attr_definition,
     irdl_op_definition,
     var_operand_def,
