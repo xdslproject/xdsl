@@ -112,11 +112,21 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         shift_shape_x = arith.Subi(shape_x, two_int)
         data_stream = HLSStream.get(data_type)
         stencil_stream = HLSStream.get(stencil_type)
+        copy_stencil_stream = HLSStream.get(stencil_type)
+
+        one_int = Constant.from_int_and_width(1, i32)
+        four_int = Constant.from_int_and_width(4, i32)
+        copy_shift_x = arith.Subi(shape_x, four_int)
+        copy_shift_y = arith.Subi(shape_y, four_int)
+        copy_shift_z = arith.Subi(shape_z, one_int)
+        prod_x_y = arith.Muli(copy_shift_x, copy_shift_y)
+        copy_n = arith.Muli(prod_x_y, copy_shift_z)
 
         inout = op.attributes["inout"].value.data
 
         data_stream.attributes["inout"] = op.attributes["inout"]
         stencil_stream.attributes["inout"] = op.attributes["inout"]
+        copy_stencil_stream.attributes["inout"] = op.attributes["inout"]
 
         threedload_call = Call.get(
             "load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
@@ -128,13 +138,18 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             [],
         )
 
-        self.shift_streams.append(stencil_stream)
+        duplicateStream_call = Call.get(
+            "duplicateStream",
+            [stencil_stream, copy_stencil_stream, copy_n],
+            [],
+        )
 
         if inout is IN:
             rewriter.insert_op_before_matched_op(
                 [
                     data_stream,
                     stencil_stream,
+                    copy_stencil_stream,
                     shape_x,
                     shape_y,
                     shape_z,
@@ -142,14 +157,24 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
                     shift_shape_x,
                     threedload_call,
                     shift_buffer_call,
+                    one_int,
+                    four_int,
+                    copy_shift_x,
+                    copy_shift_y,
+                    copy_shift_z,
+                    prod_x_y,
+                    copy_n,
+                    duplicateStream_call,
                 ]
             )
+            self.shift_streams.append(copy_stencil_stream)
         elif inout is OUT:
             rewriter.insert_op_before_matched_op(
                 [
                     stencil_stream,
                 ]
             )
+            self.shift_streams.append(stencil_stream)
 
         if not self.load_data_declaration:
             load_data_func = FuncOp.external(
@@ -182,6 +207,20 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
                 [],
             )
             self.module.body.block.add_op(shift_buffer_func)
+            duplicateStream_func = FuncOp.external(
+                "duplicateStream",
+                [
+                    LLVMPointerType.typed(
+                        LLVMStructType.from_type_list([stencil_stream.elem_type])
+                    ),
+                    LLVMPointerType.typed(
+                        LLVMStructType.from_type_list([stencil_stream.elem_type])
+                    ),
+                    i32,
+                ],
+                [],
+            )
+            self.module.body.block.add_op(duplicateStream_func)
 
             self.load_data_declaration = True
 
