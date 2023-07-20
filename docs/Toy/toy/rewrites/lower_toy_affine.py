@@ -73,7 +73,7 @@ def build_affine_for(
     body_builder_fn: _AffineForOpBodyBuilderFn,
 ) -> affine.For:
     """
-    'bodyBuilder' is used to build the body of affine.for.
+    `body_builder_fn` is used to build the body of affine.for.
     """
 
     assert (
