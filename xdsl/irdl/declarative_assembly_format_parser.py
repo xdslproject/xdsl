@@ -15,6 +15,8 @@ from xdsl.irdl.declarative_assembly_format import (
     FormatDirective,
     FormatProgram,
     KeywordDirective,
+    OperandTypeDirective,
+    OperandVariable,
     PunctuationDirective,
 )
 from xdsl.parser import BaseParser, ParserState
@@ -128,6 +130,58 @@ class FormatParser(BaseParser):
         if not self.has_attr_dict:
             self.raise_error("'attr-dict' directive not found")
 
+    def parse_optional_variable(self) -> FormatDirective | None:
+        """
+        Parse a variable, if present, with the following format:
+          variable ::= `$` bare-ident
+        The variable should refer to an operand, attribute, region, result, or succesor.
+        """
+        if self._current_token.text[0] != "$":
+            return None
+        self._consume_token()
+        variable_name = self.parse_identifier(" after '$'")
+
+        # Check if the variable is an operand
+        for idx, (operand_name, _) in enumerate(self.op_def.operands):
+            if variable_name != operand_name:
+                continue
+            if self.context == ParsingContext.TopLevel:
+                if self.seen_operands[idx]:
+                    self.raise_error(f"operand '{variable_name}' is already bound")
+                self.seen_operands[idx] = True
+            return OperandVariable(variable_name, idx)
+        self.raise_error(
+            "expected variable to refer to an operand, "
+            "attribute, region, result, or successor"
+        )
+
+    def parse_type_directive(self) -> FormatDirective:
+        """
+        Parse a type directive with the following format:
+          type-directive ::= `type` `(` variable `)`
+        `type` is expected to have already been parsed
+        """
+        self.parse_punctuation("(")
+
+        # Update the current context, since we are now in a type directive
+        previous_context = self.context
+        self.context = ParsingContext.TypeDirective
+
+        variable = self.parse_optional_variable()
+        if variable is None:
+            self.raise_error("'type' directive expects a variable argument")
+        if isinstance(variable, OperandVariable):
+            if self.seen_operand_types[variable.index]:
+                self.raise_error(f"'type' of '{variable.name}' is already bound")
+            self.seen_operand_types[variable.index] = True
+            res = OperandTypeDirective(variable.name, variable.index)
+        else:
+            assert False, "Unknown variable in declarative assembly format"
+
+        self.parse_punctuation(")")
+        self.context = previous_context
+        return res
+
     def parse_keyword_or_punctuation(self) -> FormatDirective:
         """
         Parse a keyword or a punctuation directive, with the following format:
@@ -163,8 +217,12 @@ class FormatParser(BaseParser):
             return self.create_attr_dict_directive(False)
         if self.parse_optional_keyword("attr-dict-with-keyword"):
             return self.create_attr_dict_directive(True)
+        if self.parse_optional_keyword("type"):
+            return self.parse_type_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
+        if variable := self.parse_optional_variable():
+            return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
     def create_attr_dict_directive(self, with_keyword: bool) -> AttrDictDirective:
