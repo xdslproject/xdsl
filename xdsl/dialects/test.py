@@ -11,6 +11,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_region_def,
     var_result_def,
+    var_successor_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -45,6 +46,7 @@ class TestTermOp(TestOp):
     """
 
     name = "test.termop"
+    succs: VarSuccessor = var_successor_def()
 
     traits = frozenset([IsTerminator()])
 
