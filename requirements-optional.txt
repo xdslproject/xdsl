@@ -12,7 +12,6 @@ ruff==0.0.278
 riscemu==2.1.0
 asv<0.6
 isort==5.12.0
-# pyright has to be the last line and fixed with `==`. The CI parses this file
-# in `.github/parse_pyright_version.py` and installs the according version for
-# typechecking.
+# pyright version has to be fixed with `==`. The CI parses this file
+# and installs the according version for typechecking.
 pyright==1.1.317
