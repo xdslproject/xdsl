@@ -5,6 +5,7 @@ builtin.module {
     "func.func"() ({
         %4 = arith.constant 52 : i32
         "printf.print_char"(%4) : (i32) -> ()
+        "printf.print_int"(%4) : (i32) -> ()
 	"func.return"() : () -> ()
     }) {"sym_name" = "main", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
 }
