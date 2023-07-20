@@ -42,7 +42,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -330,6 +330,28 @@ class RISCVOp(Operation, ABC):
     @abstractmethod
     def assembly_line(self) -> str | None:
         raise NotImplementedError()
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        args = parser.parse_op_args_list()
+        regions = parser.parse_region_list()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        func_type = parser.parse_function_type()
+        operands = parser.resolve_operands(args, func_type.inputs.data, parser.pos)
+        return cls.create(
+            operands=operands,
+            result_types=func_type.outputs.data,
+            attributes=attributes,
+            regions=regions,
+        )
+
+    def print(self, printer: Printer) -> None:
+        printer.print_operands(self.operands)
+        printer.print_regions(self.regions)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print_operation_type(self)
 
 
 AssemblyInstructionArg: TypeAlias = (

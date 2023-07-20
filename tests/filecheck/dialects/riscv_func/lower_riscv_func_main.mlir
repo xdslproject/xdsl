@@ -7,10 +7,10 @@
         "riscv_func.return"() : () -> ()
     }) {"sym_name" = "main"} : () -> ()
 
-// CHECK-NEXT:     "riscv.label"() ({
-// CHECK-NEXT:         %{{.*}} = "riscv.li"() {"immediate" = 93 : i32} : () -> !riscv.reg<a7>
-// CHECK-NEXT:         "riscv.ecall"() : () -> ()
-// CHECK-NEXT:         "riscv.ret"() : () -> ()
+// CHECK-NEXT:     riscv.label() ({
+// CHECK-NEXT:         %{{.*}} = riscv.li() {"immediate" = 93 : i32} : () -> !riscv.reg<a7>
+// CHECK-NEXT:         riscv.ecall() : () -> ()
+// CHECK-NEXT:         riscv.ret() : () -> ()
 // CHECK-NEXT:     }) {"label" = #riscv.label<"main">} : () -> ()
 
 }) : () -> ()
