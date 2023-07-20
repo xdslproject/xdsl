@@ -800,7 +800,7 @@ class Parser(AttrParser):
     def resolve_operands(
         self,
         args: Sequence[UnresolvedOperand],
-        input_types: Sequence[Attribute],
+        input_types: ArrayAttr[Attribute],
         error_pos: Position,
     ) -> Sequence[SSAValue]:
         """
