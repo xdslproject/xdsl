@@ -435,6 +435,10 @@ def irdl_to_attr_constraint(
 #       |_|
 
 IRDLOperationInvT = TypeVar("IRDLOperationInvT", bound="IRDLOperation")
+IRDLOperationCovT = TypeVar("IRDLOperationCovT", bound="IRDLOperation", covariant=True)
+IRDLOperationContrT = TypeVar(
+    "IRDLOperationContrT", bound="IRDLOperation", contravariant=True
+)
 
 
 class IRDLOperation(Operation):
