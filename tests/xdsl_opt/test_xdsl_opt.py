@@ -5,6 +5,7 @@ import pytest
 
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
+from xdsl.parser import ParseError
 from xdsl.passes import ModulePass
 from xdsl.tools.command_line_tool import get_all_dialects
 from xdsl.utils.exceptions import DiagnosticException
@@ -156,7 +157,7 @@ def test_diagnostic_exception():
 
     opt = xDSLOptMain(args=[filename_in])
 
-    with pytest.raises(DiagnosticException):
+    with pytest.raises(ParseError):
         opt.run()
 
 
