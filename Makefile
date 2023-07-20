@@ -56,7 +56,7 @@ precommit:
 
 # run pyright on all files in the current git commit
 pyright:
-	pyright $(shell git diff --staged --name-only)
+	pyright $(shell git diff --staged --name-only  -- '*.py')
 
 # run black on all files currently staged
 black:
