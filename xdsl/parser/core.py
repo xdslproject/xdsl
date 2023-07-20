@@ -798,7 +798,8 @@ class Parser(AttrParser):
         return self.parse_optional_dictionary_attr_dict()
 
     def resolve_operands(
-        self, args: list[UnresolvedOperand], input_types: ArrayAttr[Attribute]
+        self, args: list[UnresolvedOperand], input_types: ArrayAttr[Attribute],
+        error_pos: Span
     ) -> list[SSAValue]:
         """
         Resolve unresolved operands. For each operand in `args` and its corresponding input
@@ -807,7 +808,16 @@ class Parser(AttrParser):
         If the operand is not yet defined, it creates a forward reference.
         If the operand is already defined, it returns the corresponding SSA value,
         and checks that the type is consistent.
+
+        If the length of args and input_types does not match, an error is raised at
+        the the location error_pos.
         """
+        if len(args) != len(input_types):
+            self.raise_error(
+                f"expected {len(input_types)} operand types but had {len(args)}",
+                error_pos.start,
+            )
+
         return [
             self.resolve_operand(operand, type)
             for operand, type in zip(args, input_types)
@@ -840,20 +850,14 @@ class Parser(AttrParser):
 
         self.parse_punctuation(":", "function type signature expected")
 
-        func_type_pos = self._current_token.span.start
+        func_type_pos = self._current_token.span
 
         # Parse function type
         func_type = self.parse_function_type()
 
-        if len(args) != len(func_type.inputs):
-            self.raise_error(
-                f"expected {len(func_type.inputs)} operand types but had {len(args)}",
-                func_type_pos,
-            )
-
         self._parse_optional_location()
 
-        operands = self.resolve_operands(args, func_type.inputs)
+        operands = self.resolve_operands(args, func_type.inputs, func_type_pos)
 
         return op_type.create(
             operands=operands,
