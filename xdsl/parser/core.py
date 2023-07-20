@@ -799,7 +799,7 @@ class Parser(AttrParser):
     def resolve_operands(
         self,
         args: Sequence[UnresolvedOperand],
-        input_types: Iterable[Attribute],
+        input_types: Sequence[Attribute],
         error_pos: Position,
     ) -> Sequence[SSAValue]:
         """
@@ -859,7 +859,7 @@ class Parser(AttrParser):
 
         self._parse_optional_location()
 
-        operands = self.resolve_operands(args, func_type.inputs, func_type_pos)
+        operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 
         return op_type.create(
             operands=operands,
