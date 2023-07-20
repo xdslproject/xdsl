@@ -811,11 +811,12 @@ class Parser(AttrParser):
         and checks that the type is consistent.
 
         If the length of args and input_types does not match, an error is raised at
-        the the location error_pos.
+        the location error_pos.
         """
-        if len(args) != len(input_types):
+        length = len(list(input_types))
+        if len(args) != length:
             self.raise_error(
-                f"expected {len(input_types)} operand types but had {len(args)}",
+                f"expected {length} operand types but had {len(args)}",
                 error_pos,
             )
 
