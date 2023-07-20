@@ -141,11 +141,12 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
 
     @classmethod
     def parse(cls, parser: Parser):
-        lhs = parser.parse_operand()
+        lhs = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
-        rhs = parser.parse_operand()
+        rhs = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
+        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2*[result_type], parser.pos)
         return cls(lhs, rhs, result_type)
 
     def print(self, printer: Printer):
