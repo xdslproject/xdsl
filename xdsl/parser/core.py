@@ -807,17 +807,7 @@ class Parser(AttrParser):
         If the operand is not yet defined, it creates a forward reference.
         If the operand is already defined, it returns the corresponding SSA value,
         and checks that the type is consistent.
-
-        If the length of args and input_types does not match, an error is raised at
-        the current location.
         """
-        func_type_pos = self._current_token.span.start
-        if len(args) != len(input_types):
-            self.raise_error(
-                f"expected {len(input_types)} operand types but had {len(args)}",
-                func_type_pos,
-            )
-
         return [
             self.resolve_operand(operand, type)
             for operand, type in zip(args, input_types)
@@ -850,8 +840,16 @@ class Parser(AttrParser):
 
         self.parse_punctuation(":", "function type signature expected")
 
+        func_type_pos = self._current_token.span.start
+
         # Parse function type
         func_type = self.parse_function_type()
+
+        if len(args) != len(func_type.inputs):
+            self.raise_error(
+                f"expected {len(func_type.inputs)} operand types but had {len(args)}",
+                func_type_pos,
+            )
 
         self._parse_optional_location()
 
