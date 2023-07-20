@@ -47,6 +47,8 @@ class TestTermOp(IRDLOperation):
     """
 
     name = "test.termop"
+
+    res: VarOpResult = var_result_def()
     ops: VarOperand = var_operand_def()
     successor: VarSuccessor = var_successor_def()
 
