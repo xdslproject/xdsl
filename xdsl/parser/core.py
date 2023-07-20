@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Sequence, cast
 
 from xdsl.dialects.builtin import (
-    ArrayAttr,
     DictionaryAttr,
     ModuleOp,
     UnregisteredAttr,
@@ -800,7 +799,7 @@ class Parser(AttrParser):
     def resolve_operands(
         self,
         args: Sequence[UnresolvedOperand],
-        input_types: ArrayAttr[Attribute],
+        input_types: Iterable[Attribute],
         error_pos: Position,
     ) -> Sequence[SSAValue]:
         """
