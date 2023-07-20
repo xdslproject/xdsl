@@ -54,9 +54,6 @@ precommit-install:
 precommit:
 	pre-commit run --all
 
-
-
-
 # run pyright on all files in the current git commit
 pyright:
 	pyright $(shell git diff --staged --name-only  -- '*.py')
