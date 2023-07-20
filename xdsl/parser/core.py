@@ -23,7 +23,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.parser.attribute_parser import AttrParser
-from xdsl.parser.base_parser import ParserState
+from xdsl.parser.base_parser import ParserState, Position
 from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, Token
 
@@ -798,9 +798,11 @@ class Parser(AttrParser):
         return self.parse_optional_dictionary_attr_dict()
 
     def resolve_operands(
-        self, args: list[UnresolvedOperand], input_types: ArrayAttr[Attribute],
-        error_pos: Span
-    ) -> list[SSAValue]:
+        self,
+        args: Sequence[UnresolvedOperand],
+        input_types: Sequence[Attribute],
+        error_pos: Position,
+    ) -> Sequence[SSAValue]:
         """
         Resolve unresolved operands. For each operand in `args` and its corresponding input
         type the following happens:
@@ -815,7 +817,7 @@ class Parser(AttrParser):
         if len(args) != len(input_types):
             self.raise_error(
                 f"expected {len(input_types)} operand types but had {len(args)}",
-                error_pos.start,
+                error_pos,
             )
 
         return [
@@ -850,7 +852,7 @@ class Parser(AttrParser):
 
         self.parse_punctuation(":", "function type signature expected")
 
-        func_type_pos = self._current_token.span
+        func_type_pos = self._current_token.span.start
 
         # Parse function type
         func_type = self.parse_function_type()
