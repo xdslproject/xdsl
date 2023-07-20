@@ -36,7 +36,7 @@ class TestOp(IRDLOperation):
 
 
 @irdl_op_definition
-class TestTermOp(TestOp):
+class TestTermOp(IRDLOperation):
     """
     This operation can produce an arbitrary number of SSAValues with arbitrary
     types. It is used in filecheck testing to reduce to artificial dependencies
@@ -47,7 +47,8 @@ class TestTermOp(TestOp):
     """
 
     name = "test.termop"
-    succs: VarSuccessor = var_successor_def()
+    ops: VarOperand = var_operand_def()
+    successor: VarSuccessor = var_successor_def()
 
     traits = frozenset([IsTerminator()])
 
