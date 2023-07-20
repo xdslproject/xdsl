@@ -50,6 +50,7 @@ class TestTermOp(IRDLOperation):
 
     res: VarOpResult = var_result_def()
     ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
     successor: VarSuccessor = var_successor_def()
 
     traits = frozenset([IsTerminator()])
