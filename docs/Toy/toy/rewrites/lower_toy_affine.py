@@ -11,7 +11,7 @@ from xdsl.builder import Builder
 from xdsl.dialects import affine, arith, func, memref
 from xdsl.dialects.builtin import Float64Type, IndexType, IntegerAttr, ModuleOp, f64
 from xdsl.dialects.printf import PrintFormatOp
-from xdsl.ir.core import Block, MLContext, Operation, Region, SSAValue
+from xdsl.ir import Block, MLContext, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -73,7 +73,7 @@ def build_affine_for(
     body_builder_fn: _AffineForOpBodyBuilderFn,
 ) -> affine.For:
     """
-    'bodyBuilder' is used to build the body of affine.for.
+    `body_builder_fn` is used to build the body of affine.for.
     """
 
     assert (

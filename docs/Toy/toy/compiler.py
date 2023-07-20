@@ -76,9 +76,6 @@ def transform(
     if target == "toy-infer-shapes":
         return
 
-    if target == "toy-infer-shapes":
-        return
-
     LowerToAffinePass().apply(ctx, module_op)
     module_op.verify()
 

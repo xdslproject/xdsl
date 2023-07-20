@@ -93,7 +93,12 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
         if not self.is_allocated or name.startswith("j"):
             return
         if name not in type(self).abi_index_by_name():
-            raise VerifyException(f"{name} not in RV32I")
+            raise VerifyException(f"{name} not in {self.instruction_set_name()}")
+
+    @classmethod
+    @abstractmethod
+    def instruction_set_name(cls) -> str:
+        raise NotImplementedError()
 
     @classmethod
     @abstractmethod
@@ -108,6 +113,10 @@ class IntRegisterType(RISCVRegisterType):
     """
 
     name = "riscv.reg"
+
+    @classmethod
+    def instruction_set_name(cls) -> str:
+        return "RV32I"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
@@ -157,6 +166,10 @@ class FloatRegisterType(RISCVRegisterType):
     """
 
     name = "riscv.freg"
+
+    @classmethod
+    def instruction_set_name(cls) -> str:
+        return "RV32F"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
