@@ -7,6 +7,7 @@ from .dialects import toy
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
+from .rewrites.lower_toy_affine import LowerToAffinePass
 from .rewrites.optimise_toy import OptimiseToy
 from .rewrites.shape_inference import ShapeInferencePass
 
@@ -42,6 +43,12 @@ def transform(ctx: MLContext, module_op: ModuleOp, *, target: str = "toy-infer-s
     ShapeInferencePass().apply(ctx, module_op)
 
     if target == "toy-infer-shapes":
+        return
+
+    LowerToAffinePass().apply(ctx, module_op)
+    module_op.verify()
+
+    if target == "affine":
         return
 
     raise ValueError(f"Unknown target option {target}")

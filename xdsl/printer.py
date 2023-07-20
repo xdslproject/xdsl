@@ -307,15 +307,8 @@ class Printer:
         self.print(")")
 
     def print_operands(self, operands: Sequence[SSAValue]) -> None:
-        if len(operands) == 0:
-            self.print("()")
-            return
-
         self.print("(")
-        self.print_operand(operands[0])
-        for operand in operands[1:]:
-            self.print(", ")
-            self.print_operand(operand)
+        self.print_list(operands, self.print_operand)
         self.print(")")
 
     def print_paramattr_parameters(

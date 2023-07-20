@@ -2,6 +2,7 @@
 # RUN: python -m toy %s --emit=toy-opt | filecheck %s
 # RUN: python -m toy %s --emit=toy-inline | filecheck %s
 # RUN: python -m toy %s --emit=toy-infer-shapes | filecheck %s
+# RUN: python -m toy %s --emit=affine | filecheck %s
 
 # User defined generic function that operates on unknown shaped arguments
 def multiply_transpose(a, b) {
