@@ -333,7 +333,13 @@ class RISCVOp(Operation, ABC):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        args = parser.parse_op_args_list()
+        args = (
+            parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_unresolved_operand,
+                parser.parse_unresolved_operand,
+            )
+            or ()
+        )
         regions = parser.parse_region_list()
         attributes = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
@@ -347,7 +353,8 @@ class RISCVOp(Operation, ABC):
         )
 
     def print(self, printer: Printer) -> None:
-        printer.print_operands(self.operands)
+        printer.print(" ")
+        printer.print_list(self.operands, printer.print_operand)
         printer.print_regions(self.regions)
         printer.print_op_attributes(self.attributes)
         printer.print(" : ")
