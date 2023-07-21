@@ -63,7 +63,7 @@ def test_format_and_print_op():
     ):
 
         @irdl_op_definition
-        class FormatAndPrintOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class FormatAndPrintOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.format_and_print"
 
             assembly_format = "attr-dict"
@@ -81,21 +81,7 @@ def test_format_and_parse_op():
     ):
 
         @irdl_op_definition
-        class FormatAndParseOp(IRDLOperation):  # type: ignore[reportUnusedImport]
-            name = "test.format_and_parse"
-
-            assembly_format = "attr-dict"
-
-            @classmethod
-            def parse(cls, parser: Parser) -> FormatAndParseOp:
-                raise NotImplementedError()
-
-    with pytest.raises(
-        PyRDLOpDefinitionError, match="Cannot define both an assembly format"
-    ):
-
-        @irdl_op_definition
-        class FormatAndParseOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class FormatAndParseOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.format_and_parse"
 
             assembly_format = "attr-dict"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -1166,9 +1167,10 @@ class OpDef:
                 raise wrong_field_exception(field_name)
 
         op_def.assembly_format = pyrdl_def.assembly_format
+        assert inspect.ismethod(Operation.parse)
         if op_def.assembly_format is not None and (
             pyrdl_def.print != Operation.print
-            or not hasattr(pyrdl_def.parse, "__func__")
+            or not inspect.ismethod(pyrdl_def.parse)
             or pyrdl_def.parse.__func__ != Operation.parse.__func__
         ):
             raise PyRDLOpDefinitionError(

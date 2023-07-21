@@ -13,7 +13,6 @@ from xdsl.ir import Attribute
 from xdsl.irdl import IRDLOperation, IRDLOperationInvT, OpDef
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.lexer import Token
 
 
 @dataclass
