@@ -8,6 +8,7 @@ from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
 from xdsl.dialects.test import TestOp, TestTermOp
 from xdsl.ir import Block, ErasedSSAValue, MLContext, Operation, Region, SSAValue
+from xdsl.ir.core import WalkOrder
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
@@ -693,11 +694,24 @@ def test_block_walk():
     b = Constant.from_int_and_width(2, 32)
     c = Constant.from_int_and_width(3, 32)
 
-    ops = [a, b, c]
+    d = Constant.from_int_and_width(4, 32)
+    e = Constant.from_int_and_width(5, 32)
+
+    block_a = Block([d])
+    block_b = Block([e])
+
+    region_a = Region(block_a)
+    region_b = Region(block_b)
+
+    f = TestOp(operands=[[]], result_types=[[i32]], regions=[[region_a, region_b]])
+
+    ops = [a, b, c, f]
     block = Block(ops)
 
-    assert list(block.walk()) == [a, b, c]
-    assert list(block.walk_reverse()) == [c, b, a]
+    assert list(block.walk()) == [a, b, c, f, d, e]
+    assert list(block.walk_reverse()) == [e, d, f, c, b, a]
+    assert list(block.walk_blocks()) == [block_a, block_b, block]
+    assert list(block.walk_blocks(WalkOrder.PRE_ORDER)) == [block, block_a, block_b]
 
 
 def test_region_walk():
@@ -711,6 +725,7 @@ def test_region_walk():
 
     assert list(region.walk()) == [a, b]
     assert list(region.walk_reverse()) == [b, a]
+    assert list(region.walk_blocks()) == [block_a, block_b]
 
 
 def test_op_walk():
@@ -727,3 +742,18 @@ def test_op_walk():
 
     assert list(op_multi_region.walk()) == [op_multi_region, a, b]
     assert list(op_multi_region.walk_reverse()) == [b, a, op_multi_region]
+    assert list(op_multi_region.walk_blocks()) == [block_a, block_b]
+
+
+def test_nested_region_walk():
+    a = Constant.from_int_and_width(1, 32)
+    b = Constant.from_int_and_width(2, 32)
+
+    block_a = Block([a])
+    block_b = Block([b])
+
+    region_a = Region(block_a)
+    region_b = Region(block_b)
+
+    op = TestOp(operands=[[]], result_types=[[i32]], regions=[[region_a, region_b]])
+    assert list(op.walk_blocks()) == [block_a, block_b]

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from enum import Enum
 from io import StringIO
 from itertools import chain
 from typing import (
@@ -32,6 +33,13 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
+
+
+class WalkOrder(Enum):
+    """Defines the order in which the walk methods are called"""
+
+    PRE_ORDER = 0
+    POST_ORDER = 1
 
 
 @dataclass
@@ -784,6 +792,15 @@ class Operation(IRNode):
             yield from region.walk_reverse()
         yield self
 
+    def walk_blocks(
+        self, walk_order: WalkOrder = WalkOrder.POST_ORDER
+    ) -> Iterator[Block]:
+        """
+        Iterate all blocks contained in the operation (including this one)
+        """
+        for region in self.regions:
+            yield from region.walk_blocks(walk_order)
+
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
@@ -1416,6 +1433,17 @@ class Block(IRNode):
         for op in self.ops_reverse:
             yield from op.walk_reverse()
 
+    def walk_blocks(
+        self, walk_order: WalkOrder = WalkOrder.POST_ORDER
+    ) -> Iterable[Block]:
+        """Call a function on all blocks contained in the block."""
+        if walk_order == WalkOrder.PRE_ORDER:
+            yield self
+        for op in self.ops:
+            yield from op.walk_blocks(walk_order)
+        if walk_order == WalkOrder.POST_ORDER:
+            yield self
+
     def verify(self) -> None:
         for operation in self.ops:
             if operation.parent != self:
@@ -1714,6 +1742,13 @@ class Region(IRNode):
         """Call a function on all operations contained in the region in reverse order."""
         for block in reversed(self.blocks):
             yield from block.walk_reverse()
+
+    def walk_blocks(
+        self, walk_order: WalkOrder = WalkOrder.POST_ORDER
+    ) -> Iterator[Block]:
+        """Call a function on all blocks contained in the region."""
+        for block in self.blocks:
+            yield from block.walk_blocks(walk_order)
 
     def verify(self) -> None:
         for block in self.blocks:
