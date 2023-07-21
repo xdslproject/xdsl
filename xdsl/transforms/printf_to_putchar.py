@@ -1,8 +1,9 @@
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp, f32, i32
+from xdsl.dialects.experimental import math
 from xdsl.dialects.printf import PrintCharOp, PrintIntOp
-from xdsl.ir.core import Block, MLContext
+from xdsl.ir import Block, MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -60,7 +61,7 @@ def get_inline_itoa():
             # If the value is negative, print the minus sign, return abs value
             is_negative_block = Block()
             with ImplicitBuilder(is_negative_block):
-                ascii_minus = arith.Constant.from_int_and_width(52, i32)
+                ascii_minus = arith.Constant.from_int_and_width(45, i32)
                 PrintCharOp((ascii_minus,))
                 negative_input = arith.Subi(zero, integer)
                 scf.Yield.get(negative_input)
@@ -75,14 +76,11 @@ def get_inline_itoa():
             plus_one = arith.Addi(absolute_value, one)
             # FIXME has to be unsigned
             plus_one_fp = arith.SIToFPOp((plus_one,), (f32,))
-            # FIXME this has to be replaced with a log10 op!
-            # %size = math.log10 %plus_one_fp : f32
-            # %size_ceiled = math.ceil %size : f32
-            # FIXME has to be signed
-            size_int = arith.FPToSIOp((plus_one_fp,), (i32,))
+            size = math.Log10Op((plus_one_fp,), (f32,))
+            size_ceiled = math.CeilOp((size,), (f32,))
+            # FIXME has to be unsigned
+            size_int = arith.FPToSIOp((size_ceiled,), (i32,))
 
-            # Using indexes here, since ints are not supported
-            # by scf.for (for now?)
             zero_index = arith.Constant.from_int_and_width(0, IndexType())
             one_index = arith.Constant.from_int_and_width(1, IndexType())
             size_int_index = arith.IndexCastOp((size_int,), (IndexType(),))
@@ -94,9 +92,7 @@ def get_inline_itoa():
                 position = arith.Subi(size_minus_one, index_var_int)
                 # digit = (num // (10**pos)) % 10
                 ten = arith.Constant.from_int_and_width(10, i32)
-                # FIXME, line below actually has to be:
-                # %i_0 = "math.ipowi"(%ten, %position): (i32, i32)-> i32
-                i_0 = arith.Addi(ten, position)
+                i_0 = math.IPowIOp((ten, position), (i32,))
                 i_1 = arith.DivUI(absolute_value, i_0)
                 digit = arith.RemUI(i_1, ten)
                 # ascii value for zero is 48 in decimal
