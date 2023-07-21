@@ -2,24 +2,21 @@ from typing import cast
 
 import pytest
 
+from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Subi
 from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp, i32, i64
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
-from xdsl.dialects.test import TestOp, TestTermOp
 from xdsl.ir import Block, ErasedSSAValue, MLContext, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    Successor,
     VarRegion,
     irdl_op_definition,
     operand_def,
-    successor_def,
     var_region_def,
 )
 from xdsl.parser import Parser
-from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -126,7 +123,7 @@ def test_ops_accessor_III():
 def test_op_operands_assign():
     """Test that we can directly assign `op.operands`."""
     val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
-    op = TestOp.create(operands=[val1, val2])
+    op = test.TestOp.create(operands=[val1, val2])
     op.operands = [val2, val1]
     op.verify()
 
@@ -138,7 +135,7 @@ def test_op_operands_assign():
 def test_op_operands_indexing():
     """Test `__getitem__`, `__setitem__`, and `__len__` on `op.operands`."""
     val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
-    op = TestOp.create(operands=[val1, val2])
+    op = test.TestOp.create(operands=[val1, val2])
     op.verify()
 
     assert op.operands[0] == val1
@@ -168,8 +165,10 @@ def test_op_clone():
 
 
 def test_op_clone_with_regions():
-    a = TestOp.create()
-    op0 = TestOp.create(regions=[Region([Block([a])]), Region([Block([a.clone()])])])
+    a = test.TestOp.create()
+    op0 = test.TestOp.create(
+        regions=[Region([Block([a])]), Region([Block([a.clone()])])]
+    )
 
     cloned_op = op0.clone()
 
@@ -184,31 +183,19 @@ def test_op_clone_with_regions():
             assert op0_region_op is not cloned_region_op
 
 
-@irdl_op_definition
-class SuccessorOp(IRDLOperation):
-    """
-    Utility operation that requires a successor.
-    """
-
-    name = "test.successor_op"
-
-    successor: Successor = successor_def()
-
-    traits = frozenset([IsTerminator()])
-
-
 def test_block_branching_to_another_region_wrong():
     """
     Tests that an operation cannot have successors that branch to blocks of
     another region.
     """
-    block1 = Block([TestOp.create(), TestOp.create()])
+
+    block1 = Block([test.TestOp.create(), test.TestOp.create()])
     region1 = Region([block1])
 
-    op0 = TestOp.create(successors=[block1])
+    op0 = test.TestOp.create(successors=[block1])
     block0 = Block([op0])
     region0 = Region([block0])
-    region0 = TestOp.create(regions=[region0, region1])
+    region0 = test.TestOp.create(regions=[region0, region1])
 
     outer_block = Block([region0])
 
@@ -226,7 +213,7 @@ def test_block_not_branching_to_another_region():
     """
     block0 = Block()
 
-    op0 = SuccessorOp.create(successors=[block0])
+    op0 = test.TestTermOp.create(successors=[block0])
     block1 = Block([op0])
 
     region0 = Region([block0, block1])
@@ -262,7 +249,7 @@ def test_empty_block_with_single_block_parent_region_requires_terminator():
     """
     block0 = Block([])
     region0 = Region([block0])
-    op0 = TestOp.create(regions=[region0])
+    op0 = test.TestOp.create(regions=[region0])
 
     with pytest.raises(
         VerifyException,
@@ -294,7 +281,7 @@ def test_region_clone_into_circular_blocks():
 
 def test_op_with_successors_not_in_block():
     block0 = Block()
-    op0 = SuccessorOp.create(successors=[block0])
+    op0 = test.TestTermOp.create(successors=[block0])
 
     with pytest.raises(
         VerifyException,
@@ -306,7 +293,7 @@ def test_op_with_successors_not_in_block():
 def test_op_with_successors_not_in_region():
     block1 = Block()
 
-    op0 = TestOp.create(successors=[block1])
+    op0 = test.TestOp.create(successors=[block1])
     block0 = Block([op0])
 
     with pytest.raises(
@@ -321,9 +308,9 @@ def test_non_empty_block_with_single_block_parent_region_must_have_terminator():
     Tests that an non-empty block belonging to a single-block region with parent
     operation cannot have an operation that is not a terminator.
     """
-    block1 = Block([TestOp.create()])
+    block1 = Block([test.TestOp.create()])
     region0 = Region([block1])
-    op0 = TestOp.create(regions=[region0])
+    op0 = test.TestOp.create(regions=[region0])
 
     with pytest.raises(
         VerifyException,
@@ -337,9 +324,9 @@ def test_non_empty_block_with_single_block_parent_region_with_terminator():
     Tests that an non-empty block belonging to a single-block region with parent
     operation must have at least a terminator operation.
     """
-    block0 = Block([TestTermOp.create()])
+    block0 = Block([test.TestTermOp.create()])
     region0 = Region([block0])
-    op0 = TestOp.create(regions=[region0])
+    op0 = test.TestOp.create(regions=[region0])
 
     op0.verify()
 
@@ -351,9 +338,9 @@ def test_non_empty_block_with_parent_region_can_have_terminator_with_successors(
     The terminator operation may have successors.
     """
     block0 = Block()
-    block1 = Block([SuccessorOp.create(successors=[block0])])
+    block1 = Block([test.TestTermOp.create(successors=[block0])])
     region0 = Region([block0, block1])
-    op0 = TestOp.create(regions=[region0])
+    op0 = test.TestOp.create(regions=[region0])
 
     op0.verify()
 
@@ -365,9 +352,9 @@ def test_non_empty_block_with_parent_region_requires_terminator_without_successo
     The terminator operation may not have successors.
     """
     block0 = Block()
-    block1 = Block([TestOp.create()])
+    block1 = Block([test.TestOp.create()])
     region0 = Region([block0, block1])
-    op0 = TestOp.create(regions=[region0])
+    op0 = test.TestOp.create(regions=[region0])
 
     with pytest.raises(
         VerifyException,
@@ -384,7 +371,7 @@ def test_non_empty_block_with_parent_region_requires_terminator_with_successors(
     """
     block0 = Block()
 
-    op0 = TestOp.create(successors=[block0])
+    op0 = test.TestOp.create(successors=[block0])
     block1 = Block([op0])
 
     region0 = Region([block0, block1])
@@ -402,9 +389,9 @@ def test_non_empty_block_with_parent_region_has_successors_but_not_last_block_op
     operation requires terminator operation.
     """
     block0 = Block()
-    block1 = Block([TestOp.create(successors=[block0]), TestOp.create()])
+    block1 = Block([test.TestOp.create(successors=[block0]), test.TestOp.create()])
     region0 = Region([block0, block1])
-    op0 = TestOp.create(regions=[region0])
+    op0 = test.TestOp.create(regions=[region0])
 
     with pytest.raises(
         VerifyException,
@@ -515,16 +502,16 @@ def test_is_structurally_equivalent(args: list[str], expected_result: bool):
 def test_is_structurally_equivalent_free_operands():
     val1 = TestSSAValue(i32)
     val2 = TestSSAValue(i64)
-    op1 = TestOp.create(operands=[val1, val2])
-    op2 = TestOp.create(operands=[val1, val2])
+    op1 = test.TestOp.create(operands=[val1, val2])
+    op2 = test.TestOp.create(operands=[val1, val2])
     assert op1.is_structurally_equivalent(op2)
 
 
 def test_is_structurally_equivalent_free_operands_fail():
     val1 = TestSSAValue(i32)
     val2 = TestSSAValue(i32)
-    op1 = TestOp.create(operands=[val1])
-    op2 = TestOp.create(operands=[val2])
+    op1 = test.TestOp.create(operands=[val1])
+    op2 = test.TestOp.create(operands=[val2])
     assert not op1.is_structurally_equivalent(op2)
 
 
@@ -723,7 +710,7 @@ def test_op_walk():
     region_a = Region(block_a)
     region_b = Region(block_b)
 
-    op_multi_region = TestOp.create(regions=[region_a, region_b])
+    op_multi_region = test.TestOp.create(regions=[region_a, region_b])
 
     assert list(op_multi_region.walk()) == [op_multi_region, a, b]
     assert list(op_multi_region.walk_reverse()) == [b, a, op_multi_region]
