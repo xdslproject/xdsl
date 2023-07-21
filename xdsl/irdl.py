@@ -434,7 +434,11 @@ def irdl_to_attr_constraint(
 #  \___/| .__/ \___|_|  \__,_|\__|_|\___/|_| |_|
 #       |_|
 
-_OpT = TypeVar("_OpT", bound="IRDLOperation")
+IRDLOperationInvT = TypeVar("IRDLOperationInvT", bound="IRDLOperation")
+IRDLOperationCovT = TypeVar("IRDLOperationCovT", bound="IRDLOperation", covariant=True)
+IRDLOperationContrT = TypeVar(
+    "IRDLOperationContrT", bound="IRDLOperation", contravariant=True
+)
 
 
 class IRDLOperation(Operation):
@@ -476,7 +480,7 @@ class IRDLOperation(Operation):
 
     @classmethod
     def build(
-        cls: type[_OpT],
+        cls: type[IRDLOperationInvT],
         operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
@@ -490,7 +494,7 @@ class IRDLOperation(Operation):
             | Sequence[Region | Sequence[Operation] | Sequence[Block]]
         ]
         | None = None,
-    ) -> _OpT:
+    ) -> IRDLOperationInvT:
         """Create a new operation using builders."""
         op = cls.__new__(cls)
         IRDLOperation.__init__(
@@ -995,7 +999,7 @@ class OpDef:
     """
 
     @staticmethod
-    def from_pyrdl(pyrdl_def: type[_OpT]) -> OpDef:
+    def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
         """Decorator used on classes to define a new operation definition."""
 
         type_var_mapping: dict[TypeVar, AttrConstraint] | None = None
@@ -1718,7 +1722,7 @@ def irdl_op_arg_definition(
         )
 
 
-def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
+def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(
@@ -1741,10 +1745,10 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
     irdl_op_arg_definition(new_attrs, VarIRConstruct.SUCCESSOR, op_def)
 
     def optional_attribute_field(attribute_name: str):
-        def field_getter(self: _OpT):
+        def field_getter(self: IRDLOperationInvT):
             return self.attributes.get(attribute_name, None)
 
-        def field_setter(self: _OpT, value: Attribute | None):
+        def field_setter(self: IRDLOperationInvT, value: Attribute | None):
             if value is None:
                 self.attributes.pop(attribute_name, None)
             else:
@@ -1753,10 +1757,10 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
         return property(field_getter, field_setter)
 
     def attribute_field(attribute_name: str):
-        def field_getter(self: _OpT):
+        def field_getter(self: IRDLOperationInvT):
             return self.attributes[attribute_name]
 
-        def field_setter(self: _OpT, value: Attribute):
+        def field_setter(self: IRDLOperationInvT, value: Attribute):
             self.attributes[attribute_name] = value
 
         return property(field_getter, field_setter)
@@ -1772,14 +1776,14 @@ def irdl_op_definition(cls: type[_OpT]) -> type[_OpT]:
 
     @classmethod
     @property
-    def irdl_definition(cls: type[_OpT]):
+    def irdl_definition(cls: type[IRDLOperationInvT]):
         return op_def
 
     new_attrs["irdl_definition"] = irdl_definition
 
     custom_verify = getattr(cls, "verify_")
 
-    def verify_(self: _OpT):
+    def verify_(self: IRDLOperationInvT):
         op_def.verify(self)
         custom_verify(self)
 
