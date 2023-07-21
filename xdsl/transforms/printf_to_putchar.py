@@ -45,33 +45,45 @@ def get_inline_itoa():
     inline_itoa_func = func.FuncOp("inline_itoa", ((i32,), ()))
     with ImplicitBuilder(inline_itoa_func.body) as (integer,):
         zero = arith.Constant.from_int_and_width(0, i32)
-        is_negative = arith.Cmpi.get(integer, zero, "slt")
-        # If the value is zero, just print one zero
-        is_zero = arith.Cmpi.get(integer, zero, "eq")
         is_zero_block = Block()
-        # If is_zero is true:
+        is_not_zero_block = Block()
+        is_zero = arith.Cmpi.get(integer, zero, "eq")
+
+        scf.If.get(
+            is_zero,
+            [],
+            [is_zero_block],
+            [is_not_zero_block],
+        )
+        # If the value is zero, just print one zero
         with ImplicitBuilder(is_zero_block):
             ascii_zero = arith.Constant.from_int_and_width(48, i32)
             # The ascii value for zero is 48 in decimal
             PrintCharOp((ascii_zero,))
             scf.Yield.get()
-        # If is_zero is false:
-        is_not_zero_block = Block()
+        # Otherwise continue with itoa
         with ImplicitBuilder(is_not_zero_block):
-            # If the value is negative, print the minus sign, return abs value
             is_negative_block = Block()
+            is_positive_block = Block()
+            is_negative = arith.Cmpi.get(integer, zero, "slt")
+
+            # Either way get the absolute value of the number
+            absolute_value = scf.If.get(
+                is_negative, [i32], [is_negative_block], [is_positive_block]
+            )
+            # If the value is negative, print the minus sign, return abs value
             with ImplicitBuilder(is_negative_block):
                 ascii_minus = arith.Constant.from_int_and_width(45, i32)
                 PrintCharOp((ascii_minus,))
                 negative_input = arith.Subi(zero, integer)
                 scf.Yield.get(negative_input)
-            # If the value is positive, just continue
-            is_positive_block = Block()
+            # If the value is positive, just return value itself as abs value
             with ImplicitBuilder(is_positive_block):
                 scf.Yield.get(integer)
-            absolute_value = scf.If.get(
-                is_negative, [i32], [is_negative_block], [is_positive_block]
-            )
+
+            # Now print the digits of the absolute value
+
+            # Get the amount of digits plus one
             one = arith.Constant.from_int_and_width(1, i32)
             plus_one = arith.Addi(absolute_value, one)
             # FIXME has to be unsigned
@@ -84,8 +96,10 @@ def get_inline_itoa():
             zero_index = arith.Constant.from_int_and_width(0, IndexType())
             one_index = arith.Constant.from_int_and_width(1, IndexType())
             size_int_index = arith.IndexCastOp((size_int,), (IndexType(),))
-
             loop_body = Block(arg_types=(IndexType(),))
+
+            # Print all from most significant to least
+            scf.For.get(zero_index, size_int_index, one_index, (), loop_body)
             with ImplicitBuilder(loop_body) as (index_var,):
                 size_minus_one = arith.Subi(size_int, one)
                 index_var_int = arith.IndexCastOp((index_var,), (i32,))
@@ -100,15 +114,9 @@ def get_inline_itoa():
                 char = arith.Addi(digit, ascii_offset)
                 PrintCharOp((char,))
                 scf.Yield.get()
-            scf.For.get(zero_index, size_int_index, one_index, (), loop_body)
-
             scf.Yield.get()
-        scf.If.get(
-            is_zero,
-            [],
-            [is_zero_block],
-            [is_not_zero_block],
-        )
+
+        # Return from itoa function
         func.Return()
 
     return inline_itoa_func
