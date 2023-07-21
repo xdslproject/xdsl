@@ -144,6 +144,9 @@ class FormatParser(BaseParser):
     def create_attr_dict_directive(self, with_keyword: bool) -> AttrDictDirective:
         """Create an attribute dictionary directive, and update the parsing state."""
         if self.has_attr_dict:
-            self.raise_error("'attr-dict' directive has already been seen")
+            self.raise_error(
+                "'attr-dict' directive can only occur once "
+                "in the assembly format description"
+            )
         self.has_attr_dict = True
         return AttrDictDirective(with_keyword=with_keyword)
