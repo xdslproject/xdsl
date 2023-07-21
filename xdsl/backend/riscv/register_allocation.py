@@ -1,8 +1,32 @@
 from abc import ABC
+from itertools import chain
+from typing import Set
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, RISCVOp
+from xdsl.dialects.riscv import (
+    FloatRegisterType,
+    IntRegisterType,
+    RISCVOp,
+    RISCVRegisterType,
+)
 from xdsl.ir import SSAValue
+
+
+def _gather_allocated(module: ModuleOp) -> Set[str]:
+    """Utility method to gather already allocated registers"""
+
+    allocated: Set[str] = set()
+
+    for op in module.walk():
+        if not isinstance(op, RISCVOp):
+            continue
+
+        for param in chain(op.operands, op.results):
+            if isinstance(param.type, RISCVRegisterType) and param.type.is_allocated:
+                if not param.type.register_name.startswith("j"):
+                    allocated.add(param.type.register_name)
+
+    return allocated
 
 
 class RegisterAllocator(ABC):
@@ -99,6 +123,13 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 available_regs.append(reg_name)
 
     def allocate_registers(self, module: ModuleOp) -> None:
+        preallocated = _gather_allocated(module)
+
+        for _, reg_set in self.register_sets.items():
+            for t in preallocated:
+                if t in reg_set:
+                    reg_set.remove(t)
+
         for region in module.regions:
             for block in region.blocks:
                 to_free: list[SSAValue] = []
@@ -156,6 +187,12 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
         When it runs out of real registers for a block, it allocates j registers.
         """
 
+        preallocated = _gather_allocated(module)
+
+        for _, reg_set in self.register_sets.items():
+            for t in preallocated:
+                if t in reg_set:
+                    reg_set.remove(t)
         for region in module.regions:
             for block in region.blocks:
                 register_sets = self.register_sets.copy()
