@@ -1830,10 +1830,12 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
             ) from e
 
         @classmethod
-        def parse_with_format(cls: type[_OpT], parser: Parser) -> _OpT:
+        def parse_with_format(
+            cls: type[IRDLOperationInvT], parser: Parser
+        ) -> IRDLOperationInvT:
             return assembly_program.parse(parser, cls)
 
-        def print_with_format(self: _OpT, printer: Printer):
+        def print_with_format(self: IRDLOperationInvT, printer: Printer):
             return assembly_program.print(printer, self)
 
         new_attrs["parse"] = parse_with_format
