@@ -1,9 +1,9 @@
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func, scf
-from xdsl.dialects.builtin import IndexType, ModuleOp, f32, i32
+from xdsl.dialects.builtin import IndexType, ModuleOp, i32
 from xdsl.dialects.experimental import math
 from xdsl.dialects.printf import PrintCharOp, PrintIntOp
-from xdsl.ir import Block, MLContext
+from xdsl.ir import Block, MLContext, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -83,16 +83,19 @@ def get_inline_itoa():
 
             # Now print the digits of the absolute value
 
-            # Get the amount of digits plus one
-            one = arith.Constant.from_int_and_width(1, i32)
-            plus_one = arith.Addi(absolute_value, one)
-            # FIXME has to be unsigned
-            plus_one_fp = arith.SIToFPOp((plus_one,), (f32,))
-            size = math.Log10Op((plus_one_fp,), (f32,))
-            size_ceiled = math.CeilOp((size,), (f32,))
-            # FIXME has to be unsigned
-            size_int = arith.FPToSIOp((size_ceiled,), (i32,))
-
+            # Get the amount of digits
+            before_region = Region(Block(arg_types=(i32,)))
+            after_region = Region(Block(arg_types=(i32,)))
+            size_int = scf.While.get(
+                (absolute_value,), (i32,), before_region, after_region
+            )
+            with ImplicitBuilder(before_region.blocks[0]) as (running_integer,):
+                is_bigger_than_zero = arith.Cmpi.get(running_integer, zero, "slt")
+                scf.Condition.get(is_bigger_than_zero, running_integer)
+            with ImplicitBuilder(after_region.blocks[0]) as (running_integer,):
+                ten = arith.Constant.from_int_and_width(10, 32)
+                new_integer = arith.DivUI(running_integer, ten)
+                scf.Yield.get(new_integer)
             zero_index = arith.Constant.from_int_and_width(0, IndexType())
             one_index = arith.Constant.from_int_and_width(1, IndexType())
             size_int_index = arith.IndexCastOp((size_int,), (IndexType(),))
@@ -101,6 +104,7 @@ def get_inline_itoa():
             # Print all from most significant to least
             scf.For.get(zero_index, size_int_index, one_index, (), loop_body)
             with ImplicitBuilder(loop_body) as (index_var,):
+                one = arith.Constant.from_int_and_width(1, i32)
                 size_minus_one = arith.Subi(size_int, one)
                 index_var_int = arith.IndexCastOp((index_var,), (i32,))
                 position = arith.Subi(size_minus_one, index_var_int)
