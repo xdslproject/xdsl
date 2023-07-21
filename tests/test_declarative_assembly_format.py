@@ -112,7 +112,7 @@ def test_two_attr_dicts():
     """Check that we cannot have two attr-dicts."""
 
     with pytest.raises(
-        PyRDLOpDefinitionError, match="'attr-dict' directive has already been seen"
+        PyRDLOpDefinitionError, match="'attr-dict' directive can only occur once"
     ):
 
         @irdl_op_definition
@@ -122,7 +122,7 @@ def test_two_attr_dicts():
             assembly_format = "attr-dict attr-dict"
 
     with pytest.raises(
-        PyRDLOpDefinitionError, match="'attr-dict' directive has already been seen"
+        PyRDLOpDefinitionError, match="'attr-dict' directive can only occur once"
     ):
 
         @irdl_op_definition
@@ -132,7 +132,7 @@ def test_two_attr_dicts():
             assembly_format = "attr-dict attr-dict-with-keyword"
 
     with pytest.raises(
-        PyRDLOpDefinitionError, match="'attr-dict' directive has already been seen"
+        PyRDLOpDefinitionError, match="'attr-dict' directive can only occur once"
     ):
 
         @irdl_op_definition
@@ -142,7 +142,7 @@ def test_two_attr_dicts():
             assembly_format = "attr-dict-with-keyword attr-dict"
 
     with pytest.raises(
-        PyRDLOpDefinitionError, match="'attr-dict' directive has already been seen"
+        PyRDLOpDefinitionError, match="'attr-dict' directive can only occur once"
     ):
 
         @irdl_op_definition
