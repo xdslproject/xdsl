@@ -53,11 +53,12 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-<<<<<<< HEAD
-from xdsl.traits import IsolatedFromAbove, NoTerminator, OptionalSymbolOpInterface
-=======
-from xdsl.traits import IsolatedFromAbove, NoTerminator, SymbolTable
->>>>>>> 3779d90d (SymboleTable)
+from xdsl.traits import (
+    IsolatedFromAbove,
+    NoTerminator,
+    OptionalSymbolOpInterface,
+    SymbolTable,
+)
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -1219,10 +1220,17 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 class ModuleOp(IRDLOperation):
     name = "builtin.module"
 
+    sym_name = attr_def(StringAttr)
+
     body: Region = region_def("single_block")
 
     traits = frozenset(
-        [IsolatedFromAbove(), NoTerminator(), OptionalSymbolOpInterface()]
+        [
+            IsolatedFromAbove(),
+            NoTerminator(),
+            OptionalSymbolOpInterface(),
+            SymbolTable(),
+        ]
     )
 
     def __init__(

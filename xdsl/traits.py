@@ -220,20 +220,21 @@ class SymbolTable(OpTrait):
                 continue
             if sym_name in met_names:
                 raise VerifyException(f'Redefinition of symbol "{sym_name.data}"')
+            met_names.add(sym_name)
 
     @staticmethod
     def lookup_symbol(
         op: Operation, name: str | StringAttr | SymbolRefAttr
     ) -> Operation | None:
         # import builtin here to avoid circular import
-        from xdsl.dialects.builtin import StringAttr
+        from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 
         if isinstance(name, str | StringAttr):
             name = SymbolRefAttr(name)
         for o in op.regions[0].block.ops:
             if (
                 o.has_trait(SymbolOpInterface)
-                and SymbolOpInterface.get_sym_attr_name(op) == name.root_reference
+                and SymbolOpInterface.get_sym_attr_name(o) == name.root_reference
             ):
                 if not name.nested_references:
                     return o

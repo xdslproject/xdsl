@@ -27,18 +27,17 @@ from xdsl.irdl import (
     attr_def,
     irdl_op_definition,
     operand_def,
-<<<<<<< HEAD
     opt_attr_def,
-    result_def,
-)
-from xdsl.traits import OptionalSymbolOpInterface, SymbolOpInterface
-=======
     opt_region_def,
     region_def,
     result_def,
 )
-from xdsl.traits import SymbolOpInterface, SymbolTable
->>>>>>> 3779d90d (SymboleTable)
+from xdsl.traits import (
+    IsTerminator,
+    OptionalSymbolOpInterface,
+    SymbolOpInterface,
+    SymbolTable,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -337,16 +336,31 @@ def test_optional_symbol_op_interface():
 
 
 def test_symbol_table():
+    # Some helpers classes
     @irdl_op_definition
     class SymbolTableOp(IRDLOperation):
         name = "test.symbol_table"
 
-        one: Region = region_def()
-        two: Region | None = opt_region_def()
+        one = region_def()
+        two = opt_region_def()
 
         traits = frozenset([SymbolTable()])
-        pass
 
+    @irdl_op_definition
+    class SymbolOp(IRDLOperation):
+        name = "test.symbol"
+
+        sym_name = attr_def(StringAttr)
+
+        traits = frozenset([SymbolOpInterface()])
+
+    @irdl_op_definition
+    class TerminatorOp(IRDLOperation):
+        name = "test.terminator"
+
+        traits = frozenset([IsTerminator()])
+
+    # Check that having a single region is verified
     op = SymbolTableOp(regions=[Region(), Region()])
     with pytest.raises(
         VerifyException,
@@ -354,10 +368,42 @@ def test_symbol_table():
     ):
         op.verify()
 
+    # Check that having a single block is verified
     blocks = [Block(), Block()]
-    op = SymbolTableOp(regions=[Region(), []])
+    op = SymbolTableOp(regions=[Region(blocks), []])
     with pytest.raises(
         VerifyException,
         match="Operations with a 'SymbolTable' must have exactly one block",
     ):
         op.verify()
+
+    # Check that symbol uniqueness is verified
+    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    terminator = TerminatorOp()
+    dup_symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    op = SymbolTableOp(regions=[Region(Block([symbol, dup_symbol, terminator])), []])
+    with pytest.raises(
+        VerifyException,
+        match='Redefinition of symbol "name"',
+    ):
+        op.verify()
+
+    # Check a flat happy case, with symbol lookup
+    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    terminator = TerminatorOp()
+
+    op = SymbolTableOp(regions=[Region(Block([symbol, terminator])), []])
+    op.verify()
+
+    assert SymbolTable.lookup_symbol(op, "name") is symbol
+    assert SymbolTable.lookup_symbol(op, "that_other_name") is None
+
+    # Check a nested happy case, with symbol lookup
+    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    terminator = TerminatorOp()
+
+    op = SymbolTableOp(regions=[Region(Block([symbol, terminator])), []])
+    op.verify()
+
+    assert SymbolTable.lookup_symbol(op, "name") is symbol
+    assert SymbolTable.lookup_symbol(op, "that_other_name") is None
