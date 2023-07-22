@@ -289,7 +289,7 @@ builtin.module attributes {gpu.container_module} {
     var<storage,read_write> varg11: array<f32>;
 
     @compute
-    @workgroup_size(1)
+    @workgroup_size(128,1,1)
     fn main(@builtin(global_invocation_id) global_invocation_id : vec3<u32>,
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
