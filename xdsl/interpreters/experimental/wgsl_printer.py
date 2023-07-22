@@ -37,6 +37,9 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.FuncOp, out_stream: IO[str]):
+        workgroup_size = (1,)
+        if op.known_block_size:
+            workgroup_size = tuple(item.data for item in op.known_block_size.data)
         for arg in op.body.block.args:
             auth = "read"
             arg_type = ""
@@ -60,13 +63,13 @@ class WGSLPrinter:
             out_stream.write(arguments)
 
         out_stream.write(
-            """
+            f"""
     @compute
-    @workgroup_size(1)
+    @workgroup_size({",".join(str(i) for i in workgroup_size)})
     fn main(@builtin(global_invocation_id) global_invocation_id : vec3<u32>,
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
-    @builtin(num_workgroups) num_workgroups : vec3<u32>) {
+    @builtin(num_workgroups) num_workgroups : vec3<u32>) {{
 """
         )
         for operation in op.body.ops:
