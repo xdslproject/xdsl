@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import singledispatchmethod
-from typing import IO, cast, Any
+from typing import IO, Any, cast
 
 from xdsl.dialects import arith, builtin, gpu, memref
 from xdsl.dialects.memref import MemRefType
@@ -148,9 +148,7 @@ class WGSLPrinter:
         {store_ref}[{index_value}] = {value};"""
         )
 
-    def calculate_index(
-        self, op:Any, indices: list[str]
-    ):
+    def calculate_index(self, op: Any, indices: list[str]):
         """
         It is used for linearizing known sizes memref accesses.
         """
