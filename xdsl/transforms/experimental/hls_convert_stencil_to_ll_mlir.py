@@ -282,15 +282,18 @@ class ApplyOpToHLS(RewritePattern):
         # Transform ApplyOp into for loops
         get_number_chunks = FuncOp.external(
             "get_number_chunks",
-            [i32, LLVMPointerType.typed(i32)],
-            [i32],
+            [builtin.IndexType(), LLVMPointerType.typed(i32)],
+            [builtin.IndexType()],
         )
 
         get_chunk_size = FuncOp.external(
             "get_chunk_size",
-            [i32, i32, i32, i32],
-            [i32],
+            [builtin.IndexType(), builtin.IndexType(), i32, i32],
+            [builtin.IndexType()],
         )
+
+        self.module.body.block.add_op(get_number_chunks)
+        self.module.body.block.add_op(get_chunk_size)
 
         res_type = op.res[0].typ
         # Get this apply's ReturnOp
@@ -383,9 +386,13 @@ class ApplyOpToHLS(RewritePattern):
         )
 
         p.body.block.insert_op_before(call_get_chunk_size, p.body.block.first_op)
+        chunk_size_y_1 = arith.Subi(call_get_chunk_size, one)
+        p.body.block.insert_op_after(chunk_size_y_1, call_get_chunk_size)
 
         old_operands_lst = [old_operand for old_operand in y_for_op.operands]
-        y_for_op.operands = [call_get_chunk_size.res[0]] + old_operands_lst[1:]
+        y_for_op.operands = (
+            [old_operands_lst[0]] + [chunk_size_y_1.results[0]] + old_operands_lst[2:]
+        )
 
         rewriter.insert_op_before_matched_op(
             [
@@ -397,8 +404,11 @@ class ApplyOpToHLS(RewritePattern):
                 max_chunk_length,
                 p_remainder,
                 remainder,
+                upper_x,
                 *lowerBounds,
-                *upperBounds,
+                upper_chunks,
+                upper_y,
+                upper_z,
                 p,
             ]
         )
