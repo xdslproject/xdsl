@@ -9,7 +9,6 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
     IntegerAttr,
-    IntegerType,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
