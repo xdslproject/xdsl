@@ -641,13 +641,17 @@ class Printer:
             self.print(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
-    def print_op_attributes(self, attributes: dict[str, Attribute]) -> None:
-        if len(attributes) == 0:
-            return
+    def print_op_attributes(
+        self, attributes: dict[str, Attribute], reserved_attr_names: Iterable[str] = []
+    ) -> None:
+        attribute_list = list(
+            i for i in attributes.items() if i[0] not in reserved_attr_names
+        )
 
+        if len(attribute_list) == 0:
+            return
         self.print(" {")
 
-        attribute_list = list(attributes.items())
         self.print_list(attribute_list, self._print_attr_string)
 
         self.print("}")

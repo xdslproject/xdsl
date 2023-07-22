@@ -177,17 +177,11 @@ class FuncOp(IRDLOperation):
                 printer.print(" ")
         else:
             printer.print_attribute(self.function_type)
-        attr_dict = {
-            k: v
-            for k, v in self.attributes.items()
-            if k not in ("sym_name", "function_type", "sym_visibility")
-        }
-        if len(attr_dict) > 0:
-            printer.print(" attributes {")
-            printer.print_list(
-                attr_dict.items(), lambda i: printer.print(f'"{i[0]}" = {i[1]}')
-            )
-            printer.print("}")
+
+        reserved = ("sym_name", "function_type", "sym_visibility")
+        if any(k not in reserved for k in self.attributes.keys()):
+            printer.print(" attributes")
+            printer.print_op_attributes(self.attributes, reserved)
 
         if len(self.body.blocks) > 0:
             printer.print_region(self.body, False, False)
