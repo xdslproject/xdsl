@@ -6,11 +6,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Iterable, Sequence, cast
 
-from xdsl.dialects.builtin import (
-    DictionaryAttr,
-    ModuleOp,
-    UnregisteredAttr,
-)
+from xdsl.dialects.builtin import DictionaryAttr, ModuleOp, UnregisteredAttr
 from xdsl.ir import (
     Attribute,
     Block,

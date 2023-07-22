@@ -4,8 +4,11 @@ from typing import Generic, Sequence, TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     FunctionType,
     IndexType,
+    IntegerAttr,
+    IntegerType,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
@@ -380,8 +383,44 @@ class FuncOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     function_type: FunctionType = attr_def(FunctionType)
     kernel: UnitAttr | None = opt_attr_def(UnitAttr)
+    known_block_size: ArrayAttr[IntegerAttr[IntegerType]] | None = opt_attr_def(
+        ArrayAttr[IntegerAttr[IntegerType]], attr_name="gpu.known_block_size"
+    )
+    known_grid_size: ArrayAttr[IntegerAttr[IntegerType]] | None = opt_attr_def(
+        ArrayAttr[IntegerAttr[IntegerType]], attr_name="gpu.known_grid_size"
+    )
 
     traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp)])
+
+    def __init__(
+        self,
+        name: str,
+        function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        kernel: bool | None = None,
+        knwown_block_size: Sequence[int] | None = None,
+        knwown_grid_size: Sequence[int] | None = None,
+    ):
+        if isinstance(function_type, tuple):
+            inputs, outputs = function_type
+            function_type = FunctionType.from_lists(inputs, outputs)
+        if not isinstance(region, Region):
+            region = Region(Block(arg_types=function_type.inputs))
+        attributes: dict[str, Attribute | None] = {
+            "sym_name": StringAttr(name),
+            "function_type": function_type,
+        }
+        if knwown_block_size is not None:
+            attributes["gpu.known_block_size"] = ArrayAttr(
+                IntegerAttr(i, i32) for i in knwown_block_size
+            )
+        if knwown_grid_size is not None:
+            attributes["gpu.known_grid_size"] = ArrayAttr(
+                IntegerAttr(i, i32) for i in knwown_grid_size
+            )
+        if kernel:
+            attributes["kernel"] = UnitAttr()
+        super().__init__(attributes=attributes, regions=[region])
 
     def verify_(self):
         entry_block: Block = self.body.blocks[0]
