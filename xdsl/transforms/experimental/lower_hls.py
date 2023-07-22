@@ -20,6 +20,7 @@ from xdsl.dialects.experimental.hls import (
     PragmaDataflow,
     HLSStream,
     HLSStreamRead,
+    HLSStreamWrite,
 )
 from xdsl.dialects import llvm
 from xdsl.dialects.llvm import (
@@ -37,6 +38,32 @@ from xdsl.dialects.scf import ParallelOp, For, Yield
 
 from typing import cast, Any
 from xdsl.utils.hints import isa
+
+
+@dataclass
+class LowerHLSStreamWrite(RewritePattern):
+    def __init__(self, op: builtin.ModuleOp):
+        self.module = op
+        self.push_declaration = False
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: HLSStreamWrite, rewriter: PatternRewriter, /):
+        elem = op.element
+        elem_type = op.element.typ
+        p_elem_type = LLVMPointerType.typed(elem_type)
+        p_struct_elem_type = op.operands[0].typ
+
+        if not self.push_declaration:
+            push_func = func.FuncOp.external(
+                "llvm.fpga.fifo.push.stencil", [elem_type, p_elem_type], []
+            )
+
+            self.module.body.block.add_op(push_func)
+
+        gep = GEPOp.get(op.stream, [0, 0], result_type=p_elem_type)
+        push_call = func.Call.get("llvm.fpga.fifo.push.stencil", [elem, gep], [])
+
+        rewriter.replace_matched_op([gep, push_call])
 
 
 @dataclass
@@ -295,6 +322,7 @@ class LowerHLSPass(ModulePass):
                 PragmaDataflowToFunc(op),
                 LowerHLSStreamToAlloca(op),
                 LowerHLSStreamRead(op),
+                LowerHLSStreamWrite(op),
             ]
         )
 
