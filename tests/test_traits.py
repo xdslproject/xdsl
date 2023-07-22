@@ -20,15 +20,25 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Operation, OpResult, OpTrait
 from xdsl.irdl import (
+    Block,
     IRDLOperation,
     Operand,
+    Region,
     attr_def,
     irdl_op_definition,
     operand_def,
+<<<<<<< HEAD
     opt_attr_def,
     result_def,
 )
 from xdsl.traits import OptionalSymbolOpInterface, SymbolOpInterface
+=======
+    opt_region_def,
+    region_def,
+    result_def,
+)
+from xdsl.traits import SymbolOpInterface, SymbolTable
+>>>>>>> 3779d90d (SymboleTable)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -324,3 +334,30 @@ def test_optional_symbol_op_interface():
     assert interface.is_optional_symbol(symbol)
     symbol.verify()
     assert interface.get_sym_attr_name(symbol) == StringAttr("main")
+
+
+def test_symbol_table():
+    @irdl_op_definition
+    class SymbolTableOp(IRDLOperation):
+        name = "test.symbol_table"
+
+        one: Region = region_def()
+        two: Region | None = opt_region_def()
+
+        traits = frozenset([SymbolTable()])
+        pass
+
+    op = SymbolTableOp(regions=[Region(), Region()])
+    with pytest.raises(
+        VerifyException,
+        match="Operations with a 'SymbolTable' must have exactly one region",
+    ):
+        op.verify()
+
+    blocks = [Block(), Block()]
+    op = SymbolTableOp(regions=[Region(), []])
+    with pytest.raises(
+        VerifyException,
+        match="Operations with a 'SymbolTable' must have exactly one block",
+    ):
+        op.verify()

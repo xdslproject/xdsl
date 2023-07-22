@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Sequence, TypeVar
 
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.dialects.builtin import StringAttr
+    from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
     from xdsl.ir import Operation, Region
 
 
@@ -195,6 +195,57 @@ class IsolatedFromAbove(OpTrait):
                     # too; in which case it will check itself.
                     if not child_op.has_trait(IsolatedFromAbove):
                         regions += child_op.regions
+
+
+class SymbolTable(OpTrait):
+    def verify(self, op: Operation):
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr
+
+        if len(op.regions) != 1:
+            raise VerifyException(
+                "Operations with a 'SymbolTable' must have exactly one region"
+            )
+        if len(op.regions[0].blocks) != 1:
+            raise VerifyException(
+                "Operations with a 'SymbolTable' must have exactly one block"
+            )
+        block = op.regions[0].block
+        met_names: set[StringAttr] = set()
+        for o in block.ops:
+            if "sym_name" not in o.attributes:
+                continue
+            sym_name = o.attributes["sym_name"]
+            if not isinstance(sym_name, StringAttr):
+                continue
+            if sym_name in met_names:
+                raise VerifyException(f'Redefinition of symbol "{sym_name.data}"')
+
+    @staticmethod
+    def lookup_symbol(
+        op: Operation, name: str | StringAttr | SymbolRefAttr
+    ) -> Operation | None:
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr
+
+        if isinstance(name, str | StringAttr):
+            name = SymbolRefAttr(name)
+        for o in op.regions[0].block.ops:
+            if (
+                o.has_trait(SymbolOpInterface)
+                and SymbolOpInterface.get_sym_attr_name(op) == name.root_reference
+            ):
+                if not name.nested_references:
+                    return o
+                nested_root = name.nested_references.data[0]
+                nested_references: Sequence[StringAttr] = (
+                    name.nested_references.data[1:]
+                    if len(name.nested_references) > 1
+                    else []
+                )
+                nested_name = SymbolRefAttr(nested_root, nested_references)
+                return SymbolTable.lookup_symbol(op, nested_name)
+        return None
 
 
 class SymbolOpInterface(OpTrait):

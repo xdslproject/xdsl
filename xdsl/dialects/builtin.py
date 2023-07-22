@@ -53,7 +53,11 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
+<<<<<<< HEAD
 from xdsl.traits import IsolatedFromAbove, NoTerminator, OptionalSymbolOpInterface
+=======
+from xdsl.traits import IsolatedFromAbove, NoTerminator, SymbolTable
+>>>>>>> 3779d90d (SymboleTable)
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -199,11 +203,11 @@ class SymbolRefAttr(ParametrizedAttribute):
     def __init__(
         self,
         root: str | StringAttr,
-        nested: list[str] | list[StringAttr] | ArrayAttr[StringAttr] = [],
+        nested: Sequence[str] | Sequence[StringAttr] | ArrayAttr[StringAttr] = [],
     ) -> None:
         if isinstance(root, str):
             root = StringAttr(root)
-        if isinstance(nested, list):
+        if isinstance(nested, Sequence):
             nested = ArrayAttr(
                 [StringAttr(x) if isinstance(x, str) else x for x in nested]
             )
