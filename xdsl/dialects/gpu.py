@@ -5,10 +5,10 @@ from typing import Generic, Sequence, TypeVar
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    DenseArrayBase,
     FunctionType,
     IndexType,
     IntegerAttr,
-    IntegerType,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
@@ -383,11 +383,11 @@ class FuncOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     function_type: FunctionType = attr_def(FunctionType)
     kernel: UnitAttr | None = opt_attr_def(UnitAttr)
-    known_block_size: ArrayAttr[IntegerAttr[IntegerType]] | None = opt_attr_def(
-        ArrayAttr[IntegerAttr[IntegerType]], attr_name="gpu.known_block_size"
+    known_block_size: DenseArrayBase | None = opt_attr_def(
+        DenseArrayBase, attr_name="gpu.known_block_size"
     )
-    known_grid_size: ArrayAttr[IntegerAttr[IntegerType]] | None = opt_attr_def(
-        ArrayAttr[IntegerAttr[IntegerType]], attr_name="gpu.known_grid_size"
+    known_grid_size: DenseArrayBase | None = opt_attr_def(
+        DenseArrayBase, attr_name="gpu.known_grid_size"
     )
 
     traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp)])
