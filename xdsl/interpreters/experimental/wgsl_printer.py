@@ -47,7 +47,7 @@ class WGSLPrinter:
                 arg_type = "f32"
             elif arg.type == builtin.IndexType():
                 arg_type = "u32"
-            elif isinstance(arg.type, MemrefType):
+            elif isa(arg.type, MemRefType[Attribute]):
                 if arg.type.element_type == builtin.IndexType():
                     arg_type = "u32"
                 else:
