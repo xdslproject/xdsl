@@ -7,6 +7,7 @@ from xdsl.dialects import arith, builtin, gpu, memref
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue
 from xdsl.ir.core import Attribute
+from xdsl.utils.hints import isa
 
 
 class WGSLPrinter:
@@ -46,9 +47,12 @@ class WGSLPrinter:
                 arg_type = "f32"
             elif arg.type == builtin.IndexType():
                 arg_type = "u32"
-            elif isinstance(arg.type, MemRefType):
-                memref_typ = cast(MemRefType[Attribute], arg.type)
-                arg_type = f"array<{memref_typ.element_type}>"
+            elif isa(arg.type, MemRefType[Attribute]):
+                if arg.type.element_type == builtin.IndexType():
+                    arg_type = "u32"
+                else:
+                    arg_type = arg.type.element_type
+                arg_type = f"array<{arg_type}>"
             arguments = f"""
     @group(0) @binding({arg.index})
     var<storage,{auth}> {self.wgsl_name(arg)}: {arg_type};

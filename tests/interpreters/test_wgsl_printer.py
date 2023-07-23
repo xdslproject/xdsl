@@ -193,7 +193,7 @@ def test_2d5pt():
 builtin.module attributes {gpu.container_module} {
   "gpu.module"() ({
     "gpu.func"() ({
-    ^0(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : memref<260x260xf32>, %arg4 : index, %arg5 : f32, %arg6 : f32, %arg7 : f32, %arg8 : f32, %arg9 : f32, %arg10 : f32, %arg11 : memref<260x260xf32>):
+    ^0(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : memref<260x260xf32>, %arg4 : index, %arg5 : f32, %arg6 : f32, %arg7 : f32, %arg8 : f32, %arg9 : f32, %arg10 : f32, %arg11 : memref<260x260xf32>, %arg12: memref<260x260xindex>):
       %0 = "arith.constant"() {"value" = 2 : index} : () -> index
       %1 = "gpu.block_id"() {"dimension" = #gpu<dim x>} : () -> index
       %2 = "gpu.block_id"() {"dimension" = #gpu<dim y>} : () -> index
@@ -241,7 +241,7 @@ builtin.module attributes {gpu.container_module} {
       %44 = arith.mulf %43, %arg10 : f32
       "memref.store"(%44, %arg11, %15, %16) {"nontemporal" = false} : (f32, memref<260x260xf32>, index, index) -> ()
       "gpu.return"() : () -> ()
-    }) {"function_type" = (index, index, index, memref<260x260xf32>, index, f32, f32, f32, f32, f32, f32, memref<260x260xf32>) -> (),
+    }) {"function_type" = (index, index, index, memref<260x260xf32>, index, f32, f32, f32, f32, f32, f32, memref<260x260xf32>, memref<260x260xindex>) -> (),
         "gpu.kernel", "gpu.known_block_size" = array<i32: 128, 1, 1>, "gpu.known_grid_size" = array<i32: 2, 256, 1>,
         "sym_name" = "apply_kernel_kernel",
         "workgroup_attributions" = 0 : i64
@@ -287,6 +287,9 @@ builtin.module attributes {gpu.container_module} {
 
     @group(0) @binding(11)
     var<storage,read_write> varg11: array<f32>;
+
+    @group(0) @binding(12)
+    var<storage,read> varg12: array<u32>;
 
     @compute
     @workgroup_size(1)
