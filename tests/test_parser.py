@@ -475,6 +475,23 @@ def test_parse_comma_separated_list_none_delimiter_empty():
         )
 
 
+def test_parse_comma_separated_list_none_delimiter_two_no_comma():
+    """Test that a list without commas will only parse the first element."""
+    parser = Parser(MLContext(), "1 2")
+    res = parser.parse_comma_separated_list(
+        Parser.Delimiter.NONE, parser.parse_integer, " in test"
+    )
+    assert res == [1]
+    assert parser.parse_optional_integer() is not None
+
+    parser = Parser(MLContext(), "1 2")
+    parser.parse_optional_undelimited_comma_separated_list(
+        parser.parse_optional_integer, parser.parse_integer
+    )
+    assert res == [1]
+    assert parser.parse_optional_integer() is not None
+
+
 @pytest.mark.parametrize(
     "delimiter",
     [
