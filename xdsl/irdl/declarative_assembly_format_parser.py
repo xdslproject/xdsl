@@ -128,7 +128,7 @@ class FormatParser(BaseParser):
 
     def parse_directive(self) -> FormatDirective:
         """
-        Parse a format directive, with the following forrmat:
+        Parse a format directive, with the following format:
           directive ::= `attr-dict`
                         | `attr-dict-with-keyword`
                         | type-directive

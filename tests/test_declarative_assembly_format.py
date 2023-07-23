@@ -5,9 +5,9 @@ from io import StringIO
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir.core import MLContext, Operation
+from xdsl.ir import MLContext, Operation
 from xdsl.irdl import IRDLOperation, irdl_op_definition
-from xdsl.parser.core import Parser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLOpDefinitionError
 
@@ -20,7 +20,7 @@ def check_roundtrip(program: str, ctx: MLContext):
     """Check that the given program roundtrips exactly (including whitespaces)."""
     parser = Parser(ctx, program)
     ops: list[Operation] = []
-    while op := parser.parse_optional_operation():
+    while (op := parser.parse_optional_operation()) is not None:
         ops.append(op)
 
     res_io = StringIO()
@@ -38,12 +38,12 @@ def check_equivalence(program1: str, program2: str, ctx: MLContext):
 
     parser = Parser(ctx, program1)
     ops1: list[Operation] = []
-    while op := parser.parse_optional_operation():
+    while (op := parser.parse_optional_operation()) is not None:
         ops1.append(op)
 
     parser = Parser(ctx, program2)
     ops2: list[Operation] = []
-    while op := parser.parse_optional_operation():
+    while (op := parser.parse_optional_operation()) is not None:
         ops2.append(op)
 
     assert ModuleOp(ops1).is_structurally_equivalent(ModuleOp(ops2))
