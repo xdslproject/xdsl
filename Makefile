@@ -34,9 +34,13 @@ pytest-nb:
 	pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb --nbval-current-env
 
 # run tests for Toy tutorial
-tests-toy:
+filecheck-toy:
 	lit -v docs/Toy/examples --order=smart
+
+pytest-toy:
 	pytest docs/Toy/toy/tests
+
+tests-toy: filecheck-toy pytest-toy
 
 # run all tests
 tests: pytest tests-toy filecheck pytest-nb pyright
