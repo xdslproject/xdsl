@@ -1,7 +1,9 @@
 // RUN: xdsl-opt -t riscv-asm %s | filecheck %s
 
 "builtin.module"() ({
-  "riscv.label"() ({
+  "riscv.code_section"() ({
+    "riscv.label"() {"label" = #riscv.label<"main">} : () -> ()
+
     %0 = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<zero>
     // CHECK:      li zero, 6
     %1 = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<j1>
@@ -160,17 +162,18 @@
 
     "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
     // CHECK-NEXT: .align 2
-    "riscv.directive"() ({
+    "riscv.assembly_section"() ({
       %nested_addi = "riscv.addi"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j1>
     }) {"directive" = ".text"} : () -> ()
     // CHECK-NEXT:  .text
     // CHECK-NEXT:  addi j1, j1, 1
     "riscv.label"() {"label" = #riscv.label<"label0">} : () -> ()
     // CHECK-NEXT: label0:
-    "riscv.label"() ({
+    "riscv.code_section"() ({
+    "riscv.label"() {"label" = #riscv.label<"label1">} : () -> ()
       %nested_addi = "riscv.addi"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j1>
       "riscv.ret"() : () -> ()
-    }) {"label" = #riscv.label<"label1">} : () -> ()
+    }) : () -> ()
     // CHECK-NEXT: label1:
     // CHECK-NEXT: addi j1, j1, 1
     // CHECK-NEXT: ret
@@ -245,5 +248,5 @@
     // Terminate block
     "riscv.ret"() : () -> ()
     // CHECK-NEXT: ret
-  }) {"label" = #riscv.label<"main">}: () -> ()
+  }) : () -> ()
 }) : () -> ()

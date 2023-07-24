@@ -28,7 +28,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    OptRegion,
+    OptOperand,
     OptSingleBlockRegion,
     VarOperand,
     VarOpResult,
@@ -37,11 +37,12 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
-    opt_region_def,
+    opt_operand_def,
     result_def,
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.irdl import region_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
@@ -1999,8 +2000,39 @@ class LabelOp(IRDLOperation, RISCVOp):
 
     https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels
 
-    Optionally, a label can be associated with a single-block region, since
-    that is a common target for jump instructions.
+    """
+
+    name = "riscv.label"
+    label: LabelAttr = attr_def(LabelAttr)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
+
+    def __init__(
+        self,
+        label: str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = LabelAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            }
+        )
+
+    def assembly_line(self) -> str | None:
+        return _append_comment(f"{self.label.data}:", self.comment)
+
+
+@irdl_op_definition
+class CodeSectionOp(IRDLOperation, RISCVOp):
+    """
+    A section of RISC-V instructions. Represents the body of functions or other executable
+    control structures.
 
     For example, to generate this assembly:
     ```
@@ -2013,43 +2045,36 @@ class LabelOp(IRDLOperation, RISCVOp):
     ``` python
     @Builder.implicit_region
     def my_add():
+        riscv.LabelOp("label1", my_add)
         a1_reg = TestSSAValue(riscv.Registers.A1)
         a2_reg = TestSSAValue(riscv.Registers.A2)
         riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
 
-    label_op = riscv.LabelOp("label1", my_add)
+    section_op = riscv.CodeSectionOp(my_add)
+
+    # Equivalent
+    section_op = riscv.CodeSectionOp()
+    with ImplicitBuilder(section_op.body):
+        riscv.LabelOp("label1", my_add)
+        a1_reg = TestSSAValue(riscv.Registers.A1)
+        a2_reg = TestSSAValue(riscv.Registers.A2)
+        riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
     ```
     """
 
-    name = "riscv.label"
-    label: LabelAttr = attr_def(LabelAttr)
-    comment: StringAttr | None = opt_attr_def(StringAttr)
-    data: OptRegion = opt_region_def()
+    name = "riscv.code_section"
+    body: Region = region_def()
 
-    def __init__(
-        self,
-        label: str | LabelAttr,
-        region: OptRegion = None,
-        *,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(label, str):
-            label = LabelAttr(label)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
+    def __init__(self, region: Region | None = None):
         if region is None:
             region = Region()
 
         super().__init__(
-            attributes={
-                "label": label,
-                "comment": comment,
-            },
             regions=[region],
         )
 
     def assembly_line(self) -> str | None:
-        return _append_comment(f"{self.label.data}:", self.comment)
+        return None
 
 
 @irdl_op_definition
@@ -2064,29 +2089,22 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     name = "riscv.directive"
     directive: StringAttr = attr_def(StringAttr)
     value: StringAttr | None = opt_attr_def(StringAttr)
-    data: OptRegion = opt_region_def("single_block")
-
-    traits = frozenset([NoTerminator()])
 
     def __init__(
         self,
         directive: str | StringAttr,
         value: str | StringAttr | None,
-        region: OptSingleBlockRegion = None,
     ):
         if isinstance(directive, str):
             directive = StringAttr(directive)
         if isinstance(value, str):
             value = StringAttr(value)
-        if region is None:
-            region = Region()
 
         super().__init__(
             attributes={
                 "directive": directive,
                 "value": value,
-            },
-            regions=[region],
+            }
         )
 
     def assembly_line(self) -> str | None:
@@ -2096,6 +2114,44 @@ class DirectiveOp(IRDLOperation, RISCVOp):
             arg_str = ""
 
         return _assembly_line(self.directive.data, arg_str, is_indented=False)
+
+
+@irdl_op_definition
+class AssemblySectionOp(IRDLOperation, RISCVOp):
+    """
+    The directive operation is used to emit assembler directives (e.g. .word; .text; .data; etc.)
+    A more complete list of directives can be found here:
+
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops
+
+    This operation can have nested operations, corresponding to a section of the assembly.
+    """
+
+    name = "riscv.assembly_section"
+    directive: StringAttr = attr_def(StringAttr)
+    data: Region = region_def("single_block")
+
+    traits = frozenset([NoTerminator()])
+
+    def __init__(
+        self,
+        directive: str | StringAttr,
+        region: OptSingleBlockRegion = None,
+    ):
+        if isinstance(directive, str):
+            directive = StringAttr(directive)
+        if region is None:
+            region = Region()
+
+        super().__init__(
+            regions=[region],
+            attributes={
+                "directive": directive,
+            },
+        )
+
+    def assembly_line(self) -> str | None:
+        return _assembly_line(self.directive.data, "", is_indented=False)
 
 
 @irdl_op_definition
@@ -2990,7 +3046,9 @@ RISCV = Dialect(
         LiOp,
         EcallOp,
         LabelOp,
+        CodeSectionOp,
         DirectiveOp,
+        AssemblySectionOp,
         EbreakOp,
         WfiOp,
         CustomAssemblyInstructionOp,

@@ -174,18 +174,18 @@
     %li = riscv.li {"immediate" = 1 : i32}: () -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
     // Environment Call and Breakpoints
-    riscv.ecall : () -> ()
-    // CHECK-NEXT: riscv.ecall : () -> ()
-    riscv.ebreak : () -> ()
-    // CHECK-NEXT: riscv.ebreak : () -> ()
-    riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
-    // CHECK-NEXT: riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
-    riscv.directive {"directive" = ".text"} ({
-      %nested_li = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
-    }) : () -> ()
-    // CHECK-NEXT:  riscv.directive {"directive" = ".text"} ({
-    // CHECK-NEXT:    %{{.*}} = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
-    // CHECK-NEXT:  }) : () -> ()
+    riscv.ecall() : () -> ()
+    // CHECK-NEXT: riscv.ecall() : () -> ()
+    riscv.ebreak() : () -> ()
+    // CHECK-NEXT: riscv.ebreak() : () -> ()
+    riscv.directive() {"directive" = ".align", "value" = "2"} : () -> ()
+    // CHECK-NEXT: riscv.directive() {"directive" = ".align", "value" = "2"} : () -> ()
+    riscv.assembly_section() ({
+      %nested_li = riscv.li() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+    }) {"directive" = ".text"} : () -> ()
+    // CHECK-NEXT:  riscv.assembly_section() ({
+    // CHECK-NEXT:    %{{.*}} = riscv.li() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+    // CHECK-NEXT:  }) {"directive" = ".text"} : () -> ()
 
     // Custom instruction
     %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1 {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
