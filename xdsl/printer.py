@@ -648,7 +648,7 @@ class Printer:
             i for i in attributes.items() if i[0] not in reserved_attr_names
         ]
 
-        if attribute_list:
+        if not attribute_list:
             return
         self.print(" {")
 
