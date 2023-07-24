@@ -316,11 +316,11 @@ def test_optional_symbol_op_interface():
     assert interface is not None
     assert interface.is_optional_symbol(no_symbol)
     no_symbol.verify()
-    assert SymbolOpInterface.get_sym_attr_name(no_symbol) is None
+    assert interface.get_sym_attr_name(no_symbol) is None
 
     symbol = OptionalSymNameOp(attributes={"sym_name": StringAttr("main")})
     interface = symbol.get_trait(SymbolOpInterface)
     assert interface is not None
     assert interface.is_optional_symbol(symbol)
     symbol.verify()
-    assert SymbolOpInterface.get_sym_attr_name(symbol) == StringAttr("main")
+    assert interface.get_sym_attr_name(symbol) == StringAttr("main")

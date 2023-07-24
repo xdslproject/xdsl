@@ -215,20 +215,27 @@ class SymbolOpInterface(OpTrait):
     https://mlir.llvm.org/docs/SymbolsAndSymbolTables/#symbol
     """
 
-    @staticmethod
-    def get_sym_attr_name(op: Operation) -> StringAttr | None:
+    def get_sym_attr_name(self, op: Operation) -> StringAttr | None:
         """
         Returns the symbol of the operation, if any
         """
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
 
-        concrete = op.get_trait(SymbolOpInterface)
-        assert concrete is not None
-        if concrete.is_optional_symbol(op) and "sym_name" not in op.attributes:
-            return None
+        if "sym_name" not in op.attributes:
+            if self.is_optional_symbol(op):
+                return None
+            else:
+                raise VerifyException(
+                    f'Operation {op.name} must have a "sym_name" attribute of type '
+                    f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
+                )
         attr = op.attributes["sym_name"]
-        assert isinstance(attr, StringAttr)
+        if not isinstance(attr, StringAttr):
+            raise VerifyException(
+                f'Operation {op.name} must have a "sym_name" attribute of type '
+                f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
+            )
         return attr
 
     def is_optional_symbol(self, op: Operation) -> bool:
