@@ -64,9 +64,7 @@ class LowerDma1DOpToFunc(RewritePattern, ABC):
         op: snitch_runtime.DmaStart1DOp | snitch_runtime.DmaStart1DWideptrOp,
         rewriter: PatternRewriter,
     ):
-        func_call = func.Call(
-            "snrt_" + op.name[5:], [op.dst, op.src, op.size], [tx_id]
-        )
+        func_call = func.Call("snrt_" + op.name[5:], [op.dst, op.src, op.size], [tx_id])
         rewriter.replace_matched_op(func_call)
 
 
