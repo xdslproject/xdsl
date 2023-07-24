@@ -53,7 +53,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.traits import IsolatedFromAbove, NoTerminator
+from xdsl.traits import IsolatedFromAbove, NoTerminator, OptionalSymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -1217,7 +1217,9 @@ class ModuleOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
+    traits = frozenset(
+        [IsolatedFromAbove(), NoTerminator(), OptionalSymbolOpInterface()]
+    )
 
     def __init__(
         self,
