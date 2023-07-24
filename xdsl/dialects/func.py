@@ -158,6 +158,7 @@ class FuncOp(IRDLOperation):
         return func
 
     def print(self, printer: Printer):
+        reserved = {"sym_name", "function_type", "sym_visibility"}
         if self.sym_visibility:
             visibility = self.sym_visibility.data
             printer.print(f" {visibility}")
@@ -177,8 +178,6 @@ class FuncOp(IRDLOperation):
                 printer.print(" ")
         else:
             printer.print_attribute(self.function_type)
-
-        reserved = ("sym_name", "function_type", "sym_visibility")
         if any(k not in reserved for k in self.attributes.keys()):
             printer.print(" attributes")
             printer.print_op_attributes(self.attributes, reserved)
