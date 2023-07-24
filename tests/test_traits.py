@@ -300,7 +300,7 @@ def test_symbol_op_interface():
 
 def test_optional_symbol_op_interface():
     """
-    Test that operations that conform to OptionalSymbolOpInterface have necessary attributes.
+    Test that operations that conform to OptionalSymbolOpInterface have the necessary attributes.
     """
 
     @irdl_op_definition
