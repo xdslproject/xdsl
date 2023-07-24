@@ -27,7 +27,7 @@ class LowerGetInfoOpToFunc(RewritePattern, ABC):
     def match_and_rewrite(
         self, op: snitch_runtime.SnitchRuntimeGetInfo, rewriter: PatternRewriter, /
     ):
-        func_call = func.Call.get("snrt_" + op.name[5:], [], [i32])
+        func_call = func.Call("snrt_" + op.name[5:], [], [i32])
         rewriter.replace_matched_op(func_call)
 
 
@@ -47,7 +47,7 @@ class LowerBarrierOpToFunc(RewritePattern, ABC):
         rewriter: PatternRewriter,
         /,
     ):
-        func_call = func.Call.get("snrt_" + op.name[5:], [], [])
+        func_call = func.Call("snrt_" + op.name[5:], [], [])
         rewriter.replace_matched_op(func_call)
 
 
@@ -64,7 +64,7 @@ class LowerDma1DOpToFunc(RewritePattern, ABC):
         op: snitch_runtime.DmaStart1DOp | snitch_runtime.DmaStart1DWideptrOp,
         rewriter: PatternRewriter,
     ):
-        func_call = func.Call.get(
+        func_call = func.Call(
             "snrt_" + op.name[5:], [op.dst, op.src, op.size], [tx_id]
         )
         rewriter.replace_matched_op(func_call)
@@ -82,7 +82,7 @@ class LowerDma2DOpToFunc(RewritePattern, ABC):
         op: snitch_runtime.DmaStart2DOp | snitch_runtime.DmaStart2DWideptrOp,
         rewriter: PatternRewriter,
     ):
-        func_call = func.Call.get(
+        func_call = func.Call(
             "snrt_" + op.name[5:],
             [op.dst, op.src, op.dst_stride, op.src_stride, op.size, op.repeat],
             [tx_id],
