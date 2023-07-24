@@ -37,6 +37,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import SymbolOpInterface
 
 
 @irdl_attr_definition
@@ -1413,6 +1414,8 @@ class Global(IRDLOperation):
     )
     linkName: StringAttr | None = opt_attr_def(StringAttr)
     constant: UnitAttr | None = opt_attr_def(UnitAttr)
+
+    traits = frozenset([SymbolOpInterface()])
 
 
 @irdl_op_definition
