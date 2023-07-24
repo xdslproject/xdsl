@@ -78,7 +78,7 @@ class Yield(IRDLOperation):
             printer.print(" ")
             printer.print_list(self.arguments, printer.print)
             printer.print(" : ")
-            printer.print_list([r.type for r in self.arguments], printer.print)
+            printer.print_list((r.type for r in self.arguments), printer.print)
 
 
 @irdl_op_definition
@@ -197,7 +197,7 @@ class For(IRDLOperation):
             printer.print(")")
         if self.res:
             printer.print(" -> (")
-            printer.print_list([r.type for r in self.res], printer.print_attribute)
+            printer.print_list((r.type for r in self.res), printer.print_attribute)
             printer.print(")")
         printer.print(" {")
         printer.print_block(self.body.block, False)
