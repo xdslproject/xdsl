@@ -1670,7 +1670,7 @@ class Region(IRNode):
 
     def clone(self) -> Region:
         """
-        clone the entire region into a new one.
+        Clone the entire region into a new one.
         """
         new_region = Region()
         self.clone_into(new_region)
