@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
@@ -17,6 +19,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -79,6 +82,31 @@ class Yield(IRDLOperation):
             printer.print_list(self.arguments, printer.print)
             printer.print(" : ")
             printer.print_list((r.type for r in self.arguments), printer.print)
+
+    @classmethod
+    def parse(cls: type[Self], parser: Parser) -> Self:
+        args: list[SSAValue] = []
+
+        arg0 = parser.parse_optional_operand()
+        if arg0 is not None:
+            args.append(arg0)
+            while parser.parse_optional_punctuation(",") is not None:
+                args.append(parser.parse_operand())
+
+            parser.parse_punctuation(":")
+
+            types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_type, "Expected return value type"
+            )
+
+            if len(args) != len(types):
+                parser.raise_error("Expected the same number of types and arguments!")
+
+            for arg, arg_type in zip(args, types):
+                if arg.type != arg_type:
+                    parser.raise_error("Expected argument types differ!")
+
+        return Yield(operands=args)
 
 
 @irdl_op_definition
