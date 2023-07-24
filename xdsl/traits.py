@@ -203,7 +203,7 @@ class SymbolOpInterface(OpTrait):
     a `SymbolTable` (TODO). A Symbol operation should use the SymbolOpInterface interface to
     provide the necessary verification and accessors.
 
-    A Symbol operation may be optional or not. If - the dault - it is not optional,
+    A Symbol operation may be optional or not. If - the default - it is not optional,
     a `sym_name` attribute of type StringAttr is required. If it is optional,
     the attribute is optional too.
 
