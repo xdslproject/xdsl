@@ -644,11 +644,11 @@ class Printer:
     def print_op_attributes(
         self, attributes: dict[str, Attribute], reserved_attr_names: Iterable[str] = []
     ) -> None:
-        attribute_list = list(
+        attribute_list = [
             i for i in attributes.items() if i[0] not in reserved_attr_names
-        )
+        ]
 
-        if len(attribute_list) == 0:
+        if attribute_list:
             return
         self.print(" {")
 
