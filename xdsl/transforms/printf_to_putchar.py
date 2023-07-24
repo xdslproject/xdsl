@@ -84,18 +84,27 @@ def get_inline_itoa():
             # Now print the digits of the absolute value
 
             # Get the amount of digits
-            before_region = Region(Block(arg_types=(i32,)))
-            after_region = Region(Block(arg_types=(i32,)))
-            size_int = scf.While.get(
-                (absolute_value,), (i32,), before_region, after_region
+            before_block = Block(arg_types=(i32, i32))
+            after_block = Block(arg_types=(i32, i32))
+            digit_init = arith.Constant.from_int_and_width(0, i32)
+            one = arith.Constant.from_int_and_width(1, i32)
+            while_loop = scf.While.get(
+                [[absolute_value, digit_init]],
+                [[i32, i32]],
+                [before_block],
+                [after_block],
             )
-            with ImplicitBuilder(before_region.blocks[0]) as (running_integer,):
-                is_bigger_than_zero = arith.Cmpi.get(running_integer, zero, "slt")
-                scf.Condition.get(is_bigger_than_zero, running_integer)
-            with ImplicitBuilder(after_region.blocks[0]) as (running_integer,):
+            with ImplicitBuilder(before_block) as (running_integer, digits):
+                # Stop when you reach zero
+                is_zero = arith.Cmpi.get(running_integer, zero, "ne")
+                scf.Condition.get(is_zero, running_integer, digits)
+            with ImplicitBuilder(after_block) as (running_integer, previous_digits):
                 ten = arith.Constant.from_int_and_width(10, 32)
                 new_integer = arith.DivUI(running_integer, ten)
-                scf.Yield.get(new_integer)
+                digits = arith.Addi(previous_digits, one)
+                scf.Yield.get(new_integer, digits)
+            size_int = while_loop.results[1]
+
             zero_index = arith.Constant.from_int_and_width(0, IndexType())
             one_index = arith.Constant.from_int_and_width(1, IndexType())
             size_int_index = arith.IndexCastOp((size_int,), (IndexType(),))
