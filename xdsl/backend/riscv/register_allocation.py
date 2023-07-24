@@ -75,9 +75,12 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
     idx: int
 
-    def __init__(self, limit_registers: int = 0) -> None:
+    def __init__(
+        self, limit_registers: int = 0, exclude_preallocated: bool = False
+    ) -> None:
         self.idx = 0
         self._register_types = (IntRegisterType, FloatRegisterType)
+        self.exclude_preallocated = exclude_preallocated
 
         """
         Assume that all the registers are available except the ones explicitly reserved
@@ -123,12 +126,13 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 available_regs.append(reg_name)
 
     def allocate_registers(self, module: ModuleOp) -> None:
-        preallocated = _gather_allocated(module)
+        if self.exclude_preallocated:
+            preallocated = _gather_allocated(module)
 
-        for _, reg_set in self.register_sets.items():
-            for t in preallocated:
-                if t in reg_set:
-                    reg_set.remove(t)
+            for _, reg_set in self.register_sets.items():
+                for t in preallocated:
+                    if t in reg_set:
+                        reg_set.remove(t)
 
         for region in module.regions:
             for block in region.blocks:
@@ -161,10 +165,13 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 class RegisterAllocatorBlockNaive(RegisterAllocator):
     idx: int
 
-    def __init__(self, limit_registers: int = 0) -> None:
+    def __init__(
+        self, limit_registers: int = 0, exclude_preallocated: bool = False
+    ) -> None:
         self.idx = 0
         self._register_types = (IntRegisterType, FloatRegisterType)
         _ = limit_registers
+        self.exclude_preallocated = exclude_preallocated
 
         """
         Assume that all the registers are available except the ones explicitly reserved
@@ -187,12 +194,14 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
         When it runs out of real registers for a block, it allocates j registers.
         """
 
-        preallocated = _gather_allocated(module)
+        if self.exclude_preallocated:
+            preallocated = _gather_allocated(module)
 
-        for _, reg_set in self.register_sets.items():
-            for t in preallocated:
-                if t in reg_set:
-                    reg_set.remove(t)
+            for _, reg_set in self.register_sets.items():
+                for t in preallocated:
+                    if t in reg_set:
+                        reg_set.remove(t)
+
         for region in module.regions:
             for block in region.blocks:
                 register_sets = self.register_sets.copy()
@@ -219,10 +228,13 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 class RegisterAllocatorJRegs(RegisterAllocator):
     idx: int
 
-    def __init__(self, limit_registers: int = 0) -> None:
+    def __init__(
+        self, limit_registers: int = 0, exclude_preallocated: bool = False
+    ) -> None:
         self.idx = 0
         self._register_types = (IntRegisterType, FloatRegisterType)
         _ = limit_registers
+        _ = exclude_preallocated
 
     def allocate_registers(self, module: ModuleOp) -> None:
         """

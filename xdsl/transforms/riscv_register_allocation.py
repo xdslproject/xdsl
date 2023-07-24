@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from warnings import warn
 
 from xdsl.backend.riscv.register_allocation import (
     RegisterAllocatorBlockNaive,
@@ -22,6 +23,8 @@ class RISCVRegisterAllocation(ModulePass):
 
     limit_registers: int = 0
 
+    exclude_preallocated: bool = False
+
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         allocator_strategies = {
             "GlobalJRegs": RegisterAllocatorJRegs,
@@ -41,7 +44,14 @@ class RISCVRegisterAllocation(ModulePass):
                 "When set to 0 it signifies all available registers are used."
             )
 
+        if self.allocation_strategy == "GlobalJRegs" and self.exclude_preallocated:
+            warn(
+                "Excluding preallocated registers has no effect when using "
+                f"{self.allocation_strategy}."
+            )
+
         allocator = allocator_strategies[self.allocation_strategy](
-            limit_registers=self.limit_registers
+            limit_registers=self.limit_registers,
+            exclude_preallocated=self.exclude_preallocated,
         )
         allocator.allocate_registers(op)
