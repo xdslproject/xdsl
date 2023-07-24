@@ -231,8 +231,7 @@ class SymbolOpInterface(OpTrait):
         assert isinstance(attr, StringAttr)
         return attr
 
-    @staticmethod
-    def is_optional_symbol(op: Operation) -> bool:
+    def is_optional_symbol(self, op: Operation) -> bool:
         """
         Returns true if this operation optionally defines a symbol based on the
         presence of the symbol name.
@@ -244,9 +243,7 @@ class SymbolOpInterface(OpTrait):
         from xdsl.dialects.builtin import StringAttr
 
         # If this is an optional symbol, bail out early if possible.
-        concrete = op.get_trait(SymbolOpInterface)
-        assert concrete is not None
-        if concrete.is_optional_symbol(op) and "sym_name" not in op.attributes:
+        if self.is_optional_symbol(op) and "sym_name" not in op.attributes:
             return
         if "sym_name" not in op.attributes or not isinstance(
             op.attributes["sym_name"], StringAttr
@@ -262,8 +259,7 @@ class OptionalSymbolOpInterface(SymbolOpInterface):
     Helper interface specialization for an optional SymbolOpInterface.
     """
 
-    @staticmethod
-    def is_optional_symbol(op: Operation) -> bool:
+    def is_optional_symbol(self, op: Operation) -> bool:
         return True
 
 
