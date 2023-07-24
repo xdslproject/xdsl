@@ -9,7 +9,15 @@ import pytest
 from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import IndexType, ModuleOp, i32, i64
-from xdsl.dialects.scf import For, If, ParallelOp, ReduceOp, ReduceReturnOp, Yield, While
+from xdsl.dialects.scf import (
+    For,
+    If,
+    ParallelOp,
+    ReduceOp,
+    ReduceReturnOp,
+    While,
+    Yield,
+)
 from xdsl.dialects.test import TestTermOp
 from xdsl.ir.core import Block, BlockArgument, Region
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
@@ -455,16 +463,17 @@ def test_empty_else():
 
     assert len(cast(If, list(m.ops)[1]).false_region.blocks) == 0
 
+
 def test_while():
     before_block = Block(arg_types=(i32, i32))
     after_block = Block(arg_types=(i32, i32))
     a = Constant.from_int_and_width(0, i32)
     b = Constant.from_int_and_width(0, i32)
     while_loop = While(
-        operands = [a, b],
-        result_types = [i32, i32],
+        operands=[a, b],
+        result_types=[i32, i32],
         before=[before_block],
-        after=[after_block]
+        after=[after_block],
     )
     assert (len(while_loop.results)) == 2
     assert (len(while_loop.operands)) == 2

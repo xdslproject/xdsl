@@ -18,9 +18,8 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
-from xdsl.utils.exceptions import VerifyException
-
 from xdsl.utils.deprecation import deprecated
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
