@@ -17,6 +17,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
 from xdsl.utils.exceptions import VerifyException
 
@@ -71,6 +72,13 @@ class Yield(IRDLOperation):
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
         return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
+
+    def print(self, printer: Printer):
+        if self.arguments:
+            printer.print(" ")
+            printer.print_list(self.arguments, printer.print)
+            printer.print(" : ")
+            printer.print_list([r.type for r in self.arguments], printer.print)
 
 
 @irdl_op_definition
@@ -168,6 +176,32 @@ class For(IRDLOperation):
             result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
         )
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        self.body.block.args[0].name_hint = "iv"
+        printer.print(self.body.block.args[0])
+        printer.print(" = ")
+        printer.print(self.lb)
+        printer.print(" to ")
+        printer.print(self.ub)
+        printer.print(" step ")
+        printer.print(self.step)
+        if len(self.iter_args) > 0:
+            printer.print(" iter_args(")
+            body_args = self.body.block.args[1:]
+            for reg_arg, for_arg in zip(body_args, self.iter_args):
+                printer.print(reg_arg)
+                printer.print(" = ")
+                printer.print(for_arg)
+            printer.print(")")
+        if self.res:
+            printer.print(" -> (")
+            printer.print_list([r.type for r in self.res], printer.print_attribute)
+            printer.print(")")
+        printer.print(" {")
+        printer.print_block(self.body.block, False)
+        printer.print("}")
 
 
 @irdl_op_definition
