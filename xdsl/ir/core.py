@@ -1668,6 +1668,14 @@ class Region(IRNode):
         block = self.detach_block(block)
         block.erase(safe_erase=safe_erase)
 
+    def clone(self) -> Region:
+        """
+        clone the entire region into a new one.
+        """
+        new_region = Region()
+        self.clone_into(new_region)
+        return new_region
+
     def clone_into(
         self,
         dest: Region,

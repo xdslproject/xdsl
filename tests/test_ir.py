@@ -714,3 +714,12 @@ def test_op_walk():
 
     assert list(op_multi_region.walk()) == [op_multi_region, a, b]
     assert list(op_multi_region.walk_reverse()) == [b, a, op_multi_region]
+
+
+def test_region_clone():
+    a = Constant.from_int_and_width(1,32)
+    block_a = Block([a])
+    region = Region(block_a)
+    
+    region2 = region.clone()
+    assert (region.is_structurally_equivalent(region2))
