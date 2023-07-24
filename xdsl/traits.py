@@ -212,21 +212,38 @@ class SymbolOpInterface(OpTrait):
     """
 
     @staticmethod
-    def get_sym_attr_name(op: Operation) -> StringAttr:
+    def get_sym_attr_name(op: Operation) -> StringAttr | None:
         """
         Returns the symbol of the operation
         """
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
 
+        concrete = op.get_trait(SymbolOpInterface)
+        assert concrete is not None
+        if concrete.is_optional_symbol(op) and "sym_name" not in op.attributes:
+            return None
         attr = op.attributes["sym_name"]
         assert isinstance(attr, StringAttr)
         return attr
+
+    @staticmethod
+    def is_optional_symbol(op: Operation) -> bool:
+        """
+        Returns true if this operation optionally defines a symbol based on the
+        presence of the symbol name.
+        """
+        return False
 
     def verify(self, op: Operation) -> None:
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
 
+        # If this is an optional symbol, bail out early if possible.
+        concrete = op.get_trait(SymbolOpInterface)
+        assert concrete is not None
+        if concrete.is_optional_symbol(op) and "sym_name" not in op.attributes:
+            return
         if "sym_name" not in op.attributes or not isinstance(
             op.attributes["sym_name"], StringAttr
         ):
@@ -234,6 +251,16 @@ class SymbolOpInterface(OpTrait):
                 f'Operation {op.name} must have a "sym_name" attribute of type '
                 f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
             )
+
+
+class OptionalSymbolOpInterface(SymbolOpInterface):
+    """
+    Helper interface specialization for an optional Symbol.
+    """
+
+    @staticmethod
+    def is_optional_symbol(op: Operation) -> bool:
+        return True
 
 
 class CallableOpInterface(OpTrait, abc.ABC):
