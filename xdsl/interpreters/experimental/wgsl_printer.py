@@ -7,6 +7,7 @@ from xdsl.dialects import arith, builtin, gpu, memref
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Operation, SSAValue
 from xdsl.ir.core import Attribute
+from xdsl.utils.hints import isa
 
 
 class WGSLPrinter:
@@ -36,6 +37,9 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.FuncOp, out_stream: IO[str]):
+        workgroup_size = (1,)
+        if op.known_block_size:
+            workgroup_size = tuple(item.data for item in op.known_block_size.data)
         for arg in op.body.block.args:
             auth = "read"
             arg_type = ""
@@ -46,9 +50,12 @@ class WGSLPrinter:
                 arg_type = "f32"
             elif arg.type == builtin.IndexType():
                 arg_type = "u32"
-            elif isinstance(arg.type, MemRefType):
-                memref_typ = cast(MemRefType[Attribute], arg.type)
-                arg_type = f"array<{memref_typ.element_type}>"
+            elif isa(arg.type, MemRefType[Attribute]):
+                if arg.type.element_type == builtin.IndexType():
+                    arg_type = "u32"
+                else:
+                    arg_type = arg.type.element_type
+                arg_type = f"array<{arg_type}>"
             arguments = f"""
     @group(0) @binding({arg.index})
     var<storage,{auth}> {self.wgsl_name(arg)}: {arg_type};
@@ -56,13 +63,13 @@ class WGSLPrinter:
             out_stream.write(arguments)
 
         out_stream.write(
-            """
+            f"""
     @compute
-    @workgroup_size(1)
+    @workgroup_size({",".join(str(i) for i in workgroup_size)})
     fn main(@builtin(global_invocation_id) global_invocation_id : vec3<u32>,
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
-    @builtin(num_workgroups) num_workgroups : vec3<u32>) {
+    @builtin(num_workgroups) num_workgroups : vec3<u32>) {{
 """
         )
         for operation in op.body.ops:
@@ -124,13 +131,10 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: memref.Load, out_stream: IO[str]):
-        memref_type = cast(MemRefType[Attribute], op.memref.type)
-        memref_dimension = memref_type.get_num_dims()
-        memref_size = memref_type.get_shape()
         load_ref = self.wgsl_name(op.memref)
         name_hint = self.wgsl_name(op.res)
         indices = [self.wgsl_name(i) for i in op.indices]
-        index_value = self.calculate_index(memref_dimension, memref_size, indices)
+        index_value = self.calculate_index(op, indices)
         out_stream.write(
             f"""
         let {name_hint} = {load_ref}[{index_value}];"""
@@ -138,24 +142,22 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: memref.Store, out_stream: IO[str]):
-        memref_type = cast(MemRefType[Attribute], op.memref.type)
-        memref_dimension = memref_type.get_num_dims()
-        memref_size = memref_type.get_shape()
         value = self.wgsl_name(op.value)
         store_ref = self.wgsl_name(op.memref)
         indices = [self.wgsl_name(i) for i in op.indices]
-        index_value = self.calculate_index(memref_dimension, memref_size, indices)
+        index_value = self.calculate_index(op, indices)
         out_stream.write(
             f"""
         {store_ref}[{index_value}] = {value};"""
         )
 
-    def calculate_index(
-        self, memref_dimension: int, memref_size: tuple[int], indices: list[str]
-    ):
+    def calculate_index(self, op: memref.Store | memref.Load, indices: list[str]):
         """
         It is used for linearizing known sizes memref accesses.
         """
+        memref_type = cast(MemRefType[Attribute], op.memref.type)
+        memref_dimension = memref_type.get_num_dims()
+        memref_size = memref_type.get_shape()
         for size in memref_size:
             if size == -1:
                 raise NotImplementedError(
@@ -166,7 +168,7 @@ class WGSLPrinter:
             product_of_dims = 1
             for dim in memref_size[i + 1 :]:
                 product_of_dims *= dim
-            index_values.append(f"{product_of_dims} * {indices[i]}")
+            index_values.append(f"{product_of_dims}u * {indices[i]}")
         return " + ".join(index_values)
 
     @print.register
