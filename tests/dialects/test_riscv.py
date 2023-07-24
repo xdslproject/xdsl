@@ -107,20 +107,19 @@ def test_label_op_with_comment():
     assert code == f"{label_str}:                                         # my label\n"
 
 
-def test_label_op_with_region():
+def test_code_section():
     @Builder.implicit_region
     def label_region():
+        label_str = "mylabel"
+        riscv.LabelOp(f"{label_str}")
         a1_reg = TestSSAValue(riscv.Registers.A1)
         a2_reg = TestSSAValue(riscv.Registers.A2)
         riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
 
-    label_str = "mylabel"
-    label_op = riscv.LabelOp(f"{label_str}", region=label_region)
+    code_section = riscv.CodeSectionOp(label_region)
 
-    assert label_op.label.data == label_str
-
-    code = riscv.riscv_code(ModuleOp([label_op]))
-    assert code == f"{label_str}:\n    add a0, a1, a2\n"
+    code = riscv.riscv_code(ModuleOp([code_section]))
+    assert code == f"mylabel:\n    add a0, a1, a2\n"
 
 
 def test_return_op():

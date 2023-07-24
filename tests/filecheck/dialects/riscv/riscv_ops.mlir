@@ -1,6 +1,8 @@
 // RUN: xdsl-opt %s | xdsl-opt --print-op-generic | xdsl-opt | filecheck %s
 "builtin.module"() ({
-  riscv.label() ({
+  riscv.code_section() ({
+    riscv.label() {"label" = #riscv.label<"main">}: () -> ()
+
     %0 = riscv.get_register() : () -> !riscv.reg<>
     %1 = riscv.get_register() : () -> !riscv.reg<>
     // RV32I/RV64I: 2.4 Integer Computational Instructions
@@ -180,10 +182,10 @@
     // CHECK-NEXT: riscv.ebreak() : () -> ()
     riscv.directive() {"directive" = ".align", "value" = "2"} : () -> ()
     // CHECK-NEXT: riscv.directive() {"directive" = ".align", "value" = "2"} : () -> ()
-    riscv.directive() ({
+    riscv.assembly_section() ({
       %nested_li = riscv.li() {"immediate" = 1 : i32} : () -> !riscv.reg<>
     }) {"directive" = ".text"} : () -> ()
-    // CHECK-NEXT:  riscv.directive() ({
+    // CHECK-NEXT:  riscv.assembly_section() ({
     // CHECK-NEXT:    %{{.*}} = riscv.li() {"immediate" = 1 : i32} : () -> !riscv.reg<>
     // CHECK-NEXT:  }) {"directive" = ".text"} : () -> ()
 
@@ -265,5 +267,5 @@
 
     // Terminate block
     riscv.ret() : () -> ()
-  }) {"label" = #riscv.label<"main">}: () -> ()
+  }) : () -> ()
 }) : () -> ()

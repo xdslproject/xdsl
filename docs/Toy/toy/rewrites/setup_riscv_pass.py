@@ -17,9 +17,8 @@ class AddSections(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
         # bss stands for block starting symbol
-        heap_section = riscv.DirectiveOp(
+        heap_section = riscv.AssemblySectionOp(
             ".bss",
-            None,
             Region(
                 Block(
                     [
@@ -29,9 +28,9 @@ class AddSections(RewritePattern):
                 )
             ),
         )
-        data_section = riscv.DirectiveOp(".data", None, Region(Block()))
-        text_section = riscv.DirectiveOp(
-            ".text", None, rewriter.move_region_contents_to_new_regions(op.regions[0])
+        data_section = riscv.AssemblySectionOp(".data", Region(Block()))
+        text_section = riscv.AssemblySectionOp(
+            ".text", rewriter.move_region_contents_to_new_regions(op.regions[0])
         )
 
         op.body.add_block(Block([heap_section, data_section, text_section]))
@@ -39,10 +38,10 @@ class AddSections(RewritePattern):
 
 @dataclass
 class DataDirectiveRewritePattern(RewritePattern):
-    _data_directive: riscv.DirectiveOp | None = None
+    _data_directive: riscv.AssemblySectionOp | None = None
     _counter: Counter[str] = field(default_factory=Counter)
 
-    def data_directive(self, op: Operation) -> riscv.DirectiveOp:
+    def data_directive(self, op: Operation) -> riscv.AssemblySectionOp:
         """
         Relies on the data directive being inserted earlier
         """
@@ -53,7 +52,7 @@ class DataDirectiveRewritePattern(RewritePattern):
             ), f"The top level object of {str(op)} must be a ModuleOp"
 
             for op in module_op.body.blocks[0].ops:
-                if not isinstance(op, riscv.DirectiveOp):
+                if not isinstance(op, riscv.AssemblySectionOp):
                     continue
                 if op.directive.data != ".data":
                     continue
