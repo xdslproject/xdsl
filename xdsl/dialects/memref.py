@@ -332,7 +332,7 @@ class Global(IRDLOperation):
     type: Attribute = attr_def(Attribute)
     initial_value: Attribute = attr_def(Attribute)
 
-    traits = frozenset(SymbolOpInterface())
+    traits = frozenset([SymbolOpInterface()])
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):
