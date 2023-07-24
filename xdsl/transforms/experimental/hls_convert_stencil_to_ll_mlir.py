@@ -10,7 +10,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.ir import MLContext, Operation, OpResult
 from xdsl.dialects.builtin import i32, f64, i64, ArrayAttr, DenseArrayBase
 from xdsl.dialects.func import FuncOp, Call
-from xdsl.dialects import arith, builtin, scf
+from xdsl.dialects import arith, builtin, scf, stencil
 from xdsl.dialects.arith import Constant
 
 from xdsl.dialects.stencil import (
@@ -46,7 +46,14 @@ from xdsl.dialects.llvm import (
 )
 
 from xdsl.ir.core import BlockArgument, Block, Region
-from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import prepare_apply_body
+from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
+    prepare_apply_body,
+    AccessOpToMemref,
+    LoadOpToMemref,
+    CastOpToMemref,
+    TrivialExternalLoadOpCleanup,
+    TrivialExternalStoreOpCleanup,
+)
 
 IN = 0
 OUT = 1
@@ -286,25 +293,30 @@ class ApplyOpToHLS(RewritePattern):
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         # Insert the HLS stream operands and their corresponding block arguments for reading from the shift buffer and writing
         # to external memory
-        op.operands = []
-        for i in range(len(self.shift_streams)):
-            stream = self.shift_streams[i]
-            rewriter.modify_block_argument_type(
-                op.region.block.args[i], stream.results[0].typ
-            )
 
-            old_operands_lst = [old_operand for old_operand in op.operands]
-            op.operands = old_operands_lst + [stream.results[0]]
+        # We replace by streams only the 3D temps. The rest should be left as is
+        operand_stream = dict()
 
-        # for stream in self.shift_streams:
-        #    #rewriter.insert_block_argument(
-        #    #    op.region.block, len(op.region.block.args), stream.results[0].typ
-        #    #)
+        current_stream = 0
+        new_operands_lst = []
 
-        #    old_operands_lst = [old_operand for old_operand in op.operands]
-        #    op.operands = old_operands_lst + [stream.results[0]]
+        for i in range(len(op.operands)):
+            operand = op.operands[i]
+            n_dims = len(operand.typ.bounds.lb)
 
-        # Indices of the streams to read. Used to locate the corresponding block argument
+            if n_dims == 3:
+                stream = self.shift_streams[current_stream]
+                rewriter.modify_block_argument_type(
+                    op.region.block.args[i], stream.results[0].typ
+                )
+
+                new_operands_lst.append(stream.results[0])
+                current_stream += 1
+            else:
+                new_operands_lst.append(operand)
+
+        op.operands = new_operands_lst
+
         indices_stream_to_read = []
         indices_stream_to_write = []
         i = 0
@@ -583,23 +595,73 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         result_hls_read = None
 
+        replace_access = False
+
         for use in op.temp.uses:
             if isinstance(use.operation, HLSStreamRead):
                 hls_read = use.operation
 
                 result_hls_read = hls_read.results[0]
+                replace_access = True
 
-        access_idx = []
-        for idx in op.offset.array.data:
-            access_idx.append(idx.data + 1)
+        if replace_access:
+            access_idx = []
+            for idx in op.offset.array.data:
+                access_idx.append(idx.data + 1)
 
-        access_idx_array = DenseArrayBase.create_dense_int_or_index(
-            i64, [0] + access_idx
-        )
+            access_idx_array = DenseArrayBase.create_dense_int_or_index(
+                i64, [0] + access_idx
+            )
 
-        stencil_value = ExtractValueOp(access_idx_array, result_hls_read, f64)
+            stencil_value = ExtractValueOp(access_idx_array, result_hls_read, f64)
 
-        rewriter.replace_matched_op(stencil_value)
+            rewriter.replace_matched_op(stencil_value)
+
+
+# Copied from convert_stencil_to_ll_mlir
+@dataclass
+class StencilStoreToSubview(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
+        stores = [o for o in op.walk() if isinstance(o, StoreOp)]
+
+        for store in stores:
+            field = store.field
+            assert isa(field.type, FieldType[Attribute])
+            assert isa(field.type.bounds, StencilBoundsAttr)
+            temp = store.temp
+            assert isa(temp.type, TempType[Attribute])
+            offsets = [i for i in -field.type.bounds.lb]
+            sizes = [i for i in temp.type.get_shape()]
+            subview = memref.Subview.from_static_parameters(
+                field,
+                StencilToMemRefType(field.type),
+                offsets,
+                sizes,
+                [1] * len(sizes),
+            )
+            name = None
+            if subview.source.name_hint:
+                name = subview.source.name_hint + "_storeview"
+            subview.result.name_hint = name
+            if isinstance(field.owner, Operation):
+                rewriter.insert_op_after(subview, field.owner)
+            else:
+                rewriter.insert_op_at_start(subview, field.owner)
+
+            rewriter.erase_op(store)
+
+
+class TrivialStoreOpCleanup(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
+        rewriter.erase_matched_op()
+
+
+class TrivialApplyOpCleanup(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
+        rewriter.erase_matched_op()
 
 
 @dataclass
@@ -635,12 +697,31 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
                         module, shift_streams, out_data_streams, out_global_mem
                     ),
                     StencilAccessOpToReadBlockOp(),
+                    StencilStoreToSubview(),
+                    CastOpToMemref(),
+                    LoadOpToMemref(),
+                    AccessOpToMemref(),
+                    TrivialExternalLoadOpCleanup(),
+                    TrivialExternalStoreOpCleanup(),
+                    TrivialStoreOpCleanup(),
                 ]
             ),
             apply_recursively=False,
             walk_reverse=True,
         )
         adapt_stencil_pass.rewrite_module(op)
+
+        clean_apply_pass = PatternRewriteWalker(
+            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+            GreedyRewritePatternApplier(
+                [
+                    TrivialApplyOpCleanup(),
+                ]
+            ),
+            apply_recursively=False,
+            walk_reverse=True,
+        )
+        clean_apply_pass.rewrite_module(op)
 
         write_data_pass = PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
