@@ -1143,7 +1143,11 @@ class DispatchTable(IRDLOperation):
     """
 
     name = "fir.dispatch_table"
+
+    sym_name = attr_def(StringAttr)
     regs: VarRegion = var_region_def()
+
+    traits = frozenset([SymbolOpInterface()])
 
 
 @irdl_op_definition
