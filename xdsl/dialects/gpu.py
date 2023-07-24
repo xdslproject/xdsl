@@ -51,11 +51,8 @@ from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
     SingleBlockImplicitTerminator,
-<<<<<<< HEAD
     SymbolOpInterface,
-=======
     SymbolTable,
->>>>>>> 3779d90d (SymboleTable)
 )
 from xdsl.utils.exceptions import VerifyException
 

@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolRefAttr,
     i1,
     i32,
     i64,
@@ -341,10 +342,12 @@ def test_symbol_table():
     class SymbolTableOp(IRDLOperation):
         name = "test.symbol_table"
 
+        sym_name = opt_attr_def(StringAttr)
+
         one = region_def()
         two = opt_region_def()
 
-        traits = frozenset([SymbolTable()])
+        traits = frozenset([SymbolTable(), OptionalSymbolOpInterface()])
 
     @irdl_op_definition
     class SymbolOp(IRDLOperation):
@@ -379,9 +382,10 @@ def test_symbol_table():
 
     # Check that symbol uniqueness is verified
     symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
-    terminator = TerminatorOp()
     dup_symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
-    op = SymbolTableOp(regions=[Region(Block([symbol, dup_symbol, terminator])), []])
+    op = SymbolTableOp(
+        regions=[Region(Block([symbol, dup_symbol, TerminatorOp()])), []]
+    )
     with pytest.raises(
         VerifyException,
         match='Redefinition of symbol "name"',
@@ -390,9 +394,8 @@ def test_symbol_table():
 
     # Check a flat happy case, with symbol lookup
     symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
-    terminator = TerminatorOp()
 
-    op = SymbolTableOp(regions=[Region(Block([symbol, terminator])), []])
+    op = SymbolTableOp(regions=[Region(Block([symbol, TerminatorOp()])), []])
     op.verify()
 
     assert SymbolTable.lookup_symbol(op, "name") is symbol
@@ -400,10 +403,13 @@ def test_symbol_table():
 
     # Check a nested happy case, with symbol lookup
     symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
-    terminator = TerminatorOp()
 
-    op = SymbolTableOp(regions=[Region(Block([symbol, terminator])), []])
+    nested = SymbolTableOp(
+        regions=[Region(Block([symbol, TerminatorOp()])), []],
+        attributes={"sym_name": StringAttr("nested")},
+    )
+    op = SymbolTableOp(regions=[Region(Block([nested, TerminatorOp()])), []])
     op.verify()
 
-    assert SymbolTable.lookup_symbol(op, "name") is symbol
-    assert SymbolTable.lookup_symbol(op, "that_other_name") is None
+    assert SymbolTable.lookup_symbol(op, "name") is None
+    assert SymbolTable.lookup_symbol(op, SymbolRefAttr("nested", ["name"])) is symbol

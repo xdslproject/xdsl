@@ -233,9 +233,8 @@ class SymbolTable(OpTrait):
             name = SymbolRefAttr(name)
         for o in op.regions[0].block.ops:
             if (
-                o.has_trait(SymbolOpInterface)
-                and SymbolOpInterface.get_sym_attr_name(o) == name.root_reference
-            ):
+                sym_interface := o.get_trait(SymbolOpInterface)
+            ) is not None and sym_interface.get_sym_attr_name(o) == name.root_reference:
                 if not name.nested_references:
                     return o
                 nested_root = name.nested_references.data[0]
@@ -245,7 +244,7 @@ class SymbolTable(OpTrait):
                     else []
                 )
                 nested_name = SymbolRefAttr(nested_root, nested_references)
-                return SymbolTable.lookup_symbol(op, nested_name)
+                return SymbolTable.lookup_symbol(o, nested_name)
         return None
 
 
