@@ -236,7 +236,12 @@ class Printer:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def print_block(self, block: Block, print_block_args: bool = True) -> None:
+    def print_block(
+        self,
+        block: Block,
+        print_block_args: bool = True,
+        print_new_line_at_end: bool = False,
+    ) -> None:
         """
         Print a block with syntax `(<caret-ident>`(` <block-args> `)`)? ops* )`
         * If `print_block_args` is False, the label and arguments are not printed.
@@ -256,6 +261,8 @@ class Printer:
             self._print_new_line()
             self.print_op(op)
         self._indent -= 1
+        if print_new_line_at_end:
+            self._print_new_line()
 
     def print_block_argument(self, arg: BlockArgument, print_type: bool = True) -> None:
         """

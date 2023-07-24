@@ -200,7 +200,9 @@ class For(IRDLOperation):
             printer.print_list((r.type for r in self.res), printer.print_attribute)
             printer.print(")")
         printer.print(" {")
-        printer.print_block(self.body.block, False)
+        printer.print_block(
+            self.body.block, print_block_args=False, print_new_line_at_end=True
+        )
         printer.print("}")
 
 
