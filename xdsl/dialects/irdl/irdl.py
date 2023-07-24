@@ -27,7 +27,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, NoTerminator
+from xdsl.traits import HasParent, IsTerminator, NoTerminator, SymbolOpInterface
 
 ################################################################################
 # Dialect, Operation, and Attribute definitions                                #
@@ -50,7 +50,7 @@ class DialectOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([NoTerminator()])
+    traits = frozenset([NoTerminator(), SymbolOpInterface()])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
