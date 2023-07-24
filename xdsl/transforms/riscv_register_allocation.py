@@ -46,8 +46,8 @@ class RISCVRegisterAllocation(ModulePass):
 
         if self.allocation_strategy == "GlobalJRegs" and self.exclude_preallocated:
             warn(
-                "Excluding preallocated registers has no effect when using "
-                f"{self.allocation_strategy}."
+                "Excluding preallocated registers (option: 'exclude_preallocated') has "
+                f"no effect when using {self.allocation_strategy}."
             )
 
         allocator = allocator_strategies[self.allocation_strategy](
