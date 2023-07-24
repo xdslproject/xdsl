@@ -203,10 +203,14 @@ class SymbolOpInterface(OpTrait):
     a `SymbolTable` (TODO). A Symbol operation should use the SymbolOpInterface interface to
     provide the necessary verification and accessors.
 
-    Currently the only requirement is a "sym_name" attribute of type StringAttr.
+    A Symbol operation may be optional or not. If - the dault - it is not optional,
+    a `sym_name` attribute of type StringAttr is required. If it is optional,
+    the attribute is optional too.
 
-    Please see MLIR documentation for Symbol and SymbolTable for the requirements that are
-    upcoming in xDSL.
+    xDSL offers OptionalSymbolOpInterface as an always-optional SymbolOpInterface helper.
+
+    More requirements are defined in MLIR; Please see MLIR documentation for Symbol and
+    SymbolTable for the requirements that are upcoming in xDSL.
 
     https://mlir.llvm.org/docs/SymbolsAndSymbolTables/#symbol
     """
@@ -214,7 +218,7 @@ class SymbolOpInterface(OpTrait):
     @staticmethod
     def get_sym_attr_name(op: Operation) -> StringAttr | None:
         """
-        Returns the symbol of the operation
+        Returns the symbol of the operation, if any
         """
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
@@ -255,7 +259,7 @@ class SymbolOpInterface(OpTrait):
 
 class OptionalSymbolOpInterface(SymbolOpInterface):
     """
-    Helper interface specialization for an optional Symbol.
+    Helper interface specialization for an optional SymbolOpInterface.
     """
 
     @staticmethod
