@@ -311,7 +311,7 @@ def test_optional_symbol_op_interface():
 
         traits = frozenset((OptionalSymbolOpInterface(),))
 
-    non_symbol = OptionalSymNameOp()
+    no_symbol = OptionalSymNameOp()
     interface = non_symbol.get_trait(SymbolOpInterface)
     assert interface is not None
     assert interface.is_optional_symbol(non_symbol)
