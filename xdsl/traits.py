@@ -199,10 +199,10 @@ class IsolatedFromAbove(OpTrait):
 
 class SymbolTable(OpTrait):
     """
-    An operation constrained to have a sing-block single region.
+    SymbolTable operations are containers for Symbol operations. They offer lookup
+    functionality for Symbols, and enforce unique symbols amongst its children.
 
-    It offers lookup functionality for Symbols, and enforce unique symbols amongst
-    its children.
+    A SymbolTable operation is constrained to have a sing-block single region.
     """
 
     def verify(self, op: Operation):
