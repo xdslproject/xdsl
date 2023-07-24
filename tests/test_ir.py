@@ -720,6 +720,5 @@ def test_region_clone():
     a = Constant.from_int_and_width(1, 32)
     block_a = Block([a])
     region = Region(block_a)
-    
     region2 = region.clone()
     assert region.is_structurally_equivalent(region2)
