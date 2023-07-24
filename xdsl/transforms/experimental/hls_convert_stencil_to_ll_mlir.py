@@ -13,9 +13,20 @@ from xdsl.dialects.func import FuncOp, Call
 from xdsl.dialects import arith, builtin, scf
 from xdsl.dialects.arith import Constant
 
-from xdsl.dialects.stencil import ExternalLoadOp, AccessOp, ApplyOp, ReturnOp
+from xdsl.dialects.stencil import (
+    ExternalLoadOp,
+    ExternalStoreOp,
+    AccessOp,
+    ApplyOp,
+    ReturnOp,
+)
 
-from xdsl.dialects.experimental.hls import HLSStream, HLSStreamType, HLSStreamRead
+from xdsl.dialects.experimental.hls import (
+    HLSStream,
+    HLSStreamType,
+    HLSStreamRead,
+    HLSStreamWrite,
+)
 
 from xdsl.dialects.memref import MemRefType
 
@@ -29,6 +40,7 @@ from xdsl.dialects.llvm import (
     LLVMArrayType,
     GEPOp,
     LoadOp,
+    StoreOp,
     AllocaOp,
 )
 
@@ -65,6 +77,8 @@ class StencilAccessToGEP(RewritePattern):
 class StencilExternalLoadToHLSExternalLoad(RewritePattern):
     module: builtin.ModuleOp
     shift_streams: list
+    out_data_streams: list
+    out_global_mem: list
     load_data_declaration: bool = False
 
     @op_type_rewrite_pattern
@@ -88,6 +102,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             func_arg_elem_type = func_arg.typ.type
         else:
             func_arg_elem_type = func_arg.typ
+
+        if op.attributes["inout"].value.data is OUT:
+            self.out_global_mem.append(func_arg)
 
         stencil_type = LLVMStructType.from_type_list(
             [
@@ -132,6 +149,10 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         stencil_stream.attributes["inout"] = op.attributes["inout"]
         copy_stencil_stream.attributes["inout"] = op.attributes["inout"]
 
+        # We need to indicate that this is a stencil stream and not a data stream. TODO: make this more elegant
+        stencil_stream.attributes["stencil"] = op.attributes["inout"]
+        copy_stencil_stream.attributes["stencil"] = op.attributes["inout"]
+
         threedload_call = Call.get(
             "load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
         )
@@ -173,12 +194,17 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             )
             self.shift_streams.append(copy_stencil_stream)
         elif inout is OUT:
+            out_data_stream = HLSStream.get(data_type)
+            out_data_stream.attributes["inout"] = op.attributes["inout"]
+            out_data_stream.attributes["data"] = op.attributes["inout"]
             rewriter.insert_op_before_matched_op(
                 [
-                    stencil_stream,
+                    out_data_stream,
+                    # stencil_stream
                 ]
             )
-            self.shift_streams.append(stencil_stream)
+            self.out_data_streams.append(out_data_stream)
+            # self.shift_streams.append(stencil_stream)
 
         if not self.load_data_declaration:
             load_data_func = FuncOp.external(
@@ -248,12 +274,14 @@ def qualify_apply_op_with_shapes(
 class ApplyOpToHLS(RewritePattern):
     module: builtin.ModuleOp
     shift_streams: list
+    out_data_streams: list
+    out_global_mem: list
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         # Insert the HLS stream operands and their corresponding block arguments for reading from the shift buffer and writing
         # to external memory
-        for stream in self.shift_streams:
+        for stream in self.shift_streams + self.out_data_streams:
             rewriter.insert_block_argument(
                 op.region.block, len(op.region.block.args), stream.results[0].typ
             )
@@ -263,19 +291,71 @@ class ApplyOpToHLS(RewritePattern):
 
         # Indices of the streams to read. Used to locate the corresponding block argument
         indices_stream_to_read = []
+        indices_stream_to_write = []
         i = 0
         for _operand in op.operands:
             if (
                 isinstance(_operand.op, HLSStream)
+                and "stencil" in _operand.op.attributes
                 and _operand.op.attributes["inout"].value.data is IN
             ):
                 indices_stream_to_read.append(i)
+            if (
+                isinstance(_operand.op, HLSStream)
+                and "data" in _operand.op.attributes
+                and _operand.op.attributes["inout"].value.data is OUT
+            ):
+                indices_stream_to_write.append(i)
             i += 1
 
-        for arg_index in indices_stream_to_read:
-            stream_to_read = op.region.block.args[arg_index]
+        alloca_size = Constant.from_int_and_width(1, i32)
+
+        global_mem_idx = 0
+        for arg_index_read, arg_index_write in zip(
+            indices_stream_to_read, indices_stream_to_write
+        ):
+            # We store the address of the output array outside the loop
+            func_arg_datatype = self.out_global_mem[global_mem_idx].typ
+            p_func_arg_addr = AllocaOp.get(alloca_size, func_arg_datatype)
+            store_func_arg_addr = StoreOp.get(
+                self.out_global_mem[global_mem_idx], p_func_arg_addr
+            )
+
+            # Inside the loop, we do the pointer arithmetic to write on the next array element in every teration
+            dummy_element = Constant.from_float_and_width(5.0, f64)
+
+            copy_func_arg = LoadOp.get(p_func_arg_addr)
+            write_op = StoreOp.get(dummy_element, copy_func_arg)
+            incr_copy_func_arg_addr = GEPOp.get(
+                copy_func_arg, [1], result_type=func_arg_datatype
+            )
+            update_copy_func_arg_addr = StoreOp.get(
+                incr_copy_func_arg_addr, p_func_arg_addr
+            )
+
+            stream_to_read = op.region.block.args[arg_index_read]
+            stream_to_write = op.region.block.args[arg_index_write]
 
             read_op = HLSStreamRead(stream_to_read)
+            read_elem = read_op.res
+
+            # TODO: operate on the elements of the stencil block read_elem. For now we are providing a dummy double
+
+            # write_op = HLSStreamWrite(dummy_element, stream_to_write)
+
+            # rewriter.insert_op_at_start([dummy_element, write_op], op.region.block)
+            # TODO: this stream will be passsed to the write_data intrinsic, but for now we are just going to write to memory directly here.
+            global_mem_idx += 1
+            rewriter.insert_op_at_start(
+                [
+                    dummy_element,
+                    copy_func_arg,
+                    write_op,
+                    incr_copy_func_arg_addr,
+                    update_copy_func_arg_addr,
+                ],
+                op.region.block,
+            )
 
             rewriter.insert_op_at_start(read_op, op.region.block)
 
@@ -374,7 +454,8 @@ class ApplyOpToHLS(RewritePattern):
 
         chunk_num = p.body.block.args[0]
 
-        MAX_Y_SIZE = 16
+        # MAX_Y_SIZE = 16
+        MAX_Y_SIZE = 8  # TODO: we use this size because our Y dimension is under 16 and that way the kernel doesn't finish. It's not a problem for size > 16
         max_chunk_length = Constant.from_int_and_width(MAX_Y_SIZE, i32)
 
         remainder = LoadOp.get(p_remainder)
@@ -409,8 +490,70 @@ class ApplyOpToHLS(RewritePattern):
                 upper_chunks,
                 upper_y,
                 upper_z,
+                alloca_size,
+                p_func_arg_addr,
+                store_func_arg_addr,
                 p,
             ]
+        )
+
+
+@dataclass
+class StencilExternalStoreToHLSWriteData(RewritePattern):
+    module: builtin.ModuleOp
+    out_data_streams: list
+    write_data_declaration: bool = False
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ExternalStoreOp, rewriter: PatternRewriter, /):
+        field = op.field
+        temp = op.temp
+
+        # Find the llvm.ptr to external memory that genrates the argument to the stencil.external_load. For PSyclone, this is
+        # an argument to the parent function. TODO: this might need to be tested and generalised for other codes. Also, we are
+        # considering that the function argument will be the second to insertvalue, but we're walking up trhough the second to
+        # avoid bumping into arith.constants (see the mlir ssa).
+        new_op = temp
+        func_arg = None
+
+        while not isa(func_arg, BlockArgument):
+            assert isinstance(new_op.owner, Operation)
+            func_arg = new_op.owner.operands[-1]
+            new_op = new_op.owner.operands[0]
+
+        if isa(func_arg.typ, LLVMPointerType):
+            func_arg_elem_type = func_arg.typ.type
+        else:
+            func_arg_elem_type = func_arg.typ
+
+        stream = self.out_data_streams[0]
+        stream_type = stream.results[0].typ
+        elem_type = stream.elem_type
+
+        p_elem_type = LLVMPointerType.typed(LLVMStructType.from_type_list([elem_type]))
+
+        shape = op.field.typ.shape
+
+        shape_x = Constant.from_int_and_width(shape.data[0].value.data, i32)
+        shape_y = Constant.from_int_and_width(shape.data[1].value.data, i32)
+        shape_z = Constant.from_int_and_width(shape.data[2].value.data, i32)
+
+        if not self.write_data_declaration:
+            write_data = FuncOp.external(
+                "write_data",
+                [p_elem_type, LLVMPointerType.typed(f64), i32, i32, i32],
+                [],
+            )
+
+            self.module.body.block.add_op(write_data)
+            write_data_declaration = True
+
+        call_write_data = Call.get(
+            "write_data", [stream, func_arg, shape_x, shape_y, shape_z], []
+        )
+
+        rewriter.insert_op_after_matched_op(
+            [shape_x, shape_y, shape_z, call_write_data]
         )
 
 
@@ -422,12 +565,16 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
         load_data_declaration: bool = False
         module: builtin.ModuleOp = op
         shift_streams = []
+        out_data_streams = []
+        out_global_mem = []
 
         hls_pass = PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
             GreedyRewritePatternApplier(
                 [
-                    StencilExternalLoadToHLSExternalLoad(module, shift_streams),
+                    StencilExternalLoadToHLSExternalLoad(
+                        module, shift_streams, out_data_streams, out_global_mem
+                    ),
                 ]
             ),
             apply_recursively=False,
@@ -437,8 +584,20 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
 
         adapt_stencil_pass = PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
-            GreedyRewritePatternApplier([ApplyOpToHLS(module, shift_streams)]),
+            GreedyRewritePatternApplier(
+                [ApplyOpToHLS(module, shift_streams, out_data_streams, out_global_mem)]
+            ),
             apply_recursively=False,
             walk_reverse=True,
         )
         adapt_stencil_pass.rewrite_module(op)
+
+        write_data_pass = PatternRewriteWalker(
+            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+            GreedyRewritePatternApplier(
+                [StencilExternalStoreToHLSWriteData(module, out_data_streams)]
+            ),
+            apply_recursively=False,
+            walk_reverse=True,
+        )
+        # write_data_pass.rewrite_module(op)
