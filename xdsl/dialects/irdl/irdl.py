@@ -80,7 +80,7 @@ class TypeOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([NoTerminator(), HasParent(DialectOp)])
+    traits = frozenset([NoTerminator(), HasParent(DialectOp), SymbolOpInterface()])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -110,7 +110,7 @@ class AttributeOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([NoTerminator(), HasParent(DialectOp)])
+    traits = frozenset([NoTerminator(), HasParent(DialectOp), SymbolOpInterface()])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -166,7 +166,7 @@ class OperationOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([NoTerminator(), HasParent(DialectOp)])
+    traits = frozenset([NoTerminator(), HasParent(DialectOp), SymbolOpInterface()])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
