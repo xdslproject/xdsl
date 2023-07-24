@@ -198,6 +198,13 @@ class IsolatedFromAbove(OpTrait):
 
 
 class SymbolTable(OpTrait):
+    """
+    An operation constrained to have a sing-block single region.
+
+    It offers lookup functionality for Symbols, and enforce unique symbols amongst
+    its children.
+    """
+
     def verify(self, op: Operation):
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
@@ -226,9 +233,18 @@ class SymbolTable(OpTrait):
     def lookup_symbol(
         op: Operation, name: str | StringAttr | SymbolRefAttr
     ) -> Operation | None:
+        """
+        Lookup a symbol by reference, starting from a specific operation's closest
+        SymbolTable parent.
+        """
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 
+        anchor: Operation | None = op
+        while anchor is not None and not anchor.has_trait(SymbolTable):
+            anchor = anchor.parent_op()
+        if anchor is None:
+            raise ValueError(f"Operation {op} had no parent SymbolTable")
         if isinstance(name, str | StringAttr):
             name = SymbolRefAttr(name)
         for o in op.regions[0].block.ops:
