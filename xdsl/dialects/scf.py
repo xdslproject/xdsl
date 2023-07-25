@@ -35,11 +35,11 @@ class While(IRDLOperation):
         self,
         operands: Sequence[SSAValue | Operation],
         result_types: Sequence[Attribute],
-        before: Region | Sequence[Operation] | Sequence[Block],
-        after: Region | Sequence[Operation] | Sequence[Block],
+        before_region: Region | Sequence[Operation] | Sequence[Block],
+        after_region: Region | Sequence[Operation] | Sequence[Block],
     ):
         super().__init__(
-            operands=[operands], result_types=[result_types], regions=[before, after]
+            operands=[operands], result_types=[result_types], regions=[before_region, after_region]
         )
 
     # TODO verify dependencies between scf.condition, scf.yield and the regions
@@ -58,7 +58,7 @@ class While(IRDLOperation):
                     f"got {self.after_region.block.args[idx].type}"
                 )
 
-    @deprecated("Use While() instead!!")
+    @deprecated("Use While() instead")
     @staticmethod
     def get(
         operands: Sequence[SSAValue | Operation],
