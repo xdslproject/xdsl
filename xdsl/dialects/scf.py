@@ -18,6 +18,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -29,6 +30,19 @@ class While(IRDLOperation):
     res: VarOpResult = var_result_def(AnyAttr())
     before_region: Region = region_def()
     after_region: Region = region_def()
+
+    def __init__(
+        self,
+        arguments: Sequence[SSAValue | Operation],
+        result_types: Sequence[Attribute],
+        before_region: Region | Sequence[Operation] | Sequence[Block],
+        after_region: Region | Sequence[Operation] | Sequence[Block],
+    ):
+        super().__init__(
+            operands=[arguments],
+            result_types=[result_types],
+            regions=[before_region, after_region],
+        )
 
     # TODO verify dependencies between scf.condition, scf.yield and the regions
     def verify_(self):
@@ -46,6 +60,7 @@ class While(IRDLOperation):
                     f"got {self.after_region.block.args[idx].type}"
                 )
 
+    @deprecated("Use While() instead")
     @staticmethod
     def get(
         operands: Sequence[SSAValue | Operation],
@@ -54,7 +69,7 @@ class While(IRDLOperation):
         after: Region | Sequence[Operation] | Sequence[Block],
     ) -> While:
         return While.build(
-            operands=operands, result_types=result_types, regions=[before, after]
+            operands=[operands], result_types=[result_types], regions=[before, after]
         )
 
 
