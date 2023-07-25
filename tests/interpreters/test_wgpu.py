@@ -49,10 +49,12 @@ builtin.module attributes {gpu.container_module} {
   func.func @main() -> index {
     %four = "arith.constant"() {"value" = 4 : index} : () -> index
     %one = "arith.constant"() {"value" = 1 : index} : () -> index
-    %memref = "memref.alloc"() {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<4x4xindex>
+    %memref = "gpu.alloc"() {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<4x4xindex>
     "gpu.launch_func"(%four, %four, %one, %one, %one, %one, %memref) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 1>, "kernel" = @gpu::@fill} : (index, index, index, index, index, index, memref<4x4xindex>) -> ()
     "gpu.launch_func"(%four, %four, %one, %one, %one, %one, %memref) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 1>, "kernel" = @gpu::@inc} : (index, index, index, index, index, index, memref<4x4xindex>) -> ()
-    printf.print_format "Result : {}", %memref : memref<4x4xindex>
+    %hmemref = "memref.alloc"() {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<4x4xindex>
+    "gpu.memcpy"(%hmemref, %memref) {"operand_segment_sizes" = array<i32: 0, 1, 1>} : (memref<4x4xindex>, memref<4x4xindex>) -> ()
+    printf.print_format "Result : {}", %hmemref : memref<4x4xindex>
   }
 }
 """

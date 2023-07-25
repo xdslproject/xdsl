@@ -322,8 +322,8 @@ class MemcpyOp(IRDLOperation):
     name = "gpu.memcpy"
 
     asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
-    src: Operand = operand_def(memref.MemRefType)
     dst: Operand = operand_def(memref.MemRefType)
+    src: Operand = operand_def(memref.MemRefType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -337,7 +337,7 @@ class MemcpyOp(IRDLOperation):
         is_async: bool = False,
     ):
         return super().__init__(
-            operands=[async_dependencies, source, destination],
+            operands=[async_dependencies, destination, source],
             result_types=[[AsyncTokenType()] if is_async else []],
         )
 
