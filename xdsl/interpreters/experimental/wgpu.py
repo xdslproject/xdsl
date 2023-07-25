@@ -1,8 +1,8 @@
 from io import StringIO
 from typing import Any, Sequence, cast
 
-import wgpu
-import wgpu.utils
+import wgpu  # pyright: ignore
+import wgpu.utils  # pyright: ignore
 from xdsl.dialects import gpu
 from xdsl.dialects.builtin import IndexType
 from xdsl.dialects.memref import MemRefType
