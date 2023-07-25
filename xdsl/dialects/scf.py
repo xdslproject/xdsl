@@ -33,13 +33,13 @@ class While(IRDLOperation):
 
     def __init__(
         self,
-        operands: Sequence[SSAValue | Operation],
+        arguments: Sequence[SSAValue | Operation],
         result_types: Sequence[Attribute],
         before_region: Region | Sequence[Operation] | Sequence[Block],
         after_region: Region | Sequence[Operation] | Sequence[Block],
     ):
         super().__init__(
-            operands=[operands],
+            operands=[arguments],
             result_types=[result_types],
             regions=[before_region, after_region],
         )

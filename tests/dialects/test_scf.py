@@ -470,7 +470,7 @@ def test_while():
     a = Constant.from_int_and_width(0, i32)
     b = Constant.from_int_and_width(0, i32)
     while_loop = While(
-        operands=[a, b],
+        arguments=[a, b],
         result_types=[i32, i32],
         before_region=[before_block],
         after_region=[after_block],
