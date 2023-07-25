@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from xdsl.dialects import builtin
+from xdsl.dialects import arith, builtin
 from xdsl.ir import Dialect, Operation, SSAValue, VerifyException
 from xdsl.irdl import (
     IRDLOperation,
@@ -97,6 +97,18 @@ class PrintCharOp(IRDLOperation):
 
     name = "printf.print_char"
     char: Operand = operand_def()
+
+    @staticmethod
+    def from_constant_char(char: str) -> PrintCharOp:
+        """
+        This constructor returns a PrintCharOp that prints the value supplied
+        in "char" as a python char.
+        """
+        assert len(char) == 1, "Only single characters are supported"
+        ascii_value = ord(char)
+        assert ascii_value < 255, "Only ascii characters are supported"
+        char_constant = arith.Constant.from_int_and_width(ascii_value, builtin.i32)
+        return PrintCharOp((char_constant,))
 
 
 @irdl_op_definition

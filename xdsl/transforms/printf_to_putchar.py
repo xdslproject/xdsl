@@ -3,7 +3,7 @@ from xdsl.dialects import arith, func, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp, i32
 from xdsl.dialects.experimental import math
 from xdsl.dialects.printf import PrintCharOp, PrintIntOp
-from xdsl.ir import Block, MLContext, Region
+from xdsl.ir import Block, MLContext, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -42,7 +42,31 @@ class ConvertPrintIntToItoa(RewritePattern):
 
 
 def get_inline_itoa():
+    def get_number_of_digits(absolute_value: Operation) -> scf.While:
+        before_block = Block(arg_types=(i32, i32))
+        after_block = Block(arg_types=(i32, i32))
+        digit_init = arith.Constant.from_int_and_width(0, i32)
+        one = arith.Constant.from_int_and_width(1, i32)
+        while_loop = scf.While.get(
+            [[absolute_value, digit_init]],
+            [[i32, i32]],
+            [before_block],
+            [after_block],
+        )
+        with ImplicitBuilder(before_block) as (running_integer, digits):
+            # Stop when you reach zero
+            is_zero = arith.Cmpi.get(running_integer, zero, "ne")
+            scf.Condition.get(is_zero, running_integer, digits)
+        with ImplicitBuilder(after_block) as (running_integer, previous_digits):
+            ten = arith.Constant.from_int_and_width(10, 32)
+            new_integer = arith.DivUI(running_integer, ten)
+            digits = arith.Addi(previous_digits, one)
+            scf.Yield.get(new_integer, digits)
+
+        return while_loop.results[1]
+
     inline_itoa_func = func.FuncOp("inline_itoa", ((i32,), ()))
+
     with ImplicitBuilder(inline_itoa_func.body) as (integer,):
         zero = arith.Constant.from_int_and_width(0, i32)
         is_zero_block = Block()
@@ -57,9 +81,7 @@ def get_inline_itoa():
         )
         # If the value is zero, just print one zero
         with ImplicitBuilder(is_zero_block):
-            ascii_zero = arith.Constant.from_int_and_width(48, i32)
-            # The ascii value for zero is 48 in decimal
-            PrintCharOp((ascii_zero,))
+            PrintCharOp.from_constant_char("0")
             scf.Yield.get()
         # Otherwise continue with itoa
         with ImplicitBuilder(is_not_zero_block):
@@ -73,8 +95,7 @@ def get_inline_itoa():
             )
             # If the value is negative, print the minus sign, return abs value
             with ImplicitBuilder(is_negative_block):
-                ascii_minus = arith.Constant.from_int_and_width(45, i32)
-                PrintCharOp((ascii_minus,))
+                PrintCharOp.from_constant_char("-")
                 negative_input = arith.Subi(zero, integer)
                 scf.Yield.get(negative_input)
             # If the value is positive, just return value itself as abs value
@@ -82,39 +103,18 @@ def get_inline_itoa():
                 scf.Yield.get(integer)
 
             # Now print the digits of the absolute value
-
-            # Get the amount of digits
-            before_block = Block(arg_types=(i32, i32))
-            after_block = Block(arg_types=(i32, i32))
-            digit_init = arith.Constant.from_int_and_width(0, i32)
-            one = arith.Constant.from_int_and_width(1, i32)
-            while_loop = scf.While.get(
-                [[absolute_value, digit_init]],
-                [[i32, i32]],
-                [before_block],
-                [after_block],
-            )
-            with ImplicitBuilder(before_block) as (running_integer, digits):
-                # Stop when you reach zero
-                is_zero = arith.Cmpi.get(running_integer, zero, "ne")
-                scf.Condition.get(is_zero, running_integer, digits)
-            with ImplicitBuilder(after_block) as (running_integer, previous_digits):
-                ten = arith.Constant.from_int_and_width(10, 32)
-                new_integer = arith.DivUI(running_integer, ten)
-                digits = arith.Addi(previous_digits, one)
-                scf.Yield.get(new_integer, digits)
-            size_int = while_loop.results[1]
+            digits = get_number_of_digits(absolute_value)
 
             zero_index = arith.Constant.from_int_and_width(0, IndexType())
             one_index = arith.Constant.from_int_and_width(1, IndexType())
-            size_int_index = arith.IndexCastOp((size_int,), (IndexType(),))
+            digits_index = arith.IndexCastOp((digits,), (IndexType(),))
             loop_body = Block(arg_types=(IndexType(),))
 
             # Print all from most significant to least
-            scf.For.get(zero_index, size_int_index, one_index, (), loop_body)
+            scf.For.get(zero_index, digits_index, one_index, (), loop_body)
             with ImplicitBuilder(loop_body) as (index_var,):
                 one = arith.Constant.from_int_and_width(1, i32)
-                size_minus_one = arith.Subi(size_int, one)
+                size_minus_one = arith.Subi(digits, one)
                 index_var_int = arith.IndexCastOp((index_var,), (i32,))
                 position = arith.Subi(size_minus_one, index_var_int)
                 # digit = (num // (10**pos)) % 10
