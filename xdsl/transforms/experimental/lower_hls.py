@@ -89,7 +89,7 @@ class LowerHLSStreamRead(RewritePattern):
 
             self.module.body.block.add_op(pop_func)
 
-            self.set_stream_depth_declaration = True
+            self.pop_declaration = True
         size = Constant.from_int_and_width(1, i32)
 
         alloca = AllocaOp.get(size, *elem_type)

@@ -347,6 +347,8 @@ class ApplyOpToHLS(RewritePattern):
         # for arg_index_read, arg_index_write in zip(
         #    indices_stream_to_read, indices_stream_to_write
         # ):
+
+        p_func_arg_addr_lst = []
         for arg_index_read in indices_stream_to_read:
             # We store the address of the output array outside the loop
             func_arg_datatype = self.out_global_mem[global_mem_idx].typ
@@ -367,6 +369,8 @@ class ApplyOpToHLS(RewritePattern):
             update_copy_func_arg_addr = StoreOp.get(
                 incr_copy_func_arg_addr, p_func_arg_addr
             )
+
+            p_func_arg_addr_lst.append(p_func_arg_addr)
 
             stream_to_read = op.region.block.args[arg_index_read]
             # stream_to_write = op.region.block.args[arg_index_write]
@@ -523,7 +527,7 @@ class ApplyOpToHLS(RewritePattern):
                 upper_y,
                 upper_z,
                 alloca_size,
-                p_func_arg_addr,
+                *p_func_arg_addr_lst,
                 store_func_arg_addr,
                 p,
             ]
