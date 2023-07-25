@@ -51,8 +51,10 @@ class WGPUFunctions(InterpreterFunctions):
             layouts.append(
                 {
                     "binding": i,
-                    "visibility": wgpu.ShaderStage.COMPUTE,
-                    "buffer": {"type": wgpu.BufferBindingType.storage},
+                    "visibility": wgpu.ShaderStage.COMPUTE,  # pyright: ignore
+                    "buffer": {
+                        "type": wgpu.BufferBindingType.storage
+                    },  # pyright: ignore
                 }
             )
             bindings.append(
@@ -73,8 +75,9 @@ class WGPUFunctions(InterpreterFunctions):
             wgsl_source = StringIO("")
             wgsl_printer.print(op, wgsl_source)
             print(f"Compiling:\n{wgsl_source.getvalue()}")
-            self.shader_modules[op] = self.device.create_shader_module(
-                code=wgsl_source.getvalue()
+            self.shader_modules[op] = cast(
+                wgpu.GPUShaderModule,
+                self.device.create_shader_module(code=wgsl_source.getvalue()),
             )
 
     @impl(gpu.AllocOp)
