@@ -95,7 +95,8 @@ class ModulePass(ABC):
             arguments_str = ", ".join(f'"{arg}"' for arg in spec.args)
             fields_str = ", ".join(f'"{field.name}"' for field in fields)
             raise ValueError(
-                f"Pass arguments [{arguments_str}] not found in [{fields_str}]"
+                f"Provided arguments [{arguments_str}] not found in expected pass "
+                f"arguments [{fields_str}]"
             )
 
         # instantiate the dataclass using kwargs

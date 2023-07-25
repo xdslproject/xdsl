@@ -83,7 +83,7 @@ def test_pass_instantiation():
         (PipelinePassSpec("simple", {}), 'requires argument "a"'),
         (
             PipelinePassSpec("simple", {"a": [1], "no": []}),
-            'Pass arguments ["no"] not found in ["a", "b"]',
+            'Provided arguments ["no"] not found in expected pass arguments ["a", "b"]',
         ),
         (PipelinePassSpec("simple", {"a": []}), "Argument must contain a value"),
         (PipelinePassSpec("simple", {"a": ["test"]}), "Incompatible types"),
