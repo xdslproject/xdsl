@@ -39,7 +39,9 @@ class While(IRDLOperation):
         after_region: Region | Sequence[Operation] | Sequence[Block],
     ):
         super().__init__(
-            operands=[operands], result_types=[result_types], regions=[before_region, after_region]
+            operands=[operands],
+            result_types=[result_types],
+            regions=[before_region, after_region],
         )
 
     # TODO verify dependencies between scf.condition, scf.yield and the regions

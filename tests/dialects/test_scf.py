@@ -472,8 +472,8 @@ def test_while():
     while_loop = While(
         operands=[a, b],
         result_types=[i32, i32],
-        before=[before_block],
-        after=[after_block],
+        before_region=[before_block],
+        after_region=[after_block],
     )
     assert (len(while_loop.results)) == 2
     assert (len(while_loop.operands)) == 2
