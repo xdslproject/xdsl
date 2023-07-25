@@ -77,7 +77,7 @@ class WGPUFunctions(InterpreterFunctions):
             print(f"Compiling:\n{wgsl_source.getvalue()}")
             self.shader_modules[op] = cast(
                 wgpu.GPUShaderModule,
-                self.device.create_shader_module(
+                self.device.create_shader_module(  # pyright: ignore
                     code=wgsl_source.getvalue()
                 ),  # pyright: ignore
             )
@@ -104,9 +104,10 @@ class WGPUFunctions(InterpreterFunctions):
                 )
         buffer = cast(
             wgpu.GPUBuffer,
-            self.device.create_buffer(
+            self.device.create_buffer(  # pyright: ignore
                 size=memref_type.element_count() * element_size,
-                usage=wgpu.BufferUsage.STORAGE | wgpu.BufferUsage.COPY_SRC,
+                usage=wgpu.BufferUsage.STORAGE
+                | wgpu.BufferUsage.COPY_SRC,  # pyright: ignore
             ),
         )
         return (buffer,)
@@ -114,7 +115,7 @@ class WGPUFunctions(InterpreterFunctions):
     @impl(gpu.MemcpyOp)
     def run_memcpy(
         self, interpreter: Interpreter, op: gpu.MemcpyOp, args: tuple[Any, ...]
-    ):
+    ) -> tuple[()]:
         """
         Copy buffers according to the gpu.memcpy operation.
 
@@ -127,7 +128,9 @@ class WGPUFunctions(InterpreterFunctions):
             )
 
         # Get device/source view
-        memview = cast(memoryview, self.device.queue.read_buffer(src))
+        memview = cast(
+            memoryview, self.device.queue.read_buffer(src)
+        )  # pyright: ignore
         dst_type = cast(MemRefType[Attribute], op.dst.type)
         match (dst_type.element_type):
             case IndexType():
@@ -138,7 +141,7 @@ class WGPUFunctions(InterpreterFunctions):
                 )
         memview = memview.cast(format, [i.value.data for i in dst_type.shape])
         for index in dst.indices():
-            dst.store(index, memview.__getitem__(index))
+            dst.store(index, memview.__getitem__(index))  # pyright: ignore
         return ()
 
     @impl(gpu.LaunchFuncOp)
@@ -180,27 +183,31 @@ class WGPUFunctions(InterpreterFunctions):
         # All the boilerplate
         device = self.device
         # Put bindings together
-        bind_group_layout = device.create_bind_group_layout(entries=layouts)
-        pipeline_layout = device.create_pipeline_layout(
+        bind_group_layout = device.create_bind_group_layout(
+            entries=layouts
+        )  # pyright: ignore
+        pipeline_layout = device.create_pipeline_layout(  # pyright: ignore
             bind_group_layouts=[bind_group_layout]
         )
-        bind_group = device.create_bind_group(
-            layout=bind_group_layout, entries=bindings
+        bind_group = device.create_bind_group(  # pyright: ignore
+            layout=bind_group_layout, entries=bindings  # pyright: ignore
         )
 
         # Create and run the pipeline
-        compute_pipeline = device.create_compute_pipeline(
-            layout=pipeline_layout,
+        compute_pipeline = device.create_compute_pipeline(  # pyright: ignore
+            layout=pipeline_layout,  # pyright: ignore
             compute={"module": shader_module, "entry_point": func.sym_name.data},
         )
 
-        command_encoder = device.create_command_encoder()
-        compute_pass = command_encoder.begin_compute_pass()
-        compute_pass.set_pipeline(compute_pipeline)
-        compute_pass.set_bind_group(0, bind_group, [], 0, 0)  # last 2 elements not used
-        compute_pass.dispatch_workgroups(*dispatch)  # x y z
-        compute_pass.end()
-        device.queue.submit([command_encoder.finish()])
+        command_encoder = device.create_command_encoder()  # pyright: ignore
+        compute_pass = command_encoder.begin_compute_pass()  # pyright: ignore
+        compute_pass.set_pipeline(compute_pipeline)  # pyright: ignore
+        compute_pass.set_bind_group(
+            0, bind_group, [], 0, 0
+        )  # last 2 elements not used # pyright: ignore
+        compute_pass.dispatch_workgroups(*dispatch)  # x y z # pyright: ignore
+        compute_pass.end()  # pyright: ignore
+        device.queue.submit([command_encoder.finish()])  # pyright: ignore
 
         # gpu.launch_func has no return
         return ()
