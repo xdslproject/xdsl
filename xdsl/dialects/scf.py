@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Sequence
+from ast import Dict, Set
+from typing import List, Sequence, Tuple
 
 from typing_extensions import Self
 
@@ -20,6 +21,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import Parser
+from xdsl.parser.core import UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -187,6 +189,59 @@ class For(IRDLOperation):
                         f"Expected {self.iter_args[idx].type}, got {arg.type}. The "
                         f"scf.for's scf.yield must match carried variables types."
                     )
+
+    @classmethod
+    def parse(cls: type[Self], parser: Parser) -> Self:
+        iv = parser.parse_unresolved_operand()
+        parser.parse_punctuation("=")
+        lb = parser.parse_operand()
+        parser.parse_keyword("to")
+        ub = parser.parse_operand()
+        parser.parse_keyword("step")
+        step = parser.parse_operand()
+
+        def parse_iter_args() -> Tuple[UnresolvedOperand, SSAValue]:
+            init_arg = parser.parse_unresolved_operand()
+            parser.parse_punctuation("=")
+            iter_arg = parser.parse_operand()
+            return (init_arg, iter_arg)
+
+        iter_args_binding: List[Tuple[UnresolvedOperand, SSAValue]] = []
+        if parser.parse_optional_keyword("iter_args"):
+            iter_args_binding = parser.parse_comma_separated_list(
+                parser.Delimiter.PAREN, parse_iter_args
+            )
+
+        res_types: List[Attribute] = []
+        if parser.parse_optional_punctuation("->"):
+            res_types = parser.parse_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
+
+        # TODO parse when iv is a type different than IndexType
+        iv_type = IndexType()
+
+        body = Block(arg_types=[iv_type, *res_types])
+
+        parser.parse_punctuation("{")
+        while (op := parser.parse_optional_operation()) is not None:
+            body.add_op(op)
+        parser.parse_punctuation("}")
+
+        found: List[str] = []
+        for block_arg, iter_arg in zip(
+            body.args, [iv, *(arg for (arg, _) in iter_args_binding)]
+        ):
+            if unresolved := parser.forward_ssa_references.get(iter_arg.operand_name):
+                found.append(iter_arg.operand_name)
+                for _, ssaval in unresolved.items():
+                    ssaval.replace_by(block_arg)
+                    block_arg.name_hint = iter_arg.operand_name
+
+        for e in found:
+            parser.forward_ssa_references.pop(e)
+
+        return For.get(lb, ub, step, [arg for (_, arg) in iter_args_binding], body)
 
     @staticmethod
     def get(
