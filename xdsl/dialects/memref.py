@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Sequence, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, Iterable, Sequence, TypeAlias, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -32,9 +32,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    Attribute,
     AttrSizedOperandSegments,
-    Generic,
     IRDLOperation,
     Operand,
     ParameterDef,
@@ -47,6 +45,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.traits import SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -332,6 +331,8 @@ class Global(IRDLOperation):
     sym_visibility: StringAttr = attr_def(StringAttr)
     type: Attribute = attr_def(Attribute)
     initial_value: Attribute = attr_def(Attribute)
+
+    traits = frozenset([SymbolOpInterface()])
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):

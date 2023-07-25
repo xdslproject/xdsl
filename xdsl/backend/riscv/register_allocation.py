@@ -1,7 +1,7 @@
 from abc import ABC
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import FloatRegisterType, Register, RegisterType, RISCVOp
+from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, RISCVOp
 from xdsl.ir import SSAValue
 
 
@@ -53,7 +53,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
     def __init__(self, limit_registers: int = 0) -> None:
         self.idx = 0
-        self._register_types = (RegisterType, FloatRegisterType)
+        self._register_types = (IntRegisterType, FloatRegisterType)
 
         """
         Assume that all the registers are available except the ones explicitly reserved
@@ -62,12 +62,12 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         self.reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
 
         self.register_sets = {
-            RegisterType: [
+            IntRegisterType: [
                 reg
-                for reg in Register.RV32I_INDEX_BY_NAME
+                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
                 if reg not in self.reserved_registers
             ],
-            FloatRegisterType: list(Register.RV32F_INDEX_BY_NAME.keys()),
+            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
         }
 
         for reg_type, reg_set in self.register_sets.items():
@@ -81,10 +81,10 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             available_regs = self.register_sets.get(reg_type, [])
 
             if not available_regs:
-                reg.type = reg_type(Register(f"j{self.idx}"))
+                reg.type = reg_type(f"j{self.idx}")
                 self.idx += 1
             else:
-                reg.type = reg_type(Register(available_regs.pop()))
+                reg.type = reg_type(available_regs.pop())
 
             return True
 
@@ -132,7 +132,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
     def __init__(self, limit_registers: int = 0) -> None:
         self.idx = 0
-        self._register_types = (RegisterType, FloatRegisterType)
+        self._register_types = (IntRegisterType, FloatRegisterType)
         _ = limit_registers
 
         """
@@ -142,12 +142,12 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
         reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
 
         self.register_sets = {
-            RegisterType: [
+            IntRegisterType: [
                 reg
-                for reg in Register.RV32I_INDEX_BY_NAME
+                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
                 if reg not in reserved_registers
             ],
-            FloatRegisterType: list(Register.RV32F_INDEX_BY_NAME.keys()),
+            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
         }
 
     def allocate_registers(self, module: ModuleOp) -> None:
@@ -173,12 +173,10 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
                                 # If we run out of real registers, allocate a j register
                                 if not available_regs:
-                                    result.type = reg_type(Register(f"j{self.idx}"))
+                                    result.type = reg_type(f"j{self.idx}")
                                     self.idx += 1
                                 else:
-                                    result.type = reg_type(
-                                        Register(available_regs.pop())
-                                    )
+                                    result.type = reg_type(available_regs.pop())
 
 
 class RegisterAllocatorJRegs(RegisterAllocator):
@@ -186,7 +184,7 @@ class RegisterAllocatorJRegs(RegisterAllocator):
 
     def __init__(self, limit_registers: int = 0) -> None:
         self.idx = 0
-        self._register_types = (RegisterType, FloatRegisterType)
+        self._register_types = (IntRegisterType, FloatRegisterType)
         _ = limit_registers
 
     def allocate_registers(self, module: ModuleOp) -> None:
@@ -202,5 +200,5 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                 if isinstance(result.type, self._register_types):
                     if not result.type.is_allocated:
                         reg_type = type(result.type)
-                        result.type = reg_type(Register(f"j{self.idx}"))
+                        result.type = reg_type(f"j{self.idx}")
                         self.idx += 1

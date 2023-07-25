@@ -6,7 +6,6 @@ from typing import Annotated, Generic, TypeVar
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyIntegerAttr,
-    Attribute,
     ContainerOf,
     Float16Type,
     Float32Type,
@@ -19,6 +18,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
 from xdsl.ir import Dialect, Operation, OpResult, SSAValue
+from xdsl.ir.core import Attribute
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -141,11 +141,12 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
 
     @classmethod
     def parse(cls, parser: Parser):
-        lhs = parser.parse_operand()
+        lhs = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
-        rhs = parser.parse_operand()
+        rhs = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
+        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
         return cls(lhs, rhs, result_type)
 
     def print(self, printer: Printer):

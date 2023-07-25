@@ -3,6 +3,7 @@ from typing import List
 import pytest
 
 from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -11,7 +12,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.memref import AnyIntegerAttr, MemRefType
+from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.vector import (
     FMA,
     Broadcast,
@@ -23,7 +24,7 @@ from xdsl.dialects.vector import (
     Store,
 )
 from xdsl.ir import OpResult
-from xdsl.irdl import Attribute
+from xdsl.ir.core import Attribute
 from xdsl.utils.test_value import TestSSAValue
 
 

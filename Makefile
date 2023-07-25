@@ -34,9 +34,13 @@ pytest-nb:
 	pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb --nbval-current-env
 
 # run tests for Toy tutorial
-tests-toy:
+filecheck-toy:
 	lit -v docs/Toy/examples --order=smart
+
+pytest-toy:
 	pytest docs/Toy/toy/tests
+
+tests-toy: filecheck-toy pytest-toy
 
 # run all tests
 tests: pytest tests-toy filecheck pytest-nb pyright
@@ -56,7 +60,7 @@ precommit:
 
 # run pyright on all files in the current git commit
 pyright:
-	pyright $(shell git diff --staged --name-only)
+	pyright $(shell git diff --staged --name-only  -- '*.py')
 
 # run black on all files currently staged
 black:
@@ -88,5 +92,5 @@ coverage-report-md:
 venv: requirements-optional.txt requirements.txt
 	python3 -m venv ${VENV_DIR}
 	source ${VENV_DIR}/bin/activate
-	pip install -r requirements-optional.txt -r requirements.txt
-	pip install -e ".[extras]"
+	python3 -m pip --require-virtualenv install -r requirements-optional.txt -r requirements.txt
+	python3 -m pip --require-virtualenv install -e ".[extras]"

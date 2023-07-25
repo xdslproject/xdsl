@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IndexType,
     IntegerAttr,
+    IntegerType,
     ModuleOp,
 )
 from xdsl.ir.core import MLContext
@@ -32,7 +33,7 @@ def convert_float_to_int(value: float) -> int:
 class LowerArithConstant(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter) -> None:
-        if isinstance(op.result.type, arith.IntegerType) and isinstance(
+        if isinstance(op.result.type, IntegerType) and isinstance(
             op.value, IntegerAttr
         ):
             if op.result.type.width.data <= 32:
@@ -46,7 +47,7 @@ class LowerArithConstant(RewritePattern):
             if isinstance(op.result.type, Float32Type):
                 lui = riscv.LiOp(
                     convert_float_to_int(op.value.value.data),
-                    rd=riscv.RegisterType(riscv.Register()),
+                    rd=riscv.IntRegisterType.unallocated(),
                 )
                 fld = riscv.FCvtSWOp(lui.rd)
                 rewriter.replace_op(op, [lui, fld])

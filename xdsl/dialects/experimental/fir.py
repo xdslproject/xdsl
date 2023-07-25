@@ -12,12 +12,11 @@ from xdsl.dialects.builtin import (
     UnitAttr,
 )
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
+from xdsl.ir.core import OpResult
 from xdsl.irdl import (
-    Attribute,
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
-    OpResult,
     OptOperand,
     OptOpResult,
     ParameterDef,
@@ -38,6 +37,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import SymbolOpInterface
 
 
 @irdl_attr_definition
@@ -1143,7 +1143,11 @@ class DispatchTable(IRDLOperation):
     """
 
     name = "fir.dispatch_table"
+
+    sym_name = attr_def(StringAttr)
     regs: VarRegion = var_region_def()
+
+    traits = frozenset([SymbolOpInterface()])
 
 
 @irdl_op_definition
@@ -1414,6 +1418,8 @@ class Global(IRDLOperation):
     )
     linkName: StringAttr | None = opt_attr_def(StringAttr)
     constant: UnitAttr | None = opt_attr_def(UnitAttr)
+
+    traits = frozenset([SymbolOpInterface()])
 
 
 @irdl_op_definition

@@ -1,6 +1,13 @@
 import argparse
 from pathlib import Path
 
+from xdsl.interpreters.affine import AffineFunctions
+from xdsl.interpreters.arith import ArithFunctions
+from xdsl.interpreters.builtin import BuiltinFunctions
+from xdsl.interpreters.func import FuncFunctions
+from xdsl.interpreters.memref import MemrefFunctions
+from xdsl.interpreters.printf import PrintfFunctions
+from xdsl.interpreters.scf import ScfFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
@@ -20,6 +27,8 @@ parser.add_argument(
         "toy-opt",
         "toy-inline",
         "toy-infer-shapes",
+        "affine",
+        "scf",
     ],
     default="toy-infer-shapes",
     help="Action to perform on source file (default: toy-infer-shapes)",
@@ -59,10 +68,19 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         return
 
     interpreter = Interpreter(module_op)
-    interpreter.register_implementations(ToyFunctions())
+    if emit in ("toy", "toy-opt", "toy-inline", "toy-infer-shapes"):
+        interpreter.register_implementations(ToyFunctions())
+    if emit in ("affine"):
+        interpreter.register_implementations(AffineFunctions())
+    if emit in ("affine", "scf", "cf"):
+        interpreter.register_implementations(ArithFunctions())
+        interpreter.register_implementations(MemrefFunctions())
+        interpreter.register_implementations(PrintfFunctions())
+        interpreter.register_implementations(FuncFunctions())
+    if emit == "scf":
+        interpreter.register_implementations(ScfFunctions())
+        interpreter.register_implementations(BuiltinFunctions())
     interpreter.call_op("main", ())
-
-    print(f"Unknown option {emit}")
 
 
 if __name__ == "__main__":

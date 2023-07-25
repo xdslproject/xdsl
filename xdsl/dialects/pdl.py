@@ -43,7 +43,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, NoTerminator
+from xdsl.traits import HasParent, IsTerminator, NoTerminator, OptionalSymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -379,18 +379,17 @@ class OperationOp(IRDLOperation):
             operands = parse_operands_with_types(parser)
             parser.parse_punctuation(")")
 
-        def parse_pattribute_entry() -> tuple[str, SSAValue]:
+        def parse_attribute_entry() -> tuple[str, SSAValue]:
             name = parser.parse_str_literal()
             parser.parse_punctuation("=")
             type = parser.parse_operand()
             return (name, type)
 
-        attributes = []
-        if parser.parse_optional_punctuation("{"):
-            attributes = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parse_pattribute_entry
-            )
-            parser.parse_punctuation("}")
+        attributes = parser.parse_optional_comma_separated_list(
+            Parser.Delimiter.BRACES, parse_attribute_entry
+        )
+        if attributes is None:
+            attributes = []
         attribute_names = [StringAttr(attr[0]) for attr in attributes]
         attribute_values = [attr[1] for attr in attributes]
 
@@ -440,6 +439,8 @@ class PatternOp(IRDLOperation):
     )
     sym_name: StringAttr | None = opt_attr_def(StringAttr)
     body: Region = region_def()
+
+    traits = frozenset([OptionalSymbolOpInterface()])
 
     def __init__(
         self,

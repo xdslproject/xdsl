@@ -15,12 +15,12 @@ def test_add_op():
 
     assert a1.type is add_op.rs1.type
     assert a2.type is add_op.rs2.type
-    assert isinstance(a0.type, riscv.RegisterType)
-    assert isinstance(a1.type, riscv.RegisterType)
-    assert isinstance(a2.type, riscv.RegisterType)
-    assert a0.type.data.name == "a0"
-    assert a1.type.data.name == "a1"
-    assert a2.type.data.name == "a2"
+    assert isinstance(a0.type, riscv.IntRegisterType)
+    assert isinstance(a1.type, riscv.IntRegisterType)
+    assert isinstance(a2.type, riscv.IntRegisterType)
+    assert a0.type.data == "a0"
+    assert a1.type.data == "a1"
+    assert a2.type.data == "a2"
 
 
 def test_csr_op():
@@ -232,17 +232,17 @@ def test_immediate_shift_inst():
     riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
 
 
-def check_float_register():
-    with pytest.raises(VerifyException):
-        riscv.RegisterType(riscv.Register("ft9"))
-    with pytest.raises(VerifyException):
-        riscv.FloatRegisterType(riscv.Register("a0"))
+def test_float_register():
+    with pytest.raises(VerifyException, match="not in"):
+        riscv.IntRegisterType("ft9")
+    with pytest.raises(VerifyException, match="not in"):
+        riscv.FloatRegisterType("a0")
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
-    with pytest.raises(VerifyException):
-        riscv.FAddSOp(a1, a2)
+    with pytest.raises(VerifyException, match="Operation does not verify"):
+        riscv.FAddSOp(a1, a2).verify()
 
     f1 = TestSSAValue(riscv.Registers.FT0)
     f2 = TestSSAValue(riscv.Registers.FT1)
-    riscv.FAddSOp(f1, f2)
+    riscv.FAddSOp(f1, f2).verify()

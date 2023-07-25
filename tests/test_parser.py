@@ -432,8 +432,20 @@ def test_parse_comma_separated_list(
     delimiter: Parser.Delimiter, open_bracket: str, close_bracket: str
 ):
     input = open_bracket + "2, 4, 5" + close_bracket
+
     parser = Parser(MLContext(), input)
     res = parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
+    assert res == [2, 4, 5]
+
+    parser = Parser(MLContext(), input)
+    if delimiter is Parser.Delimiter.NONE:
+        res = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_integer, parser.parse_integer
+        )
+    else:
+        res = parser.parse_optional_comma_separated_list(
+            delimiter, parser.parse_integer, " in test"
+        )
     assert res == [2, 4, 5]
 
 
@@ -463,6 +475,46 @@ def test_parse_comma_separated_list_none_delimiter_empty():
         )
 
 
+def test_parse_comma_separated_list_none_delimiter_two_no_comma():
+    """Test that a list without commas will only parse the first element."""
+    parser = Parser(MLContext(), "1 2")
+    res = parser.parse_comma_separated_list(
+        Parser.Delimiter.NONE, parser.parse_integer, " in test"
+    )
+    assert res == [1]
+    assert parser.parse_optional_integer() is not None
+
+    parser = Parser(MLContext(), "1 2")
+    parser.parse_optional_undelimited_comma_separated_list(
+        parser.parse_optional_integer, parser.parse_integer
+    )
+    assert res == [1]
+    assert parser.parse_optional_integer() is not None
+
+
+@pytest.mark.parametrize(
+    "delimiter",
+    [
+        (Parser.Delimiter.PAREN),
+        (Parser.Delimiter.SQUARE),
+        (Parser.Delimiter.BRACES),
+        (Parser.Delimiter.ANGLE),
+    ],
+)
+def test_parse_optional_comma_separated_list(delimiter: Parser.Delimiter):
+    parser = Parser(MLContext(), "o")
+    res = parser.parse_optional_comma_separated_list(delimiter, parser.parse_integer)
+    assert res is None
+
+
+def test_parse_optional_undelimited_comma_separated_list_empty():
+    parser = Parser(MLContext(), "o")
+    res = parser.parse_optional_undelimited_comma_separated_list(
+        parser.parse_optional_integer, parser.parse_integer
+    )
+    assert res is None
+
+
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
@@ -477,10 +529,14 @@ def test_parse_comma_separated_list_error_element(
 ):
     input = open_bracket + "o" + close_bracket
     parser = Parser(MLContext(), input)
-    with pytest.raises(ParseError) as e:
+    with pytest.raises(ParseError, match="Expected integer literal"):
         parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
-    assert e.value.span.text == "o"
-    assert e.value.msg == "Expected integer literal"
+
+    parser = Parser(MLContext(), input)
+    with pytest.raises(ParseError, match="Expected integer literal"):
+        parser.parse_optional_comma_separated_list(
+            delimiter, parser.parse_integer, " in test"
+        )
 
 
 @pytest.mark.parametrize(
@@ -499,6 +555,14 @@ def test_parse_comma_separated_list_error_delimiters(
     parser = Parser(MLContext(), input)
     with pytest.raises(ParseError) as e:
         parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
+    assert e.value.span.text == "5"
+    assert e.value.msg == "Expected '" + close_bracket + "' in test"
+
+    parser = Parser(MLContext(), input)
+    with pytest.raises(ParseError) as e:
+        parser.parse_optional_comma_separated_list(
+            delimiter, parser.parse_integer, " in test"
+        )
     assert e.value.span.text == "5"
     assert e.value.msg == "Expected '" + close_bracket + "' in test"
 

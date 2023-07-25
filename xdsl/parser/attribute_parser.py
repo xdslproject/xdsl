@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     AnyArrayAttr,
     AnyFloat,
     AnyFloatAttr,
+    AnyIntegerAttr,
     AnyTensorType,
     AnyUnrankedTensorType,
     AnyVectorType,
@@ -46,7 +47,7 @@ from xdsl.dialects.builtin import (
     VectorType,
     i64,
 )
-from xdsl.dialects.memref import AnyIntegerAttr, MemRefType, UnrankedMemrefType
+from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap
 from xdsl.parser.base_parser import BaseParser
@@ -162,11 +163,11 @@ class AttrParser(BaseParser):
         return name, self.parse_attribute()
 
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
-        if self._current_token.kind != Token.Kind.L_BRACE:
-            return dict()
-        attrs = self.parse_comma_separated_list(
+        attrs = self.parse_optional_comma_separated_list(
             self.Delimiter.BRACES, self._parse_attribute_entry
         )
+        if attrs is None:
+            return dict()
         return dict(attrs)
 
     def _parse_dialect_type_or_attribute_inner(
@@ -840,10 +841,10 @@ class AttrParser(BaseParser):
         For instance, [[0, 1, 2], [3, 4, 5]] will return [0, 1, 2, 3, 4, 5] for
         the data, and [2, 3] for the shape.
         """
-        if self._current_token.kind == Token.Kind.L_SQUARE:
-            res = self.parse_comma_separated_list(
-                self.Delimiter.SQUARE, self._parse_tensor_literal
-            )
+        res = self.parse_optional_comma_separated_list(
+            self.Delimiter.SQUARE, self._parse_tensor_literal
+        )
+        if res is not None:
             if len(res) == 0:
                 return [], [0]
             sub_literal_shape = res[0][1]
@@ -977,25 +978,25 @@ class AttrParser(BaseParser):
         Parse an array attribute, if present, with format:
             array-attr ::= `[` (attribute (`,` attribute)*)? `]`
         """
-        if self._current_token.kind != Token.Kind.L_SQUARE:
-            return None
-        attrs = self.parse_comma_separated_list(
+        attrs = self.parse_optional_comma_separated_list(
             self.Delimiter.SQUARE, self.parse_attribute
         )
+        if attrs is None:
+            return None
         return ArrayAttr(attrs)
 
-    def _parse_function_type(self) -> FunctionType:
+    def parse_function_type(self) -> FunctionType:
         """
         Parse a function type.
             function-type ::= type-list `->` (type | type-list)
             type-list     ::= `(` `)` | `(` type (`,` type)* `)`
         """
         return self.expect(
-            self._parse_optional_function_type,
+            self.parse_optional_function_type,
             "function type expected",
         )
 
-    def _parse_optional_function_type(self) -> FunctionType | None:
+    def parse_optional_function_type(self) -> FunctionType | None:
         """
         Parse a function type, if present.
             function-type ::= type-list `->` (type | type-list)
@@ -1010,22 +1011,21 @@ class AttrParser(BaseParser):
         self.parse_punctuation("->")
 
         # Parse the returns
-        if self._current_token.kind == Token.Kind.L_PAREN:
-            returns = self.parse_comma_separated_list(
-                self.Delimiter.PAREN, self.parse_type
-            )
-        else:
+        returns = self.parse_optional_comma_separated_list(
+            self.Delimiter.PAREN, self.parse_type
+        )
+        if returns is None:
             returns = [self.parse_type()]
         return FunctionType.from_lists(args, returns)
 
     def parse_paramattr_parameters(
         self, skip_white_space: bool = True
     ) -> list[Attribute]:
-        if self._current_token.kind != Token.Kind.LESS:
-            return []
-        res = self.parse_comma_separated_list(
+        res = self.parse_optional_comma_separated_list(
             self.Delimiter.ANGLE, self.parse_attribute
         )
+        if res is None:
+            return []
         return res
 
     def _parse_optional_builtin_dict_attr(self) -> DictionaryAttr | None:
@@ -1106,7 +1106,7 @@ class AttrParser(BaseParser):
         """
 
         # Check for a function type
-        if (function_type := self._parse_optional_function_type()) is not None:
+        if (function_type := self.parse_optional_function_type()) is not None:
             return function_type
 
         # Check for an integer or float type
