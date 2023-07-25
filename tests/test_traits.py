@@ -25,9 +25,10 @@ from xdsl.irdl import (
     attr_def,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
     result_def,
 )
-from xdsl.traits import SymbolOpInterface
+from xdsl.traits import OptionalSymbolOpInterface, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -295,3 +296,31 @@ def test_symbol_op_interface():
 
     op2 = SymNameOp(attributes={"sym_name": StringAttr("symbol_name")})
     op2.verify()
+
+
+def test_optional_symbol_op_interface():
+    """
+    Test that operations that conform to OptionalSymbolOpInterface have the necessary attributes.
+    """
+
+    @irdl_op_definition
+    class OptionalSymNameOp(IRDLOperation):
+        name = "no_sym_name"
+
+        sym_name = opt_attr_def(StringAttr)
+
+        traits = frozenset((OptionalSymbolOpInterface(),))
+
+    no_symbol = OptionalSymNameOp()
+    interface = no_symbol.get_trait(SymbolOpInterface)
+    assert interface is not None
+    assert interface.is_optional_symbol(no_symbol)
+    no_symbol.verify()
+    assert interface.get_sym_attr_name(no_symbol) is None
+
+    symbol = OptionalSymNameOp(attributes={"sym_name": StringAttr("main")})
+    interface = symbol.get_trait(SymbolOpInterface)
+    assert interface is not None
+    assert interface.is_optional_symbol(symbol)
+    symbol.verify()
+    assert interface.get_sym_attr_name(symbol) == StringAttr("main")
