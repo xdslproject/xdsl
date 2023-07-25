@@ -217,7 +217,7 @@ class SymbolTable(OpTrait):
             raise VerifyException(
                 "Operations with a 'SymbolTable' must have exactly one block"
             )
-        block = op.regions[0].block
+        block = op.regions[0].blocks[0]
         met_names: set[StringAttr] = set()
         for o in block.ops:
             if "sym_name" not in o.attributes:
