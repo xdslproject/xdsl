@@ -1,7 +1,7 @@
 import array
 from io import StringIO
 from math import prod
-from typing import Any, cast
+from typing import Any, Sequence, cast
 
 import wgpu
 import wgpu.backends.rs
@@ -23,17 +23,43 @@ class WGPUFunctions(InterpreterFunctions):
         self.device = wgpu.utils.get_default_device()
         self.shader_modules: dict[gpu.ModuleOp]
 
-    def prepare_operand(self, interpreter: Interpreter, operand: SSAValue):
+    def buffer_from_operand(self, interpreter: Interpreter, operand: SSAValue):
         if isa(operand.type, MemRefType[Attribute]):
             element_type = operand.type.element_type
             if isinstance(element_type, IndexType):
                 shaped_array = interpreter.get_values((operand,))[0]
-                assert isinstance(shaped_array, ShapedArray)
-                values = (shaped_array.load(index) for index in shaped_array.indices())
-                return (
-                    array.array("I", (v if isinstance(v, int) else 0 for v in values)),
-                    (*shaped_array.shape, "I"),
+                assert isa(shaped_array, ShapedArray[int | MemrefValue])
+                values = tuple(
+                    shaped_array.load(index) for index in shaped_array.indices()
                 )
+                view = memoryview(bytearray(len(values) * 4)).cast("I")
+                buffer = self.device.create_buffer_with_data(
+                    data=view, usage=wgpu.BufferUsage.STORAGE
+                )
+                return buffer
+
+    def prepare_bindings(
+        self, interpreter: Interpreter, kernel_operands: Sequence[SSAValue]
+    ):
+        layouts = []
+        bindings = []
+        for i, o in enumerate(kernel_operands):
+            buffer = self.buffer_from_operand(interpreter, o)
+            binding_layouts.append(
+                {
+                    "binding": i + 1,
+                    "visibility": wgpu.ShaderStage.COMPUTE,
+                    "buffer": {"type": wgpu.BufferBindingType.storage},
+                }
+            )
+            bindings.append(
+                {
+                    "binding": i + 1,
+                    "resource": {"buffer": buffer, "offset": 0, "size": buffer.size},
+                }
+            )
+
+        return layouts, bindings
 
     def process_outputs(self, interpreter: Interpreter, operand: SSAValue, output: Any):
         if isa(operand.type, MemRefType[Attribute]):
@@ -75,22 +101,39 @@ class WGPUFunctions(InterpreterFunctions):
         dispatch_count = tuple(g * b for g, b in zip(gridSize, blockSize))
         kernel_operands = op.kernelOperands
 
-        func = SymbolTable.lookup_symbol(op, op.kernel)
-        assert isinstance(func, gpu.FuncOp)
+        func = SymbolTable.lookup_symbol(interpreter.module, "gpu")
+        assert isinstance(func, gpu.FuncOp), func
         module = func.parent_op()
         assert isinstance(module, gpu.ModuleOp)
         interpreter.run_op(module, ())
         shader_module = self.shader_modules[module]
 
-        operands_dict = {}
-        outputs_dict = {}
-        for i, o in enumerate(kernel_operands):
-            operand, output = WGPUFunctions.prepare_operand(self, interpreter, o)
-            operands_dict[i + 1] = operand
-            outputs_dict[i + 1] = output
-        outputs = compute_with_buffers(
-            operands_dict, outputs_dict, wgsl_source.getvalue(), dispatch_count
+        layouts, bindings = self.prepare_bindings(interpreter, kernel_operands)
+
+        device = self.device
+        # Put everything together
+        bind_group_layout = device.create_bind_group_layout(entries=layouts)
+        pipeline_layout = device.create_pipeline_layout(
+            bind_group_layouts=[bind_group_layout]
         )
-        for i, o in enumerate(kernel_operands):
-            WGPUFunctions.process_outputs(self, interpreter, o, outputs[i + 1])
-        return ()
+        bind_group = device.create_bind_group(
+            layout=bind_group_layout, entries=bindings
+        )
+
+        # Create and run the pipeline
+        compute_pipeline = device.create_compute_pipeline(
+            layout=pipeline_layout,
+            compute={"module": shader_module, "entry_point": func.sym_name.data},
+        )
+        command_encoder = device.create_command_encoder()
+        compute_pass = command_encoder.begin_compute_pass()
+        compute_pass.set_pipeline(compute_pipeline)
+        compute_pass.set_bind_group(
+            0, bind_group, [], 0, 999999
+        )  # last 2 elements not used
+        compute_pass.dispatch_workgroups(*dispatch_count)  # x y z
+        compute_pass.end()
+        device.queue.submit([command_encoder.finish()])
+        # for i, o in enumerate(kernel_operands):
+        #     WGPUFunctions.process_outputs(self, interpreter, o, outputs[i + 1])
+        # return ()
