@@ -20,17 +20,23 @@ from xdsl.utils.hints import isa
 @register_impls
 class WGPUFunctions(InterpreterFunctions):
     device = cast(wgpu.GPUDevice, wgpu.utils.get_default_device())
-    shader_modules: dict[gpu.ModuleOp, wgpu.GPUShaderModule] = {}
+    shader_modules: dict[gpu.FuncOp, wgpu.GPUShaderModule] = {}
 
     def buffer_from_operand(self, interpreter: Interpreter, operand: SSAValue):
         if isa(operand.type, MemRefType[Attribute]):
             element_type = operand.type.element_type
             if isinstance(element_type, IndexType):
                 shaped_array = interpreter.get_values((operand,))[0]
+                assert isinstance(shaped_array, ShapedArray)
                 values = tuple(
                     shaped_array.load(index) for index in shaped_array.indices()
                 )
-                view = memoryview(bytearray(len(values) * 4))
+                view = memoryview(bytearray(len(values) * 4)).cast(
+                    "I", shaped_array.shape
+                )
+                for idx in shaped_array.indices():
+                    v = shaped_array.load(idx)
+                    view[idx] = v if isinstance(v, int) else 0
                 buffer = cast(
                     wgpu.GPUBuffer,
                     self.device.create_buffer_with_data(
@@ -88,10 +94,7 @@ class WGPUFunctions(InterpreterFunctions):
                         value.store(index, buffer.__getitem__(index))
                     print(value.data)
 
-    @impl(gpu.ModuleOp)
-    def compile_module(
-        self, interpreter: Interpreter, op: gpu.ModuleOp, args: tuple[()]
-    ):
+    def compile_func(self, interpreter: Interpreter, op: gpu.FuncOp):
         if op not in self.shader_modules:
             wgsl_printer = WGSLPrinter()
             wgsl_source = StringIO("")
@@ -100,7 +103,6 @@ class WGPUFunctions(InterpreterFunctions):
             self.shader_modules[op] = self.device.create_shader_module(
                 code=wgsl_source.getvalue()
             )
-        return ()
 
     @impl(gpu.LaunchFuncOp)
     def run_launch_func(
@@ -119,10 +121,8 @@ class WGPUFunctions(InterpreterFunctions):
 
         func = SymbolTable.lookup_symbol(op, op.kernel)
         assert isinstance(func, gpu.FuncOp)
-        module = func.parent_op()
-        assert isinstance(module, gpu.ModuleOp)
-        interpreter.run_op(module, ())
-        shader_module = self.shader_modules[module]
+        WGPUFunctions.compile_func(self, interpreter, func)
+        shader_module = self.shader_modules[func]
 
         # Compute the dispatch number
         dispatch = list(gridSize)
