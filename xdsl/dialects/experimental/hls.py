@@ -9,17 +9,32 @@ from xdsl.irdl import (
     Operand,
     IRDLOperation,
     operand_def,
+    var_operand_def,
     opt_attr_def,
     attr_def,
     result_def,
     ParameterDef,
+    region_def,
 )
 
 from typing import TypeVar
 
 from xdsl.dialects.builtin import IntegerType
+from xdsl.traits import IsTerminator
 
 _StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True)
+
+
+@irdl_op_definition
+class HLSYield(IRDLOperation):
+    name = "hls.yield"
+    arguments: VarOperand = var_operand_def(AnyAttr())
+
+    traits = frozenset([IsTerminator()])
+
+    @staticmethod
+    def get(*operands: SSAValue | Operation) -> HLSYield:
+        return HLSYield.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
 @irdl_op_definition
@@ -44,8 +59,10 @@ class PragmaUnroll(IRDLOperation):
 class PragmaDataflow(IRDLOperation):
     name = "hls.dataflow"
 
-    def __init__(self):
-        super().__init__()
+    body: Region = region_def()
+
+    def __init__(self, region: Region):
+        super().__init__(regions=[region])
 
 
 @irdl_op_definition
@@ -127,6 +144,7 @@ HLS = Dialect(
         HLSStream,
         HLSStreamWrite,
         HLSStreamRead,
+        HLSYield,
     ],
     [HLSStreamType],
 )

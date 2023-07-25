@@ -21,6 +21,7 @@ from xdsl.dialects.experimental.hls import (
     HLSStream,
     HLSStreamRead,
     HLSStreamWrite,
+    HLSYield,
 )
 from xdsl.dialects import llvm
 from xdsl.dialects.llvm import (
@@ -198,27 +199,28 @@ class PragmaUnrollToFunc(RewritePattern):
         rewriter.replace_matched_op(call1)
 
 
+# @dataclass
+# class PragmaDataflowToFunc(RewritePattern):
+#    def __init__(self, op: builtin.ModuleOp):
+#        self.module = op
+#
+#    @op_type_rewrite_pattern
+#    def match_and_rewrite(self, op: PragmaDataflow, rewriter: PatternRewriter, /):
+#        # TODO: can we retrieve data directly without having to go through IntegerAttr -> IntAttr?
+#        ret1 = Return()
+#        block1 = Block(arg_types=[])
+#        block1.add_ops([ret1])
+#        region1 = Region(block1)
+#        func1 = FuncOp.from_region(f"_dataflow", [], [], region1)
+#
+#        call1 = Call.get(func1.sym_name.data, [], [])
+#
+#        self.module.body.block.add_op(func1)
+#
+#        rewriter.replace_matched_op(call1)
+
+
 @dataclass
-class PragmaDataflowToFunc(RewritePattern):
-    def __init__(self, op: builtin.ModuleOp):
-        self.module = op
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: PragmaDataflow, rewriter: PatternRewriter, /):
-        # TODO: can we retrieve data directly without having to go through IntegerAttr -> IntAttr?
-        ret1 = Return()
-        block1 = Block(arg_types=[])
-        block1.add_ops([ret1])
-        region1 = Region(block1)
-        func1 = FuncOp.from_region(f"_dataflow", [], [], region1)
-
-        call1 = Call.get(func1.sym_name.data, [], [])
-
-        self.module.body.block.add_op(func1)
-
-        rewriter.replace_matched_op(call1)
-
-
 class SCFParallelToHLSPipelinedFor(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ParallelOp, rewriter: PatternRewriter, /):
@@ -294,6 +296,36 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
 
 
 @dataclass
+class LowerDataflow(RewritePattern):
+    module: builtin.ModuleOp
+    declared_df_functions: bool = False
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: PragmaDataflow, rewriter: PatternRewriter, /):
+        if not self.declared_df_functions:
+            start_df_func = FuncOp.external("_start_df_call", [], [i32])
+            end_df_func = FuncOp.external("_end_df_call", [], [])
+
+            self.module.body.block.add_op(start_df_func)
+            self.module.body.block.add_op(end_df_func)
+
+            self.declared_df_functions = True
+
+        start_df_call = Call.get("_start_df_call", [], [i32])
+        end_df_call = Call.get("_end_df_call", [], [])
+
+        rewriter.insert_op_before_matched_op(start_df_call)
+        rewriter.insert_op_after_matched_op(end_df_call)
+
+        dataflow_ops = [op for op in op.body.block.ops if not isinstance(op, HLSYield)]
+        for df_op in reversed(dataflow_ops):
+            df_op.detach()
+            rewriter.insert_op_after_matched_op(df_op)
+
+        rewriter.erase_matched_op()
+
+
+@dataclass
 class LowerHLSPass(ModulePass):
     name = "lower-hls"
 
@@ -319,7 +351,8 @@ class LowerHLSPass(ModulePass):
                 # SCFParallelToHLSPipelinedFor(),
                 PragmaPipelineToFunc(op),
                 PragmaUnrollToFunc(op),
-                PragmaDataflowToFunc(op),
+                # PragmaDataflowToFunc(op),
+                LowerDataflow(op),
                 LowerHLSStreamToAlloca(op),
                 LowerHLSStreamRead(op),
                 LowerHLSStreamWrite(op),

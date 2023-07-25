@@ -8,10 +8,11 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.ir import MLContext, Operation, OpResult
-from xdsl.dialects.builtin import i32, f64, i64, ArrayAttr, DenseArrayBase
+from xdsl.dialects.builtin import i32, f64, i64, ArrayAttr, DenseArrayBase, IndexType
 from xdsl.dialects.func import FuncOp, Call
 from xdsl.dialects import arith, builtin, scf, stencil
 from xdsl.dialects.arith import Constant
+from xdsl.builder import Builder
 
 from xdsl.dialects.stencil import (
     ExternalLoadOp,
@@ -26,6 +27,8 @@ from xdsl.dialects.experimental.hls import (
     HLSStreamType,
     HLSStreamRead,
     HLSStreamWrite,
+    PragmaDataflow,
+    HLSYield,
 )
 
 from xdsl.dialects.memref import MemRefType
@@ -169,17 +172,42 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             "load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
         )
 
+        @Builder.region
+        def load_data_region(builder: Builder):
+            yield_op = HLSYield.get()
+            builder.insert(threedload_call)
+            builder.insert(yield_op)
+
+        load_data_dataflow = PragmaDataflow(load_data_region)
+        print("----> LOAD DATA DATAFLOW: ", load_data_dataflow)
+
         shift_buffer_call = Call.get(
             "shift_buffer",
             [data_stream, stencil_stream, shift_shape_x, shape_y, shape_z],
             [],
         )
 
+        @Builder.region
+        def shift_buffer_region(builder: Builder):
+            yield_op = HLSYield.get()
+            builder.insert(shift_buffer_call)
+            builder.insert(yield_op)
+
+        shift_buffer_dataflow = PragmaDataflow(shift_buffer_region)
+
         duplicateStream_call = Call.get(
             "duplicateStream",
             [stencil_stream, copy_stencil_stream, copy_n],
             [],
         )
+
+        @Builder.region
+        def duplicateStream_region(builder: Builder):
+            yield_op = HLSYield.get()
+            builder.insert(duplicateStream_call)
+            builder.insert(yield_op)
+
+        duplicateStream_dataflow = PragmaDataflow(duplicateStream_region)
 
         if inout is IN:
             rewriter.insert_op_before_matched_op(
@@ -192,8 +220,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
                     shape_z,
                     two_int,
                     shift_shape_x,
-                    threedload_call,
-                    shift_buffer_call,
+                    # threedload_call,
+                    load_data_dataflow,
+                    shift_buffer_dataflow,
                     one_int,
                     four_int,
                     copy_shift_x,
@@ -201,7 +230,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
                     copy_shift_z,
                     prod_x_y,
                     copy_n,
-                    duplicateStream_call,
+                    duplicateStream_dataflow,
                 ]
             )
             self.shift_streams.append(copy_stencil_stream)
@@ -382,6 +411,18 @@ class ApplyOpToHLS(RewritePattern):
 
             # write_op = HLSStreamWrite(dummy_element, stream_to_write)
 
+            # @Builder.region
+            # def df_write_region(builder: Builder):
+            #    builder.insert(read_op)
+            #    builder.insert(copy_func_arg)
+            #    builder.insert(write_op)
+            #    builder.insert(incr_copy_func_arg_addr)
+            #    builder.insert(update_copy_func_arg_addr)
+            #    yield_op = HLSYield.get()
+            #    builder.insert(yield_op)
+
+            # df_write = PragmaDataflow(df_write_region)
+
             # rewriter.insert_op_at_start([dummy_element, write_op], op.region.block)
             # TODO: this stream will be passsed to the write_data intrinsic, but for now we are just going to write to memory directly here.
             global_mem_idx += 1
@@ -391,6 +432,7 @@ class ApplyOpToHLS(RewritePattern):
                     write_op,
                     incr_copy_func_arg_addr,
                     update_copy_func_arg_addr,
+                    # df_write
                 ],
                 op.region.block,
             )
@@ -418,7 +460,21 @@ class ApplyOpToHLS(RewritePattern):
         rewriter.erase_op(return_op)
 
         body = prepare_apply_body(op, rewriter)
-        body.block.add_op(scf.Yield.get())
+
+        print("----> PREPARED BODY: ", body.block)
+
+        dataflow_body = rewriter.move_region_contents_to_new_regions(body)
+        for df_arg in dataflow_body.block.args:
+            dataflow_body.block.erase_arg(df_arg)
+
+        dataflow_body.block.add_op(HLSYield.get())
+        dataflow_apply = PragmaDataflow(dataflow_body)
+
+        @Builder.region([IndexType()])
+        def for_body(builder: Builder, args: tuple[BlockArgument, ...]):
+            builder.insert(dataflow_apply)
+
+        for_body.block.add_op(scf.Yield.get())
         dim = res_type.get_num_dims()
 
         size_x = Constant.from_int_and_width(
@@ -464,7 +520,7 @@ class ApplyOpToHLS(RewritePattern):
         # 1D and 2D cases as well.
         y_for_op = None
 
-        current_region = body
+        current_region = for_body
         for i in range(1, dim + 1):
             for_op = scf.For.get(
                 lb=lowerBounds[-i],
@@ -607,6 +663,11 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
 
                 result_hls_read = hls_read.results[0]
                 replace_access = True
+
+                ## The stencil access operation has to be inside the dataflow region to be able to generate the auxiliary
+                ## functions around it properly
+                # op.detach()
+                # rewriter.insert_op_after(op, hls_read)
 
         if replace_access:
             access_idx = []
