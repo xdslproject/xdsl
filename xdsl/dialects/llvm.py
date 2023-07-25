@@ -51,7 +51,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -765,6 +765,8 @@ class GlobalOp(IRDLOperation):
 
     # This always needs an empty region as it is in the top level module definition
     body: Region = region_def()
+
+    traits = frozenset([SymbolOpInterface()])
 
     @staticmethod
     def get(
