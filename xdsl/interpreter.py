@@ -370,9 +370,10 @@ class Interpreter:
             self._symbol_table = {}
 
             for op in self.module.walk():
-                if op.has_trait(SymbolOpInterface):
-                    symbol = SymbolOpInterface.get_sym_attr_name(op)
-                    self._symbol_table[symbol.data] = op
+                if (symbol_interface := op.get_trait(SymbolOpInterface)) is not None:
+                    symbol = symbol_interface.get_sym_attr_name(op)
+                    if symbol:
+                        self._symbol_table[symbol.data] = op
         return self._symbol_table
 
     def get_values(self, values: Iterable[SSAValue]) -> tuple[Any, ...]:
