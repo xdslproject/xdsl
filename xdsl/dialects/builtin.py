@@ -209,7 +209,7 @@ class SymbolRefAttr(ParametrizedAttribute):
     ) -> None:
         if isinstance(root, str):
             root = StringAttr(root)
-        if isinstance(nested, Sequence):
+        if not isinstance(nested, ArrayAttr):
             nested = ArrayAttr(
                 [StringAttr(x) if isinstance(x, str) else x for x in nested]
             )
