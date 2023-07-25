@@ -293,7 +293,7 @@ builtin.module attributes {gpu.container_module} {
 
     @compute
     @workgroup_size(128,1,1)
-    fn main(@builtin(global_invocation_id) global_invocation_id : vec3<u32>,
+    fn apply_kernel_kernel(@builtin(global_invocation_id) global_invocation_id : vec3<u32>,
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
     @builtin(num_workgroups) num_workgroups : vec3<u32>) {
