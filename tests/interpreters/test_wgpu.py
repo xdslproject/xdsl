@@ -74,10 +74,10 @@ builtin.module attributes {gpu.container_module} {
     module = parser.parse_module()
 
     interpreter = Interpreter(module)
-    interpreter.register_implementations(ArithFunctions)
-    interpreter.register_implementations(MemrefFunctions)
-    interpreter.register_implementations(WGPUFunctions)
-    interpreter.register_implementations(PrintfFunctions)
+    interpreter.register_implementations(ArithFunctions())
+    interpreter.register_implementations(MemrefFunctions())
+    interpreter.register_implementations(WGPUFunctions())
+    interpreter.register_implementations(PrintfFunctions())
     f = StringIO("")
     with redirect_stdout(f):
         interpreter.call_op("main", ())
