@@ -1,16 +1,13 @@
-import array
 from io import StringIO
-from math import prod
 from typing import Any, Sequence, cast
 
 import wgpu
 import wgpu.utils
-from xdsl.dialects import arith, gpu
-from xdsl.dialects.builtin import AnyFloatAttr, AnyIntegerAttr, IndexType
+from xdsl.dialects import gpu
+from xdsl.dialects.builtin import IndexType
 from xdsl.dialects.memref import MemRefType
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
-from xdsl.interpreters.memref import MemrefValue
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir.core import Attribute, SSAValue
 from xdsl.traits import SymbolTable
@@ -24,7 +21,12 @@ class WGPUFunctions(InterpreterFunctions):
 
     def buffer_from_operand(self, interpreter: Interpreter, operand: SSAValue):
         """
-        Prepare a GPUBuffer from an SSA operand
+        Prepare a GPUBuffer from an SSA operand.
+
+        memrefs are excpected to be GPUBuffers at this point.
+
+        Still a helper function, because boilerplating will need to happen to forward
+        e.g. scalar parameters!
         """
         if isa(operand.type, MemRefType[Attribute]):
             value = interpreter.get_values((operand,))[0]
@@ -79,6 +81,10 @@ class WGPUFunctions(InterpreterFunctions):
     def run_alloc(
         self, interpreter: Interpreter, op: gpu.AllocOp, args: tuple[Any, ...]
     ):
+        """
+        Allocate a GPUBuffer according to a gpu.alloc operation, return it as the memref
+        value.
+        """
         if len(args) != 0 or op.asyncToken:
             raise NotImplementedError(
                 "Only synchronous, known-sized gpu.alloc implemented yet."
@@ -89,7 +95,7 @@ class WGPUFunctions(InterpreterFunctions):
                 element_size = 4
             case _:
                 raise NotImplementedError(
-                    f"This element type for gpu.alloc is not implemented yet."
+                    f"The element type {memref_type.element_type} for gpu.alloc is not implemented yet."
                 )
         buffer = self.device.create_buffer(
             size=memref_type.element_count() * element_size,
@@ -101,6 +107,11 @@ class WGPUFunctions(InterpreterFunctions):
     def run_memcpy(
         self, interpreter: Interpreter, op: gpu.MemcpyOp, args: tuple[Any, ...]
     ):
+        """
+        Copy buffers according to the gpu.memcpy operation.
+
+        Only Device to Host copy is implemented here, to keep the first draft bearable.
+        """
         src, dst = interpreter.get_values((op.src, op.dst))
         if not (isinstance(src, wgpu.GPUBuffer) and isinstance(dst, ShapedArray)):
             raise NotImplementedError(
@@ -126,6 +137,9 @@ class WGPUFunctions(InterpreterFunctions):
     def run_launch_func(
         self, interpreter: Interpreter, op: gpu.LaunchFuncOp, args: tuple[Any, ...]
     ):
+        """
+        Launch a GPU kernel through the WebGPU API.
+        """
         if op.asyncToken is not None or len(op.asyncDependencies) != 0:
             raise NotImplementedError(
                 "The WGPU interpreter does not handle asynchronous GPU regions at the moment."
