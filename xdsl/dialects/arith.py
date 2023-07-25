@@ -616,7 +616,7 @@ class TruncFOp(IRDLOperation):
 
     @staticmethod
     def get(op: SSAValue | Operation, target_type: AnyFloat):
-        return ExtFOp.build(operands=[op], result_types=[target_type])
+        return TruncFOp.build(operands=[op], result_types=[target_type])
 
 
 Arith = Dialect(
