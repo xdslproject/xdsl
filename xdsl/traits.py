@@ -244,7 +244,7 @@ class SymbolTable(OpTrait):
         while anchor is not None and not anchor.has_trait(SymbolTable):
             anchor = anchor.parent_op()
         if anchor is None:
-            raise ValueError(f"Operation {op} had no SymbolTable ancestor")
+            raise ValueError(f"Operation {op} has no SymbolTable ancestor")
         if isinstance(name, str | StringAttr):
             name = SymbolRefAttr(name)
         for o in anchor.regions[0].block.ops:
