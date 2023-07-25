@@ -222,16 +222,15 @@ class SymbolOpInterface(OpTrait):
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
 
+        if "sym_name" not in op.attributes and self.is_optional_symbol(op):
+            return None
         if "sym_name" not in op.attributes or not isinstance(
             op.attributes["sym_name"], StringAttr
         ):
-            if self.is_optional_symbol(op):
-                return None
-            else:
-                raise VerifyException(
-                    f'Operation {op.name} must have a "sym_name" attribute of type '
-                    f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
-                )
+            raise VerifyException(
+                f'Operation {op.name} must have a "sym_name" attribute of type '
+                f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
+            )
         attr = op.attributes["sym_name"]
         return attr
 
