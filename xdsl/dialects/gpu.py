@@ -397,7 +397,7 @@ class FuncOp(IRDLOperation):
         DenseArrayBase, attr_name="gpu.known_grid_size"
     )
 
-    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp)])
+    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface()])
 
     def __init__(
         self,
