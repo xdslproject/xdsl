@@ -4,7 +4,6 @@ from math import prod
 from typing import Any, Sequence, cast
 
 import wgpu
-import wgpu.backends.rs
 import wgpu.utils
 from xdsl.dialects import arith, gpu
 from xdsl.dialects.builtin import AnyFloatAttr, AnyIntegerAttr, IndexType
@@ -20,31 +19,36 @@ from xdsl.utils.hints import isa
 
 @register_impls
 class WGPUFunctions(InterpreterFunctions):
-    device = wgpu.utils.get_default_device()
-    shader_modules: dict[gpu.ModuleOp] = {}
+    device = cast(wgpu.GPUDevice, wgpu.utils.get_default_device())
+    shader_modules: dict[gpu.ModuleOp, wgpu.GPUShaderModule] = {}
 
     def buffer_from_operand(self, interpreter: Interpreter, operand: SSAValue):
         if isa(operand.type, MemRefType[Attribute]):
             element_type = operand.type.element_type
             if isinstance(element_type, IndexType):
                 shaped_array = interpreter.get_values((operand,))[0]
-                assert isinstance(shaped_array, ShapedArray)
                 values = tuple(
                     shaped_array.load(index) for index in shaped_array.indices()
                 )
                 view = memoryview(bytearray(len(values) * 4)).cast("I")
-                buffer = self.device.create_buffer_with_data(
-                    data=view, usage=wgpu.BufferUsage.STORAGE
+                buffer = cast(
+                    wgpu.GPUBuffer,
+                    self.device.create_buffer_with_data(
+                        data=view,
+                        usage=wgpu.BufferUsage.STORAGE | wgpu.BufferUsage.COPY_SRC,
+                    ),
                 )
                 return buffer
+        raise NotImplementedError(f"{operand.type} not yet mapped to WGPU.")
 
     def prepare_bindings(
         self, interpreter: Interpreter, kernel_operands: Sequence[SSAValue]
     ):
-        layouts = []
-        bindings = []
+        layouts: list[dict[str, Any]] = []
+        bindings: list[dict[str, Any]] = []
         for i, o in enumerate(kernel_operands):
             buffer = WGPUFunctions.buffer_from_operand(self, interpreter, o)
+
             layouts.append(
                 {
                     "binding": i,
@@ -61,25 +65,38 @@ class WGPUFunctions(InterpreterFunctions):
 
         return layouts, bindings
 
-    def process_outputs(self, interpreter: Interpreter, operand: SSAValue, output: Any):
-        if isa(operand.type, MemRefType[Attribute]):
-            element_type = operand.type.element_type
-            if isinstance(element_type, IndexType):
-                assert isinstance(output, memoryview)
-                shaped_array = interpreter.get_values((operand,))[0]
-                assert isinstance(shaped_array, ShapedArray)
-                for index in shaped_array.indices():
-                    shaped_array.store(index, output[index])
-                    pass
+    def process_bindings(
+        self,
+        interpreter: Interpreter,
+        launch: gpu.LaunchFuncOp,
+        bindings: list[dict[str, Any]],
+    ):
+        for i, binding in enumerate(bindings):
+            operand = launch.kernelOperands[i]
+            gpu_buffer = binding["resource"]["buffer"]
+            buffer = cast(memoryview, self.device.queue.read_buffer(gpu_buffer))
+            if isa(operand.type, MemRefType[Attribute]):
+                element_type = operand.type.element_type
+                if isinstance(element_type, IndexType):
+                    buffer = buffer.cast(
+                        "I", [i.value.data for i in operand.type.shape]
+                    )
+                    # print(buffer.tolist())
+                    value = interpreter.get_values((operand,))[0]
+                    assert isinstance(value, ShapedArray), value
+                    for index in value.indices():
+                        value.store(index, buffer.__getitem__(index))
+                    print(value.data)
 
     @impl(gpu.ModuleOp)
     def compile_module(
         self, interpreter: Interpreter, op: gpu.ModuleOp, args: tuple[()]
     ):
         if op not in self.shader_modules:
-            printer = WGSLPrinter()
+            wgsl_printer = WGSLPrinter()
             wgsl_source = StringIO("")
-            printer.print(op, wgsl_source)
+            wgsl_printer.print(op, wgsl_source)
+            print(f"Compiling:\n{wgsl_source.getvalue()}")
             self.shader_modules[op] = self.device.create_shader_module(
                 code=wgsl_source.getvalue()
             )
@@ -101,11 +118,17 @@ class WGPUFunctions(InterpreterFunctions):
         kernel_operands = op.kernelOperands
 
         func = SymbolTable.lookup_symbol(op, op.kernel)
-        assert isinstance(func, gpu.FuncOp), func
+        assert isinstance(func, gpu.FuncOp)
         module = func.parent_op()
         assert isinstance(module, gpu.ModuleOp)
         interpreter.run_op(module, ())
         shader_module = self.shader_modules[module]
+
+        # Compute the dispatch number
+        dispatch = list(gridSize)
+        if not func.known_block_size:
+            for i in range(len(dispatch)):
+                dispatch[i] = dispatch[i] * blockSize[i]
 
         layouts, bindings = WGPUFunctions.prepare_bindings(
             self, interpreter, kernel_operands
@@ -126,17 +149,17 @@ class WGPUFunctions(InterpreterFunctions):
             layout=pipeline_layout,
             compute={"module": shader_module, "entry_point": func.sym_name.data},
         )
-        # assert compute_pipeline is None, compute_pipeline
+
         command_encoder = device.create_command_encoder()
         compute_pass = command_encoder.begin_compute_pass()
         compute_pass.set_pipeline(compute_pipeline)
         compute_pass.set_bind_group(
             0, bind_group, [], 0, 999999
         )  # last 2 elements not used
-        compute_pass.dispatch_workgroups(*gridSize)  # x y z
+        compute_pass.dispatch_workgroups(*dispatch)  # x y z
         compute_pass.end()
         device.queue.submit([command_encoder.finish()])
+
+        WGPUFunctions.process_bindings(self, interpreter, op, bindings)
+
         return ()
-        # for i, o in enumerate(kernel_operands):
-        #     WGPUFunctions.process_outputs(self, interpreter, o, outputs[i + 1])
-        # return ()
