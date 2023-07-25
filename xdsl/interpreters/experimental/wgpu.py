@@ -30,7 +30,7 @@ class WGPUFunctions(InterpreterFunctions):
                 values = tuple(
                     shaped_array.load(index) for index in shaped_array.indices()
                 )
-                view = memoryview(bytearray(len(values) * 4)).cast("I")
+                view = memoryview(bytearray(len(values) * 4))
                 buffer = cast(
                     wgpu.GPUBuffer,
                     self.device.create_buffer_with_data(
