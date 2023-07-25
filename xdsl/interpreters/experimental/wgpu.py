@@ -23,6 +23,9 @@ class WGPUFunctions(InterpreterFunctions):
     shader_modules: dict[gpu.FuncOp, wgpu.GPUShaderModule] = {}
 
     def buffer_from_operand(self, interpreter: Interpreter, operand: SSAValue):
+        """
+        Prepare a GPUBuffer from an SSA operand
+        """
         if isa(operand.type, MemRefType[Attribute]):
             element_type = operand.type.element_type
             if isinstance(element_type, IndexType):
@@ -50,6 +53,9 @@ class WGPUFunctions(InterpreterFunctions):
     def prepare_bindings(
         self, interpreter: Interpreter, kernel_operands: Sequence[SSAValue]
     ):
+        """
+        Boilerplate preparation for arguments bindings.
+        """
         layouts: list[dict[str, Any]] = []
         bindings: list[dict[str, Any]] = []
         for i, o in enumerate(kernel_operands):
@@ -77,6 +83,10 @@ class WGPUFunctions(InterpreterFunctions):
         launch: gpu.LaunchFuncOp,
         bindings: list[dict[str, Any]],
     ):
+        """
+        Boilerplate processing for arguments writeback (i.e. reflect changes on our
+        Interpreter state, here memref values)
+        """
         for i, binding in enumerate(bindings):
             operand = launch.kernelOperands[i]
             gpu_buffer = binding["resource"]["buffer"]
@@ -95,6 +105,9 @@ class WGPUFunctions(InterpreterFunctions):
                     print(value.data)
 
     def compile_func(self, op: gpu.FuncOp):
+        """
+        Compile a gpu.func if not already done.
+        """
         if op not in self.shader_modules:
             wgsl_printer = WGSLPrinter()
             wgsl_source = StringIO("")
@@ -126,6 +139,9 @@ class WGPUFunctions(InterpreterFunctions):
 
         # Compute the dispatch number
         dispatch = list(gridSize)
+        # If the func has a known block size, it's reflected in the compiled module
+        # Otherwise, it defaults to (1,1,1) currently and we have to take this
+        # into account
         if not func.known_block_size:
             for i in range(len(dispatch)):
                 dispatch[i] = dispatch[i] * blockSize[i]
@@ -134,8 +150,9 @@ class WGPUFunctions(InterpreterFunctions):
             self, interpreter, kernel_operands
         )
 
+        # All the boilerplate
         device = self.device
-        # Put everything together
+        # Put bindings together
         bind_group_layout = device.create_bind_group_layout(entries=layouts)
         pipeline_layout = device.create_pipeline_layout(
             bind_group_layouts=[bind_group_layout]
@@ -153,13 +170,13 @@ class WGPUFunctions(InterpreterFunctions):
         command_encoder = device.create_command_encoder()
         compute_pass = command_encoder.begin_compute_pass()
         compute_pass.set_pipeline(compute_pipeline)
-        compute_pass.set_bind_group(
-            0, bind_group, [], 0, 999999
-        )  # last 2 elements not used
+        compute_pass.set_bind_group(0, bind_group, [], 0, 0)  # last 2 elements not used
         compute_pass.dispatch_workgroups(*dispatch)  # x y z
         compute_pass.end()
         device.queue.submit([command_encoder.finish()])
 
+        # Reflect changes on the InterpreterState
         WGPUFunctions.process_bindings(self, interpreter, op, bindings)
 
+        # gpu.launch_func has no return
         return ()
