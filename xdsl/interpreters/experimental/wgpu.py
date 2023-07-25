@@ -53,8 +53,8 @@ class WGPUFunctions(InterpreterFunctions):
                     "binding": i,
                     "visibility": wgpu.ShaderStage.COMPUTE,  # pyright: ignore
                     "buffer": {
-                        "type": wgpu.BufferBindingType.storage
-                    },  # pyright: ignore
+                        "type": wgpu.BufferBindingType.storage  # pyright: ignore
+                    },
                 }
             )
             bindings.append(
@@ -77,7 +77,9 @@ class WGPUFunctions(InterpreterFunctions):
             print(f"Compiling:\n{wgsl_source.getvalue()}")
             self.shader_modules[op] = cast(
                 wgpu.GPUShaderModule,
-                self.device.create_shader_module(code=wgsl_source.getvalue()),
+                self.device.create_shader_module(
+                    code=wgsl_source.getvalue()
+                ),  # pyright: ignore
             )
 
     @impl(gpu.AllocOp)
@@ -100,9 +102,12 @@ class WGPUFunctions(InterpreterFunctions):
                 raise NotImplementedError(
                     f"The element type {memref_type.element_type} for gpu.alloc is not implemented yet."
                 )
-        buffer = self.device.create_buffer(
-            size=memref_type.element_count() * element_size,
-            usage=wgpu.BufferUsage.STORAGE | wgpu.BufferUsage.COPY_SRC,
+        buffer = cast(
+            wgpu.GPUBuffer,
+            self.device.create_buffer(
+                size=memref_type.element_count() * element_size,
+                usage=wgpu.BufferUsage.STORAGE | wgpu.BufferUsage.COPY_SRC,
+            ),
         )
         return (buffer,)
 
