@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -253,12 +253,7 @@ class SymbolTable(OpTrait):
             ) is not None and sym_interface.get_sym_attr_name(o) == name.root_reference:
                 if not name.nested_references:
                     return o
-                nested_root = name.nested_references.data[0]
-                nested_references: Sequence[StringAttr] = (
-                    name.nested_references.data[1:]
-                    if len(name.nested_references) > 1
-                    else []
-                )
+                nested_root, *nested_references = name.nested_references.data
                 nested_name = SymbolRefAttr(nested_root, nested_references)
                 return SymbolTable.lookup_symbol(o, nested_name)
         return None
