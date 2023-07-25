@@ -344,7 +344,7 @@ class MemcpyOp(IRDLOperation):
     def verify_(self) -> None:
         if self.src.type != self.dst.type:
             raise VerifyException(
-                f"Expected {self.src.type}, got {self.dst.type}. gpu.memcpy source and "
+                f"Expected {self.dst.type}, got {self.src.type}. gpu.memcpy source and "
                 "destination types must match."
             )
 
