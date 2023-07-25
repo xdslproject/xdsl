@@ -62,33 +62,6 @@ class WGPUFunctions(InterpreterFunctions):
 
         return layouts, bindings
 
-    def process_bindings(
-        self,
-        interpreter: Interpreter,
-        launch: gpu.LaunchFuncOp,
-        bindings: list[dict[str, Any]],
-    ):
-        """
-        Boilerplate processing for arguments writeback (i.e. reflect changes on our
-        Interpreter state, here memref values)
-        """
-        for i, binding in enumerate(bindings):
-            operand = launch.kernelOperands[i]
-            gpu_buffer = binding["resource"]["buffer"]
-            buffer = cast(memoryview, self.device.queue.read_buffer(gpu_buffer))
-            if isa(operand.type, MemRefType[Attribute]):
-                element_type = operand.type.element_type
-                if isinstance(element_type, IndexType):
-                    buffer = buffer.cast(
-                        "I", [i.value.data for i in operand.type.shape]
-                    )
-                    # print(buffer.tolist())
-                    value = interpreter.get_values((operand,))[0]
-                    assert isinstance(value, ShapedArray), value
-                    for index in value.indices():
-                        value.store(index, buffer.__getitem__(index))
-                    print(value.data)
-
     def compile_func(self, op: gpu.FuncOp):
         """
         Compile a gpu.func if not already done.
