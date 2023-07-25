@@ -337,7 +337,7 @@ def test_optional_symbol_op_interface():
 
 
 def test_symbol_table():
-    # Some helpers classes
+    # Some helper classes
     @irdl_op_definition
     class SymbolTableOp(IRDLOperation):
         name = "test.symbol_table"
