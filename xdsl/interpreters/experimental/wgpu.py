@@ -94,7 +94,7 @@ class WGPUFunctions(InterpreterFunctions):
                         value.store(index, buffer.__getitem__(index))
                     print(value.data)
 
-    def compile_func(self, interpreter: Interpreter, op: gpu.FuncOp):
+    def compile_func(self, op: gpu.FuncOp):
         if op not in self.shader_modules:
             wgsl_printer = WGSLPrinter()
             wgsl_source = StringIO("")
@@ -121,7 +121,7 @@ class WGPUFunctions(InterpreterFunctions):
 
         func = SymbolTable.lookup_symbol(op, op.kernel)
         assert isinstance(func, gpu.FuncOp)
-        WGPUFunctions.compile_func(self, interpreter, func)
+        WGPUFunctions.compile_func(self, func)
         shader_module = self.shader_modules[func]
 
         # Compute the dispatch number
