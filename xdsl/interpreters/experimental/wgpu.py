@@ -106,7 +106,7 @@ class WGPUFunctions(InterpreterFunctions):
             wgpu.GPUBuffer,
             self.device.create_buffer(  # pyright: ignore
                 size=memref_type.element_count() * element_size,
-                usage=wgpu.BufferUsage.STORAGE
+                usage=wgpu.BufferUsage.STORAGE  # pyright: ignore
                 | wgpu.BufferUsage.COPY_SRC,  # pyright: ignore
             ),
         )
@@ -129,8 +129,8 @@ class WGPUFunctions(InterpreterFunctions):
 
         # Get device/source view
         memview = cast(
-            memoryview, self.device.queue.read_buffer(src)
-        )  # pyright: ignore
+            memoryview, self.device.queue.read_buffer(src)  # pyright: ignore
+        )
         dst_type = cast(MemRefType[Attribute], op.dst.type)
         match (dst_type.element_type):
             case IndexType():
@@ -183,9 +183,9 @@ class WGPUFunctions(InterpreterFunctions):
         # All the boilerplate
         device = self.device
         # Put bindings together
-        bind_group_layout = device.create_bind_group_layout(
+        bind_group_layout = device.create_bind_group_layout(  # pyright: ignore
             entries=layouts
-        )  # pyright: ignore
+        )
         pipeline_layout = device.create_pipeline_layout(  # pyright: ignore
             bind_group_layouts=[bind_group_layout]
         )
@@ -202,9 +202,9 @@ class WGPUFunctions(InterpreterFunctions):
         command_encoder = device.create_command_encoder()  # pyright: ignore
         compute_pass = command_encoder.begin_compute_pass()  # pyright: ignore
         compute_pass.set_pipeline(compute_pipeline)  # pyright: ignore
-        compute_pass.set_bind_group(
+        compute_pass.set_bind_group(  # pyright: ignore
             0, bind_group, [], 0, 0
-        )  # last 2 elements not used # pyright: ignore
+        )  # last 2 elements not used
         compute_pass.dispatch_workgroups(*dispatch)  # x y z # pyright: ignore
         compute_pass.end()  # pyright: ignore
         device.queue.submit([command_encoder.finish()])  # pyright: ignore
