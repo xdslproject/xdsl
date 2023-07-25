@@ -27,27 +27,12 @@ class WGPUFunctions(InterpreterFunctions):
         Prepare a GPUBuffer from an SSA operand
         """
         if isa(operand.type, MemRefType[Attribute]):
-            element_type = operand.type.element_type
-            if isinstance(element_type, IndexType):
-                shaped_array = interpreter.get_values((operand,))[0]
-                assert isinstance(shaped_array, ShapedArray)
-                values = tuple(
-                    shaped_array.load(index) for index in shaped_array.indices()
+            value = interpreter.get_values((operand,))[0]
+            if not isinstance(value, wgpu.GPUBuffer):
+                raise ValueError(
+                    f"gpu.launch_func memref operand expected to be GPU-allocated"
                 )
-                view = memoryview(bytearray(len(values) * 4)).cast(
-                    "I", shaped_array.shape
-                )
-                for idx in shaped_array.indices():
-                    v = shaped_array.load(idx)
-                    view[idx] = v if isinstance(v, int) else 0
-                buffer = cast(
-                    wgpu.GPUBuffer,
-                    self.device.create_buffer_with_data(
-                        data=view,
-                        usage=wgpu.BufferUsage.STORAGE | wgpu.BufferUsage.COPY_SRC,
-                    ),
-                )
-                return buffer
+            return value
         raise NotImplementedError(f"{operand.type} not yet mapped to WGPU.")
 
     def prepare_bindings(
@@ -117,6 +102,53 @@ class WGPUFunctions(InterpreterFunctions):
                 code=wgsl_source.getvalue()
             )
 
+    @impl(gpu.AllocOp)
+    def run_alloc(
+        self, interpreter: Interpreter, op: gpu.AllocOp, args: tuple[Any, ...]
+    ):
+        if len(args) != 0 or op.asyncToken:
+            raise NotImplementedError(
+                "Only synchronous, known-sized gpu.alloc implemented yet."
+            )
+        memref_type = cast(MemRefType[Attribute], op.result.type)
+        match (memref_type.element_type):
+            case IndexType():
+                element_size = 4
+            case _:
+                raise NotImplementedError(
+                    f"This element type for gpu.alloc is not implemented yet."
+                )
+        buffer = self.device.create_buffer(
+            size=memref_type.element_count() * element_size,
+            usage=wgpu.BufferUsage.STORAGE | wgpu.BufferUsage.COPY_SRC,
+        )
+        return (buffer,)
+
+    @impl(gpu.MemcpyOp)
+    def run_memcpy(
+        self, interpreter: Interpreter, op: gpu.MemcpyOp, args: tuple[Any, ...]
+    ):
+        src, dst = interpreter.get_values((op.src, op.dst))
+        if not (isinstance(src, wgpu.GPUBuffer) and isinstance(dst, ShapedArray)):
+            raise NotImplementedError(
+                f"Only device to host copy is implemented for now. got {src} to {dst}"
+            )
+
+        # Get device/source view
+        memview = cast(memoryview, self.device.queue.read_buffer(src))
+        dst_type = cast(MemRefType[Attribute], op.dst.type)
+        match (dst_type.element_type):
+            case IndexType():
+                format = "I"
+            case _:
+                raise NotImplementedError(
+                    f"copy for element type {dst_type.element_type} not yet implemented."
+                )
+        memview = memview.cast(format, [i.value.data for i in dst_type.shape])
+        for index in dst.indices():
+            dst.store(index, memview.__getitem__(index))
+        return ()
+
     @impl(gpu.LaunchFuncOp)
     def run_launch_func(
         self, interpreter: Interpreter, op: gpu.LaunchFuncOp, args: tuple[Any, ...]
@@ -174,9 +206,6 @@ class WGPUFunctions(InterpreterFunctions):
         compute_pass.dispatch_workgroups(*dispatch)  # x y z
         compute_pass.end()
         device.queue.submit([command_encoder.finish()])
-
-        # Reflect changes on the InterpreterState
-        WGPUFunctions.process_bindings(self, interpreter, op, bindings)
 
         # gpu.launch_func has no return
         return ()
