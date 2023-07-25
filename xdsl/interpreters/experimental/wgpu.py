@@ -5,7 +5,6 @@ from typing import Any, cast
 
 import wgpu
 import wgpu.backends.rs
-from wgpu.utils import compute_with_buffers
 from xdsl.dialects import arith, gpu
 from xdsl.dialects.builtin import AnyFloatAttr, AnyIntegerAttr, IndexType
 from xdsl.dialects.memref import MemRefType
@@ -14,11 +13,16 @@ from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
 from xdsl.interpreters.memref import MemrefValue
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir.core import Attribute, SSAValue
+from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
 
 
 @register_impls
 class WGPUFunctions(InterpreterFunctions):
+    def __init__(self):
+        self.device = wgpu.utils.get_default_device()
+        self.shader_modules: dict[gpu.ModuleOp]
+
     def prepare_operand(self, interpreter: Interpreter, operand: SSAValue):
         if isa(operand.type, MemRefType[Attribute]):
             element_type = operand.type.element_type
@@ -42,11 +46,24 @@ class WGPUFunctions(InterpreterFunctions):
                     shaped_array.store(index, output[index])
                     pass
 
+    @impl(gpu.ModuleOp)
+    def compile_module(
+        self, interpreter: Interpreter, op: gpu.ModuleOp, args: tuple[()]
+    ):
+        if op not in self.shader_modules:
+            printer = WGSLPrinter()
+            wgsl_source = StringIO("")
+            printer.print(op, wgsl_source)
+            self.shader_modules[op] = self.device.create_shader_module(
+                code=wgsl_source.getvalue()
+            )
+        return ()
+
     @impl(gpu.LaunchFuncOp)
     def run_launch_func(
         self, interpreter: Interpreter, op: gpu.LaunchFuncOp, args: tuple[Any, ...]
     ):
-        if op.asyncToken is not None:
+        if op.asyncToken is not None or len(op.asyncDependencies) != 0:
             raise NotImplementedError(
                 "The WGPU interpreter does not handle asynchronous GPU regions at the moment."
             )
@@ -58,10 +75,13 @@ class WGPUFunctions(InterpreterFunctions):
         dispatch_count = tuple(g * b for g, b in zip(gridSize, blockSize))
         kernel_operands = op.kernelOperands
 
-        func = interpreter.get_op_for_symbol(op.kernel.string_value().split(".")[-1])
-        printer = WGSLPrinter()
-        wgsl_source = StringIO("")
-        printer.print(func, wgsl_source)
+        func = SymbolTable.lookup_symbol(op, op.kernel)
+        assert isinstance(func, gpu.FuncOp)
+        module = func.parent_op()
+        assert isinstance(module, gpu.ModuleOp)
+        interpreter.run_op(module, ())
+        shader_module = self.shader_modules[module]
+
         operands_dict = {}
         outputs_dict = {}
         for i, o in enumerate(kernel_operands):
