@@ -328,7 +328,7 @@ class LowerMpiInit(_MPIToLLVMRewriteBase):
         """
         return [
             nullptr := llvm.NullOp.get(),
-            func.Call.get(self._mpi_name(op), [nullptr, nullptr], [i32]),
+            func.Call(self._mpi_name(op), [nullptr, nullptr], [i32]),
         ], []
 
 
@@ -342,7 +342,7 @@ class LowerMpiFinalize(_MPIToLLVMRewriteBase):
         Relatively straight forward lowering of mpi.finalize operation.
         """
         return [
-            func.Call.get(self._mpi_name(op), [], [i32]),
+            func.Call(self._mpi_name(op), [], [i32]),
         ], []
 
 
@@ -358,7 +358,7 @@ class LowerMpiWait(_MPIToLLVMRewriteBase):
         ops, new_results, res = self._emit_mpi_status_objs(len(op.results))
         return [
             *ops,
-            func.Call.get(self._mpi_name(op), [op.request, res], [i32]),
+            func.Call(self._mpi_name(op), [op.request, res], [i32]),
         ], new_results
 
 
@@ -375,7 +375,7 @@ class LowerMpiWaitall(_MPIToLLVMRewriteBase):
         ops, new_results, res = self._emit_mpi_status_objs(len(op.results))
         return [
             *ops,
-            func.Call.get(self._mpi_name(op), [op.count, op.requests, res], [i32]),
+            func.Call(self._mpi_name(op), [op.count, op.requests, res], [i32]),
         ], new_results
 
 
@@ -394,7 +394,7 @@ class LowerMpiReduce(_MPIToLLVMRewriteBase):
                 self.info.MPI_COMM_WORLD, i32
             ),
             mpi_op := self._emit_mpi_operation_load(op.operationtype),
-            func.Call.get(
+            func.Call(
                 self._mpi_name(op),
                 [
                     op.send_buffer,
@@ -440,7 +440,7 @@ class LowerMpiAllreduce(_MPIToLLVMRewriteBase):
 
         return [
             *operations,
-            func.Call.get(
+            func.Call(
                 self._mpi_name(op),
                 [
                     send_buffer_op,
@@ -469,7 +469,7 @@ class LowerMpiBcast(_MPIToLLVMRewriteBase):
             comm_global := arith.Constant.from_int_and_width(
                 self.info.MPI_COMM_WORLD, i32
             ),
-            func.Call.get(
+            func.Call(
                 self._mpi_name(op),
                 [op.buffer, op.count, op.datatype, op.root, comm_global],
                 [],
@@ -494,7 +494,7 @@ class LowerMpiIsend(_MPIToLLVMRewriteBase):
             comm_global := arith.Constant.from_int_and_width(
                 self.info.MPI_COMM_WORLD, i32
             ),
-            func.Call.get(
+            func.Call(
                 self._mpi_name(op),
                 [
                     op.buffer,
@@ -527,7 +527,7 @@ class LowerMpiIrecv(_MPIToLLVMRewriteBase):
             comm_global := arith.Constant.from_int_and_width(
                 self.info.MPI_COMM_WORLD, i32
             ),
-            func.Call.get(
+            func.Call(
                 self._mpi_name(op),
                 [
                     op.buffer,
@@ -562,7 +562,7 @@ class LowerMpiSend(_MPIToLLVMRewriteBase):
             comm_global := arith.Constant.from_int_and_width(
                 self.info.MPI_COMM_WORLD, i32
             ),
-            func.Call.get(
+            func.Call(
                 self._mpi_name(op),
                 [op.buffer, op.count, op.datatype, op.dest, op.tag, comm_global],
                 [i32],
@@ -594,7 +594,7 @@ class LowerMpiRecv(_MPIToLLVMRewriteBase):
             comm_global := arith.Constant.from_int_and_width(
                 self.info.MPI_COMM_WORLD, i32
             ),
-            func.Call.get(
+            func.Call(
                 self._mpi_name(op),
                 [
                     op.buffer,
@@ -708,7 +708,7 @@ class LowerMpiCommRank(_MPIToLLVMRewriteBase):
             ),
             lit1 := arith.Constant.from_int_and_width(1, 64),
             int_ptr := llvm.AllocaOp.get(lit1, i32),
-            func.Call.get(self._mpi_name(op), [comm_global, int_ptr], [i32]),
+            func.Call(self._mpi_name(op), [comm_global, int_ptr], [i32]),
             rank := llvm.LoadOp.get(int_ptr),
         ], [rank.dereferenced_value]
 
@@ -730,7 +730,7 @@ class LowerMpiCommSize(_MPIToLLVMRewriteBase):
             ),
             lit1 := arith.Constant.from_int_and_width(1, 64),
             int_ptr := llvm.AllocaOp.get(lit1, i32),
-            func.Call.get(self._mpi_name(op), [comm_global, int_ptr], [i32]),
+            func.Call(self._mpi_name(op), [comm_global, int_ptr], [i32]),
             rank := llvm.LoadOp.get(int_ptr),
         ], [rank.dereferenced_value]
 
@@ -810,7 +810,7 @@ class LowerMpiGatherOp(_MPIToLLVMRewriteBase):
             comm_global := arith.Constant.from_int_and_width(
                 self.info.MPI_COMM_WORLD, i32
             ),
-            func.Call.get(
+            func.Call(
                 self._mpi_name(op),
                 [
                     op.sendbuf,
