@@ -118,7 +118,9 @@ class Generic(IRDLOperation):
         computation".
         The default behavior is to just concatenate all the indexing maps.
         """
-        result_exprs = [res for map in self.get_indexing_maps() for res in map.results]
+        result_exprs = tuple(
+            res for map in self.get_indexing_maps() for res in map.results
+        )
 
         dims = self.get_num_loops()
 
