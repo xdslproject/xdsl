@@ -202,7 +202,7 @@ class SymbolTable(OpTrait):
     SymbolTable operations are containers for Symbol operations. They offer lookup
     functionality for Symbols, and enforce unique symbols amongst its children.
 
-    A SymbolTable operation is constrained to have a sing-block single region.
+    A SymbolTable operation is constrained to have a single single-block region.
     """
 
     def verify(self, op: Operation):
