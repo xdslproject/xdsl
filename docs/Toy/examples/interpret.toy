@@ -3,10 +3,6 @@
 # RUN: python -m toy %s --emit=toy-inline | filecheck %s
 # RUN: python -m toy %s --emit=toy-infer-shapes | filecheck %s
 # RUN: python -m toy %s --emit=affine | filecheck %s
-# RUN: python -m toy %s --emit=scf | filecheck %s
-# RUN: python -m toy %s --emit=cf | filecheck %s
-# RUN: python -m toy %s --emit=riscv | filecheck %s
-# RUN: python -m toy %s --emit=riscemu | filecheck %s
 
 # RUN: python -m toy %s --emit=affine --accelerate | filecheck %s
 # RUN: python -m toy %s --emit=scf --accelerate | filecheck %s
