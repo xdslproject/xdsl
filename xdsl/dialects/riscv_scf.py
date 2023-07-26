@@ -4,24 +4,11 @@ RISC-V SCF dialect
 from __future__ import annotations
 
 from typing import Sequence
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_op_definition,
-    Operand,
-    operand_def,
-    var_operand_def,
-    VarOperand,
-    SSAValue,
-    Operation,
-    VarOpResult,
-    var_result_def,
-    Region,
-    region_def,
-    Block,
-)
-from xdsl.traits import SingleBlockImplicitTerminator, IsTerminator
+
+from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
 from xdsl.ir import Dialect
-from xdsl.dialects.riscv import RISCVRegisterType, IntRegisterType
+from xdsl.irdl import Block, IRDLOperation, Operand, Operation, Region, SSAValue, VarOperand, VarOpResult, irdl_op_definition, operand_def, region_def, var_operand_def, var_result_def
+from xdsl.traits import IsTerminator, SingleBlockImplicitTerminator
 
 
 @irdl_op_definition
