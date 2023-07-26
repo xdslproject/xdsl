@@ -23,9 +23,7 @@ def test_bitwidth_2_values():
     """
     Above calculations are correct for bitwidth 2.
     """
-    assert len(UNSIGNED_RANGE) == len(SIGNED_RANGE)
-    for i, u in zip(SIGNED_RANGE, UNSIGNED_RANGE):
-        assert i == unsigned_to_signed(u)
+    assert list(SIGNED_RANGE) == [unsigned_to_signed(u) for u in UNSIGNED_RANGE]
 
 
 def test_conversion():
