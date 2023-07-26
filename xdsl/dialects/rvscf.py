@@ -29,7 +29,7 @@ from xdsl.dialects.riscv import RISCVRegisterType
 class YieldOp(IRDLOperation):
     name = "rvscf.yield"
 
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    arguments: VarOperand = var_operand_def(RISCVRegisterType)
     traits = frozenset([IsTerminator()])
 
     def __init__(self, *operands: SSAValue | Operation):
@@ -44,9 +44,9 @@ class ForOp(IRDLOperation):
     ub: Operand = operand_def(RISCVRegisterType)
     step: Operand = operand_def(RISCVRegisterType)
 
-    iter_args: VarOperand = var_operand_def(AnyAttr())
+    iter_args: VarOperand = var_operand_def(RISCVRegisterType)
 
-    res: VarOpResult = var_result_def(AnyAttr())
+    res: VarOpResult = var_result_def(RISCVRegisterType)
 
     body: Region = region_def("single_block")
 
