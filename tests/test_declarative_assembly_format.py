@@ -189,3 +189,39 @@ def test_attr_dict(program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+################################################################################
+# Punctuations and keywords                                                    #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "format, program",
+    [
+        ("`)` attr-dict", "test.punctuation)"),
+        ("`(` attr-dict", "test.punctuation("),
+        ("`->` attr-dict", "test.punctuation ->"),
+        (
+            "`->` `->` attr-dict",
+            "test.punctuation -> ->",
+        ),
+        (
+            "`(` `)` attr-dict",
+            "test.punctuation()",
+        ),
+    ],
+)
+def test_punctuations_and_keywords(format: str, program: str):
+    """Test the punctuation and keyword directives."""
+
+    @irdl_op_definition
+    class PunctuationOp(IRDLOperation):
+        name = "test.punctuation"
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.register_op(PunctuationOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, '"test.punctuation"() : () -> ()', ctx)
