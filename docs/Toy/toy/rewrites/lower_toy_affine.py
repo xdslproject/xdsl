@@ -228,9 +228,9 @@ def build_affine_loop_from_values(
     return build_affine_for(
         builder,
         (lb,),
-        affine.AffineMap(1, 0, [affine.AffineExpr.dimension(0)]),
+        affine.AffineMap(1, 0, (affine.AffineExpr.dimension(0),)),
         (ub,),
-        affine.AffineMap(1, 0, [affine.AffineExpr.dimension(0)]),
+        affine.AffineMap(1, 0, (affine.AffineExpr.dimension(0),)),
         step,
         (),
         body_builder_fn,

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from xdsl.ir.affine import AffineDimExpr, AffineExpr
 
 
-@dataclass
+@dataclass(frozen=True)
 class AffineMap:
     """
     AffineMap represents a map from a set of dimensions and symbols to a
@@ -14,23 +14,25 @@ class AffineMap:
 
     num_dims: int
     num_symbols: int
-    results: list[AffineExpr]
+    results: tuple[AffineExpr, ...]
 
     @staticmethod
     def constant_map(value: int) -> AffineMap:
-        return AffineMap(0, 0, [AffineExpr.constant(value)])
+        return AffineMap(0, 0, (AffineExpr.constant(value),))
 
     @staticmethod
     def point_map(*values: int) -> AffineMap:
-        return AffineMap(0, 0, [AffineExpr.constant(value) for value in values])
+        return AffineMap(0, 0, tuple(AffineExpr.constant(value) for value in values))
 
     @staticmethod
     def identity(rank: int) -> AffineMap:
-        return AffineMap(rank, 0, [AffineExpr.dimension(dim) for dim in range(rank)])
+        return AffineMap(
+            rank, 0, tuple(AffineExpr.dimension(dim) for dim in range(rank))
+        )
 
     @staticmethod
     def empty() -> AffineMap:
-        return AffineMap(0, 0, [])
+        return AffineMap(0, 0, ())
 
     def compose(self, map: AffineMap) -> AffineMap:
         """Compose the AffineMap with the given AffineMap."""
@@ -40,7 +42,7 @@ class AffineMap:
                 f"{self.num_dims} and {map.num_dims}"
             )
 
-        results = [expr.compose(map) for expr in self.results]
+        results = tuple(expr.compose(map) for expr in self.results)
         return AffineMap(
             num_dims=self.num_dims,
             num_symbols=map.num_symbols,
@@ -79,7 +81,7 @@ class AffineMap:
         if -1 in found_dims:
             return None
 
-        results = [self.results[i] for i in found_dims]
+        results = tuple(self.results[i] for i in found_dims)
         return AffineMap(
             num_dims=len(self.results),
             num_symbols=0,

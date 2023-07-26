@@ -13,6 +13,7 @@ from xdsl.ir import Attribute
 from xdsl.irdl import IRDLOperation, IRDLOperationInvT, OpDef
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.utils.lexer import Token
 
 
 @dataclass
@@ -149,3 +150,39 @@ class AttrDictDirective(FormatDirective):
             printer.print_op_attributes(op.attributes)
         state.last_was_punctuation = False
         state.should_emit_space = False
+
+
+@dataclass(frozen=True)
+class PunctuationDirective(FormatDirective):
+    """
+    A punctuation directive, with the following format:
+      punctuation-directive ::= punctuation
+    The directive will request a space to be printed right after, unless the punctuation
+    is `<`, `(`, `{`, or `[`.
+    It will also print a space before if a space is requested, and that the punctuation
+    is neither `>`, `)`, `}`, `]`, or `,` if the last element was a punctuation, and
+    additionally neither `<`, `(`, `}`, `]`, if the last element was not a punctuation.
+    """
+
+    punctuation: Token.PunctuationSpelling
+    """The punctuation that should be printed/parsed."""
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        parser.parse_punctuation(self.punctuation)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        emit_space = False
+        if state.should_emit_space:
+            if state.last_was_punctuation:
+                if self.punctuation not in (">", ")", "}", "]", ","):
+                    emit_space = True
+            elif self.punctuation not in ("<", ">", "(", ")", "{", "}", "[", "]", ","):
+                emit_space = True
+
+            if emit_space:
+                printer.print(" ")
+
+        printer.print(self.punctuation)
+
+        state.should_emit_space = self.punctuation not in ("<", "(", "{", "[")
+        state.last_was_punctuation = True
