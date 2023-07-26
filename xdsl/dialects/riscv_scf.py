@@ -7,7 +7,21 @@ from typing import Sequence
 
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
 from xdsl.ir import Dialect
-from xdsl.irdl import Block, IRDLOperation, Operand, Operation, Region, SSAValue, VarOperand, VarOpResult, irdl_op_definition, operand_def, region_def, var_operand_def, var_result_def
+from xdsl.irdl import (
+    Block,
+    IRDLOperation,
+    Operand,
+    Operation,
+    Region,
+    SSAValue,
+    VarOperand,
+    VarOpResult,
+    irdl_op_definition,
+    operand_def,
+    region_def,
+    var_operand_def,
+    var_result_def,
+)
 from xdsl.traits import IsTerminator, SingleBlockImplicitTerminator
 
 

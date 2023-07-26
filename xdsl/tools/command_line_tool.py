@@ -35,8 +35,22 @@ from xdsl.frontend.symref import Symref
 from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
-from xdsl.transforms import dead_code_elimination, lower_mpi, lower_riscv_func, lower_snitch, lower_snitch_runtime, mlir_opt, printf_to_llvm, reconcile_unrealized_casts, riscv_register_allocation
-from xdsl.transforms.experimental import convert_stencil_to_ll_mlir, stencil_shape_inference, stencil_storage_materialization
+from xdsl.transforms import (
+    dead_code_elimination,
+    lower_mpi,
+    lower_riscv_func,
+    lower_snitch,
+    lower_snitch_runtime,
+    mlir_opt,
+    printf_to_llvm,
+    reconcile_unrealized_casts,
+    riscv_register_allocation,
+)
+from xdsl.transforms.experimental import (
+    convert_stencil_to_ll_mlir,
+    stencil_shape_inference,
+    stencil_storage_materialization,
+)
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 
