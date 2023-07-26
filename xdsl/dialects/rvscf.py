@@ -10,7 +10,6 @@ from xdsl.irdl import (
     Operand,
     operand_def,
     var_operand_def,
-    AnyAttr,
     VarOperand,
     SSAValue,
     Operation,
@@ -22,14 +21,18 @@ from xdsl.irdl import (
 )
 from xdsl.traits import SingleBlockImplicitTerminator, IsTerminator
 from xdsl.ir import Dialect
-from xdsl.dialects.riscv import RISCVRegisterType
+from xdsl.dialects.riscv import RISCVRegisterType, IntRegisterType
 
 
 @irdl_op_definition
 class YieldOp(IRDLOperation):
-    name = "rvscf.yield"
+    name = "riscv_scf.yield"
 
     arguments: VarOperand = var_operand_def(RISCVRegisterType)
+
+    # TODO circular dependency disallows this set of traits
+    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
+    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
     traits = frozenset([IsTerminator()])
 
     def __init__(self, *operands: SSAValue | Operation):
@@ -38,11 +41,11 @@ class YieldOp(IRDLOperation):
 
 @irdl_op_definition
 class ForOp(IRDLOperation):
-    name = "rvscf.for"
+    name = "riscv_scf.for"
 
-    lb: Operand = operand_def(RISCVRegisterType)
-    ub: Operand = operand_def(RISCVRegisterType)
-    step: Operand = operand_def(RISCVRegisterType)
+    lb: Operand = operand_def(IntRegisterType)
+    ub: Operand = operand_def(IntRegisterType)
+    step: Operand = operand_def(IntRegisterType)
 
     iter_args: VarOperand = var_operand_def(RISCVRegisterType)
 
