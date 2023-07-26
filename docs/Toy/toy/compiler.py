@@ -56,7 +56,8 @@ def transform(
     module_op: ModuleOp,
     *,
     target: str = "riscv-assembly",
-    accelerate: bool
+    accelerate: bool,
+    skip_mlir_opt: bool = False
 ):
     if target == "toy":
         return
@@ -86,28 +87,30 @@ def transform(
     if target == "affine":
         return
 
-    MLIROptPass(
-        [
-            "--allow-unregistered-dialect",
-            "--canonicalize",
-            "--cse",
-            "--lower-affine",
-            "--mlir-print-op-generic",
-        ]
-    ).apply(ctx, module_op)
+    if not skip_mlir_opt:
+        MLIROptPass(
+            [
+                "--allow-unregistered-dialect",
+                "--canonicalize",
+                "--cse",
+                "--lower-affine",
+                "--mlir-print-op-generic",
+            ]
+        ).apply(ctx, module_op)
 
     if target == "scf":
         return
 
-    MLIROptPass(
-        [
-            "--allow-unregistered-dialect",
-            "--canonicalize",
-            "--cse",
-            "--convert-scf-to-cf",
-            "--mlir-print-op-generic",
-        ]
-    ).apply(ctx, module_op)
+    if not skip_mlir_opt:
+        MLIROptPass(
+            [
+                "--allow-unregistered-dialect",
+                "--canonicalize",
+                "--cse",
+                "--convert-scf-to-cf",
+                "--mlir-print-op-generic",
+            ]
+        ).apply(ctx, module_op)
 
     if target == "cf":
         return
@@ -137,11 +140,19 @@ def transform(
     module_op.verify()
 
 
-def compile(program: str, *, accelerate: bool) -> str:
+def compile(
+    program: str, *, accelerate: bool, skip_mlir_opt: bool = not MLIROptPass.can_run()
+) -> str:
     ctx = context()
 
     op = parse_toy(program)
-    transform(ctx, op, target="riscv-regalloc", accelerate=accelerate)
+    transform(
+        ctx,
+        op,
+        target="riscv-regalloc",
+        accelerate=accelerate,
+        skip_mlir_opt=skip_mlir_opt,
+    )
 
     io = StringIO()
     riscv.print_assembly(op, io)

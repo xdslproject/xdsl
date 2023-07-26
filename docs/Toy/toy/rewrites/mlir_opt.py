@@ -22,8 +22,12 @@ class MLIROptPass(ModulePass):
 
     arguments: list[str]
 
+    @staticmethod
+    def can_run() -> bool:
+        return bool(shutil.which("mlir-opt"))
+
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        if not shutil.which("mlir-opt"):
+        if not MLIROptPass.can_run():
             raise ValueError("mlir-opt is not available")
 
         stream = StringIO()
