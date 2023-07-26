@@ -73,7 +73,7 @@ class ForOp(IRDLOperation):
         )
 
 
-RVSCF = Dialect(
+RISCV_Scf = Dialect(
     [
         YieldOp,
         ForOp,
