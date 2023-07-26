@@ -34,14 +34,23 @@
 
 
 def unsigned_upper_bound(bitwidth: int) -> int:
+    """
+    The maximum representable value + 1.
+    """
     return 1 << bitwidth
 
 
 def signed_lower_bound(bitwidth: int) -> int:
+    """
+    The minimum representable value.
+    """
     return -(1 << (bitwidth - 1))
 
 
 def signed_upper_bound(bitwidth: int) -> int:
+    """
+    The maximum representable value + 1.
+    """
     return 1 << (bitwidth - 1)
 
 
@@ -50,42 +59,15 @@ def to_unsigned(signless: int, bitwidth: int) -> int:
     Transforms values in range [MIN_SIGNED, MAX_UNSIGNED] to range [0, MAX_UNSIGNED].
     """
     # Normalise to unsigned range by adding the unsigned range and taking the remainder
-    m = unsigned_upper_bound(bitwidth)
-    return (signless + m) % m
+    modulus = unsigned_upper_bound(bitwidth)
+    return (signless + modulus) % modulus
 
 
-def signless_equal(signless_lhs: int, signless_rhs: int, bitwidth: int) -> bool:
+def to_signed(signless: int, bitwidth: int) -> int:
     """
-    If the values are in the range [0, MAX_SIGNED) then normal comparison will work.
-    If not, we have to normalise to either the signed or unsigned range.
+    Transforms values in range [MIN_SIGNED, MAX_UNSIGNED] to range [MIN_SIGNED, MAX_SIGNED].
     """
-    return to_unsigned(signless_lhs, bitwidth) == to_unsigned(signless_rhs, bitwidth)
-
-
-def unsigned_less_than(signless_lhs: int, signless_rhs: int) -> bool:
-    """
-    When signs differ, the sign bit is treated as the highest value bit, meaning that the
-    negative number will become the larger positive number.
-    """
-    lhs_is_negative = signless_lhs < 0
-    rhs_is_negative = signless_rhs < 0
-    if lhs_is_negative == rhs_is_negative:
-        # Same signedness, normal comparison will work
-        return signless_lhs < signless_rhs
-    else:
-        # Negative number will be greater when bitcast to unsigned
-        return lhs_is_negative
-
-
-def signed_less_than(lhs: int, rhs: int, bitwidth: int) -> bool:
-    """
-    The highest bit of the unsigned representation will be treated as the sign bit.
-    """
-    lhs_is_negative = lhs >= 1 << bitwidth - 1
-    rhs_is_negative = rhs >= 1 << bitwidth - 1
-    if lhs_is_negative == rhs_is_negative:
-        # Same signedness, normal comparison will work
-        return lhs < rhs
-    else:
-        # Negative number is smaller
-        return rhs_is_negative
+    # Normalise to unsigned range by adding the unsigned range and taking the remainder
+    modulus = unsigned_upper_bound(bitwidth)
+    half_modulus = modulus >> 1
+    return (signless + half_modulus) % modulus - half_modulus
