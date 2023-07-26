@@ -20,10 +20,10 @@ def test_linalg_on_memrefs():
             linalg.Yield(args[0])
 
         indexing = AffineExpr.dimension(0)
-        indexing_map = AffineMap(1, 0, [indexing])
+        indexing_map = AffineMap(1, 0, (indexing,))
 
         indexing_maps = [
-            AffineMapAttr(AffineMap(1, 0, [])),
+            AffineMapAttr(AffineMap(1, 0, ())),
             AffineMapAttr(indexing_map),
         ]
 
@@ -51,9 +51,9 @@ def test_loop_range_methods():
     k = AffineExpr.dimension(2)
 
     indexing_maps = [
-        AffineMapAttr(AffineMap(3, 0, [i, k])),
-        AffineMapAttr(AffineMap(3, 0, [k, j])),
-        AffineMapAttr(AffineMap(3, 0, [i, j])),
+        AffineMapAttr(AffineMap(3, 0, (i, k))),
+        AffineMapAttr(AffineMap(3, 0, (k, j))),
+        AffineMapAttr(AffineMap(3, 0, (i, j))),
     ]
     iterators = [
         linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL),
