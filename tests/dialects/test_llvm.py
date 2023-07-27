@@ -11,12 +11,12 @@ def test_llvm_pointer_ops():
     module = builtin.ModuleOp(
         [
             idx := arith.Constant.from_int_and_width(0, 64),
-            ptr := llvm.AllocaOp.get(idx, builtin.i32),
-            val := llvm.LoadOp.get(ptr),
-            nullptr := llvm.NullOp.get(),
-            alloc_ptr := llvm.AllocaOp.get(idx, elem_type=builtin.IndexType()),
-            llvm.LoadOp.get(alloc_ptr),
-            store := llvm.StoreOp.get(
+            ptr := llvm.AllocaOp(idx, builtin.i32),
+            val := llvm.LoadOp(ptr),
+            nullptr := llvm.NullOp(),
+            alloc_ptr := llvm.AllocaOp(idx, elem_type=builtin.IndexType()),
+            llvm.LoadOp(alloc_ptr),
+            store := llvm.StoreOp(
                 val, ptr, alignment=32, volatile=True, nontemporal=True
             ),
         ]
@@ -42,8 +42,8 @@ def test_llvm_pointer_ops():
 
 def test_llvm_ptr_to_int_to_ptr():
     idx = arith.Constant.from_int_and_width(0, 64)
-    ptr = llvm.IntToPtrOp.get(idx, ptr_type=builtin.i32)
-    int_val = llvm.PtrToIntOp.get(ptr)
+    ptr = llvm.IntToPtrOp(idx, ptr_type=builtin.i32)
+    int_val = llvm.PtrToIntOp(ptr)
 
     assert ptr.input == idx.result
     assert isinstance(ptr.output.type, llvm.LLVMPointerType)
@@ -67,11 +67,11 @@ def test_llvm_pointer_type():
 
 def test_llvm_getelementptr_op_invalid_construction():
     size = arith.Constant.from_int_and_width(1, 32)
-    opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
+    opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
 
     # check that passing an opaque pointer to GEP without a pointee type fails
     with pytest.raises(ValueError):
-        llvm.GEPOp.get(
+        llvm.GEPOp(
             opaque_ptr,
             indices=[1],
             result_type=llvm.LLVMPointerType.typed(builtin.i32),
@@ -79,7 +79,7 @@ def test_llvm_getelementptr_op_invalid_construction():
 
     # check that non-pointer arguments fail
     with pytest.raises(ValueError):
-        llvm.GEPOp.get(
+        llvm.GEPOp(
             size,
             indices=[1],
             result_type=llvm.LLVMPointerType.opaque(),
@@ -88,9 +88,9 @@ def test_llvm_getelementptr_op_invalid_construction():
 
 def test_llvm_getelementptr_op():
     size = arith.Constant.from_int_and_width(1, 32)
-    ptr = llvm.AllocaOp.get(size, builtin.i32)
+    ptr = llvm.AllocaOp(size, builtin.i32)
     ptr_type = llvm.LLVMPointerType.typed(ptr.res.type)
-    opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
+    opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
 
     # check that construction with static-only offsets and inbounds attr works:
     gep1 = llvm.GEPOp.from_mixed_indices(
@@ -149,7 +149,7 @@ def test_linkage_attr_unknown_str():
 
 
 def test_global_op():
-    global_op = llvm.GlobalOp.get(
+    global_op = llvm.GlobalOp(
         builtin.i32,
         "testsymbol",
         "internal",
@@ -179,7 +179,7 @@ def test_global_op():
 
 def test_addressof_op():
     ptr_type = llvm.LLVMPointerType.typed(builtin.i32)
-    address_of = llvm.AddressOfOp.get("test", ptr_type)
+    address_of = llvm.AddressOfOp("test", ptr_type)
 
     assert isinstance(address_of.global_name, builtin.SymbolRefAttr)
     assert address_of.global_name.root_reference.data == "test"
