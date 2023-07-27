@@ -35,7 +35,6 @@ from xdsl.irdl import (
     result_def,
 )
 from xdsl.traits import (
-    IsTerminator,
     OptionalSymbolOpInterface,
     SymbolOpInterface,
     SymbolTable,
