@@ -3,7 +3,6 @@ from typing import Any, Sequence, cast
 
 import wgpu  # pyright: ignore
 import wgpu.utils  # pyright: ignore
-
 from xdsl.dialects import gpu
 from xdsl.dialects.builtin import IndexType
 from xdsl.dialects.memref import MemRefType
@@ -75,7 +74,6 @@ class WGPUFunctions(InterpreterFunctions):
             wgsl_printer = WGSLPrinter()
             wgsl_source = StringIO("")
             wgsl_printer.print(op, wgsl_source)
-            print(f"Compiling:\n{wgsl_source.getvalue()}")
             self.shader_modules[op] = cast(
                 wgpu.GPUShaderModule,
                 self.device.create_shader_module(  # pyright: ignore
