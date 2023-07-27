@@ -1,7 +1,17 @@
 from io import StringIO
 from pathlib import Path
 
-from xdsl.dialects import cf, printf, riscv, riscv_func, scf
+from xdsl.dialects import (
+    affine,
+    arith,
+    cf,
+    func,
+    memref,
+    printf,
+    riscv,
+    riscv_func,
+    scf,
+)
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
@@ -34,13 +44,17 @@ from .rewrites.shape_inference import ShapeInferencePass
 
 def context() -> MLContext:
     ctx = MLContext()
+    ctx.register_dialect(affine.Affine)
+    ctx.register_dialect(arith.Arith)
     ctx.register_dialect(Builtin)
-    ctx.register_dialect(toy.Toy)
-    ctx.register_dialect(riscv.RISCV)
-    ctx.register_dialect(riscv_func.RISCV_Func)
     ctx.register_dialect(cf.Cf)
-    ctx.register_dialect(scf.Scf)
+    ctx.register_dialect(func.Func)
+    ctx.register_dialect(memref.MemRef)
     ctx.register_dialect(printf.Printf)
+    ctx.register_dialect(riscv_func.RISCV_Func)
+    ctx.register_dialect(riscv.RISCV)
+    ctx.register_dialect(scf.Scf)
+    ctx.register_dialect(toy.Toy)
     return ctx
 
 
