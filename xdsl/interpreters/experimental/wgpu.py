@@ -91,7 +91,7 @@ class WGPUFunctions(InterpreterFunctions):
         Allocate a GPUBuffer according to a gpu.alloc operation, return it as the memref
         value.
         """
-        if len(args) != 0 or op.asyncToken:
+        if args or op.asyncToken:
             raise NotImplementedError(
                 "Only synchronous, known-sized gpu.alloc implemented yet."
             )
