@@ -37,8 +37,6 @@ from xdsl.dialects.arith import (
     Subf,
     Subi,
     TruncFOp,
-    Cmpf,
-    Negf,
     TruncIOp,
     ExtSIOp,
     ExtUIOp,
@@ -260,8 +258,8 @@ def test_extend_truncate_iops():
     trunc_op = TruncIOp.get(b, i32)
 
     assert exts_op.input == a.result
-    assert exts_op.result.typ == i64
+    assert exts_op.result.type == i64
     assert extu_op.input == a.result
-    assert extu_op.result.typ == i64
+    assert extu_op.result.type == i64
     assert trunc_op.input == b.result
-    assert trunc_op.result.typ == i32
+    assert trunc_op.result.type == i32
