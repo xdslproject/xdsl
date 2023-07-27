@@ -14,9 +14,9 @@ from xdsl.pattern_rewriter import (
 
 def cast_vals_to_int_reg(
     vals: Sequence[SSAValue], rewriter: PatternRewriter, before: Operation
-) -> list[SSAValue]:
+) -> Sequence[SSAValue]:
     unallocated_reg = riscv.IntRegisterType.unallocated()
-    new_vals = []
+    new_vals: list[SSAValue] = []
     for val in vals:
         if not isinstance(val.type, riscv.IntRegisterType):
             rewriter.insert_op_before(
@@ -50,9 +50,11 @@ class ScfForToRiscvFor(RewritePattern):
         cast_vals = cast_vals_to_int_reg(op.operands, rewriter, op)
 
         body = op.detach_region(0)
+        assert body.block.first_op is not None
         cast_vals_back(body.block.args, rewriter, body.block.first_op)
 
         yield_op = body.block.last_op
+        assert yield_op is not None
         new_vals = cast_vals_to_int_reg(yield_op.operands, rewriter, yield_op)
         rewriter.replace_op(yield_op, riscv_scf.YieldOp(*new_vals))
 
