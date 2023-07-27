@@ -152,7 +152,7 @@ class WGPUFunctions(InterpreterFunctions):
         """
         Launch a GPU kernel through the WebGPU API.
         """
-        if op.asyncToken is not None or len(op.asyncDependencies) != 0:
+        if op.asyncToken is not None or op.asyncDependencies:
             raise NotImplementedError(
                 "The WGPU interpreter does not handle asynchronous GPU regions at the moment."
             )
