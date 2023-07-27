@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntegerAttr,
@@ -357,12 +358,6 @@ def test_symbol_table():
 
         traits = frozenset([SymbolOpInterface()])
 
-    @irdl_op_definition
-    class TerminatorOp(IRDLOperation):
-        name = "test.terminator"
-
-        traits = frozenset([IsTerminator()])
-
     # Check that having a single region is verified
     op = SymbolTableOp(regions=[Region(), Region()])
     with pytest.raises(
@@ -380,11 +375,13 @@ def test_symbol_table():
     ):
         op.verify()
 
+    terminator = test.TestTermOp([[]], [[]], regions=[[]], successors=[[]])
+
     # Check that symbol uniqueness is verified
     symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
     dup_symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
     op = SymbolTableOp(
-        regions=[Region(Block([symbol, dup_symbol, TerminatorOp()])), []]
+        regions=[Region(Block([symbol, dup_symbol, terminator.clone()])), []]
     )
     with pytest.raises(
         VerifyException,
@@ -395,7 +392,7 @@ def test_symbol_table():
     # Check a flat happy case, with symbol lookup
     symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
 
-    op = SymbolTableOp(regions=[Region(Block([symbol, TerminatorOp()])), []])
+    op = SymbolTableOp(regions=[Region(Block([symbol, terminator.clone()])), []])
     op.verify()
 
     assert SymbolTable.lookup_symbol(op, "name") is symbol
@@ -405,10 +402,10 @@ def test_symbol_table():
     symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
 
     nested = SymbolTableOp(
-        regions=[Region(Block([symbol, TerminatorOp()])), []],
+        regions=[Region(Block([symbol, terminator.clone()])), []],
         attributes={"sym_name": StringAttr("nested")},
     )
-    op = SymbolTableOp(regions=[Region(Block([nested, TerminatorOp()])), []])
+    op = SymbolTableOp(regions=[Region(Block([nested, terminator.clone()])), []])
     op.verify()
 
     assert SymbolTable.lookup_symbol(op, "name") is None
