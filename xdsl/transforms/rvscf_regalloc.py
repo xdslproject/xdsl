@@ -37,14 +37,18 @@ testfunc = riscv_func.FuncOp("funky", myfunc_body)
 @dataclass
 class RegAllocCtx:
     """
-    This is the context object for allocating registers. It's terrible.
+    This is the context object for allocating registers.
 
-    I don't know what's needed exactly though, so I keep track of:
-     - mapping ssa values to registers, which is pretty useless I think?
-     - which registers are currently used (with no expiration, for some reason)
+    It keeps track of how many times each ssa value is expected to be seen before
+    it is "free" again.
+
+    It also carries a list of forbidden registers, as they are used by the "outside"
+    (i.e. parent region) and shall not be overwritten.
+
+    This is currently still a bit broken, as ssa values can have the same register
+    even before.
     """
 
-    # regs_in_use: set[riscv.RISCVRegisterType] = field(default_factory=set)
     liveliness: dict[riscv.RISCVRegisterType, int] = field(
         default_factory=lambda: defaultdict(int)
     )
@@ -52,18 +56,29 @@ class RegAllocCtx:
     dictionary mapping registers to how many uses they have "left"
     """
 
-    def clone(self):
-        # TODO: we need to feed some updated stats back to the thing when we ascend out
-        #       of the region?
-        return RegAllocCtx(liveliness=self.liveliness.copy())
+    forbidden_vals: set[riscv.RISCVRegisterType] = field(default_factory=set)
+    """
+    A set of registers that are forbidden for allocation
+    """
+
+    def child_for_loops(self):
+        """
+        Create a new context that cannot overwrite any registers from the "parent"
+        context.
+
+        Moves all registers with remaining uses to forbidden_vals
+        """
+        return RegAllocCtx(
+            forbidden_vals={reg for reg, cnt in self.liveliness.items() if cnt > 0}
+        )
 
     def free_reg(self) -> riscv.IntRegisterType:
-        for reg in [
+        for reg in (
             *riscv.Registers.A,
             *riscv.Registers.T,
             *riscv.Registers.S,
-        ]:
-            if self.liveliness[reg] == 0:
+        ):
+            if reg not in self.forbidden_vals and self.liveliness[reg] == 0:
                 return reg
         assert False, "Out of registers"
 
@@ -79,19 +94,22 @@ class RegAllocCtx:
         if self.liveliness[val.type] > 0:
             self.liveliness[val.type] -= 1
 
+    def make_forbidden(self, reg: riscv.RISCVRegisterType):
+        self.forbidden_vals.add(reg)
+
 
 def register_allocate_function(func: riscv_func.FuncOp):
+    # create an empty context
     ctx = RegAllocCtx()
 
+    # register all function args and their liveliness
     for arg in func.func_body.blocks[0].args:
         assert isinstance(arg.type, riscv.IntRegisterType)
         assert arg.type.is_allocated
         ctx.add_reg(arg)
 
+    # allocate the body
     register_allocate_region(func.func_body, ctx)
-
-    ret_op = func.func_body.block.last_op
-    assert isinstance(ret_op, riscv_func.ReturnOp)
 
 
 def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
@@ -102,11 +120,12 @@ def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
         - loop counter stays in same register
         - loop carried variables stay in same register
     """
+    # construct an inner contex for the loop body
+    inner_ctx = ctx.child_for_loops()
+
     # make sure all loop carried variables stay in the same registers during the loop:
     # gently force the block argument and yielded values in the same register as the
     # given values
-    inner_ctx = ctx.clone()
-
     yield_op = op.body.block.last_op
     assert isinstance(yield_op, riscv_scf.YieldOp)
     for input_val, block_arg, yielded, ret_val in zip(
@@ -125,7 +144,11 @@ def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
 
     iter_val = op.body.block.args[0]
     iter_val.type = loop_counter_reg
-    inner_ctx.add_reg(iter_val)
+    inner_ctx.register_use(iter_val)
+    # we don't need to make the iter val forbidden, as we "force" it to be
+    # in the right register at the end of the loop, it could meander around in between
+    # operations if it wants to.
+    inner_ctx.forbidden_vals.remove(loop_counter_reg)
 
     register_allocate_region(op.body, inner_ctx)
 
