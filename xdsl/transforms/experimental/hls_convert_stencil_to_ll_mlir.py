@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -8,9 +8,18 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.ir import MLContext, Operation, OpResult
-from xdsl.dialects.builtin import i32, f64, i64, ArrayAttr, DenseArrayBase, IndexType
+from xdsl.dialects.builtin import (
+    i32,
+    f64,
+    i64,
+    ArrayAttr,
+    DenseArrayBase,
+    IndexType,
+    IntAttr,
+    IntegerType,
+)
 from xdsl.dialects.func import FuncOp, Call
-from xdsl.dialects import arith, builtin, scf, stencil
+from xdsl.dialects import arith, builtin, scf, stencil, func
 from xdsl.dialects.arith import Constant
 from xdsl.builder import Builder
 
@@ -84,6 +93,16 @@ class StencilAccessToGEP(RewritePattern):
         rewriter.replace_matched_op([gep, load])
 
 
+def add_pragma_interface(func_arg: BlockArgument, inout: int, kernel: FuncOp):
+    func_call = None
+    if inout is IN:
+        func_call = Call.get("IN", func_arg, [])
+    elif inout is OUT:
+        func_call = Call.get("OUT", func_arg, [])
+
+    kernel.body.block.insert_op_before(func_call, kernel.body.block.first_op)
+
+
 @dataclass
 class StencilExternalLoadToHLSExternalLoad(RewritePattern):
     module: builtin.ModuleOp
@@ -114,7 +133,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         else:
             func_arg_elem_type = func_arg.typ
 
-        if op.attributes["inout"].value.data is OUT:
+        # add_pragma_interface(func_arg, op.attributes["inout"].data, op.parent_op())
+
+        if op.attributes["inout"].data is OUT:
             self.out_global_mem.append(func_arg)
 
         stencil_type = LLVMStructType.from_type_list(
@@ -158,7 +179,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         prod_x_y = arith.Muli(copy_shift_x, copy_shift_y)
         copy_n = arith.Muli(prod_x_y, copy_shift_z)
 
-        inout = op.attributes["inout"].value.data
+        inout = op.attributes["inout"].data
 
         data_stream.attributes["inout"] = op.attributes["inout"]
         stencil_stream.attributes["inout"] = op.attributes["inout"]
@@ -179,7 +200,6 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             builder.insert(yield_op)
 
         load_data_dataflow = PragmaDataflow(load_data_region)
-        print("----> LOAD DATA DATAFLOW: ", load_data_dataflow)
 
         shift_buffer_call = Call.get(
             "shift_buffer",
@@ -311,6 +331,231 @@ def qualify_apply_op_with_shapes(
             op.attributes["shape_z"] = shape_z.value
 
 
+def split_apply_body_per_return(return_op: ReturnOp, apply_op: ApplyOp):
+    new_apply_op_lst = []
+
+    for return_arg in return_op.arg:
+        block_arg_indices = set()
+
+        return_op = ReturnOp.get([return_arg])
+        block = Block([return_op])
+
+        walk_use_def_tree(return_arg.op, block, block_arg_indices)
+
+        new_operands = [apply_op.args[idx] for idx in block_arg_indices]
+        new_apply_op = ApplyOp.get(new_operands, block, [return_arg.typ])
+
+        new_apply_op.attributes["shape_x"] = apply_op.attributes["shape_x"]
+        new_apply_op.attributes["shape_y"] = apply_op.attributes["shape_y"]
+        new_apply_op.attributes["shape_z"] = apply_op.attributes["shape_z"]
+
+        new_apply_op_lst.append(new_apply_op)
+
+    return new_apply_op_lst
+
+
+def walk_use_def_tree(op: Operation, block: Block, block_args_indices: list[Operation]):
+    for operand in op.operands:
+        if not isinstance(operand, BlockArgument):
+            operand.op.detach()
+            block.insert_op_before(operand.op, block.first_op)
+            walk_use_def_tree(operand.op, block, block_args_indices)
+        else:
+            arg_type = operand.typ
+            block.insert_arg(arg_type, len(block.args))
+            block_args_indices.add(operand.index)
+
+
+def add_read_write_ops(
+    out_global_mem,
+    indices_stream_to_read,
+    op: ApplyOp,
+    rewriter,
+    boilerplate: list[Operation],
+):
+    body_block = op.region.blocks[0]
+    return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
+    stencil_return_vals = [val for val in return_op.arg]
+
+    alloca_size = Constant.from_int_and_width(1, i32)
+
+    global_mem_idx = 0
+    store_func_arg_addr_lst = []
+
+    p_func_arg_addr_lst = []
+    for arg_index_read in indices_stream_to_read:
+        # We store the address of the output array outside the loop
+        func_arg_datatype = out_global_mem[global_mem_idx].typ
+        p_func_arg_addr = AllocaOp.get(alloca_size, func_arg_datatype)
+        store_func_arg_addr = StoreOp.get(
+            out_global_mem[global_mem_idx], p_func_arg_addr
+        )
+
+        store_func_arg_addr_lst.append(store_func_arg_addr)
+
+        # Inside the loop, we do the pointer arithmetic to write on the next array element in every teration
+        dummy_element = Constant.from_float_and_width(5.0, f64)
+
+        copy_func_arg = LoadOp.get(p_func_arg_addr)
+        write_op = StoreOp.get(stencil_return_vals[0], copy_func_arg)
+        # write_op = StoreOp.get(dummy_element, copy_func_arg)
+        incr_copy_func_arg_addr = GEPOp.get(
+            copy_func_arg, [1], result_type=func_arg_datatype
+        )
+        update_copy_func_arg_addr = StoreOp.get(
+            incr_copy_func_arg_addr, p_func_arg_addr
+        )
+
+        p_func_arg_addr_lst.append(p_func_arg_addr)
+
+        stream_to_read = op.region.block.args[arg_index_read]
+        # stream_to_write = op.region.block.args[arg_index_write]
+
+        read_op = HLSStreamRead(stream_to_read)
+        read_elem = read_op.res
+
+        # TODO: this stream will be passsed to the write_data intrinsic, but for now we are just going to write to memory directly here.
+        global_mem_idx += 1
+
+        rewriter.insert_op_at_end(
+            [
+                copy_func_arg,
+                write_op,
+                incr_copy_func_arg_addr,
+                update_copy_func_arg_addr,
+                # df_write
+            ],
+            op.region.block,
+        )
+
+        rewriter.insert_op_at_start(read_op, op.region.block)
+
+    boilerplate += [alloca_size, *p_func_arg_addr_lst, *store_func_arg_addr_lst]
+
+
+def transform_apply_into_loop(
+    op: ApplyOp, rewriter: PatternRewriter, res_type, boilerplate: list[Operation]
+):
+    body = prepare_apply_body(op, rewriter)
+
+    body.block.add_op(scf.Yield.get())
+    dim = res_type.get_num_dims()
+
+    size_x = Constant.from_int_and_width(
+        op.attributes["shape_x"].value.data, builtin.IndexType()
+    )
+    size_y = Constant.from_int_and_width(
+        op.attributes["shape_y"].value.data, builtin.IndexType()
+    )
+    size_z = Constant.from_int_and_width(
+        op.attributes["shape_z"].value.data, builtin.IndexType()
+    )
+    one_int = Constant.from_int_and_width(1, i32)
+    two = Constant.from_int_and_width(2, builtin.IndexType())
+    zero = Constant.from_int_and_width(0, builtin.IndexType())
+    one = Constant.from_int_and_width(1, builtin.IndexType())
+
+    size_x_2 = arith.Subi(size_x, two)
+    size_y_1 = arith.Subi(size_y, one)
+
+    lower_x = Constant.from_int_and_width(2, builtin.IndexType())
+    lower_y = Constant.from_int_and_width(1, builtin.IndexType())
+    lower_z = Constant.from_int_and_width(1, builtin.IndexType())
+    upper_x = size_x_2
+    upper_y = size_y_1
+    upper_z = Constant.from_int_and_width(
+        op.attributes["shape_z"].value.data, builtin.IndexType()
+    )
+
+    p_remainder = AllocaOp.get(one_int, i32)
+
+    call_get_number_chunks = Call.get(
+        "get_number_chunks", [upper_x, p_remainder], [builtin.IndexType()]
+    )
+
+    lower_chunks = zero
+    upper_chunks = call_get_number_chunks
+
+    lowerBounds = [lower_chunks, lower_x, lower_y, lower_z]
+    upperBounds = [upper_chunks, upper_x, upper_y, upper_z]
+
+    # The for loop for the y index receives its trip variable from the get_chunk_size function, since the chunking
+    # is happening in the y axis. TODO: this is currently intended for the 3D case. It should be extended to the
+    # 1D and 2D cases as well.
+    y_for_op = None
+
+    # current_region = for_body
+    current_region = body
+    for i in range(1, dim + 1):
+        for_op = scf.For.get(
+            lb=lowerBounds[-i],
+            ub=upperBounds[-i],
+            step=one,
+            iter_args=[],
+            body=current_region,
+        )
+        block = Block(ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()])
+        current_region = Region(block)
+
+        if i == 2:
+            y_for_op = for_op
+
+    p = scf.ParallelOp.get(
+        lowerBounds=[lowerBounds[0]],
+        upperBounds=[upperBounds[0]],
+        steps=[one],
+        body=current_region,
+    )
+
+    chunk_num = p.body.block.args[0]
+
+    # MAX_Y_SIZE = 16
+    MAX_Y_SIZE = 8  # TODO: we use this size because our Y dimension is under 16 and that way the kernel doesn't finish. It's not a problem for size > 16
+    max_chunk_length = Constant.from_int_and_width(MAX_Y_SIZE, i32)
+
+    remainder = LoadOp.get(p_remainder)
+
+    call_get_chunk_size = Call.get(
+        "get_chunk_size",
+        [chunk_num, call_get_number_chunks, max_chunk_length, remainder],
+        [builtin.IndexType()],
+    )
+
+    p.body.block.insert_op_before(call_get_chunk_size, p.body.block.first_op)
+    chunk_size_y_1 = arith.Subi(call_get_chunk_size, one)
+    p.body.block.insert_op_after(chunk_size_y_1, call_get_chunk_size)
+
+    old_operands_lst = [old_operand for old_operand in y_for_op.operands]
+    y_for_op.operands = (
+        [old_operands_lst[0]] + [chunk_size_y_1.results[0]] + old_operands_lst[2:]
+    )
+
+    @Builder.region
+    def p_region(builder: Builder):
+        builder.insert(p)
+        builder.insert(HLSYield.get())
+
+    p_dataflow = PragmaDataflow(p_region)
+
+    boilerplate += [
+        size_x,
+        size_y,
+        one_int,
+        one,
+        two,
+        max_chunk_length,
+        p_remainder,
+        remainder,
+        upper_x,
+        *lowerBounds,
+        upper_chunks,
+        upper_y,
+        upper_z,
+    ]
+
+    return p_dataflow
+
+
 @dataclass
 class ApplyOpToHLS(RewritePattern):
     module: builtin.ModuleOp
@@ -320,12 +565,8 @@ class ApplyOpToHLS(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        # Insert the HLS stream operands and their corresponding block arguments for reading from the shift buffer and writing
-        # to external memory
-
-        # We replace by streams only the 3D temps. The rest should be left as is
-        operand_stream = dict()
-
+        # Insert the HLS stream operands and their corresponding block arguments for reading from the shift buffer and writing # to external memory # We replace by streams only the 3D temps. The rest should be left as is operand_stream = dict()
+        boilerplate = []
         current_stream = 0
         new_operands_lst = []
 
@@ -353,7 +594,7 @@ class ApplyOpToHLS(RewritePattern):
             if (
                 isinstance(_operand.op, HLSStream)
                 and "stencil" in _operand.op.attributes
-                and _operand.op.attributes["inout"].value.data is IN
+                and _operand.op.attributes["inout"].data is IN
             ):
                 indices_stream_to_read.append(i)
             # if (
@@ -368,78 +609,10 @@ class ApplyOpToHLS(RewritePattern):
         body_block = op.region.blocks[0]
         return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
 
-        stencil_return_vals = [val for val in return_op.arg]
+        add_read_write_ops(
+            self.out_global_mem, indices_stream_to_read, op, rewriter, boilerplate
+        )
 
-        alloca_size = Constant.from_int_and_width(1, i32)
-
-        global_mem_idx = 0
-        # for arg_index_read, arg_index_write in zip(
-        #    indices_stream_to_read, indices_stream_to_write
-        # ):
-
-        p_func_arg_addr_lst = []
-        for arg_index_read in indices_stream_to_read:
-            # We store the address of the output array outside the loop
-            func_arg_datatype = self.out_global_mem[global_mem_idx].typ
-            p_func_arg_addr = AllocaOp.get(alloca_size, func_arg_datatype)
-            store_func_arg_addr = StoreOp.get(
-                self.out_global_mem[global_mem_idx], p_func_arg_addr
-            )
-
-            # Inside the loop, we do the pointer arithmetic to write on the next array element in every teration
-            dummy_element = Constant.from_float_and_width(5.0, f64)
-
-            copy_func_arg = LoadOp.get(p_func_arg_addr)
-            write_op = StoreOp.get(stencil_return_vals[0], copy_func_arg)
-            # write_op = StoreOp.get(dummy_element, copy_func_arg)
-            incr_copy_func_arg_addr = GEPOp.get(
-                copy_func_arg, [1], result_type=func_arg_datatype
-            )
-            update_copy_func_arg_addr = StoreOp.get(
-                incr_copy_func_arg_addr, p_func_arg_addr
-            )
-
-            p_func_arg_addr_lst.append(p_func_arg_addr)
-
-            stream_to_read = op.region.block.args[arg_index_read]
-            # stream_to_write = op.region.block.args[arg_index_write]
-
-            read_op = HLSStreamRead(stream_to_read)
-            read_elem = read_op.res
-
-            # TODO: operate on the elements of the stencil block read_elem. For now we are providing a dummy double
-
-            # write_op = HLSStreamWrite(dummy_element, stream_to_write)
-
-            # @Builder.region
-            # def df_write_region(builder: Builder):
-            #    builder.insert(read_op)
-            #    builder.insert(copy_func_arg)
-            #    builder.insert(write_op)
-            #    builder.insert(incr_copy_func_arg_addr)
-            #    builder.insert(update_copy_func_arg_addr)
-            #    yield_op = HLSYield.get()
-            #    builder.insert(yield_op)
-
-            # df_write = PragmaDataflow(df_write_region)
-
-            # rewriter.insert_op_at_start([dummy_element, write_op], op.region.block)
-            # TODO: this stream will be passsed to the write_data intrinsic, but for now we are just going to write to memory directly here.
-            global_mem_idx += 1
-            rewriter.insert_op_at_end(
-                [
-                    copy_func_arg,
-                    write_op,
-                    incr_copy_func_arg_addr,
-                    update_copy_func_arg_addr,
-                    # df_write
-                ],
-                op.region.block,
-            )
-
-            rewriter.insert_op_at_start(read_op, op.region.block)
-
-        # Transform ApplyOp into for loops
         get_number_chunks = FuncOp.external(
             "get_number_chunks",
             [builtin.IndexType(), LLVMPointerType.typed(i32)],
@@ -459,135 +632,9 @@ class ApplyOpToHLS(RewritePattern):
 
         rewriter.erase_op(return_op)
 
-        body = prepare_apply_body(op, rewriter)
+        p_dataflow = transform_apply_into_loop(op, rewriter, res_type, boilerplate)
 
-        print("----> PREPARED BODY: ", body.block)
-
-        dataflow_body = rewriter.move_region_contents_to_new_regions(body)
-        for df_arg in dataflow_body.block.args:
-            dataflow_body.block.erase_arg(df_arg)
-
-        dataflow_body.block.add_op(HLSYield.get())
-        dataflow_apply = PragmaDataflow(dataflow_body)
-
-        @Builder.region([IndexType()])
-        def for_body(builder: Builder, args: tuple[BlockArgument, ...]):
-            builder.insert(dataflow_apply)
-
-        for_body.block.add_op(scf.Yield.get())
-        dim = res_type.get_num_dims()
-
-        size_x = Constant.from_int_and_width(
-            op.attributes["shape_x"].value.data, builtin.IndexType()
-        )
-        size_y = Constant.from_int_and_width(
-            op.attributes["shape_y"].value.data, builtin.IndexType()
-        )
-        size_z = Constant.from_int_and_width(
-            op.attributes["shape_z"].value.data, builtin.IndexType()
-        )
-        one_int = Constant.from_int_and_width(1, i32)
-        two = Constant.from_int_and_width(2, builtin.IndexType())
-        zero = Constant.from_int_and_width(0, builtin.IndexType())
-        one = Constant.from_int_and_width(1, builtin.IndexType())
-
-        size_x_2 = arith.Subi(size_x, two)
-        size_y_1 = arith.Subi(size_y, one)
-
-        lower_x = Constant.from_int_and_width(2, builtin.IndexType())
-        lower_y = Constant.from_int_and_width(1, builtin.IndexType())
-        lower_z = Constant.from_int_and_width(1, builtin.IndexType())
-        upper_x = size_x_2
-        upper_y = size_y_1
-        upper_z = Constant.from_int_and_width(
-            op.attributes["shape_z"].value.data, builtin.IndexType()
-        )
-
-        p_remainder = AllocaOp.get(one_int, i32)
-
-        call_get_number_chunks = Call.get(
-            "get_number_chunks", [upper_x, p_remainder], [builtin.IndexType()]
-        )
-
-        lower_chunks = zero
-        upper_chunks = call_get_number_chunks
-
-        lowerBounds = [lower_chunks, lower_x, lower_y, lower_z]
-        upperBounds = [upper_chunks, upper_x, upper_y, upper_z]
-
-        # The for loop for the y index receives its trip variable from the get_chunk_size function, since the chunking
-        # is happening in the y axis. TODO: this is currently intended for the 3D case. It should be extended to the
-        # 1D and 2D cases as well.
-        y_for_op = None
-
-        current_region = for_body
-        for i in range(1, dim + 1):
-            for_op = scf.For.get(
-                lb=lowerBounds[-i],
-                ub=upperBounds[-i],
-                step=one,
-                iter_args=[],
-                body=current_region,
-            )
-            block = Block(
-                ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
-            )
-            current_region = Region(block)
-
-            if i == 2:
-                y_for_op = for_op
-
-        p = scf.ParallelOp.get(
-            lowerBounds=[lowerBounds[0]],
-            upperBounds=[upperBounds[0]],
-            steps=[one],
-            body=current_region,
-        )
-
-        chunk_num = p.body.block.args[0]
-
-        # MAX_Y_SIZE = 16
-        MAX_Y_SIZE = 8  # TODO: we use this size because our Y dimension is under 16 and that way the kernel doesn't finish. It's not a problem for size > 16
-        max_chunk_length = Constant.from_int_and_width(MAX_Y_SIZE, i32)
-
-        remainder = LoadOp.get(p_remainder)
-
-        call_get_chunk_size = Call.get(
-            "get_chunk_size",
-            [chunk_num, call_get_number_chunks, max_chunk_length, remainder],
-            [builtin.IndexType()],
-        )
-
-        p.body.block.insert_op_before(call_get_chunk_size, p.body.block.first_op)
-        chunk_size_y_1 = arith.Subi(call_get_chunk_size, one)
-        p.body.block.insert_op_after(chunk_size_y_1, call_get_chunk_size)
-
-        old_operands_lst = [old_operand for old_operand in y_for_op.operands]
-        y_for_op.operands = (
-            [old_operands_lst[0]] + [chunk_size_y_1.results[0]] + old_operands_lst[2:]
-        )
-
-        rewriter.insert_op_before_matched_op(
-            [
-                size_x,
-                size_y,
-                one_int,
-                one,
-                two,
-                max_chunk_length,
-                p_remainder,
-                remainder,
-                upper_x,
-                *lowerBounds,
-                upper_chunks,
-                upper_y,
-                upper_z,
-                alloca_size,
-                *p_func_arg_addr_lst,
-                store_func_arg_addr,
-                p,
-            ]
-        )
+        rewriter.insert_op_before_matched_op([*boilerplate, p_dataflow])
 
 
 @dataclass
@@ -679,8 +726,9 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
             )
 
             stencil_value = ExtractValueOp(access_idx_array, result_hls_read, f64)
+            dummy_element = Constant.from_float_and_width(5.0, f64)
 
-            rewriter.replace_matched_op(stencil_value)
+            rewriter.replace_matched_op(dummy_element)
 
 
 # Copied from convert_stencil_to_ll_mlir
@@ -717,16 +765,166 @@ class StencilStoreToSubview(RewritePattern):
             rewriter.erase_op(store)
 
 
+@dataclass
 class TrivialStoreOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
         rewriter.erase_matched_op()
 
 
+@dataclass
 class TrivialApplyOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         rewriter.erase_matched_op()
+
+
+@dataclass
+class QualifyAllArgumentsAsOut(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
+        op.attributes["inout"] = IntAttr(OUT)
+
+
+@dataclass
+class GetInoutAttributeFromExternalStore(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ExternalStoreOp, rewriter: PatternRewriter, /):
+        for use in op.field.uses:
+            if isinstance(use.operation, ExternalLoadOp):
+                use.operation.attributes["inout"] = IntAttr(IN)
+
+
+@dataclass
+class GroupLoadsUnderSameDataflow(RewritePattern):
+    module: builtin.ModuleOp
+    first_load: Call | None = None
+    # load_lst : list[Call] = []
+    load_lst: list = field(default_factory=list)
+    sizes: IntegerType | None = None
+    in_module_load_all_data_func: FuncOp | None = None
+    n_current_load: int = 0
+
+    data_arrays: list = field(default_factory=list)
+    data_streams: list = field(default_factory=list)
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: Call, rewriter: PatternRewriter, /):
+        if op.callee.root_reference.data == "load_data" and self.n_current_load < 3:
+            self.load_lst.append(op)
+            self.n_current_load += 1
+
+            self.data_arrays.append(op.operands[0])
+            self.data_streams.append(op.operands[1])
+
+            # data_stream = op.operands[1].op
+            # data_stream.detach()
+
+            # We are using the same sizes for all the load_data operations. We remove the duplicates
+            if self.first_load is None:
+                self.first_load = op
+                self.sizes = op.operands[2:]
+            else:
+                rewriter.erase_matched_op()
+                # op.operands = op.operands[:2] + self.sizes
+                # op.detach()
+                # rewriter.insert_op_after(op, self.first_load)
+
+            ##dataflow_block = self.first_load.parent_op().parent_block()
+            # dataflow_block.insert_op_before(data_stream, self.first_load.parent_op())
+            # rewriter.insert_op_before(data_stream, self.first_load)
+
+            # TODO: There are 3 IN loads in pw_advection. Generalise this by counting the number of IN loads
+            if self.n_current_load == 3:
+
+                @Builder.region(
+                    [
+                        self.first_load.arguments[0].typ,
+                        LLVMPointerType.typed(
+                            LLVMStructType.from_type_list(
+                                [self.first_load.arguments[1].typ.element_type]
+                            )
+                        ),
+                        self.first_load.arguments[0].typ,
+                        LLVMPointerType.typed(
+                            LLVMStructType.from_type_list(
+                                [self.first_load.arguments[1].typ.element_type]
+                            )
+                        ),
+                        self.first_load.arguments[0].typ,
+                        LLVMPointerType.typed(
+                            LLVMStructType.from_type_list(
+                                [self.first_load.arguments[1].typ.element_type]
+                            )
+                        ),
+                        i32,
+                        i32,
+                        i32,
+                    ]
+                )
+                def load_all_data_region(
+                    builder: Builder, args: tuple[BlockArgument, ...]
+                ):
+                    for i in range(3):
+                        threedload_call = Call.get(
+                            "load_data",
+                            [args[2 * i], args[2 * i + 1], args[6], args[7], args[8]],
+                            [],
+                        )
+                        builder.insert(threedload_call)
+
+                    return_op = func.Return()
+                    builder.insert(return_op)
+
+                load_all_data_func = FuncOp.from_region(
+                    "load_all_data",
+                    [
+                        self.first_load.arguments[0].typ,
+                        LLVMPointerType.typed(
+                            LLVMStructType.from_type_list(
+                                [self.first_load.arguments[1].typ.element_type]
+                            )
+                        ),
+                        self.first_load.arguments[0].typ,
+                        LLVMPointerType.typed(
+                            LLVMStructType.from_type_list(
+                                [self.first_load.arguments[1].typ.element_type]
+                            )
+                        ),
+                        self.first_load.arguments[0].typ,
+                        LLVMPointerType.typed(
+                            LLVMStructType.from_type_list(
+                                [self.first_load.arguments[1].typ.element_type]
+                            )
+                        ),
+                        i32,
+                        i32,
+                        i32,
+                    ],
+                    [],
+                    load_all_data_region,
+                )
+
+                self.module.body.block.add_op(load_all_data_func)
+
+                call_load_all_data = Call.get(
+                    "load_all_data",
+                    [
+                        item
+                        for sublist in zip(self.data_arrays, self.data_streams)
+                        for item in sublist
+                    ]
+                    + list(self.sizes),
+                    [],
+                )
+
+                parent_dataflow = self.first_load.parent_op()
+
+                rewriter.replace_op(self.first_load, call_load_all_data)
+
+                for data_stream in self.data_streams:
+                    data_stream.op.detach()
+                    rewriter.insert_op_before(data_stream.op, parent_dataflow)
 
 
 @dataclass
@@ -739,6 +937,19 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
         shift_streams = []
         out_data_streams = []
         out_global_mem = []
+
+        inout_pass = PatternRewriteWalker(
+            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+            GreedyRewritePatternApplier(
+                [
+                    QualifyAllArgumentsAsOut(),
+                    GetInoutAttributeFromExternalStore(),
+                ]
+            ),
+            apply_recursively=False,
+            walk_reverse=False,
+        )
+        inout_pass.rewrite_module(op)
 
         hls_pass = PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
@@ -779,21 +990,19 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
         clean_apply_pass = PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
             GreedyRewritePatternApplier(
-                [
-                    TrivialApplyOpCleanup(),
-                ]
+                [TrivialApplyOpCleanup(), GroupLoadsUnderSameDataflow(op)]
             ),
             apply_recursively=False,
-            walk_reverse=True,
+            walk_reverse=False,
         )
         clean_apply_pass.rewrite_module(op)
 
-        write_data_pass = PatternRewriteWalker(
-            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
-            GreedyRewritePatternApplier(
-                [StencilExternalStoreToHLSWriteData(module, out_data_streams)]
-            ),
-            apply_recursively=False,
-            walk_reverse=True,
-        )
+        # write_data_pass = PatternRewriteWalker(
+        #    # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+        #    GreedyRewritePatternApplier(
+        #        [StencilExternalStoreToHLSWriteData(module, out_data_streams)]
+        #    ),
+        #    apply_recursively=False,
+        #    walk_reverse=True,
+        # )
         # write_data_pass.rewrite_module(op)
