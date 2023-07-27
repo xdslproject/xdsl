@@ -653,20 +653,18 @@ class Printer:
         self.print("}")
 
     def print_op_attributes_with_keyword(
-        self,
-        attributes: dict[str, Attribute],
-        reserved_attr_names: Iterable[str] = (),
-        keyword: bool = False,
+        self, attributes: dict[str, Attribute], reserved_attr_names: Iterable[str] = ()
     ) -> None:
-        attribute_list = [
-            i for i in attributes.items() if i[0] not in reserved_attr_names
-        ]
+        if reserved_attr_names:
+            attribute_list = [
+                i for i in attributes.items() if i[0] not in reserved_attr_names
+            ]
+        else:
+            attribute_list = attributes.items()
 
         if not attribute_list:
             return
-        if keyword:
-            self.print(" attributes")
-        self.print(" {")
+        self.print(" attributes {")
 
         self.print_list(attribute_list, self._print_attr_string)
 
