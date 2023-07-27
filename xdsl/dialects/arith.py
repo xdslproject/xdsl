@@ -613,7 +613,8 @@ class TruncFOp(IRDLOperation):
     @staticmethod
     def get(op: SSAValue | Operation, target_typ: AnyFloat):
         return ExtFOp.build(operands=[op], result_types=[target_typ])
-    
+
+
 @irdl_op_definition
 class TruncIOp(IRDLOperation):
     name = "arith.trunci"
@@ -625,6 +626,7 @@ class TruncIOp(IRDLOperation):
     def get(op: SSAValue | Operation, target_typ: IntegerType):
         return TruncIOp.build(operands=[op], result_types=[target_typ])
 
+
 @irdl_op_definition
 class ExtSIOp(IRDLOperation):
     name = "arith.extsi"
@@ -635,7 +637,8 @@ class ExtSIOp(IRDLOperation):
     @staticmethod
     def get(op: SSAValue | Operation, target_typ: IntegerType):
         return ExtSIOp.build(operands=[op], result_types=[target_typ])
-    
+
+
 @irdl_op_definition
 class ExtUIOp(IRDLOperation):
     name = "arith.extui"
