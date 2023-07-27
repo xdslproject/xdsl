@@ -37,6 +37,9 @@ from xdsl.dialects.arith import (
     TruncFOp,
     Cmpf,
     Negf,
+    TruncIOp,
+    ExtSIOp,
+    ExtUIOp,
 )
 from xdsl.dialects.builtin import (
     i32,
@@ -251,3 +254,18 @@ def test_cmpi_index_type():
     b = Constant.from_int_and_width(2, IndexType())
 
     Cmpi.get(a, b, "eq").verify()
+
+
+def test_extend_truncate_iops():
+    a = Constant.from_int_and_width(1, i32)
+    b = Constant.from_int_and_width(2, i64)
+    exts_op = ExtSIOp.get(a, i64)
+    extu_op = ExtUIOp.get(a, i64)
+    trunc_op = TruncIOp.get(b, i32)
+
+    assert exts_op.input == a.result
+    assert exts_op.result.typ == i64
+    assert extu_op.input == a.result
+    assert extu_op.result.typ == i64
+    assert trunc_op.input == b.result
+    assert trunc_op.result.typ == i32
