@@ -272,10 +272,9 @@ class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     name = "test.is_single_block_implicit_terminator"
 
-    # TODO fix circular reference
-    # traits = frozenset([HasParent(HasSingleBlockImplicitTerminatorOp), IsTerminator()])
-    # this is tracked by gh issue: https://github.com/xdslproject/xdsl/issues/1218
-    traits = frozenset([IsTerminator()])
+    traits = frozenset(
+        [HasParent(lambda: HasSingleBlockImplicitTerminatorOp), IsTerminator()]
+    )
 
 
 @irdl_op_definition

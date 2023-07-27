@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import abc
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from inspect import isclass
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from xdsl.utils.exceptions import VerifyException
@@ -41,8 +43,14 @@ class HasParent(OpTrait):
     """Constraint the operation to have a specific parent operation."""
 
     parameters: tuple[type[Operation], ...]
+    _unresolved: bool = field(default=True)
 
-    def __init__(self, parameters: type[Operation] | tuple[type[Operation], ...]):
+    def __init__(
+        self,
+        parameters: type[Operation]
+        | Callable[[], type[Operation]]
+        | tuple[type[Operation] | Callable[[], type[Operation]], ...],
+    ):
         if not isinstance(parameters, tuple):
             parameters = (parameters,)
         if len(parameters) == 0:
@@ -50,6 +58,16 @@ class HasParent(OpTrait):
         super().__init__(parameters)
 
     def verify(self, op: Operation) -> None:
+        if self._unresolved:
+            object.__setattr__(
+                self,
+                "parameters",
+                tuple(
+                    parameter if isclass(parameter) else parameter()
+                    for parameter in self.parameters
+                ),
+            )
+            object.__setattr__(self, "_unresolved", True)
         parent = op.parent_op()
         if isinstance(parent, tuple(self.parameters)):
             return

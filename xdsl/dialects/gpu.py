@@ -353,10 +353,7 @@ class MemcpyOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent(ModuleOp), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([HasParent(lambda: ModuleOp), IsTerminator()])
 
     def __init__(self):
         return super().__init__()
