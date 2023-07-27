@@ -16,6 +16,8 @@ from xdsl.dialects.arith import (
     DivSI,
     DivUI,
     ExtFOp,
+    ExtSIOp,
+    ExtUIOp,
     FloorDivSI,
     FPToSIOp,
     IndexCastOp,
@@ -38,8 +40,6 @@ from xdsl.dialects.arith import (
     Subi,
     TruncFOp,
     TruncIOp,
-    ExtSIOp,
-    ExtUIOp,
     XOrI,
 )
 from xdsl.dialects.builtin import IndexType, IntegerType, f32, f64, i32, i64
