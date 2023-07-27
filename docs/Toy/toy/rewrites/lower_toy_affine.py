@@ -228,9 +228,9 @@ def build_affine_loop_from_values(
     return build_affine_for(
         builder,
         (lb,),
-        affine.AffineMap(1, 0, [affine.AffineExpr.dimension(0)]),
+        affine.AffineMap(1, 0, (affine.AffineExpr.dimension(0),)),
         (ub,),
-        affine.AffineMap(1, 0, [affine.AffineExpr.dimension(0)]),
+        affine.AffineMap(1, 0, (affine.AffineExpr.dimension(0),)),
         step,
         (),
         body_builder_fn,
@@ -441,17 +441,6 @@ class LowerToAffinePass(ModulePass):
     name = "toy-to-builtin"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        # We define the specific operations, or dialects, that are legal targets for this
-        # lowering. In our case, we are lowering to a combination of the `Affine`,
-        # `Arith`, `Func`, and `MemRef` dialects.
-        ctx.register_dialect(affine.Affine)
-        ctx.register_dialect(arith.Arith)
-        ctx.register_dialect(func.Func)
-        ctx.register_dialect(memref.MemRef)
-
-        # Now that the conversion target has been defined, we just need to provide the set
-        # of patterns that will lower the Toy operations.
-
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

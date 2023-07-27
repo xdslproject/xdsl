@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from xdsl.dialects import printf, scf
+from xdsl.dialects import affine, arith, func, memref, printf, scf
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.ir import MLContext
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -9,6 +9,7 @@ from .dialects import toy
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
+from .rewrites.lower_to_toy_accelerator import LowerToToyAccelerator
 from .rewrites.lower_toy_affine import LowerToAffinePass
 from .rewrites.optimise_toy import OptimiseToy
 from .rewrites.shape_inference import ShapeInferencePass
@@ -16,10 +17,14 @@ from .rewrites.shape_inference import ShapeInferencePass
 
 def context() -> MLContext:
     ctx = MLContext()
+    ctx.register_dialect(affine.Affine)
+    ctx.register_dialect(arith.Arith)
     ctx.register_dialect(Builtin)
-    ctx.register_dialect(toy.Toy)
-    ctx.register_dialect(scf.Scf)
+    ctx.register_dialect(func.Func)
+    ctx.register_dialect(memref.MemRef)
     ctx.register_dialect(printf.Printf)
+    ctx.register_dialect(scf.Scf)
+    ctx.register_dialect(toy.Toy)
     return ctx
 
 
@@ -30,7 +35,13 @@ def parse_toy(program: str, ctx: MLContext | None = None) -> ModuleOp:
     return module_op
 
 
-def transform(ctx: MLContext, module_op: ModuleOp, *, target: str = "toy-infer-shapes"):
+def transform(
+    ctx: MLContext,
+    module_op: ModuleOp,
+    *,
+    target: str = "riscv-assembly",
+    accelerate: bool,
+):
     if target == "toy":
         return
 
@@ -51,6 +62,10 @@ def transform(ctx: MLContext, module_op: ModuleOp, *, target: str = "toy-infer-s
 
     LowerToAffinePass().apply(ctx, module_op)
     module_op.verify()
+
+    if accelerate:
+        LowerToToyAccelerator().apply(ctx, module_op)
+        module_op.verify()
 
     if target == "affine":
         return

@@ -168,7 +168,7 @@ def test_memref_load():
     printer = WGSLPrinter()
     printer.print(load, file)
 
-    assert "v1 = v0[10 * v1 + 1 * v2];" in file.getvalue()
+    assert "let v1 = v0[10u * v1 + 1u * v2];" in file.getvalue()
 
 
 def test_memref_store():
@@ -185,7 +185,7 @@ def test_memref_store():
     printer = WGSLPrinter()
     printer.print(store, file)
 
-    assert "v1[10 * v1 + 1 * v2] = v0;" in file.getvalue()
+    assert "v1[10u * v1 + 1u * v2] = v0;" in file.getvalue()
 
 
 def test_2d5pt():
@@ -193,7 +193,7 @@ def test_2d5pt():
 builtin.module attributes {gpu.container_module} {
   "gpu.module"() ({
     "gpu.func"() ({
-    ^0(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : memref<260x260xf32>, %arg4 : index, %arg5 : f32, %arg6 : f32, %arg7 : f32, %arg8 : f32, %arg9 : f32, %arg10 : f32, %arg11 : memref<260x260xf32>):
+    ^0(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : memref<260x260xf32>, %arg4 : index, %arg5 : f32, %arg6 : f32, %arg7 : f32, %arg8 : f32, %arg9 : f32, %arg10 : f32, %arg11 : memref<260x260xf32>, %arg12: memref<260x260xindex>):
       %0 = "arith.constant"() {"value" = 2 : index} : () -> index
       %1 = "gpu.block_id"() {"dimension" = #gpu<dim x>} : () -> index
       %2 = "gpu.block_id"() {"dimension" = #gpu<dim y>} : () -> index
@@ -241,7 +241,7 @@ builtin.module attributes {gpu.container_module} {
       %44 = arith.mulf %43, %arg10 : f32
       "memref.store"(%44, %arg11, %15, %16) {"nontemporal" = false} : (f32, memref<260x260xf32>, index, index) -> ()
       "gpu.return"() : () -> ()
-    }) {"function_type" = (index, index, index, memref<260x260xf32>, index, f32, f32, f32, f32, f32, f32, memref<260x260xf32>) -> (),
+    }) {"function_type" = (index, index, index, memref<260x260xf32>, index, f32, f32, f32, f32, f32, f32, memref<260x260xf32>, memref<260x260xindex>) -> (),
         "gpu.kernel", "gpu.known_block_size" = array<i32: 128, 1, 1>, "gpu.known_grid_size" = array<i32: 2, 256, 1>,
         "sym_name" = "apply_kernel_kernel",
         "workgroup_attributions" = 0 : i64
@@ -288,9 +288,12 @@ builtin.module attributes {gpu.container_module} {
     @group(0) @binding(11)
     var<storage,read_write> varg11: array<f32>;
 
+    @group(0) @binding(12)
+    var<storage,read> varg12: array<u32>;
+
     @compute
-    @workgroup_size(1)
-    fn main(@builtin(global_invocation_id) global_invocation_id : vec3<u32>,
+    @workgroup_size(128,1,1)
+    fn apply_kernel_kernel(@builtin(global_invocation_id) global_invocation_id : vec3<u32>,
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
     @builtin(num_workgroups) num_workgroups : vec3<u32>) {
@@ -312,19 +315,19 @@ builtin.module attributes {gpu.container_module} {
         let v14 = v12 + v8;
         let v15 = v14 + v0;
         let v16 = v13 + v0;
-        let v17 = varg3[260 * v15 + 1 * v16];
+        let v17 = varg3[260u * v15 + 1u * v16];
         let v18 = v14 + varg4;
         let v19 = v18 + v0;
-        let v20 = varg3[260 * v19 + 1 * v16];
+        let v20 = varg3[260u * v19 + 1u * v16];
         let v21 = v14 + varg2;
         let v22 = v21 + v0;
-        let v23 = varg3[260 * v22 + 1 * v16];
+        let v23 = varg3[260u * v22 + 1u * v16];
         let v24 = v13 + varg4;
         let v25 = v24 + v0;
-        let v26 = varg3[260 * v15 + 1 * v25];
+        let v26 = varg3[260u * v15 + 1u * v25];
         let v27 = v13 + varg2;
         let v28 = v27 + v0;
-        let v29 = varg3[260 * v15 + 1 * v28];
+        let v29 = varg3[260u * v15 + 1u * v28];
         let v30 = v17 * varg5;
         let v31 = v20 * varg6;
         let v32 = v23 * varg6;
@@ -340,7 +343,7 @@ builtin.module attributes {gpu.container_module} {
         let v41 = v30 + varg9;
         let v42 = v41 + v40;
         let v43 = v42 * varg10;
-        varg11[260 * v15 + 1 * v16] = v43;
+        varg11[260u * v15 + 1u * v16] = v43;
             }
 """
     context = MLContext()

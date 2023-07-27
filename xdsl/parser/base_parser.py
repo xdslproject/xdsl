@@ -252,14 +252,15 @@ class BaseParser:
         parse: Callable[[], _AnyInvT],
     ) -> list[_AnyInvT] | None:
         """
-        Parses greedily a list of elements separated by commas, and delimited
-        by the specified delimiter. Return None if no elements were parsed.
+        Parses greedily a list of elements separated by commas, if a first element is
+        present. The first element is parsed with `parse_optional`, and the remaining
+        are parsed with `parse`. The parsing stops either if the first element is not
+        present, or if no comma is present after parsing an element.
         """
         # Parse the first element, if it exist
         first_elem = parse_optional()
         if first_elem is None:
             return None
-        elems = parse_optional()
 
         # Parse the remaining elements
         elems = [first_elem]

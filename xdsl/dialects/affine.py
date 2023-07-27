@@ -78,11 +78,11 @@ class For(IRDLOperation):
     ) -> For:
         if isinstance(lower_bound, int):
             lower_bound = AffineMapAttr(
-                AffineMap(0, 0, [AffineExpr.constant(lower_bound)])
+                AffineMap(0, 0, (AffineExpr.constant(lower_bound),))
             )
         if isinstance(upper_bound, int):
             upper_bound = AffineMapAttr(
-                AffineMap(0, 0, [AffineExpr.constant(upper_bound)])
+                AffineMap(0, 0, (AffineExpr.constant(upper_bound),))
             )
         if isinstance(step, int):
             step = IntegerAttr.from_index_int_value(step)

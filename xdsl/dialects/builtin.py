@@ -48,12 +48,18 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
+    opt_attr_def,
     region_def,
     var_operand_def,
     var_region_def,
     var_result_def,
 )
-from xdsl.traits import IsolatedFromAbove, NoTerminator
+from xdsl.traits import (
+    IsolatedFromAbove,
+    NoTerminator,
+    OptionalSymbolOpInterface,
+    SymbolTable,
+)
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -199,11 +205,11 @@ class SymbolRefAttr(ParametrizedAttribute):
     def __init__(
         self,
         root: str | StringAttr,
-        nested: list[str] | list[StringAttr] | ArrayAttr[StringAttr] = [],
+        nested: Sequence[str] | Sequence[StringAttr] | ArrayAttr[StringAttr] = [],
     ) -> None:
         if isinstance(root, str):
             root = StringAttr(root)
-        if isinstance(nested, list):
+        if not isinstance(nested, ArrayAttr):
             nested = ArrayAttr(
                 [StringAttr(x) if isinstance(x, str) else x for x in nested]
             )
@@ -1215,9 +1221,18 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 class ModuleOp(IRDLOperation):
     name = "builtin.module"
 
+    sym_name = opt_attr_def(StringAttr)
+
     body: Region = region_def("single_block")
 
-    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
+    traits = frozenset(
+        [
+            IsolatedFromAbove(),
+            NoTerminator(),
+            OptionalSymbolOpInterface(),
+            SymbolTable(),
+        ]
+    )
 
     def __init__(
         self,
