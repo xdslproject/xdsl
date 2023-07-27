@@ -7,10 +7,10 @@ from typing import Sequence
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import arith, builtin, func, printf, scf
 from xdsl.ir import MLContext
-from xdsl.tools.xdsl_tool import xDSLTool
+from xdsl.tools.command_line_tool import CommandLineTool
 
 
-class xDSLRunMain(xDSLTool):
+class xDSLRunMain(CommandLineTool):
     interpreter: Interpreter
 
     def __init__(
