@@ -52,6 +52,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, SymbolOpInterface
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -455,8 +456,8 @@ class GEPOp(IRDLOperation):
     rawConstantIndices: DenseArrayBase = attr_def(DenseArrayBase)
     inbounds: UnitAttr | None = opt_attr_def(UnitAttr)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         ptr: SSAValue | Operation,
         indices: Sequence[int],
         ssa_indices: Sequence[SSAValue | Operation] | None = None,
@@ -473,7 +474,6 @@ class GEPOp(IRDLOperation):
         Take a look at `from_mixed_indices` for something without
         magic values.
         """
-        # construct default mutable argument here:
         if ssa_indices is None:
             ssa_indices = []
 
@@ -499,9 +499,31 @@ class GEPOp(IRDLOperation):
         if inbounds:
             attrs["inbounds"] = UnitAttr()
 
-        return GEPOp.build(
+        super().__init__(
             operands=[ptr, ssa_indices], result_types=[result_type], attributes=attrs
         )
+
+    @deprecated("Use GEPOp(...) instead")
+    @staticmethod
+    def get(
+        ptr: SSAValue | Operation,
+        indices: Sequence[int],
+        ssa_indices: Sequence[SSAValue | Operation] | None = None,
+        result_type: LLVMPointerType = LLVMPointerType.opaque(),
+        inbounds: bool = False,
+        pointee_type: Attribute | None = None,
+    ):
+        """
+        A basic constructor for the GEPOp.
+
+        Pass the GEP_USE_SSA_VAL magic value in place of each constant
+        index that you want to be read from an SSA value.
+
+        Take a look at `from_mixed_indices` for something without
+        magic values.
+        """
+        # construct default mutable argument here:
+        return GEPOp(ptr, indices, ssa_indices, result_type, inbounds, pointee_type)
 
     @staticmethod
     def from_mixed_indices(
@@ -528,7 +550,7 @@ class GEPOp(IRDLOperation):
             else:
                 const_indices.append(GEP_USE_SSA_VAL)
                 ssa_indices.append(SSAValue.get(idx))
-        return GEPOp.get(
+        return GEPOp(
             ptr,
             const_indices,
             ssa_indices,
@@ -548,8 +570,8 @@ class AllocaOp(IRDLOperation):
 
     res: OpResult = result_def()
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         size: SSAValue | Operation,
         elem_type: Attribute,
         alignment: int = 32,
@@ -564,9 +586,17 @@ class AllocaOp(IRDLOperation):
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
 
-        return AllocaOp.build(
-            operands=[size], attributes=attrs, result_types=[ptr_type]
-        )
+        super().__init__(operands=[size], attributes=attrs, result_types=[ptr_type])
+
+    @deprecated("Use Alloca(...) instead")
+    @staticmethod
+    def get(
+        size: SSAValue | Operation,
+        elem_type: Attribute,
+        alignment: int = 32,
+        as_untyped_ptr: bool = False,
+    ):
+        return AllocaOp(size, elem_type, alignment, as_untyped_ptr)
 
 
 @irdl_op_definition
@@ -577,13 +607,17 @@ class IntToPtrOp(IRDLOperation):
 
     output: OpResult = result_def(LLVMPointerType)
 
-    @staticmethod
-    def get(input: SSAValue | Operation, ptr_type: Attribute | None = None):
+    def __init__(self, input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
-        return IntToPtrOp.build(operands=[input], result_types=[ptr_type])
+        super().__init__(operands=[input], result_types=[ptr_type])
+
+    @deprecated("Use IntToPtrOp(...) instead")
+    @staticmethod
+    def get(input: SSAValue | Operation, ptr_type: Attribute | None = None):
+        return IntToPtrOp(input, ptr_type)
 
 
 @irdl_op_definition
@@ -594,9 +628,13 @@ class PtrToIntOp(IRDLOperation):
 
     output: OpResult = result_def(IntegerType)
 
+    def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
+        super().__init__(operands=[arg], result_types=[int_type])
+
+    @deprecated("Use PtrToIntOp(...) instead")
     @staticmethod
     def get(arg: SSAValue | Operation, int_type: Attribute = i64):
-        return PtrToIntOp.build(operands=[arg], result_types=[int_type])
+        return PtrToIntOp(arg, int_type)
 
 
 @irdl_op_definition
@@ -607,8 +645,7 @@ class LoadOp(IRDLOperation):
 
     dereferenced_value: OpResult = result_def()
 
-    @staticmethod
-    def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):
+    def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
             ptr = SSAValue.get(ptr)
             assert isinstance(ptr.type, LLVMPointerType)
@@ -619,7 +656,12 @@ class LoadOp(IRDLOperation):
                 )
             result_type = ptr.type.type
 
-        return LoadOp.build(operands=[ptr], result_types=[result_type])
+        super().__init__(operands=[ptr], result_types=[result_type])
+
+    @deprecated("Use LoadOp(...) instead")
+    @staticmethod
+    def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):
+        return LoadOp(ptr, result_type)
 
 
 @irdl_op_definition
@@ -634,8 +676,8 @@ class StoreOp(IRDLOperation):
     volatile_: UnitAttr | None = opt_attr_def(UnitAttr)
     nontemporal: UnitAttr | None = opt_attr_def(UnitAttr)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         value: SSAValue | Operation,
         ptr: SSAValue | Operation,
         alignment: int | None = None,
@@ -654,11 +696,23 @@ class StoreOp(IRDLOperation):
         if nontemporal:
             attrs["nontemporal"] = UnitAttr()
 
-        return StoreOp.build(
+        super().__init__(
             operands=[value, ptr],
             attributes=attrs,
             result_types=[],
         )
+
+    @deprecated("Use Load(...) instead")
+    @staticmethod
+    def get(
+        value: SSAValue | Operation,
+        ptr: SSAValue | Operation,
+        alignment: int | None = None,
+        ordering: int = 0,
+        volatile: bool = False,
+        nontemporal: bool = False,
+    ):
+        return StoreOp(value, ptr, alignment, ordering, volatile, nontemporal)
 
 
 @irdl_op_definition
@@ -667,13 +721,17 @@ class NullOp(IRDLOperation):
 
     nullptr: OpResult = result_def(LLVMPointerType)
 
-    @staticmethod
-    def get(ptr_type: LLVMPointerType | None = None):
+    def __init__(self, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         assert isinstance(ptr_type, LLVMPointerType)
 
-        return NullOp.build(result_types=[ptr_type])
+        super().__init__(result_types=[ptr_type])
+
+    @deprecated("Use NullOp(...) instead")
+    @staticmethod
+    def get(ptr_type: LLVMPointerType | None = None):
+        return NullOp(ptr_type)
 
 
 @irdl_op_definition
@@ -768,8 +826,8 @@ class GlobalOp(IRDLOperation):
 
     traits = frozenset([SymbolOpInterface()])
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         global_type: Attribute,
         sym_name: str | StringAttr,
         linkage: str | LinkageAttr,
@@ -818,7 +876,36 @@ class GlobalOp(IRDLOperation):
                 section = StringAttr(section)
             attrs["section"] = section
 
-        return GlobalOp.build(attributes=attrs, regions=[Region([])])
+        super().__init__(attributes=attrs, regions=[Region([])])
+
+    @deprecated("Use GlobalOp(...) instead")
+    @staticmethod
+    def get(
+        global_type: Attribute,
+        sym_name: str | StringAttr,
+        linkage: str | LinkageAttr,
+        addr_space: int = 0,
+        constant: bool | None = None,
+        dso_local: bool | None = None,
+        thread_local_: bool | None = None,
+        value: Attribute | None = None,
+        alignment: int | None = None,
+        unnamed_addr: int | None = None,
+        section: str | StringAttr | None = None,
+    ):
+        return GlobalOp(
+            global_type,
+            sym_name,
+            linkage,
+            addr_space,
+            constant,
+            dso_local,
+            thread_local_,
+            value,
+            alignment,
+            unnamed_addr,
+            section,
+        )
 
 
 @irdl_op_definition
@@ -828,16 +915,24 @@ class AddressOfOp(IRDLOperation):
     global_name: SymbolRefAttr = attr_def(SymbolRefAttr)
     result: OpResult = result_def(LLVMPointerType)
 
-    @staticmethod
-    def get(
-        global_name: str | StringAttr | SymbolRefAttr, result_type: LLVMPointerType
+    def __init__(
+        self,
+        global_name: str | StringAttr | SymbolRefAttr,
+        result_type: LLVMPointerType,
     ):
         if isinstance(global_name, (StringAttr, str)):
             global_name = SymbolRefAttr(global_name)
 
-        return AddressOfOp.build(
+        super().__init__(
             attributes={"global_name": global_name}, result_types=[result_type]
         )
+
+    @deprecated("Use AddressOfOp(...) instead")
+    @staticmethod
+    def get(
+        global_name: str | StringAttr | SymbolRefAttr, result_type: LLVMPointerType
+    ):
+        return AddressOfOp(global_name, result_type)
 
 
 LLVM_CALLING_CONVS: set[str] = {
