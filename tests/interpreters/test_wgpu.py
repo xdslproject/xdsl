@@ -73,14 +73,13 @@ builtin.module attributes {gpu.container_module} {
     parser = Parser(context, mlir_source)
     module = parser.parse_module()
 
-    interpreter = Interpreter(module)
+    f = StringIO("")
+    interpreter = Interpreter(module, file=f)
     interpreter.register_implementations(ArithFunctions())
     interpreter.register_implementations(MemrefFunctions())
     interpreter.register_implementations(WGPUFunctions())
     interpreter.register_implementations(PrintfFunctions())
-    f = StringIO("")
-    with redirect_stdout(f):
-        interpreter.call_op("main", ())
+    interpreter.call_op("main", ())
     assert (
         "Result : [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]"
         in f.getvalue()
