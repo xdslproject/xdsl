@@ -1,4 +1,3 @@
-from contextlib import redirect_stdout
 from io import StringIO
 
 import pytest

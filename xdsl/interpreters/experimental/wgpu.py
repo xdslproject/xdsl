@@ -3,7 +3,6 @@ from typing import Any, Sequence, cast
 
 import wgpu  # pyright: ignore
 import wgpu.utils  # pyright: ignore
-
 from xdsl.dialects import gpu
 from xdsl.dialects.builtin import IndexType
 from xdsl.dialects.memref import MemRefType
@@ -169,13 +168,13 @@ class WGPUFunctions(InterpreterFunctions):
         shader_module = self.shader_modules[func]
 
         # Compute the dispatch number
-        dispatch = list(gridSize)
         # If the func has a known block size, it's reflected in the compiled module
         # Otherwise, it defaults to (1,1,1) currently and we have to take this
         # into account
-        if not func.known_block_size:
-            for i in range(len(dispatch)):
-                dispatch[i] = dispatch[i] * blockSize[i]
+        if func.known_block_size:
+            dispatch = gridSize
+        else:
+            dispatch = [a * b for a, b in zip(gridSize, blockSize)]
 
         layouts, bindings = WGPUFunctions.prepare_bindings(
             self, interpreter, kernel_operands
