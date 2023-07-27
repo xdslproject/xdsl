@@ -46,6 +46,7 @@ def test_multiply_add():
     def module():
         @Builder.implicit_region
         def main():
+            riscv.LabelOp("main")
             riscv.LiOp(3, rd=riscv.Registers.A0)
             riscv.LiOp(2, rd=riscv.Registers.A1)
             riscv.LiOp(1, rd=riscv.Registers.A2)
@@ -57,30 +58,33 @@ def test_multiply_add():
             riscv.LiOp(93, rd=riscv.Registers.A7)
             riscv.EcallOp()
 
-        riscv.LabelOp("main", main)
+        riscv.CodeSectionOp(main)
 
         @Builder.implicit_region
         def multiply():
+            riscv.LabelOp("multiply")
             riscv.CommentOp("no extra registers needed, so no need to deal with stack")
             a0_multiply = riscv.GetRegisterOp(riscv.Registers.A0)
             a1_multiply = riscv.GetRegisterOp(riscv.Registers.A1)
             riscv.MulOp(a0_multiply, a1_multiply, rd=riscv.Registers.A0)
             riscv.ReturnOp()
 
-        riscv.LabelOp("multiply", multiply)
+        riscv.CodeSectionOp(multiply)
 
         @Builder.implicit_region
         def add():
+            riscv.LabelOp("add")
             riscv.CommentOp("no extra registers needed, so no need to deal with stack")
             a0_add = riscv.GetRegisterOp(riscv.Registers.A0)
             a1_add = riscv.GetRegisterOp(riscv.Registers.A1)
             riscv.AddOp(a0_add, a1_add, rd=riscv.Registers.A0)
             riscv.ReturnOp()
 
-        riscv.LabelOp("add", add)
+        riscv.CodeSectionOp(add)
 
         @Builder.implicit_region
         def muladd():
+            riscv.LabelOp("muladd")
             riscv.CommentOp("a0 <- a0 * a1 + a2")
             riscv.CommentOp("prologue")
             # get registers with the arguments to muladd
@@ -126,7 +130,7 @@ def test_multiply_add():
             riscv.CommentOp("jump back to caller")
             riscv.ReturnOp()
 
-        riscv.LabelOp("muladd", muladd)
+        riscv.CodeSectionOp(muladd)
 
     RISCVRegisterAllocation().apply(ctx, module)
 

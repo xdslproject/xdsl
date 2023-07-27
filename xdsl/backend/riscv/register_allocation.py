@@ -1,5 +1,6 @@
 from abc import ABC
 
+from xdsl.dialects import riscv, riscv_cf
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, RISCVOp
 from xdsl.ir import SSAValue
@@ -191,10 +192,60 @@ class RegisterAllocatorJRegs(RegisterAllocator):
         """
         Sets unallocated registers to an infinite set of `j` registers
         """
+        # First allocate registers for block arguments
+        for op in module.walk():
+            if isinstance(op, riscv_cf.BranchOperation):
+                for i, arg in enumerate(op.then_block.args):
+                    assert isinstance(arg.type, IntRegisterType)
+                    if not arg.type.is_allocated:
+                        typ = IntRegisterType(f"j{self.idx}")
+                        arg.type = typ
+                        self.idx += 1
+                    else:
+                        typ = arg.type
+                    op.then_arguments[i].type = typ
+
+                for i, arg in enumerate(op.else_block.args):
+                    assert isinstance(arg.type, IntRegisterType)
+                    if not arg.type.is_allocated:
+                        typ = IntRegisterType(f"j{self.idx}")
+                        arg.type = typ
+                        self.idx += 1
+                    else:
+                        typ = arg.type
+                    op.else_arguments[i].type = typ
+
+            elif isinstance(op, riscv_cf.JOp):
+                for i, arg in enumerate(op.successor.args):
+                    assert isinstance(arg.type, IntRegisterType)
+                    if not arg.type.is_allocated:
+                        typ = IntRegisterType(f"j{self.idx}")
+                        arg.type = typ
+                        self.idx += 1
+                    else:
+                        typ = arg.type
+                    op.block_arguments[i].type = typ
+
         for op in module.walk():
             # Do not allocate registers on non-RISCV-ops
             if not isinstance(op, RISCVOp):
                 continue
+
+            if (
+                isinstance(op, riscv.RdRsRsIntegerOperation)
+                and op.rd_operand is not None
+            ):
+                assert isinstance(op.rd.type, IntRegisterType)
+                if not op.rd.type.is_allocated:
+                    op.rd.type = op.rd_operand.type
+
+            if (
+                isinstance(op, riscv.RdRsImmIntegerOperation)
+                and op.rd_operand is not None
+            ):
+                assert isinstance(op.rd.type, IntRegisterType)
+                if not op.rd.type.is_allocated:
+                    op.rd.type = op.rd_operand.type
 
             for result in op.results:
                 if isinstance(result.type, self._register_types):

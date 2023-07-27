@@ -1,9 +1,9 @@
 from xdsl.dialects import affine, arith, memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
-from xdsl.ir import MLContext, SSAValue
-from xdsl.ir.core import OpResult
+from xdsl.ir import MLContext, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -11,6 +11,7 @@ from xdsl.pattern_rewriter import (
 )
 
 from ..dialects import toy_accelerator
+from .lower_riscv_cf import cast_value_to_register
 
 
 def cast_value_to_register(operand: SSAValue, rewriter: PatternRewriter) -> OpResult:
@@ -125,3 +126,68 @@ class LowerToToyAccelerator(ModulePass):
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         ctx.register_dialect(toy_accelerator.ToyAccelerator)
         PatternRewriteWalker(LowerAffineForOp()).rewrite_module(op)
+
+
+class LowerTransposeOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: toy_accelerator.Transpose, rewriter: PatternRewriter
+    ):
+        destination = cast_value_to_register(op.destination, rewriter)
+        source = cast_value_to_register(op.source, rewriter)
+
+        rewriter.replace_matched_op(
+            [
+                rows_op := riscv.LiOp(op.source_rows.value.data, comment="source rows"),
+                cols_op := riscv.LiOp(op.source_cols.value.data, comment="source cols"),
+                riscv.CustomAssemblyInstructionOp(
+                    "tensor.transpose2d",
+                    (destination, source, rows_op.rd, cols_op.rd),
+                    (),
+                ),
+            ]
+        )
+
+
+class LowerBinOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: toy_accelerator.BinOp, rewriter: PatternRewriter):
+        typ = op.dest.type
+        assert isinstance(typ, memref.MemRefType)
+        size = typ.element_count()
+
+        instruction_name = (
+            "buffer.add" if isinstance(op, toy_accelerator.Add) else "buffer.mul"
+        )
+        dest = cast_value_to_register(op.dest, rewriter)
+        lhs = cast_value_to_register(op.lhs, rewriter)
+        rhs = cast_value_to_register(op.rhs, rewriter)
+        rewriter.replace_matched_op(
+            [
+                size_op := riscv.LiOp(size, comment="size"),
+                riscv.CustomAssemblyInstructionOp(
+                    "buffer.add",
+                    (size_op.rd, dest, lhs),
+                    (),
+                ),
+                riscv.CustomAssemblyInstructionOp(
+                    instruction_name,
+                    (size_op.rd, dest, rhs),
+                    (),
+                ),
+            ]
+        )
+
+
+class LowerToyAccelerator(ModulePass):
+    name = "lower-toy-accelerator"
+
+    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    LowerTransposeOp(),
+                    LowerBinOp(),
+                ]
+            )
+        ).rewrite_module(op)

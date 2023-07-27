@@ -37,6 +37,7 @@ def simple_linear_riscv():
     def text_region():
         @Builder.implicit_region
         def main_region() -> None:
+            riscv.LabelOp("main")
             zero = riscv.GetRegisterOp(riscv.Registers.ZERO).res
             v0 = riscv.AddiOp(zero, 1).rd
             v1 = riscv.AddiOp(zero, 2).rd
@@ -64,9 +65,9 @@ def simple_linear_riscv():
             riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
             riscv.EcallOp()
 
-        riscv.LabelOp("main", main_region)
+        riscv.CodeSectionOp(main_region)
 
-    riscv.DirectiveOp(".text", None, text_region)
+    riscv.AssemblySectionOp(".text", text_region)
 
 
 @ModuleOp
@@ -80,6 +81,7 @@ def simple_linear_riscv_allocated():
     def text_region():
         @Builder.implicit_region
         def main_region() -> None:
+            riscv.LabelOp("main")
             zero = riscv.GetRegisterOp(riscv.Registers.ZERO).res
             v0 = riscv.AddiOp(zero, 1, rd=riscv.Registers.T6).rd
             v1 = riscv.AddiOp(zero, 2, rd=riscv.Registers.T5).rd
@@ -107,9 +109,9 @@ def simple_linear_riscv_allocated():
             riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
             riscv.EcallOp()
 
-        riscv.LabelOp("main", main_region)
+        riscv.CodeSectionOp(main_region)
 
-    riscv.DirectiveOp(".text", None, text_region)
+    riscv.AssemblySectionOp(".text", text_region)
 
 
 def test_allocate_simple_linear():
