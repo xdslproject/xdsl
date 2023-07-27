@@ -59,6 +59,7 @@ class xDSLRunMain(CommandLineTool):
         try:
             module = self.parse_chunk(input, file_extension)
             if module is not None:
+                module.verify()
                 interpreter = Interpreter(module)
                 self.register_implementations(interpreter)
                 result = interpreter.call_op("main", ())
