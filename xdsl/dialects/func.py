@@ -178,9 +178,7 @@ class FuncOp(IRDLOperation):
                 printer.print(" ")
         else:
             printer.print_attribute(self.function_type)
-        printer.print_op_attributes_with_keyword(
-            self.attributes, reserved, keyword=True
-        )
+        printer.print_op_attributes_with_keyword(self.attributes, reserved)
 
         if len(self.body.blocks) > 0:
             printer.print_region(self.body, False, False)
