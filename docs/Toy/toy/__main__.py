@@ -12,6 +12,7 @@ from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
 from .compiler import context, transform
+from .emulator.toy_accelerator_functions import ToyAcceleratorFunctions
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser as ToyParser
 from .interpreter import Interpreter, ToyFunctions
@@ -35,9 +36,10 @@ parser.add_argument(
 )
 parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
+parser.add_argument("--accelerate", dest="accelerate", action="store_true")
 
 
-def main(path: Path, emit: str, ir: bool, print_generic: bool):
+def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool):
     ctx = context()
 
     path = args.source
@@ -60,7 +62,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
                 print(f"Unknown file format {path}")
                 return
 
-    transform(ctx, module_op, target=emit)
+    transform(ctx, module_op, target=emit, accelerate=accelerate)
 
     if ir:
         printer = Printer(print_generic_format=print_generic)
@@ -72,7 +74,9 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         interpreter.register_implementations(ToyFunctions())
     if emit in ("affine"):
         interpreter.register_implementations(AffineFunctions())
-    if emit in ("affine", "scf", "cf"):
+    if accelerate and emit in ("affine", "scf"):
+        interpreter.register_implementations(ToyAcceleratorFunctions())
+    if emit in ("affine", "scf"):
         interpreter.register_implementations(ArithFunctions())
         interpreter.register_implementations(MemrefFunctions())
         interpreter.register_implementations(PrintfFunctions())
@@ -85,4 +89,4 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.source, args.emit, args.ir, args.print_generic)
+    main(args.source, args.emit, args.ir, args.accelerate, args.print_generic)

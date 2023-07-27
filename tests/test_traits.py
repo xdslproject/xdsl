@@ -9,26 +9,36 @@ from dataclasses import dataclass
 
 import pytest
 
+from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolRefAttr,
     i1,
     i32,
     i64,
 )
 from xdsl.ir import Operation, OpResult, OpTrait
 from xdsl.irdl import (
+    Block,
     IRDLOperation,
     Operand,
+    Region,
     attr_def,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_region_def,
+    region_def,
     result_def,
 )
-from xdsl.traits import OptionalSymbolOpInterface, SymbolOpInterface
+from xdsl.traits import (
+    OptionalSymbolOpInterface,
+    SymbolOpInterface,
+    SymbolTable,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -324,3 +334,78 @@ def test_optional_symbol_op_interface():
     assert interface.is_optional_symbol(symbol)
     symbol.verify()
     assert interface.get_sym_attr_name(symbol) == StringAttr("main")
+
+
+def test_symbol_table():
+    # Some helper classes
+    @irdl_op_definition
+    class SymbolTableOp(IRDLOperation):
+        name = "test.symbol_table"
+
+        sym_name = opt_attr_def(StringAttr)
+
+        one = region_def()
+        two = opt_region_def()
+
+        traits = frozenset([SymbolTable(), OptionalSymbolOpInterface()])
+
+    @irdl_op_definition
+    class SymbolOp(IRDLOperation):
+        name = "test.symbol"
+
+        sym_name = attr_def(StringAttr)
+
+        traits = frozenset([SymbolOpInterface()])
+
+    # Check that having a single region is verified
+    op = SymbolTableOp(regions=[Region(), Region()])
+    with pytest.raises(
+        VerifyException,
+        match="Operations with a 'SymbolTable' must have exactly one region",
+    ):
+        op.verify()
+
+    # Check that having a single block is verified
+    blocks = [Block(), Block()]
+    op = SymbolTableOp(regions=[Region(blocks), []])
+    with pytest.raises(
+        VerifyException,
+        match="Operations with a 'SymbolTable' must have exactly one block",
+    ):
+        op.verify()
+
+    terminator = test.TestTermOp([[]], [[]], regions=[[]], successors=[[]])
+
+    # Check that symbol uniqueness is verified
+    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    dup_symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    op = SymbolTableOp(
+        regions=[Region(Block([symbol, dup_symbol, terminator.clone()])), []]
+    )
+    with pytest.raises(
+        VerifyException,
+        match='Redefinition of symbol "name"',
+    ):
+        op.verify()
+
+    # Check a flat happy case, with symbol lookup
+    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+
+    op = SymbolTableOp(regions=[Region(Block([symbol, terminator.clone()])), []])
+    op.verify()
+
+    assert SymbolTable.lookup_symbol(op, "name") is symbol
+    assert SymbolTable.lookup_symbol(op, "that_other_name") is None
+
+    # Check a nested happy case, with symbol lookup
+    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+
+    nested = SymbolTableOp(
+        regions=[Region(Block([symbol, terminator.clone()])), []],
+        attributes={"sym_name": StringAttr("nested")},
+    )
+    op = SymbolTableOp(regions=[Region(Block([nested, terminator.clone()])), []])
+    op.verify()
+
+    assert SymbolTable.lookup_symbol(op, "name") is None
+    assert SymbolTable.lookup_symbol(op, SymbolRefAttr("nested", ["name"])) is symbol
