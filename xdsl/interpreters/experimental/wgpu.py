@@ -3,6 +3,7 @@ from typing import Any, Sequence, cast
 
 import wgpu  # pyright: ignore
 import wgpu.utils  # pyright: ignore
+
 from xdsl.dialects import gpu
 from xdsl.dialects.builtin import IndexType
 from xdsl.dialects.memref import MemRefType
