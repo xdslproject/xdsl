@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
+// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
 
 "builtin.module"() ({
     "gpu.module"() ({
@@ -73,7 +73,7 @@
         "gpu.func"() ({
         ^bb0(%arg0: index):
             "gpu.return"() : () -> ()
-        }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> ()} : () -> ()
+        }) {"sym_name" = "foo", "kernel", "function_type" = (index) -> (), "gpu.known_block_size" = array<i32: 128, 1, 1>, "gpu.known_grid_size" = array<i32: 128, 1, 1>} : () -> ()
         "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {"gpu.container_module"} : () -> ()
@@ -151,7 +151,7 @@
 // CHECK-NEXT:         "gpu.func"() ({
 // CHECK-NEXT:         ^{{.*}}(%{{.*}}: index):
 // CHECK-NEXT:             "gpu.return"() : () -> ()
-// CHECK-NEXT:         }) {"function_type" = (index) -> (), "kernel", "sym_name" = "foo"} : () -> ()
+// CHECK-NEXT:         }) {"function_type" = (index) -> (), "gpu.known_block_size" = array<i32: 128, 1, 1>, "gpu.known_grid_size" = array<i32: 128, 1, 1>, "kernel", "sym_name" = "foo"} : () -> ()
 // CHECK-NEXT:          "gpu.module_end"() : () -> ()
 // CHECK-NEXT:     }) {"sym_name" = "gpu"} : () -> ()
 

@@ -1,4 +1,5 @@
 from typing import cast
+
 from xdsl.dialects import arith
 from xdsl.dialects.builtin import AnyFloatAttr, AnyIntegerAttr
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
@@ -55,6 +56,24 @@ class ArithFunctions(InterpreterFunctions):
         match op.predicate.value.data:
             case 0:  # "eq"
                 return (args[0] == args[1],)
+            case 1:  # "ne"
+                return (args[0] != args[1],)
+            case 2:  # "slt"
+                return (args[0] < args[1],)
+            case 3:  # "sle"
+                return (args[0] <= args[1],)
+            case 4:  # "sgt"
+                return (args[0] > args[1],)
+            case 5:  # "sge"
+                return (args[0] >= args[1],)
+            case 6:  # "ult"
+                return (args[0] < args[1],)
+            case 7:  # "ule"
+                return (args[0] <= args[1],)
+            case 8:  # "ugt"
+                return (args[0] > args[1],)
+            case 9:  # "uge"
+                return (args[0] >= args[1],)
             case _:
                 raise InterpretationError(
                     f"arith.cmpi predicate {op.predicate} mot implemented yet."

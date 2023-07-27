@@ -1,37 +1,37 @@
 import pytest
-from xdsl.builder import Builder
-from xdsl.ir.core import BlockArgument
 
-from xdsl.utils.exceptions import VerifyException
-from xdsl.ir import Attribute, OpResult
+from xdsl.builder import Builder
+from xdsl.dialects import arith, builtin, func, memref, scf
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DenseArrayBase,
+    IndexType,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
     StridedLayoutAttr,
     i32,
     i64,
-    IntegerType,
-    IndexType,
-    ArrayAttr,
-    DenseArrayBase,
-    IntegerAttr,
-    IntAttr,
 )
 from xdsl.dialects.memref import (
     Alloc,
     Alloca,
+    Cast,
     CopyOp,
     Dealloc,
-    MemRefType,
-    Load,
-    Store,
-    UnrankedMemrefType,
-    ExtractAlignedPointerAsIndexOp,
-    Subview,
-    Cast,
     DmaStartOp,
     DmaWaitOp,
+    ExtractAlignedPointerAsIndexOp,
+    Load,
+    MemRefType,
+    Store,
+    Subview,
+    UnrankedMemrefType,
 )
-from xdsl.dialects import builtin, memref, func, arith, scf
+from xdsl.ir import Attribute, OpResult
+from xdsl.ir.core import BlockArgument
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
 
@@ -64,7 +64,7 @@ def test_memref_load_i32():
 
     assert load.memref is memref_ssa_value
     assert load.indices == ()
-    assert load.res.typ is i32
+    assert load.res.type is i32
 
 
 def test_memref_load_i32_with_dimensions():
@@ -77,7 +77,7 @@ def test_memref_load_i32_with_dimensions():
     assert load.memref is memref_ssa_value
     assert load.indices[0] is index1
     assert load.indices[1] is index2
-    assert load.res.typ is i32
+    assert load.res.type is i32
 
 
 def test_memref_store_i32():
@@ -112,11 +112,11 @@ def test_memref_alloc():
 
     assert alloc0.dynamic_sizes == ()
     assert type(alloc0.results[0]) is OpResult
-    assert type(alloc0.results[0].typ) is MemRefType
-    assert alloc0.results[0].typ.get_shape() == (3, 1, 2)
+    assert type(alloc0.results[0].type) is MemRefType
+    assert alloc0.results[0].type.get_shape() == (3, 1, 2)
     assert type(alloc1.results[0]) is OpResult
-    assert type(alloc1.results[0].typ) is MemRefType
-    assert alloc1.results[0].typ.get_shape() == (1,)
+    assert type(alloc1.results[0].type) is MemRefType
+    assert alloc1.results[0].type.get_shape() == (1,)
 
 
 def test_memref_alloca():
@@ -125,11 +125,11 @@ def test_memref_alloca():
     alloc1 = Alloca.get(my_i32, 64)
 
     assert type(alloc0.results[0]) is OpResult
-    assert type(alloc0.results[0].typ) is MemRefType
-    assert alloc0.results[0].typ.get_shape() == (3, 1, 2)
+    assert type(alloc0.results[0].type) is MemRefType
+    assert alloc0.results[0].type.get_shape() == (3, 1, 2)
     assert type(alloc1.results[0]) is OpResult
-    assert type(alloc1.results[0].typ) is MemRefType
-    assert alloc1.results[0].typ.get_shape() == (1,)
+    assert type(alloc1.results[0].type) is MemRefType
+    assert alloc1.results[0].type.get_shape() == (1,)
 
 
 def test_memref_dealloc():
@@ -147,7 +147,7 @@ def test_memref_dim():
 
     assert dim_1.source is alloc0.memref
     assert dim_1.index is idx.result
-    assert isinstance(dim_1.result.typ, IndexType)
+    assert isinstance(dim_1.result.type, IndexType)
 
 
 def test_memref_rank():
@@ -155,14 +155,14 @@ def test_memref_rank():
     dim_1 = memref.Rank.from_memref(alloc0)
 
     assert dim_1.source is alloc0.memref
-    assert isinstance(dim_1.rank.typ, IndexType)
+    assert isinstance(dim_1.rank.type, IndexType)
 
 
 def test_memref_ExtractAlignedPointerAsIndexOp():
     ref = Alloc.get(i32, 64, [64, 64, 64])
     ptr = ExtractAlignedPointerAsIndexOp.get(ref)
 
-    assert ptr.aligned_pointer.typ == IndexType()
+    assert ptr.aligned_pointer.type == IndexType()
     assert ptr.source == ref.memref
 
 
@@ -276,25 +276,25 @@ def test_memref_subview():
     assert subview.static_offsets is static_offsets
     assert subview.static_sizes is static_sizes
     assert subview.static_strides is static_strides
-    assert subview.result.typ is res_memref_type
+    assert subview.result.type is res_memref_type
 
 
 def test_memref_subview_constant_parameters():
     alloc = Alloc.get(i32, 8, [10, 10, 10])
-    assert isa(alloc.memref.typ, MemRefType[Attribute])
+    assert isa(alloc.memref.type, MemRefType[Attribute])
 
     subview = Subview.from_static_parameters(
-        alloc, alloc.memref.typ, [2, 2, 2], [2, 2, 2], [3, 3, 3]
+        alloc, alloc.memref.type, [2, 2, 2], [2, 2, 2], [3, 3, 3]
     )
 
     assert isinstance(subview, Subview)
-    assert isinstance(subview.result.typ, MemRefType)
-    assert isinstance(subview.result.typ.layout, StridedLayoutAttr)
-    assert isa(subview.result.typ.layout.strides, ArrayAttr[IntAttr])
-    out_strides = [i.data for i in subview.result.typ.layout.strides.data]
+    assert isinstance(subview.result.type, MemRefType)
+    assert isinstance(subview.result.type.layout, StridedLayoutAttr)
+    assert isa(subview.result.type.layout.strides, ArrayAttr[IntAttr])
+    out_strides = [i.data for i in subview.result.type.layout.strides.data]
     assert out_strides == [300, 30, 3]
-    assert isinstance(subview.result.typ.layout.offset, IntAttr)
-    assert subview.result.typ.layout.offset.data == 222
+    assert isinstance(subview.result.type.layout.offset, IntAttr)
+    assert subview.result.type.layout.offset.data == 222
 
 
 def test_memref_cast():
@@ -306,7 +306,7 @@ def test_memref_cast():
     cast = Cast.get(memref_ssa_value, res_type)
 
     assert cast.source is memref_ssa_value
-    assert cast.dest.typ is res_type
+    assert cast.dest.type is res_type
 
 
 def test_dma_start():
@@ -396,20 +396,20 @@ def test_memref_dma_wait():
 
 
 def test_memref_copy():
-    typ = MemRefType.from_element_type_and_shape(i32, [4])
-    typ3 = MemRefType.from_element_type_and_shape(i32, [3])
-    typ64 = MemRefType.from_element_type_and_shape(i64, [4])
-    source = TestSSAValue(typ)
-    destination = TestSSAValue(typ)
+    i32type4 = MemRefType.from_element_type_and_shape(i32, [4])
+    i32type3 = MemRefType.from_element_type_and_shape(i32, [3])
+    i64type4 = MemRefType.from_element_type_and_shape(i64, [4])
+    source = TestSSAValue(i32type4)
+    destination = TestSSAValue(i32type4)
 
     copy = CopyOp(source, destination)
 
     copy.verify()
     assert isinstance(copy, CopyOp)
-    assert copy.source.typ == typ
-    assert copy.destination.typ == typ
+    assert copy.source.type == i32type4
+    assert copy.destination.type == i32type4
 
-    destination = TestSSAValue(typ3)
+    destination = TestSSAValue(i32type3)
 
     copy = CopyOp(source, destination)
 
@@ -418,7 +418,7 @@ def test_memref_copy():
     ):
         copy.verify()
 
-    destination = TestSSAValue(typ64)
+    destination = TestSSAValue(i64type4)
 
     copy = CopyOp(source, destination)
 

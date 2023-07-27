@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from typing import Callable
+
+from xdsl.dialects import builtin
 from xdsl.frontend import symref
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
-from xdsl.dialects import builtin
 
 # Background
 # ==========
@@ -297,9 +297,9 @@ class Desymrefier:
                         Rewriter.replace_op(read, [], [write.operands[0]])
 
     def _prune_unused_reads(self, block: Block):
-        is_unused_read: Callable[[Operation], bool] = (
-            lambda op: isinstance(op, symref.Fetch) and len(op.results[0].uses) == 0
-        )
+        def is_unused_read(op: Operation) -> bool:
+            return isinstance(op, symref.Fetch) and len(op.results[0].uses) == 0
+
         unused_reads = [op for op in block.ops if is_unused_read(op)]
         for read in unused_reads:
             Rewriter.erase_op(read)
@@ -312,11 +312,11 @@ class Desymrefier:
             self._prune_unused_reads(block)
 
             # Find all symbols that are still in use in this block.
-            symbol_worklist: set[str] = set(
+            symbol_worklist: set[str] = {
                 symbol
                 for symbol in get_symbols(block)
                 if symbol not in prepared_symbols
-            )
+            }
             if len(symbol_worklist) == 0:
                 return
 

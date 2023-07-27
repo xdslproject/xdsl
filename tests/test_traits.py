@@ -4,31 +4,42 @@ Test the definition and usage of traits and interfaces.
 
 from __future__ import annotations
 
-import pytest
-
 from abc import ABC
 from dataclasses import dataclass
 
-from xdsl.ir import OpResult, OpTrait, Operation
-from xdsl.irdl import (
-    Operand,
-    attr_def,
-    irdl_op_definition,
-    IRDLOperation,
-    operand_def,
-    result_def,
-)
-from xdsl.traits import SymbolOpInterface
-from xdsl.utils.exceptions import VerifyException
+import pytest
+
+from xdsl.dialects import test
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolRefAttr,
     i1,
     i32,
     i64,
 )
+from xdsl.ir import Operation, OpResult, OpTrait
+from xdsl.irdl import (
+    Block,
+    IRDLOperation,
+    Operand,
+    Region,
+    attr_def,
+    irdl_op_definition,
+    operand_def,
+    opt_attr_def,
+    opt_region_def,
+    region_def,
+    result_def,
+)
+from xdsl.traits import (
+    OptionalSymbolOpInterface,
+    SymbolOpInterface,
+    SymbolTable,
+)
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -49,9 +60,9 @@ class LargerOperandTrait(OpTrait):
         # These asserts should be exceptions in a non-testing environment.
         assert len(op.results) == 1
         assert len(op.operands) == 1
-        assert isinstance(op.results[0].typ, IntegerType)
-        assert isinstance(op.operands[0].typ, IntegerType)
-        if op.results[0].typ.width.data >= op.operands[0].typ.width.data:
+        assert isinstance(op.results[0].type, IntegerType)
+        assert isinstance(op.operands[0].type, IntegerType)
+        if op.results[0].type.width.data >= op.operands[0].type.width.data:
             raise VerifyException(
                 "Operation has a result bitwidth greater "
                 "or equal to the operand bitwidth."
@@ -75,12 +86,12 @@ class BitwidthSumLessThanTrait(OpTrait):
         sum_bitwidth = 0
         for operand in op.operands:
             # This assert should be an exception in a non-testing environment.
-            assert isinstance(operand.typ, IntegerType)
-            sum_bitwidth += operand.typ.width.data
+            assert isinstance(operand.type, IntegerType)
+            sum_bitwidth += operand.type.width.data
         for result in op.results:
             # This assert should be an exception in a non-testing environment.
-            assert isinstance(result.typ, IntegerType)
-            sum_bitwidth += result.typ.width.data
+            assert isinstance(result.type, IntegerType)
+            sum_bitwidth += result.type.width.data
 
         if sum_bitwidth >= self.max_sum:
             raise VerifyException(
@@ -295,3 +306,106 @@ def test_symbol_op_interface():
 
     op2 = SymNameOp(attributes={"sym_name": StringAttr("symbol_name")})
     op2.verify()
+
+
+def test_optional_symbol_op_interface():
+    """
+    Test that operations that conform to OptionalSymbolOpInterface have the necessary attributes.
+    """
+
+    @irdl_op_definition
+    class OptionalSymNameOp(IRDLOperation):
+        name = "no_sym_name"
+
+        sym_name = opt_attr_def(StringAttr)
+
+        traits = frozenset((OptionalSymbolOpInterface(),))
+
+    no_symbol = OptionalSymNameOp()
+    interface = no_symbol.get_trait(SymbolOpInterface)
+    assert interface is not None
+    assert interface.is_optional_symbol(no_symbol)
+    no_symbol.verify()
+    assert interface.get_sym_attr_name(no_symbol) is None
+
+    symbol = OptionalSymNameOp(attributes={"sym_name": StringAttr("main")})
+    interface = symbol.get_trait(SymbolOpInterface)
+    assert interface is not None
+    assert interface.is_optional_symbol(symbol)
+    symbol.verify()
+    assert interface.get_sym_attr_name(symbol) == StringAttr("main")
+
+
+def test_symbol_table():
+    # Some helper classes
+    @irdl_op_definition
+    class SymbolTableOp(IRDLOperation):
+        name = "test.symbol_table"
+
+        sym_name = opt_attr_def(StringAttr)
+
+        one = region_def()
+        two = opt_region_def()
+
+        traits = frozenset([SymbolTable(), OptionalSymbolOpInterface()])
+
+    @irdl_op_definition
+    class SymbolOp(IRDLOperation):
+        name = "test.symbol"
+
+        sym_name = attr_def(StringAttr)
+
+        traits = frozenset([SymbolOpInterface()])
+
+    # Check that having a single region is verified
+    op = SymbolTableOp(regions=[Region(), Region()])
+    with pytest.raises(
+        VerifyException,
+        match="Operations with a 'SymbolTable' must have exactly one region",
+    ):
+        op.verify()
+
+    # Check that having a single block is verified
+    blocks = [Block(), Block()]
+    op = SymbolTableOp(regions=[Region(blocks), []])
+    with pytest.raises(
+        VerifyException,
+        match="Operations with a 'SymbolTable' must have exactly one block",
+    ):
+        op.verify()
+
+    terminator = test.TestTermOp([[]], [[]], regions=[[]], successors=[[]])
+
+    # Check that symbol uniqueness is verified
+    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    dup_symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    op = SymbolTableOp(
+        regions=[Region(Block([symbol, dup_symbol, terminator.clone()])), []]
+    )
+    with pytest.raises(
+        VerifyException,
+        match='Redefinition of symbol "name"',
+    ):
+        op.verify()
+
+    # Check a flat happy case, with symbol lookup
+    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+
+    op = SymbolTableOp(regions=[Region(Block([symbol, terminator.clone()])), []])
+    op.verify()
+
+    assert SymbolTable.lookup_symbol(op, "name") is symbol
+    assert SymbolTable.lookup_symbol(op, "that_other_name") is None
+
+    # Check a nested happy case, with symbol lookup
+    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+
+    nested = SymbolTableOp(
+        regions=[Region(Block([symbol, terminator.clone()])), []],
+        attributes={"sym_name": StringAttr("nested")},
+    )
+    op = SymbolTableOp(regions=[Region(Block([nested, terminator.clone()])), []])
+    op.verify()
+
+    assert SymbolTable.lookup_symbol(op, "name") is None
+    assert SymbolTable.lookup_symbol(op, SymbolRefAttr("nested", ["name"])) is symbol

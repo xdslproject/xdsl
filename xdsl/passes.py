@@ -1,16 +1,16 @@
 import dataclasses
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, Field
-from types import UnionType, NoneType
+from dataclasses import Field, dataclass
+from types import NoneType, UnionType
+from typing import Any, ClassVar, TypeVar, Union, get_args, get_origin
 
-from xdsl.utils.hints import isa
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
-from typing import ClassVar, TypeVar, get_origin, Any, Union, get_args
+from xdsl.utils.hints import isa
 from xdsl.utils.parse_pipeline import (
-    PipelinePassSpec,
-    PassArgListType,
     PassArgElementType,
+    PassArgListType,
+    PipelinePassSpec,
 )
 
 ModulePassT = TypeVar("ModulePassT", bound="ModulePass")
@@ -92,7 +92,12 @@ class ModulePass(ABC):
 
         # if not all args were removed we raise an error
         if len(spec.args) != 0:
-            raise ValueError(f'Unrecognised pass arguments "{", ".join(spec.args)}"')
+            arguments_str = ", ".join(f'"{arg}"' for arg in spec.args)
+            fields_str = ", ".join(f'"{field.name}"' for field in fields)
+            raise ValueError(
+                f"Provided arguments [{arguments_str}] not found in expected pass "
+                f"arguments [{fields_str}]"
+            )
 
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)

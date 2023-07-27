@@ -1,2 +1,3 @@
 pip<24.0
-immutabledict<2.2.5
+immutabledict<3.0.1
+typing-extensions>=4.7,<5

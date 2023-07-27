@@ -2,56 +2,59 @@ from __future__ import annotations
 
 from enum import Enum
 from types import EllipsisType
-from typing import Sequence, Literal
+from typing import Literal, Sequence
 
-from xdsl.utils.hints import isa
 from xdsl.dialects.builtin import (
-    StringAttr,
-    ArrayAttr,
-    DenseArrayBase,
-    IntAttr,
-    NoneAttr,
-    IntegerType,
-    IntegerAttr,
     AnyIntegerAttr,
+    ArrayAttr,
+    ContainerType,
+    DenseArrayBase,
     IndexType,
-    UnitAttr,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    NoneAttr,
+    StringAttr,
     SymbolRefAttr,
+    UnitAttr,
     i32,
     i64,
-    ContainerType,
 )
 from xdsl.ir import (
-    TypeAttribute,
-    ParametrizedAttribute,
     Attribute,
-    Dialect,
-    OpResult,
-    Operation,
-    SSAValue,
-    Region,
     Data,
+    Dialect,
+    Operation,
+    OpResult,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
+    IRDLOperation,
     Operand,
+    OptOperand,
     ParameterDef,
-    AnyAttr,
+    VarOperand,
+    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    VarOperand,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
+    opt_operand_def,
     region_def,
     result_def,
     var_operand_def,
+    var_result_def,
 )
-
-from xdsl.utils.exceptions import VerifyException
-
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator, SymbolOpInterface
+from xdsl.utils.deprecation import deprecated
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -90,8 +93,8 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         printer.print_list(self.types.data, printer.print_attribute)
         printer.print(")>")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", " in LLVM struct")
         struct_name = parser.parse_optional_str_literal()
         if struct_name is None:
@@ -127,8 +130,8 @@ class LLVMPointerType(
 
         printer.print_string(">")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         if parser.parse_optional_characters("<") is None:
             return [NoneAttr(), NoneAttr()]
         type = parser.parse_optional_type()
@@ -171,8 +174,8 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         printer.print_attribute(self.type)
         printer.print_string(">")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         if parser.parse_optional_characters("<") is None:
             return [NoneAttr(), NoneAttr()]
         size = IntAttr(parser.parse_integer())
@@ -238,12 +241,14 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         printer.print(" (")
         printer.print_list(self.inputs, printer.print_attribute)
         if self.is_variadic:
-            printer.print(", ...")
+            if self.inputs:
+                printer.print(", ")
+            printer.print("...")
 
         printer.print_string(")>")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", " in llvm.func parameters")
         if parser.parse_optional_characters("void"):
             output = LLVMVoidType()
@@ -298,8 +303,8 @@ class LinkageAttr(ParametrizedAttribute):
         printer.print_attribute(self.linkage)
         printer.print_string(">")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", "llvm.linkage parameter expected")
         # The linkage string is output from xDSL as a string (and accepted by MLIR as such)
         # however it is always output from MLIR without quotes. Therefore need to determine
@@ -451,8 +456,8 @@ class GEPOp(IRDLOperation):
     rawConstantIndices: DenseArrayBase = attr_def(DenseArrayBase)
     inbounds: UnitAttr | None = opt_attr_def(UnitAttr)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         ptr: SSAValue | Operation,
         indices: Sequence[int],
         ssa_indices: Sequence[SSAValue | Operation] | None = None,
@@ -469,13 +474,12 @@ class GEPOp(IRDLOperation):
         Take a look at `from_mixed_indices` for something without
         magic values.
         """
-        # construct default mutable argument here:
         if ssa_indices is None:
             ssa_indices = []
 
         # convert a potential Operation into an SSAValue
         ptr_val = SSAValue.get(ptr)
-        ptr_type = ptr_val.typ
+        ptr_type = ptr_val.type
 
         if not isinstance(ptr_type, LLVMPointerType):
             raise ValueError("Input must be a pointer")
@@ -495,9 +499,31 @@ class GEPOp(IRDLOperation):
         if inbounds:
             attrs["inbounds"] = UnitAttr()
 
-        return GEPOp.build(
+        super().__init__(
             operands=[ptr, ssa_indices], result_types=[result_type], attributes=attrs
         )
+
+    @deprecated("Use GEPOp(...) instead")
+    @staticmethod
+    def get(
+        ptr: SSAValue | Operation,
+        indices: Sequence[int],
+        ssa_indices: Sequence[SSAValue | Operation] | None = None,
+        result_type: LLVMPointerType = LLVMPointerType.opaque(),
+        inbounds: bool = False,
+        pointee_type: Attribute | None = None,
+    ):
+        """
+        A basic constructor for the GEPOp.
+
+        Pass the GEP_USE_SSA_VAL magic value in place of each constant
+        index that you want to be read from an SSA value.
+
+        Take a look at `from_mixed_indices` for something without
+        magic values.
+        """
+        # construct default mutable argument here:
+        return GEPOp(ptr, indices, ssa_indices, result_type, inbounds, pointee_type)
 
     @staticmethod
     def from_mixed_indices(
@@ -524,7 +550,7 @@ class GEPOp(IRDLOperation):
             else:
                 const_indices.append(GEP_USE_SSA_VAL)
                 ssa_indices.append(SSAValue.get(idx))
-        return GEPOp.get(
+        return GEPOp(
             ptr,
             const_indices,
             ssa_indices,
@@ -544,8 +570,8 @@ class AllocaOp(IRDLOperation):
 
     res: OpResult = result_def()
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         size: SSAValue | Operation,
         elem_type: Attribute,
         alignment: int = 32,
@@ -560,9 +586,17 @@ class AllocaOp(IRDLOperation):
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
 
-        return AllocaOp.build(
-            operands=[size], attributes=attrs, result_types=[ptr_type]
-        )
+        super().__init__(operands=[size], attributes=attrs, result_types=[ptr_type])
+
+    @deprecated("Use Alloca(...) instead")
+    @staticmethod
+    def get(
+        size: SSAValue | Operation,
+        elem_type: Attribute,
+        alignment: int = 32,
+        as_untyped_ptr: bool = False,
+    ):
+        return AllocaOp(size, elem_type, alignment, as_untyped_ptr)
 
 
 @irdl_op_definition
@@ -573,13 +607,17 @@ class IntToPtrOp(IRDLOperation):
 
     output: OpResult = result_def(LLVMPointerType)
 
-    @staticmethod
-    def get(input: SSAValue | Operation, ptr_type: Attribute | None = None):
+    def __init__(self, input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
-        return IntToPtrOp.build(operands=[input], result_types=[ptr_type])
+        super().__init__(operands=[input], result_types=[ptr_type])
+
+    @deprecated("Use IntToPtrOp(...) instead")
+    @staticmethod
+    def get(input: SSAValue | Operation, ptr_type: Attribute | None = None):
+        return IntToPtrOp(input, ptr_type)
 
 
 @irdl_op_definition
@@ -590,9 +628,13 @@ class PtrToIntOp(IRDLOperation):
 
     output: OpResult = result_def(IntegerType)
 
+    def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
+        super().__init__(operands=[arg], result_types=[int_type])
+
+    @deprecated("Use PtrToIntOp(...) instead")
     @staticmethod
     def get(arg: SSAValue | Operation, int_type: Attribute = i64):
-        return PtrToIntOp.build(operands=[arg], result_types=[int_type])
+        return PtrToIntOp(arg, int_type)
 
 
 @irdl_op_definition
@@ -603,19 +645,23 @@ class LoadOp(IRDLOperation):
 
     dereferenced_value: OpResult = result_def()
 
-    @staticmethod
-    def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):
+    def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
             ptr = SSAValue.get(ptr)
-            assert isinstance(ptr.typ, LLVMPointerType)
+            assert isinstance(ptr.type, LLVMPointerType)
 
-            if isinstance(ptr.typ.type, NoneAttr):
+            if isinstance(ptr.type.type, NoneAttr):
                 raise ValueError(
                     "llvm.load requires either a result type or a typed pointer!"
                 )
-            result_type = ptr.typ.type
+            result_type = ptr.type.type
 
-        return LoadOp.build(operands=[ptr], result_types=[result_type])
+        super().__init__(operands=[ptr], result_types=[result_type])
+
+    @deprecated("Use LoadOp(...) instead")
+    @staticmethod
+    def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):
+        return LoadOp(ptr, result_type)
 
 
 @irdl_op_definition
@@ -630,8 +676,8 @@ class StoreOp(IRDLOperation):
     volatile_: UnitAttr | None = opt_attr_def(UnitAttr)
     nontemporal: UnitAttr | None = opt_attr_def(UnitAttr)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         value: SSAValue | Operation,
         ptr: SSAValue | Operation,
         alignment: int | None = None,
@@ -650,11 +696,23 @@ class StoreOp(IRDLOperation):
         if nontemporal:
             attrs["nontemporal"] = UnitAttr()
 
-        return StoreOp.build(
+        super().__init__(
             operands=[value, ptr],
             attributes=attrs,
             result_types=[],
         )
+
+    @deprecated("Use Load(...) instead")
+    @staticmethod
+    def get(
+        value: SSAValue | Operation,
+        ptr: SSAValue | Operation,
+        alignment: int | None = None,
+        ordering: int = 0,
+        volatile: bool = False,
+        nontemporal: bool = False,
+    ):
+        return StoreOp(value, ptr, alignment, ordering, volatile, nontemporal)
 
 
 @irdl_op_definition
@@ -663,41 +721,88 @@ class NullOp(IRDLOperation):
 
     nullptr: OpResult = result_def(LLVMPointerType)
 
-    @staticmethod
-    def get(ptr_type: LLVMPointerType | None = None):
+    def __init__(self, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         assert isinstance(ptr_type, LLVMPointerType)
 
-        return NullOp.build(result_types=[ptr_type])
+        super().__init__(result_types=[ptr_type])
+
+    @deprecated("Use NullOp(...) instead")
+    @staticmethod
+    def get(ptr_type: LLVMPointerType | None = None):
+        return NullOp(ptr_type)
 
 
 @irdl_op_definition
-class LLVMExtractValue(IRDLOperation):
+class ExtractValueOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmextractvalue-mlirllvmextractvalueop
+    """
+
     name = "llvm.extractvalue"
 
     position: DenseArrayBase = attr_def(DenseArrayBase)
-    container: Operand = operand_def(AnyAttr())
+    container: Operand = operand_def(Attribute)
 
-    res: OpResult = result_def(AnyAttr())
+    res: OpResult = result_def(Attribute)
+
+    def __init__(
+        self,
+        position: DenseArrayBase,
+        container: SSAValue | Operation,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[container],
+            attributes={
+                "position": position,
+            },
+            result_types=[result_type],
+        )
 
 
 @irdl_op_definition
-class LLVMInsertValue(IRDLOperation):
+class InsertValueOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertvalue-mlirllvminsertvalueop
+    """
+
     name = "llvm.insertvalue"
 
     position: DenseArrayBase = attr_def(DenseArrayBase)
-    container: Operand = operand_def(AnyAttr())
-    value: Operand = operand_def(AnyAttr())
+    container: Operand = operand_def(Attribute)
+    value: Operand = operand_def(Attribute)
 
-    res: OpResult = result_def(AnyAttr())
+    res: OpResult = result_def(Attribute)
+
+    def __init__(
+        self,
+        position: DenseArrayBase,
+        container: SSAValue,
+        value: SSAValue,
+    ):
+        super().__init__(
+            operands=[container, value],
+            attributes={
+                "position": position,
+            },
+            result_types=[container.type],
+        )
 
 
 @irdl_op_definition
-class LLVMMLIRUndef(IRDLOperation):
+class UndefOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop
+    """
+
     name = "llvm.mlir.undef"
 
-    res: OpResult = result_def(AnyAttr())
+    res: OpResult = result_def(Attribute)
+
+    def __init__(self, result_type: Attribute):
+        super().__init__(result_types=[result_type])
 
 
 @irdl_op_definition
@@ -719,8 +824,10 @@ class GlobalOp(IRDLOperation):
     # This always needs an empty region as it is in the top level module definition
     body: Region = region_def()
 
-    @staticmethod
-    def get(
+    traits = frozenset([SymbolOpInterface()])
+
+    def __init__(
+        self,
         global_type: Attribute,
         sym_name: str | StringAttr,
         linkage: str | LinkageAttr,
@@ -769,7 +876,36 @@ class GlobalOp(IRDLOperation):
                 section = StringAttr(section)
             attrs["section"] = section
 
-        return GlobalOp.build(attributes=attrs, regions=[Region([])])
+        super().__init__(attributes=attrs, regions=[Region([])])
+
+    @deprecated("Use GlobalOp(...) instead")
+    @staticmethod
+    def get(
+        global_type: Attribute,
+        sym_name: str | StringAttr,
+        linkage: str | LinkageAttr,
+        addr_space: int = 0,
+        constant: bool | None = None,
+        dso_local: bool | None = None,
+        thread_local_: bool | None = None,
+        value: Attribute | None = None,
+        alignment: int | None = None,
+        unnamed_addr: int | None = None,
+        section: str | StringAttr | None = None,
+    ):
+        return GlobalOp(
+            global_type,
+            sym_name,
+            linkage,
+            addr_space,
+            constant,
+            dso_local,
+            thread_local_,
+            value,
+            alignment,
+            unnamed_addr,
+            section,
+        )
 
 
 @irdl_op_definition
@@ -779,16 +915,24 @@ class AddressOfOp(IRDLOperation):
     global_name: SymbolRefAttr = attr_def(SymbolRefAttr)
     result: OpResult = result_def(LLVMPointerType)
 
-    @staticmethod
-    def get(
-        global_name: str | StringAttr | SymbolRefAttr, result_type: LLVMPointerType
+    def __init__(
+        self,
+        global_name: str | StringAttr | SymbolRefAttr,
+        result_type: LLVMPointerType,
     ):
         if isinstance(global_name, (StringAttr, str)):
             global_name = SymbolRefAttr(global_name)
 
-        return AddressOfOp.build(
+        super().__init__(
             attributes={"global_name": global_name}, result_types=[result_type]
         )
+
+    @deprecated("Use AddressOfOp(...) instead")
+    @staticmethod
+    def get(
+        global_name: str | StringAttr | SymbolRefAttr, result_type: LLVMPointerType
+    ):
+        return AddressOfOp(global_name, result_type)
 
 
 LLVM_CALLING_CONVS: set[str] = {
@@ -838,8 +982,8 @@ class CallingConventionAttr(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<" + self.convention.data + ">")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
         for conv in LLVM_CALLING_CONVS:
             if parser.parse_optional_characters(conv) is not None:
@@ -887,6 +1031,61 @@ class FuncOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ReturnOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmreturn-mlirllvmreturnop
+    """
+
+    name = "llvm.return"
+
+    arg: OptOperand = opt_operand_def(Attribute)
+
+    traits = frozenset((IsTerminator(),))
+
+    def __init__(self, value: Attribute | None = None):
+        super().__init__(attributes={"value": value})
+
+
+@irdl_op_definition
+class ConstantOp(IRDLOperation):
+    name = "llvm.mlir.constant"
+    result: OpResult = result_def(Attribute)
+    value: Attribute = attr_def(Attribute)
+
+    def __init__(self, value: Attribute, value_type: Attribute):
+        super().__init__(attributes={"value": value}, result_types=[value_type])
+
+
+@irdl_op_definition
+class CallIntrinsicOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop
+    """
+
+    name = "llvm.call_intrinsic"
+
+    intrin: StringAttr = attr_def(StringAttr)
+    args: VarOperand = var_operand_def()
+    ress: VarOpResult = var_result_def()
+
+    def __init__(
+        self,
+        intrin: StringAttr | str,
+        args: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+    ):
+        if isinstance(intrin, str):
+            intrin = StringAttr(intrin)
+        super().__init__(
+            operands=args,
+            result_types=(result_types,),
+            attributes={
+                "intrin": intrin,
+            },
+        )
+
+
 class FastMathFlag(Enum):
     REASSOC = "reassoc"
     NO_NANS = "nnan"
@@ -897,7 +1096,7 @@ class FastMathFlag(Enum):
     APPROX_FUNC = "afn"
 
     @staticmethod
-    def try_parse(parser: Parser) -> set[FastMathFlag] | None:
+    def try_parse(parser: AttrParser) -> set[FastMathFlag] | None:
         if parser.parse_optional_characters("none") is not None:
             return set[FastMathFlag]()
         if parser.parse_optional_characters("fast") is not None:
@@ -933,8 +1132,8 @@ class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
 
         super().__init__(tuple(flags_))
 
-    @staticmethod
-    def parse_parameter(parser: Parser) -> tuple[FastMathFlag, ...]:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[FastMathFlag, ...]:
         flags = FastMathFlag.try_parse(parser)
         if flags is None:
             return tuple()
@@ -989,9 +1188,9 @@ class CallOp(IRDLOperation):
 
 LLVM = Dialect(
     [
-        LLVMExtractValue,
-        LLVMInsertValue,
-        LLVMMLIRUndef,
+        ExtractValueOp,
+        InsertValueOp,
+        UndefOp,
         AllocaOp,
         GEPOp,
         IntToPtrOp,
@@ -1002,6 +1201,9 @@ LLVM = Dialect(
         AddressOfOp,
         FuncOp,
         CallOp,
+        ReturnOp,
+        ConstantOp,
+        CallIntrinsicOp,
     ],
     [
         LLVMStructType,

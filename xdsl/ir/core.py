@@ -1,6 +1,6 @@
 from __future__ import annotations
-import re
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from io import StringIO
@@ -8,27 +8,28 @@ from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Generic,
     Iterable,
+    Iterator,
     Mapping,
     NoReturn,
     Protocol,
     Sequence,
     TypeVar,
     cast,
-    Iterator,
-    ClassVar,
     overload,
 )
+
+from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
-from xdsl.traits import OpTrait, OpTraitInvT, IsTerminator, NoTerminator
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
-    from xdsl.printer import Printer
     from xdsl.irdl import ParamAttrDef
+    from xdsl.parser import AttrParser, Parser
+    from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
 
@@ -172,7 +173,7 @@ class SSAValue(ABC):
     An SSA variable is either an operation result, or a basic block argument.
     """
 
-    typ: Attribute
+    type: Attribute
     """Each SSA variable is associated to a type."""
 
     uses: set[Use] = field(init=False, default_factory=set, repr=False)
@@ -257,7 +258,7 @@ class SSAValue(ABC):
                 "Attempting to delete SSA value that still has uses of result "
                 f"of operation:\n{self.owner}"
             )
-        self.replace_by(ErasedSSAValue(self.typ, self))
+        self.replace_by(ErasedSSAValue(self.type, self))
 
 
 @dataclass
@@ -277,7 +278,7 @@ class OpResult(SSAValue):
     def __repr__(self) -> str:
         return "<{}[{}] index: {}, operation: {}, uses: {}>".format(
             self.__class__.__name__,
-            self.typ,
+            self.type,
             self.index,
             self.op.name,
             len(self.uses),
@@ -308,7 +309,7 @@ class BlockArgument(SSAValue):
     def __repr__(self) -> str:
         return "<{}[{}] index: {}, uses: {}>".format(
             self.__class__.__name__,
-            self.typ,
+            self.type,
             self.index,
             len(self.uses),
         )
@@ -422,9 +423,9 @@ class Data(Generic[DataElement], Attribute, ABC):
         Data[Any].__init__(attr, params)
         return attr
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def parse_parameter(parser: Parser) -> DataElement:
+    def parse_parameter(cls, parser: AttrParser) -> DataElement:
         """Parse the attribute parameter."""
 
     @abstractmethod
@@ -442,7 +443,7 @@ class ParametrizedAttribute(Attribute):
     parameters: list[Attribute] = field(default_factory=list)
 
     @classmethod
-    def new(cls: type[_PA], params: list[Attribute]) -> _PA:
+    def new(cls: type[_PA], params: Sequence[Attribute]) -> _PA:
         """
         Create a new `ParametrizedAttribute` given its parameters.
 
@@ -456,11 +457,11 @@ class ParametrizedAttribute(Attribute):
 
         # Call the __init__ of ParametrizedAttribute, which will set the
         # parameters field.
-        ParametrizedAttribute.__init__(attr, params)
+        ParametrizedAttribute.__init__(attr, list(params))
         return attr
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 
@@ -682,7 +683,8 @@ class Operation(IRNode):
         self.operands = operands
 
         self.results = [
-            OpResult(typ, self, idx) for (idx, typ) in enumerate(result_types)
+            OpResult(result_type, self, idx)
+            for (idx, result_type) in enumerate(result_types)
         ]
         self.attributes = dict(attributes)
         self.successors = list(successors)
@@ -715,9 +717,7 @@ class Operation(IRNode):
             try:
                 operand_idx = self._operands.index(operand)
             except ValueError as err:
-                raise ValueError(
-                    "{} is not an operand of {}.".format(operand, self)
-                ) from err
+                raise ValueError(f"{operand} is not an operand of {self}.") from err
         else:
             operand_idx = operand
 
@@ -865,7 +865,7 @@ class Operation(IRNode):
             (value_mapper[operand] if operand in value_mapper else operand)
             for operand in self.operands
         ]
-        result_types = [res.typ for res in self.results]
+        result_types = [res.type for res in self.results]
         attributes = self.attributes.copy()
         successors = [
             (block_mapper[successor] if successor in block_mapper else successor)
@@ -1164,7 +1164,8 @@ class Block(IRNode):
     ):
         super().__init__()
         self._args = tuple(
-            BlockArgument(typ, self, index) for index, typ in enumerate(arg_types)
+            BlockArgument(arg_type, self, index)
+            for index, arg_type in enumerate(arg_types)
         )
         self._first_op = None
         self._last_op = None
@@ -1203,7 +1204,8 @@ class Block(IRNode):
     def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
         b = Block()
         b._args = tuple(
-            BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
+            BlockArgument(arg_type, b, index)
+            for index, arg_type in enumerate(arg_types)
         )
         return b
 
@@ -1213,7 +1215,8 @@ class Block(IRNode):
         b = Block()
         if arg_types:
             b._args = tuple(
-                BlockArgument(typ, b, index) for index, typ in enumerate(arg_types)
+                BlockArgument(arg_type, b, index)
+                for index, arg_type in enumerate(arg_types)
             )
         b.add_ops(ops)
         return b
@@ -1229,14 +1232,14 @@ class Block(IRNode):
         b.add_ops(f(*b.args))
         return b
 
-    def insert_arg(self, typ: Attribute, index: int) -> BlockArgument:
+    def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
         """
         Insert a new argument with a given type to the arguments list at a specific index.
         Returns the new argument.
         """
         if index < 0 or index > len(self._args):
             raise Exception("Unexpected index")
-        new_arg = BlockArgument(typ, self, index)
+        new_arg = BlockArgument(arg_type, self, index)
         for arg in self._args[index:]:
             arg.index += 1
         self._args = tuple(chain(self._args[:index], [new_arg], self._args[index:]))
@@ -1473,7 +1476,7 @@ class Block(IRNode):
         if len(self.args) != len(other.args) or len(self.ops) != len(other.ops):
             return False
         for arg, other_arg in zip(self.args, other.args):
-            if arg.typ != other_arg.typ:
+            if arg.type != other_arg.type:
                 return False
             context[arg] = other_arg
         # Add self to the context so Operations can check for identical parents
@@ -1665,6 +1668,14 @@ class Region(IRNode):
         block = self.detach_block(block)
         block.erase(safe_erase=safe_erase)
 
+    def clone(self) -> Region:
+        """
+        Clone the entire region into a new one.
+        """
+        new_region = Region()
+        self.clone_into(new_region)
+        return new_region
+
     def clone_into(
         self,
         dest: Region,
@@ -1697,7 +1708,7 @@ class Region(IRNode):
         # Populate the blocks with the cloned operations
         for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
-                new_block.insert_arg(block_arg.typ, idx)
+                new_block.insert_arg(block_arg.type, idx)
                 value_mapper[block_arg] = new_block.args[idx]
             for op in block.ops:
                 new_block.add_op(op.clone(value_mapper, block_mapper))

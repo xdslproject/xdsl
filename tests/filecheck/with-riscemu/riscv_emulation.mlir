@@ -24,6 +24,7 @@ builtin.module {
     "riscv.custom_assembly_instruction"(%3) {"instruction_name" = "print"} : (!riscv.reg<a0>) -> ()
     %4 = "riscv.li"() {"immediate" = 93 : si32} : () -> !riscv.reg<a7>
     "riscv.ecall"() : () -> ()
+    "riscv.ret"() : () -> ()
   }) {"label" = #riscv.label<"main">} : () -> ()
   "riscv.label"() ({
     "riscv.comment"() {"comment" = "no extra registers needed, so no need to deal with stack"} : () -> ()
@@ -49,9 +50,9 @@ builtin.module {
     "riscv.comment"() {"comment" = "decrement stack pointer by number of register values we need to store for later"} : () -> ()
     %15 = "riscv.addi"(%12) {"immediate" = -8 : si12} : (!riscv.reg<sp>) -> !riscv.reg<sp>
     "riscv.comment"() {"comment" = "save the s registers we'll use on the stack"} : () -> ()
-    "riscv.sw"(%13, %12) {"immediate" = 0 : si12} : (!riscv.reg<s0>, !riscv.reg<sp>) -> ()
+    "riscv.sw"(%12, %13) {"immediate" = 0 : si12} : (!riscv.reg<sp>, !riscv.reg<s0>) -> ()
     "riscv.comment"() {"comment" = "save the return address we'll use on the stack"} : () -> ()
-    "riscv.sw"(%14, %12) {"immediate" = 4 : si12} : (!riscv.reg<ra>, !riscv.reg<sp>) -> ()
+    "riscv.sw"(%12, %14) {"immediate" = 4 : si12} : (!riscv.reg<sp>, !riscv.reg<ra>) -> ()
     %16 = "riscv.mv"(%11) : (!riscv.reg<a2>) -> !riscv.reg<s0>
     "riscv.jal"() {"immediate" = #riscv.label<"multiply">} : () -> ()
     %17 = "riscv.mv"(%16) : (!riscv.reg<s0>) -> !riscv.reg<a1>
