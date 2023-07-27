@@ -5,7 +5,8 @@ import sys
 from typing import Sequence
 
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters import arith, builtin, func, printf, scf
+from xdsl.interpreters import arith, builtin, func, memref, printf, scf
+from xdsl.interpreters.experimental import wgpu
 from xdsl.ir import MLContext
 from xdsl.tools.command_line_tool import CommandLineTool
 
@@ -32,6 +33,8 @@ class xDSLRunMain(CommandLineTool):
 
     def register_implementations(self, interpreter: Interpreter):
         interpreter.register_implementations(func.FuncFunctions())
+        interpreter.register_implementations(memref.MemrefFunctions())
+        interpreter.register_implementations(wgpu.WGPUFunctions())
         interpreter.register_implementations(builtin.BuiltinFunctions())
         interpreter.register_implementations(arith.ArithFunctions())
         interpreter.register_implementations(printf.PrintfFunctions())
