@@ -627,8 +627,8 @@ class TruncIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: IntegerType):
-        return TruncIOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: IntegerType):
+        return TruncIOp.build(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -639,8 +639,8 @@ class ExtSIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: IntegerType):
-        return ExtSIOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: IntegerType):
+        return ExtSIOp.build(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -651,8 +651,8 @@ class ExtUIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
-    def get(op: SSAValue | Operation, target_typ: IntegerType):
-        return ExtSIOp.build(operands=[op], result_types=[target_typ])
+    def get(op: SSAValue | Operation, target_type: IntegerType):
+        return ExtSIOp.build(operands=[op], result_types=[target_type])
 
 
 Arith = Dialect(
