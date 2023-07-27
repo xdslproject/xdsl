@@ -14,6 +14,10 @@ from ..dialects import toy_accelerator
 
 
 def cast_value_to_register(operand: SSAValue, rewriter: PatternRewriter) -> OpResult:
+    """
+    Inserts a cast from any SSA value to an unallocated RISC-V register before the matched
+    op.
+    """
     types = (riscv.IntRegisterType.unallocated(),)
     cast = UnrealizedConversionCastOp.get((operand,), types)
     rewriter.insert_op_before_matched_op(cast)
