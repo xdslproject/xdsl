@@ -618,8 +618,34 @@ class TruncFOp(IRDLOperation):
 class TruncIOp(IRDLOperation):
     name = "arith.trunci"
 
-    input: Operand = operand_def(AnyIntegerAttr)
-    result: OpResult = result_def(AnyIntegerAttr)
+    input: Operand = operand_def(IntegerType)
+    result: OpResult = result_def(IntegerType)
+
+    @staticmethod
+    def get(op: SSAValue | Operation, target_typ: IntegerType):
+        return TruncIOp.build(operands=[op], result_types=[target_typ])
+
+@irdl_op_definition
+class ExtSIOp(IRDLOperation):
+    name = "arith.extsi"
+
+    input: Operand = operand_def(IntegerType)
+    result: OpResult = result_def(IntegerType)
+
+    @staticmethod
+    def get(op: SSAValue | Operation, target_typ: IntegerType):
+        return ExtSIOp.build(operands=[op], result_types=[target_typ])
+    
+@irdl_op_definition
+class ExtUIOp(IRDLOperation):
+    name = "arith.extui"
+
+    input: Operand = operand_def(IntegerType)
+    result: OpResult = result_def(IntegerType)
+
+    @staticmethod
+    def get(op: SSAValue | Operation, target_typ: IntegerType):
+        return ExtSIOp.build(operands=[op], result_types=[target_typ])
 
 
 Arith = Dialect(
@@ -668,6 +694,8 @@ Arith = Dialect(
         ExtFOp,
         TruncFOp,
         TruncIOp,
+        ExtSIOp,
+        ExtUIOp,
     ],
     [
         FastMathFlagsAttr,
