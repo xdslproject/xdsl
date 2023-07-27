@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass, field
 
 from xdsl.builder import Builder
@@ -35,31 +36,48 @@ testfunc = riscv_func.FuncOp("funky", myfunc_body)
 
 @dataclass
 class RegAllocCtx:
-    vals_to_regs: dict[SSAValue, riscv.RISCVRegisterType] = field(default_factory=dict)
-    used_regs: set[riscv.RISCVRegisterType] = field(default_factory=set)
+    """
+    This is the context object for allocating registers. It's terrible.
+
+    I don't know what's needed exactly though, so I keep track of:
+     - mapping ssa values to registers, which is pretty useless I think?
+     - which registers are currently used (with no expiration, for some reason)
+    """
+
+    # regs_in_use: set[riscv.RISCVRegisterType] = field(default_factory=set)
+    liveliness: dict[riscv.RISCVRegisterType, int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
+    """
+    dictionary mapping registers to how many uses they have "left"
+    """
 
     def clone(self):
-        return RegAllocCtx(
-            vals_to_regs=self.vals_to_regs.copy(),
-            used_regs=self.used_regs.copy(),
-        )
+        # TODO: we need to feed some updated stats back to the thing when we ascend out
+        #       of the region?
+        return RegAllocCtx(liveliness=self.liveliness.copy())
 
-    def free_reg(self):
+    def free_reg(self) -> riscv.IntRegisterType:
         for reg in [
-            riscv.Registers.T0,
-            riscv.Registers.T1,
-            riscv.Registers.T2,
-            riscv.Registers.T3,
-            riscv.Registers.T4,
-            riscv.Registers.T5,
-            # TODO: ...
+            *riscv.Registers.A,
+            *riscv.Registers.T,
+            *riscv.Registers.S,
         ]:
-            if reg not in self.used_regs:
+            if self.liveliness[reg] == 0:
                 return reg
+        assert False, "Out of registers"
 
-    def add_reg(self, reg: riscv.RISCVRegisterType, val: SSAValue):
-        self.used_regs.add(reg)
-        self.vals_to_regs[val] = reg
+    def add_reg(self, val: SSAValue):
+        assert isinstance(val.type, riscv.RISCVRegisterType) and val.type.is_allocated
+        if self.liveliness[val.type] > 0:
+            # this may be interesting behaviour? idk
+            pass
+        self.liveliness[val.type] = len(val.uses)
+
+    def register_use(self, val: SSAValue):
+        assert isinstance(val.type, riscv.RISCVRegisterType) and val.type.is_allocated
+        if self.liveliness[val.type] > 0:
+            self.liveliness[val.type] -= 1
 
 
 def register_allocate_function(func: riscv_func.FuncOp):
@@ -68,19 +86,12 @@ def register_allocate_function(func: riscv_func.FuncOp):
     for arg in func.func_body.blocks[0].args:
         assert isinstance(arg.type, riscv.IntRegisterType)
         assert arg.type.is_allocated
-        ctx.add_reg(arg.type, arg)
+        ctx.add_reg(arg)
 
     register_allocate_region(func.func_body, ctx)
 
     ret_op = func.func_body.block.last_op
     assert isinstance(ret_op, riscv_func.ReturnOp)
-    # TODO: abstract away "a registers"
-    assert len(ret_op.operands) < 4
-    for reg, val in zip(
-        [riscv.Registers.A0, riscv.Registers.A1, riscv.Registers.A2], ret_op.operands
-    ):
-        val.type = reg
-        ctx.add_reg(reg, val)
 
 
 def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
@@ -91,6 +102,11 @@ def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
         - loop counter stays in same register
         - loop carried variables stay in same register
     """
+    # make sure all loop carried variables stay in the same registers during the loop:
+    # gently force the block argument and yielded values in the same register as the
+    # given values
+    inner_ctx = ctx.clone()
+
     yield_op = op.body.block.last_op
     assert isinstance(yield_op, riscv_scf.YieldOp)
     for input_val, block_arg, yielded, ret_val in zip(
@@ -100,49 +116,60 @@ def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
         yielded.type = input_val.type
         ret_val.type = input_val.type
 
-    loop_counter_reg = ctx.free_reg()
+    # grab a free register for the loop counter (from the inner context)
+    loop_counter_reg = inner_ctx.free_reg()
 
-    # if the lb has no used, use it as the loop counter
+    # if the lb has no other uses, use it as the loop counter
     if len(op.lb.uses) == 1:
         loop_counter_reg = op.lb.type
 
     iter_val = op.body.block.args[0]
     iter_val.type = loop_counter_reg
-    ctx.add_reg(loop_counter_reg, iter_val)
+    inner_ctx.add_reg(iter_val)
 
-    register_allocate_region(op.body, ctx)
+    register_allocate_region(op.body, inner_ctx)
 
 
 def register_allocate_region(reg: Region, ctx: RegAllocCtx):
-    for op in reg.blocks[0].ops:
-        if isinstance(op, riscv.RdImmIntegerOperation):
-            if op.rd.type.is_allocated:
-                continue
-            reg = ctx.free_reg()
-            op.rd.type = reg
-            ctx.add_reg(reg, op.rd)
-        elif isinstance(op, riscv.RdRsRsIntegerOperation):
-            if op.rd.type.is_allocated:
-                continue
-            reg = ctx.free_reg()
-            op.rd.type = reg
-            ctx.add_reg(reg, op.rd)
-        elif isinstance(op, riscv_scf.ForOp):
-            register_allocate_for_op(op, ctx)
-        elif isinstance(op, riscv.MVOp):
-            reg = ctx.free_reg()
-            if op.rd.type.is_allocated:
-                break
-            # TODO: this is a hack
-            reg = op.rs.type
-            op.rd.type = reg
-            ctx.add_reg(reg, op.rd)
-        else:
-            if len(op.results) == 0:
-                continue
-            raise RuntimeError(f"Unknown op {op}")
+    """
+    Iterate over all ops in a region and register allocate them
+    """
+    for block in reg.blocks:
+        for op in block.ops:
+            # handle the "default" riscv instructions with rd and rs regs
+            # this is how we register allocate 99% of riscv operations
+            if isinstance(
+                op,
+                (
+                    riscv.RdImmIntegerOperation,
+                    riscv.RdRsRsIntegerOperation,
+                    riscv.RdRsIntegerOperation,
+                    # TODO: add more
+                ),
+            ):
+                # keep track of the "alive" registers
+                for operand in op.operands:
+                    ctx.register_use(operand)
+                # skip already allocated registers
+                if op.rd.type.is_allocated:
+                    continue
+                # grab a free register and set it
+                reg = ctx.free_reg()
+                op.rd.type = reg
+                ctx.add_reg(op.rd)
+            # the scf for loop has a special case function
+            elif isinstance(op, riscv_scf.ForOp):
+                register_allocate_for_op(op, ctx)
+            else:
+                # unknown ops without results are fine, I think?
+                if len(op.results) == 0:
+                    continue
+                raise RuntimeError(f"Unknown op {op}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
+    # print(testfunc)
+
     register_allocate_function(testfunc)
 
     print(testfunc)

@@ -279,6 +279,12 @@ class Registers(ABC):
     FT10 = FloatRegisterType("ft10")
     FT11 = FloatRegisterType("ft11")
 
+    # register classes:
+
+    A = (A0, A1, A2, A3, A4, A5, A6, A7)
+    T = (T0, T1, T2, T3, T4, T5, T6)
+    S = (S0, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11)
+
 
 @irdl_attr_definition
 class SImm12Attr(IntegerAttr[IntegerType]):
