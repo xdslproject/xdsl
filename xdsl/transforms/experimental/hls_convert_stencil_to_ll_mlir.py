@@ -634,7 +634,9 @@ class ApplyOpToHLS(RewritePattern):
 
         p_dataflow = transform_apply_into_loop(op, rewriter, res_type, boilerplate)
 
-        rewriter.insert_op_before_matched_op([*boilerplate, p_dataflow])
+        rewriter.insert_op_before_matched_op(
+            [*boilerplate, p_dataflow, p_dataflow.clone(), p_dataflow.clone()]
+        )
 
 
 @dataclass
@@ -825,14 +827,10 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                 self.first_load = op
                 self.sizes = op.operands[2:]
             else:
+                parent_dataflow = op.parent_op()
                 rewriter.erase_matched_op()
-                # op.operands = op.operands[:2] + self.sizes
-                # op.detach()
-                # rewriter.insert_op_after(op, self.first_load)
-
-            ##dataflow_block = self.first_load.parent_op().parent_block()
-            # dataflow_block.insert_op_before(data_stream, self.first_load.parent_op())
-            # rewriter.insert_op_before(data_stream, self.first_load)
+                parent_dataflow.detach()
+                parent_dataflow.erase()
 
             # TODO: There are 3 IN loads in pw_advection. Generalise this by counting the number of IN loads
             if self.n_current_load == 3:
