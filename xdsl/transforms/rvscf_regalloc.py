@@ -1,10 +1,8 @@
 from dataclasses import dataclass, field
 
-from xdsl.dialects import riscv, riscv_scf, riscv_func
-
-from xdsl.ir import BlockArgument, SSAValue, Region
-
 from xdsl.builder import Builder
+from xdsl.dialects import riscv, riscv_func, riscv_scf
+from xdsl.ir import BlockArgument, Region, SSAValue
 
 
 @Builder.implicit_region([riscv.Registers.A0, riscv.Registers.A1])
@@ -33,8 +31,6 @@ def myfunc_body(args: tuple[BlockArgument, ...]):
 
 
 testfunc = riscv_func.FuncOp("funky", myfunc_body)
-
-print(testfunc)
 
 
 @dataclass
@@ -146,9 +142,7 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
                 continue
             raise RuntimeError(f"Unknown op {op}")
 
+if __name__ == '__main__':
+    register_allocate_function(testfunc)
 
-print("\n\nafter allocation:\n\n")
-
-register_allocate_function(testfunc)
-
-print(testfunc)
+    print(testfunc)
