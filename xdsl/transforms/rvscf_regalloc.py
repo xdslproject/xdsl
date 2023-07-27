@@ -145,10 +145,8 @@ def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
     iter_val = op.body.block.args[0]
     iter_val.type = loop_counter_reg
     inner_ctx.register_use(iter_val)
-    # we don't need to make the iter val forbidden, as we "force" it to be
-    # in the right register at the end of the loop, it could meander around in between
-    # operations if it wants to.
-    inner_ctx.forbidden_vals.remove(loop_counter_reg)
+    # make the iter_val forbidden so it is not overwritten in the loop
+    inner_ctx.forbidden_vals.add(loop_counter_reg)
 
     register_allocate_region(op.body, inner_ctx)
 
