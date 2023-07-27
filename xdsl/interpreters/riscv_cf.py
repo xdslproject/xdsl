@@ -9,11 +9,13 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
-from xdsl.interpreters.comparisons import unsigned_less_than
+from xdsl.interpreters.comparisons import to_unsigned
 
 
 @register_impls
 class RiscvCfFunctions(InterpreterFunctions):
+    bitwidth = 32
+
     @impl_terminator(riscv_cf.JOp)
     def run_j(
         self,
@@ -76,7 +78,11 @@ class RiscvCfFunctions(InterpreterFunctions):
         op: riscv_cf.BltuOp,
         args: tuple[Any, ...],
     ):
-        return self.run_branch(interpreter, op, unsigned_less_than(args[0], args[1]))
+        return self.run_branch(
+            interpreter,
+            op,
+            to_unsigned(args[0], self.bitwidth) < to_unsigned(args[1], self.bitwidth),
+        )
 
     @impl_terminator(riscv_cf.BgeuOp)
     def run_bgeu(
@@ -86,5 +92,7 @@ class RiscvCfFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         return self.run_branch(
-            interpreter, op, args[0] == args[1] or unsigned_less_than(args[1], args[0])
+            interpreter,
+            op,
+            to_unsigned(args[0], self.bitwidth) <= to_unsigned(args[1], self.bitwidth),
         )

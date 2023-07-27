@@ -443,7 +443,7 @@ class ParametrizedAttribute(Attribute):
     parameters: list[Attribute] = field(default_factory=list)
 
     @classmethod
-    def new(cls: type[_PA], params: list[Attribute]) -> _PA:
+    def new(cls: type[_PA], params: Sequence[Attribute]) -> _PA:
         """
         Create a new `ParametrizedAttribute` given its parameters.
 
@@ -457,7 +457,7 @@ class ParametrizedAttribute(Attribute):
 
         # Call the __init__ of ParametrizedAttribute, which will set the
         # parameters field.
-        ParametrizedAttribute.__init__(attr, params)
+        ParametrizedAttribute.__init__(attr, list(params))
         return attr
 
     @classmethod

@@ -1,30 +1,42 @@
-import pytest
-
-from xdsl.interpreters.comparisons import signed_less_than, unsigned_less_than
+from xdsl.interpreters.comparisons import (
+    signed_lower_bound,
+    signed_upper_bound,
+    to_signed,
+    to_unsigned,
+    unsigned_upper_bound,
+)
 
 BITWIDTH = 2
-SIGNED_UPPER_BOUND = 1 << (BITWIDTH - 1)
-SIGNED_LOWER_BOUND = -SIGNED_UPPER_BOUND
-UNSIGNED_TO_SIGNED = list(range(SIGNED_LOWER_BOUND, SIGNED_UPPER_BOUND))
+UNSIGNED_UPPER_BOUND = unsigned_upper_bound(BITWIDTH)
+SIGNED_UPPER_BOUND = signed_upper_bound(BITWIDTH)
+SIGNED_LOWER_BOUND = signed_lower_bound(BITWIDTH)
+
+UNSIGNED_RANGE = range(UNSIGNED_UPPER_BOUND)
+SIGNED_RANGE = range(SIGNED_LOWER_BOUND, SIGNED_UPPER_BOUND)
+
+
+def unsigned_to_signed(u: int) -> int:
+    return u + SIGNED_LOWER_BOUND
 
 
 def test_bitwidth_2_values():
     """
     Above calculations are correct for bitwidth 2.
     """
-    assert UNSIGNED_TO_SIGNED == [-2, -1, 0, 1]
+    assert list(SIGNED_RANGE) == [unsigned_to_signed(u) for u in UNSIGNED_RANGE]
 
 
-@pytest.mark.parametrize("u_lhs", range(len(UNSIGNED_TO_SIGNED)))
-@pytest.mark.parametrize("u_rhs", range(len(UNSIGNED_TO_SIGNED)))
-def test_signed_unsigned_comparison(u_lhs: int, u_rhs: int):
-    """
-    For all possible bit patterns of a given bitwidth, signed and unsigned comparisons
-    return expected values.
-    """
-    s_lhs = UNSIGNED_TO_SIGNED[u_lhs]
-    s_rhs = UNSIGNED_TO_SIGNED[u_rhs]
-    assert (u_lhs < u_rhs) == unsigned_less_than(s_lhs, s_rhs)
-    assert (u_lhs < u_rhs) == unsigned_less_than(u_lhs, u_rhs)
-    assert (s_lhs < s_rhs) == signed_less_than(s_lhs, s_rhs, BITWIDTH)
-    assert (s_lhs < s_rhs) == signed_less_than(u_lhs, u_rhs, BITWIDTH)
+def test_conversion():
+    assert to_unsigned(SIGNED_LOWER_BOUND, BITWIDTH) == SIGNED_UPPER_BOUND
+    assert to_unsigned(-1, BITWIDTH) == UNSIGNED_UPPER_BOUND - 1
+    assert to_unsigned(0, BITWIDTH) == 0
+    assert to_unsigned(1, BITWIDTH) == 1
+    assert to_unsigned(SIGNED_UPPER_BOUND, BITWIDTH) == SIGNED_UPPER_BOUND
+    assert to_unsigned(UNSIGNED_UPPER_BOUND, BITWIDTH) == 0
+
+    assert to_signed(SIGNED_LOWER_BOUND, BITWIDTH) == SIGNED_LOWER_BOUND
+    assert to_signed(-1, BITWIDTH) == -1
+    assert to_signed(0, BITWIDTH) == 0
+    assert to_signed(1, BITWIDTH) == 1
+    assert to_signed(SIGNED_UPPER_BOUND, BITWIDTH) == SIGNED_LOWER_BOUND
+    assert to_signed(UNSIGNED_UPPER_BOUND, BITWIDTH) == 0

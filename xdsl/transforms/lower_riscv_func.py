@@ -72,7 +72,7 @@ class LowerRISCVFuncOp(RewritePattern):
             # replace arguments with `GetRegisterOp`s
             index = len(first_block.args) - 1
             last_arg = first_block.args[-1]
-            get_reg_op = riscv.GetRegisterOp(f"a{index}")
+            get_reg_op = riscv.GetRegisterOp(riscv.IntRegisterType(f"a{index}"))
             last_arg.replace_by(get_reg_op.res)
             rewriter.insert_op_before(get_reg_op, first_op)
             first_op = get_reg_op

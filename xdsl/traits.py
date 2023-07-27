@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.dialects.builtin import StringAttr
+    from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
     from xdsl.ir import Operation, Region
 
 
@@ -195,6 +195,68 @@ class IsolatedFromAbove(OpTrait):
                     # too; in which case it will check itself.
                     if not child_op.has_trait(IsolatedFromAbove):
                         regions += child_op.regions
+
+
+class SymbolTable(OpTrait):
+    """
+    SymbolTable operations are containers for Symbol operations. They offer lookup
+    functionality for Symbols, and enforce unique symbols amongst its children.
+
+    A SymbolTable operation is constrained to have a single single-block region.
+    """
+
+    def verify(self, op: Operation):
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr
+
+        if len(op.regions) != 1:
+            raise VerifyException(
+                "Operations with a 'SymbolTable' must have exactly one region"
+            )
+        if len(op.regions[0].blocks) != 1:
+            raise VerifyException(
+                "Operations with a 'SymbolTable' must have exactly one block"
+            )
+        block = op.regions[0].blocks[0]
+        met_names: set[StringAttr] = set()
+        for o in block.ops:
+            if "sym_name" not in o.attributes:
+                continue
+            sym_name = o.attributes["sym_name"]
+            if not isinstance(sym_name, StringAttr):
+                continue
+            if sym_name in met_names:
+                raise VerifyException(f'Redefinition of symbol "{sym_name.data}"')
+            met_names.add(sym_name)
+
+    @staticmethod
+    def lookup_symbol(
+        op: Operation, name: str | StringAttr | SymbolRefAttr
+    ) -> Operation | None:
+        """
+        Lookup a symbol by reference, starting from a specific operation's closest
+        SymbolTable parent.
+        """
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
+
+        anchor: Operation | None = op
+        while anchor is not None and not anchor.has_trait(SymbolTable):
+            anchor = anchor.parent_op()
+        if anchor is None:
+            raise ValueError(f"Operation {op} has no SymbolTable ancestor")
+        if isinstance(name, str | StringAttr):
+            name = SymbolRefAttr(name)
+        for o in anchor.regions[0].block.ops:
+            if (
+                sym_interface := o.get_trait(SymbolOpInterface)
+            ) is not None and sym_interface.get_sym_attr_name(o) == name.root_reference:
+                if not name.nested_references:
+                    return o
+                nested_root, *nested_references = name.nested_references.data
+                nested_name = SymbolRefAttr(nested_root, nested_references)
+                return SymbolTable.lookup_symbol(o, nested_name)
+        return None
 
 
 class SymbolOpInterface(OpTrait):
