@@ -24,7 +24,7 @@ jobs:
     - name: Install native dependencies
       uses: awalsh128/cache-apt-pkgs-action@latest
       with:
-        packages: libegl1-mesa mesa-vulkan-drivers
+        packages: mesa-vulkan-drivers
         version: 1.0
 
     - name: Set up Python
