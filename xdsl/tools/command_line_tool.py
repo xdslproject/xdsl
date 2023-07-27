@@ -111,7 +111,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
-        riscv_scf_to_asm.LowerScfForToLabels,
+        riscv_scf_to_asm.LowerScfForToLabelsPass,
     ]
 
 

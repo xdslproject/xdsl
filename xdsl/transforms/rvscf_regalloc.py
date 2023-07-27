@@ -1,9 +1,26 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
+from itertools import chain
+from typing import Iterable
 
 from xdsl.builder import Builder
 from xdsl.dialects import riscv, riscv_func, riscv_scf
 from xdsl.ir import BlockArgument, Region, SSAValue
+
+
+class JRegisters(Iterable[riscv.IntRegisterType]):
+    pos: int = 0
+
+    def __next__(self):
+        j = self.pos
+        self.pos += 1
+        return riscv.IntRegisterType(f"j{j}")
+
+    def __iter__(self):
+        return self
+
+    def __getitem__(self, item: int):
+        return riscv.IntRegisterType(f"j{item}")
 
 
 @Builder.implicit_region([riscv.Registers.A0, riscv.Registers.A1])
@@ -73,10 +90,8 @@ class RegAllocCtx:
         )
 
     def free_reg(self) -> riscv.IntRegisterType:
-        for reg in (
-            *riscv.Registers.A,
-            *riscv.Registers.T,
-            *riscv.Registers.S,
+        for reg in chain(
+            riscv.Registers.A, riscv.Registers.T, riscv.Registers.S, JRegisters()
         ):
             if reg not in self.forbidden_vals and self.liveliness[reg] == 0:
                 return reg
@@ -165,6 +180,7 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
                     riscv.RdImmIntegerOperation,
                     riscv.RdRsRsIntegerOperation,
                     riscv.RdRsIntegerOperation,
+                    riscv.RdRsImmIntegerOperation,
                     # TODO: add more
                 ),
             ):
@@ -181,6 +197,19 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
             # the scf for loop has a special case function
             elif isinstance(op, riscv_scf.ForOp):
                 register_allocate_for_op(op, ctx)
+            elif isinstance(op, riscv.CustomAssemblyInstructionOp):
+                # keep track of the "alive" registers
+                for operand in op.operands:
+                    ctx.register_use(operand)
+                # allocate all rd's
+                for rd in op.results:
+                    # skip already allocated registers
+                    if rd.type.is_allocated:
+                        continue
+                    # grab a free register and set it
+                    reg = ctx.free_reg()
+                    rd.type = reg
+                    ctx.add_reg(rd)
             else:
                 # unknown ops without results are fine, I think?
                 if len(op.results) == 0:

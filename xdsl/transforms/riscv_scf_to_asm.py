@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+
 from xdsl.dialects import builtin, riscv, riscv_scf
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
@@ -9,19 +11,26 @@ from xdsl.pattern_rewriter import (
 )
 
 
+@dataclass
 class LowerRiscvScfToLabels(RewritePattern):
+    cnt: int = field(default=-1)
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_scf.ForOp, rewriter: PatternRewriter, /):
+        self.cnt += 1
+
         # get loop var
         loop_var = op.lb
         # insert leader:
         # TODO: only works if loop variable register == lb register
         rewriter.insert_op_before_matched_op(
             [
-                riscv.LabelOp("scf_leader"),
-                riscv.BgeOp(loop_var, op.ub, riscv.LabelAttr("scf_body_end")),
+                riscv.LabelOp(f"scf_leader_{self.cnt}"),
+                riscv.BgeOp(
+                    loop_var, op.ub, riscv.LabelAttr(f"scf_body_end_{self.cnt}")
+                ),
                 # start of loop body:
-                riscv.LabelOp("scf_body"),
+                riscv.LabelOp(f"scf_body_{self.cnt}"),
             ]
         )
         # add latch to body
@@ -33,9 +42,9 @@ class LowerRiscvScfToLabels(RewritePattern):
                 # increment loop var in-place
                 riscv.AddOp(loop_var, op.step, rd=loop_var.type),
                 # branch to start of loop
-                riscv.BltOp(loop_var, op.ub, riscv.LabelAttr("scf_body")),
+                riscv.BltOp(loop_var, op.ub, riscv.LabelAttr(f"scf_body_{self.cnt}")),
                 # add end of loop thingy
-                riscv.LabelOp("scf_body_end"),
+                riscv.LabelOp(f"scf_body_end_{self.cnt}"),
             ],
             yield_op,
         )
@@ -55,7 +64,7 @@ class LowerRiscvScfToLabels(RewritePattern):
         rewriter.erase_matched_op()
 
 
-class LowerScfForToLabels(ModulePass):
+class LowerScfForToLabelsPass(ModulePass):
     name = "lower-riscv-scf-to-labels"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:

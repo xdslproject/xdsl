@@ -37,7 +37,7 @@ class YieldOp(IRDLOperation):
     traits = frozenset([IsTerminator()])
 
     def __init__(self, *operands: SSAValue | Operation):
-        super().__init__(operands=[SSAValue.get(operand) for operand in operands])
+        super().__init__(operands=[[SSAValue.get(operand) for operand in operands]])
 
 
 @irdl_op_definition
