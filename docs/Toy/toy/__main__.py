@@ -54,6 +54,7 @@ parser.add_argument(
 parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
 parser.add_argument("--accelerate", dest="accelerate", action="store_true")
+parser.add_argument("--skip-mlir-opt", dest="skip_mlir_opt", action="store_true")
 
 
 @register_impls
@@ -78,7 +79,14 @@ class BufferMemrefConversion(InterpreterFunctions):
         return Buffer(value.data)
 
 
-def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool):
+def main(
+    path: Path,
+    emit: str,
+    ir: bool,
+    accelerate: bool,
+    print_generic: bool,
+    skip_mlir_opt: bool,
+):
     ctx = context()
 
     path = args.source
@@ -107,7 +115,13 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
     if riscemu or print_assembly:
         emit = "riscv-regalloc"
 
-    transform(ctx, module_op, target=emit, accelerate=accelerate)
+    transform(
+        ctx,
+        module_op,
+        target=emit,
+        accelerate=accelerate,
+        skip_mlir_opt=skip_mlir_opt,
+    )
 
     if ir:
         printer = Printer(print_generic_format=print_generic)
@@ -165,4 +179,11 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.source, args.emit, args.ir, args.accelerate, args.print_generic)
+    main(
+        args.source,
+        args.emit,
+        args.ir,
+        args.accelerate,
+        args.print_generic,
+        args.skip_mlir_opt,
+    )
