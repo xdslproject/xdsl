@@ -339,8 +339,8 @@ class RISCVOp(Operation, ABC):
         )
         if args is None:
             args = []
-        regions = parser.parse_region_list()
         attributes = parser.parse_optional_attr_dict()
+        regions = parser.parse_region_list()
         parser.parse_punctuation(":")
         func_type = parser.parse_function_type()
         operands = parser.resolve_operands(args, func_type.inputs.data, parser.pos)
@@ -352,10 +352,11 @@ class RISCVOp(Operation, ABC):
         )
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
-        printer.print_list(self.operands, printer.print_operand)
-        printer.print_regions(self.regions)
+        if self.operands:
+            printer.print(" ")
+            printer.print_list(self.operands, printer.print_operand)
         printer.print_op_attributes(self.attributes)
+        printer.print_regions(self.regions)
         printer.print(" : ")
         printer.print_operation_type(self)
 
