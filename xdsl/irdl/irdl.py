@@ -36,6 +36,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.ir.core import AttributeInvT
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     ParseError,
@@ -847,31 +848,33 @@ def opt_result_def(
 
 
 def attr_def(
-    constraint: type[_AttrT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar,
     *,
     attr_name: str | None = None,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> _AttrT:
+) -> AttributeInvT:
     """
     Defines an attribute of an operation.
     """
-    return cast(_AttrT, _AttributeFieldDef(AttributeDef, constraint, attr_name))
+    return cast(AttributeInvT, _AttributeFieldDef(AttributeDef, constraint, attr_name))
 
 
 def opt_attr_def(
-    constraint: type[_AttrT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar,
     *,
     attr_name: str | None = None,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> _AttrT | None:
+) -> AttributeInvT | None:
     """
     Defines an optional attribute of an operation.
     """
-    return cast(_AttrT, _AttributeFieldDef(OptAttributeDef, constraint, attr_name))
+    return cast(
+        AttributeInvT, _AttributeFieldDef(OptAttributeDef, constraint, attr_name)
+    )
 
 
 def operand_def(
@@ -2015,10 +2018,10 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     )  # type: ignore
 
 
-_AttrT = TypeVar("_AttrT", bound=type[Attribute])
+TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
 
 
-def irdl_attr_definition(cls: _AttrT) -> _AttrT:
+def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
