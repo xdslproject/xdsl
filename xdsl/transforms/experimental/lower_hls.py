@@ -60,6 +60,7 @@ class LowerHLSStreamWrite(RewritePattern):
             )
 
             self.module.body.block.add_op(push_func)
+            self.push_declaration = True
 
         gep = GEPOp.get(op.stream, [0, 0], result_type=p_elem_type)
         push_call = func.Call.get("llvm.fpga.fifo.push.stencil", [elem, gep], [])
