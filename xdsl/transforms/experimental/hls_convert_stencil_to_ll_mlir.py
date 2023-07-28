@@ -190,7 +190,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         copy_stencil_stream.attributes["stencil"] = op.attributes["inout"]
 
         threedload_call = Call.get(
-            "load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
+            "dummy_load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
         )
 
         @Builder.region
@@ -268,20 +268,6 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             # self.shift_streams.append(stencil_stream)
 
         if not self.load_data_declaration:
-            load_data_func = FuncOp.external(
-                "load_data",
-                [
-                    func_arg.typ,
-                    LLVMPointerType.typed(
-                        LLVMStructType.from_type_list([data_stream.elem_type])
-                    ),
-                    i32,
-                    i32,
-                    i32,
-                ],
-                [],
-            )
-            self.module.body.block.add_op(load_data_func)
             shift_buffer_func = FuncOp.external(
                 "shift_buffer",
                 [
@@ -634,9 +620,7 @@ class ApplyOpToHLS(RewritePattern):
 
         p_dataflow = transform_apply_into_loop(op, rewriter, res_type, boilerplate)
 
-        rewriter.insert_op_before_matched_op(
-            [*boilerplate, p_dataflow, p_dataflow.clone(), p_dataflow.clone()]
-        )
+        rewriter.insert_op_before_matched_op([*boilerplate, p_dataflow])
 
 
 @dataclass
@@ -812,7 +796,10 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: Call, rewriter: PatternRewriter, /):
-        if op.callee.root_reference.data == "load_data" and self.n_current_load < 3:
+        if (
+            op.callee.root_reference.data == "dummy_load_data"
+            and self.n_current_load < 3
+        ):
             self.load_lst.append(op)
             self.n_current_load += 1
 
@@ -834,62 +821,61 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
 
             # TODO: There are 3 IN loads in pw_advection. Generalise this by counting the number of IN loads
             if self.n_current_load == 3:
+                # @Builder.region(
+                #    [
+                #        self.first_load.arguments[0].typ,
+                #        LLVMPointerType.typed(
+                #            LLVMStructType.from_type_list(
+                #                [self.first_load.arguments[1].typ.element_type]
+                #            )
+                #        ),
+                #        self.first_load.arguments[0].typ,
+                #        LLVMPointerType.typed(
+                #            LLVMStructType.from_type_list(
+                #                [self.first_load.arguments[1].typ.element_type]
+                #            )
+                #        ),
+                #        self.first_load.arguments[0].typ,
+                #        LLVMPointerType.typed(
+                #            LLVMStructType.from_type_list(
+                #                [self.first_load.arguments[1].typ.element_type]
+                #            )
+                #        ),
+                #        i32,
+                #        i32,
+                #        i32,
+                #    ]
+                # )
+                # def load_all_data_region(
+                #    builder: Builder, args: tuple[BlockArgument, ...]
+                # ):
+                #    for i in range(3):
+                #        threedload_call = Call.get(
+                #            "load_data",
+                #            [args[2 * i], args[2 * i + 1], args[6], args[7], args[8]],
+                #            [],
+                #        )
+                #        builder.insert(threedload_call)
 
-                @Builder.region(
+                #    return_op = func.Return()
+                #    builder.insert(return_op)
+
+                load_data_func = FuncOp.external(
+                    "load_data",
                     [
                         self.first_load.arguments[0].typ,
-                        LLVMPointerType.typed(
-                            LLVMStructType.from_type_list(
-                                [self.first_load.arguments[1].typ.element_type]
-                            )
-                        ),
+                        self.first_load.arguments[0].typ,
                         self.first_load.arguments[0].typ,
                         LLVMPointerType.typed(
                             LLVMStructType.from_type_list(
                                 [self.first_load.arguments[1].typ.element_type]
                             )
                         ),
-                        self.first_load.arguments[0].typ,
                         LLVMPointerType.typed(
                             LLVMStructType.from_type_list(
                                 [self.first_load.arguments[1].typ.element_type]
                             )
                         ),
-                        i32,
-                        i32,
-                        i32,
-                    ]
-                )
-                def load_all_data_region(
-                    builder: Builder, args: tuple[BlockArgument, ...]
-                ):
-                    for i in range(3):
-                        threedload_call = Call.get(
-                            "load_data",
-                            [args[2 * i], args[2 * i + 1], args[6], args[7], args[8]],
-                            [],
-                        )
-                        builder.insert(threedload_call)
-
-                    return_op = func.Return()
-                    builder.insert(return_op)
-
-                load_all_data_func = FuncOp.from_region(
-                    "load_all_data",
-                    [
-                        self.first_load.arguments[0].typ,
-                        LLVMPointerType.typed(
-                            LLVMStructType.from_type_list(
-                                [self.first_load.arguments[1].typ.element_type]
-                            )
-                        ),
-                        self.first_load.arguments[0].typ,
-                        LLVMPointerType.typed(
-                            LLVMStructType.from_type_list(
-                                [self.first_load.arguments[1].typ.element_type]
-                            )
-                        ),
-                        self.first_load.arguments[0].typ,
                         LLVMPointerType.typed(
                             LLVMStructType.from_type_list(
                                 [self.first_load.arguments[1].typ.element_type]
@@ -900,19 +886,13 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                         i32,
                     ],
                     [],
-                    load_all_data_region,
                 )
 
-                self.module.body.block.add_op(load_all_data_func)
+                self.module.body.block.add_op(load_data_func)
 
                 call_load_all_data = Call.get(
-                    "load_all_data",
-                    [
-                        item
-                        for sublist in zip(self.data_arrays, self.data_streams)
-                        for item in sublist
-                    ]
-                    + list(self.sizes),
+                    "load_data",
+                    self.data_arrays + self.data_streams + list(self.sizes),
                     [],
                 )
 
