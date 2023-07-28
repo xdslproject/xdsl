@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from io import StringIO
-from typing import Annotated, Any, Generic, TypeAlias, TypeVar
+from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
 
 import pytest
 
@@ -26,7 +26,6 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
-from xdsl.utils.hints import isa
 
 ################################################################################
 # Data attributes
@@ -444,7 +443,7 @@ class DataListAttr(AttrConstraint):
     elem_constr: AttrConstraint
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
-        assert isa(attr, ListData[Any])
+        attr = cast(ListData[Any], attr)
         for e in attr.data:
             self.elem_constr.verify(e, constraint_vars)
 
