@@ -114,7 +114,6 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
-        assert isinstance(op.field, OpResult)
         field = op.field
 
         # Find the llvm.ptr to external memory that genrates the argument to the stencil.external_load. For PSyclone, this is
@@ -230,7 +229,8 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         duplicateStream_dataflow = PragmaDataflow(duplicateStream_region)
 
-        if inout is IN:
+        ndims = len(field.typ.get_shape())
+        if inout is IN and ndims == 3:
             rewriter.insert_op_before_matched_op(
                 [
                     data_stream,
@@ -834,7 +834,7 @@ class TrivialApplyOpCleanup(RewritePattern):
 class QualifyAllArgumentsAsOut(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
-        op.attributes["inout"] = IntAttr(OUT)
+        op.attributes["inout"] = IntAttr(IN)
 
 
 @dataclass
@@ -843,7 +843,7 @@ class GetInoutAttributeFromExternalStore(RewritePattern):
     def match_and_rewrite(self, op: ExternalStoreOp, rewriter: PatternRewriter, /):
         for use in op.field.uses:
             if isinstance(use.operation, ExternalLoadOp):
-                use.operation.attributes["inout"] = IntAttr(IN)
+                use.operation.attributes["inout"] = IntAttr(OUT)
 
 
 @dataclass
