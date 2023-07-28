@@ -4,6 +4,7 @@ from typing import Sequence
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IntegerType, StringAttr
+from xdsl.dialects.riscv import AssemblyInstructionArg
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
@@ -61,7 +62,7 @@ class SyscallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CallOp(IRDLOperation):
+class CallOp(IRDLOperation, riscv.RISCVInstruction):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
@@ -96,6 +97,12 @@ class CallOp(IRDLOperation):
                 f"Function op has too many results ({len(self.results)}), expected fewer than 3"
             )
 
+    def assembly_instruction_name(self) -> str:
+        return "jal"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.callee.data,)
+
 
 class FuncOpCallableInterface(CallableOpInterface):
     @classmethod
@@ -105,7 +112,7 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(IRDLOperation):
+class FuncOp(IRDLOperation, riscv.RISCVOp):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
@@ -121,9 +128,12 @@ class FuncOp(IRDLOperation):
 
         super().__init__(attributes=attributes, regions=[region])
 
+    def assembly_line(self) -> str:
+        return f"{self.sym_name.data}:"
+
 
 @irdl_op_definition
-class ReturnOp(IRDLOperation):
+class ReturnOp(IRDLOperation, riscv.RISCVInstruction):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
@@ -152,6 +162,12 @@ class ReturnOp(IRDLOperation):
             raise VerifyException(
                 f"Function op has too many results ({len(self.results)}), expected fewer than 3"
             )
+
+    def assembly_instruction_name(self) -> str:
+        return "ret"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return ()
 
 
 RISCV_Func = Dialect(
