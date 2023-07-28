@@ -352,8 +352,9 @@ class RISCVOp(Operation, ABC):
         )
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
-        printer.print_list(self.operands, printer.print_operand)
+        if self.operands:
+            printer.print(" ")
+            printer.print_list(self.operands, printer.print_operand)
         printer.print_op_attributes(self.attributes)
         printer.print_regions(self.regions)
         printer.print(" : ")
