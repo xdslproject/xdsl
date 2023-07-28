@@ -374,12 +374,12 @@ class Cmpi(IRDLOperation, ComparisonOperation):
     rhs: Operand = operand_def(signlessIntegerLike)
     result: OpResult = result_def(IntegerType(1))
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         operand1: Operation | SSAValue,
         operand2: Operation | SSAValue,
         arg: int | str,
-    ) -> Cmpi:
+    ):
         operand1 = SSAValue.get(operand1)
         operand2 = SSAValue.get(operand2)
         Cmpi._validate_operand_types(operand1, operand2)
@@ -399,7 +399,7 @@ class Cmpi(IRDLOperation, ComparisonOperation):
             }
             arg = Cmpi._get_comparison_predicate(arg, cmpi_comparison_operations)
 
-        return Cmpi.build(
+        return super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
@@ -438,10 +438,12 @@ class Cmpf(IRDLOperation, ComparisonOperation):
     rhs: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(IntegerType(1))
 
-    @staticmethod
-    def get(
-        operand1: SSAValue | Operation, operand2: SSAValue | Operation, arg: int | str
-    ) -> Cmpf:
+    def __init__(
+        self,
+        operand1: SSAValue | Operation,
+        operand2: SSAValue | Operation,
+        arg: int | str,
+    ):
         operand1 = SSAValue.get(operand1)
         operand2 = SSAValue.get(operand2)
 
@@ -468,7 +470,7 @@ class Cmpf(IRDLOperation, ComparisonOperation):
             }
             arg = Cmpf._get_comparison_predicate(arg, cmpf_comparison_operations)
 
-        return Cmpf.build(
+        return super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
@@ -497,14 +499,14 @@ class Select(IRDLOperation):
         if self.lhs.type != self.rhs.type or self.rhs.type != self.result.type:
             raise VerifyException("expect all input and output types to be equal")
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         operand1: Operation | SSAValue,
         operand2: Operation | SSAValue,
         operand3: Operation | SSAValue,
-    ) -> Select:
+    ):
         operand2 = SSAValue.get(operand2)
-        return Select.build(
+        return super().__init__(
             operands=[operand1, operand2, operand3], result_types=[operand2.type]
         )
 
@@ -536,12 +538,11 @@ class Negf(IRDLOperation):
     operand: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(floatingPointLike)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> Negf:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         operand = SSAValue.get(operand)
-        return Negf.build(
+        return super().__init__(
             attributes={"fastmath": fastmath},
             operands=[operand],
             result_types=[operand.type],
