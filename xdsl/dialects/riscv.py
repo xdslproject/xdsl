@@ -352,6 +352,11 @@ class RISCVOp(Operation, ABC):
 
     @classmethod
     def parse_unresolved_operand(cls, parser: Parser) -> list[UnresolvedOperand]:
+        """
+        Parse a list of comma separated unresolved operands.
+
+        Notice that this method will consume trailing comma.
+        """
         if operand := parser.parse_optional_unresolved_operand():
             operands = [operand]
             while parser.parse_optional_punctuation(",") and (
@@ -363,6 +368,9 @@ class RISCVOp(Operation, ABC):
 
     @classmethod
     def parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        """
+        Parse custom printed attributes. Subclass may overwrite this method.
+        """
         return parser.parse_optional_attr_dict()
 
     def print(self, printer: Printer) -> None:
@@ -375,6 +383,9 @@ class RISCVOp(Operation, ABC):
         printer.print_operation_type(self)
 
     def print_attributes(self, printer: Printer) -> Set[str]:
+        """
+        Custom print specific attributes and return the set of custom printed attributes. Subclass may overwrite this method.
+        """
         printer.print_op_attributes(self.attributes)
         return self.attributes.keys()
 
