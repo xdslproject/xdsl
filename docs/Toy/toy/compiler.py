@@ -32,7 +32,6 @@ from .rewrites.lower_func_riscv_func import LowerFuncToRiscvFunc
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
 from .rewrites.lower_riscv_cf import LowerCfRiscvCfPass
-from .rewrites.lower_scf_riscv import LowerScfRiscvPass
 from .rewrites.lower_to_toy_accelerator import (
     LowerToToyAccelerator,
     LowerToyAccelerator,
@@ -118,15 +117,24 @@ def transform(
         return
 
     SetupRiscvPass().apply(ctx, module_op)
+
     LowerFuncToRiscvFunc().apply(ctx, module_op)
-    ScfToRiscvPass().apply(ctx, module_op)
-    LowerCfRiscvCfPass().apply(ctx, module_op)
+
+    # Toy lowerings
     LowerToyAccelerator().apply(ctx, module_op)
-    LowerScfRiscvPass().apply(ctx, module_op)
-    DeadCodeElimination().apply(ctx, module_op)
-    LowerArithRiscvPass().apply(ctx, module_op)
-    LowerPrintfRiscvPass().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
+    LowerPrintfRiscvPass().apply(ctx, module_op)
+
+    # xDSL lowerings
+    LowerArithRiscvPass().apply(ctx, module_op)
+    ScfToRiscvPass().apply(ctx, module_op)
+
+    DeadCodeElimination().apply(ctx, module_op)
+
+    # Maybe not at first
+    LowerCfRiscvCfPass().apply(ctx, module_op)
+
+    # xDSL again
     FinalizeRiscvPass().apply(ctx, module_op)
     ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 
