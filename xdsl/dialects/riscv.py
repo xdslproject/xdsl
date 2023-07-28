@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    Block,
     Data,
     Dialect,
     Operation,
@@ -2161,6 +2162,21 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
                 "directive": directive,
             },
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> AssemblySectionOp:
+        directive = parser.parse_str_literal()
+        region = parser.parse_optional_region()
+        if region is None:
+            region = Region(Block())
+        return AssemblySectionOp(directive, region)
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_string_literal(self.directive.data)
+        printer.print_string(" ")
+        if self.data.block.ops:
+            printer.print_region(self.data)
 
     def assembly_line(self) -> str | None:
         return _assembly_line(self.directive.data, "", is_indented=False)

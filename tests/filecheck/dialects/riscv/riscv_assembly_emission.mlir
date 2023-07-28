@@ -162,9 +162,9 @@
 
     "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
     // CHECK-NEXT: .align 2
-    riscv.assembly_section {"directive" = ".text"} ({
+    riscv.assembly_section ".text" {
       %nested_addi = "riscv.addi"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j1>
-    }) : () -> ()
+    }
     // CHECK-NEXT:  .text
     // CHECK-NEXT:  addi j1, j1, 1
     "riscv.label"() {"label" = #riscv.label<"label0">} : () -> ()
