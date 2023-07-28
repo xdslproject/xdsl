@@ -26,6 +26,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
+from xdsl.utils.hints import isa
 
 ################################################################################
 # Data attributes
@@ -443,7 +444,7 @@ class DataListAttr(AttrConstraint):
     elem_constr: AttrConstraint
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
-        attr = cast(ListData[Any], attr)
+        assert isa(attr, ListData[Any])
         for e in attr.data:
             self.elem_constr.verify(e, constraint_vars)
 
