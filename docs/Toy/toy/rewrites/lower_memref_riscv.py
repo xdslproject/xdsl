@@ -46,7 +46,7 @@ def insert_shape_ops(
     assert len(shape) == len(indices)
 
     if len(shape) == 1:
-        rewriter.replace_matched_op(
+        rewriter.insert_op_before_matched_op(
             [
                 ptr := riscv.AddOp(mem, indices[0]),
             ]

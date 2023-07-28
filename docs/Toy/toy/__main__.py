@@ -46,6 +46,7 @@ parser.add_argument(
         "cf",
         "riscv",
         "riscv-regalloc",
+        "riscv-lowered",
         "riscv-assembly",
         "riscemu",
     ],
@@ -114,7 +115,7 @@ def main(
     print_assembly = emit == "riscv-assembly"
 
     if riscemu or print_assembly:
-        emit = "riscv-regalloc"
+        emit = "riscv-lowered"
 
     transform(
         ctx,
@@ -140,8 +141,8 @@ def main(
             emulate_riscv(code)
             return
 
-    if emit == "riscv-regalloc":
-        print("Interpretation of register allocated code currently unsupported")
+    if emit == "riscv-lowered":
+        print("Interpretation of lowered riscv code currently unsupported")
         # The reason is that we lower functions before register allocation, and lose
         # the mechanism of function calls in the interpreter.
         return
@@ -167,7 +168,7 @@ def main(
         interpreter.register_implementations(BuiltinFunctions())
         interpreter.register_implementations(BufferMemrefConversion())
 
-    if emit in ("riscv",):
+    if emit in ("riscv", "riscv-regalloc"):
         interpreter.register_implementations(
             ToyAcceleratorInstructionFunctions(module_op)
         )

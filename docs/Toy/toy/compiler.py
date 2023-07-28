@@ -141,6 +141,9 @@ def transform(
         if isinstance(op, riscv_func.FuncOp):
             register_allocate_function(op)
 
+    if target == "riscv-regalloc":
+        return
+
     LowerScfForToLabelsPass().apply(ctx, module_op)
     LowerRISCVFunc(insert_exit_syscall=True).apply(ctx, module_op)
     # RISCVRegisterAllocation().apply(ctx, module_op)
