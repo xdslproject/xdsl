@@ -626,8 +626,7 @@ class TruncIOp(IRDLOperation):
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
-    @staticmethod
-    def get(op: SSAValue | Operation, target_type: IntegerType):
+    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return TruncIOp.build(operands=[op], result_types=[target_type])
 
 
@@ -638,8 +637,7 @@ class ExtSIOp(IRDLOperation):
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
-    @staticmethod
-    def get(op: SSAValue | Operation, target_type: IntegerType):
+    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return ExtSIOp.build(operands=[op], result_types=[target_type])
 
 
@@ -650,8 +648,7 @@ class ExtUIOp(IRDLOperation):
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
-    @staticmethod
-    def get(op: SSAValue | Operation, target_type: IntegerType):
+    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return ExtSIOp.build(operands=[op], result_types=[target_type])
 
 
