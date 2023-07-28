@@ -1,4 +1,4 @@
-// RUN: xdsl-run %s | filecheck %s
+// RUN: xdsl-run --wgpu %s | filecheck %s
 
 builtin.module attributes {gpu.container_module} {
   "gpu.module"() ({

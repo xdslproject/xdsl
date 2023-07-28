@@ -16,7 +16,7 @@ from xdsl.interpreters import (
     riscv_func,
     scf,
 )
-from xdsl.interpreters.experimental import pdl, wgpu
+from xdsl.interpreters.experimental import pdl
 from xdsl.ir import MLContext
 from xdsl.tools.command_line_tool import CommandLineTool
 
@@ -41,6 +41,15 @@ class xDSLRunMain(CommandLineTool):
 
         self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
 
+    def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
+        arg_parser.add_argument(
+            "--wgpu",
+            default=False,
+            action="store_true",
+            help="Enable the WGPU JIT-compilation interpreter.",
+        )
+        return super().register_all_arguments(arg_parser)
+
     def register_implementations(self, interpreter: Interpreter):
         interpreter.register_implementations(func.FuncFunctions())
         interpreter.register_implementations(cf.CfFunctions())
@@ -48,7 +57,10 @@ class xDSLRunMain(CommandLineTool):
         interpreter.register_implementations(pdl.PDLRewriteFunctions(self.ctx))
         interpreter.register_implementations(affine.AffineFunctions())
         interpreter.register_implementations(memref.MemrefFunctions())
-        interpreter.register_implementations(wgpu.WGPUFunctions())
+        if self.args.wgpu:
+            from xdsl.interpreters.experimental import wgpu
+
+            interpreter.register_implementations(wgpu.WGPUFunctions())
         interpreter.register_implementations(builtin.BuiltinFunctions())
         interpreter.register_implementations(arith.ArithFunctions())
         interpreter.register_implementations(printf.PrintfFunctions())
