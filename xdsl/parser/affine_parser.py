@@ -153,4 +153,4 @@ class AffineParser(BaseParser):
         # Parse list of affine expressions
         exprs = self._parse_multi_affine_expr(dims, syms)
         # Create map and return.
-        return AffineMap(len(dims), len(syms), exprs)
+        return AffineMap(len(dims), len(syms), tuple(exprs))

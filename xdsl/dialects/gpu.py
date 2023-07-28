@@ -51,6 +51,8 @@ from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
     SingleBlockImplicitTerminator,
+    SymbolOpInterface,
+    SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -368,7 +370,12 @@ class ModuleOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
 
     traits = frozenset(
-        [IsolatedFromAbove(), SingleBlockImplicitTerminator(ModuleEndOp)]
+        [
+            IsolatedFromAbove(),
+            SingleBlockImplicitTerminator(ModuleEndOp),
+            SymbolOpInterface(),
+            SymbolTable(),
+        ]
     )
 
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
