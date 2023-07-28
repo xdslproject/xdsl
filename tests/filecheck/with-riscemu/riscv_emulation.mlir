@@ -15,8 +15,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  "riscv.code_section"() ({
-    "riscv.label"() {"label" = #riscv.label<"main">} : () -> ()
+  "riscv.label"() ({
     %0 = "riscv.li"() {"immediate" = 3 : si32} : () -> !riscv.reg<a0>
     %1 = "riscv.li"() {"immediate" = 2 : si32} : () -> !riscv.reg<a1>
     %2 = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<a2>
@@ -26,25 +25,22 @@ builtin.module {
     %4 = "riscv.li"() {"immediate" = 93 : si32} : () -> !riscv.reg<a7>
     "riscv.ecall"() : () -> ()
     "riscv.ret"() : () -> ()
-  }) : () -> ()
-  "riscv.code_section"() ({
-    "riscv.label"() {"label" = #riscv.label<"multiply">} : () -> ()
+  }) {"label" = #riscv.label<"main">} : () -> ()
+  "riscv.label"() ({
     "riscv.comment"() {"comment" = "no extra registers needed, so no need to deal with stack"} : () -> ()
     %5 = "riscv.get_register"() : () -> !riscv.reg<a0>
     %6 = "riscv.get_register"() : () -> !riscv.reg<a1>
     %7 = "riscv.mul"(%5, %6) : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
     "riscv.ret"() : () -> ()
-  }) : () -> ()
-  "riscv.code_section"() ({
-    "riscv.label"() {"label" = #riscv.label<"add">} : () -> ()
+  }) {"label" = #riscv.label<"multiply">} : () -> ()
+  "riscv.label"() ({
     "riscv.comment"() {"comment" = "no extra registers needed, so no need to deal with stack"} : () -> ()
     %8 = "riscv.get_register"() : () -> !riscv.reg<a0>
     %9 = "riscv.get_register"() : () -> !riscv.reg<a1>
     %10 = "riscv.add"(%8, %9) : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
     "riscv.ret"() : () -> ()
-  }) : () -> ()
-  "riscv.code_section"() ({
-    "riscv.label"() {"label" = #riscv.label<"muladd">} : () -> ()
+  }) {"label" = #riscv.label<"add">} : () -> ()
+  "riscv.label"() ({
     "riscv.comment"() {"comment" = "a0 <- a0 * a1 + a2"} : () -> ()
     "riscv.comment"() {"comment" = "prologue"} : () -> ()
     %11 = "riscv.get_register"() : () -> !riscv.reg<a2>
@@ -70,7 +66,7 @@ builtin.module {
     %20 = "riscv.addi"(%12) {"immediate" = 8 : si12} : (!riscv.reg<sp>) -> !riscv.reg<sp>
     "riscv.comment"() {"comment" = "jump back to caller"} : () -> ()
     "riscv.ret"() : () -> ()
-  }) : () -> ()
+  }) {"label" = #riscv.label<"muladd">} : () -> ()
 }
 
 // CHECK: 7

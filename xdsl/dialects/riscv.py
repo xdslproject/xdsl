@@ -42,7 +42,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import region_def
+from xdsl.irdl.irdl import OptRegion, opt_region_def, region_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
@@ -1992,6 +1992,7 @@ class EcallOp(NullaryOperation):
     name = "riscv.ecall"
 
 
+
 @irdl_op_definition
 class LabelOp(IRDLOperation, RISCVOp):
     """
@@ -2000,39 +2001,8 @@ class LabelOp(IRDLOperation, RISCVOp):
 
     https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels
 
-    """
-
-    name = "riscv.label"
-    label: LabelAttr = attr_def(LabelAttr)
-    comment: StringAttr | None = opt_attr_def(StringAttr)
-
-    def __init__(
-        self,
-        label: str | LabelAttr,
-        *,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(label, str):
-            label = LabelAttr(label)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            attributes={
-                "label": label,
-                "comment": comment,
-            }
-        )
-
-    def assembly_line(self) -> str | None:
-        return _append_comment(f"{self.label.data}:", self.comment)
-
-
-@irdl_op_definition
-class CodeSectionOp(IRDLOperation, RISCVOp):
-    """
-    A section of RISC-V instructions. Represents the body of functions or other executable
-    control structures.
+    Optionally, a label can be associated with a single-block region, since
+    that is a common target for jump instructions.
 
     For example, to generate this assembly:
     ```
@@ -2045,36 +2015,43 @@ class CodeSectionOp(IRDLOperation, RISCVOp):
     ``` python
     @Builder.implicit_region
     def my_add():
-        riscv.LabelOp("label1", my_add)
         a1_reg = TestSSAValue(riscv.Registers.A1)
         a2_reg = TestSSAValue(riscv.Registers.A2)
         riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
 
-    section_op = riscv.CodeSectionOp(my_add)
-
-    # Equivalent
-    section_op = riscv.CodeSectionOp()
-    with ImplicitBuilder(section_op.body):
-        riscv.LabelOp("label1", my_add)
-        a1_reg = TestSSAValue(riscv.Registers.A1)
-        a2_reg = TestSSAValue(riscv.Registers.A2)
-        riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
+    label_op = riscv.LabelOp("label1", my_add)
     ```
     """
 
-    name = "riscv.code_section"
-    body: Region = region_def()
+    name = "riscv.label"
+    label: LabelAttr = attr_def(LabelAttr)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
+    data: OptRegion = opt_region_def()
 
-    def __init__(self, region: Region | None = None):
+    def __init__(
+        self,
+        label: str | LabelAttr,
+        region: OptRegion = None,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = LabelAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
         if region is None:
             region = Region()
 
         super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            },
             regions=[region],
         )
 
     def assembly_line(self) -> str | None:
-        return None
+        return _append_comment(f"{self.label.data}:", self.comment)
 
 
 @irdl_op_definition
@@ -3046,7 +3023,6 @@ RISCV = Dialect(
         LiOp,
         EcallOp,
         LabelOp,
-        CodeSectionOp,
         DirectiveOp,
         AssemblySectionOp,
         EbreakOp,
