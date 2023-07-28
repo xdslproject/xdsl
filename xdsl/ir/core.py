@@ -479,7 +479,7 @@ class ParametrizedAttribute(Attribute):
         ...
 
 
-@dataclass
+@dataclass(init=False)
 class IRNode(ABC):
     parent: IRNode | None = field(default=None, init=False, repr=False)
 
@@ -589,18 +589,6 @@ class Operation(IRNode):
     This is a static field, and is made empty by default by PyRDL if not set
     by the operation definition.
     """
-
-    # This __new__ is required by pyright, as this is a dataclass with `init=False`,
-    # but is inheriting from a dataclass with `init=True`.
-    def __new__(
-        cls: type[Self],
-        operands: Sequence[SSAValue] = (),
-        result_types: Sequence[Attribute] = (),
-        attributes: Mapping[str, Attribute] = {},
-        successors: Sequence[Block] = (),
-        regions: Sequence[Region] = (),
-    ) -> Self:
-        return super().__new__(cls)
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():

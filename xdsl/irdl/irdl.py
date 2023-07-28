@@ -1752,7 +1752,10 @@ def irdl_op_arg_definition(
         )
 
 
-def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
+TypeIRDLOperationInvT = TypeVar("TypeIRDLOperationInvT", bound=type[IRDLOperation])
+
+
+def irdl_op_definition(cls: TypeIRDLOperationInvT) -> TypeIRDLOperationInvT:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(
@@ -1775,10 +1778,10 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     irdl_op_arg_definition(new_attrs, VarIRConstruct.SUCCESSOR, op_def)
 
     def optional_attribute_field(attribute_name: str):
-        def field_getter(self: IRDLOperationInvT):
+        def field_getter(self: IRDLOperation):
             return self.attributes.get(attribute_name, None)
 
-        def field_setter(self: IRDLOperationInvT, value: Attribute | None):
+        def field_setter(self: IRDLOperation, value: Attribute | None):
             if value is None:
                 self.attributes.pop(attribute_name, None)
             else:
@@ -1787,10 +1790,10 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
         return property(field_getter, field_setter)
 
     def attribute_field(attribute_name: str):
-        def field_getter(self: IRDLOperationInvT):
+        def field_getter(self: IRDLOperation):
             return self.attributes[attribute_name]
 
-        def field_setter(self: IRDLOperationInvT, value: Attribute):
+        def field_setter(self: IRDLOperation, value: Attribute):
             self.attributes[attribute_name] = value
 
         return property(field_getter, field_setter)
@@ -1813,7 +1816,7 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
 
     custom_verify = getattr(cls, "verify_")
 
-    def verify_(self: IRDLOperationInvT):
+    def verify_(self: IRDLOperation):
         op_def.verify(self)
         custom_verify(self)
 
@@ -1835,7 +1838,7 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
         ) -> IRDLOperationInvT:
             return assembly_program.parse(parser, cls)
 
-        def print_with_format(self: IRDLOperationInvT, printer: Printer):
+        def print_with_format(self: IRDLOperation, printer: Printer):
             return assembly_program.print(printer, self)
 
         new_attrs["parse"] = parse_with_format
@@ -2012,10 +2015,10 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     )  # type: ignore
 
 
-_AttrT = TypeVar("_AttrT", bound=Attribute)
+_AttrT = TypeVar("_AttrT", bound=type[Attribute])
 
 
-def irdl_attr_definition(cls: type[_AttrT]) -> type[_AttrT]:
+def irdl_attr_definition(cls: _AttrT) -> _AttrT:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
