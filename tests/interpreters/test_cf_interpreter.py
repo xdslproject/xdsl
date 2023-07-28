@@ -35,7 +35,7 @@ def sum_to_op():
     with ImplicitBuilder(loop_iter):
         (n,) = prologue.args
         result, i = loop_iter.args
-        cond = arith.Cmpi.get(i, n, "sle")
+        cond = arith.Cmpi(i, n, "sle")
         cf.ConditionalBranch.get(cond, loop_body, (result, i), epilogue, (result,))
 
     with ImplicitBuilder(loop_body):
