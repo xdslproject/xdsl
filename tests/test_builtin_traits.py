@@ -22,6 +22,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    LazyTrait,
     NoTerminator,
     SingleBlockImplicitTerminator,
     ensure_terminator,
@@ -66,7 +67,7 @@ class HasMultipleParentOp(IRDLOperation):
 
     name = "test.has_multiple_parent"
 
-    traits = frozenset([HasParent((ParentOp, Parent2Op))])
+    traits = frozenset([HasParent(ParentOp, Parent2Op)])
 
 
 def test_has_parent_no_parent():
@@ -272,10 +273,12 @@ class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     name = "test.is_single_block_implicit_terminator"
 
-    # TODO fix circular reference
-    # traits = frozenset([HasParent(HasSingleBlockImplicitTerminatorOp), IsTerminator()])
-    # this is tracked by gh issue: https://github.com/xdslproject/xdsl/issues/1218
-    traits = frozenset([IsTerminator()])
+    traits = frozenset(
+        [
+            LazyTrait(lambda: HasParent(HasSingleBlockImplicitTerminatorOp)),
+            IsTerminator(),
+        ]
+    )
 
 
 @irdl_op_definition

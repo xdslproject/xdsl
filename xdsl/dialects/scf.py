@@ -17,7 +17,12 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    LazyTrait,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
@@ -78,10 +83,12 @@ class Yield(IRDLOperation):
     name = "scf.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = frozenset(
+        [
+            LazyTrait(lambda: HasParent(For, If, ParallelOp, While)),
+            IsTerminator(),
+        ]
+    )
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
