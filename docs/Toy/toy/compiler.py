@@ -168,7 +168,7 @@ def compile(
     transform(
         ctx,
         op,
-        target="riscv-regalloc",
+        target="riscv-assembly",
         accelerate=accelerate,
         skip_mlir_opt=skip_mlir_opt,
     )
