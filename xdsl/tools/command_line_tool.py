@@ -45,6 +45,8 @@ from xdsl.transforms import (
     printf_to_llvm,
     reconcile_unrealized_casts,
     riscv_register_allocation,
+    riscv_scf_to_asm,
+    scf_to_riscv_scf,
 )
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
@@ -102,11 +104,14 @@ def get_all_passes() -> list[type[ModulePass]]:
         lower_snitch_runtime.LowerSnitchRuntimePass,
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
+        reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
         riscv_register_allocation.RISCVRegisterAllocation,
         RISCVLowerArith,
+        scf_to_riscv_scf.ScfToRiscvPass,
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
+        riscv_scf_to_asm.LowerScfForToLabelsPass,
     ]
 
 

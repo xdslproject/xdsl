@@ -182,10 +182,10 @@
     // CHECK-NEXT: riscv.ebreak : () -> ()
     riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
     // CHECK-NEXT: riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
-    riscv.assembly_section ({
+    riscv.assembly_section {"directive" = ".text"} ({
       %nested_li = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
-    }) {"directive" = ".text"} : () -> ()
-    // CHECK-NEXT:  riscv.assembly_section ({
+    }) : () -> ()
+    // CHECK-NEXT:  riscv.assembly_section {"directive" = ".text"}  ({
     // CHECK-NEXT:    %{{.*}} = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
     // CHECK-NEXT:  }) : () -> ()
 

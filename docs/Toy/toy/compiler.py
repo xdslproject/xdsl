@@ -18,7 +18,9 @@ from xdsl.ir import MLContext
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
-from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
+from xdsl.transforms.riscv_scf_to_asm import LowerScfForToLabelsPass
+from xdsl.transforms.rvscf_regalloc import register_allocate_function
+from xdsl.transforms.scf_to_riscv_scf import ScfToRiscvPass
 
 from .dialects import toy
 from .emulator.toy_accelerator_instructions import ToyAccelerator
@@ -115,22 +117,9 @@ def transform(
     if target == "scf":
         return
 
-    if not skip_mlir_opt:
-        MLIROptPass(
-            [
-                "--allow-unregistered-dialect",
-                "--canonicalize",
-                "--cse",
-                "--convert-scf-to-cf",
-                "--mlir-print-op-generic",
-            ]
-        ).apply(ctx, module_op)
-
-    if target == "cf":
-        return
-
     SetupRiscvPass().apply(ctx, module_op)
     LowerFuncToRiscvFunc().apply(ctx, module_op)
+    ScfToRiscvPass().apply(ctx, module_op)
     LowerCfRiscvCfPass().apply(ctx, module_op)
     LowerToyAccelerator().apply(ctx, module_op)
     LowerScfRiscvPass().apply(ctx, module_op)
@@ -148,8 +137,13 @@ def transform(
     if target == "riscv":
         return
 
+    for op in module_op.walk():
+        if isinstance(op, riscv_func.FuncOp):
+            register_allocate_function(op)
+
+    LowerScfForToLabelsPass().apply(ctx, module_op)
     LowerRISCVFunc(insert_exit_syscall=True).apply(ctx, module_op)
-    RISCVRegisterAllocation().apply(ctx, module_op)
+    # RISCVRegisterAllocation().apply(ctx, module_op)
 
     module_op.verify()
 

@@ -15,6 +15,7 @@ from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv import Buffer
 from xdsl.interpreters.riscv_cf import RiscvCfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
+from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.interpreters.scf import ScfFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
@@ -171,6 +172,7 @@ def main(
             ToyAcceleratorInstructionFunctions(module_op)
         )
         interpreter.register_implementations(RiscvCfFunctions())
+        interpreter.register_implementations(RiscvScfFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
         interpreter.register_implementations(BuiltinFunctions())
 

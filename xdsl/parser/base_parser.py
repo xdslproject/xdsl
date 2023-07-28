@@ -83,6 +83,9 @@ class BaseParser:
         elif isinstance(at_position, Position):
             at_position = Span(at_position, at_position, self.lexer.input)
 
+        # lines = self.lexer.input.get_lines_containing(at_position)
+        # msg += f"\nlines: {lines}"
+
         raise ParseError(at_position, msg)
 
     def _resume_from(self, pos: Position | ParserState):
