@@ -30,7 +30,6 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsTerminator,
-    LazyTrait,
     NoTerminator,
     SymbolOpInterface,
     SymbolTable,
