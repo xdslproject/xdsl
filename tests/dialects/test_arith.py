@@ -256,6 +256,9 @@ def test_extend_truncate_iops():
     exts_op = ExtSIOp.get(a, i64)
     extu_op = ExtUIOp.get(a, i64)
     trunc_op = TruncIOp.get(b, i32)
+    exts_op.verify()
+    extu_op.verify()
+    trunc_op.verify()
 
     assert exts_op.input == a.result
     assert exts_op.result.type == i64
