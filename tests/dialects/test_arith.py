@@ -118,7 +118,7 @@ class Test_float_arith_construction:
 
 def test_index_cast_op():
     a = Constant.from_int_and_width(0, 32)
-    cast = IndexCastOp.get(a, IndexType())
+    cast = IndexCastOp(a, IndexType())
 
     assert cast.result.type == IndexType()
     assert cast.input.type == i32
@@ -127,8 +127,8 @@ def test_index_cast_op():
 
 def test_cast_fp_and_si_ops():
     a = Constant.from_int_and_width(0, 32)
-    fp = SIToFPOp.get(a, f32)
-    si = FPToSIOp.get(fp, i32)
+    fp = SIToFPOp(a, f32)
+    si = FPToSIOp(fp, i32)
 
     assert fp.input == a.result
     assert fp.result == si.input
@@ -150,8 +150,8 @@ def test_negf_op():
 def test_extend_truncate_fpops():
     a = Constant.from_float_and_width(1.0, f32)
     b = Constant.from_float_and_width(2.0, f64)
-    ext_op = ExtFOp.get(a, f64)
-    trunc_op = TruncFOp.get(b, f32)
+    ext_op = ExtFOp(a, f64)
+    trunc_op = TruncFOp(b, f32)
 
     assert ext_op.input == a.result
     assert ext_op.result.type == f64

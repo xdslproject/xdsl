@@ -566,9 +566,8 @@ class IndexCastOp(IRDLOperation):
 
     result: OpResult = result_def()
 
-    @staticmethod
-    def get(input_arg: SSAValue | Operation, target_type: Attribute):
-        return IndexCastOp.build(operands=[input_arg], result_types=[target_type])
+    def __init__(self, input_arg: SSAValue | Operation, target_type: Attribute):
+        return super().__init__(operands=[input_arg], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -578,9 +577,8 @@ class FPToSIOp(IRDLOperation):
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(IntegerType)
 
-    @staticmethod
-    def get(op: SSAValue | Operation, target_type: IntegerType):
-        return FPToSIOp.build(operands=[op], result_types=[target_type])
+    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
+        return super().__init__(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -590,9 +588,8 @@ class SIToFPOp(IRDLOperation):
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(op: SSAValue | Operation, target_type: AnyFloat):
-        return SIToFPOp.build(operands=[op], result_types=[target_type])
+    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
+        return super().__init__(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -602,9 +599,8 @@ class ExtFOp(IRDLOperation):
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(op: SSAValue | Operation, target_type: AnyFloat):
-        return ExtFOp.build(operands=[op], result_types=[target_type])
+    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
+        return super().__init__(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -614,9 +610,8 @@ class TruncFOp(IRDLOperation):
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(op: SSAValue | Operation, target_type: AnyFloat):
-        return TruncFOp.build(operands=[op], result_types=[target_type])
+    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
+        return super().__init__(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
