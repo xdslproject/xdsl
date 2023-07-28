@@ -174,13 +174,13 @@
     %li = riscv.li {"immediate" = 1 : i32}: () -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
     // Environment Call and Breakpoints
-    riscv.ecall() : () -> ()
-    // CHECK-NEXT: riscv.ecall() : () -> ()
-    riscv.ebreak() : () -> ()
-    // CHECK-NEXT: riscv.ebreak() : () -> ()
-    riscv.directive() {"directive" = ".align", "value" = "2"} : () -> ()
-    // CHECK-NEXT: riscv.directive() {"directive" = ".align", "value" = "2"} : () -> ()
-    riscv.assembly_section() ({
+    riscv.ecall : () -> ()
+    // CHECK-NEXT: riscv.ecall : () -> ()
+    riscv.ebreak : () -> ()
+    // CHECK-NEXT: riscv.ebreak : () -> ()
+    riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
+    // CHECK-NEXT: riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
+    riscv.assembly_section ({
       %nested_li = riscv.li() {"immediate" = 1 : i32} : () -> !riscv.reg<>
     }) {"directive" = ".text"} : () -> ()
     // CHECK-NEXT:  riscv.assembly_section() ({

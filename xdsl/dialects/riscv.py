@@ -28,7 +28,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    OptOperand,
     OptSingleBlockRegion,
     VarOperand,
     VarOpResult,
@@ -37,7 +36,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
-    opt_operand_def,
     result_def,
     var_operand_def,
     var_result_def,
@@ -1990,7 +1988,6 @@ class EcallOp(NullaryOperation):
     """
 
     name = "riscv.ecall"
-
 
 
 @irdl_op_definition
