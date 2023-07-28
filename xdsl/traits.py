@@ -3,7 +3,6 @@ from __future__ import annotations
 import abc
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from inspect import isclass
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from xdsl.utils.exceptions import VerifyException
@@ -34,6 +33,21 @@ class OpTrait:
 OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 
 
+class LazyTrait(OpTrait):
+    parameters: tuple[Callable[[], OpTrait | tuple[OpTrait, ...]], ...]
+
+    def __init__(self, *parameters: Callable[[], OpTrait | tuple[OpTrait, ...]]):
+        super().__init__(parameters)
+
+    def verify(self, op: Operation) -> None:
+        for func in self.parameters:
+            traits = func()
+            if not isinstance(traits, tuple):
+                traits = (traits,)
+            for trait in traits:
+                trait.verify(op)
+
+
 class Pure(OpTrait):
     """A trait that signals that an operation has no side effects."""
 
@@ -43,39 +57,21 @@ class HasParent(OpTrait):
     """Constraint the operation to have a specific parent operation."""
 
     parameters: tuple[type[Operation], ...]
-    _unresolved: bool = field(default=True)
 
-    def __init__(
-        self,
-        parameters: type[Operation]
-        | Callable[[], type[Operation]]
-        | tuple[type[Operation] | Callable[[], type[Operation]], ...],
-    ):
-        if not isinstance(parameters, tuple):
-            parameters = (parameters,)
+    def __init__(self, *parameters: type[Operation]):
         if len(parameters) == 0:
             raise ValueError("parameters must not be empty")
         super().__init__(parameters)
 
     def verify(self, op: Operation) -> None:
-        if self._unresolved:
-            object.__setattr__(
-                self,
-                "parameters",
-                tuple(
-                    parameter if isclass(parameter) else parameter()
-                    for parameter in self.parameters
-                ),
-            )
-            object.__setattr__(self, "_unresolved", True)
         parent = op.parent_op()
-        if isinstance(parent, tuple(self.parameters)):
+        if isinstance(parent, self.parameters):
             return
         if len(self.parameters) == 1:
             raise VerifyException(
                 f"'{op.name}' expects parent op '{self.parameters[0].name}'"
             )
-        names = ", ".join([f"'{p.name}'" for p in self.parameters])
+        names = ", ".join(f"'{p.name}'" for p in self.parameters)
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
 
 

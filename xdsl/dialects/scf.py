@@ -17,7 +17,12 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    LazyTrait,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
@@ -80,7 +85,7 @@ class Yield(IRDLOperation):
 
     traits = frozenset(
         [
-            HasParent((lambda: For, lambda: If, lambda: ParallelOp, lambda: While)),
+            LazyTrait(lambda: HasParent(For, If, ParallelOp, While)),
             IsTerminator(),
         ]
     )

@@ -22,6 +22,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    LazyTrait,
     NoTerminator,
     SingleBlockImplicitTerminator,
     ensure_terminator,
@@ -66,7 +67,7 @@ class HasMultipleParentOp(IRDLOperation):
 
     name = "test.has_multiple_parent"
 
-    traits = frozenset([HasParent((ParentOp, Parent2Op))])
+    traits = frozenset([HasParent(ParentOp, Parent2Op)])
 
 
 def test_has_parent_no_parent():
@@ -273,7 +274,10 @@ class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
     name = "test.is_single_block_implicit_terminator"
 
     traits = frozenset(
-        [HasParent(lambda: HasSingleBlockImplicitTerminatorOp), IsTerminator()]
+        [
+            LazyTrait(lambda: HasParent(HasSingleBlockImplicitTerminatorOp)),
+            IsTerminator(),
+        ]
     )
 
 

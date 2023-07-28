@@ -50,6 +50,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    LazyTrait,
     SingleBlockImplicitTerminator,
     SymbolOpInterface,
     SymbolTable,
@@ -353,7 +354,7 @@ class MemcpyOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    traits = frozenset([HasParent(lambda: ModuleOp), IsTerminator()])
+    traits = frozenset([LazyTrait(lambda: HasParent(ModuleOp)), IsTerminator()])
 
     def __init__(self):
         return super().__init__()
