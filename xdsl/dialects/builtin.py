@@ -124,19 +124,19 @@ class ArrayOfConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT]):
+class ArrayAttr(GenericData[tuple[AttributeCovT2, ...]], Iterable[AttributeCovT2]):
     name = "array"
 
-    def __init__(self, param: Iterable[AttributeCovT]) -> None:
+    def __init__(self, param: Iterable[AttributeCovT2]) -> None:
         super().__init__(tuple(param))
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT]:
+    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT2]:
         data = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_attribute
         )
         # the type system can't ensure that the elements are of type _ArrayAttrT
-        result = cast(tuple[AttributeCovT], tuple(data))
+        result = cast(tuple[AttributeCovT2], tuple(data))
         return result
 
     def print_parameter(self, printer: Printer) -> None:
