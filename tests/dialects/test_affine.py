@@ -8,8 +8,8 @@ from xdsl.ir.affine.affine_expr import AffineExpr
 
 def test_simple_for():
     f = For.from_region([], [], 0, 5, Region())
-    assert f.lower_bound.data.results == [AffineExpr.constant(0)]
-    assert f.upper_bound.data.results == [AffineExpr.constant(5)]
+    assert f.lower_bound.data.results == (AffineExpr.constant(0),)
+    assert f.upper_bound.data.results == (AffineExpr.constant(5),)
 
 
 def test_for_mismatch_operands_results_counts():

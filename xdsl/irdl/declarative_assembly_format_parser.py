@@ -14,6 +14,7 @@ from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
     FormatDirective,
     FormatProgram,
+    PunctuationDirective,
 )
 from xdsl.parser import BaseParser, ParserState
 from xdsl.utils.lexer import Input, Lexer, Token
@@ -126,6 +127,22 @@ class FormatParser(BaseParser):
         if not self.has_attr_dict:
             self.raise_error("'attr-dict' directive not found")
 
+    def parse_keyword_or_punctuation(self) -> FormatDirective:
+        """
+        Parse a keyword or a punctuation directive, with the following format:
+          keyword-or-punctuation-directive ::= `\\`` (bare-ident | punctuation) `\\``
+        """
+        self.parse_characters("`")
+
+        # Punctuation case
+        if self._current_token.kind.is_punctuation():
+            punctuation = self._consume_token().text
+            self.parse_characters("`")
+            assert Token.Kind.is_spelling_of_punctuation(punctuation)
+            return PunctuationDirective(punctuation)
+
+        self.raise_error("punctuation or identifier expected")
+
     def parse_directive(self) -> FormatDirective:
         """
         Parse a format directive, with the following format:
@@ -139,6 +156,8 @@ class FormatParser(BaseParser):
             return self.create_attr_dict_directive(False)
         if self.parse_optional_keyword("attr-dict-with-keyword"):
             return self.create_attr_dict_directive(True)
+        if self._current_token.text == "`":
+            return self.parse_keyword_or_punctuation()
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
     def create_attr_dict_directive(self, with_keyword: bool) -> AttrDictDirective:

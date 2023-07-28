@@ -52,6 +52,7 @@ from xdsl.traits import (
     IsTerminator,
     SingleBlockImplicitTerminator,
     SymbolOpInterface,
+    SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -373,6 +374,7 @@ class ModuleOp(IRDLOperation):
             IsolatedFromAbove(),
             SingleBlockImplicitTerminator(ModuleEndOp),
             SymbolOpInterface(),
+            SymbolTable(),
         ]
     )
 
