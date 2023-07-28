@@ -1,13 +1,13 @@
 // RUN: xdsl-opt --split-input-file -t riscemu %s | filecheck %s
 
 builtin.module {
-  %0 = "riscv.li"() {"immediate" = 6 : si32} : () -> !riscv.reg<j0>
-  %1 = "riscv.li"() {"immediate" = 7 : si32} : () -> !riscv.reg<j1>
-  %2 = "riscv.mul"(%0, %1) : (!riscv.reg<j0>, !riscv.reg<j1>) -> !riscv.reg<j2>
-  "riscv.custom_assembly_instruction"(%2) {"instruction_name" = "print"} : (!riscv.reg<j2>) -> ()
-  %3 = "riscv.li"() {"immediate" = 93 : si32} : () -> !riscv.reg<a7>
-  "riscv.ecall"() : () -> ()
-  "riscv.ret"() : () -> ()
+  %0 = riscv.li {"immediate" = 6 : si32} : () -> !riscv.reg<j0>
+  %1 = riscv.li {"immediate" = 7 : si32} : () -> !riscv.reg<j1>
+  %2 = riscv.mul %0, %1 : (!riscv.reg<j0>, !riscv.reg<j1>) -> !riscv.reg<j2>
+  riscv.custom_assembly_instruction %2 {"instruction_name" = "print"} : (!riscv.reg<j2>) -> ()
+  %3 = riscv.li {"immediate" = 93 : si32} : () -> !riscv.reg<a7>
+  riscv.ecall : () -> ()
+  riscv.ret : () -> ()
 }
 
 // CHECK: 42
@@ -15,36 +15,32 @@ builtin.module {
 // -----
 
 builtin.module {
-  "riscv.code_section"() ({
-    "riscv.label"() {"label" = #riscv.label<"main">} : () -> ()
+  "riscv_func.func"() ({
     %0 = "riscv.li"() {"immediate" = 3 : si32} : () -> !riscv.reg<a0>
     %1 = "riscv.li"() {"immediate" = 2 : si32} : () -> !riscv.reg<a1>
     %2 = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<a2>
-    "riscv.jal"() {"immediate" = #riscv.label<"muladd">} : () -> ()
+    "riscv_func.call"(%2) {"callee" = "muladd"} : (!riscv.reg<a2>) -> ()
     %3 = "riscv.get_register"() : () -> !riscv.reg<a0>
     "riscv.custom_assembly_instruction"(%3) {"instruction_name" = "print"} : (!riscv.reg<a0>) -> ()
     %4 = "riscv.li"() {"immediate" = 93 : si32} : () -> !riscv.reg<a7>
     "riscv.ecall"() : () -> ()
-    "riscv.ret"() : () -> ()
-  }) : () -> ()
-  "riscv.code_section"() ({
-    "riscv.label"() {"label" = #riscv.label<"multiply">} : () -> ()
+    "riscv_func.return"() : () -> ()
+  }) {"sym_name" = "main"} : () -> ()
+  "riscv_func.func"() ({
     "riscv.comment"() {"comment" = "no extra registers needed, so no need to deal with stack"} : () -> ()
     %5 = "riscv.get_register"() : () -> !riscv.reg<a0>
     %6 = "riscv.get_register"() : () -> !riscv.reg<a1>
     %7 = "riscv.mul"(%5, %6) : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
-    "riscv.ret"() : () -> ()
-  }) : () -> ()
-  "riscv.code_section"() ({
-    "riscv.label"() {"label" = #riscv.label<"add">} : () -> ()
+    "riscv_func.return"() : () -> ()
+  }) {"sym_name" = "multiply"} : () -> ()
+  "riscv_func.func"() ({
     "riscv.comment"() {"comment" = "no extra registers needed, so no need to deal with stack"} : () -> ()
     %8 = "riscv.get_register"() : () -> !riscv.reg<a0>
     %9 = "riscv.get_register"() : () -> !riscv.reg<a1>
     %10 = "riscv.add"(%8, %9) : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
-    "riscv.ret"() : () -> ()
-  }) : () -> ()
-  "riscv.code_section"() ({
-    "riscv.label"() {"label" = #riscv.label<"muladd">} : () -> ()
+    "riscv_func.return"() : () -> ()
+  }) {"sym_name" = "add"} : () -> ()
+  "riscv_func.func"() ({
     "riscv.comment"() {"comment" = "a0 <- a0 * a1 + a2"} : () -> ()
     "riscv.comment"() {"comment" = "prologue"} : () -> ()
     %11 = "riscv.get_register"() : () -> !riscv.reg<a2>
@@ -69,8 +65,8 @@ builtin.module {
     "riscv.comment"() {"comment" = "set the sp back to what it was at the start of the function call"} : () -> ()
     %20 = "riscv.addi"(%12) {"immediate" = 8 : si12} : (!riscv.reg<sp>) -> !riscv.reg<sp>
     "riscv.comment"() {"comment" = "jump back to caller"} : () -> ()
-    "riscv.ret"() : () -> ()
-  }) : () -> ()
+    "riscv_func.return"() : () -> ()
+  }) {"sym_name" = "muladd"} : () -> ()
 }
 
 // CHECK: 7
