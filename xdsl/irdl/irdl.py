@@ -530,6 +530,9 @@ class IRDLOperation(Operation):
     def __hash__(self) -> int:
         return id(self)
 
+    def irdl_verify(self):
+        ...
+
 
 @dataclass
 class IRDLOption(ABC):
@@ -1811,10 +1814,14 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
 
     new_attrs["irdl_definition"] = irdl_definition
 
+    def irdl_verify(self: IRDLOperationInvT):
+        op_def.verify(self)
+
+    new_attrs["irdl_verify"] = irdl_verify
+
     custom_verify = getattr(cls, "verify_")
 
     def verify_(self: IRDLOperationInvT):
-        op_def.verify(self)
         custom_verify(self)
 
     new_attrs["verify_"] = verify_

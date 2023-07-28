@@ -831,6 +831,15 @@ class Operation(IRNode):
             for region in self.regions:
                 region.verify()
 
+        # IRDL verify
+        if irdl_verify := getattr(self, "irdl_verify", None):
+            try:
+                irdl_verify()
+            except VerifyException as err:
+                self.emit_error(
+                    "Operation does not verify: " + str(err), underlying_error=err
+                )
+
         # Custom verifier
         try:
             self.verify_()
