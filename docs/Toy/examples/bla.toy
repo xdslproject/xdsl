@@ -8,6 +8,8 @@ def main() {
   print(b);
 }
 
+# generated scf for loop:
+# SCF:    "scf.for"(%8, %9, %10) ({
 # SCF:    ^0(%arg0 : index):
 # SCF:      %11 = "memref.load"(%4, %arg0) {"nontemporal" = false} : (memref<3xf64>, index) -> f64
 # SCF:      %12 = arith.addf %11, %11 : f64
@@ -15,7 +17,7 @@ def main() {
 # SCF:      "scf.yield"() : () -> ()
 # SCF:    }) : (index, index, index) -> ()
 
-
+# register allocated for loop (in riscv-scf dialect)
 # RV_IR: "riscv_scf.for"(%20, %22, %24) ({
 # RV_IR: ^0(%arg0 : !riscv.reg<t0>):
 # RV_IR:   %25 = riscv.add %9, %arg0 : (!riscv.reg<a4>, !riscv.reg<t0>) -> !riscv.reg<t3>
@@ -26,7 +28,7 @@ def main() {
 # RV_IR:   "riscv_scf.yield"() : () -> ()
 # RV_IR: }) : (!riscv.reg<t0>, !riscv.reg<t1>, !riscv.reg<t2>) -> ()
 
-
+# generated assembly code for the loop:
 # RV_ASM: scf_leader_0:
 # RV_ASM:     bge t0, t1, scf_body_end_0
 # RV_ASM: scf_body_0:
