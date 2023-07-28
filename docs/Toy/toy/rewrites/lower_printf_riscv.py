@@ -19,16 +19,16 @@ class LowerPrintOp(RewritePattern):
         memref_typ = param.type
         assert isa(memref_typ, memref.MemRefType[Attribute])
         shape = memref_typ.get_shape()
-        assert len(shape) == 2
+        # assert len(shape) == 2
         rewriter.replace_matched_op(
             [
                 rows := riscv.LiOp(shape[0]),
-                cols := riscv.LiOp(shape[1]),
+                # cols := riscv.LiOp(shape[1]),
                 input := UnrealizedConversionCastOp.get(
                     (param,), (riscv.IntRegisterType.unallocated(),)
                 ),
                 riscv.CustomAssemblyInstructionOp(
-                    "tensor.print2d", (input.results[0], rows.rd, cols.rd), ()
+                    "tensor.print1d", (input.results[0], rows.rd), ()
                 ),
             ]
         )

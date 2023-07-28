@@ -45,6 +45,7 @@ parser.add_argument(
         "cf",
         "riscv",
         "riscv-regalloc",
+        "riscv-asm",
         "riscv-assembly",
         "riscemu",
     ],
