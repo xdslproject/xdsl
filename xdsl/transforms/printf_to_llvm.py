@@ -117,12 +117,12 @@ class PrintlnOpToPrintfCall(RewritePattern):
                 format_str += part
             elif isinstance(part.type, builtin.IndexType):
                 # index must be cast to fixed bitwidth before printing
-                casts.append(new_val := arith.IndexCastOp.get(part, builtin.i64))
+                casts.append(new_val := arith.IndexCastOp(part, builtin.i64))
                 args.append(new_val.result)
                 format_str += "%li"
             elif part.type == builtin.f32:
                 # f32 must be promoted to f64 before printing
-                casts.append(new_val := arith.ExtFOp.get(part, builtin.f64))
+                casts.append(new_val := arith.ExtFOp(part, builtin.f64))
                 args.append(new_val.result)
                 format_str += "%f"
             else:
