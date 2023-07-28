@@ -34,6 +34,8 @@ OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 
 
 class LazyTrait(OpTrait):
+    """A trait that postpone evaluation of other traits. Can be used to workaround circular dependency."""
+
     parameters: tuple[Callable[[], OpTrait | tuple[OpTrait, ...]], ...]
 
     def __init__(self, *parameters: Callable[[], OpTrait | tuple[OpTrait, ...]]):
