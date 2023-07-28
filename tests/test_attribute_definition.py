@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from io import StringIO
-from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
+from typing import Annotated, Any, Generic, TypeAlias, TypeVar
 
 import pytest
 
