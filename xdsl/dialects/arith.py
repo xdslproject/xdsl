@@ -627,7 +627,7 @@ class TruncIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        return TruncIOp.build(operands=[op], result_types=[target_type])
+        return super().__init__(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -638,7 +638,7 @@ class ExtSIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        return ExtSIOp.build(operands=[op], result_types=[target_type])
+        return super().__init__(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -649,7 +649,7 @@ class ExtUIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        return ExtSIOp.build(operands=[op], result_types=[target_type])
+        return super().__init__(operands=[op], result_types=[target_type])
 
 
 Arith = Dialect(

@@ -253,9 +253,9 @@ def test_cmpi_index_type():
 def test_extend_truncate_iops():
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i64)
-    exts_op = ExtSIOp.get(a, i64)
-    extu_op = ExtUIOp.get(a, i64)
-    trunc_op = TruncIOp.get(b, i32)
+    exts_op = ExtSIOp(a, i64)
+    extu_op = ExtUIOp(a, i64)
+    trunc_op = TruncIOp(b, i32)
     exts_op.verify()
     extu_op.verify()
     trunc_op.verify()
