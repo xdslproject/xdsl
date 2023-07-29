@@ -15,7 +15,7 @@ from typing import (
     get_origin,
 )
 
-from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
