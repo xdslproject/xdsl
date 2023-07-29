@@ -7,6 +7,7 @@ from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
+from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.scf import ScfFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
@@ -30,9 +31,10 @@ parser.add_argument(
         "toy-infer-shapes",
         "affine",
         "scf",
+        "riscv",
     ],
-    default="toy-infer-shapes",
-    help="Action to perform on source file (default: toy-infer-shapes)",
+    default="riscv",
+    help="Action to perform on source file (default: riscv)",
 )
 parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
@@ -84,6 +86,20 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
     if emit == "scf":
         interpreter.register_implementations(ScfFunctions())
         interpreter.register_implementations(BuiltinFunctions())
+
+    if accelerate and emit in ("riscv",):
+        # TODO: remove when we add lowering from Toy accelerator to custom riscv
+        interpreter.register_implementations(ToyAcceleratorFunctions())
+    if emit in ("riscv",):
+        interpreter.register_implementations(RiscvFuncFunctions())
+        interpreter.register_implementations(BuiltinFunctions())
+        # TODO: remove as we add lowerings to riscv
+        interpreter.register_implementations(ScfFunctions())
+        interpreter.register_implementations(ArithFunctions())
+        interpreter.register_implementations(MemrefFunctions())
+        interpreter.register_implementations(PrintfFunctions())
+        interpreter.register_implementations(FuncFunctions())
+
     interpreter.call_op("main", ())
 
 
