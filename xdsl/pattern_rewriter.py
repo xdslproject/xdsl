@@ -15,7 +15,7 @@ from typing import (
     get_origin,
 )
 
-from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
@@ -468,7 +468,7 @@ class TypeConversionPattern(RewritePattern):
             parameters = tuple(self.convert_type_rec(p) or p for p in typ.parameters)
             inp = type(typ).new(parameters)
         if isa(typ, ArrayAttr[Attribute]):
-            parameters = tuple(self.convert_type_rec(p) for p in typ)
+            parameters = tuple(self.convert_type_rec(p) or p for p in typ)
             inp = type(typ).new(parameters)
         return self.convert_type(inp) or inp
 
