@@ -7,7 +7,7 @@ from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     op_type_rewrite_pattern,
 )
-from xdsl.ir import MLContext, Operation, OpResult
+from xdsl.ir import MLContext, Operation, OpResult, Attribute
 from xdsl.dialects.builtin import (
     i32,
     f64,
@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
     IntegerType,
+    FunctionType,
 )
 from xdsl.dialects.func import FuncOp, Call
 from xdsl.dialects import arith, builtin, scf, stencil, func
@@ -56,6 +57,8 @@ from xdsl.dialects.llvm import (
     StoreOp,
     AllocaOp,
     ExtractValueOp,
+    InsertValueOp,
+    UndefOp,
 )
 
 from xdsl.ir.core import BlockArgument, Block, Region
@@ -167,7 +170,8 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         two_int = Constant.from_int_and_width(2, i32)
         shift_shape_x = arith.Subi(shape_x, two_int)
-        data_stream = HLSStream.get(data_type)
+        # TODO: generalise this
+        data_stream = HLSStream.get(f64)
         stencil_stream = HLSStream.get(stencil_type)
         copy_stencil_stream = HLSStream.get(stencil_type)
 
@@ -256,7 +260,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             )
             self.shift_streams.append(copy_stencil_stream)
         elif inout is OUT:
-            out_data_stream = HLSStream.get(data_type)
+            out_data_stream = HLSStream.get(f64)
             out_data_stream.attributes["inout"] = op.attributes["inout"]
             out_data_stream.attributes["data"] = op.attributes["inout"]
             rewriter.insert_op_before_matched_op(
@@ -689,6 +693,12 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
         self.n_args += 1
 
         if self.n_args == 3:
+            # packed_type = LLVMPointerType.typed(LLVMArrayType.from_size_and_type(8, f64))
+            packed_type = LLVMPointerType.typed(
+                LLVMStructType.from_type_list(
+                    [LLVMArrayType.from_size_and_type(8, f64)]
+                )
+            )
             out_data_type = self.out_data_streams[0].elem_type
             p_out_data_type = LLVMPointerType.typed(out_data_type)
             out_data_stream_type = LLVMPointerType.typed(
@@ -700,9 +710,9 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
                     out_data_stream_type,
                     out_data_stream_type,
                     out_data_stream_type,
-                    p_out_data_type,
-                    p_out_data_type,
-                    p_out_data_type,
+                    packed_type,
+                    packed_type,
+                    packed_type,
                     i32,
                     i32,
                     i32,
@@ -971,6 +981,105 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
 
 
 @dataclass
+class PackData(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
+        field = op.field
+
+        # Find the llvm.ptr to external memory that genrates the argument to the stencil.external_load. For PSyclone, this is
+        # an argument to the parent function. TODO: this might need to be tested and generalised for other codes. Also, we are
+        # considering that the function argument will be the second to insertvalue, but we're walking up trhough the second to
+        # avoid bumping into arith.constants (see the mlir ssa).
+        new_op = field
+        func_arg = None
+
+        while not isa(func_arg, BlockArgument):
+            assert isinstance(new_op.owner, Operation)
+            func_arg = new_op.owner.operands[-1]
+            new_op = new_op.owner.operands[0]
+
+        shape = field.typ.get_shape()
+        ndims = len(shape)
+
+        arg_idx = func_arg.index
+        parent_func = op.parent_op()
+
+        if op.attributes["inout"].data == OUT or (
+            op.attributes["inout"].data == IN and ndims == 3
+        ):
+            # TODO: this should be generalised by packaging the original type instead of f64. We would need intrinsics to deal with the different types
+            packed_type = LLVMPointerType.typed(
+                LLVMStructType.from_type_list(
+                    [LLVMArrayType.from_size_and_type(8, f64)]
+                )
+            )
+            parent_func.body.block.args[arg_idx].typ = packed_type
+
+            old_inputs = list(parent_func.function_type.inputs.data)
+            old_outputs = list(parent_func.function_type.outputs.data)
+            new_inputs = (
+                old_inputs[:arg_idx] + [packed_type] + old_inputs[arg_idx + 1 :]
+            )
+            new_function_type = FunctionType.from_lists(new_inputs, old_outputs)
+            parent_func.function_type = new_function_type
+
+            for use in func_arg.uses:
+                if isinstance(use.operation, InsertValueOp):
+                    insertvalue = use.operation
+
+                    container_op = insertvalue.container.op
+                    if isinstance(container_op, UndefOp):
+                        # We mark the UndefOp to update its type in the next pass and also update the type returned by the insertvalue
+                        # operation that uses it
+
+                        container_op.attributes["replace"] = IntAttr(0)
+
+                        # Update the return types of the chain of insertvalues used to generatate the field structure
+                        field_struct = insertvalue.res.typ
+
+                        old_type = list(field_struct.types.data)
+                        new_type = old_type
+                        new_type[0] = packed_type
+                        new_type[1] = packed_type
+                        struct_new_type = LLVMStructType.from_type_list(new_type)
+
+                        current_insertvalue = insertvalue
+                        current_insertvalue.res.typ = struct_new_type
+                        update_types_insertvalue(current_insertvalue, struct_new_type)
+
+
+def update_types_insertvalue(op: InsertValueOp, new_type):
+    for use in op.res.uses:
+        if isinstance(use.operation, InsertValueOp):
+            use.operation.res.typ = new_type
+            update_types_insertvalue(use.operation, new_type)
+
+
+@dataclass
+class PackDataInStencilField(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: UndefOp, rewriter: PatternRewriter, /):
+        if "replace" in op.attributes:
+            # packed_type = LLVMPointerType.typed(LLVMArrayType.from_size_and_type(8, f64))
+            packed_type = LLVMPointerType.typed(
+                LLVMStructType.from_type_list(
+                    [LLVMArrayType.from_size_and_type(8, f64)]
+                )
+            )
+            field_struct = op.res.typ
+
+            old_type = list(field_struct.types.data)
+            new_type = old_type
+            new_type[0] = packed_type
+            new_type[1] = packed_type
+            struct_new_type = LLVMStructType.from_type_list(new_type)
+
+            new_container_op = UndefOp(struct_new_type)
+
+            rewriter.replace_matched_op(new_container_op)
+
+
+@dataclass
 class HLSConvertStencilToLLMLIRPass(ModulePass):
     name = "hls-convert-stencil-to-ll-mlir"
 
@@ -993,6 +1102,19 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
             walk_reverse=False,
         )
         inout_pass.rewrite_module(op)
+
+        pack_data_pass = PatternRewriteWalker(
+            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+            GreedyRewritePatternApplier(
+                [
+                    PackData(),
+                    PackDataInStencilField(),
+                ]
+            ),
+            apply_recursively=True,
+            walk_reverse=True,
+        )
+        pack_data_pass.rewrite_module(op)
 
         hls_pass = PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
