@@ -61,6 +61,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -119,8 +120,10 @@ class ArrayOfConstraint(AttrConstraint):
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, Data):
             raise Exception(f"expected data ArrayData but got {attr}")
-        if not isinstance(attr.data, Iterable):
-            raise VerifyException(f"Expected iterable data but got {attr.data}.")
+        if not isinstance(cast(Data[Any], attr).data, Iterable):
+            raise VerifyException(
+                f"Expected iterable data but got {cast(Data[Any], attr).data}."
+            )
         for e in cast(ArrayAttr[Attribute], attr).data:
             self.elem_constr.verify(e, constraint_vars)
 
