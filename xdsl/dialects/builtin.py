@@ -119,7 +119,7 @@ class ArrayOfConstraint(AttrConstraint):
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, Data):
-            raise Exception(f"expected data ArrayData but got {attr}")
+            raise VerifyException(f"expected data ArrayData but got {attr}")
         if not isinstance(cast(Data[Any], attr).data, Iterable):
             raise VerifyException(
                 f"Expected iterable data but got {cast(Data[Any], attr).data}."
