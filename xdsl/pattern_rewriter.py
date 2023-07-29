@@ -15,7 +15,7 @@ from typing import (
     get_origin,
 )
 
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
@@ -26,6 +26,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.rewriter import Rewriter
+from xdsl.utils.hints import isa
 
 
 @dataclass(eq=False)
@@ -465,6 +466,9 @@ class TypeConversionPattern(RewritePattern):
         inp = typ
         if isinstance(typ, ParametrizedAttribute):
             parameters = tuple(self.convert_type_rec(p) or p for p in typ.parameters)
+            inp = type(typ).new(parameters)
+        if isa(typ, ArrayAttr[Attribute]):
+            parameters = tuple(self.convert_type_rec(p) for p in typ)
             inp = type(typ).new(parameters)
         return self.convert_type(inp) or inp
 

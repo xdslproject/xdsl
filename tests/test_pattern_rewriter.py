@@ -1007,7 +1007,7 @@ def test_type_conversion():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() {"nested" = memref<*xi32>} : () -> i32
-  %1 = "test.op"() : () -> f32
+  %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"(%0, %1) : (i32, f32) -> memref<*xi32>
   "func.return"() : () -> ()
 }) : () -> ()
@@ -1016,7 +1016,7 @@ def test_type_conversion():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() {"nested" = memref<*xindex>} : () -> index
-  %1 = "test.op"() : () -> f32
+  %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
   %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
   "func.return"() : () -> ()
 }) : () -> ()
