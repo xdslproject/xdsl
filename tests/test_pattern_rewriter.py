@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, MLContext, Operation
+from xdsl.ir import MLContext, Operation
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

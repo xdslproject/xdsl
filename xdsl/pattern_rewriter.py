@@ -15,11 +15,17 @@ from typing import (
     get_origin,
 )
 
-from xdsl.dialects.builtin import ArrayAttr, ModuleOp
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, Region, SSAValue
-from xdsl.ir.core import ParametrizedAttribute
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+)
 from xdsl.rewriter import Rewriter
-from xdsl.utils.hints import isa
 
 
 @dataclass(eq=False)
