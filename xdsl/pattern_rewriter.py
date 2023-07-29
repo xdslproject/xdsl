@@ -4,11 +4,22 @@ import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import UnionType
-from typing import Callable, Iterable, Sequence, TypeVar, Union, get_args, get_origin
+from typing import (
+    Callable,
+    Iterable,
+    Sequence,
+    TypeVar,
+    Union,
+    final,
+    get_args,
+    get_origin,
+)
 
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, Region, SSAValue
+from xdsl.ir.core import ParametrizedAttribute
 from xdsl.rewriter import Rewriter
+from xdsl.utils.hints import isa
 
 
 @dataclass(eq=False)
@@ -435,6 +446,85 @@ def op_type_rewrite_pattern(
     def impl(self: _RewritePatternT, op: Operation, rewriter: PatternRewriter) -> None:
         if isinstance(op, expected_type):
             func(self, op, rewriter)
+
+    return impl
+
+
+class TypeConversionPattern(RewritePattern):
+    @abstractmethod
+    def convert_type(self, typ: Attribute, /) -> Attribute | None:
+        ...
+
+    def convert_type_rec(self, typ: Attribute) -> Attribute | None:
+        inp = typ
+        if isinstance(typ, ParametrizedAttribute):
+            parameters = tuple(self.convert_type_rec(p) or p for p in typ.parameters)
+            inp = type(typ).new(parameters)
+        return self.convert_type(inp) or inp
+
+    @final
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        for result in op.results:
+            # TODO: rewriter!
+            converted = self.convert_type_rec(result.type)
+            if converted:
+                result.type = converted
+        for operand in op.operands:
+            # TODO: rewriter!
+            converted = self.convert_type_rec(operand.type)
+            if converted:
+                operand.type = converted
+        for name, attribute in op.attributes.items():
+            converted = self.convert_type_rec(attribute)
+            if converted:
+                op.attributes[name] = converted
+        for region in op.regions:
+            for block in region.blocks:
+                for arg in block.args:
+                    converted = self.convert_type(arg.type)
+                    if converted:
+                        rewriter.modify_block_argument_type(arg, converted)
+
+
+_TypeConversionPatternT = TypeVar(
+    "_TypeConversionPatternT", bound=TypeConversionPattern
+)
+_AttributeT = TypeVar("_AttributeT", bound=Attribute)
+_ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
+
+
+def attr_type_rewrite_pattern(
+    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT]
+) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
+    """
+    This function is intended to be used as a decorator on a RewritePatter
+    method. It uses type hints to match on a specific operation type before
+    calling the decorated function.
+    """
+    # Get the operation argument and check that it is a subclass of Operation
+    params = [param for param in inspect.signature(func).parameters.values()]
+    if len(params) != 2:
+        raise Exception(
+            "op_type_rewrite_pattern expects the decorated function to "
+            "have one non-self argument."
+        )
+    expected_type: type[_AttributeT] = params[-1].annotation
+
+    expected_types = (expected_type,)
+    if get_origin(expected_type) in [Union, UnionType]:
+        expected_types = get_args(expected_type)
+
+    if not all(issubclass(t, Attribute) for t in expected_types):
+        raise Exception(
+            "attr_type_rewrite_pattern expects the non-self argument "
+            "type hint to be an `Attribute` subclass or a union of `Attribute` "
+            "subclasses."
+        )
+
+    def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
+        if isinstance(typ, expected_type):
+            return func(self, typ)
+        return None
 
     return impl
 

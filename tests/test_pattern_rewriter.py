@@ -2,14 +2,25 @@ from conftest import assert_print_op
 
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Muli
-from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
-from xdsl.ir import MLContext, Operation
+from xdsl.dialects.builtin import (
+    Builtin,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    StringAttr,
+    i32,
+    i64,
+)
+from xdsl.ir import Attribute, MLContext, Operation
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
+    TypeConversionPattern,
+    attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
 from xdsl.utils.hints import isa
@@ -983,6 +994,38 @@ def test_insert_same_block():
             rewriter.insert_op_before(dealloc, last_op)
             # Init instead of creating, and replace result with allocated value
             rewriter.replace_matched_op(init, alloc.res)
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+    )
+
+
+def test_type_conversion():
+    """Test rewriter on ops without results"""
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() {"nested" = memref<*xi32>} : () -> i32
+  %1 = "test.op"() : () -> f32
+  %2 = "test.op"(%0, %1) : (i32, f32) -> memref<*xi32>
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() {"nested" = memref<*xindex>} : () -> index
+  %1 = "test.op"() : () -> f32
+  %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    class Rewrite(TypeConversionPattern):
+        @attr_type_rewrite_pattern
+        def convert_type(self, typ: IntegerType) -> IndexType:
+            return IndexType()
 
     rewrite_and_compare(
         prog,
