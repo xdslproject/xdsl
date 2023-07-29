@@ -61,7 +61,6 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
