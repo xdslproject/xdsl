@@ -117,12 +117,8 @@ class ArrayOfConstraint(AttrConstraint):
         self.elem_constr = attr_constr_coercion(constr)
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
-        if not isinstance(attr, Data):
-            raise VerifyException(f"expected data ArrayData but got {attr}")
-        if not isinstance(cast(Data[Any], attr).data, Iterable):
-            raise VerifyException(
-                f"Expected iterable data but got {cast(Data[Any], attr).data}."
-            )
+        if not isinstance(attr, ArrayAttr):
+            raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         for e in cast(ArrayAttr[Attribute], attr).data:
             self.elem_constr.verify(e, constraint_vars)
 
