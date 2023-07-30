@@ -129,6 +129,21 @@ class AddZero(RewritePattern):
         rewriter.replace_matched_op([], new_results=[op.lhs])
 
 
+@rewrite_pattern_query
+def add_zero_query(root: arith.Addi, rhs_op: arith.Constant) -> bool:
+    return (
+        isa(root.rhs, OpResult)
+        and root.rhs.op == rhs_op
+        and isa(rhs_op.value, IntegerAttr)
+        and rhs_op.value == IntegerAttr(0, 32)
+    )
+
+
+@query_rewrite_pattern(add_zero_query)
+def add_zero(rewriter: PatternRewriter, root: arith.Addi, rhs_op: arith.Constant):
+    rewriter.replace_matched_op([], new_results=[root.lhs])
+
+
 def add_zero_input():
     @ModuleOp
     @Builder.implicit_region
@@ -200,6 +215,7 @@ def add_zero_pdl():
             pdl_rewrite_pattern(swap_arguments_pdl(), arith.Arith),
         ),
         (add_zero_input(), add_zero_output(), AddZero()),
+        (add_zero_input(), add_zero_output(), add_zero),
         (
             add_zero_input(),
             add_zero_output(),
