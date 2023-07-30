@@ -3,7 +3,7 @@ from xdsl.dialects import arith, func, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp, i32
 from xdsl.dialects.experimental import math
 from xdsl.dialects.printf import PrintCharOp, PrintIntOp
-from xdsl.ir import Block, MLContext, Operation
+from xdsl.ir import Block, MLContext, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -42,7 +42,38 @@ class ConvertPrintIntToItoa(RewritePattern):
 
 
 def get_inline_itoa():
-    def get_number_of_digits(absolute_value: Operation) -> scf.While:
+    """
+    This function returns an MLIR func.func that holds a routine that calls
+    an external putchar implementation several times on all individual digits
+    that make up the integer.
+
+    Roughly it exists of the following steps:
+        1. If the number is zero, print zero and exit
+        2. Check if the number is negative: if so, print the minus sign
+        3. Get the number of digits for the absolute value
+        4. Go through the digits in reverse order and print them one by one
+
+    Several things to note about this specfic implementation:
+        * It does not require floating point arithmetic
+        * It does not require a printf implementation, only putchar.
+    """
+
+    # get_number_of_digits implementation
+    def get_number_of_digits(absolute_value: Operation) -> OpResult:
+        """
+        Return the result of an MLIR scf.while op that gets the number of
+        digits of a positive integer. Roughly goes like this in
+        python pseudocode (e.g. integer is 420, routine should return 3):
+        ```
+        integer = 420
+        digits = 0
+        while(integer != 0):
+            integer //= 10
+            digits += 1
+        return digits
+
+        ```
+        """
         before_block = Block(arg_types=(i32, i32))
         after_block = Block(arg_types=(i32, i32))
         digit_init = arith.Constant.from_int_and_width(0, i32)
@@ -65,6 +96,39 @@ def get_inline_itoa():
 
         return while_loop.results[1]
 
+    def print_minus_if_negative(integer: SSAValue) -> scf.If:
+        """
+        This function returns an MLIR scf.if op that prints a minus sign
+        if the integer value is negative and returns the absolute value
+        of the integer in either case, in python code:
+        ```
+        if(integer > 0):
+            print("-")
+            return (0 - integer)
+        else:
+            return integer
+        ```
+        """
+        is_negative_block = Block()
+        is_positive_block = Block()
+        is_negative = arith.Cmpi.get(integer, zero, "slt")
+
+        # Either way get the absolute value of the number
+        absolute_value = scf.If.get(
+            is_negative, [i32], [is_negative_block], [is_positive_block]
+        )
+        # If the value is negative, print the minus sign, return abs value
+        with ImplicitBuilder(is_negative_block):
+            PrintCharOp.from_constant_char("-")
+            negative_input = arith.Subi(zero, integer)
+            scf.Yield.get(negative_input)
+        # If the value is positive, just return value itself as abs value
+        with ImplicitBuilder(is_positive_block):
+            scf.Yield.get(integer)
+
+        return absolute_value
+
+    # Beginning of inline_itoa_func declaration
     inline_itoa_func = func.FuncOp("inline_itoa", ((i32,), ()))
 
     with ImplicitBuilder(inline_itoa_func.body) as (integer,):
@@ -85,22 +149,8 @@ def get_inline_itoa():
             scf.Yield.get()
         # Otherwise continue with itoa
         with ImplicitBuilder(is_not_zero_block):
-            is_negative_block = Block()
-            is_positive_block = Block()
-            is_negative = arith.Cmpi.get(integer, zero, "slt")
-
-            # Either way get the absolute value of the number
-            absolute_value = scf.If.get(
-                is_negative, [i32], [is_negative_block], [is_positive_block]
-            )
-            # If the value is negative, print the minus sign, return abs value
-            with ImplicitBuilder(is_negative_block):
-                PrintCharOp.from_constant_char("-")
-                negative_input = arith.Subi(zero, integer)
-                scf.Yield.get(negative_input)
-            # If the value is positive, just return value itself as abs value
-            with ImplicitBuilder(is_positive_block):
-                scf.Yield.get(integer)
+            # Print minus sign if negative and return absolute value
+            absolute_value = print_minus_if_negative(integer)
 
             # Now print the digits of the absolute value
             digits = get_number_of_digits(absolute_value)
@@ -121,6 +171,7 @@ def get_inline_itoa():
                 ten = arith.Constant.from_int_and_width(10, i32)
                 i_0 = math.IPowIOp((ten, position), (i32,))
                 i_1 = arith.DivUI(absolute_value, i_0)
+
                 digit = arith.RemUI(i_1, ten)
                 # ascii value for zero is 48 in decimal
                 ascii_offset = arith.Constant.from_int_and_width(48, i32)
