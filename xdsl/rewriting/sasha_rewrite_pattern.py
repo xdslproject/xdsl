@@ -175,7 +175,7 @@ class _IRDLOperationQBVC(_OperationQBVC):
             )
             return _QueryBuilderVariable(new_qbvc)
         elif name in dict(self.op_def.results):
-            assert False
+            assert False, f"{name}"
         elif name in dict(self.op_def.attributes):
             new_var = AttributeVariable(self.query.next_var_id())
             new_qbvc = _AttributeQBVC(new_var, self.query, {})
