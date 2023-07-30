@@ -12,9 +12,9 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriting.query_builder import rewrite_pattern_query
 from xdsl.rewriting.sasha_rewrite_pattern import (
     query_rewrite_pattern,
-    rewrite_pattern_query,
 )
 from xdsl.utils.hints import isa
 
