@@ -136,6 +136,10 @@
 
   // CHECK-NEXT: %extf = "arith.extf"(%lhsf32) : (f32) -> f64
 
+  %extui = "arith.extui"(%lhsi32) : (i32) -> i64
+
+  // CHECK-NEXT: %extui = "arith.extui"(%lhsi32) : (i32) -> i64
+
   %truncf = "arith.truncf"(%lhsf64) : (f64) -> f32
 
   // CHECK-NEXT: %truncf = "arith.truncf"(%lhsf64) : (f64) -> f32

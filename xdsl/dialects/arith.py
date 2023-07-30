@@ -719,6 +719,15 @@ class ExtFOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ExtUIOp(IRDLOperation):
+    name = "arith.extui"
+
+    input: Operand = operand_def(IntegerType)
+    result: OpResult = result_def(IntegerType)
+
+
+
+@irdl_op_definition
 class TruncFOp(IRDLOperation):
     name = "arith.truncf"
 
@@ -766,6 +775,11 @@ class ExtUIOp(IRDLOperation):
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
 
+    def verify_(self) -> None:
+        if not self.result.type.width.data > self.input.type.width.data:
+            raise VerifyException(
+                "Destination bit-width must be larger than the input bit-width"
+            )
 
 Arith = Dialect(
     [

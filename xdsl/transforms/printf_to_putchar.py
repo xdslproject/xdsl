@@ -23,7 +23,7 @@ class LowerPrintCharToPutchar(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: PrintCharOp, rewriter: PatternRewriter, /):
-        func_call = func.Call.get("putchar", [op.char], [i32])
+        func_call = func.Call("putchar", [op.char], [i32])
         # Add empty new_results, since a result is necessary for linking
         # putchar, but the result does not exist anywhere.
         rewriter.replace_matched_op(func_call, new_results=[])
@@ -37,7 +37,7 @@ class ConvertPrintIntToItoa(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: PrintIntOp, rewriter: PatternRewriter, /):
-        func_call = func.Call.get("inline_itoa", [op.int], [])
+        func_call = func.Call("inline_itoa", [op.int], [])
         rewriter.replace_matched_op(func_call)
 
 
@@ -78,15 +78,15 @@ def get_inline_itoa():
         after_block = Block(arg_types=(i32, i32))
         digit_init = arith.Constant.from_int_and_width(0, i32)
         one = arith.Constant.from_int_and_width(1, i32)
-        while_loop = scf.While.get(
-            [[absolute_value, digit_init]],
-            [[i32, i32]],
+        while_loop = scf.While(
+            [absolute_value, digit_init],
+            [i32, i32],
             [before_block],
             [after_block],
         )
         with ImplicitBuilder(before_block) as (running_integer, digits):
             # Stop when you reach zero
-            is_zero = arith.Cmpi.get(running_integer, zero, "ne")
+            is_zero = arith.Cmpi(running_integer, zero, "ne")
             scf.Condition.get(is_zero, running_integer, digits)
         with ImplicitBuilder(after_block) as (running_integer, previous_digits):
             ten = arith.Constant.from_int_and_width(10, 32)
@@ -112,7 +112,7 @@ def get_inline_itoa():
         """
         is_negative_block = Block()
         is_positive_block = Block()
-        is_negative = arith.Cmpi.get(integer, zero, "slt")
+        is_negative = arith.Cmpi(integer, zero, "slt")
 
         # Either way get the absolute value of the number
         absolute_value = scf.If.get(
@@ -140,7 +140,7 @@ def get_inline_itoa():
         """
         zero_index = arith.Constant.from_int_and_width(0, IndexType())
         one_index = arith.Constant.from_int_and_width(1, IndexType())
-        digits_index = arith.IndexCastOp((digits,), (IndexType(),))
+        digits_index = arith.IndexCastOp(digits, IndexType())
         loop_body = Block(arg_types=(IndexType(),))
 
         # Print all from most significant to least
@@ -148,7 +148,7 @@ def get_inline_itoa():
         with ImplicitBuilder(loop_body) as (index_var,):
             one = arith.Constant.from_int_and_width(1, i32)
             size_minus_one = arith.Subi(digits, one)
-            index_var_int = arith.IndexCastOp((index_var,), (i32,))
+            index_var_int = arith.IndexCastOp(index_var, i32)
             position = arith.Subi(size_minus_one, index_var_int)
             # digit = (num // (10**pos)) % 10
             ten = arith.Constant.from_int_and_width(10, i32)
@@ -179,7 +179,7 @@ def get_inline_itoa():
         zero = arith.Constant.from_int_and_width(0, i32)
         is_zero_block = Block()
         is_not_zero_block = Block()
-        is_zero = arith.Cmpi.get(integer, zero, "eq")
+        is_zero = arith.Cmpi(integer, zero, "eq")
         scf.If.get(
             is_zero,
             [],
