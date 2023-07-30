@@ -188,30 +188,35 @@ QueryParams = ParamSpec("QueryParams")
 
 
 class PatternQuery(Generic[QueryParams], Query):
-    pass
+    """
+    Can only be created as an annottation.
 
+    @PatternQuery
+    def my_query(root: arith.Addi, rhs_input: arith.Constant):
+        ...
+    """
 
-def rewrite_pattern_query(
-    func: Callable[QueryParams, bool]
-) -> PatternQuery[QueryParams]:
-    params = list(inspect.signature(func).parameters.items())
+    def __init__(self, func: Callable[QueryParams, bool]):
+        params = [
+            (name, param.annotation)
+            for name, param in inspect.signature(func).parameters.items()
+        ]
 
-    assert "root" in (name for name, _ in params)
+        names = tuple(name for name, _ in params)
 
-    query = PatternQuery(tuple(name for name, _ in params), (), ())
-    fake_vars: dict[str, _QueryBuilderVariable[_QBVC]] = {}
+        assert "root" in names
 
-    for name, param in params:
-        cls = param.annotation
-        if issubclass(cls, IRDLOperation):
-            # Don't add the variables here, they will be added as they are traversed
-            var = OperationVariable(name)
-            qbvc = _IRDLOperationQBVC(var, query, {}, cls)
-            fake_vars[name] = _QueryBuilderVariable(qbvc)
+        super().__init__(names, (), ())
+        fake_vars: dict[str, _QueryBuilderVariable[_QBVC]] = {}
 
-    # The root is given every time, so we add it type check immediately
-    fake_vars["root"].qbvc__.register_var()
+        for name, cls in params:
+            if issubclass(cls, IRDLOperation):
+                # Don't add the variables here, they will be added as they are traversed
+                var = OperationVariable(name)
+                qbvc = _IRDLOperationQBVC(var, self, {}, cls)
+                fake_vars[name] = _QueryBuilderVariable(qbvc)
 
-    func(**fake_vars)  # pyright: ignore[reportGeneralTypeIssues]
+        # The root is given every time, so we add it type check immediately
+        fake_vars["root"].qbvc__.register_var()
 
-    return query
+        func(**fake_vars)  # pyright: ignore[reportGeneralTypeIssues]

@@ -2,12 +2,12 @@ from xdsl.dialects import arith
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir.core import OpResult
 from xdsl.rewriting.query import *
-from xdsl.rewriting.query_builder import rewrite_pattern_query
+from xdsl.rewriting.query_builder import PatternQuery
 from xdsl.rewriting.sasha_rewrite_pattern import *
 from xdsl.utils.hints import isa
 
 
-@rewrite_pattern_query
+@PatternQuery
 def add_zero_query(root: arith.Addi, rhs_input: arith.Constant):
     return (
         isa(root.rhs, OpResult)

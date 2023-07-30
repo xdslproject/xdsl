@@ -13,7 +13,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
 )
-from xdsl.rewriting.query_builder import rewrite_pattern_query
+from xdsl.rewriting.query_builder import PatternQuery
 from xdsl.rewriting.sasha_rewrite_pattern import (
     query_rewrite_pattern,
 )
@@ -23,7 +23,7 @@ from xdsl.utils.hints import isa
 from ..dialects.toy import ConstantOp, ReshapeOp, TensorTypeF64, TransposeOp
 
 
-@rewrite_pattern_query
+@PatternQuery
 def simplify_redundant_transpose_query(root: TransposeOp, input: TransposeOp):
     return isa(root.arg, OpResult) and root.arg.op == input
 
@@ -35,7 +35,7 @@ def simplify_redundant_transpose(
     rewriter.replace_matched_op((), (input.arg,))
 
 
-@rewrite_pattern_query
+@PatternQuery
 def reshape_reshape_query(root: ReshapeOp, input: ReshapeOp):
     return isa(root.arg, OpResult) and root.arg.op == input
 
@@ -47,7 +47,7 @@ def reshape_reshape(rewriter: PatternRewriter, root: ReshapeOp, input: ReshapeOp
     rewriter.replace_matched_op(new_op)
 
 
-@rewrite_pattern_query
+@PatternQuery
 def fold_constant_reshape_query(root: ReshapeOp, input: ConstantOp):
     return isa(root.arg, OpResult) and root.arg.op == input
 
