@@ -1,60 +1,32 @@
-from io import StringIO
+import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, pdl
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr
 from xdsl.interpreters.experimental.pdl import PDLRewritePattern
 from xdsl.ir import MLContext, OpResult
+from xdsl.ir.core import Dialect
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriting.sasha_rewrite_pattern import (
+    query_rewrite_pattern,
+    rewrite_pattern_query,
+)
+from xdsl.utils.hints import isa
 
 
-class SwapInputs(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter, /):
-        if not isinstance(op.lhs, OpResult):
-            return
-        if not isinstance(op.lhs.op, arith.Addi):
-            return
-        new_op = arith.Addi(op.rhs, op.lhs)
-        rewriter.replace_op(op, [new_op])
-
-
-def test_rewrite_swap_inputs_python():
-    input_module = swap_arguments_input()
-    output_module = swap_arguments_output()
-
-    PatternRewriteWalker(SwapInputs(), apply_recursively=False).rewrite_module(
-        input_module
-    )
-
-    assert input_module.is_structurally_equivalent(output_module)
-
-
-def test_rewrite_swap_inputs_pdl():
-    input_module = swap_arguments_input()
-    output_module = swap_arguments_output()
-    rewrite_module = swap_arguments_pdl()
-
-    pdl_rewrite_op = next(
-        op for op in rewrite_module.walk() if isinstance(op, pdl.RewriteOp)
-    )
-
-    stream = StringIO()
-
+def pdl_rewrite_pattern(module: ModuleOp, *dialects: Dialect) -> PDLRewritePattern:
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
+    for dialect in dialects:
+        ctx.register_dialect(dialect)
 
-    PatternRewriteWalker(
-        PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
-        apply_recursively=False,
-    ).rewrite_module(input_module)
+    pdl_rewrite_op = next(op for op in module.walk() if isinstance(op, pdl.RewriteOp))
 
-    assert input_module.is_structurally_equivalent(output_module)
+    return PDLRewritePattern(pdl_rewrite_op, ctx)
 
 
 def swap_arguments_input():
@@ -120,6 +92,28 @@ def swap_arguments_pdl():
     return pdl_module
 
 
+class SwapInputs(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter, /):
+        if not isinstance(op.lhs, OpResult):
+            return
+        if not isinstance(op.lhs.op, arith.Addi):
+            return
+        new_op = arith.Addi(op.rhs, op.lhs)
+        rewriter.replace_op(op, [new_op])
+
+
+@rewrite_pattern_query
+def swap_inputs_query(root: arith.Addi, lhs_op: arith.Addi):
+    return isa(root.lhs, OpResult) and root.lhs.op == lhs_op
+
+
+@query_rewrite_pattern(swap_inputs_query)
+def swap_inputs(rewriter: PatternRewriter, root: arith.Addi, lhs_op: arith.Addi):
+    new_op = arith.Addi(root.rhs, root.lhs)
+    rewriter.replace_matched_op(new_op)
+
+
 class AddZero(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter, /):
@@ -133,42 +127,6 @@ class AddZero(RewritePattern):
         if rhs.value.value.data != 0:
             return
         rewriter.replace_matched_op([], new_results=[op.lhs])
-
-
-def test_rewrite_add_zero_python():
-    input_module = add_zero_input()
-    output_module = add_zero_output()
-
-    PatternRewriteWalker(AddZero(), apply_recursively=False).rewrite_module(
-        input_module
-    )
-
-    assert input_module.is_structurally_equivalent(output_module)
-
-
-def test_rewrite_add_zero_pdl():
-    input_module = add_zero_input()
-    output_module = add_zero_output()
-    rewrite_module = add_zero_pdl()
-    # input_module.verify()
-    # output_module.verify()
-    rewrite_module.verify()
-
-    pdl_rewrite_op = next(
-        op for op in rewrite_module.walk() if isinstance(op, pdl.RewriteOp)
-    )
-
-    stream = StringIO()
-
-    ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
-
-    PatternRewriteWalker(
-        PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
-        apply_recursively=False,
-    ).rewrite_module(input_module)
-
-    assert input_module.is_structurally_equivalent(output_module)
 
 
 def add_zero_input():
@@ -229,3 +187,29 @@ def add_zero_pdl():
                 pdl.ReplaceOp(sum, repl_values=[lhs])
 
     return pdl_module
+
+
+@pytest.mark.parametrize(
+    "input_module, output_module, pattern",
+    [
+        (swap_arguments_input(), swap_arguments_output(), SwapInputs()),
+        (swap_arguments_input(), swap_arguments_output(), swap_inputs),
+        (
+            swap_arguments_input(),
+            swap_arguments_output(),
+            pdl_rewrite_pattern(swap_arguments_pdl(), arith.Arith),
+        ),
+        (add_zero_input(), add_zero_output(), AddZero()),
+        (
+            add_zero_input(),
+            add_zero_output(),
+            pdl_rewrite_pattern(add_zero_pdl(), arith.Arith),
+        ),
+    ],
+)
+def test_rewriter(
+    input_module: ModuleOp, output_module: ModuleOp, pattern: RewritePattern
+):
+    PatternRewriteWalker(pattern, apply_recursively=False).rewrite_module(input_module)
+
+    assert input_module.is_structurally_equivalent(output_module)
