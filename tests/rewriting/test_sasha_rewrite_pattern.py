@@ -3,7 +3,7 @@ from xdsl.dialects import arith, func
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32
 from xdsl.ir.core import OpResult
 from xdsl.pattern_rewriter import PatternRewriteWalker
-from xdsl.sasha_rewrite_pattern import *
+from xdsl.rewriting.sasha_rewrite_pattern import *
 from xdsl.utils.hints import isa
 
 

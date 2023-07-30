@@ -13,7 +13,10 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
 )
-from xdsl.sasha_rewrite_pattern import query_rewrite_pattern, rewrite_pattern_query
+from xdsl.rewriting.sasha_rewrite_pattern import (
+    query_rewrite_pattern,
+    rewrite_pattern_query,
+)
 from xdsl.transforms.dead_code_elimination import dce
 from xdsl.utils.hints import isa
 
