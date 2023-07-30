@@ -14,6 +14,8 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
+i8 = builtin.IntegerType(8)
+
 
 @irdl_op_definition
 class PrintFormatOp(IRDLOperation):
@@ -96,7 +98,7 @@ class PrintCharOp(IRDLOperation):
     """
 
     name = "printf.print_char"
-    char: Operand = operand_def()
+    char: Operand = operand_def(i8)
 
     @staticmethod
     def from_constant_char(char: str) -> PrintCharOp:
@@ -107,7 +109,7 @@ class PrintCharOp(IRDLOperation):
         assert len(char) == 1, "Only single characters are supported"
         ascii_value = ord(char)
         assert ascii_value < 255, "Only ascii characters are supported"
-        char_constant = arith.Constant.from_int_and_width(ascii_value, builtin.i32)
+        char_constant = arith.Constant.from_int_and_width(ascii_value, i8)
         return PrintCharOp((char_constant,))
 
 

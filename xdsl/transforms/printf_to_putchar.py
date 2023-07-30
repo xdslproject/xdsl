@@ -1,6 +1,6 @@
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func, scf
-from xdsl.dialects.builtin import IndexType, ModuleOp, i32
+from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
 from xdsl.dialects.experimental import math
 from xdsl.dialects.printf import PrintCharOp, PrintIntOp
 from xdsl.ir import Block, MLContext, Operation, OpResult, SSAValue
@@ -24,9 +24,11 @@ class LowerPrintCharToPutchar(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: PrintCharOp, rewriter: PatternRewriter, /):
         func_call = func.Call("putchar", [op.char], [i32])
+        cast_op = arith.ExtUIOp(op.char, i32)
+        func_call = func.Call("putchar", [cast_op], [i32])
         # Add empty new_results, since a result is necessary for linking
         # putchar, but the result does not exist anywhere.
-        rewriter.replace_matched_op(func_call, new_results=[])
+        rewriter.replace_matched_op([cast_op, func_call], new_results=[])
 
 
 class ConvertPrintIntToItoa(RewritePattern):
@@ -158,7 +160,8 @@ def get_inline_itoa():
             # ascii value for zero is 48 in decimal
             ascii_offset = arith.Constant.from_int_and_width(48, i32)
             char = arith.Addi(digit, ascii_offset)
-            PrintCharOp((char,))
+            char_i8 = arith.TruncIOp(char, IntegerType(8))
+            PrintCharOp((char_i8,))
             scf.Yield.get()
         return for_loop
 
