@@ -3,7 +3,7 @@ from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir.core import OpResult
 from xdsl.rewriting.query import *
 from xdsl.rewriting.query_builder import PatternQuery
-from xdsl.rewriting.sasha_rewrite_pattern import *
+from xdsl.rewriting.query_rewrite_pattern import *
 from xdsl.utils.hints import isa
 
 

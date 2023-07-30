@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
+    Concatenate,
     Generic,
     ParamSpec,
     TypeGuard,
@@ -14,10 +15,12 @@ from typing import (
 
 from xdsl.ir.core import Attribute
 from xdsl.irdl import IRDLOperation, OpDef
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriting.query import (
     AttributeValueConstraint,
     AttributeVariable,
     EqConstraint,
+    Match,
     OperationAttributeConstraint,
     OperationOperandConstraint,
     OperationVariable,
@@ -27,6 +30,7 @@ from xdsl.rewriting.query import (
     TypeConstraint,
     Variable,
 )
+from xdsl.rewriting.query_rewrite_pattern import QueryRewritePattern
 
 _T = TypeVar("_T")
 
@@ -220,3 +224,11 @@ class PatternQuery(Generic[QueryParams], Query):
         fake_vars["root"].qbvc__.register_var()
 
         func(**fake_vars)  # pyright: ignore[reportGeneralTypeIssues]
+
+    def rewrite(
+        self, func: Callable[Concatenate[PatternRewriter, QueryParams], None]
+    ) -> QueryRewritePattern:
+        def rewrite(match: Match, rewriter: PatternRewriter) -> None:
+            return func(rewriter, **match)  # pyright: ignore[reportGeneralTypeIssues]
+
+        return QueryRewritePattern(self, rewrite)

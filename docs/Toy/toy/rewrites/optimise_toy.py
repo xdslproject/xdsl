@@ -14,9 +14,6 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
 )
 from xdsl.rewriting.query_builder import PatternQuery
-from xdsl.rewriting.sasha_rewrite_pattern import (
-    query_rewrite_pattern,
-)
 from xdsl.transforms.dead_code_elimination import dce
 from xdsl.utils.hints import isa
 
@@ -28,7 +25,7 @@ def simplify_redundant_transpose_query(root: TransposeOp, input: TransposeOp):
     return isa(root.arg, OpResult) and root.arg.op == input
 
 
-@query_rewrite_pattern(simplify_redundant_transpose_query)
+@simplify_redundant_transpose_query.rewrite
 def simplify_redundant_transpose(
     rewriter: PatternRewriter, root: TransposeOp, input: TransposeOp
 ):
@@ -40,7 +37,7 @@ def reshape_reshape_query(root: ReshapeOp, input: ReshapeOp):
     return isa(root.arg, OpResult) and root.arg.op == input
 
 
-@query_rewrite_pattern(reshape_reshape_query)
+@reshape_reshape_query.rewrite
 def reshape_reshape(rewriter: PatternRewriter, root: ReshapeOp, input: ReshapeOp):
     t = cast(TensorTypeF64, root.res.type)
     new_op = ReshapeOp.from_input_and_type(input.arg, t)
@@ -52,7 +49,7 @@ def fold_constant_reshape_query(root: ReshapeOp, input: ConstantOp):
     return isa(root.arg, OpResult) and root.arg.op == input
 
 
-@query_rewrite_pattern(fold_constant_reshape_query)
+@fold_constant_reshape_query.rewrite
 def fold_constant_reshape(
     rewriter: PatternRewriter,
     root: ReshapeOp,

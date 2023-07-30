@@ -1,14 +1,12 @@
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func
 from xdsl.dialects.builtin import ModuleOp, i32
-from xdsl.pattern_rewriter import PatternRewriteWalker
-from xdsl.rewriting.query import *
-from xdsl.rewriting.sasha_rewrite_pattern import *
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker
 
 from .test_query_builder import add_zero_query
 
 
-@query_rewrite_pattern(add_zero_query)
+@add_zero_query.rewrite
 def add_zero(rewriter: PatternRewriter, root: arith.Addi, rhs_input: arith.Constant):
     rewriter.replace_matched_op((), (root.lhs,))
 

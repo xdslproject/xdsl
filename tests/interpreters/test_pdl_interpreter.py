@@ -13,9 +13,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriting.query_builder import PatternQuery
-from xdsl.rewriting.sasha_rewrite_pattern import (
-    query_rewrite_pattern,
-)
 from xdsl.utils.hints import isa
 
 
@@ -108,7 +105,7 @@ def swap_inputs_query(root: arith.Addi, lhs_op: arith.Addi):
     return isa(root.lhs, OpResult) and root.lhs.op == lhs_op
 
 
-@query_rewrite_pattern(swap_inputs_query)
+@swap_inputs_query.rewrite
 def swap_inputs(rewriter: PatternRewriter, root: arith.Addi, lhs_op: arith.Addi):
     new_op = arith.Addi(root.rhs, root.lhs)
     rewriter.replace_matched_op(new_op)
@@ -139,7 +136,7 @@ def add_zero_query(root: arith.Addi, rhs_op: arith.Constant) -> bool:
     )
 
 
-@query_rewrite_pattern(add_zero_query)
+@add_zero_query.rewrite
 def add_zero(rewriter: PatternRewriter, root: arith.Addi, rhs_op: arith.Constant):
     rewriter.replace_matched_op([], new_results=[root.lhs])
 
