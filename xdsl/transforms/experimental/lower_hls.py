@@ -149,6 +149,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
 
             # This is specially important when the stream is an argument of ApplyOp
             if use.operation.regions:
+                print("----> USE OPERATION: ", use.operation)
                 block_arg = use.operation.regions[0].block.args[use.index]
                 block_arg.typ = alloca.res.typ
 
@@ -157,6 +158,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
 class PragmaPipelineToFunc(RewritePattern):
     def __init__(self, op: builtin.ModuleOp):
         self.module = op
+        self.declared_pipeline_names = set()
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: PragmaPipeline, rewriter: PatternRewriter, /):
@@ -168,11 +170,15 @@ class PragmaPipelineToFunc(RewritePattern):
         block1 = Block(arg_types=[])
         block1.add_ops([ret1])
         region1 = Region(block1)
-        func1 = FuncOp.from_region(f"_pipeline_{ii}_", [], [], region1)
+
+        pipeline_func_name = f"_pipeline_{ii}_"
+        func1 = FuncOp.external(pipeline_func_name, [], [])
 
         call1 = Call.get(func1.sym_name.data, [], [])
 
-        self.module.body.block.add_op(func1)
+        if pipeline_func_name not in self.declared_pipeline_names:
+            self.module.body.block.add_op(func1)
+            self.declared_pipeline_names.add(pipeline_func_name)
 
         rewriter.replace_matched_op(call1)
 

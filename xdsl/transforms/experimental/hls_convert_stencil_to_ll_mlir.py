@@ -579,7 +579,6 @@ class ApplyOpToHLS(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         # Insert the HLS stream operands and their corresponding block arguments for reading from the shift buffer and writing # to external memory # We replace by streams only the 3D temps. The rest should be left as is operand_stream = dict()
-        boilerplate = []
         current_stream = 0
         new_operands_lst = []
 
@@ -631,14 +630,55 @@ class ApplyOpToHLS(RewritePattern):
         body_block = op.region.blocks[0]
         return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
 
-        add_read_write_ops(
-            self.out_global_mem,
-            indices_stream_to_read,
-            indices_stream_to_write,
-            op,
-            rewriter,
-            boilerplate,
-        )
+        # We are going to split the apply by the operations conducive to each returned value
+        boilerplate = [[] for i in range(len(return_op.arg))]
+        new_apply_lst = []
+        new_return_component_lst = []
+
+        component_idx = 0
+        for component in return_op.arg:
+            new_apply = op.clone()
+            component_operations = dict()
+            operation_indices = set()
+            component_operations[
+                return_op.parent_block().get_operation_index(return_op)
+            ] = return_op
+            operation_indices.add(
+                return_op.parent_block().get_operation_index(return_op)
+            )
+            collectComponentOperations(
+                component, component_operations, operation_indices
+            )
+
+            new_apply_block = new_apply.region.blocks[0]
+            new_return_op = next(
+                o for o in new_apply_block.ops if isinstance(o, ReturnOp)
+            )
+
+            new_return_op.detach()
+            new_return_op.erase()
+
+            for operation in new_apply_block.ops_reverse:
+                op_index = new_apply_block.get_operation_index(operation)
+                if op_index not in operation_indices:
+                    operation.detach()
+                    operation.erase()
+
+            new_component = new_apply_block.last_op.results[0]
+            new_return_component = ReturnOp.get([new_component])
+            new_apply_block.add_op(new_return_component)
+
+            add_read_write_ops(
+                self.out_global_mem,
+                indices_stream_to_read,
+                indices_stream_to_write,
+                new_apply,
+                rewriter,
+                boilerplate[component_idx],
+            )
+            new_apply_lst.append(new_apply)
+            new_return_component_lst.append(new_return_component)
+            component_idx += 1
 
         get_number_chunks = FuncOp.external(
             "get_number_chunks",
@@ -658,10 +698,41 @@ class ApplyOpToHLS(RewritePattern):
         res_type = op.res[0].typ
 
         rewriter.erase_op(return_op)
+        for new_return_component in new_return_component_lst:
+            rewriter.erase_op(new_return_component)
 
-        p_dataflow = transform_apply_into_loop(op, rewriter, res_type, boilerplate)
+        # p_dataflow = transform_apply_into_loop(op, rewriter, res_type, boilerplate)
+        p_dataflow_lst = []
+        component_idx = 0
+        for new_apply in new_apply_lst:
+            p_dataflow = transform_apply_into_loop(
+                new_apply, rewriter, res_type, boilerplate[component_idx]
+            )
+            p_dataflow_lst.append(p_dataflow)
+            component_idx += 1
 
-        rewriter.insert_op_before_matched_op([*boilerplate, p_dataflow])
+        rewriter.insert_op_before_matched_op(
+            [
+                *boilerplate[0],
+                p_dataflow_lst[0],
+                *boilerplate[1],
+                p_dataflow_lst[1],
+                *boilerplate[2],
+                p_dataflow_lst[2],
+            ]
+        )
+        rewriter.replace_matched_op(new_apply)
+
+
+def collectComponentOperations(op: Operation, component_operations, operation_indices):
+    parent_op = op.owner
+
+    for operand in parent_op.operands:
+        if not isinstance(operand, BlockArgument):
+            block_index = operand.op.parent_block().get_operation_index(operand.op)
+            component_operations[block_index] = operand.op
+            operation_indices.add(block_index)
+            collectComponentOperations(operand, component_operations, operation_indices)
 
 
 @dataclass
@@ -766,16 +837,14 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
         replace_access = False
 
         for use in op.temp.uses:
-            if isinstance(use.operation, HLSStreamRead):
+            if (
+                isinstance(use.operation, HLSStreamRead)
+                and use.operation.parent_op() == op.parent_op()
+            ):
                 hls_read = use.operation
 
                 result_hls_read = hls_read.results[0]
                 replace_access = True
-
-                ## The stencil access operation has to be inside the dataflow region to be able to generate the auxiliary
-                ## functions around it properly
-                # op.detach()
-                # rewriter.insert_op_after(op, hls_read)
 
         if replace_access:
             access_idx = []
@@ -896,45 +965,6 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
 
             # TODO: There are 3 IN loads in pw_advection. Generalise this by counting the number of IN loads
             if self.n_current_load == 3:
-                # @Builder.region(
-                #    [
-                #        self.first_load.arguments[0].typ,
-                #        LLVMPointerType.typed(
-                #            LLVMStructType.from_type_list(
-                #                [self.first_load.arguments[1].typ.element_type]
-                #            )
-                #        ),
-                #        self.first_load.arguments[0].typ,
-                #        LLVMPointerType.typed(
-                #            LLVMStructType.from_type_list(
-                #                [self.first_load.arguments[1].typ.element_type]
-                #            )
-                #        ),
-                #        self.first_load.arguments[0].typ,
-                #        LLVMPointerType.typed(
-                #            LLVMStructType.from_type_list(
-                #                [self.first_load.arguments[1].typ.element_type]
-                #            )
-                #        ),
-                #        i32,
-                #        i32,
-                #        i32,
-                #    ]
-                # )
-                # def load_all_data_region(
-                #    builder: Builder, args: tuple[BlockArgument, ...]
-                # ):
-                #    for i in range(3):
-                #        threedload_call = Call.get(
-                #            "load_data",
-                #            [args[2 * i], args[2 * i + 1], args[6], args[7], args[8]],
-                #            [],
-                #        )
-                #        builder.insert(threedload_call)
-
-                #    return_op = func.Return()
-                #    builder.insert(return_op)
-
                 load_data_func = FuncOp.external(
                     "load_data",
                     [
