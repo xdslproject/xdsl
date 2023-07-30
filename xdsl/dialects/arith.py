@@ -753,6 +753,13 @@ class TruncIOp(IRDLOperation):
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
 
+    def verify_(self) -> None:
+        if not self.result.type.width.data < self.input.type.width.data:
+            raise VerifyException(
+                "Destination bit-width must be smaller than the input bit-width"
+            )
+
+
 
 @irdl_op_definition
 class ExtSIOp(IRDLOperation):
@@ -780,6 +787,7 @@ class ExtUIOp(IRDLOperation):
             raise VerifyException(
                 "Destination bit-width must be larger than the input bit-width"
             )
+
 
 Arith = Dialect(
     [
