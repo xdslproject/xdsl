@@ -96,6 +96,7 @@ def get_inline_itoa():
 
         return while_loop.results[1]
 
+    # print_minus_if_negative implementation
     def print_minus_if_negative(integer: SSAValue) -> scf.If:
         """
         This function returns an MLIR scf.if op that prints a minus sign
@@ -128,15 +129,57 @@ def get_inline_itoa():
 
         return absolute_value
 
-    # Beginning of inline_itoa_func declaration
-    inline_itoa_func = func.FuncOp("inline_itoa", ((i32,), ()))
+    def print_digits(digits: SSAValue, absolute_value: SSAValue) -> scf.For:
+        """
+        Return an scf.for loop that prints all digits of the given value.
+        In python code:
+        for i in range(0, digits, 1):
+            position = (digits - 1) - i
+            digit = (absolute_value // (10**position)) % 10
+            print(digit)
+        """
+        zero_index = arith.Constant.from_int_and_width(0, IndexType())
+        one_index = arith.Constant.from_int_and_width(1, IndexType())
+        digits_index = arith.IndexCastOp((digits,), (IndexType(),))
+        loop_body = Block(arg_types=(IndexType(),))
 
+        # Print all from most significant to least
+        for_loop = scf.For.get(zero_index, digits_index, one_index, (), loop_body)
+        with ImplicitBuilder(loop_body) as (index_var,):
+            one = arith.Constant.from_int_and_width(1, i32)
+            size_minus_one = arith.Subi(digits, one)
+            index_var_int = arith.IndexCastOp((index_var,), (i32,))
+            position = arith.Subi(size_minus_one, index_var_int)
+            # digit = (num // (10**pos)) % 10
+            ten = arith.Constant.from_int_and_width(10, i32)
+            i_0 = math.IPowIOp((ten, position), (i32,))
+            i_1 = arith.DivUI(absolute_value, i_0)
+            digit = arith.RemUI(i_1, ten)
+            # ascii value for zero is 48 in decimal
+            ascii_offset = arith.Constant.from_int_and_width(48, i32)
+            char = arith.Addi(digit, ascii_offset)
+            PrintCharOp((char,))
+            scf.Yield.get()
+        return for_loop
+
+    # Beginning of inline_itoa_func declaration
+    """
+    Python code for this implementation:
+    ```
+    if(integer = 0):
+        print("0")
+    else:
+        absolute_value = print_minus_if_negative(integer)
+        digits = get_number_of_digits(absolute_value)
+        print_digits(digits, absolute_value)
+    ```
+    """
+    inline_itoa_func = func.FuncOp("inline_itoa", ((i32,), ()))
     with ImplicitBuilder(inline_itoa_func.body) as (integer,):
         zero = arith.Constant.from_int_and_width(0, i32)
         is_zero_block = Block()
         is_not_zero_block = Block()
         is_zero = arith.Cmpi.get(integer, zero, "eq")
-
         scf.If.get(
             is_zero,
             [],
@@ -151,35 +194,12 @@ def get_inline_itoa():
         with ImplicitBuilder(is_not_zero_block):
             # Print minus sign if negative and return absolute value
             absolute_value = print_minus_if_negative(integer)
-
-            # Now print the digits of the absolute value
+            # Get amount  of digits to be printed
             digits = get_number_of_digits(absolute_value)
-
-            zero_index = arith.Constant.from_int_and_width(0, IndexType())
-            one_index = arith.Constant.from_int_and_width(1, IndexType())
-            digits_index = arith.IndexCastOp((digits,), (IndexType(),))
-            loop_body = Block(arg_types=(IndexType(),))
-
-            # Print all from most significant to least
-            scf.For.get(zero_index, digits_index, one_index, (), loop_body)
-            with ImplicitBuilder(loop_body) as (index_var,):
-                one = arith.Constant.from_int_and_width(1, i32)
-                size_minus_one = arith.Subi(digits, one)
-                index_var_int = arith.IndexCastOp((index_var,), (i32,))
-                position = arith.Subi(size_minus_one, index_var_int)
-                # digit = (num // (10**pos)) % 10
-                ten = arith.Constant.from_int_and_width(10, i32)
-                i_0 = math.IPowIOp((ten, position), (i32,))
-                i_1 = arith.DivUI(absolute_value, i_0)
-
-                digit = arith.RemUI(i_1, ten)
-                # ascii value for zero is 48 in decimal
-                ascii_offset = arith.Constant.from_int_and_width(48, i32)
-                char = arith.Addi(digit, ascii_offset)
-                PrintCharOp((char,))
-                scf.Yield.get()
+            # Now print the digits of the absolute value
+            print_digits(digits, absolute_value)
+            # Yield from is_not_zero_block
             scf.Yield.get()
-
         # Return from itoa function
         func.Return()
 
