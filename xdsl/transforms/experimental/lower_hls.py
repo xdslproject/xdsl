@@ -45,7 +45,8 @@ from xdsl.utils.hints import isa
 class LowerHLSStreamWrite(RewritePattern):
     def __init__(self, op: builtin.ModuleOp):
         self.module = op
-        self.push_declaration = False
+        self.push_stencil_declaration = False
+        self.push_duplicate_declaration = False
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStreamWrite, rewriter: PatternRewriter, /):
@@ -54,16 +55,29 @@ class LowerHLSStreamWrite(RewritePattern):
         p_elem_type = LLVMPointerType.typed(elem_type)
         p_struct_elem_type = op.operands[0].typ
 
-        if not self.push_declaration:
-            push_func = func.FuncOp.external(
-                "llvm.fpga.fifo.push.stencil", [elem_type, p_elem_type], []
-            )
+        if "duplicate" in op.attributes:
+            if not self.push_duplicate_declaration:
+                push_func = func.FuncOp.external(
+                    "llvm.fpga.fifo.push.duplicate", [elem_type, p_elem_type], []
+                )
 
-            self.module.body.block.add_op(push_func)
-            self.push_declaration = True
+                self.module.body.block.add_op(push_func)
+                self.push_duplicate_declaration = True
 
-        gep = GEPOp.get(op.stream, [0, 0], result_type=p_elem_type)
-        push_call = func.Call.get("llvm.fpga.fifo.push.stencil", [elem, gep], [])
+            gep = GEPOp.get(op.stream, [0, 0], result_type=p_elem_type)
+            push_call = func.Call.get("llvm.fpga.fifo.push.duplicate", [elem, gep], [])
+
+        else:
+            if not self.push_stencil_declaration:
+                push_func = func.FuncOp.external(
+                    "llvm.fpga.fifo.push.stencil", [elem_type, p_elem_type], []
+                )
+
+                self.module.body.block.add_op(push_func)
+                self.push_stencil_declaration = True
+
+            gep = GEPOp.get(op.stream, [0, 0], result_type=p_elem_type)
+            push_call = func.Call.get("llvm.fpga.fifo.push.stencil", [elem, gep], [])
 
         rewriter.replace_matched_op([gep, push_call])
 
@@ -72,7 +86,8 @@ class LowerHLSStreamWrite(RewritePattern):
 class LowerHLSStreamRead(RewritePattern):
     def __init__(self, op: builtin.ModuleOp):
         self.module = op
-        self.pop_declaration = False
+        self.pop_stencil_declaration = False
+        self.pop_write_data_declaration = False
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStreamRead, rewriter: PatternRewriter, /):
@@ -82,23 +97,45 @@ class LowerHLSStreamRead(RewritePattern):
         elem_type = p_struct_elem_type.type.types
         p_elem_type = LLVMPointerType.typed(*elem_type)
 
-        if not self.pop_declaration:
-            pop_func = func.FuncOp.external(
-                "llvm.fpga.fifo.pop.stencil",
-                [p_elem_type],
-                [op.res.typ],
+        if "write_data" in op.attributes:
+            if not self.pop_write_data_declaration:
+                pop_func = func.FuncOp.external(
+                    "llvm.fpga.fifo.pop.write_data",
+                    [p_elem_type],
+                    [op.res.typ],
+                )
+
+                self.module.body.block.add_op(pop_func)
+
+                self.pop_write_data_declaration = True
+            size = Constant.from_int_and_width(1, i32)
+
+            alloca = AllocaOp.get(size, *elem_type)
+
+            gep = GEPOp.get(op.stream, [0, 0], result_type=p_elem_type)
+
+            pop_call = func.Call.get(
+                "llvm.fpga.fifo.pop.write_data", [gep], [op.res.typ]
             )
 
-            self.module.body.block.add_op(pop_func)
+        else:
+            if not self.pop_stencil_declaration:
+                pop_func = func.FuncOp.external(
+                    "llvm.fpga.fifo.pop.stencil",
+                    [p_elem_type],
+                    [op.res.typ],
+                )
 
-            self.pop_declaration = True
-        size = Constant.from_int_and_width(1, i32)
+                self.module.body.block.add_op(pop_func)
 
-        alloca = AllocaOp.get(size, *elem_type)
+                self.pop_stencil_declaration = True
+            size = Constant.from_int_and_width(1, i32)
 
-        gep = GEPOp.get(op.stream, [0, 0], result_type=p_elem_type)
+            alloca = AllocaOp.get(size, *elem_type)
 
-        pop_call = func.Call.get("llvm.fpga.fifo.pop.stencil", [gep], [op.res.typ])
+            gep = GEPOp.get(op.stream, [0, 0], result_type=p_elem_type)
+
+            pop_call = func.Call.get("llvm.fpga.fifo.pop.stencil", [gep], [op.res.typ])
 
         store = StoreOp.get(pop_call, alloca)
         load = LoadOp.get(alloca)

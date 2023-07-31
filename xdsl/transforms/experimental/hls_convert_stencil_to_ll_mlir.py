@@ -107,6 +107,15 @@ def add_pragma_interface(func_arg: BlockArgument, inout: int, kernel: FuncOp):
     kernel.body.block.insert_op_before(func_call, kernel.body.block.first_op)
 
 
+# def duplicate_streams(input_stream: HLSStream, output_streams: list[HLSStream], number: i32):
+#    zero = Constant.from_int_and_width(0, IndexType())
+#    one = Constant.from_int_and_width(1, IndexType())
+#    N = Constant.from_int_and_width(len(output_streams), i32)
+#
+#
+#    outer = For.get(zero, number, one, [],
+
+
 @dataclass
 class StencilExternalLoadToHLSExternalLoad(RewritePattern):
     module: builtin.ModuleOp
@@ -173,25 +182,32 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         # TODO: generalise this
         data_stream = HLSStream.get(f64)
         stencil_stream = HLSStream.get(stencil_type)
-        copy_stencil_stream = HLSStream.get(stencil_type)
 
-        one_int = Constant.from_int_and_width(1, i32)
-        four_int = Constant.from_int_and_width(4, i32)
-        copy_shift_x = arith.Subi(shape_x, four_int)
-        copy_shift_y = arith.Subi(shape_y, four_int)
-        copy_shift_z = arith.Subi(shape_z, one_int)
-        prod_x_y = arith.Muli(copy_shift_x, copy_shift_y)
-        copy_n = arith.Muli(prod_x_y, copy_shift_z)
+        copy_stencil_stream_lst = []
+        # TODO: we are generating 3 copies for now. This is what we need for pw_advection, but should be generalised for codes
+        # with a different number of components
+        for i in range(3):
+            copy_stencil_stream = HLSStream.get(stencil_type)
 
-        inout = op.attributes["inout"].data
+            one_int = Constant.from_int_and_width(1, i32)
+            four_int = Constant.from_int_and_width(4, i32)
+            copy_shift_x = arith.Subi(shape_x, four_int)
+            copy_shift_y = arith.Subi(shape_y, four_int)
+            copy_shift_z = arith.Subi(shape_z, one_int)
+            prod_x_y = arith.Muli(copy_shift_x, copy_shift_y)
+            copy_n = arith.Muli(prod_x_y, copy_shift_z)
 
-        data_stream.attributes["inout"] = op.attributes["inout"]
-        stencil_stream.attributes["inout"] = op.attributes["inout"]
-        copy_stencil_stream.attributes["inout"] = op.attributes["inout"]
+            inout = op.attributes["inout"].data
 
-        # We need to indicate that this is a stencil stream and not a data stream. TODO: make this more elegant
-        stencil_stream.attributes["stencil"] = op.attributes["inout"]
-        copy_stencil_stream.attributes["stencil"] = op.attributes["inout"]
+            data_stream.attributes["inout"] = op.attributes["inout"]
+            stencil_stream.attributes["inout"] = op.attributes["inout"]
+            copy_stencil_stream.attributes["inout"] = op.attributes["inout"]
+
+            # We need to indicate that this is a stencil stream and not a data stream. TODO: make this more elegant
+            stencil_stream.attributes["stencil"] = op.attributes["inout"]
+            copy_stencil_stream.attributes["stencil"] = op.attributes["inout"]
+
+            copy_stencil_stream_lst.append(copy_stencil_stream)
 
         threedload_call = Call.get(
             "dummy_load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
@@ -218,6 +234,8 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             builder.insert(yield_op)
 
         shift_buffer_dataflow = PragmaDataflow(shift_buffer_region)
+
+        # duplicate_streams(stencil_stream, copy_stencil_stream_lst, copy_n)
 
         duplicateStream_call = Call.get(
             "duplicateStream",
