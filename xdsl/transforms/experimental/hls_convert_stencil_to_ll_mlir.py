@@ -576,12 +576,12 @@ def transform_apply_into_loop(
         two,
         max_chunk_length,
         p_remainder,
-        remainder,
         upper_x,
         *lowerBounds,
         upper_chunks,
         upper_y,
         upper_z,
+        remainder,
     ]
 
     return p_dataflow
