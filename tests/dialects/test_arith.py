@@ -32,6 +32,7 @@ from xdsl.dialects.arith import (
     OrI,
     RemSI,
     RemUI,
+    Select,
     ShLI,
     ShRSI,
     ShRUI,
@@ -92,14 +93,14 @@ class Test_integer_arith_construction:
         assert op.result.type == self.operand_type
 
     def test_Cmpi(self):
-        _ = Cmpi.get(self.a, self.b, 2)
+        _ = Cmpi(self.a, self.b, 2)
 
     @pytest.mark.parametrize(
         "input",
         ["eq", "ne", "slt", "sle", "ult", "ule", "ugt", "uge"],
     )
     def test_Cmpi_from_mnemonic(self, input: str):
-        _ = Cmpi.get(self.a, self.b, input)
+        _ = Cmpi(self.a, self.b, input)
 
 
 class Test_float_arith_construction:
@@ -116,9 +117,22 @@ class Test_float_arith_construction:
         assert op.operands[1].owner is self.b
 
 
+def test_select_op():
+    t = Constant.from_int_and_width(1, IntegerType(1))
+    f = Constant.from_int_and_width(0, IntegerType(1))
+    select_t_op = Select(t, t, f)
+    select_f_op = Select(f, t, f)
+    select_t_op.verify_()
+    select_f_op.verify_()
+
+    # wanting to verify it actually selected the correct operand, but not sure if in correct scope
+    assert select_t_op.result.type == t.result.type
+    assert select_f_op.result.type == f.result.type
+
+
 def test_index_cast_op():
     a = Constant.from_int_and_width(0, 32)
-    cast = IndexCastOp.get(a, IndexType())
+    cast = IndexCastOp(a, IndexType())
 
     assert cast.result.type == IndexType()
     assert cast.input.type == i32
@@ -127,8 +141,8 @@ def test_index_cast_op():
 
 def test_cast_fp_and_si_ops():
     a = Constant.from_int_and_width(0, 32)
-    fp = SIToFPOp.get(a, f32)
-    si = FPToSIOp.get(fp, i32)
+    fp = SIToFPOp(a, f32)
+    si = FPToSIOp(fp, i32)
 
     assert fp.input == a.result
     assert fp.result == si.input
@@ -138,10 +152,10 @@ def test_cast_fp_and_si_ops():
 
 def test_negf_op():
     a = Constant.from_float_and_width(1.0, f32)
-    neg_a = Negf.get(a)
+    neg_a = Negf(a)
 
     b = Constant.from_float_and_width(1.0, f64)
-    neg_b = Negf.get(b)
+    neg_b = Negf(b)
 
     assert neg_a.result.type == f32
     assert neg_b.result.type == f64
@@ -150,8 +164,8 @@ def test_negf_op():
 def test_extend_truncate_fpops():
     a = Constant.from_float_and_width(1.0, f32)
     b = Constant.from_float_and_width(2.0, f64)
-    ext_op = ExtFOp.get(a, f64)
-    trunc_op = TruncFOp.get(b, f32)
+    ext_op = ExtFOp(a, f64)
+    trunc_op = TruncFOp(b, f32)
 
     assert ext_op.input == a.result
     assert ext_op.result.type == f64
@@ -180,7 +194,7 @@ def test_cmpf_from_mnemonic():
         "uno",
         "true",
     ]
-    cmpf_ops = [Cmpf.get(a, b, operations[i]) for i in range(len(operations))]
+    cmpf_ops = [Cmpf(a, b, operations[i]) for i in range(len(operations))]
 
     for index, op in enumerate(cmpf_ops):
         assert op.lhs.type == f64
@@ -192,7 +206,7 @@ def test_cmpf_get():
     a = Constant.from_float_and_width(1.0, f32)
     b = Constant.from_float_and_width(2.0, f32)
 
-    cmpf_op = Cmpf.get(a, b, 1)
+    cmpf_op = Cmpf(a, b, 1)
 
     assert cmpf_op.lhs.type == f32
     assert cmpf_op.rhs.type == f32
@@ -204,7 +218,7 @@ def test_cmpf_missmatch_type():
     b = Constant.from_float_and_width(2.0, f64)
 
     with pytest.raises(TypeError) as e:
-        _cmpf_op = Cmpf.get(a, b, 1)
+        _cmpf_op = Cmpf(a, b, 1)
     assert (
         e.value.args[0]
         == "Comparison operands must have same type, but provided f32 and f64"
@@ -216,7 +230,7 @@ def test_cmpi_mismatch_type():
     b = Constant.from_int_and_width(2, i64)
 
     with pytest.raises(TypeError) as e:
-        _cmpi_op = Cmpi.get(a, b, 1)
+        _cmpi_op = Cmpi(a, b, 1)
     assert (
         e.value.args[0]
         == "Comparison operands must have same type, but provided i32 and i64"
@@ -229,7 +243,7 @@ def test_cmpf_incorrect_comparison():
 
     with pytest.raises(VerifyException) as e:
         # 'eq' is a comparison op for cmpi but not cmpf
-        _cmpf_op = Cmpf.get(a, b, "eq")
+        _cmpf_op = Cmpf(a, b, "eq")
     assert e.value.args[0] == "Unknown comparison mnemonic: eq"
 
 
@@ -239,7 +253,7 @@ def test_cmpi_incorrect_comparison():
 
     with pytest.raises(VerifyException) as e:
         # 'oeq' is a comparison op for cmpf but not cmpi
-        _cmpi_op = Cmpi.get(a, b, "oeq")
+        _cmpi_op = Cmpi(a, b, "oeq")
     assert e.value.args[0] == "Unknown comparison mnemonic: oeq"
 
 
@@ -247,7 +261,7 @@ def test_cmpi_index_type():
     a = Constant.from_int_and_width(1, IndexType())
     b = Constant.from_int_and_width(2, IndexType())
 
-    Cmpi.get(a, b, "eq").verify()
+    Cmpi(a, b, "eq").verify()
 
 
 def test_extend_truncate_iops():
