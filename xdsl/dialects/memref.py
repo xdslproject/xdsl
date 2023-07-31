@@ -45,7 +45,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.traits import SymbolOpInterface
+from xdsl.traits import LazyTrait, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -332,7 +332,7 @@ class Global(IRDLOperation):
     type: Attribute = attr_def(Attribute)
     initial_value: Attribute = attr_def(Attribute)
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = LazyTrait(lambda: SymbolOpInterface())
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):

@@ -83,11 +83,11 @@ class Yield(IRDLOperation):
     name = "scf.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset(
-        [
-            LazyTrait(lambda: HasParent(For, If, ParallelOp, While)),
+    traits = LazyTrait(
+        lambda: (
+            HasParent(For, If, ParallelOp, While),
             IsTerminator(),
-        ]
+        )
     )
 
     @staticmethod
@@ -105,7 +105,7 @@ class If(IRDLOperation):
     # TODO this should be optional under certain conditions
     false_region: Region = region_def()
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
+    traits = LazyTrait(lambda: SingleBlockImplicitTerminator(Yield))
 
     @staticmethod
     def get(
@@ -138,7 +138,7 @@ class For(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
+    traits = LazyTrait(lambda: SingleBlockImplicitTerminator(Yield))
 
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.block.args):
@@ -205,7 +205,7 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
+    traits = LazyTrait(lambda: SingleBlockImplicitTerminator(Yield))
 
     @staticmethod
     def get(
@@ -372,7 +372,7 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result: Operand = operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(ReduceOp), IsTerminator()])
+    traits = LazyTrait(lambda: (HasParent(ReduceOp), IsTerminator()))
 
     @staticmethod
     def get(
@@ -387,7 +387,7 @@ class Condition(IRDLOperation):
     cond: Operand = operand_def(IntegerType(1))
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(While), IsTerminator()])
+    traits = LazyTrait(lambda: (HasParent(While), IsTerminator()))
 
     @staticmethod
     def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:

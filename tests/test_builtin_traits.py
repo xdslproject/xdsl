@@ -36,7 +36,7 @@ class ParentOp(IRDLOperation):
 
     region: Region = region_def()
 
-    traits = frozenset([NoTerminator()])
+    traits = LazyTrait(lambda: NoTerminator())
 
 
 @irdl_op_definition
@@ -45,7 +45,7 @@ class Parent2Op(IRDLOperation):
 
     region: Region = region_def()
 
-    traits = frozenset([NoTerminator()])
+    traits = LazyTrait(lambda: NoTerminator())
 
 
 @irdl_op_definition
@@ -56,7 +56,7 @@ class HasParentOp(IRDLOperation):
 
     name = "test.has_parent"
 
-    traits = frozenset([HasParent(ParentOp)])
+    traits = LazyTrait(lambda: HasParent(ParentOp))
 
 
 @irdl_op_definition
@@ -67,7 +67,7 @@ class HasMultipleParentOp(IRDLOperation):
 
     name = "test.has_multiple_parent"
 
-    traits = frozenset([HasParent(ParentOp, Parent2Op)])
+    traits = LazyTrait(lambda: HasParent(ParentOp, Parent2Op))
 
 
 def test_has_parent_no_parent():
@@ -136,7 +136,7 @@ class HasNoTerminatorOp(IRDLOperation):
 
     region: Region = region_def()
 
-    traits = frozenset([NoTerminator()])
+    traits = LazyTrait(lambda: NoTerminator())
 
 
 def test_has_no_terminator_empty_block_with_single_block_region_requires_no_terminator():
@@ -175,7 +175,7 @@ class IsTerminatorOp(IRDLOperation):
 
     successor: OptSuccessor = opt_successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = LazyTrait(lambda: IsTerminator())
 
 
 def test_is_terminator_without_successors_multi_block_parent_region_verify():
@@ -273,11 +273,8 @@ class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     name = "test.is_single_block_implicit_terminator"
 
-    traits = frozenset(
-        [
-            LazyTrait(lambda: HasParent(HasSingleBlockImplicitTerminatorOp)),
-            IsTerminator(),
-        ]
+    traits = LazyTrait(
+        lambda: (HasParent(HasSingleBlockImplicitTerminatorOp), IsTerminator())
     )
 
 
@@ -295,8 +292,8 @@ class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
     region: Region = region_def()
     opt_region: OptRegion = opt_region_def()
 
-    traits = frozenset(
-        [SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)]
+    traits = LazyTrait(
+        lambda: SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)
     )
 
     def __post_init__(self):
@@ -319,8 +316,8 @@ class HasSingleBlockImplicitTerminatorWrongCreationOp(IRDLOperation):
     region: Region = region_def()
     opt_region: OptRegion = opt_region_def()
 
-    traits = frozenset(
-        [SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)]
+    traits = LazyTrait(
+        lambda: SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp)
     )
 
 
@@ -342,11 +339,11 @@ class HasSingleBlockImplicitTerminatorWrongCreationOp2(IRDLOperation):
     region: Region = region_def()
     opt_region: OptRegion = opt_region_def()
 
-    traits = frozenset(
-        [
+    traits = LazyTrait(
+        lambda: (
             NoTerminator(),
             SingleBlockImplicitTerminator(IsSingleBlockImplicitTerminatorOp),
-        ]
+        )
     )
 
 
@@ -449,7 +446,7 @@ class IsolatedFromAboveOp(IRDLOperation):
 
     region: Region = region_def()
 
-    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
+    traits = LazyTrait(lambda: (IsolatedFromAbove(), NoTerminator()))
 
 
 def test_isolated_from_above():

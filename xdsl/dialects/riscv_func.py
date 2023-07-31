@@ -18,7 +18,13 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import CallableOpInterface, HasParent, IsTerminator, SymbolOpInterface
+from xdsl.traits import (
+    CallableOpInterface,
+    HasParent,
+    IsTerminator,
+    LazyTrait,
+    SymbolOpInterface,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -106,7 +112,7 @@ class FuncOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     func_body: Region = region_def()
 
-    traits = frozenset([SymbolOpInterface(), FuncOpCallableInterface()])
+    traits = LazyTrait(lambda: (SymbolOpInterface(), FuncOpCallableInterface()))
 
     def __init__(self, name: str, region: Region):
         attributes: dict[str, Attribute] = {"sym_name": StringAttr(name)}
@@ -122,7 +128,7 @@ class ReturnOp(IRDLOperation):
     values: VarOperand = var_operand_def(riscv.IntRegisterType)
     comment: StringAttr | None = opt_attr_def(StringAttr)
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = LazyTrait(lambda: (IsTerminator(), HasParent(FuncOp)))
 
     def __init__(
         self,

@@ -31,12 +31,12 @@ from xdsl.ir import (
     Data,
     Operation,
     OpResult,
-    OpTrait,
     ParametrizedAttribute,
     Region,
     SSAValue,
 )
 from xdsl.ir.core import AttributeInvT
+from xdsl.traits import LazyTrait
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     ParseError,
@@ -1009,7 +1009,7 @@ class OpDef:
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
-    traits: frozenset[OpTrait] = field(default_factory=frozenset)
+    traits: LazyTrait = field(default_factory=LazyTrait)
 
     attribute_accessor_names: dict[str, str] = field(default_factory=dict)
     """
@@ -1091,11 +1091,11 @@ class OpDef:
 
                 if field_name == "traits":
                     traits = value
-                    if not isinstance(traits, frozenset):
+                    if not isinstance(traits, LazyTrait):
                         raise Exception(
                             f"pyrdl operation definition '{pyrdl_def.__name__}' "
                             f"has a 'traits' field of type {type(traits)}, but "
-                            "it should be of type frozenset."
+                            "it should be of type LazyTrait."
                         )
                     op_def.traits = traits
                     # Only register subclass traits

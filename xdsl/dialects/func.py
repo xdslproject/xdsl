@@ -31,6 +31,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    LazyTrait,
     SymbolOpInterface,
 )
 from xdsl.utils.deprecation import deprecated
@@ -54,8 +55,8 @@ class FuncOp(IRDLOperation):
     function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
-    traits = frozenset(
-        [IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()]
+    traits = LazyTrait(
+        lambda: (IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface())
     )
 
     def __init__(
@@ -327,7 +328,7 @@ class Return(IRDLOperation):
     name = "func.return"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(FuncOp), IsTerminator()])
+    traits = LazyTrait(lambda: (HasParent(FuncOp), IsTerminator()))
 
     def __init__(self, *return_vals: SSAValue | Operation):
         super().__init__(operands=[return_vals])

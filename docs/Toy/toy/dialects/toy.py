@@ -38,6 +38,7 @@ from xdsl.irdl import (
 from xdsl.traits import (
     CallableOpInterface,
     IsTerminator,
+    LazyTrait,
     OpTrait,
     Pure,
     SymbolOpInterface,
@@ -77,7 +78,7 @@ class ConstantOp(IRDLOperation):
     value: DenseIntOrFPElementsAttr = attr_def(DenseIntOrFPElementsAttr)
     res: OpResult = result_def(TensorTypeF64)
 
-    traits = frozenset((Pure(),))
+    traits = LazyTrait(lambda: Pure())
 
     def __init__(self, value: DenseIntOrFPElementsAttr):
         super().__init__(result_types=[value.type], attributes={"value": value})
@@ -137,7 +138,7 @@ class AddOp(IRDLOperation):
     rhs: Operand = operand_def(AnyTensorTypeF64)
     res: OpResult = result_def(AnyTensorTypeF64)
 
-    traits = frozenset((Pure(), InferAddOpShapeTrait()))
+    traits = LazyTrait(lambda: (Pure(), InferAddOpShapeTrait()))
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.type, TensorTypeF64):
@@ -193,7 +194,7 @@ class FuncOp(IRDLOperation):
     function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
-    traits = frozenset((SymbolOpInterface(), FuncOpCallableInterface()))
+    traits = LazyTrait(lambda: (SymbolOpInterface(), FuncOpCallableInterface()))
 
     def __init__(
         self,
@@ -305,7 +306,7 @@ class MulOp(IRDLOperation):
     rhs: Operand = operand_def(AnyTensorTypeF64)
     res: OpResult = result_def(AnyTensorTypeF64)
 
-    traits = frozenset((Pure(), InferMulOpShapeTrait()))
+    traits = LazyTrait(lambda: (Pure(), InferMulOpShapeTrait()))
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue):
         if isa(lhs.type, TensorTypeF64):
@@ -363,7 +364,7 @@ class ReturnOp(IRDLOperation):
     name = "toy.return"
     input: OptOperand = opt_operand_def(AnyTensorTypeF64)
 
-    traits = frozenset([IsTerminator()])
+    traits = LazyTrait(lambda: IsTerminator())
 
     def __init__(self, input: SSAValue | None = None):
         return super().__init__(operands=[input])
@@ -385,7 +386,7 @@ class ReshapeOp(IRDLOperation):
     # We expect that the reshape operation returns a statically shaped tensor.
     res: OpResult = result_def(TensorTypeF64)
 
-    traits = frozenset((Pure(),))
+    traits = LazyTrait(lambda: Pure())
 
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not isa(arg.type, AnyTensorTypeF64):
@@ -437,7 +438,7 @@ class TransposeOp(IRDLOperation):
     arg: Operand = operand_def(AnyTensorTypeF64)
     res: OpResult = result_def(AnyTensorTypeF64)
 
-    traits = frozenset((Pure(), InferTransposeOpShapeTrait()))
+    traits = LazyTrait(lambda: (Pure(), InferTransposeOpShapeTrait()))
 
     def __init__(self, arg: SSAValue):
         output_type: TensorTypeF64 | UnrankedTensorTypeF64
@@ -480,7 +481,7 @@ class CastOp(IRDLOperation):
     arg: Operand = operand_def(AnyTensorTypeF64)
     res: OpResult = result_def(AnyTensorTypeF64)
 
-    traits = frozenset((Pure(), InferCastOpShapeTrait()))
+    traits = LazyTrait(lambda: (Pure(), InferCastOpShapeTrait()))
 
     def __init__(self, arg: SSAValue, res: AnyTensorTypeF64 | None = None):
         if res is None:

@@ -56,6 +56,7 @@ from xdsl.irdl import (
 )
 from xdsl.traits import (
     IsolatedFromAbove,
+    LazyTrait,
     NoTerminator,
     OptionalSymbolOpInterface,
     SymbolTable,
@@ -1225,13 +1226,13 @@ class ModuleOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset(
-        [
+    traits = LazyTrait(
+        lambda: (
             IsolatedFromAbove(),
             NoTerminator(),
             OptionalSymbolOpInterface(),
             SymbolTable(),
-        ]
+        )
     )
 
     def __init__(

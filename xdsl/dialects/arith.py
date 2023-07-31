@@ -33,7 +33,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import LazyTrait, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -170,7 +170,7 @@ IntegerBinaryOp = BinaryOperation[IntegerType]
 class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
 
-    traits = frozenset([Pure()])
+    traits = LazyTrait(lambda: Pure())
 
 
 @irdl_op_definition

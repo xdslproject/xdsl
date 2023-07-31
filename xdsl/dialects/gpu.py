@@ -204,7 +204,7 @@ class AllReduceOp(IRDLOperation):
     result: OpResult = result_def(Attribute)
     body: Region = region_def()
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = LazyTrait(lambda: IsolatedFromAbove())
 
     @staticmethod
     def from_op(
@@ -354,7 +354,7 @@ class MemcpyOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    traits = frozenset([LazyTrait(lambda: HasParent(ModuleOp)), IsTerminator()])
+    traits = LazyTrait(lambda: (HasParent(ModuleOp), IsTerminator()))
 
     def __init__(self):
         return super().__init__()
@@ -367,13 +367,13 @@ class ModuleOp(IRDLOperation):
     body: Region = region_def("single_block")
     sym_name: StringAttr = attr_def(StringAttr)
 
-    traits = frozenset(
-        [
+    traits = LazyTrait(
+        lambda: (
             IsolatedFromAbove(),
             SingleBlockImplicitTerminator(ModuleEndOp),
             SymbolOpInterface(),
             SymbolTable(),
-        ]
+        )
     )
 
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
@@ -395,7 +395,9 @@ class FuncOp(IRDLOperation):
         DenseArrayBase, attr_name="gpu.known_grid_size"
     )
 
-    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface()])
+    traits = LazyTrait(
+        lambda: (IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface())
+    )
 
     def __init__(
         self,
@@ -658,7 +660,7 @@ class ReturnOp(IRDLOperation):
 
     args: VarOperand = var_operand_def()
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = LazyTrait(lambda: (IsTerminator(), HasParent(FuncOp)))
 
     def __init__(self, operands: Sequence[SSAValue | Operation]):
         return super().__init__([operands])
@@ -695,7 +697,7 @@ class SubgroupSizeOp(IRDLOperation):
 class TerminatorOp(IRDLOperation):
     name = "gpu.terminator"
 
-    traits = frozenset([HasParent(LaunchOp), IsTerminator()])
+    traits = LazyTrait(lambda: (HasParent(LaunchOp), IsTerminator()))
 
     def __init__(self):
         return super().__init__()
@@ -721,7 +723,7 @@ class YieldOp(IRDLOperation):
     def __init__(self, operands: Sequence[SSAValue | Operation]):
         return super().__init__([operands])
 
-    traits = frozenset([IsTerminator()])
+    traits = LazyTrait(lambda: IsTerminator())
 
     def verify_(self) -> None:
         op = self.parent_op()

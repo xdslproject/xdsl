@@ -43,7 +43,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, NoTerminator, OptionalSymbolOpInterface
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    LazyTrait,
+    NoTerminator,
+    OptionalSymbolOpInterface,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -440,7 +446,7 @@ class PatternOp(IRDLOperation):
     sym_name: StringAttr | None = opt_attr_def(StringAttr)
     body: Region = region_def()
 
-    traits = frozenset([OptionalSymbolOpInterface()])
+    traits = LazyTrait(lambda: OptionalSymbolOpInterface())
 
     def __init__(
         self,
@@ -710,7 +716,7 @@ class RewriteOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    traits = frozenset([HasParent(PatternOp), NoTerminator(), IsTerminator()])
+    traits = LazyTrait(lambda: (HasParent(PatternOp), NoTerminator(), IsTerminator()))
 
     def __init__(
         self,

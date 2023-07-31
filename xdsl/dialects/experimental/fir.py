@@ -37,7 +37,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import SymbolOpInterface
+from xdsl.traits import LazyTrait, SymbolOpInterface
 
 
 @irdl_attr_definition
@@ -1147,7 +1147,7 @@ class DispatchTable(IRDLOperation):
     sym_name = attr_def(StringAttr)
     regs: VarRegion = var_region_def()
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = LazyTrait(lambda: SymbolOpInterface())
 
 
 @irdl_op_definition
@@ -1419,7 +1419,7 @@ class Global(IRDLOperation):
     linkName: StringAttr | None = opt_attr_def(StringAttr)
     constant: UnitAttr | None = opt_attr_def(UnitAttr)
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = LazyTrait(lambda: SymbolOpInterface())
 
 
 @irdl_op_definition

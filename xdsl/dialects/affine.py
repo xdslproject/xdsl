@@ -29,7 +29,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsTerminator, LazyTrait
 
 
 @irdl_op_definition
@@ -185,7 +185,7 @@ class Yield(IRDLOperation):
     name = "affine.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([IsTerminator()])
+    traits = LazyTrait(lambda: IsTerminator())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
