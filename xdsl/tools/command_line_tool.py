@@ -46,6 +46,7 @@ from xdsl.transforms import (
     reconcile_unrealized_casts,
     riscv_register_allocation,
 )
+from xdsl.transforms.canonicalize import CanonicalizationPass
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
     stencil_shape_inference,
@@ -91,6 +92,7 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
+        CanonicalizationPass,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
