@@ -39,6 +39,9 @@ _T = TypeVar("_T")
 class QueryBuilder:
     query: Query
 
+    def add_variable(self, var: Variable[Any]) -> None:
+        self.query.add_variable(var)
+
     def add_unary_constraint(self, constraint: UnaryConstraint[Any]):
         self.query.constraints.append(constraint)
 
@@ -66,14 +69,14 @@ class _QBVC:
         """
         if self.var.name in self.query.variables:
             return False
-        self.query.add_variable(self.var)
+        self.builder.add_variable(self.var)
         for var in self.property_variables.values():
             var.qbvc__.register_var()
         return True
 
     def constrain_type(self, hint: type[_T]) -> TypeGuard[_T]:
         if self.var.name not in self.query.variables:
-            self.query.add_variable(self.var)
+            self.builder.add_variable(self.var)
         self.builder.add_unary_constraint(TypeConstraint(self.var, hint))
         return True
 
@@ -130,7 +133,7 @@ class _QueryBuilderVariable(Generic[_QBVCTCov]):
                 qbvc.property_variables[__name] = attr
                 # register property's var in query if this one is already registered
                 if qbvc.var.name in qbvc.query.variables:
-                    qbvc.query.add_variable(attr.qbvc__.var)
+                    qbvc.builder.add_variable(attr.qbvc__.var)
 
             return attr
 
