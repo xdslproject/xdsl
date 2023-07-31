@@ -38,6 +38,8 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
+    TypeConversionPattern,
+    attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -537,6 +539,12 @@ def return_target_analysis(module: builtin.ModuleOp):
     return return_targets
 
 
+class StencilTypeConversion(TypeConversionPattern):
+    @attr_type_rewrite_pattern
+    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
+        return StencilToMemRefType(typ)
+
+
 @dataclass
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
@@ -569,8 +577,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         type_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    UpdateLoopCarriedVarTypes(),
-                    StencilTypeConversionFuncOp(),
+                    StencilTypeConversion(),
                     BufferOpCleanUp(),
                 ]
             )
