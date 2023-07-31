@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 import inspect
 from dataclasses import dataclass
 from typing import (
@@ -65,7 +66,7 @@ class QueryBuilder:
 
 
 @dataclass
-class _QBVC:
+class _QBVC(abc.ABC):
     """
     Query builder variable contents
     """
@@ -117,15 +118,17 @@ class _QBVC:
     def get_attribute(self, __name: str) -> _QueryBuilderVariable[_QBVC]:
         attr = self.property_variables.get(__name)
         if attr is None:
-            attr = self.create_attribute(__name)
-            if attr is None:
+            spec = self.attribute_spec(__name)
+            if spec is None:
                 raise AttributeError
+            qbvc_cls, var_cls = spec
+            attr = self._create_attribute_variable(__name, qbvc_cls, var_cls)
             # register property in this variable's cache
             self.property_variables[__name] = attr
 
         return attr
 
-    def create_attribute_variable(
+    def _create_attribute_variable(
         self, name: str, qbvc_cls: type[_QBVCT], var_cls: type[Variable[Any]]
     ) -> _QueryBuilderVariable[_QBVC]:
         new_qbvc = self.builder.new_variable_context(qbvc_cls, var_cls)
@@ -134,7 +137,10 @@ class _QBVC:
         self.builder.add_binary_constraint(PropertyConstraint(self.var, new_var, name))
         return _QueryBuilderVariable(new_qbvc)
 
-    def create_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
+    @abc.abstractmethod
+    def attribute_spec(
+        self, name: str
+    ) -> tuple[type[_QBVC], type[Variable[Any]]] | None:
         raise NotImplementedError()
 
 
@@ -165,9 +171,10 @@ class _QueryBuilderVariable(Generic[_QBVCTCov]):
 
 @dataclass
 class _OperationQBVC(_QBVC):
-    def create_attribute(self, name: str) -> Any:
-        # TODO: add operation properties here
-        return None
+    def attribute_spec(
+        self, name: str
+    ) -> tuple[type[_QBVC], type[Variable[Any]]] | None:
+        raise NotImplementedError(f"TODO, {name}")
 
 
 @dataclass
@@ -185,36 +192,40 @@ class _IRDLOperationQBVC(_OperationQBVC):
             self.builder.add_unary_constraint(TypeConstraint(self.var, self.cls))
         return did_register
 
-    def create_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
+    def attribute_spec(
+        self, name: str
+    ) -> tuple[type[_QBVC], type[Variable[Any]]] | None:
         if name in dict(self.op_def.operands):
-            return self.create_attribute_variable(name, _SSAValueQBVC, SSAValueVariable)
+            return _SSAValueQBVC, SSAValueVariable
         elif name in dict(self.op_def.results):
-            assert False, f"{name}"
+            raise NotImplementedError(f"TODO, {name}")
         elif name in dict(self.op_def.attributes):
-            return self.create_attribute_variable(
-                name, _AttributeQBVC, AttributeVariable
-            )
+            return _AttributeQBVC, AttributeVariable
         else:
-            assert False
+            return None
 
 
 class _SSAValueQBVC(_QBVC):
     var: SSAValueVariable
 
-    def create_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
-        if name == "op":
-            return self.create_attribute_variable(
-                name, _OperationQBVC, OperationVariable
-            )
+    def attribute_spec(
+        self, name: str
+    ) -> tuple[type[_QBVC], type[Variable[Any]]] | None:
+        return _OperationQBVC, OperationVariable
 
 
 class _AttributeQBVC(_QBVC):
     var: AttributeVariable
 
-    def eq(self, self_variable: _QueryBuilderVariable[_QBVC], value: Any) -> bool:
+    def eq_value(self, self_variable: _QueryBuilderVariable[_QBVC], value: Any) -> bool:
         assert isinstance(value, Attribute)
         self.builder.add_unary_constraint(AttributeValueConstraint(self.var, value))
         return True
+
+    def attribute_spec(
+        self, name: str
+    ) -> tuple[type[_QBVC], type[Variable[Any]]] | None:
+        raise NotImplementedError(f"TODO, {name}")
 
 
 QueryParams = ParamSpec("QueryParams")
