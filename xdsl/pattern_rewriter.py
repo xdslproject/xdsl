@@ -581,20 +581,9 @@ def attr_type_rewrite_pattern(
         )
     expected_type: type[_AttributeT] = params[-1].annotation
 
-    expected_types = (expected_type,)
-    if get_origin(expected_type) in [Union, UnionType]:
-        expected_types = get_args(expected_type)
-
-    if not all(issubclass(t, Attribute) for t in expected_types):
-        raise Exception(
-            "attr_type_rewrite_pattern expects the non-self argument "
-            "type hint to be an `Attribute` subclass or a union of `Attribute` "
-            "subclasses."
-        )
-
     @wraps(func)
     def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
-        if isinstance(typ, expected_type):
+        if isa(typ, expected_type):
             return func(self, typ)
         return None
 
