@@ -42,7 +42,7 @@ class QueryBuilder:
     _query: Query
     var_id: int = 0
 
-    def next_var_id(self) -> str:
+    def _next_var_id(self) -> str:
         id = self.var_id
         self.var_id = id + 1
         return f"{id}"
@@ -57,7 +57,7 @@ class QueryBuilder:
     def new_variable_context(
         self, qbvc_cls: type[_QBVCT], var_cls: type[Variable[Any]]
     ) -> _QBVCT:
-        new_var = var_cls(self.next_var_id())
+        new_var = var_cls(self._next_var_id())
         new_qbvc = qbvc_cls(new_var, self, {})
         return new_qbvc
 
