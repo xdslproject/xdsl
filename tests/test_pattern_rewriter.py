@@ -1095,11 +1095,6 @@ def test_type_conversion():
 }) : () -> ()
 """
 
-    class Rewrite(TypeConversionPattern):
-        @attr_type_rewrite_pattern
-        def convert_type(self, typ: IntegerType) -> IndexType:
-            return IndexType()
-
     rewrite_and_compare(
         prog,
         expected,
