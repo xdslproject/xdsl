@@ -786,14 +786,13 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if immediate := parser.parse_optional_integer(allow_boolean=False):
-            attributes["immediate"] = IntegerAttr(
-                immediate, IntegerType(12, Signedness.SIGNED)
-            )
-        elif immediate := parser.parse_optional_str_literal():
-            attributes["immediate"] = LabelAttr(immediate)
-        else:
-            parser.raise_error("Expected immediate")
+        match immediate := _parse_int_or_str_literal(parser, "Expected immediate"):
+            case int():
+                attributes["immediate"] = IntegerAttr(
+                    immediate, IntegerType(12, Signedness.SIGNED)
+                )
+            case str():
+                attributes["immediate"] = LabelAttr(immediate)
         if parser.parse_optional_punctuation(","):
             attributes["rd"] = parser.parse_attribute()
         return attributes
@@ -3018,6 +3017,15 @@ class FSwOp(RsRsImmFloatOperation):
 
 
 # endregion
+
+
+def _parse_int_or_str_literal(parser: Parser, msg: str) -> int | str:
+    if (term := parser.parse_optional_integer()) is not None:
+        return term
+    if (term := parser.parse_optional_str_literal()) is not None:
+        return term
+    parser.raise_error(msg)
+
 
 RISCV = Dialect(
     [
