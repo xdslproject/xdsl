@@ -34,6 +34,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import LazyTrait, Pure
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -374,7 +375,39 @@ class Cmpi(IRDLOperation, ComparisonOperation):
     rhs: Operand = operand_def(signlessIntegerLike)
     result: OpResult = result_def(IntegerType(1))
 
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        arg: int | str,
+    ):
+        operand1 = SSAValue.get(operand1)
+        operand2 = SSAValue.get(operand2)
+        Cmpi._validate_operand_types(operand1, operand2)
+
+        if isinstance(arg, str):
+            cmpi_comparison_operations = {
+                "eq": 0,
+                "ne": 1,
+                "slt": 2,
+                "sle": 3,
+                "sgt": 4,
+                "sge": 5,
+                "ult": 6,
+                "ule": 7,
+                "ugt": 8,
+                "uge": 9,
+            }
+            arg = Cmpi._get_comparison_predicate(arg, cmpi_comparison_operations)
+
+        return super().__init__(
+            operands=[operand1, operand2],
+            result_types=[IntegerType(1)],
+            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+        )
+
     @staticmethod
+    @deprecated("please use init instead of .get")
     def get(
         operand1: Operation | SSAValue,
         operand2: Operation | SSAValue,
@@ -438,7 +471,46 @@ class Cmpf(IRDLOperation, ComparisonOperation):
     rhs: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(IntegerType(1))
 
+    def __init__(
+        self,
+        operand1: SSAValue | Operation,
+        operand2: SSAValue | Operation,
+        arg: int | str,
+    ):
+        operand1 = SSAValue.get(operand1)
+        operand2 = SSAValue.get(operand2)
+
+        Cmpf._validate_operand_types(operand1, operand2)
+
+        if isinstance(arg, str):
+            cmpf_comparison_operations = {
+                "false": 0,
+                "oeq": 1,
+                "ogt": 2,
+                "oge": 3,
+                "olt": 4,
+                "ole": 5,
+                "one": 6,
+                "ord": 7,
+                "ueq": 8,
+                "ugt": 9,
+                "uge": 10,
+                "ult": 11,
+                "ule": 12,
+                "une": 13,
+                "uno": 14,
+                "true": 15,
+            }
+            arg = Cmpf._get_comparison_predicate(arg, cmpf_comparison_operations)
+
+        return super().__init__(
+            operands=[operand1, operand2],
+            result_types=[IntegerType(1)],
+            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+        )
+
     @staticmethod
+    @deprecated("please use init instead of .get")
     def get(
         operand1: SSAValue | Operation, operand2: SSAValue | Operation, arg: int | str
     ) -> Cmpf:
@@ -497,7 +569,19 @@ class Select(IRDLOperation):
         if self.lhs.type != self.rhs.type or self.rhs.type != self.result.type:
             raise VerifyException("expect all input and output types to be equal")
 
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        operand3: Operation | SSAValue,
+    ):
+        operand2 = SSAValue.get(operand2)
+        return super().__init__(
+            operands=[operand1, operand2, operand3], result_types=[operand2.type]
+        )
+
     @staticmethod
+    @deprecated("please use init instead of .get")
     def get(
         operand1: Operation | SSAValue,
         operand2: Operation | SSAValue,
@@ -536,7 +620,18 @@ class Negf(IRDLOperation):
     operand: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(floatingPointLike)
 
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
+        operand = SSAValue.get(operand)
+        return super().__init__(
+            attributes={"fastmath": fastmath},
+            operands=[operand],
+            result_types=[operand.type],
+        )
+
     @staticmethod
+    @deprecated("please use init instead of .get")
     def get(
         operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> Negf:
@@ -566,7 +661,11 @@ class IndexCastOp(IRDLOperation):
 
     result: OpResult = result_def()
 
+    def __init__(self, input_arg: SSAValue | Operation, target_type: Attribute):
+        return super().__init__(operands=[input_arg], result_types=[target_type])
+
     @staticmethod
+    @deprecated("please use init instead of .get")
     def get(input_arg: SSAValue | Operation, target_type: Attribute):
         return IndexCastOp.build(operands=[input_arg], result_types=[target_type])
 
@@ -578,7 +677,11 @@ class FPToSIOp(IRDLOperation):
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(IntegerType)
 
+    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
+        return super().__init__(operands=[op], result_types=[target_type])
+
     @staticmethod
+    @deprecated("please use init instead of .get")
     def get(op: SSAValue | Operation, target_type: IntegerType):
         return FPToSIOp.build(operands=[op], result_types=[target_type])
 
@@ -590,7 +693,11 @@ class SIToFPOp(IRDLOperation):
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(AnyFloat)
 
+    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
+        return super().__init__(operands=[op], result_types=[target_type])
+
     @staticmethod
+    @deprecated("please use init instead of .get")
     def get(op: SSAValue | Operation, target_type: AnyFloat):
         return SIToFPOp.build(operands=[op], result_types=[target_type])
 
@@ -602,7 +709,11 @@ class ExtFOp(IRDLOperation):
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
+        return super().__init__(operands=[op], result_types=[target_type])
+
     @staticmethod
+    @deprecated("please use init instead of .get")
     def get(op: SSAValue | Operation, target_type: AnyFloat):
         return ExtFOp.build(operands=[op], result_types=[target_type])
 
@@ -614,7 +725,11 @@ class TruncFOp(IRDLOperation):
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
+        return super().__init__(operands=[op], result_types=[target_type])
+
     @staticmethod
+    @deprecated("please use init instead of .get")
     def get(op: SSAValue | Operation, target_type: AnyFloat):
         return TruncFOp.build(operands=[op], result_types=[target_type])
 
