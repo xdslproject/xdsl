@@ -2096,7 +2096,7 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 class AssemblySectionOp(IRDLOperation, RISCVOp):
     """
     The directive operation is used to emit assembler directives (e.g. .text; .data; etc.)
-    with a region of assembly code.
+    with the scope of a section.
 
     A more complete list of directives can be found here:
 
