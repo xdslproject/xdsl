@@ -38,30 +38,30 @@ _VariableT = TypeVar("_VariableT", bound=Variable[Any])
 
 @dataclass
 class QueryBuilder:
-    query: Query
+    _query: Query
 
     @property
     def variables(self) -> dict[str, Variable[Any]]:
-        return self.query.variables
+        return self._query.variables
 
     def add_variable(self, var: Variable[Any]) -> None:
-        self.query.add_variable(var)
+        self._query.add_variable(var)
 
     def new_variable_context(
         self, qbvc_cls: type[_QBVCT], var_cls: type[Variable[Any]]
     ) -> _QBVCT:
-        new_var = var_cls(self.query.next_var_id())
+        new_var = var_cls(self._query.next_var_id())
         new_qbvc = qbvc_cls(new_var, self, {})
         return new_qbvc
 
     def add_unary_constraint(self, constraint: UnaryConstraint[Any]):
-        assert constraint.var.name in self.query.variables
-        self.query.constraints.append(constraint)
+        assert constraint.var.name in self._query.variables
+        self._query.constraints.append(constraint)
 
     def add_binary_constraint(self, constraint: BinaryConstraint[Any, Any]):
-        assert constraint.var0.name in self.query.variables
-        assert constraint.var1.name in self.query.variables
-        self.query.constraints.append(constraint)
+        assert constraint.var0.name in self._query.variables
+        assert constraint.var1.name in self._query.variables
+        self._query.constraints.append(constraint)
 
 
 @dataclass
