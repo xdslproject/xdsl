@@ -466,35 +466,44 @@ class TypeConversionPattern(RewritePattern):
         inp = typ
         if isinstance(typ, ParametrizedAttribute):
             parameters = list(self.convert_type_rec(p) or p for p in typ.parameters)
-            inp = ParametrizedAttribute.new(parameters)
+            inp = type(typ).new(parameters)
         if isa(typ, ArrayAttr[Attribute]):
             parameters = tuple(self.convert_type_rec(p) or p for p in typ)
-            inp = ArrayAttr.new(parameters)
+            inp = type(typ).new(parameters)
         return self.convert_type(inp) or inp
 
     @final
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        new_result_types: list[Attribute] = []
+        new_attributes: dict[str, Attribute] = {}
+        changed: bool = False
         for result in op.results:
-            # TODO: rewriter!
             converted = self.convert_type_rec(result.type)
-            if converted:
-                result.type = converted
-        for operand in op.operands:
-            # TODO: rewriter!
-            converted = self.convert_type_rec(operand.type)
-            if converted:
-                operand.type = converted
+            new_result_types.append(converted or result.type)
+            if converted and converted != result.type:
+                changed = True
         for name, attribute in op.attributes.items():
             # TODO: rewriter
             converted = self.convert_type_rec(attribute)
-            if converted:
-                op.attributes[name] = converted
+            new_attributes[name] = converted or attribute
+            if converted and converted != attribute:
+                changed = True
         for region in op.regions:
             for block in region.blocks:
                 for arg in block.args:
                     converted = self.convert_type(arg.type)
-                    if converted:
+                    if converted and converted != arg.type:
                         rewriter.modify_block_argument_type(arg, converted)
+        if changed:
+            regions = [op.detach_region(r) for r in op.regions]
+            new_op = type(op).create(
+                operands=op.operands,
+                result_types=new_result_types,
+                attributes=new_attributes,
+                successors=op.successors,
+                regions=regions,
+            )
+            rewriter.replace_matched_op(new_op)
 
 
 _TypeConversionPatternT = TypeVar(

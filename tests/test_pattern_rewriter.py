@@ -1032,3 +1032,13 @@ def test_type_conversion():
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
     )
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+    )
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False, walk_reverse=True),
+    )
