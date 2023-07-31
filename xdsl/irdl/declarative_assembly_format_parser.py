@@ -14,6 +14,7 @@ from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
     FormatDirective,
     FormatProgram,
+    KeywordDirective,
     PunctuationDirective,
 )
 from xdsl.parser import BaseParser, ParserState
@@ -141,7 +142,13 @@ class FormatParser(BaseParser):
             assert Token.Kind.is_spelling_of_punctuation(punctuation)
             return PunctuationDirective(punctuation)
 
-        self.raise_error("punctuation or identifier expected")
+        # Identifier case
+        ident = self.parse_optional_identifier()
+        if ident is None or ident == "`":
+            self.raise_error("punctuation or identifier expected")
+
+        self.parse_characters("`")
+        return KeywordDirective(ident)
 
     def parse_directive(self) -> FormatDirective:
         """

@@ -210,6 +210,14 @@ def test_attr_dict(program: str, generic_program: str):
             "`(` `)` attr-dict",
             "test.punctuation()",
         ),
+        (
+            "`keyword` attr-dict",
+            "test.punctuation keyword",
+        ),
+        (
+            "`keyword` `,` `keyword` attr-dict",
+            "test.punctuation keyword, keyword",
+        ),
     ],
 )
 def test_punctuations_and_keywords(format: str, program: str):
