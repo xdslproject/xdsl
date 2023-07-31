@@ -144,7 +144,6 @@ class Query:
     match_variable_names: tuple[str, ...]
     variables: OrderedDict[str, Variable[Any]]
     constraints: list[Constraint]
-    var_id: int = 0
 
     def __init__(
         self,
@@ -192,8 +191,3 @@ class Query:
         for op in module.walk():
             if (env := self.match(op)) is not None:
                 yield env
-
-    def next_var_id(self) -> str:
-        id = self.var_id
-        self.var_id = id + 1
-        return f"{id}"

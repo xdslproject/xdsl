@@ -40,6 +40,12 @@ _VariableT = TypeVar("_VariableT", bound=Variable[Any])
 @dataclass
 class QueryBuilder:
     _query: Query
+    var_id: int = 0
+
+    def next_var_id(self) -> str:
+        id = self.var_id
+        self.var_id = id + 1
+        return f"{id}"
 
     @property
     def variables(self) -> dict[str, Variable[Any]]:
@@ -51,7 +57,7 @@ class QueryBuilder:
     def new_variable_context(
         self, qbvc_cls: type[_QBVCT], var_cls: type[Variable[Any]]
     ) -> _QBVCT:
-        new_var = var_cls(self._query.next_var_id())
+        new_var = var_cls(self.next_var_id())
         new_qbvc = qbvc_cls(new_var, self, {})
         return new_qbvc
 
@@ -252,12 +258,12 @@ class PatternQuery(Generic[QueryParams], Query):
 
         super().__init__(names, (), ())
         fake_vars: dict[str, _QueryBuilderVariable[_QBVC]] = {}
+        builder = QueryBuilder(self)
 
         for name, cls in params:
             if issubclass(cls, IRDLOperation):
                 # Don't add the variables here, they will be added as they are traversed
                 var = OperationVariable(name)
-                builder = QueryBuilder(self)
                 qbvc = _IRDLOperationQBVC(var, builder, {}, cls)
                 fake_vars[name] = _QueryBuilderVariable(qbvc)
 
