@@ -1038,17 +1038,19 @@ def test_type_conversion():
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        PatternRewriteWalker(Rewrite(recursive=True), apply_recursively=False),
     )
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        PatternRewriteWalker(Rewrite(recursive=True), apply_recursively=True),
     )
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(Rewrite(), apply_recursively=False, walk_reverse=True),
+        PatternRewriteWalker(
+            Rewrite(recursive=True), apply_recursively=False, walk_reverse=True
+        ),
     )
 
     non_rec_expected = """\
@@ -1067,19 +1069,17 @@ def test_type_conversion():
     rewrite_and_compare(
         prog,
         non_rec_expected,
-        PatternRewriteWalker(Rewrite(recursive=False), apply_recursively=False),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
     )
     rewrite_and_compare(
         prog,
         non_rec_expected,
-        PatternRewriteWalker(Rewrite(recursive=False), apply_recursively=True),
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
     )
     rewrite_and_compare(
         prog,
         non_rec_expected,
-        PatternRewriteWalker(
-            Rewrite(recursive=False), apply_recursively=False, walk_reverse=True
-        ),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False, walk_reverse=True),
     )
 
     expected = """\
@@ -1098,17 +1098,23 @@ def test_type_conversion():
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(Rewrite(ops=(test.TestOp,)), apply_recursively=False),
-    )
-    rewrite_and_compare(
-        prog,
-        expected,
-        PatternRewriteWalker(Rewrite(ops=(test.TestOp,)), apply_recursively=True),
+        PatternRewriteWalker(
+            Rewrite(ops=(test.TestOp,), recursive=True), apply_recursively=False
+        ),
     )
     rewrite_and_compare(
         prog,
         expected,
         PatternRewriteWalker(
-            Rewrite(ops=(test.TestOp,)), apply_recursively=False, walk_reverse=True
+            Rewrite(ops=(test.TestOp,), recursive=True), apply_recursively=True
+        ),
+    )
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(
+            Rewrite(ops=(test.TestOp,), recursive=True),
+            apply_recursively=False,
+            walk_reverse=True,
         ),
     )

@@ -470,17 +470,16 @@ class TypeConversionPattern(RewritePattern):
 
     This base pattern defines two flags:
 
-    - `recursive` (defaulting to True): recurse over structured attributes to convert
+    - `recursive` (defaulting to False): recurse over structured attributes to convert
       parameters.
       e.g. a recusrive `i32` to `index` conversion will convert `vector<i32>` to
       `vector<index>`.
-
     - `ops` (defaulting to any Operation) is a tuple of Operation types on which to apply
       the defined attribute conversion.
     """
 
-    recursive: bool = True
-    ops: tuple[type[Operation]] | None = None
+    recursive: bool = False
+    ops: tuple[type[Operation], ...] | None = None
 
     @abstractmethod
     def convert_type(self, typ: Attribute, /) -> Attribute | None:
