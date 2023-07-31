@@ -420,7 +420,7 @@ class Data(Generic[DataElement], Attribute, ABC):
         attr = cls.__new__(cls)
 
         # Call the __init__ of Data, which will set the parameters field.
-        Data.__init__(attr, params)  # type: ignore
+        Data.__init__(attr, params)  # pyright: ignore[reportUnknownMemberType]
         return attr
 
     @classmethod
