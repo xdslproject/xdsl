@@ -479,7 +479,15 @@ class TypeConversionPattern(RewritePattern):
     """
 
     recursive: bool = False
+    """
+    recurse over structured attributes to convert parameters.
+    Defaults to False.
+    """
     ops: tuple[type[Operation], ...] | None = None
+    """
+    A tuple of Operation types on which to apply the defined attribute conversion.
+    Defaults to any operation type.
+    """
 
     @abstractmethod
     def convert_type(self, typ: Attribute, /) -> Attribute | None:
