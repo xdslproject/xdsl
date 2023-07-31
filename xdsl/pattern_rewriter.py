@@ -516,7 +516,8 @@ class TypeConversionPattern(RewritePattern):
             if isa(typ, ArrayAttr[Attribute]):
                 parameters = tuple(self._convert_type_rec(p) or p for p in typ)
                 inp = type(typ).new(parameters)
-        return self.convert_type(inp) or inp
+        converted = self.convert_type(inp)
+        return converted if converted is not None else inp
 
     @final
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
