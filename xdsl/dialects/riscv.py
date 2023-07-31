@@ -765,6 +765,8 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
             )
         elif immediate := parser.parse_optional_str_literal():
             attributes["immediate"] = LabelAttr(immediate)
+        else:
+            parser.raise_error("Expected immediate")
         if parser.parse_optional_punctuation(","):
             attributes["rd"] = parser.parse_attribute()
         return attributes
