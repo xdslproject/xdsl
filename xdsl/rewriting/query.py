@@ -15,7 +15,6 @@ from typing import (
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (
     Attribute,
-    AttributeInvT,
     IRNode,
     Operation,
     OperationInvT,
@@ -129,45 +128,16 @@ class AttributeValueConstraint(UnaryConstraint[Attribute]):
 
 
 @dataclass
-class OperationAttributeConstraint(BinaryConstraint[OperationInvT, AttributeInvT]):
-    attr_name: str
+class PropertyConstraint(BinaryConstraint[_T0, _T1]):
+    property_name: str
 
     def match(self, ctx: MatchContext) -> bool:
-        a_obj = self.var0.get(ctx)
-        b_obj = getattr(a_obj, self.attr_name)
-        return self.var1.set(ctx, b_obj)
-
-
-@dataclass
-class OperationOperandConstraint(BinaryConstraint[Operation, SSAValue]):
-    operand_name: str
-
-    def match(self, ctx: MatchContext) -> bool:
-        a_obj = self.var0.get(ctx)
-        b_obj = getattr(a_obj, self.operand_name)
-        return self.var1.set(ctx, b_obj)
-
-
-@dataclass
-class OperationResultConstraint(BinaryConstraint[Operation, OpResult]):
-    res_name: str
-
-    def match(self, ctx: MatchContext) -> bool:
-        a_obj = self.var0.get(ctx)
-        b_obj = getattr(a_obj, self.res_name)
-        return self.var1.set(ctx, b_obj)
+        val0 = self.var0.get(ctx)
+        val1 = getattr(val0, self.property_name)
+        return self.var1.set(ctx, val1)
 
 
 SSAValueInvT = TypeVar("SSAValueInvT", bound=SSAValue)
-
-
-@dataclass
-class OpResultOpConstraint(BinaryConstraint[SSAValueInvT, Operation]):
-    def match(self, ctx: MatchContext) -> bool:
-        op_result = self.var0.get(ctx)
-        assert isinstance(op_result, OpResult)
-        op = op_result.op
-        return self.var1.set(ctx, op)
 
 
 class Query:

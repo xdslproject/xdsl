@@ -22,10 +22,8 @@ from xdsl.rewriting.query import (
     BinaryConstraint,
     EqConstraint,
     Match,
-    OperationAttributeConstraint,
-    OperationOperandConstraint,
     OperationVariable,
-    OpResultOpConstraint,
+    PropertyConstraint,
     Query,
     SSAValueVariable,
     TypeConstraint,
@@ -167,7 +165,7 @@ class _IRDLOperationQBVC(_OperationQBVC):
             new_var = SSAValueVariable(self.query.next_var_id())
             new_qbvc = _SSAValueQBVC(new_var, self.builder, {})
             self.builder.add_binary_constraint(
-                OperationOperandConstraint(self.var, new_var, name)
+                PropertyConstraint(self.var, new_var, name)
             )
             return _QueryBuilderVariable(new_qbvc)
         elif name in dict(self.op_def.results):
@@ -176,7 +174,7 @@ class _IRDLOperationQBVC(_OperationQBVC):
             new_var = AttributeVariable(self.query.next_var_id())
             new_qbvc = _AttributeQBVC(new_var, self.builder, {})
             self.builder.add_binary_constraint(
-                OperationAttributeConstraint(self.var, new_var, name)
+                PropertyConstraint(self.var, new_var, name)
             )
             return _QueryBuilderVariable(new_qbvc)
         else:
@@ -193,7 +191,7 @@ class _SSAValueQBVC(_QBVC):
             )
             new_var = _QueryBuilderVariable(new_qbvc)
             self.builder.add_binary_constraint(
-                OpResultOpConstraint(self.var, new_qbvc.var)
+                PropertyConstraint(self.var, new_qbvc.var, "op")
             )
             return new_var
 

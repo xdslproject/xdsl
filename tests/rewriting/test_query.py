@@ -6,11 +6,9 @@ from xdsl.rewriting.query import (
     AttributeValueConstraint,
     AttributeVariable,
     EqConstraint,
-    OperationAttributeConstraint,
-    OperationOperandConstraint,
     OperationVariable,
-    OpResultOpConstraint,
     OpResultVariable,
+    PropertyConstraint,
     Query,
     SSAValueVariable,
     TypeConstraint,
@@ -59,7 +57,7 @@ def test_match_constant_1():
     root_var = OperationVariable("root")
     constant_constr = TypeConstraint(root_var, arith.Constant)
     attr_var = AttributeVariable("attr")
-    property_constraint = OperationAttributeConstraint(root_var, attr_var, "value")
+    property_constraint = PropertyConstraint(root_var, attr_var, "value")
     attribute_value_constraint = AttributeValueConstraint(
         attr_var, IntegerAttr.from_int_and_width(1, 32)
     )
@@ -97,11 +95,11 @@ def test_add_0():
         ],
         [
             TypeConstraint(root_var, arith.Addi),
-            OperationOperandConstraint(root_var, rhs_var, "rhs"),
+            PropertyConstraint(root_var, rhs_var, "rhs"),
             EqConstraint(rhs_var, res_var),
-            OpResultOpConstraint(res_var, zero_var),
+            PropertyConstraint(res_var, zero_var, "op"),
             TypeConstraint(zero_var, arith.Constant),
-            OperationAttributeConstraint(zero_var, attr_var, "value"),
+            PropertyConstraint(zero_var, attr_var, "value"),
             AttributeValueConstraint(attr_var, IntegerAttr.from_int_and_width(0, 32)),
         ],
     )
