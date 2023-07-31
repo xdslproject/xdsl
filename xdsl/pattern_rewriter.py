@@ -483,7 +483,6 @@ class TypeConversionPattern(RewritePattern):
             if converted and converted != result.type:
                 changed = True
         for name, attribute in op.attributes.items():
-            # TODO: rewriter
             converted = self.convert_type_rec(attribute)
             new_attributes[name] = converted or attribute
             if converted and converted != attribute:
