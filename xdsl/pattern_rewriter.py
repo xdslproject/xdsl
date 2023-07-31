@@ -465,11 +465,11 @@ class TypeConversionPattern(RewritePattern):
     def convert_type_rec(self, typ: Attribute) -> Attribute | None:
         inp = typ
         if isinstance(typ, ParametrizedAttribute):
-            parameters = tuple(self.convert_type_rec(p) or p for p in typ.parameters)
-            inp = type(typ).new(parameters)
+            parameters = list(self.convert_type_rec(p) or p for p in typ.parameters)
+            inp = ParametrizedAttribute.new(parameters)
         if isa(typ, ArrayAttr[Attribute]):
             parameters = tuple(self.convert_type_rec(p) or p for p in typ)
-            inp = type(typ).new(parameters)
+            inp = ArrayAttr.new(parameters)
         return self.convert_type(inp) or inp
 
     @final
@@ -485,6 +485,7 @@ class TypeConversionPattern(RewritePattern):
             if converted:
                 operand.type = converted
         for name, attribute in op.attributes.items():
+            # TODO: rewriter
             converted = self.convert_type_rec(attribute)
             if converted:
                 op.attributes[name] = converted
