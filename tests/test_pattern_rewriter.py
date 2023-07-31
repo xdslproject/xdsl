@@ -1042,3 +1042,30 @@ def test_type_conversion():
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False, walk_reverse=True),
     )
+
+    non_rec_expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() {"nested" = memref<*xi32>} : () -> index
+  %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
+  %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xi32>
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    rewrite_and_compare(
+        prog,
+        non_rec_expected,
+        PatternRewriteWalker(Rewrite(recursive=False), apply_recursively=False),
+    )
+    rewrite_and_compare(
+        prog,
+        non_rec_expected,
+        PatternRewriteWalker(Rewrite(recursive=False), apply_recursively=True),
+    )
+    rewrite_and_compare(
+        prog,
+        non_rec_expected,
+        PatternRewriteWalker(
+            Rewrite(recursive=False), apply_recursively=False, walk_reverse=True
+        ),
+    )

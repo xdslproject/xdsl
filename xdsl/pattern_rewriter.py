@@ -457,19 +457,23 @@ def op_type_rewrite_pattern(
     return impl
 
 
+@dataclass
 class TypeConversionPattern(RewritePattern):
+    recursive: bool = True
+
     @abstractmethod
     def convert_type(self, typ: Attribute, /) -> Attribute | None:
         ...
 
     def convert_type_rec(self, typ: Attribute) -> Attribute | None:
         inp = typ
-        if isinstance(typ, ParametrizedAttribute):
-            parameters = list(self.convert_type_rec(p) or p for p in typ.parameters)
-            inp = type(typ).new(parameters)
-        if isa(typ, ArrayAttr[Attribute]):
-            parameters = tuple(self.convert_type_rec(p) or p for p in typ)
-            inp = type(typ).new(parameters)
+        if self.recursive:
+            if isinstance(typ, ParametrizedAttribute):
+                parameters = list(self.convert_type_rec(p) or p for p in typ.parameters)
+                inp = type(typ).new(parameters)
+            if isa(typ, ArrayAttr[Attribute]):
+                parameters = tuple(self.convert_type_rec(p) or p for p in typ)
+                inp = type(typ).new(parameters)
         return self.convert_type(inp) or inp
 
     @final
