@@ -9,6 +9,7 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    IndexType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -759,13 +760,9 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
         attributes = dict[str, Attribute]()
-        match immediate := _parse_int_or_str_literal(parser, "Expected immediate"):
-            case int():
-                attributes["immediate"] = IntegerAttr(
-                    immediate, IntegerType(12, Signedness.SIGNED)
-                )
-            case str():
-                attributes["immediate"] = LabelAttr(immediate)
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
         if parser.parse_optional_punctuation(","):
             attributes["rd"] = parser.parse_attribute()
         return attributes
@@ -2992,12 +2989,25 @@ class FSwOp(RsRsImmFloatOperation):
 # endregion
 
 
-def _parse_int_or_str_literal(parser: Parser, msg: str) -> int | str:
-    if (term := parser.parse_optional_integer()) is not None:
-        return term
-    if (term := parser.parse_optional_str_literal()) is not None:
-        return term
-    parser.raise_error(msg)
+def _parse_optional_immediate_value(
+    parser: Parser, integer_type: IntegerType | IndexType
+) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
+    """
+    Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
+    """
+    if (immediate := parser.parse_optional_integer()) is not None:
+        return IntegerAttr(immediate, integer_type)
+    if (immediate := parser.parse_optional_str_literal()) is not None:
+        return LabelAttr(immediate)
+
+
+def _parse_immediate_value(
+    parser: Parser, integer_type: IntegerType | IndexType
+) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
+    return parser.expect(
+        lambda: _parse_optional_immediate_value(parser, integer_type),
+        "Expected immediate",
+    )
 
 
 RISCV = Dialect(
