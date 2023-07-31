@@ -125,6 +125,15 @@ class _QBVC:
 
         return attr
 
+    def create_attribute_variable(
+        self, name: str, qbvc_cls: type[_QBVCT], var_cls: type[Variable[Any]]
+    ) -> _QueryBuilderVariable[_QBVC]:
+        new_qbvc = self.builder.new_variable_context(qbvc_cls, var_cls)
+        new_var = new_qbvc.var
+        self.builder.add_variable(new_var)
+        self.builder.add_binary_constraint(PropertyConstraint(self.var, new_var, name))
+        return _QueryBuilderVariable(new_qbvc)
+
     def create_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
         raise NotImplementedError()
 
@@ -178,27 +187,13 @@ class _IRDLOperationQBVC(_OperationQBVC):
 
     def create_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
         if name in dict(self.op_def.operands):
-            new_qbvc = self.builder.new_variable_context(
-                _SSAValueQBVC, SSAValueVariable
-            )
-            new_var = new_qbvc.var
-            self.builder.add_variable(new_var)
-            self.builder.add_binary_constraint(
-                PropertyConstraint(self.var, new_var, name)
-            )
-            return _QueryBuilderVariable(new_qbvc)
+            return self.create_attribute_variable(name, _SSAValueQBVC, SSAValueVariable)
         elif name in dict(self.op_def.results):
             assert False, f"{name}"
         elif name in dict(self.op_def.attributes):
-            new_qbvc = self.builder.new_variable_context(
-                _AttributeQBVC, AttributeVariable
+            return self.create_attribute_variable(
+                name, _AttributeQBVC, AttributeVariable
             )
-            new_var = new_qbvc.var
-            self.builder.add_variable(new_var)
-            self.builder.add_binary_constraint(
-                PropertyConstraint(self.var, new_var, name)
-            )
-            return _QueryBuilderVariable(new_qbvc)
         else:
             assert False
 
@@ -208,15 +203,9 @@ class _SSAValueQBVC(_QBVC):
 
     def create_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
         if name == "op":
-            new_qbvc = self.builder.new_variable_context(
-                _OperationQBVC, OperationVariable
+            return self.create_attribute_variable(
+                name, _OperationQBVC, OperationVariable
             )
-            new_var = _QueryBuilderVariable(new_qbvc)
-            self.builder.add_variable(new_qbvc.var)
-            self.builder.add_binary_constraint(
-                PropertyConstraint(self.var, new_qbvc.var, "op")
-            )
-            return new_var
 
 
 class _AttributeQBVC(_QBVC):
