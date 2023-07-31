@@ -15,4 +15,5 @@ isort==5.12.0
 nbconvert>=7.7.2,<8.0.0
 # pyright version has to be fixed with `==`. The CI parses this file
 # and installs the according version for typechecking.
-pyright==1.1.317
+pyright==1.1.318
+wgpu==0.9.4
