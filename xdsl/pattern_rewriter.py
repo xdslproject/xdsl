@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from functools import wraps
 from types import UnionType
 from typing import (
     Callable,
@@ -590,6 +591,7 @@ def attr_type_rewrite_pattern(
             "subclasses."
         )
 
+    @wraps(func)
     def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
         if isinstance(typ, expected_type):
             return func(self, typ)
