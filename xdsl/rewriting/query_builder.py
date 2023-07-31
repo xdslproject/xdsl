@@ -33,6 +33,7 @@ from xdsl.rewriting.query import (
 from xdsl.rewriting.query_rewrite_pattern import QueryRewritePattern
 
 _T = TypeVar("_T")
+_VariableT = TypeVar("_VariableT", bound=Variable[Any])
 
 
 @dataclass
@@ -41,6 +42,13 @@ class QueryBuilder:
 
     def add_variable(self, var: Variable[Any]) -> None:
         self.query.add_variable(var)
+
+    def new_variable_context(
+        self, qbvc_cls: type[_QBVCT], var_cls: type[Variable[Any]]
+    ) -> _QBVCT:
+        new_var = var_cls(self.query.next_var_id())
+        new_qbvc = qbvc_cls(new_var, self, {})
+        return new_qbvc
 
     def add_unary_constraint(self, constraint: UnaryConstraint[Any]):
         self.query.constraints.append(constraint)
@@ -106,6 +114,7 @@ class _QBVC:
         return None
 
 
+_QBVCT = TypeVar("_QBVCT", bound=_QBVC)
 _QBVCTCov = TypeVar("_QBVCTCov", bound=_QBVC, covariant=True)
 
 
@@ -165,8 +174,10 @@ class _IRDLOperationQBVC(_OperationQBVC):
 
     def get_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
         if name in dict(self.op_def.operands):
-            new_var = SSAValueVariable(self.query.next_var_id())
-            new_qbvc = _SSAValueQBVC(new_var, self.builder, {})
+            new_qbvc = self.builder.new_variable_context(
+                _SSAValueQBVC, SSAValueVariable
+            )
+            new_var = new_qbvc.var
             self.builder.add_binary_constraint(
                 PropertyConstraint(self.var, new_var, name)
             )
@@ -174,8 +185,10 @@ class _IRDLOperationQBVC(_OperationQBVC):
         elif name in dict(self.op_def.results):
             assert False, f"{name}"
         elif name in dict(self.op_def.attributes):
-            new_var = AttributeVariable(self.query.next_var_id())
-            new_qbvc = _AttributeQBVC(new_var, self.builder, {})
+            new_qbvc = self.builder.new_variable_context(
+                _AttributeQBVC, AttributeVariable
+            )
+            new_var = new_qbvc.var
             self.builder.add_binary_constraint(
                 PropertyConstraint(self.var, new_var, name)
             )
@@ -189,8 +202,8 @@ class _SSAValueQBVC(_QBVC):
 
     def get_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
         if name == "op":
-            new_qbvc = _OperationQBVC(
-                OperationVariable(self.query.next_var_id()), self.builder, {}
+            new_qbvc = self.builder.new_variable_context(
+                _OperationQBVC, OperationVariable
             )
             new_var = _QueryBuilderVariable(new_qbvc)
             self.builder.add_binary_constraint(
