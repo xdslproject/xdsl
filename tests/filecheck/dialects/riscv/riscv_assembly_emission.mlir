@@ -1,9 +1,7 @@
 // RUN: xdsl-opt -t riscv-asm %s | filecheck %s
 
 "builtin.module"() ({
-  "riscv.code_section"() ({
-    "riscv.label"() {"label" = #riscv.label<"main">} : () -> ()
-
+  riscv.label {"label" = #riscv.label<"main">} ({
     %0 = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<zero>
     // CHECK:      li zero, 6
     %1 = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<j1>
@@ -169,11 +167,10 @@
     // CHECK-NEXT:  addi j1, j1, 1
     "riscv.label"() {"label" = #riscv.label<"label0">} : () -> ()
     // CHECK-NEXT: label0:
-    "riscv.code_section"() ({
-    "riscv.label"() {"label" = #riscv.label<"label1">} : () -> ()
+    "riscv.label"() ({
       %nested_addi = "riscv.addi"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j1>
       "riscv.ret"() : () -> ()
-    }) : () -> ()
+    }) {"label" = #riscv.label<"label1">} : () -> ()
     // CHECK-NEXT: label1:
     // CHECK-NEXT: addi j1, j1, 1
     // CHECK-NEXT: ret
