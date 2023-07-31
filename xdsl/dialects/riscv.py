@@ -2055,7 +2055,7 @@ class LabelOp(IRDLOperation, RISCVOp):
 @irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
     """
-    The directive operation is used to emit assembler directives (e.g. .word; ..equ; etc.)
+    The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
     A more complete list of directives can be found here:
 
