@@ -234,7 +234,7 @@ class ApplyOpToParallel(RewritePattern):
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         res_type = op.res[0].type
         assert isa(res_type, TempType[Attribute])
-        assert isinstance(res_type.bounds, StencilBoundsAttr), res_type.bounds
+        assert isinstance(res_type.bounds, StencilBoundsAttr)
 
         # Get this apply's ReturnOp
         body_block = op.region.blocks[0]
