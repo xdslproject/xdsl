@@ -2055,7 +2055,8 @@ class LabelOp(IRDLOperation, RISCVOp):
 @irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
     """
-    The directive operation is used to emit assembler directives (e.g. .word; .text; .data; etc.)
+    The directive operation is used to emit assembler directives (e.g. .word; ..equ; etc.)
+    without any associated region of assembly code.
     A more complete list of directives can be found here:
 
     https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops
@@ -2094,7 +2095,9 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 @irdl_op_definition
 class AssemblySectionOp(IRDLOperation, RISCVOp):
     """
-    The directive operation is used to emit assembler directives (e.g. .word; .text; .data; etc.)
+    The directive operation is used to emit assembler directives (e.g. .text; .data; etc.)
+    with a region of assembly code.
+
     A more complete list of directives can be found here:
 
     https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops
