@@ -417,10 +417,10 @@ class Data(Generic[DataElement], Attribute, ABC):
         """
         # Create the new attribute object, without calling its __init__.
         # We do this to allow users to redefine their own __init__.
-        attr = cls.__new__(cls, params)
+        attr = cls.__new__(cls)
 
         # Call the __init__ of Data, which will set the parameters field.
-        Data.__init__(attr, params)
+        Data.__init__(attr, params)  # type: ignore
         return attr
 
     @classmethod
