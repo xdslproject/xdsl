@@ -51,9 +51,12 @@ class QueryBuilder:
         return new_qbvc
 
     def add_unary_constraint(self, constraint: UnaryConstraint[Any]):
+        assert constraint.var.name in self.query.variables
         self.query.constraints.append(constraint)
 
     def add_binary_constraint(self, constraint: BinaryConstraint[Any, Any]):
+        assert constraint.var0.name in self.query.variables
+        assert constraint.var1.name in self.query.variables
         self.query.constraints.append(constraint)
 
 
@@ -75,9 +78,8 @@ class _QBVC:
         """
         Returns False if the variable was already registered.
         """
-        if self.var.name in self.query.variables:
-            return False
-        self.builder.add_variable(self.var)
+        if self.var.name not in self.query.variables:
+            self.builder.add_variable(self.var)
         for var in self.property_variables.values():
             var.qbvc__.register_var()
         return True
@@ -103,6 +105,8 @@ class _QBVC:
         # Constrain the two variables to be equal
         assert self.var.name in self.query.variables
         other_qbvc = other_variable.qbvc__
+        if other_qbvc.var.name not in self.query.variables:
+            self.builder.add_variable(other_qbvc.var)
         self.builder.add_binary_constraint(EqConstraint(self.var, other_qbvc.var))
         other_qbvc.register_var()
         return True
@@ -140,9 +144,6 @@ class _QueryBuilderVariable(Generic[_QBVCTCov]):
                     raise AttributeError
                 # register property in this variable's cache
                 qbvc.property_variables[__name] = attr
-                # register property's var in query if this one is already registered
-                if qbvc.var.name in qbvc.query.variables:
-                    qbvc.builder.add_variable(attr.qbvc__.var)
 
             return attr
 
@@ -178,6 +179,7 @@ class _IRDLOperationQBVC(_OperationQBVC):
                 _SSAValueQBVC, SSAValueVariable
             )
             new_var = new_qbvc.var
+            self.builder.add_variable(new_var)
             self.builder.add_binary_constraint(
                 PropertyConstraint(self.var, new_var, name)
             )
@@ -189,6 +191,7 @@ class _IRDLOperationQBVC(_OperationQBVC):
                 _AttributeQBVC, AttributeVariable
             )
             new_var = new_qbvc.var
+            self.builder.add_variable(new_var)
             self.builder.add_binary_constraint(
                 PropertyConstraint(self.var, new_var, name)
             )
@@ -206,6 +209,7 @@ class _SSAValueQBVC(_QBVC):
                 _OperationQBVC, OperationVariable
             )
             new_var = _QueryBuilderVariable(new_qbvc)
+            self.builder.add_variable(new_qbvc.var)
             self.builder.add_binary_constraint(
                 PropertyConstraint(self.var, new_qbvc.var, "op")
             )
