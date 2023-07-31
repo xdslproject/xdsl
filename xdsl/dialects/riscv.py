@@ -631,6 +631,33 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.immediate
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if immediate := parser.parse_optional_integer(allow_boolean=False):
+            attributes["immediate"] = IntegerAttr(
+                immediate, IntegerType(12, Signedness.SIGNED)
+            )
+        elif immediate := parser.parse_optional_str_literal():
+            attributes["immediate"] = LabelAttr(immediate)
+        else:
+            parser.raise_error("Expected immediate")
+        if parser.parse_optional_punctuation(","):
+            attributes["rd"] = parser.parse_attribute()
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        match self.immediate:
+            case IntegerAttr():
+                printer.print(self.immediate.value.data)
+            case LabelAttr():
+                printer.print_string_literal(self.immediate.data)
+        if self.rd is not None:
+            printer.print(", ")
+            printer.print_attribute(self.rd)
+        return {"immediate", "rd"}
+
 
 class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
