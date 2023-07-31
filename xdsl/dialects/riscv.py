@@ -2191,14 +2191,21 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
     @classmethod
     def parse(cls, parser: Parser) -> AssemblySectionOp:
         directive = parser.parse_str_literal()
+        attr_dict = parser.parse_optional_attr_dict_with_keyword(("directive"))
         region = parser.parse_optional_region()
+
         if region is None:
             region = Region(Block())
-        return AssemblySectionOp(directive, region)
+        section = AssemblySectionOp(directive, region)
+        if attr_dict is not None:
+            section.attributes |= attr_dict.data
+
+        return section
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         printer.print_string_literal(self.directive.data)
+        printer.print_op_attributes_with_keyword(self.attributes, ("directive"))
         printer.print_string(" ")
         if self.data.block.ops:
             printer.print_region(self.data)
