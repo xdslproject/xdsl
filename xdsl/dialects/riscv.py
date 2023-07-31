@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Set
 from io import StringIO
 from typing import IO, ClassVar, Sequence, TypeAlias
 
@@ -42,7 +43,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -333,13 +334,11 @@ class RISCVOp(Operation, ABC):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        args = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_unresolved_operand,
-            parser.parse_unresolved_operand,
-        )
-        if args is None:
-            args = []
-        attributes = parser.parse_optional_attr_dict()
+        args = cls.parse_unresolved_operand(parser)
+        custom_attributes = cls.custom_parse_attributes(parser)
+        remaining_attributes = parser.parse_optional_attr_dict()
+        # TODO ensure distinct keys for attributes
+        attributes = custom_attributes | remaining_attributes
         regions = parser.parse_region_list()
         parser.parse_punctuation(":")
         func_type = parser.parse_function_type()
@@ -351,14 +350,50 @@ class RISCVOp(Operation, ABC):
             regions=regions,
         )
 
+    @classmethod
+    def parse_unresolved_operand(cls, parser: Parser) -> list[UnresolvedOperand]:
+        """
+        Parse a list of comma separated unresolved operands.
+
+        Notice that this method will consume trailing comma.
+        """
+        if operand := parser.parse_optional_unresolved_operand():
+            operands = [operand]
+            while parser.parse_optional_punctuation(",") and (
+                operand := parser.parse_optional_unresolved_operand()
+            ):
+                operands.append(operand)
+            return operands
+        return []
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        """
+        Parse attributes with custom syntax. Subclasses may override this method.
+        """
+        return parser.parse_optional_attr_dict()
+
     def print(self, printer: Printer) -> None:
         if self.operands:
             printer.print(" ")
             printer.print_list(self.operands, printer.print_operand)
-        printer.print_op_attributes(self.attributes)
+        printed_attributes = self.custom_print_attributes(printer)
+        unprinted_attributes = {
+            name: attr
+            for name, attr in self.attributes.items()
+            if name not in printed_attributes
+        }
+        printer.print_op_attributes(unprinted_attributes)
         printer.print_regions(self.regions)
         printer.print(" : ")
         printer.print_operation_type(self)
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        """
+        Print attributes with custom syntax. Return the names of the attributes printed. Subclasses may override this method.
+        """
+        printer.print_op_attributes(self.attributes)
+        return self.attributes.keys()
 
 
 AssemblyInstructionArg: TypeAlias = (
@@ -720,6 +755,31 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.rs1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if immediate := parser.parse_optional_integer(allow_boolean=False):
+            attributes["immediate"] = IntegerAttr(
+                immediate, IntegerType(12, Signedness.SIGNED)
+            )
+        elif immediate := parser.parse_optional_str_literal():
+            attributes["immediate"] = LabelAttr(immediate)
+        if parser.parse_optional_punctuation(","):
+            attributes["rd"] = parser.parse_attribute()
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        match self.immediate:
+            case IntegerAttr():
+                printer.print(self.immediate.value.data)
+            case LabelAttr():
+                printer.print_string_literal(self.immediate.data)
+        if self.rd is not None:
+            printer.print(", ")
+            printer.print_attribute(self.rd)
+        return {"immediate", "rd"}
 
 
 class RdRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
