@@ -1009,6 +1009,7 @@ def test_type_conversion():
   %0 = "test.op"() {"nested" = memref<*xi32>} : () -> i32
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"(%0, %1) : (i32, f32) -> memref<*xi32>
+  %3 = "arith.addi"(%0, %0) : (i32, i32) -> i32
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1018,6 +1019,7 @@ def test_type_conversion():
   %0 = "test.op"() {"nested" = memref<*xindex>} : () -> index
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
   %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
+  %3 = "arith.addi"(%0, %0) : (index, index) -> index
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1048,6 +1050,7 @@ def test_type_conversion():
   %0 = "test.op"() {"nested" = memref<*xi32>} : () -> index
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xi32>
+  %3 = "arith.addi"(%0, %0) : (index, index) -> index
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1067,5 +1070,38 @@ def test_type_conversion():
         non_rec_expected,
         PatternRewriteWalker(
             Rewrite(recursive=False), apply_recursively=False, walk_reverse=True
+        ),
+    )
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() {"nested" = memref<*xindex>} : () -> index
+  %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
+  %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
+  %3 = "arith.addi"(%0, %0) : (index, index) -> i32
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    class Rewrite(TypeConversionPattern):
+        @attr_type_rewrite_pattern
+        def convert_type(self, typ: IntegerType) -> IndexType:
+            return IndexType()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(ops=(test.TestOp,)), apply_recursively=False),
+    )
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(ops=(test.TestOp,)), apply_recursively=True),
+    )
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(
+            Rewrite(ops=(test.TestOp,)), apply_recursively=False, walk_reverse=True
         ),
     )

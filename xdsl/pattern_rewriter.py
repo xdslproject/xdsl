@@ -460,6 +460,7 @@ def op_type_rewrite_pattern(
 @dataclass
 class TypeConversionPattern(RewritePattern):
     recursive: bool = True
+    ops: tuple[type[Operation]] | None = None
 
     @abstractmethod
     def convert_type(self, typ: Attribute, /) -> Attribute | None:
@@ -478,6 +479,8 @@ class TypeConversionPattern(RewritePattern):
 
     @final
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        if self.ops and not isinstance(op, self.ops):
+            return
         new_result_types: list[Attribute] = []
         new_attributes: dict[str, Attribute] = {}
         changed: bool = False
