@@ -530,18 +530,18 @@ class TypeConversionPattern(RewritePattern):
         for result in op.results:
             converted = self._convert_type_rec(result.type)
             new_result_types.append(converted or result.type)
-            if converted and converted != result.type:
+            if converted is not None and converted != result.type:
                 changed = True
         for name, attribute in op.attributes.items():
             converted = self._convert_type_rec(attribute)
             new_attributes[name] = converted or attribute
-            if converted and converted != attribute:
+            if converted is not None and converted != attribute:
                 changed = True
         for region in op.regions:
             for block in region.blocks:
                 for arg in block.args:
                     converted = self.convert_type(arg.type)
-                    if converted and converted != arg.type:
+                    if converted is not None and converted != arg.type:
                         rewriter.modify_block_argument_type(arg, converted)
         if changed:
             regions = [op.detach_region(r) for r in op.regions]
