@@ -114,8 +114,19 @@ class _QBVC:
     def eq_value(self, self_variable: _QueryBuilderVariable[_QBVC], value: Any) -> bool:
         return False
 
-    def get_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
-        return None
+    def get_attribute(self, __name: str) -> _QueryBuilderVariable[_QBVC]:
+        attr = self.property_variables.get(__name)
+        if attr is None:
+            attr = self.create_attribute(__name)
+            if attr is None:
+                raise AttributeError
+            # register property in this variable's cache
+            self.property_variables[__name] = attr
+
+        return attr
+
+    def create_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
+        raise NotImplementedError()
 
 
 _QBVCT = TypeVar("_QBVCT", bound=_QBVC)
@@ -137,15 +148,7 @@ class _QueryBuilderVariable(Generic[_QBVCTCov]):
         if __name == "qbvc__":
             return qbvc
         else:
-            attr = qbvc.property_variables.get(__name)
-            if attr is None:
-                attr = qbvc.get_attribute(__name)
-                if attr is None:
-                    raise AttributeError
-                # register property in this variable's cache
-                qbvc.property_variables[__name] = attr
-
-            return attr
+            return qbvc.get_attribute(__name)
 
     def __eq__(self, __value: object) -> bool:
         return self.qbvc__.eq(self, __value)
@@ -153,7 +156,7 @@ class _QueryBuilderVariable(Generic[_QBVCTCov]):
 
 @dataclass
 class _OperationQBVC(_QBVC):
-    def get_attribute(self, name: str) -> Any:
+    def create_attribute(self, name: str) -> Any:
         # TODO: add operation properties here
         return None
 
@@ -173,7 +176,7 @@ class _IRDLOperationQBVC(_OperationQBVC):
             self.builder.add_unary_constraint(TypeConstraint(self.var, self.cls))
         return did_register
 
-    def get_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
+    def create_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
         if name in dict(self.op_def.operands):
             new_qbvc = self.builder.new_variable_context(
                 _SSAValueQBVC, SSAValueVariable
@@ -203,7 +206,7 @@ class _IRDLOperationQBVC(_OperationQBVC):
 class _SSAValueQBVC(_QBVC):
     var: SSAValueVariable
 
-    def get_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
+    def create_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
         if name == "op":
             new_qbvc = self.builder.new_variable_context(
                 _OperationQBVC, OperationVariable
