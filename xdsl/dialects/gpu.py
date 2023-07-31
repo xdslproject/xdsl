@@ -323,8 +323,8 @@ class MemcpyOp(IRDLOperation):
     name = "gpu.memcpy"
 
     asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
-    src: Operand = operand_def(memref.MemRefType)
     dst: Operand = operand_def(memref.MemRefType)
+    src: Operand = operand_def(memref.MemRefType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -338,14 +338,14 @@ class MemcpyOp(IRDLOperation):
         is_async: bool = False,
     ):
         return super().__init__(
-            operands=[async_dependencies, source, destination],
+            operands=[async_dependencies, destination, source],
             result_types=[[AsyncTokenType()] if is_async else []],
         )
 
     def verify_(self) -> None:
         if self.src.type != self.dst.type:
             raise VerifyException(
-                f"Expected {self.src.type}, got {self.dst.type}. gpu.memcpy source and "
+                f"Expected {self.dst.type}, got {self.src.type}. gpu.memcpy source and "
                 "destination types must match."
             )
 
@@ -395,7 +395,7 @@ class FuncOp(IRDLOperation):
         DenseArrayBase, attr_name="gpu.known_grid_size"
     )
 
-    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp)])
+    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface()])
 
     def __init__(
         self,
