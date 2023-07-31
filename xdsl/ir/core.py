@@ -420,7 +420,7 @@ class Data(Generic[DataElement], Attribute, ABC):
         attr = cls.__new__(cls, params)
 
         # Call the __init__ of Data, which will set the parameters field.
-        cls.__init__(attr, params)
+        Data.__init__(attr, params)
         return attr
 
     @classmethod
