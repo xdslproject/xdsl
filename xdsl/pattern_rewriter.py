@@ -568,17 +568,11 @@ def attr_type_rewrite_pattern(
     func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT]
 ) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
     """
-    This function is intended to be used as a decorator on a RewritePatter
-    method. It uses type hints to match on a specific operation type before
+    This function is intended to be used as a decorator on a TypeConversionPattern
+    method. It uses type hints to match on a specific attribute type before
     calling the decorated function.
     """
-    # Get the operation argument and check that it is a subclass of Operation
-    params = [param for param in inspect.signature(func).parameters.values()]
-    if len(params) != 2:
-        raise Exception(
-            "op_type_rewrite_pattern expects the decorated function to "
-            "have one non-self argument."
-        )
+    params = list(inspect.signature(func).parameters.values())
     expected_type: type[_AttributeT] = params[-1].annotation
 
     @wraps(func)
