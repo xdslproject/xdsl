@@ -491,7 +491,7 @@ def transform_apply_into_loop(
     p_remainder = AllocaOp.get(one_int, i32)
 
     call_get_number_chunks = Call.get(
-        "get_number_chunks", [upper_x, p_remainder], [builtin.IndexType()]
+        "get_number_chunks", [size_y, p_remainder], [builtin.IndexType()]
     )
 
     lower_chunks = zero
@@ -1125,6 +1125,12 @@ class PackDataInStencilField(RewritePattern):
             new_container_op = UndefOp(struct_new_type)
 
             rewriter.replace_matched_op(new_container_op)
+
+
+# @dataclass
+# class CreateLocalCopyOfCoefficients(RewritePattern):
+#    @op_type_rewrite_pattern
+#    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
 
 
 @dataclass
