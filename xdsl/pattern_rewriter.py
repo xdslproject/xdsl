@@ -3,12 +3,31 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from functools import wraps
 from types import UnionType
-from typing import Callable, Iterable, Sequence, TypeVar, Union, get_args, get_origin
+from typing import (
+    Callable,
+    Iterable,
+    Sequence,
+    TypeVar,
+    Union,
+    final,
+    get_args,
+    get_origin,
+)
 
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Attribute, Block, BlockArgument, Operation, Region, SSAValue
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+)
 from xdsl.rewriter import Rewriter
+from xdsl.utils.hints import isa
 
 
 @dataclass(eq=False)
@@ -435,6 +454,132 @@ def op_type_rewrite_pattern(
     def impl(self: _RewritePatternT, op: Operation, rewriter: PatternRewriter) -> None:
         if isinstance(op, expected_type):
             func(self, op, rewriter)
+
+    return impl
+
+
+@dataclass
+class TypeConversionPattern(RewritePattern):
+    """
+    Base pattern for type conversion. It is supposed to be inherited from, then one can
+    implement `convert_type` to define the conversion.
+
+    It will convert an Operations' result types, dictionary attributes, and block arguments.
+
+    One can use `@attr_type_rewrite_pattern` on this defined method to automatically filter
+    on the Attribute type used.
+
+    This base pattern defines two flags:
+
+    - `recursive` (defaulting to False): recurse over structured attributes to convert
+      parameters.
+      e.g. a recusrive `i32` to `index` conversion will convert `vector<i32>` to
+      `vector<index>`.
+    - `ops` (defaulting to any Operation) is a tuple of Operation types on which to apply
+      the defined attribute conversion.
+    """
+
+    recursive: bool = False
+    """
+    recurse over structured attributes to convert parameters.
+    Defaults to False.
+    """
+    ops: tuple[type[Operation], ...] | None = None
+    """
+    A tuple of Operation types on which to apply the defined attribute conversion.
+    Defaults to any operation type.
+    """
+
+    @abstractmethod
+    def convert_type(self, typ: Attribute, /) -> Attribute | None:
+        """
+        The method to implement to define a TypeConversionPattern
+
+        This defines how the input Attribute should be converted.
+        It allows returning None, meaning "this attribute should not
+        be converted".
+        """
+        raise NotImplementedError()
+
+    @final
+    def _convert_type_rec(self, typ: Attribute) -> Attribute | None:
+        """
+        Provided recursion over structed/parameterized Attributes.
+        """
+        inp = typ
+        if self.recursive:
+            if isinstance(typ, ParametrizedAttribute):
+                parameters = list(
+                    self._convert_type_rec(p) or p for p in typ.parameters
+                )
+                inp = type(typ).new(parameters)
+            if isa(typ, ArrayAttr[Attribute]):
+                parameters = tuple(self._convert_type_rec(p) or p for p in typ)
+                inp = type(typ).new(parameters)
+        converted = self.convert_type(inp)
+        return converted if converted is not None else inp
+
+    @final
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        """
+        Pattern application implementation
+        """
+        if self.ops and not isinstance(op, self.ops):
+            return
+        new_result_types: list[Attribute] = []
+        new_attributes: dict[str, Attribute] = {}
+        changed: bool = False
+        for result in op.results:
+            converted = self._convert_type_rec(result.type)
+            new_result_types.append(converted or result.type)
+            if converted is not None and converted != result.type:
+                changed = True
+        for name, attribute in op.attributes.items():
+            converted = self._convert_type_rec(attribute)
+            new_attributes[name] = converted or attribute
+            if converted is not None and converted != attribute:
+                changed = True
+        for region in op.regions:
+            for block in region.blocks:
+                for arg in block.args:
+                    converted = self.convert_type(arg.type)
+                    if converted is not None and converted != arg.type:
+                        rewriter.modify_block_argument_type(arg, converted)
+        if changed:
+            regions = [op.detach_region(r) for r in op.regions]
+            new_op = type(op).create(
+                operands=op.operands,
+                result_types=new_result_types,
+                attributes=new_attributes,
+                successors=op.successors,
+                regions=regions,
+            )
+            rewriter.replace_matched_op(new_op)
+
+
+_TypeConversionPatternT = TypeVar(
+    "_TypeConversionPatternT", bound=TypeConversionPattern
+)
+_AttributeT = TypeVar("_AttributeT", bound=Attribute)
+_ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
+
+
+def attr_type_rewrite_pattern(
+    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT]
+) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
+    """
+    This function is intended to be used as a decorator on a TypeConversionPattern
+    method. It uses type hints to match on a specific attribute type before
+    calling the decorated function.
+    """
+    params = list(inspect.signature(func).parameters.values())
+    expected_type: type[_AttributeT] = params[-1].annotation
+
+    @wraps(func)
+    def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
+        if isa(typ, expected_type):
+            return func(self, typ)
+        return None
 
     return impl
 
