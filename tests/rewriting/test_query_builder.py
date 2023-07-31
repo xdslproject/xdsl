@@ -35,12 +35,12 @@ def test_query_builder():
 
     assert add_zero_query.constraints == [
         TypeConstraint(root_var, arith.Addi),
-        OperationOperandConstraint(root_var, "rhs", root_rhs),
+        OperationOperandConstraint(root_var, root_rhs, "rhs"),
         TypeConstraint(root_rhs, OpResult),
         OpResultOpConstraint(root_rhs, root_rhs_op),
         EqConstraint(root_rhs_op, rhs_input),
         TypeConstraint(rhs_input, arith.Constant),
-        OperationAttributeConstraint(rhs_input, "value", rhs_input_value),
+        OperationAttributeConstraint(rhs_input, rhs_input_value, "value"),
         AttributeValueConstraint(
             rhs_input_value, IntegerAttr.from_int_and_width(0, 32)
         ),

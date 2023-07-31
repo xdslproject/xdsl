@@ -150,7 +150,7 @@ class _IRDLOperationQBVC(_OperationQBVC):
             new_var = SSAValueVariable(self.query.next_var_id())
             new_qbvc = _SSAValueQBVC(new_var, self.query, {})
             self.query.constraints.append(
-                OperationOperandConstraint(self.var, name, new_var)
+                OperationOperandConstraint(self.var, new_var, name)
             )
             return _QueryBuilderVariable(new_qbvc)
         elif name in dict(self.op_def.results):
@@ -159,7 +159,7 @@ class _IRDLOperationQBVC(_OperationQBVC):
             new_var = AttributeVariable(self.query.next_var_id())
             new_qbvc = _AttributeQBVC(new_var, self.query, {})
             self.query.constraints.append(
-                OperationAttributeConstraint(self.var, name, new_var)
+                OperationAttributeConstraint(self.var, new_var, name)
             )
             return _QueryBuilderVariable(new_qbvc)
         else:

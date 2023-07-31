@@ -15,6 +15,7 @@ from typing import (
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     IRNode,
     Operation,
     OperationInvT,
@@ -33,6 +34,9 @@ class MatchContext:
 Match: TypeAlias = dict[str, IRNode]
 
 _T = TypeVar("_T")
+_T0 = TypeVar("_T0")
+_T1 = TypeVar("_T1")
+
 _TCov = TypeVar("_TCov", covariant=True)
 
 
@@ -85,18 +89,25 @@ class Constraint(abc.ABC):
 
 
 @dataclass
-class EqConstraint(Constraint):
-    lhs_var: Variable[Any]
-    rhs_var: Variable[Any]
-
-    def match(self, ctx: MatchContext) -> bool:
-        val = self.lhs_var.get(ctx)
-        return self.rhs_var.set(ctx, val)
+class UnaryConstraint(Generic[_T], Constraint, abc.ABC):
+    var: Variable[_T]
 
 
 @dataclass
-class TypeConstraint(Generic[_T], Constraint):
-    var: Variable[_T]
+class BinaryConstraint(Generic[_T0, _T1], Constraint):
+    var0: Variable[_T0]
+    var1: Variable[_T1]
+
+
+@dataclass
+class EqConstraint(BinaryConstraint[Any, Any]):
+    def match(self, ctx: MatchContext) -> bool:
+        val = self.var0.get(ctx)
+        return self.var1.set(ctx, val)
+
+
+@dataclass
+class TypeConstraint(UnaryConstraint[_T], Constraint):
     type: type[_T]
 
     def __init__(self, var: Variable[_T], type: type[_T]) -> None:
@@ -109,61 +120,54 @@ class TypeConstraint(Generic[_T], Constraint):
 
 
 @dataclass
-class AttributeValueConstraint(Constraint):
-    attr_var: AttributeVariable
+class AttributeValueConstraint(UnaryConstraint[Attribute]):
     attr: Attribute
 
     def match(self, ctx: MatchContext) -> bool:
-        attr = self.attr_var.get(ctx)
+        attr = self.var.get(ctx)
         return attr == self.attr
 
 
 @dataclass
-class OperationAttributeConstraint(Constraint):
-    op_var: OperationVariable
+class OperationAttributeConstraint(BinaryConstraint[OperationInvT, AttributeInvT]):
     attr_name: str
-    attr_var: AttributeVariable
 
     def match(self, ctx: MatchContext) -> bool:
-        a_obj = self.op_var.get(ctx)
+        a_obj = self.var0.get(ctx)
         b_obj = getattr(a_obj, self.attr_name)
-        return self.attr_var.set(ctx, b_obj)
+        return self.var1.set(ctx, b_obj)
 
 
 @dataclass
-class OperationOperandConstraint(Constraint):
-    op_var: OperationVariable
+class OperationOperandConstraint(BinaryConstraint[Operation, SSAValue]):
     operand_name: str
-    operand_var: Variable[SSAValue]
 
     def match(self, ctx: MatchContext) -> bool:
-        a_obj = self.op_var.get(ctx)
+        a_obj = self.var0.get(ctx)
         b_obj = getattr(a_obj, self.operand_name)
-        return self.operand_var.set(ctx, b_obj)
+        return self.var1.set(ctx, b_obj)
 
 
 @dataclass
-class OperationResultConstraint(Constraint):
-    op_var: OperationVariable
+class OperationResultConstraint(BinaryConstraint[Operation, OpResult]):
     res_name: str
-    res_var: Variable[OpResult]
 
     def match(self, ctx: MatchContext) -> bool:
-        a_obj = self.op_var.get(ctx)
+        a_obj = self.var0.get(ctx)
         b_obj = getattr(a_obj, self.res_name)
-        return self.res_var.set(ctx, b_obj)
+        return self.var1.set(ctx, b_obj)
+
+
+SSAValueInvT = TypeVar("SSAValueInvT", bound=SSAValue)
 
 
 @dataclass
-class OpResultOpConstraint(Constraint):
-    op_result_var: Variable[SSAValue]
-    op_var: Variable[Operation]
-
+class OpResultOpConstraint(BinaryConstraint[SSAValueInvT, Operation]):
     def match(self, ctx: MatchContext) -> bool:
-        op_result = self.op_result_var.get(ctx)
+        op_result = self.var0.get(ctx)
         assert isinstance(op_result, OpResult)
         op = op_result.op
-        return self.op_var.set(ctx, op)
+        return self.var1.set(ctx, op)
 
 
 class Query:
