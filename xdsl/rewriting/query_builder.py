@@ -40,6 +40,10 @@ _VariableT = TypeVar("_VariableT", bound=Variable[Any])
 class QueryBuilder:
     query: Query
 
+    @property
+    def variables(self) -> dict[str, Variable[Any]]:
+        return self.query.variables
+
     def add_variable(self, var: Variable[Any]) -> None:
         self.query.add_variable(var)
 
@@ -70,22 +74,18 @@ class _QBVC:
     builder: QueryBuilder
     property_variables: dict[str, _QueryBuilderVariable[_QBVC]]
 
-    @property
-    def query(self):
-        return self.builder.query
-
     def register_var(self) -> bool:
         """
         Returns False if the variable was already registered.
         """
-        if self.var.name not in self.query.variables:
+        if self.var.name not in self.builder.variables:
             self.builder.add_variable(self.var)
         for var in self.property_variables.values():
             var.qbvc__.register_var()
         return True
 
     def constrain_type(self, hint: type[_T]) -> TypeGuard[_T]:
-        if self.var.name not in self.query.variables:
+        if self.var.name not in self.builder.variables:
             self.builder.add_variable(self.var)
         self.builder.add_unary_constraint(TypeConstraint(self.var, hint))
         return True
@@ -103,9 +103,9 @@ class _QBVC:
         other_variable: _QueryBuilderVariable[_QBVC],
     ) -> bool:
         # Constrain the two variables to be equal
-        assert self.var.name in self.query.variables
+        assert self.var.name in self.builder.variables
         other_qbvc = other_variable.qbvc__
-        if other_qbvc.var.name not in self.query.variables:
+        if other_qbvc.var.name not in self.builder.variables:
             self.builder.add_variable(other_qbvc.var)
         self.builder.add_binary_constraint(EqConstraint(self.var, other_qbvc.var))
         other_qbvc.register_var()
