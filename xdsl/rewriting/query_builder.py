@@ -19,6 +19,7 @@ from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriting.query import (
     AttributeValueConstraint,
     AttributeVariable,
+    BinaryConstraint,
     EqConstraint,
     Match,
     OperationAttributeConstraint,
@@ -28,11 +29,23 @@ from xdsl.rewriting.query import (
     Query,
     SSAValueVariable,
     TypeConstraint,
+    UnaryConstraint,
     Variable,
 )
 from xdsl.rewriting.query_rewrite_pattern import QueryRewritePattern
 
 _T = TypeVar("_T")
+
+
+@dataclass
+class QueryBuilder:
+    query: Query
+
+    def add_unary_constraint(self, constraint: UnaryConstraint[Any]):
+        self.query.constraints.append(constraint)
+
+    def add_binary_constraint(self, constraint: BinaryConstraint[Any, Any]):
+        self.query.constraints.append(constraint)
 
 
 @dataclass
@@ -42,8 +55,12 @@ class _QBVC:
     """
 
     var: Variable[Any]
-    query: Query
+    builder: QueryBuilder
     property_variables: dict[str, _QueryBuilderVariable[_QBVC]]
+
+    @property
+    def query(self):
+        return self.builder.query
 
     def register_var(self) -> bool:
         """
@@ -59,7 +76,7 @@ class _QBVC:
     def constrain_type(self, hint: type[_T]) -> TypeGuard[_T]:
         if self.var.name not in self.query.variables:
             self.query.add_variable(self.var)
-        self.query.constraints.append(TypeConstraint(self.var, hint))
+        self.builder.add_unary_constraint(TypeConstraint(self.var, hint))
         return True
 
     def eq(self, self_variable: _QueryBuilderVariable[_QBVC], value: Any) -> bool:
@@ -77,7 +94,7 @@ class _QBVC:
         # Constrain the two variables to be equal
         assert self.var.name in self.query.variables
         other_qbvc = other_variable.qbvc__
-        self.query.constraints.append(EqConstraint(self.var, other_qbvc.var))
+        self.builder.add_binary_constraint(EqConstraint(self.var, other_qbvc.var))
         other_qbvc.register_var()
         return True
 
@@ -142,14 +159,14 @@ class _IRDLOperationQBVC(_OperationQBVC):
     def register_var(self) -> bool:
         did_register = super().register_var()
         if did_register:
-            self.query.constraints.append(TypeConstraint(self.var, self.cls))
+            self.builder.add_unary_constraint(TypeConstraint(self.var, self.cls))
         return did_register
 
     def get_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
         if name in dict(self.op_def.operands):
             new_var = SSAValueVariable(self.query.next_var_id())
-            new_qbvc = _SSAValueQBVC(new_var, self.query, {})
-            self.query.constraints.append(
+            new_qbvc = _SSAValueQBVC(new_var, self.builder, {})
+            self.builder.add_binary_constraint(
                 OperationOperandConstraint(self.var, new_var, name)
             )
             return _QueryBuilderVariable(new_qbvc)
@@ -157,8 +174,8 @@ class _IRDLOperationQBVC(_OperationQBVC):
             assert False, f"{name}"
         elif name in dict(self.op_def.attributes):
             new_var = AttributeVariable(self.query.next_var_id())
-            new_qbvc = _AttributeQBVC(new_var, self.query, {})
-            self.query.constraints.append(
+            new_qbvc = _AttributeQBVC(new_var, self.builder, {})
+            self.builder.add_binary_constraint(
                 OperationAttributeConstraint(self.var, new_var, name)
             )
             return _QueryBuilderVariable(new_qbvc)
@@ -172,10 +189,12 @@ class _SSAValueQBVC(_QBVC):
     def get_attribute(self, name: str) -> _QueryBuilderVariable[_QBVC] | None:
         if name == "op":
             new_qbvc = _OperationQBVC(
-                OperationVariable(self.query.next_var_id()), self.query, {}
+                OperationVariable(self.query.next_var_id()), self.builder, {}
             )
             new_var = _QueryBuilderVariable(new_qbvc)
-            self.query.constraints.append(OpResultOpConstraint(self.var, new_qbvc.var))
+            self.builder.add_binary_constraint(
+                OpResultOpConstraint(self.var, new_qbvc.var)
+            )
             return new_var
 
 
@@ -184,7 +203,7 @@ class _AttributeQBVC(_QBVC):
 
     def eq(self, self_variable: _QueryBuilderVariable[_QBVC], value: Any) -> bool:
         assert isinstance(value, Attribute)
-        self.query.constraints.append(AttributeValueConstraint(self.var, value))
+        self.builder.add_unary_constraint(AttributeValueConstraint(self.var, value))
         return True
 
 
@@ -217,7 +236,8 @@ class PatternQuery(Generic[QueryParams], Query):
             if issubclass(cls, IRDLOperation):
                 # Don't add the variables here, they will be added as they are traversed
                 var = OperationVariable(name)
-                qbvc = _IRDLOperationQBVC(var, self, {}, cls)
+                builder = QueryBuilder(self)
+                qbvc = _IRDLOperationQBVC(var, builder, {}, cls)
                 fake_vars[name] = _QueryBuilderVariable(qbvc)
 
         # The root is given every time, so we add it type check immediately
