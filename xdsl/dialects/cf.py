@@ -18,7 +18,8 @@ from xdsl.irdl import (
     successor_def,
     var_operand_def,
 )
-from xdsl.traits import IsTerminator, LazyTrait
+from xdsl.traits import IsTerminator
+from xdsl.utils.lazy import Lazy
 
 
 @irdl_op_definition
@@ -41,7 +42,7 @@ class Branch(IRDLOperation):
     arguments: VarOperand = var_operand_def(AnyAttr())
     successor: Successor = successor_def()
 
-    traits = LazyTrait(lambda: IsTerminator())
+    traits = Lazy(lambda: (IsTerminator(),))
 
     @staticmethod
     def get(dest: Block, *ops: Operation | SSAValue) -> Branch:
@@ -61,7 +62,7 @@ class ConditionalBranch(IRDLOperation):
     then_block: Successor = successor_def()
     else_block: Successor = successor_def()
 
-    traits = LazyTrait(lambda: IsTerminator())
+    traits = Lazy(lambda: (IsTerminator(),))
 
     @staticmethod
     def get(

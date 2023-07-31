@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -31,44 +30,6 @@ class OpTrait:
 
 
 OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
-
-
-@dataclass(frozen=True, init=False)
-class LazyTrait(OpTrait):
-    """A trait that postpone evaluation of other traits. Can be used to workaround circular dependency."""
-
-    parameters: tuple[Callable[[], OpTrait | tuple[OpTrait, ...]], ...] = field()
-    _unresolved: bool = field()
-    _traits: set[OpTrait] = field()
-
-    def __init__(self, *parameters: Callable[[], OpTrait | tuple[OpTrait, ...]]):
-        object.__setattr__(self, "_unresolved", True)
-        object.__setattr__(self, "_traits", set())
-        super().__init__(parameters)
-
-    def verify(self, op: Operation) -> None:
-        self._resolve()
-        for trait in self._traits:
-            trait.verify(op)
-
-    def __get__(self, instance: object, owner: type | None = None):
-        self._resolve()
-        return self._traits
-
-    def __iter__(self):
-        self._resolve()
-        for trait in self._traits:
-            yield trait
-
-    def _resolve(self):
-        if self._unresolved:
-            for func in self.parameters:
-                traits = func()
-                if not isinstance(traits, tuple):
-                    traits = (traits,)
-                for trait in traits:
-                    self._traits.add(trait)
-            object.__setattr__(self, "_unresolved", False)
 
 
 class Pure(OpTrait):

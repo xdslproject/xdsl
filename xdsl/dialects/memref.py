@@ -45,9 +45,10 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.traits import LazyTrait, SymbolOpInterface
+from xdsl.traits import SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.lazy import Lazy
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser
@@ -332,7 +333,7 @@ class Global(IRDLOperation):
     type: Attribute = attr_def(Attribute)
     initial_value: Attribute = attr_def(Attribute)
 
-    traits = LazyTrait(lambda: SymbolOpInterface())
+    traits = Lazy(lambda: (SymbolOpInterface(),))
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):

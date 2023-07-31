@@ -17,14 +17,10 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import (
-    HasParent,
-    IsTerminator,
-    LazyTrait,
-    SingleBlockImplicitTerminator,
-)
+from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.lazy import Lazy
 
 
 @irdl_op_definition
@@ -83,7 +79,7 @@ class Yield(IRDLOperation):
     name = "scf.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = LazyTrait(
+    traits = Lazy(
         lambda: (
             HasParent(For, If, ParallelOp, While),
             IsTerminator(),
@@ -105,7 +101,7 @@ class If(IRDLOperation):
     # TODO this should be optional under certain conditions
     false_region: Region = region_def()
 
-    traits = LazyTrait(lambda: SingleBlockImplicitTerminator(Yield))
+    traits = Lazy(lambda: (SingleBlockImplicitTerminator(Yield),))
 
     @staticmethod
     def get(
@@ -138,7 +134,7 @@ class For(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = LazyTrait(lambda: SingleBlockImplicitTerminator(Yield))
+    traits = Lazy(lambda: (SingleBlockImplicitTerminator(Yield),))
 
     def verify_(self):
         if (len(self.iter_args) + 1) != len(self.body.block.args):
@@ -205,7 +201,7 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    traits = LazyTrait(lambda: SingleBlockImplicitTerminator(Yield))
+    traits = Lazy(lambda: (SingleBlockImplicitTerminator(Yield),))
 
     @staticmethod
     def get(
@@ -372,7 +368,7 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result: Operand = operand_def(AnyAttr())
 
-    traits = LazyTrait(lambda: (HasParent(ReduceOp), IsTerminator()))
+    traits = Lazy(lambda: (HasParent(ReduceOp), IsTerminator()))
 
     @staticmethod
     def get(
@@ -387,7 +383,7 @@ class Condition(IRDLOperation):
     cond: Operand = operand_def(IntegerType(1))
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = LazyTrait(lambda: (HasParent(While), IsTerminator()))
+    traits = Lazy(lambda: (HasParent(While), IsTerminator()))
 
     @staticmethod
     def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:

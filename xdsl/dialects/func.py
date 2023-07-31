@@ -31,12 +31,12 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
-    LazyTrait,
     SymbolOpInterface,
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.lazy import Lazy
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -55,7 +55,7 @@ class FuncOp(IRDLOperation):
     function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
-    traits = LazyTrait(
+    traits = Lazy(
         lambda: (IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface())
     )
 
@@ -328,7 +328,7 @@ class Return(IRDLOperation):
     name = "func.return"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = LazyTrait(lambda: (HasParent(FuncOp), IsTerminator()))
+    traits = Lazy(lambda: (HasParent(FuncOp), IsTerminator()))
 
     def __init__(self, *return_vals: SSAValue | Operation):
         super().__init__(operands=[return_vals])

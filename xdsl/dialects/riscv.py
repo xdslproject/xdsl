@@ -45,9 +45,10 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, LazyTrait, NoTerminator
+from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.lazy import Lazy
 
 
 class RISCVRegisterType(Data[str], TypeAttribute, ABC):
@@ -1542,7 +1543,7 @@ class ReturnOp(NullaryOperation):
 
     name = "riscv.ret"
 
-    traits = LazyTrait(lambda: IsTerminator())
+    traits = Lazy(lambda: (IsTerminator(),))
 
 
 # Conditional Branches
@@ -2126,7 +2127,7 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     value: StringAttr | None = opt_attr_def(StringAttr)
     data: OptRegion = opt_region_def("single_block")
 
-    traits = LazyTrait(lambda: NoTerminator())
+    traits = Lazy(lambda: (NoTerminator(),))
 
     def __init__(
         self,

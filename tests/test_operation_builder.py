@@ -38,7 +38,8 @@ from xdsl.irdl import (
     var_result_def,
     var_successor_def,
 )
-from xdsl.traits import IsTerminator, LazyTrait
+from xdsl.traits import IsTerminator
+from xdsl.utils.lazy import Lazy
 
 #  ____                 _ _
 # |  _ \ ___  ___ _   _| | |_
@@ -508,7 +509,7 @@ class SuccessorOp(IRDLOperation):
 
     successor: Successor = successor_def()
 
-    traits = LazyTrait(lambda: IsTerminator())
+    traits = Lazy(lambda: (IsTerminator(),))
 
 
 def test_successor_op_successor():
@@ -530,7 +531,7 @@ class OptSuccessorOp(IRDLOperation):
 
     successor: OptSuccessor = opt_successor_def()
 
-    traits = LazyTrait(lambda: IsTerminator())
+    traits = Lazy(lambda: (IsTerminator(),))
 
 
 def test_opt_successor_builder():
@@ -558,7 +559,7 @@ class VarSuccessorOp(IRDLOperation):
 
     successor: VarSuccessor = var_successor_def()
 
-    traits = LazyTrait(lambda: IsTerminator())
+    traits = Lazy(lambda: (IsTerminator(),))
 
 
 def test_var_successor_builder():
@@ -583,7 +584,7 @@ class TwoVarSuccessorOp(IRDLOperation):
     res2: VarSuccessor = var_successor_def()
     irdl_options = [AttrSizedSuccessorSegments()]
 
-    traits = LazyTrait(lambda: IsTerminator())
+    traits = Lazy(lambda: (IsTerminator(),))
 
 
 def test_two_var_successor_builder():

@@ -56,12 +56,12 @@ from xdsl.irdl import (
 )
 from xdsl.traits import (
     IsolatedFromAbove,
-    LazyTrait,
     NoTerminator,
     OptionalSymbolOpInterface,
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.lazy import Lazy
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -1226,7 +1226,7 @@ class ModuleOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = LazyTrait(
+    traits = Lazy(
         lambda: (
             IsolatedFromAbove(),
             NoTerminator(),

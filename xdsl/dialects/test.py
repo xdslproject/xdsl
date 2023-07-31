@@ -16,7 +16,8 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, LazyTrait
+from xdsl.traits import IsTerminator
+from xdsl.utils.lazy import Lazy
 
 
 @irdl_op_definition
@@ -53,7 +54,7 @@ class TestTermOp(IRDLOperation):
     regs: VarRegion = var_region_def()
     successor: VarSuccessor = var_successor_def()
 
-    traits = LazyTrait(lambda: IsTerminator())
+    traits = Lazy(lambda: (IsTerminator(),))
 
 
 @irdl_attr_definition

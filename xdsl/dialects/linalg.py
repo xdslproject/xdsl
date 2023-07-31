@@ -28,7 +28,8 @@ from xdsl.irdl import (
 )
 from xdsl.parser.attribute_parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, LazyTrait
+from xdsl.traits import IsTerminator
+from xdsl.utils.lazy import Lazy
 
 
 class IteratorType(Enum):
@@ -177,7 +178,7 @@ class Yield(IRDLOperation):
 
     values: VarOperand = var_operand_def()
 
-    traits = LazyTrait(lambda: IsTerminator())
+    traits = Lazy(lambda: (IsTerminator(),))
 
     def __init__(self, *operands: SSAValue | Operation) -> None:
         super().__init__(operands=[SSAValue.get(operand) for operand in operands])

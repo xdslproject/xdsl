@@ -30,11 +30,11 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsTerminator,
-    LazyTrait,
     NoTerminator,
     SymbolOpInterface,
     SymbolTable,
 )
+from xdsl.utils.lazy import Lazy
 
 ################################################################################
 # Dialect, Operation, and Attribute definitions                                #
@@ -57,7 +57,7 @@ class DialectOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = LazyTrait(lambda: (NoTerminator(), SymbolOpInterface(), SymbolTable()))
+    traits = Lazy(lambda: (NoTerminator(), SymbolOpInterface(), SymbolTable()))
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -87,9 +87,7 @@ class TypeOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = LazyTrait(
-        lambda: (NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
-    )
+    traits = Lazy(lambda: (NoTerminator(), HasParent(DialectOp), SymbolOpInterface()))
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -119,9 +117,7 @@ class AttributeOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = LazyTrait(
-        lambda: (NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
-    )
+    traits = Lazy(lambda: (NoTerminator(), HasParent(DialectOp), SymbolOpInterface()))
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -150,7 +146,7 @@ class ParametersOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
-    traits = LazyTrait(lambda: (HasParent(TypeOp, AttributeOp)))
+    traits = Lazy(lambda: (HasParent(TypeOp, AttributeOp),))
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])
@@ -177,9 +173,7 @@ class OperationOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = LazyTrait(
-        lambda: (NoTerminator(), HasParent(DialectOp), SymbolOpInterface())
-    )
+    traits = Lazy(lambda: (NoTerminator(), HasParent(DialectOp), SymbolOpInterface()))
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -208,7 +202,7 @@ class OperandsOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
-    traits = LazyTrait(lambda: HasParent(OperationOp))
+    traits = Lazy(lambda: (HasParent(OperationOp),))
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])
@@ -234,7 +228,7 @@ class ResultsOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
-    traits = LazyTrait(lambda: (IsTerminator(), HasParent(OperationOp)))
+    traits = Lazy(lambda: (IsTerminator(), HasParent(OperationOp)))
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])

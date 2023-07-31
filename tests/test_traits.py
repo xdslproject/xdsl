@@ -34,13 +34,9 @@ from xdsl.irdl import (
     region_def,
     result_def,
 )
-from xdsl.traits import (
-    LazyTrait,
-    OptionalSymbolOpInterface,
-    SymbolOpInterface,
-    SymbolTable,
-)
+from xdsl.traits import OptionalSymbolOpInterface, SymbolOpInterface, SymbolTable
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.lazy import Lazy
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -103,7 +99,7 @@ class BitwidthSumLessThanTrait(OpTrait):
 @irdl_op_definition
 class TestOp(IRDLOperation):
     name = "test.test"
-    traits = LazyTrait(lambda: (LargerOperandTrait(), BitwidthSumLessThanTrait(64)))
+    traits = Lazy(lambda: (LargerOperandTrait(), BitwidthSumLessThanTrait(64)))
 
     ops: Operand = operand_def(IntegerType)
     res: OpResult = result_def(IntegerType)
@@ -166,14 +162,14 @@ def test_verifier_order():
 
 
 class LargerOperandOp(IRDLOperation, ABC):
-    traits = LazyTrait(lambda: LargerOperandTrait())
+    traits = Lazy(lambda: (LargerOperandTrait(),))
 
 
 @irdl_op_definition
 class TestCopyOp(LargerOperandOp):
     name = "test.test_copy"
 
-    traits = LazyTrait(lambda: (LargerOperandTrait(), BitwidthSumLessThanTrait(64)))
+    traits = Lazy(lambda: (LargerOperandTrait(), BitwidthSumLessThanTrait(64)))
 
 
 def test_trait_inheritance():
@@ -233,7 +229,7 @@ class GetNumResultsTraitForOpWithOneResult(GetNumResultsTrait):
 
 class OpWithInterface(IRDLOperation):
     name = "test.op_with_interface"
-    traits = LazyTrait(lambda: GetNumResultsTraitForOpWithOneResult())
+    traits = Lazy(lambda: (GetNumResultsTraitForOpWithOneResult(),))
 
     res: OpResult = result_def(IntegerType)
 
@@ -272,7 +268,7 @@ def test_symbol_op_interface():
     @irdl_op_definition
     class NoSymNameOp(IRDLOperation):
         name = "no_sym_name"
-        traits = LazyTrait(lambda: SymbolOpInterface())
+        traits = Lazy(lambda: (SymbolOpInterface(),))
 
     op0 = NoSymNameOp()
 
@@ -286,7 +282,7 @@ def test_symbol_op_interface():
         name = "wrong_sym_name_type"
 
         sym_name: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-        traits = LazyTrait(lambda: SymbolOpInterface())
+        traits = Lazy(lambda: (SymbolOpInterface(),))
 
     op1 = SymNameWrongTypeOp(
         attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)}
@@ -303,7 +299,7 @@ def test_symbol_op_interface():
         name = "sym_name"
 
         sym_name = attr_def(StringAttr)
-        traits = LazyTrait(lambda: SymbolOpInterface())
+        traits = Lazy(lambda: (SymbolOpInterface(),))
 
     op2 = SymNameOp(attributes={"sym_name": StringAttr("symbol_name")})
     op2.verify()
@@ -320,7 +316,7 @@ def test_optional_symbol_op_interface():
 
         sym_name = opt_attr_def(StringAttr)
 
-        traits = LazyTrait(lambda: OptionalSymbolOpInterface())
+        traits = Lazy(lambda: (OptionalSymbolOpInterface(),))
 
     no_symbol = OptionalSymNameOp()
     interface = no_symbol.get_trait(SymbolOpInterface)
@@ -348,7 +344,7 @@ def test_symbol_table():
         one = region_def()
         two = opt_region_def()
 
-        traits = LazyTrait(lambda: (SymbolTable(), OptionalSymbolOpInterface()))
+        traits = Lazy(lambda: (SymbolTable(), OptionalSymbolOpInterface()))
 
     @irdl_op_definition
     class SymbolOp(IRDLOperation):
@@ -356,7 +352,7 @@ def test_symbol_table():
 
         sym_name = attr_def(StringAttr)
 
-        traits = LazyTrait(lambda: SymbolOpInterface())
+        traits = Lazy(lambda: (SymbolOpInterface(),))
 
     # Check that having a single region is verified
     op = SymbolTableOp(regions=[Region(), Region()])

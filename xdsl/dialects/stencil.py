@@ -34,9 +34,10 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, LazyTrait
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.lazy import Lazy
 
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
 
@@ -313,7 +314,7 @@ class ApplyOp(IRDLOperation):
     region: Region = region_def()
     res: VarOpResult = var_result_def(TempType)
 
-    traits = LazyTrait(lambda: IsolatedFromAbove())
+    traits = Lazy(lambda: (IsolatedFromAbove(),))
 
     @staticmethod
     def get(
@@ -479,7 +480,7 @@ class AccessOp(IRDLOperation):
     offset_mapping: ArrayAttr[IntAttr] | None = opt_attr_def(ArrayAttr[IntAttr])
     res: OpResult = result_def(Attribute)
 
-    traits = LazyTrait(lambda: HasParent(ApplyOp))
+    traits = Lazy(lambda: (HasParent(ApplyOp),))
 
     @staticmethod
     def get(
@@ -707,7 +708,7 @@ class ReturnOp(IRDLOperation):
     name = "stencil.return"
     arg: VarOperand = var_operand_def(ResultType | AnyFloat)
 
-    traits = LazyTrait(lambda: (HasParent(ApplyOp), IsTerminator()))
+    traits = Lazy(lambda: (HasParent(ApplyOp), IsTerminator()))
 
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):

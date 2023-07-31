@@ -23,9 +23,10 @@ from typing import (
 
 from typing_extensions import Self
 
-from xdsl.traits import IsTerminator, LazyTrait, NoTerminator, OpTrait, OpTraitInvT
+from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.lazy import Lazy
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -583,7 +584,7 @@ class Operation(IRNode):
     _prev_op: Operation | None = field(default=None, repr=False)
     """Previous operation in block containing this operation."""
 
-    traits: ClassVar[LazyTrait]
+    traits: ClassVar[Lazy[OpTrait]]
     """
     Traits attached to an operation definition.
     This is a static field, and is made empty by default by PyRDL if not set

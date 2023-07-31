@@ -33,10 +33,11 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import LazyTrait, Pure
+from xdsl.traits import Pure
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.lazy import Lazy
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
@@ -171,7 +172,7 @@ IntegerBinaryOp = BinaryOperation[IntegerType]
 class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
 
-    traits = LazyTrait(lambda: Pure())
+    traits = Lazy(lambda: (Pure(),))
 
 
 @irdl_op_definition

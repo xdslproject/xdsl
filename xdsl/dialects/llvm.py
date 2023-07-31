@@ -51,10 +51,11 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, LazyTrait, SymbolOpInterface
+from xdsl.traits import IsTerminator, SymbolOpInterface
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.lazy import Lazy
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -824,7 +825,7 @@ class GlobalOp(IRDLOperation):
     # This always needs an empty region as it is in the top level module definition
     body: Region = region_def()
 
-    traits = LazyTrait(lambda: SymbolOpInterface())
+    traits = Lazy(lambda: (SymbolOpInterface(),))
 
     def __init__(
         self,
@@ -1041,7 +1042,7 @@ class ReturnOp(IRDLOperation):
 
     arg: OptOperand = opt_operand_def(Attribute)
 
-    traits = LazyTrait(lambda: IsTerminator())
+    traits = Lazy(lambda: (IsTerminator(),))
 
     def __init__(self, value: Attribute | None = None):
         super().__init__(attributes={"value": value})

@@ -36,7 +36,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.ir.core import AttributeInvT
-from xdsl.traits import LazyTrait
+from xdsl.traits import OpTrait
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     ParseError,
@@ -49,6 +49,7 @@ from xdsl.utils.hints import (
     get_type_var_from_generic_class,
     get_type_var_mapping,
 )
+from xdsl.utils.lazy import Lazy
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -1009,7 +1010,7 @@ class OpDef:
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
-    traits: LazyTrait = field(default_factory=LazyTrait)
+    traits: Lazy[OpTrait] = field(default_factory=Lazy)
 
     attribute_accessor_names: dict[str, str] = field(default_factory=dict)
     """
@@ -1091,7 +1092,7 @@ class OpDef:
 
                 if field_name == "traits":
                     traits = value
-                    if not isinstance(traits, LazyTrait):
+                    if not isinstance(traits, Lazy):
                         raise Exception(
                             f"pyrdl operation definition '{pyrdl_def.__name__}' "
                             f"has a 'traits' field of type {type(traits)}, but "
