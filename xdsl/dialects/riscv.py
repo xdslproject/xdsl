@@ -335,7 +335,7 @@ class RISCVOp(Operation, ABC):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         args = cls.parse_unresolved_operand(parser)
-        custom_attributes = cls.parse_attributes(parser)
+        custom_attributes = cls.custom_parse_attributes(parser)
         remaining_attributes = parser.parse_optional_attr_dict()
         # TODO ensure distinct keys for attributes
         attributes = custom_attributes | remaining_attributes
@@ -367,9 +367,9 @@ class RISCVOp(Operation, ABC):
         return []
 
     @classmethod
-    def parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
         """
-        Parse custom printed attributes. Subclass may overwrite this method.
+        Parse attributes with custom syntax. Subclasses may override this method.
         """
         return parser.parse_optional_attr_dict()
 
@@ -377,14 +377,14 @@ class RISCVOp(Operation, ABC):
         if self.operands:
             printer.print(" ")
             printer.print_list(self.operands, printer.print_operand)
-        self.print_attributes(printer)
+        self.custom_print_attributes(printer)
         printer.print_regions(self.regions)
         printer.print(" : ")
         printer.print_operation_type(self)
 
-    def print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
         """
-        Custom print specific attributes and return the set of custom printed attributes. Subclass may overwrite this method.
+        Print attributes with custom syntax. Return the names of the attributes printed. Subclasses may override this method.
         """
         printer.print_op_attributes(self.attributes)
         return self.attributes.keys()
@@ -751,7 +751,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
     @classmethod
-    def parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
         attributes = dict[str, Attribute]()
         if immediate := parser.parse_optional_integer(allow_boolean=False):
             attributes["immediate"] = IntegerAttr(
@@ -763,7 +763,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
             attributes["rd"] = parser.parse_attribute()
         return attributes
 
-    def print_attributes(self, printer: Printer) -> Set[str]:
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
         match self.immediate:
             case IntegerAttr():
