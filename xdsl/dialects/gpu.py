@@ -55,6 +55,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.lazy import lazy
 
 
 @irdl_attr_definition
@@ -353,10 +354,7 @@ class MemcpyOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent(ModuleOp), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([lazy(lambda: HasParent(ModuleOp)), IsTerminator()])
 
     def __init__(self):
         return super().__init__()

@@ -22,7 +22,8 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.utils.lazy import lazy
 
 
 @irdl_op_definition
@@ -31,10 +32,7 @@ class YieldOp(IRDLOperation):
 
     arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([lazy(lambda: HasParent(ForOp)), IsTerminator()])
 
     def __init__(self, *operands: SSAValue | Operation):
         super().__init__(operands=[SSAValue.get(operand) for operand in operands])
