@@ -1006,6 +1006,9 @@ def test_type_conversion():
     """Test rewriter on ops without results"""
     prog = """\
 "builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : i32):
+  }) : () -> ()
   %0 = "test.op"() {"nested" = memref<*xi32>} : () -> i32
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"(%0, %1) : (i32, f32) -> memref<*xi32>
@@ -1016,6 +1019,9 @@ def test_type_conversion():
 
     expected = """\
 "builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : index):
+  }) : () -> ()
   %0 = "test.op"() {"nested" = memref<*xindex>} : () -> index
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
   %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
@@ -1047,6 +1053,9 @@ def test_type_conversion():
 
     non_rec_expected = """\
 "builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : index):
+  }) : () -> ()
   %0 = "test.op"() {"nested" = memref<*xi32>} : () -> index
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
   %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xi32>
@@ -1075,6 +1084,9 @@ def test_type_conversion():
 
     expected = """\
 "builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : i32):
+  }) : () -> ()
   %0 = "test.op"() {"nested" = memref<*xindex>} : () -> index
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
   %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
