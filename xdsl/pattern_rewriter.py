@@ -499,7 +499,7 @@ class TypeConversionPattern(RewritePattern):
         It allows returning None, meaning "this attribute should not
         be converted".
         """
-        ...
+        raise NotImplementedError()
 
     @final
     def _convert_type_rec(self, typ: Attribute) -> Attribute | None:
