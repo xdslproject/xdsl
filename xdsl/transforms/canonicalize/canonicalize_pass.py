@@ -12,12 +12,17 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
 )
 
-_canonicalize_passes = set()
+_canonicalize_passes: set[type[RewritePattern]] = set()
 
 _RewritePatternT = TypeVar("_RewritePatternT", bound=RewritePattern)
 
 
 def is_canonicalization(pat: type[_RewritePatternT]) -> type[_RewritePatternT]:
+    """
+    Decorator meant to signify that a rewrite pattern is does canonicalization
+
+    Will include this pattern into the canonicalize pass.
+    """
     _canonicalize_passes.add(pat)
     return pat
 
@@ -34,7 +39,7 @@ class CanonicalizationPattern(GreedyRewritePatternApplier):
     )
     repeat_apply_limit: int = field(default=5)
 
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         # apply at most n times per op
         if self.op_match_count[op] > self.repeat_apply_limit:
             return
@@ -50,7 +55,7 @@ class CanonicalizationPass(ModulePass):
 
     name = "canonicalize"
 
-    def apply(self, ctx: MLContext, module: builtin.ModuleOp) -> None:
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             CanonicalizationPattern([p() for p in _canonicalize_passes])
-        ).rewrite_module(module)
+        ).rewrite_module(op)

@@ -1,6 +1,6 @@
 from math import ceil, log2
 
-from xdsl.dialects import riscv
+from xdsl.dialects import builtin, riscv
 from xdsl.ir import SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -9,7 +9,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.transforms.canonicalize import is_canonicalization
 
-_HAS_IMMEDIATE_FORM_OP: dict[riscv.RISCVOp, riscv.RdRsImmIntegerOperation] = {
+_HAS_IMMEDIATE_FORM_OP: dict[type[riscv.RdRsRsIntegerOperation], type[riscv.RdRsImmIntegerOperation]] = {  # type: ignore[reportGeneralTypeIssues]
     riscv.AddOp: riscv.AddiOp,
     riscv.AndOp: riscv.AndiOp,
     riscv.SltOp: riscv.SltiOp,
@@ -36,8 +36,14 @@ def twos_complement_bitwidth(num: int):
 
 
 def can_be_imm_arg(arg: SSAValue):
+    """
+    Checks if an SSA Value can be folded into an immediate argument.
+
+    Checks if it is an `li` operation and requires 12 or fewer bits to represent.
+    """
     return (
         isinstance(arg.owner, riscv.LiOp)
+        and isinstance(arg.owner.immediate, builtin.IntegerAttr)
         and twos_complement_bitwidth(arg.owner.immediate.value.data) <= 12
     )
 
@@ -67,11 +73,9 @@ class FoldRiscvImmediates(RewritePattern):
         args_to_check = op.operands
         if not isinstance(op, _COMMUTATIVE_OPS):
             args_to_check = [op.rs1]
-        print(f"{args_to_check=}")
         arg_to_replace = None
 
         for arg in args_to_check:
-            print(f"{can_be_imm_arg(arg)=}")
             if can_be_imm_arg(arg):
                 arg_to_replace = arg
                 break
@@ -86,6 +90,9 @@ class FoldRiscvImmediates(RewritePattern):
         args.remove(arg_to_replace)
         assert len(args) == 1
         # construct new op
+        assert isinstance(arg_to_replace.owner, riscv.LiOp)
+        assert isinstance(arg_to_replace.owner.immediate, builtin.IntegerAttr)
+        assert isinstance(op.rd.type, riscv.IntRegisterType)
         new_op = _HAS_IMMEDIATE_FORM_OP[type(op)](
             args[0], arg_to_replace.owner.immediate.value.data, rd=op.rd.type
         )
