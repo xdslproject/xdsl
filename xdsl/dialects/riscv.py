@@ -377,7 +377,13 @@ class RISCVOp(Operation, ABC):
         if self.operands:
             printer.print(" ")
             printer.print_list(self.operands, printer.print_operand)
-        self.custom_print_attributes(printer)
+        printed_attributes = self.custom_print_attributes(printer)
+        unprinted_attributes = {
+            name: attr
+            for name, attr in self.attributes.items()
+            if name not in printed_attributes
+        }
+        printer.print_op_attributes(unprinted_attributes)
         printer.print_regions(self.regions)
         printer.print(" : ")
         printer.print_operation_type(self)
