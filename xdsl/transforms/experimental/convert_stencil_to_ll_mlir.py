@@ -507,11 +507,6 @@ def return_target_analysis(module: builtin.ModuleOp):
 
 
 class StencilTypeConversion(TypeConversionPattern):
-    def __init__(
-        self, recursive: bool = True, ops: tuple[type[Operation], ...] | None = None
-    ):
-        return super().__init__(recursive, ops)
-
     @attr_type_rewrite_pattern
     def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
         return StencilToMemRefType(typ)
@@ -549,7 +544,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         type_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    StencilTypeConversion(),
+                    StencilTypeConversion(recursive=True),
                     BufferOpCleanUp(),
                 ]
             )
