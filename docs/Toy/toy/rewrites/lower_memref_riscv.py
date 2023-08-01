@@ -45,24 +45,27 @@ def insert_shape_ops(
     """
     assert len(shape) == len(indices)
 
-    if len(shape) == 1:
-        rewriter.insert_op_before_matched_op(
-            [
-                ptr := riscv.AddOp(mem, indices[0]),
-            ]
-        )
-    elif len(shape) == 2:
-        rewriter.insert_op_before_matched_op(
-            [
-                cols := riscv.LiOp(shape[1]),
-                row_offset := riscv.MulOp(cols, indices[0]),
-                offset := riscv.AddOp(row_offset, indices[1]),
-                offset_bytes := riscv.SlliOp(offset, 2, comment="mutiply by elm size"),
-                ptr := riscv.AddOp(mem, offset_bytes),
-            ]
-        )
-    else:
-        raise NotImplementedError(f"Unsupported memref shape {shape}")
+    match len(shape):
+        case 1:
+            rewriter.insert_op_before_matched_op(
+                [
+                    ptr := riscv.AddOp(mem, indices[0]),
+                ]
+            )
+        case 2:
+            rewriter.insert_op_before_matched_op(
+                [
+                    cols := riscv.LiOp(shape[1]),
+                    row_offset := riscv.MulOp(cols, indices[0]),
+                    offset := riscv.AddOp(row_offset, indices[1]),
+                    offset_bytes := riscv.SlliOp(
+                        offset, 2, comment="mutiply by elm size"
+                    ),
+                    ptr := riscv.AddOp(mem, offset_bytes),
+                ]
+            )
+        case _:
+            raise NotImplementedError(f"Unsupported memref shape {shape}")
     return ptr.rd
 
 
