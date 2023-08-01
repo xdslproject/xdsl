@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterable, Literal, TypeVar
 from warnings import warn
 
@@ -232,7 +232,9 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
 class ApplyOpToParallel(RewritePattern):
     return_targets: dict[ReturnOp, list[SSAValue | None]]
 
-    target: Literal["cpu", "gpu"] = "cpu"
+    target: Literal["cpu", "gpu"]
+
+    tile_sizes: list[int] | None
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
@@ -271,11 +273,13 @@ class ApplyOpToParallel(RewritePattern):
         match self.target:
             case "cpu":
                 current_region = body
+                steps = [one] * dim
+
                 for i in range(1, dim):
                     for_op = scf.For.get(
                         lb=lowerBounds[-i],
                         ub=upperBounds[-i],
-                        step=one,
+                        step=steps[-i],
                         iter_args=[],
                         body=current_region,
                     )
@@ -287,7 +291,7 @@ class ApplyOpToParallel(RewritePattern):
                 p = scf.ParallelOp.get(
                     lowerBounds=[lowerBounds[0]],
                     upperBounds=[upperBounds[0]],
-                    steps=[one],
+                    steps=[steps[0]],
                     body=current_region,
                 )
             case "gpu":
@@ -522,6 +526,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
     target: Literal["cpu", "gpu"] = "cpu"
+    tile_sizes: list[int] | None = None
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         return_targets: dict[ReturnOp, list[SSAValue | None]] = return_target_analysis(
@@ -531,7 +536,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ApplyOpToParallel(return_targets, self.target),
+                    ApplyOpToParallel(return_targets, self.target, self.tile_sizes),
                     StencilStoreToSubview(return_targets),
                     CastOpToMemref(self.target),
                     LoadOpToMemref(),
