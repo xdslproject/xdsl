@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from typing import Any
 
 from xdsl.dialects import riscv_scf
@@ -12,8 +13,9 @@ from xdsl.interpreter import (
 
 
 @register_impls
+@dataclass
 class RiscvScfFunctions(InterpreterFunctions):
-    bitwidth = 32
+    bitwidth: int = field(default=32)
 
     @impl(riscv_scf.ForOp)
     def run_for(
