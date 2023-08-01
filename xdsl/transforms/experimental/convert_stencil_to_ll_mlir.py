@@ -1,8 +1,7 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Iterable, Literal, TypeVar
 from warnings import warn
 
-from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, gpu, memref, scf
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
@@ -261,7 +260,7 @@ class ApplyOpToParallel(RewritePattern):
             ),
             one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
             *(
-                upperBounds := list[arith.Constant](
+                upperBounds := list[arith.Constant | arith.Select](
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in res_type.bounds.ub
                 )
@@ -339,6 +338,7 @@ class ApplyOpToParallel(RewritePattern):
                 boilerplate_ops.insert(
                     1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
                 )
+                assert isa(lowerBounds, list[arith.Constant])
                 p = scf.ParallelOp.get(
                     lowerBounds=list(reversed(lowerBounds))
                     + [zero] * (3 - stencil_rank),
@@ -400,6 +400,7 @@ class ApplyOpToParallel(RewritePattern):
         new_results: list[SSAValue | None] = []
         new_results = self.return_targets[return_op]
         # Replace with the loop and necessary constants.
+        assert isa(boilerplate_ops, list[Operation])
         rewriter.insert_op_before_matched_op([*boilerplate_ops, p])
         rewriter.insert_op_after_matched_op([*deallocs])
         rewriter.replace_matched_op([], new_results)
