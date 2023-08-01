@@ -254,7 +254,7 @@ class ApplyOpToParallel(RewritePattern):
         # Then create the corresponding scf.parallel
         boilerplate_ops = [
             *(
-                lowerBounds := list[arith.Constant](
+                lowerBounds := list[arith.Constant | BlockArgument | None](
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in res_type.bounds.lb
                 )
@@ -273,8 +273,23 @@ class ApplyOpToParallel(RewritePattern):
         # kernel itself is not slowed down by the OpenMP runtime.
         match self.target:
             case "cpu":
-                # current_region = body
                 steps = [one] * dim
+                total_upper_bounds = upperBounds.copy()
+                cst_tile_sizes: list[arith.Constant] = []
+                if self.tile_sizes:
+                    tiled_dim = min(dim, len(self.tile_sizes))
+                    for i in range(tiled_dim):
+                        cst_tile_size = arith.Constant.from_int_and_width(
+                            self.tile_sizes[i], builtin.IndexType()
+                        )
+                        steps.insert(i, cst_tile_size)
+                        boilerplate_ops.insert(-1, cst_tile_size)
+                        lowerBounds.insert(tiled_dim + i, None)
+                        upperBounds.insert(tiled_dim + i, cst_tile_size)
+                        cst_tile_sizes.append(cst_tile_size)
+                    dim += tiled_dim
+
+                assert lowerBounds[0] is not None
                 p = scf.ParallelOp.get(
                     lowerBounds=[lowerBounds[0]],
                     upperBounds=[upperBounds[0]],
@@ -283,12 +298,27 @@ class ApplyOpToParallel(RewritePattern):
                         Block([scf.Yield.get()], arg_types=[builtin.IndexType()])
                     ),
                 )
-
+                loops: list[scf.ParallelOp | scf.For] = [p]
                 current_loop = p
+                tiled_index = 0
 
                 for i in range(1, dim):
+                    block = current_loop.body.block
+                    last = block.last_op
+                    assert last is not None
+                    if lowerBounds[i] is None:
+                        lb = loops[tiled_index].body.block.args[0]
+                        lowerBounds[i] = lb
+                        add = arith.Addi(lb, cst_tile_sizes[tiled_index])
+                        cmpi = arith.Cmpi(add, total_upper_bounds[tiled_index], "ult")
+                        minop = arith.Select(cmpi, add, total_upper_bounds[tiled_index])
+                        upperBounds[i] = minop
+
+                        block.insert_ops_before([add, cmpi, minop], last)
+                        tiled_index += 1
+                    assert (lb := lowerBounds[i]) is not None
                     loop = scf.For.get(
-                        lb=lowerBounds[i],
+                        lb=lb,
                         ub=upperBounds[i],
                         step=steps[i],
                         iter_args=[],
@@ -296,11 +326,9 @@ class ApplyOpToParallel(RewritePattern):
                             Block([scf.Yield.get()], arg_types=[builtin.IndexType()])
                         ),
                     )
-                    block = current_loop.body.block
-                    last = block.last_op
-                    assert last is not None
                     block.insert_op_before(loop, last)
                     current_loop = loop
+                    loops.append(loop)
 
                 current_loop.body.detach_block(current_loop.body.block)
 
