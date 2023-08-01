@@ -36,6 +36,7 @@ from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.transforms import (
+    canonicalize_dmp,
     dead_code_elimination,
     lower_mpi,
     lower_riscv_func,
@@ -91,6 +92,7 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
+        canonicalize_dmp.CanonicalizeDmpPass,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
