@@ -66,7 +66,7 @@ def simple_linear_riscv():
 
         riscv.LabelOp("main", main_region)
 
-    riscv.DirectiveOp(".text", None, text_region)
+    riscv.AssemblySectionOp(".text", text_region)
 
 
 @ModuleOp
@@ -109,7 +109,7 @@ def simple_linear_riscv_allocated():
 
         riscv.LabelOp("main", main_region)
 
-    riscv.DirectiveOp(".text", None, text_region)
+    riscv.AssemblySectionOp(".text", text_region)
 
 
 def test_allocate_simple_linear():

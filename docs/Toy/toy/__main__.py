@@ -1,18 +1,28 @@
 import argparse
 from pathlib import Path
+from typing import Any
 
+from xdsl.dialects import memref, riscv
+from xdsl.dialects.builtin import Float64Type
+from xdsl.interpreter import InterpreterFunctions, impl_cast, register_impls
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
+from xdsl.interpreters.riscv import Buffer
+from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.scf import ScfFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
 from .compiler import context, transform
 from .emulator.toy_accelerator_functions import ToyAcceleratorFunctions
+from .emulator.toy_accelerator_instruction_functions import (
+    ShapedArrayBuffer,
+    ToyAcceleratorInstructionFunctions,
+)
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser as ToyParser
 from .interpreter import Interpreter, ToyFunctions
@@ -30,13 +40,36 @@ parser.add_argument(
         "toy-infer-shapes",
         "affine",
         "scf",
+        "riscv",
     ],
-    default="toy-infer-shapes",
-    help="Action to perform on source file (default: toy-infer-shapes)",
+    default="riscv",
+    help="Action to perform on source file (default: riscv)",
 )
 parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
 parser.add_argument("--accelerate", dest="accelerate", action="store_true")
+
+
+@register_impls
+class BufferMemrefConversion(InterpreterFunctions):
+    @impl_cast(riscv.IntRegisterType, memref.MemRefType)
+    def cast_buffer_to_memref(
+        self,
+        input_type: riscv.IntRegisterType,
+        output_type: memref.MemRefType[Float64Type],
+        value: Any,
+    ) -> Any:
+        shape = output_type.get_shape()
+        return ShapedArrayBuffer(value.data, list(shape))
+
+    @impl_cast(memref.MemRefType, riscv.IntRegisterType)
+    def cast_memref_to_buffer(
+        self,
+        input_type: memref.MemRefType[Float64Type],
+        output_type: riscv.IntRegisterType,
+        value: Any,
+    ) -> Any:
+        return Buffer(value.data)
 
 
 def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool):
@@ -84,6 +117,21 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
     if emit == "scf":
         interpreter.register_implementations(ScfFunctions())
         interpreter.register_implementations(BuiltinFunctions())
+
+    if emit in ("riscv",):
+        interpreter.register_implementations(
+            ToyAcceleratorInstructionFunctions(module_op)
+        )
+        interpreter.register_implementations(BufferMemrefConversion())
+        interpreter.register_implementations(RiscvFuncFunctions())
+        interpreter.register_implementations(BuiltinFunctions())
+        # TODO: remove as we add lowerings to riscv
+        interpreter.register_implementations(ScfFunctions())
+        interpreter.register_implementations(ArithFunctions())
+        interpreter.register_implementations(MemrefFunctions())
+        interpreter.register_implementations(PrintfFunctions())
+        interpreter.register_implementations(FuncFunctions())
+
     interpreter.call_op("main", ())
 
 
