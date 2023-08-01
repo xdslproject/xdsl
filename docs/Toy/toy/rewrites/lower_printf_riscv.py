@@ -12,6 +12,13 @@ from xdsl.utils.hints import isa
 
 
 class LowerPrintOp(RewritePattern):
+    """
+    Rewrites printf.PrintFormatOp to Toy accelerator custom instruction. Currently only
+    supports 1d and 2d memref printing.
+
+    This is a temporary pass, until we have the ability to print in native riscv.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: printf.PrintFormatOp, rewriter: PatternRewriter):
         assert op.format_str.data == "{}"

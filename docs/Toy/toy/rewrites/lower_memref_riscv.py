@@ -12,7 +12,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
-from .lower_riscv_cf import cast_value_to_register
+from .helpers import cast_value_to_register
 
 
 class LowerMemrefAllocOp(RewritePattern):

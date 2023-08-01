@@ -38,14 +38,14 @@ class AddSections(RewritePattern):
 
 @dataclass
 class DataDirectiveRewritePattern(RewritePattern):
-    _data_directive: riscv.AssemblySectionOp | None = None
+    _data_section: riscv.AssemblySectionOp | None = None
     _counter: Counter[str] = field(default_factory=Counter)
 
-    def data_directive(self, op: Operation) -> riscv.AssemblySectionOp:
+    def data_section(self, op: Operation) -> riscv.AssemblySectionOp:
         """
         Relies on the data directive being inserted earlier
         """
-        if self._data_directive is None:
+        if self._data_section is None:
             module_op = op.get_toplevel_object()
             assert isinstance(
                 module_op, ModuleOp
@@ -56,11 +56,11 @@ class DataDirectiveRewritePattern(RewritePattern):
                     continue
                 if op.directive.data != ".data":
                     continue
-                self._data_directive = op
+                self._data_section = op
 
-            assert self._data_directive is not None
+            assert self._data_section is not None
 
-        return self._data_directive
+        return self._data_section
 
     def label(self, func_name: str) -> str:
         key = func_name
@@ -70,7 +70,7 @@ class DataDirectiveRewritePattern(RewritePattern):
 
     def add_data(self, op: Operation, label: str, data: list[int]):
         encoded_data = ", ".join(hex(el) for el in data)
-        self.data_directive(op).regions[0].blocks[0].add_ops(
+        self.data_section(op).regions[0].blocks[0].add_ops(
             [riscv.LabelOp(label), riscv.DirectiveOp(".word", encoded_data)]
         )
 

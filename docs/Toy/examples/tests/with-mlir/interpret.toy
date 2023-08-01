@@ -1,4 +1,5 @@
 # RUN: python -m toy %s --emit=scf | filecheck %s
+
 # RUN: python -m toy %s --emit=riscv | filecheck %s
 # RUN: python -m toy %s --emit=riscemu | filecheck %s
 
