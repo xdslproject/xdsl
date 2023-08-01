@@ -207,7 +207,7 @@ class CommandLineTool:
         try:
             return self.available_frontends[file_extension](chunk)
         except ParseError as e:
-            if self.args.parsing_diagnostics:
+            if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
                 print(e)
             else:
                 raise e
