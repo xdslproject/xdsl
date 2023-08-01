@@ -145,10 +145,15 @@ class ReturnOpToMemref(RewritePattern):
 def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
     assert isinstance(field.bounds, StencilBoundsAttr)
     assert isinstance(temp.bounds, StencilBoundsAttr)
-    if temp.bounds.lb < field.bounds.lb or temp.bounds.ub > field.bounds.ub:
+    if temp.bounds.lb < field.bounds.lb:
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
             f"{temp.bounds.lb}, got {field.bounds.lb}, min: {min(field.bounds.lb, temp.bounds.lb)}"
+        )
+    if temp.bounds.ub > field.bounds.ub:
+        raise VerifyException(
+            "The stencil computation requires a field with upper bound at least "
+            f"{temp.bounds.ub}, got {field.bounds.ub}, max: {max(field.bounds.ub, temp.bounds.ub)}"
         )
 
 
