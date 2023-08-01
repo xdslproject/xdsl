@@ -2,7 +2,16 @@ from conftest import assert_print_op
 
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Muli
-from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
+from xdsl.dialects.builtin import (
+    Builtin,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    StringAttr,
+    i32,
+    i64,
+)
 from xdsl.ir import MLContext, Operation
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
@@ -10,6 +19,8 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
+    TypeConversionPattern,
+    attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
 from xdsl.utils.hints import isa
@@ -988,4 +999,122 @@ def test_insert_same_block():
         prog,
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
+    )
+
+
+def test_type_conversion():
+    """Test rewriter on ops without results"""
+    prog = """\
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : i32):
+  }) : () -> ()
+  %0 = "test.op"() {"nested" = memref<*xi32>} : () -> i32
+  %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
+  %2 = "test.op"(%0, %1) : (i32, f32) -> memref<*xi32>
+  %3 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : index):
+  }) : () -> ()
+  %0 = "test.op"() {"nested" = memref<*xindex>} : () -> index
+  %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
+  %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
+  %3 = "arith.addi"(%0, %0) : (index, index) -> index
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    class Rewrite(TypeConversionPattern):
+        @attr_type_rewrite_pattern
+        def convert_type(self, typ: IntegerType) -> IndexType:
+            return IndexType()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(recursive=True), apply_recursively=False),
+    )
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(recursive=True), apply_recursively=True),
+    )
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(
+            Rewrite(recursive=True), apply_recursively=False, walk_reverse=True
+        ),
+    )
+
+    non_rec_expected = """\
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : index):
+  }) : () -> ()
+  %0 = "test.op"() {"nested" = memref<*xi32>} : () -> index
+  %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
+  %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xi32>
+  %3 = "arith.addi"(%0, %0) : (index, index) -> index
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    rewrite_and_compare(
+        prog,
+        non_rec_expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+    )
+    rewrite_and_compare(
+        prog,
+        non_rec_expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+    )
+    rewrite_and_compare(
+        prog,
+        non_rec_expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False, walk_reverse=True),
+    )
+
+    expected = """\
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : i32):
+  }) : () -> ()
+  %0 = "test.op"() {"nested" = memref<*xindex>} : () -> index
+  %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
+  %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
+  %3 = "arith.addi"(%0, %0) : (index, index) -> i32
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(
+            Rewrite(ops=(test.TestOp,), recursive=True), apply_recursively=False
+        ),
+    )
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(
+            Rewrite(ops=(test.TestOp,), recursive=True), apply_recursively=True
+        ),
+    )
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(
+            Rewrite(ops=(test.TestOp,), recursive=True),
+            apply_recursively=False,
+            walk_reverse=True,
+        ),
     )

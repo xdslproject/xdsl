@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Set
 from io import StringIO
 from typing import IO, ClassVar, Sequence, TypeAlias
 
@@ -8,6 +9,7 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    IndexType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -17,6 +19,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    Block,
     Data,
     Dialect,
     Operation,
@@ -28,7 +31,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    OptRegion,
     OptSingleBlockRegion,
     VarOperand,
     VarOpResult,
@@ -37,12 +39,12 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
-    opt_region_def,
     result_def,
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.irdl.irdl import OptRegion, opt_region_def, region_def
+from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -333,13 +335,11 @@ class RISCVOp(Operation, ABC):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        args = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_unresolved_operand,
-            parser.parse_unresolved_operand,
-        )
-        if args is None:
-            args = []
-        attributes = parser.parse_optional_attr_dict()
+        args = cls.parse_unresolved_operand(parser)
+        custom_attributes = cls.custom_parse_attributes(parser)
+        remaining_attributes = parser.parse_optional_attr_dict()
+        # TODO ensure distinct keys for attributes
+        attributes = custom_attributes | remaining_attributes
         regions = parser.parse_region_list()
         parser.parse_punctuation(":")
         func_type = parser.parse_function_type()
@@ -351,14 +351,50 @@ class RISCVOp(Operation, ABC):
             regions=regions,
         )
 
+    @classmethod
+    def parse_unresolved_operand(cls, parser: Parser) -> list[UnresolvedOperand]:
+        """
+        Parse a list of comma separated unresolved operands.
+
+        Notice that this method will consume trailing comma.
+        """
+        if operand := parser.parse_optional_unresolved_operand():
+            operands = [operand]
+            while parser.parse_optional_punctuation(",") and (
+                operand := parser.parse_optional_unresolved_operand()
+            ):
+                operands.append(operand)
+            return operands
+        return []
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        """
+        Parse attributes with custom syntax. Subclasses may override this method.
+        """
+        return parser.parse_optional_attr_dict()
+
     def print(self, printer: Printer) -> None:
         if self.operands:
             printer.print(" ")
             printer.print_list(self.operands, printer.print_operand)
-        printer.print_op_attributes(self.attributes)
+        printed_attributes = self.custom_print_attributes(printer)
+        unprinted_attributes = {
+            name: attr
+            for name, attr in self.attributes.items()
+            if name not in printed_attributes
+        }
+        printer.print_op_attributes(unprinted_attributes)
         printer.print_regions(self.regions)
         printer.print(" : ")
         printer.print_operation_type(self)
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        """
+        Print attributes with custom syntax. Return the names of the attributes printed. Subclasses may override this method.
+        """
+        printer.print_op_attributes(self.attributes)
+        return self.attributes.keys()
 
 
 AssemblyInstructionArg: TypeAlias = (
@@ -720,6 +756,28 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.rs1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
+        if parser.parse_optional_punctuation(","):
+            attributes["rd"] = parser.parse_attribute()
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        match self.immediate:
+            case IntegerAttr():
+                printer.print(self.immediate.value.data)
+            case LabelAttr():
+                printer.print_string_literal(self.immediate.data)
+        if self.rd is not None:
+            printer.print(", ")
+            printer.print_attribute(self.rd)
+        return {"immediate", "rd"}
 
 
 class RdRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -2055,7 +2113,8 @@ class LabelOp(IRDLOperation, RISCVOp):
 @irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
     """
-    The directive operation is used to emit assembler directives (e.g. .word; .text; .data; etc.)
+    The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
+    without any associated region of assembly code.
     A more complete list of directives can be found here:
 
     https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops
@@ -2064,29 +2123,22 @@ class DirectiveOp(IRDLOperation, RISCVOp):
     name = "riscv.directive"
     directive: StringAttr = attr_def(StringAttr)
     value: StringAttr | None = opt_attr_def(StringAttr)
-    data: OptRegion = opt_region_def("single_block")
-
-    traits = frozenset([NoTerminator()])
 
     def __init__(
         self,
         directive: str | StringAttr,
         value: str | StringAttr | None,
-        region: OptSingleBlockRegion = None,
     ):
         if isinstance(directive, str):
             directive = StringAttr(directive)
         if isinstance(value, str):
             value = StringAttr(value)
-        if region is None:
-            region = Region()
 
         super().__init__(
             attributes={
                 "directive": directive,
                 "value": value,
-            },
-            regions=[region],
+            }
         )
 
     def assembly_line(self) -> str | None:
@@ -2096,6 +2148,68 @@ class DirectiveOp(IRDLOperation, RISCVOp):
             arg_str = ""
 
         return _assembly_line(self.directive.data, arg_str, is_indented=False)
+
+
+@irdl_op_definition
+class AssemblySectionOp(IRDLOperation, RISCVOp):
+    """
+    The directive operation is used to emit assembler directives (e.g. .text; .data; etc.)
+    with the scope of a section.
+
+    A more complete list of directives can be found here:
+
+    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops
+
+    This operation can have nested operations, corresponding to a section of the assembly.
+    """
+
+    name = "riscv.assembly_section"
+    directive: StringAttr = attr_def(StringAttr)
+    data: Region = region_def("single_block")
+
+    traits = frozenset([NoTerminator()])
+
+    def __init__(
+        self,
+        directive: str | StringAttr,
+        region: OptSingleBlockRegion = None,
+    ):
+        if isinstance(directive, str):
+            directive = StringAttr(directive)
+        if region is None:
+            region = Region()
+
+        super().__init__(
+            regions=[region],
+            attributes={
+                "directive": directive,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> AssemblySectionOp:
+        directive = parser.parse_str_literal()
+        attr_dict = parser.parse_optional_attr_dict_with_keyword(("directive"))
+        region = parser.parse_optional_region()
+
+        if region is None:
+            region = Region(Block())
+        section = AssemblySectionOp(directive, region)
+        if attr_dict is not None:
+            section.attributes |= attr_dict.data
+
+        return section
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_string_literal(self.directive.data)
+        printer.print_op_attributes_with_keyword(self.attributes, ("directive"))
+        printer.print_string(" ")
+        if self.data.block.ops:
+            printer.print_region(self.data)
+
+    def assembly_line(self) -> str | None:
+        return _assembly_line(self.directive.data, "", is_indented=False)
 
 
 @irdl_op_definition
@@ -2930,6 +3044,28 @@ class FSwOp(RsRsImmFloatOperation):
 
 # endregion
 
+
+def _parse_optional_immediate_value(
+    parser: Parser, integer_type: IntegerType | IndexType
+) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
+    """
+    Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
+    """
+    if (immediate := parser.parse_optional_integer()) is not None:
+        return IntegerAttr(immediate, integer_type)
+    if (immediate := parser.parse_optional_str_literal()) is not None:
+        return LabelAttr(immediate)
+
+
+def _parse_immediate_value(
+    parser: Parser, integer_type: IntegerType | IndexType
+) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
+    return parser.expect(
+        lambda: _parse_optional_immediate_value(parser, integer_type),
+        "Expected immediate",
+    )
+
+
 RISCV = Dialect(
     [
         AddiOp,
@@ -2991,6 +3127,7 @@ RISCV = Dialect(
         EcallOp,
         LabelOp,
         DirectiveOp,
+        AssemblySectionOp,
         EbreakOp,
         WfiOp,
         CustomAssemblyInstructionOp,

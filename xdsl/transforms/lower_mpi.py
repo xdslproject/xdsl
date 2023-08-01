@@ -312,7 +312,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         """
         return [
             index := memref.ExtractAlignedPointerAsIndexOp.get(ref),
-            i64 := arith.IndexCastOp.get(index, builtin.i64),
+            i64 := arith.IndexCastOp(index, builtin.i64),
             ptr := llvm.IntToPtrOp(i64),
         ], ptr
 
@@ -681,8 +681,8 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
         return [
             ptr_int := llvm.PtrToIntOp(op.vect, i64),
             lit1 := arith.Constant.from_int_and_width(datatype_size, 64),
-            idx_cast1 := arith.IndexCastOp.get(op.element, IndexType()),
-            idx_cast2 := arith.IndexCastOp.get(idx_cast1, i64),
+            idx_cast1 := arith.IndexCastOp(op.element, IndexType()),
+            idx_cast2 := arith.IndexCastOp(idx_cast1, i64),
             mul := arith.Muli(lit1, idx_cast2),
             add := arith.Addi(mul, ptr_int),
             out_ptr := llvm.IntToPtrOp(add, op.vect.type.type),

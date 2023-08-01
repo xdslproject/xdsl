@@ -70,12 +70,12 @@
     riscv.j {"immediate" = #riscv.label<"label">} : () -> ()
     // CHECK-NEXT: riscv.j {"immediate" = #riscv.label<"label">} : () -> ()
 
-    riscv.jalr %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.jalr %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> ()
-    riscv.jalr %0 {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : (!riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.jalr %0 {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : (!riscv.reg<>) -> ()
-    riscv.jalr %0 {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.jalr %0 {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
+    riscv.jalr %0, 1: (!riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.jalr %0, 1 : (!riscv.reg<>) -> ()
+    riscv.jalr %0, 1, !riscv.reg<> : (!riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.jalr %0, 1, !riscv.reg<> : (!riscv.reg<>) -> ()
+    riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
 
     riscv.ret : () -> ()
     // CHECK-NEXT: riscv.ret : () -> ()
@@ -180,12 +180,19 @@
     // CHECK-NEXT: riscv.ebreak : () -> ()
     riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
     // CHECK-NEXT: riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
-    riscv.directive {"directive" = ".text"} ({
+    riscv.assembly_section ".text" attributes {"foo" = i32} {
       %nested_li = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
-    }) : () -> ()
-    // CHECK-NEXT:  riscv.directive {"directive" = ".text"} ({
+    }
+    // CHECK-NEXT:  riscv.assembly_section ".text" attributes {"foo" = i32} {
     // CHECK-NEXT:    %{{.*}} = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
-    // CHECK-NEXT:  }) : () -> ()
+    // CHECK-NEXT:  }
+    
+    riscv.assembly_section ".text" {
+      %nested_li = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
+    }
+    // CHECK-NEXT:  riscv.assembly_section ".text" {
+    // CHECK-NEXT:    %{{.*}} = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
+    // CHECK-NEXT:  }
 
     // Custom instruction
     %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1 {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
