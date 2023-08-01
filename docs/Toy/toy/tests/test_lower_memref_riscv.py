@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import arith, func, memref, riscv
+from xdsl.dialects import func, memref, riscv
 from xdsl.dialects.builtin import IndexType, ModuleOp, UnrealizedConversionCastOp, f64
 from xdsl.ir import MLContext
 from xdsl.pattern_rewriter import PatternRewriter
@@ -20,18 +20,18 @@ def test_lower_memref_alloc():
     @ModuleOp
     @Builder.implicit_region
     def simple_alloc():
-        m1 = memref.Alloc.get(f64, shape=[2]).memref
-        riscv.CustomAssemblyInstructionOp("do_stuff_with_alloc", (m1,), ())
+        v1 = memref.Alloc.get(f64, shape=[2]).memref
+        riscv.CustomAssemblyInstructionOp("do_stuff_with_alloc", (v1,), ())
 
     @ModuleOp
     @Builder.implicit_region
     def expected():
-        size = riscv.LiOp(2, comment="memref alloc size")
-        alloc = riscv.CustomAssemblyInstructionOp(
-            "buffer.alloc", (size.results[0],), (register_type,)
+        v1 = riscv.LiOp(2, comment="memref alloc size")
+        v2 = riscv.CustomAssemblyInstructionOp(
+            "buffer.alloc", (v1.results[0],), (register_type,)
         )
-        cast = UnrealizedConversionCastOp.get((alloc.results[0],), (memref_type_2xf64,))
-        riscv.CustomAssemblyInstructionOp("do_stuff_with_alloc", (cast.results[0],), ())
+        v3 = UnrealizedConversionCastOp.get((v2.results[0],), (memref_type_2xf64,))
+        riscv.CustomAssemblyInstructionOp("do_stuff_with_alloc", (v3.results[0],), ())
 
     LowerMemrefToRiscv().apply(MLContext(), simple_alloc)
     assert f"{expected}" == f"{simple_alloc}"
@@ -50,7 +50,7 @@ def test_lower_memref_dealloc():
     @Builder.implicit_region
     def expected():
         with ImplicitBuilder(func.FuncOp("impl", ((memref_type_2xf64,), ())).body) as (
-            b,
+            _,
         ):
             pass
 
