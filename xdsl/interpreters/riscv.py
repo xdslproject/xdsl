@@ -12,20 +12,18 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
+from xdsl.interpreters.comparisons import to_signed, to_unsigned
 from xdsl.ir.core import Operation
 from xdsl.utils.exceptions import InterpretationError
 
 _T = TypeVar("_T")
 
 
-def pairs(it: Iterator[_T]) -> Iterator[tuple[_T, _T]]:
-    try:
-        while True:
-            a = next(it)
-            b = next(it)
-            yield a, b
-    except StopIteration:
-        return
+def pairs(els: list[_T]) -> Iterator[tuple[_T, _T]]:
+    count = len(els)
+    assert not count % 2
+    for i in range(0, count, 2):
+        yield els[i], els[i + 1]
 
 
 CustomInstructionFn: TypeAlias = Callable[
@@ -61,16 +59,19 @@ class RiscvFunctions(InterpreterFunctions):
     module_op: ModuleOp
     data: dict[str, Any]
     custom_instructions: dict[str, CustomInstructionFn] = {}
+    bitwidth: int
 
     def __init__(
         self,
         module_op: ModuleOp,
         *,
+        bitwidth: int = 32,
         data: dict[str, Any] | None = None,
         custom_instructions: dict[str, CustomInstructionFn] | None = None,
     ):
         super().__init__()
         self.module_op = module_op
+        self.bitwidth = bitwidth
         if data is None:
             data = RiscvFunctions.get_data(module_op)
         self.data = data
@@ -87,8 +88,7 @@ class RiscvFunctions(InterpreterFunctions):
 
                     assert op.data is not None
                     ops = list(op.data.block.ops)
-                    assert not len(ops) % 2
-                    for label, data_op in pairs(iter(ops)):
+                    for label, data_op in pairs(ops):
                         assert isinstance(label, riscv.LabelOp)
                         assert isinstance(data_op, riscv.DirectiveOp)
                         assert data_op.value is not None
@@ -143,26 +143,12 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.SltiuOp,
         args: tuple[Any, ...],
     ):
-        assert len(args) == 2
-        if args[0] < args[1]:
-            value = self.get_immediate_value(op, op.immediate)
-            return (value,)
-        else:
-            return (args[0],)
-
-    @impl(riscv.SltiOp)
-    def run_slti(
-        self,
-        interpreter: Interpreter,
-        op: riscv.SltiOp,
-        args: tuple[Any, ...],
-    ):
-        assert len(args) == 2
-        if args[0] < args[1]:
-            value = self.get_immediate_value(op, op.immediate)
-            return (value,)
-        else:
-            return (args[0],)
+        unsigned_lhs = to_unsigned(args[0], self.bitwidth)
+        imm = self.get_immediate_value(op, op.immediate)
+        if isinstance(imm, Buffer):
+            raise NotImplemented(f"Cannot compare buffer pointer in interpreter")
+        unsigned_imm = to_unsigned(imm, self.bitwidth)
+        return (int(unsigned_lhs < unsigned_imm),)
 
     @impl(riscv.AddOp)
     def run_add(
@@ -180,7 +166,10 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.MulOp,
         args: tuple[Any, ...],
     ):
-        return (args[0] * args[1],)
+        lhs = to_signed(args[0], self.bitwidth)
+        rhs = to_signed(args[1], self.bitwidth)
+
+        return (lhs * rhs,)
 
     @impl(riscv.SwOp)
     def run_sw(
@@ -210,20 +199,6 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         return ()
-
-    @impl(riscv.GetRegisterOp)
-    def run_get_register(
-        self,
-        interpreter: Interpreter,
-        op: riscv.GetRegisterOp,
-        args: tuple[Any, ...],
-    ):
-        if op.res.type == riscv.Registers.ZERO:
-            return (0,)
-        else:
-            raise ValueError(
-                "Cannot interpret GetRegisterOp for registers other than ZERO"
-            )
 
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(

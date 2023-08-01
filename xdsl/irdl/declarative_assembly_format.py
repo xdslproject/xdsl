@@ -186,3 +186,26 @@ class PunctuationDirective(FormatDirective):
 
         state.should_emit_space = self.punctuation not in ("<", "(", "{", "[")
         state.last_was_punctuation = True
+
+
+@dataclass(frozen=True)
+class KeywordDirective(FormatDirective):
+    """
+    A keyword directive, with the following format:
+      keyword-directive ::= bare-ident
+    The directive expects a specific identifier, and will request a space to be printed
+    after.
+    """
+
+    keyword: str
+    """The identifier that should be printed."""
+
+    def parse(self, parser: Parser, state: ParsingState):
+        parser.parse_keyword(self.keyword)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space:
+            printer.print(" ")
+        printer.print(self.keyword)
+        state.should_emit_space = True
+        state.last_was_punctuation = False

@@ -132,7 +132,7 @@ def _generate_single_axis_calc_and_check(
                 0 if is_decrement else axis_size, _rank_dtype
             ),
             # comparison == true <=> we have a valid dest positon
-            cond_val := arith.Cmpi.get(dest, bound, comparison),
+            cond_val := arith.Cmpi(dest, bound, comparison),
         ],
         dest.result,
         cond_val.result,

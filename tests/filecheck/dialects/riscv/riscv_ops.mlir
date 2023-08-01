@@ -72,12 +72,12 @@
     riscv.j {"immediate" = #riscv.label<"label">} : () -> ()
     // CHECK-NEXT: riscv.j {"immediate" = #riscv.label<"label">} : () -> ()
 
-    riscv.jalr %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.jalr %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> ()
-    riscv.jalr %0 {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : (!riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.jalr %0 {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : (!riscv.reg<>) -> ()
-    riscv.jalr %0 {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.jalr %0 {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
+    riscv.jalr %0, 1: (!riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.jalr %0, 1 : (!riscv.reg<>) -> ()
+    riscv.jalr %0, 1, !riscv.reg<> : (!riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.jalr %0, 1, !riscv.reg<> : (!riscv.reg<>) -> ()
+    riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
 
     riscv.ret : () -> ()
     // CHECK-NEXT: riscv.ret : () -> ()
