@@ -9,7 +9,7 @@ from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool, get_all_passes
-from xdsl.utils.exceptions import DiagnosticException, ParseError
+from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
 
