@@ -52,13 +52,12 @@ class xDSLOptMain(CommandLineTool):
 
         self.setup_pipeline()
 
-    def run(self) -> int:
+    def run(self):
         """
         Executes the different steps.
         """
         chunks, file_extension = self.prepare_input()
         output_stream = self.prepare_output()
-        ret_val: int = 0
         try:
             for i, chunk in enumerate(chunks):
                 try:
@@ -69,17 +68,11 @@ class xDSLOptMain(CommandLineTool):
                         if self.apply_passes(module):
                             output_stream.write(self.output_resulting_program(module))
                     output_stream.flush()
-                except ParseError as pe:
-                    if len(chunks) > 1:
-                        sys.stderr.write(f"Parse error encountered in chunk {i}:\n")
-                    sys.stderr.write(pe.with_context())
-                    ret_val = 1
                 finally:
                     chunk.close()
         finally:
             if output_stream is not sys.stdout:
                 output_stream.close()
-        return ret_val
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         """

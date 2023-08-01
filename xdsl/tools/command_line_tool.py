@@ -208,8 +208,8 @@ class CommandLineTool:
             return self.available_frontends[file_extension](chunk)
         except ParseError as e:
             if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
-                print(e)
+                print(e.with_context())
             else:
-                raise e
+                raise Exception("Failed to parse:\n" + e.with_context()) from e
         finally:
             chunk.close()
