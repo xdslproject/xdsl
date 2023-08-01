@@ -1,7 +1,6 @@
-from xdsl.dialects import affine, arith, memref, riscv
-from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
-from xdsl.ir import MLContext, SSAValue
-from xdsl.ir.core import OpResult
+from xdsl.dialects import affine, arith, memref
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -11,17 +10,6 @@ from xdsl.pattern_rewriter import (
 )
 
 from ..dialects import toy_accelerator
-
-
-def cast_value_to_register(operand: SSAValue, rewriter: PatternRewriter) -> OpResult:
-    """
-    Inserts a cast from any SSA value to an unallocated RISC-V register before the matched
-    op.
-    """
-    types = (riscv.IntRegisterType.unallocated(),)
-    cast = UnrealizedConversionCastOp.get((operand,), types)
-    rewriter.insert_op_before_matched_op(cast)
-    return cast.results[0]
 
 
 class LowerAffineForOp(RewritePattern):
