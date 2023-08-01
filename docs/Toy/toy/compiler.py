@@ -32,10 +32,8 @@ from .rewrites.lower_func_riscv_func import LowerFuncToRiscvFunc
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
 from .rewrites.lower_riscv_cf import LowerCfRiscvCfPass
-from .rewrites.lower_to_toy_accelerator import (
-    LowerToToyAccelerator,
-    LowerToyAccelerator,
-)
+from .rewrites.lower_to_toy_accelerator import LowerToToyAccelerator
+from .rewrites.lower_toy_accelerator_to_riscv import LowerToyAccelerator
 from .rewrites.lower_toy_affine import LowerToAffinePass
 from .rewrites.mlir_opt import MLIROptPass
 from .rewrites.optimise_toy import OptimiseToy

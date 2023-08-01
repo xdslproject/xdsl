@@ -22,6 +22,7 @@ class ToyAcceleratorInstructionFunctions(RiscvFunctions):
                 "tensor.print2d": accelerator_tensor_print2d,
                 "tensor.transpose2d": accelerator_tensor_transpose2d,
                 "buffer.alloc": accelerator_buffer_alloc,
+                "buffer.copy": accelerator_buffer_copy,
                 "buffer.add": accelerator_buffer_add,
                 "buffer.mul": accelerator_buffer_mul,
                 "print": print_,
@@ -57,6 +58,17 @@ def accelerator_tensor_transpose2d(
         for col in range(cols):
             value = source_shaped_array.load((row, col))
             dest_shaped_array.store((col, row), value)
+
+    return ()
+
+
+def accelerator_buffer_copy(
+    interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
+) -> PythonValues:
+    size, dest_buffer, source_buffer = args
+
+    for i in range(size):
+        dest_buffer[i] = source_buffer[i]
 
     return ()
 
