@@ -1,4 +1,5 @@
 # ruff: noqa
+# type: ignore[reportUnusedImport]
 # import main module first
 from xdsl.transforms.canonicalize.canonicalize_pass import (
     CanonicalizationPass,
