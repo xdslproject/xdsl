@@ -1,6 +1,5 @@
 # RUN: python %s | filecheck %s
 
-from typing import Literal, Tuple
 
 from xdsl.frontend.context import CodeContext
 from xdsl.frontend.dialects.builtin import (
