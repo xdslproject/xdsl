@@ -83,7 +83,7 @@ def test_get_data():
     @ModuleOp
     @Builder.implicit_region
     def module():
-        data = riscv.DirectiveOp(".data", None, Region(Block()))
+        data = riscv.AssemblySectionOp(".data", Region(Block()))
         with ImplicitBuilder(data.data):
             riscv.LabelOp("one")
             riscv.DirectiveOp(".word", "1")

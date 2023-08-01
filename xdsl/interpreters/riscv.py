@@ -82,7 +82,7 @@ class RiscvFunctions(InterpreterFunctions):
     @staticmethod
     def get_data(module_op: ModuleOp) -> dict[str, Any]:
         for op in module_op.ops:
-            if isinstance(op, riscv.DirectiveOp):
+            if isinstance(op, riscv.AssemblySectionOp):
                 if op.directive.data == ".data":
                     data: dict[str, Any] = {}
 
