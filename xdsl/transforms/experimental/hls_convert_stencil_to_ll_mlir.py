@@ -20,7 +20,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
 )
 from xdsl.dialects.func import FuncOp, Call
-from xdsl.dialects import arith, builtin, scf, stencil, func
+from xdsl.dialects import arith, builtin, scf, stencil, func, memref
 from xdsl.dialects.arith import Constant
 from xdsl.builder import Builder
 
@@ -30,6 +30,9 @@ from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
     ReturnOp,
+    FieldType,
+    StencilBoundsAttr,
+    TempType,
 )
 
 from xdsl.dialects.experimental.hls import (
@@ -69,6 +72,7 @@ from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
     CastOpToMemref,
     TrivialExternalLoadOpCleanup,
     TrivialExternalStoreOpCleanup,
+    StencilToMemRefType,
 )
 
 IN = 0
@@ -884,19 +888,21 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
 class StencilStoreToSubview(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        stores = [o for o in op.walk() if isinstance(o, StoreOp)]
+        stores = [o for o in op.walk() if isinstance(o, stencil.StoreOp)]
+        print("----> STORES: ", stores)
 
         for store in stores:
             field = store.field
-            assert isa(field.type, FieldType[Attribute])
-            assert isa(field.type.bounds, StencilBoundsAttr)
+            print("----> FIELD: ", field)
+            assert isa(field.typ, FieldType[Attribute])
+            assert isa(field.typ.bounds, StencilBoundsAttr)
             temp = store.temp
-            assert isa(temp.type, TempType[Attribute])
-            offsets = [i for i in -field.type.bounds.lb]
-            sizes = [i for i in temp.type.get_shape()]
+            assert isa(temp.typ, TempType[Attribute])
+            offsets = [i for i in -field.typ.bounds.lb]
+            sizes = [i for i in temp.typ.get_shape()]
             subview = memref.Subview.from_static_parameters(
                 field,
-                StencilToMemRefType(field.type),
+                StencilToMemRefType(field.typ),
                 offsets,
                 sizes,
                 [1] * len(sizes),
@@ -1127,10 +1133,91 @@ class PackDataInStencilField(RewritePattern):
             rewriter.replace_matched_op(new_container_op)
 
 
-# @dataclass
-# class CreateLocalCopyOfCoefficients(RewritePattern):
-#    @op_type_rewrite_pattern
-#    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
+# We will make a copy of all the arguments that are not packed, since we have identified in the pack pass
+# that they are not 3D, so we will treat them as coefficients. TODO: In the future, for the 2D arrays we
+# should have a 2D shift buffer and they should be packed as well.
+@dataclass
+class CreateLocalCopyOfCoefficients(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
+        packed_type = LLVMPointerType.typed(
+            LLVMStructType.from_type_list([LLVMArrayType.from_size_and_type(8, f64)])
+        )
+
+        coefficients = []
+
+        for arg in op.body.blocks[0].args:
+            if not arg.typ == packed_type:
+                coefficients.append(arg)
+
+        shape_x = 20  # TODO: retrieve from the original SSA
+
+        size = Constant.from_int_and_width(shape_x, i32)
+        one = Constant.from_int_and_width(1, i32)
+
+        pre_loop = [size, one]
+        loop_body = []
+
+        for coeff in coefficients:
+            print(coeff)
+            local_copy = AllocaOp.get(size, coeff.typ.type)
+            addr_local_copy = AllocaOp.get(one, coeff.typ)
+            addr_original = AllocaOp.get(one, coeff.typ)
+            store_original_addr = StoreOp.get(coeff, addr_original)
+            store_local_copy_addr = StoreOp.get(coeff, addr_local_copy)
+
+            pre_loop += [
+                local_copy,
+                addr_local_copy,
+                addr_original,
+                store_original_addr,
+                store_local_copy_addr,
+            ]
+
+            p_current_element_original = LoadOp.get(addr_original)
+            p_current_element_local_copy = LoadOp.get(addr_local_copy)
+            current_elem = LoadOp.get(p_current_element_original)
+            store_current_element_in_copy = StoreOp.get(
+                current_elem, p_current_element_local_copy
+            )
+
+            next_original = GEPOp.get(
+                p_current_element_original, [1], result_type=coeff.typ
+            )
+            next_local_copy = GEPOp.get(
+                p_current_element_local_copy, [1], result_type=coeff.typ
+            )
+
+            update_original = StoreOp.get(next_original, addr_original)
+            update_local_copy = StoreOp.get(next_local_copy, addr_local_copy)
+
+            loop_body += [
+                p_current_element_original,
+                p_current_element_local_copy,
+                current_elem,
+                store_current_element_in_copy,
+                next_original,
+                next_local_copy,
+                update_original,
+                update_local_copy,
+            ]
+
+        @Builder.region([IndexType()])
+        def for_local_copy_body(builder: Builder, args: tuple[BlockArgument, ...]):
+            for op in loop_body:
+                builder.insert(op)
+            yield_op = scf.Yield.get()
+            builder.insert(yield_op)
+
+        lb = Constant.from_int_and_width(0, IndexType())
+        ub = Constant.from_int_and_width(shape_x, IndexType())  # TODO: retri
+        step = Constant.from_int_and_width(1, IndexType())
+
+        pre_loop += [lb, ub, step]
+
+        for_local_copy = scf.For.get(lb, ub, step, [], for_local_copy_body)
+
+        rewriter.insert_op_at_start([*pre_loop, for_local_copy], op.body.blocks[0])
 
 
 @dataclass
@@ -1169,6 +1256,14 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
             walk_reverse=True,
         )
         pack_data_pass.rewrite_module(op)
+
+        local_copies = PatternRewriteWalker(
+            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+            GreedyRewritePatternApplier([CreateLocalCopyOfCoefficients()]),
+            apply_recursively=False,
+            walk_reverse=False,
+        )
+        local_copies.rewrite_module(op)
 
         hls_pass = PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
