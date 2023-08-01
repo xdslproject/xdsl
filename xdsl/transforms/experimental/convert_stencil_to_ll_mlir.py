@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Iterable, Literal, TypeVar
 from warnings import warn
 
+from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, gpu, memref, scf
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
@@ -253,17 +254,17 @@ class ApplyOpToParallel(RewritePattern):
         # Then create the corresponding scf.parallel
         boilerplate_ops = [
             *(
-                lowerBounds := [
+                lowerBounds := list[arith.Constant](
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in res_type.bounds.lb
-                ]
+                )
             ),
             one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
             *(
-                upperBounds := [
+                upperBounds := list[arith.Constant](
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in res_type.bounds.ub
-                ]
+                )
             ),
         ]
 
@@ -272,28 +273,39 @@ class ApplyOpToParallel(RewritePattern):
         # kernel itself is not slowed down by the OpenMP runtime.
         match self.target:
             case "cpu":
-                current_region = body
+                # current_region = body
                 steps = [one] * dim
-
-                for i in range(1, dim):
-                    for_op = scf.For.get(
-                        lb=lowerBounds[-i],
-                        ub=upperBounds[-i],
-                        step=steps[-i],
-                        iter_args=[],
-                        body=current_region,
-                    )
-                    block = Block(
-                        ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
-                    )
-                    current_region = Region(block)
-
                 p = scf.ParallelOp.get(
                     lowerBounds=[lowerBounds[0]],
                     upperBounds=[upperBounds[0]],
                     steps=[steps[0]],
-                    body=current_region,
+                    body=Region(
+                        Block([scf.Yield.get()], arg_types=[builtin.IndexType()])
+                    ),
                 )
+
+                current_loop = p
+
+                for i in range(1, dim):
+                    loop = scf.For.get(
+                        lb=lowerBounds[i],
+                        ub=upperBounds[i],
+                        step=steps[i],
+                        iter_args=[],
+                        body=Region(
+                            Block([scf.Yield.get()], arg_types=[builtin.IndexType()])
+                        ),
+                    )
+                    block = current_loop.body.block
+                    last = block.last_op
+                    assert last is not None
+                    block.insert_op_before(loop, last)
+                    current_loop = loop
+
+                current_loop.body.detach_block(current_loop.body.block)
+
+                current_loop.body.insert_block(body.detach_block(0), 0)
+
             case "gpu":
                 stencil_rank = len(upperBounds)
                 boilerplate_ops.insert(
