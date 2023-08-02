@@ -3,6 +3,7 @@ import os
 import sys
 from typing import IO, Callable
 
+from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
 from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
@@ -36,6 +37,7 @@ from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.transforms import (
+    canonicalize_dmp,
     dead_code_elimination,
     lower_mpi,
     lower_riscv_func,
@@ -91,6 +93,7 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
+        canonicalize_dmp.CanonicalizeDmpPass,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
@@ -104,6 +107,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         printf_to_llvm.PrintfToLLVM,
         riscv_register_allocation.RISCVRegisterAllocation,
         RISCVLowerArith,
+        LowerFuncToRiscvFunc,
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
@@ -208,8 +212,8 @@ class CommandLineTool:
             return self.available_frontends[file_extension](chunk)
         except ParseError as e:
             if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
-                print(e)
+                print(e.with_context())
             else:
-                raise e
+                raise Exception("Failed to parse:\n" + e.with_context()) from e
         finally:
             chunk.close()
