@@ -6,24 +6,24 @@
     // RV32I/RV64I: 2.4 Integer Computational Instructions
 
     // Integer Register-Immediate Instructions
-    %addi = riscv.addi %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK: %{{.*}} = riscv.addi %{{.*}} {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %slti = riscv.slti %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.slti %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %sltiu = riscv.sltiu %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.sltiu %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %andi = riscv.andi %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.andi %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %ori = riscv.ori %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.ori %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %xori = riscv.xori %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.xori %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %slli = riscv.slli %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.slli %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %srli = riscv.srli %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.srli %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %srai = riscv.srai %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.srai %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+    %addi = riscv.addi %0, 1: (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK: %{{.*}} = riscv.addi %{{.*}}, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %slti = riscv.slti %0, 1: (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.slti %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %sltiu = riscv.sltiu %0, 1: (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.sltiu %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %andi = riscv.andi %0, 1: (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.andi %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %ori = riscv.ori %0, 1: (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.ori %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %xori = riscv.xori %0, 1: (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.xori %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %slli = riscv.slli %0, 1: (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.slli %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %srli = riscv.srli %0, 1: (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.srli %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %srai = riscv.srai %0, 1: (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.srai %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     %lui = riscv.lui 1 : () -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.lui 1 : () -> !riscv.reg<>
     %auipc = riscv.auipc 1 : () -> !riscv.reg<>
@@ -98,16 +98,16 @@
 
     // RV32I/RV64I: 2.6 Load and Store Instructions
 
-    %lb = riscv.lb %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.lb %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %lbu = riscv.lbu %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.lbu %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %lh = riscv.lh %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.lh %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %lhu = riscv.lhu %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.lhu %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %lw = riscv.lw %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.lw %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
+    %lb = riscv.lb %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.lb %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %lbu = riscv.lbu %0, 1: (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.lbu %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %lh = riscv.lh %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.lh %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %lhu = riscv.lhu %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.lhu %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    %lw = riscv.lw %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.lw %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     riscv.sb %0, %1 {"immediate" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
     // CHECK-NEXT: riscv.sb %0, %1 {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
     riscv.sh %0, %1 {"immediate" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()

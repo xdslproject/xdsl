@@ -715,6 +715,23 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        match self.immediate:
+            case IntegerAttr():
+                printer.print(self.immediate.value.data)
+            case LabelAttr():
+                printer.print_string_literal(self.immediate.data)
+        return {"immediate"}
+
 
 class RdRsImmShiftOperation(RdRsImmIntegerOperation):
     """
