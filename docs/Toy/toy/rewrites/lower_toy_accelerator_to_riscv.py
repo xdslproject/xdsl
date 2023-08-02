@@ -1,4 +1,3 @@
-from xdsl.backend.riscv.lowering.helpers import cast_value_to_register
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
@@ -12,6 +11,7 @@ from xdsl.pattern_rewriter import (
 )
 
 from ..dialects import toy_accelerator
+from .helpers import cast_value_to_register
 
 
 class LowerTransposeOp(RewritePattern):

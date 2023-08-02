@@ -1,7 +1,6 @@
 from math import prod
 from typing import Any, Sequence, cast
 
-from xdsl.backend.riscv.lowering.helpers import cast_value_to_register
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir.core import MLContext, SSAValue
@@ -12,6 +11,8 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+
+from .helpers import cast_value_to_register
 
 
 class LowerMemrefAllocOp(RewritePattern):

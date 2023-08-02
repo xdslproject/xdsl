@@ -8,7 +8,6 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ModuleOp,
-    UnrealizedConversionCastOp,
 )
 from xdsl.ir.core import MLContext
 from xdsl.passes import ModulePass
@@ -20,8 +19,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.dead_code_elimination import dce
-
-from .helpers import cast_value_to_register
 
 
 def convert_float_to_int(value: float) -> int:
@@ -84,13 +81,7 @@ class LowerArithIndexCast(RewritePattern):
 class LowerArithAddi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter) -> None:
-        lhs = cast_value_to_register(op.lhs, rewriter)
-        rhs = cast_value_to_register(op.rhs, rewriter)
-
-        add = riscv.AddOp(lhs, rhs)
-        cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.type,))
-
-        rewriter.replace_matched_op((add, cast))
+        rewriter.replace_op(op, riscv.AddOp(op.lhs, op.rhs))
 
 
 class LowerArithSubi(RewritePattern):
@@ -102,13 +93,7 @@ class LowerArithSubi(RewritePattern):
 class LowerArithMuli(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Muli, rewriter: PatternRewriter) -> None:
-        lhs = cast_value_to_register(op.lhs, rewriter)
-        rhs = cast_value_to_register(op.rhs, rewriter)
-
-        add = riscv.MulOp(lhs, rhs)
-        cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.type,))
-
-        rewriter.replace_matched_op((add, cast))
+        rewriter.replace_op(op, riscv.MulOp(op.lhs, op.rhs))
 
 
 class LowerArithDivUI(RewritePattern):
