@@ -57,7 +57,7 @@ class Buffer(Generic[_T]):
 @register_impls
 class RiscvFunctions(InterpreterFunctions):
     module_op: ModuleOp
-    data: dict[str, Any]
+    _data: dict[str, Any] | None
     custom_instructions: dict[str, CustomInstructionFn] = {}
     bitwidth: int
 
@@ -72,12 +72,16 @@ class RiscvFunctions(InterpreterFunctions):
         super().__init__()
         self.module_op = module_op
         self.bitwidth = bitwidth
-        if data is None:
-            data = RiscvFunctions.get_data(module_op)
-        self.data = data
+        self._data = data
         if custom_instructions is None:
             custom_instructions = {}
         self.custom_instructions = custom_instructions
+
+    @property
+    def data(self) -> dict[str, Any]:
+        if self._data is None:
+            self._data = RiscvFunctions.get_data(self.module_op)
+        return self._data
 
     @staticmethod
     def get_data(module_op: ModuleOp) -> dict[str, Any]:
