@@ -590,6 +590,23 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(20, Signedness.UNSIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        match self.immediate:
+            case IntegerAttr():
+                printer.print(self.immediate.value.data)
+            case LabelAttr():
+                printer.print_string_literal(self.immediate.data)
+        return {"immediate"}
+
 
 class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -2054,6 +2071,14 @@ class LiOp(RdImmIntegerOperation):
             immediate = IntegerAttr(immediate, IntegerType(32, Signedness.SIGNED))
 
         super().__init__(immediate, rd=rd, comment=comment)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(32, Signedness.SIGNED)
+        )
+        return attributes
 
 
 @irdl_op_definition
