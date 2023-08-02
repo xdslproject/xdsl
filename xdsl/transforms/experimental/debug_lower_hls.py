@@ -47,25 +47,37 @@ from xdsl.utils.hints import isa
 
 i8 = IntegerType(8)
 p_i8 = LLVMPointerType.typed(i8)
-string_printf = "Test\n"
-string_type = llvm.LLVMArrayType.from_size_and_type(len(string_printf), i8)
-p_string_type = LLVMPointerType.typed(string_type)
+string_read_duplicate = "READ DUPLICATE\n"
+string_read_compute = "READ COMPUTE\n"
+string_dont_care = "DONT CARE\n"
+string_read_duplicate_type = llvm.LLVMArrayType.from_size_and_type(
+    len(string_read_duplicate), i8
+)
+string_read_compute_type = llvm.LLVMArrayType.from_size_and_type(
+    len(string_read_compute), i8
+)
+string_dont_care_type = llvm.LLVMArrayType.from_size_and_type(len(string_dont_care), i8)
+p_string_read_duplicate_type = LLVMPointerType.typed(string_read_duplicate_type)
+p_string_read_compute_type = LLVMPointerType.typed(string_read_compute_type)
+p_string_dont_care_type = LLVMPointerType.typed(string_dont_care_type)
 
 
 @dataclass
 class HLSStreamWriteToPrintf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStreamWrite, rewriter: PatternRewriter, /):
-        global_str = AddressOfOp.get("str", p_string_type)
+        global_str = AddressOfOp.get("string_dont_care", p_string_dont_care_type)
 
         elem = op.element
         elem_type = op.element.typ
         p_elem_type = LLVMPointerType.typed(elem_type)
         p_struct_elem_type = op.operands[0].typ
 
-        call_printf = llvm.CallOp("printf", global_str)
+        p_global_str = GEPOp.get(global_str, [0, 0], result_type=p_i8)
 
-        rewriter.replace_matched_op([global_str, call_printf])
+        call_printf = llvm.CallOp("printf", p_global_str)
+
+        rewriter.replace_matched_op([global_str, p_global_str, call_printf])
 
 
 @dataclass
@@ -73,7 +85,14 @@ class HLSStreamReadToPrintf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStreamRead, rewriter: PatternRewriter, /):
         elem_type = op.operands[0].op.elem_type
-        global_str = AddressOfOp.get("str", p_string_type)
+        if "write_data" in op.attributes:
+            global_str = AddressOfOp.get(
+                "string_read_compute", p_string_read_compute_type
+            )
+        else:
+            global_str = AddressOfOp.get(
+                "string_read_duplicate", p_string_read_duplicate_type
+            )
 
         call_printf = llvm.CallOp("printf", global_str)
 
@@ -81,8 +100,12 @@ class HLSStreamReadToPrintf(RewritePattern):
         alloca = AllocaOp.get(size_alloca, elem_type)
         load = LoadOp.get(alloca)
 
+        p_global_str = GEPOp.get(global_str, [0, 0], result_type=p_i8)
+
+        call_printf = llvm.CallOp("printf", p_global_str)
+
         rewriter.replace_matched_op(
-            [global_str, call_printf, size_alloca, alloca, load]
+            [global_str, p_global_str, call_printf, size_alloca, alloca, load]
         )
 
 
@@ -142,26 +165,45 @@ class DebugLowerHLSPass(ModulePass):
     name = "debug-lower-hls"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        printf_type = LLVMFunctionType(
-            inputs=[p_string_type], output=None, is_variadic=True
-        )
+        printf_type = LLVMFunctionType(inputs=[p_i8], output=None, is_variadic=True)
 
         printf = FuncOp("printf", printf_type, linkage=llvm.LinkageAttr("external"))
 
         op.body.block.add_op(printf)
 
-        global_str = llvm.GlobalOp.get(
-            string_type,
-            "str",
+        global_read_duplicate = llvm.GlobalOp.get(
+            string_read_duplicate_type,
+            "string_read_duplicate",
             "internal",
             0,
             True,
-            value=StringAttr(string_printf),
+            value=StringAttr(string_read_duplicate),
             alignment=8,
             unnamed_addr=0,
         )
-        print(global_str)
-        op.body.block.add_op(global_str)
+        global_read_compute = llvm.GlobalOp.get(
+            string_read_compute_type,
+            "string_read_compute",
+            "internal",
+            0,
+            True,
+            value=StringAttr(string_read_compute),
+            alignment=8,
+            unnamed_addr=0,
+        )
+        global_dont_care = llvm.GlobalOp.get(
+            string_dont_care_type,
+            "string_dont_care",
+            "internal",
+            0,
+            True,
+            value=StringAttr(string_dont_care),
+            alignment=8,
+            unnamed_addr=0,
+        )
+        op.body.block.add_op(global_read_duplicate)
+        op.body.block.add_op(global_read_compute)
+        op.body.block.add_op(global_dont_care)
 
         def gen_greedy_walkers(
             passes: list[RewritePattern],
