@@ -65,6 +65,7 @@ from xdsl.transforms.experimental.dmp.scatter_gather import (
     DmpScatterGatherTrivialLowering,
 )
 from xdsl.transforms.experimental.lower_hls import LowerHLSPass
+from xdsl.transforms.experimental.debug_lower_hls import DebugLowerHLSPass
 from xdsl.transforms.experimental.replace_incompatible_fpga import (
     ReplaceIncompatibleFPGA,
 )
@@ -115,6 +116,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         ConvertStencilToLLMLIRPass,
         DeadCodeElimination,
         DesymrefyPass,
+        DebugLowerHLSPass,
         DmpScatterGatherTrivialLowering,
         GlobalStencilToLocalStencil2DHorizontal,
         LowerHaloToMPI,
