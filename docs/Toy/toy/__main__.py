@@ -128,7 +128,6 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
         # TODO: remove as we add lowerings to riscv
         interpreter.register_implementations(ScfFunctions())
         interpreter.register_implementations(ArithFunctions())
-        interpreter.register_implementations(MemrefFunctions())
         interpreter.register_implementations(PrintfFunctions())
         interpreter.register_implementations(FuncFunctions())
 
