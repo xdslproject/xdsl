@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.builder import Builder
+from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, builtin, func, memref, scf
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
@@ -31,6 +31,7 @@ from xdsl.dialects.memref import (
 )
 from xdsl.ir import Attribute, OpResult
 from xdsl.ir.core import BlockArgument
+from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
@@ -427,3 +428,19 @@ def test_memref_copy():
         match="Expected source and destination to have the same element type.",
     ):
         copy.verify()
+
+
+def test_memref_get_global():
+    memref_type = memref.MemRefType.from_element_type_and_shape(i64, (2, 2))
+    module = builtin.ModuleOp([])
+    with ImplicitBuilder(module.body):
+        define = memref.Global.get(
+            builtin.StringAttr("my_global"),
+            memref_type,
+            builtin.DenseArrayBase.from_list(i64, [1, 22, 3, 4]),
+            sym_visibility=builtin.StringAttr("public"),
+        )
+        with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
+            fetch = memref.GetGlobal.get("my_global", memref_type)
+
+    assert SymbolTable.lookup_symbol(fetch, "my_global") is define
