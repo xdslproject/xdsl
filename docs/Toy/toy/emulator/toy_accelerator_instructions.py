@@ -143,6 +143,18 @@ class ToyAccelerator(InstructionSet):
 
         self.buffer_write(dest_ptr, data=result_shaped_array.data)
 
+    def instruction_buffer_copy(self, ins: Instruction):
+        c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
+
+        count = self.get_reg(c_reg)
+
+        s_ptr = self.get_reg(s_reg)
+        d_ptr = self.get_reg(d_reg)
+
+        s_data = self.buffer_read(s_ptr, count)
+
+        self.buffer_write(d_ptr, data=s_data)
+
     def instruction_buffer_add(self, ins: Instruction):
         c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
 
