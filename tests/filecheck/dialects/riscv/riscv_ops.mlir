@@ -60,17 +60,17 @@
     // RV32I/RV64I: 2.5 Control Transfer Instructions
 
     // Unconditional Branch Instructions
-    riscv.jal {"immediate" = 1 : i32} : () -> ()
-    // CHECK-NEXT: riscv.jal {"immediate" = 1 : i32} : () -> ()
-    riscv.jal {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : () -> ()
-    // CHECK-NEXT: riscv.jal {"immediate" = 1 : i32, "rd" = !riscv.reg<>} : () -> ()
-    riscv.jal {"immediate" = #riscv.label<"label">} : () -> ()
-    // CHECK-NEXT: riscv.jal {"immediate" = #riscv.label<"label">} : () -> ()
+    riscv.jal 1 : () -> ()
+    // CHECK-NEXT: riscv.jal 1 : () -> ()
+    riscv.jal 1, !riscv.reg<> : () -> ()
+    // CHECK-NEXT: riscv.jal 1, !riscv.reg<> : () -> ()
+    riscv.jal "label" : () -> ()
+    // CHECK-NEXT: riscv.jal "label" : () -> ()
 
-    riscv.j {"immediate" = 1 : i32} : () -> ()
-    // CHECK-NEXT: riscv.j {"immediate" = 1 : i32} : () -> ()
-    riscv.j {"immediate" = #riscv.label<"label">} : () -> ()
-    // CHECK-NEXT: riscv.j {"immediate" = #riscv.label<"label">} : () -> ()
+    riscv.j 1 : () -> ()
+    // CHECK-NEXT: riscv.j 1 : () -> ()
+    riscv.j "label" : () -> ()
+    // CHECK-NEXT: riscv.j "label" : () -> ()
 
     riscv.jalr %0, 1: (!riscv.reg<>) -> ()
     // CHECK-NEXT: riscv.jalr %0, 1 : (!riscv.reg<>) -> ()

@@ -8,8 +8,8 @@ nbval<0.11
 filecheck<0.0.24
 lit<17.0.0
 pre-commit==3.3.3
-ruff==0.0.281
-git+https://github.com/AntonLydike/riscemu.git@fcf701840b579be8073076208b7e65beccb1e1d8#egg=riscemu
+ruff==0.0.282
+riscemu==2.1.1
 asv<0.6
 isort==5.12.0
 nbconvert>=7.7.2,<8.0.0

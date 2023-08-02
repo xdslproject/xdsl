@@ -3,7 +3,9 @@ import pytest
 from xdsl.builder import Builder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
-from xdsl.utils.exceptions import VerifyException
+from xdsl.ir import MLContext
+from xdsl.parser import Parser
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -245,3 +247,13 @@ def test_float_register():
     f1 = TestSSAValue(riscv.Registers.FT0)
     f2 = TestSSAValue(riscv.Registers.FT1)
     riscv.FAddSOp(f1, f2).verify()
+
+
+def test_riscv_parse_immediate_value():
+    ctx = MLContext()
+    ctx.register_dialect(riscv.RISCV)
+
+    prog = """riscv.jalr %0, 1.1, !riscv.reg<> : (!riscv.reg<>) -> ()"""
+    parser = Parser(ctx, prog)
+    with pytest.raises(ParseError, match="Expected immediate"):
+        parser.parse_operation()
