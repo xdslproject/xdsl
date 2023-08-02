@@ -1,4 +1,5 @@
 from xdsl.backend.riscv.lowering.utils import (
+    cast_block_args_to_int_regs,
     cast_operands_to_int_regs,
     cast_results_to_int_regs,
 )
@@ -20,19 +21,18 @@ class ScfForLowering(RewritePattern):
         lb, ub, step, *args = cast_operands_to_int_regs(
             [op.lb, op.ub, op.step, *op.iter_args], rewriter
         )
-        for_op = riscv_scf.ForOp(
-            lb, ub, step, args, rewriter.move_region_contents_to_new_regions(op.body)
-        )
+        new_region = rewriter.move_region_contents_to_new_regions(op.body)
+        cast_block_args_to_int_regs(new_region.block, rewriter)
         cast_results_to_int_regs(op.results, rewriter)
-        rewriter.replace_matched_op([for_op])
+        rewriter.replace_matched_op([riscv_scf.ForOp(lb, ub, step, args, new_region)])
 
 
 class ScfYieldLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.Yield, rewriter: PatternRewriter) -> None:
-        args_cast = cast_operands_to_int_regs(op.arguments, rewriter)
-        yield_op = riscv_scf.YieldOp(*args_cast)
-        rewriter.replace_matched_op([yield_op])
+        rewriter.replace_matched_op(
+            [riscv_scf.YieldOp(*cast_operands_to_int_regs(op.arguments, rewriter))]
+        )
 
 
 class ScfToRiscvPass(ModulePass):
