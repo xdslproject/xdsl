@@ -163,6 +163,17 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         return (args[0] + args[1],)
 
+    @impl(riscv.SlliOp)
+    def run_shift_left(
+        self,
+        interpreter: Interpreter,
+        op: riscv.SlliOp,
+        args: tuple[Any, ...],
+    ):
+        imm = self.get_immediate_value(op, op.immediate)
+        assert isinstance(imm, int)
+        return (args[0] << imm,)
+
     @impl(riscv.MulOp)
     def run_mul(
         self,
