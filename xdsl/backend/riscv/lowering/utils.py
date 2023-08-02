@@ -21,7 +21,7 @@ def cast_operands_to_int_regs(
     # return the original values if they were already int registers, otherwise return the casted values
     return [
         mapped_vals.pop(0).results[0]
-        if not isinstance(v.type, riscv.IntRegisterType)
+        if isinstance(v.type, riscv.IntRegisterType)
         else v
         for v in vals
     ]
