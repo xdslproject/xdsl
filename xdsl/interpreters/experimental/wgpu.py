@@ -1,14 +1,15 @@
 from io import StringIO
+from math import prod
 from typing import Any, Sequence, cast
 
 import wgpu  # pyright: ignore
 import wgpu.utils  # pyright: ignore
-
 from xdsl.dialects import gpu
-from xdsl.dialects.builtin import IndexType
+from xdsl.dialects.builtin import Float32Type, IndexType
 from xdsl.dialects.memref import MemRefType
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
+from xdsl.interpreters.memref import MemrefValue
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir.core import Attribute, SSAValue
 from xdsl.traits import SymbolTable
@@ -36,6 +37,17 @@ class WGPUFunctions(InterpreterFunctions):
                     "gpu.launch_func memref operand expected to be GPU-allocated"
                 )
             return value
+        if isinstance(operand.type, Float32Type | IndexType):
+            view = memoryview(bytearray(self.type_size(operand.type)))
+            view.cast(self.type_format(operand.type), [1])
+            buffer = self.device.create_buffer_with_data(
+                data=view,
+                usage=wgpu.BufferUsage.STORAGE
+                | wgpu.BufferUsage.COPY_SRC  # pyright: ignore
+                | wgpu.BufferUsage.COPY_DST,
+            )  # pyright: ignore
+            assert isinstance(buffer, wgpu.GPUBuffer)
+            return buffer
         raise NotImplementedError(f"{operand.type} not yet mapped to WGPU.")
 
     def prepare_bindings(
@@ -82,6 +94,35 @@ class WGPUFunctions(InterpreterFunctions):
                 ),  # pyright: ignore
             )
 
+    def type_size(self, element_type: Attribute):
+        match (element_type):
+            case IndexType():
+                element_size = 4
+            case Float32Type():
+                element_size = 4
+            case _:
+                raise NotImplementedError(
+                    f"The type {element_type} sizing is not implemented yet."
+                )
+        return element_size
+
+    def type_format(self, element_type: Attribute):
+        """
+        Map xDSL types to appropriate Python struct syntax format.
+
+        https://docs.python.org/3/library/struct.html#format-characters
+        """
+        match (element_type):
+            case IndexType():
+                format = "I"
+            case Float32Type():
+                format = "f"
+            case _:
+                raise NotImplementedError(
+                    f"Type {element_type} formatting not yet implemented."
+                )
+        return format
+
     @impl(gpu.AllocOp)
     def run_alloc(
         self, interpreter: Interpreter, op: gpu.AllocOp, args: tuple[Any, ...]
@@ -95,22 +136,23 @@ class WGPUFunctions(InterpreterFunctions):
                 "Only synchronous, known-sized gpu.alloc implemented yet."
             )
         memref_type = cast(MemRefType[Attribute], op.result.type)
-        match (memref_type.element_type):
-            case IndexType():
-                element_size = 4
-            case _:
-                raise NotImplementedError(
-                    f"The element type {memref_type.element_type} for gpu.alloc is not implemented yet."
-                )
+        element_size = self.type_size(memref_type.element_type)
         buffer = cast(
             wgpu.GPUBuffer,
             self.device.create_buffer(  # pyright: ignore
                 size=memref_type.element_count() * element_size,
                 usage=wgpu.BufferUsage.STORAGE  # pyright: ignore
+                | wgpu.BufferUsage.COPY_DST  # pyright: ignore
                 | wgpu.BufferUsage.COPY_SRC,  # pyright: ignore
             ),
         )
         return (buffer,)
+
+    @impl(gpu.DeallocOp)
+    def run_dealloc(
+        self, interpreter: Interpreter, op: gpu.DeallocOp, args: tuple[Any, ...]
+    ):
+        return ()
 
     @impl(gpu.MemcpyOp)
     def run_memcpy(
@@ -122,27 +164,38 @@ class WGPUFunctions(InterpreterFunctions):
         Only Device to Host copy is implemented here, to keep the first draft bearable.
         """
         src, dst = interpreter.get_values((op.src, op.dst))
-        if not (isinstance(src, wgpu.GPUBuffer) and isinstance(dst, ShapedArray)):
-            raise NotImplementedError(
-                f"Only device to host copy is implemented for now. got {src} to {dst}"
+        if isinstance(src, wgpu.GPUBuffer) and isinstance(dst, ShapedArray):
+            # Get device/source view
+            memview = cast(
+                memoryview, self.device.queue.read_buffer(src)  # pyright: ignore
             )
+            dst_type = cast(MemRefType[Attribute], op.dst.type)
+            format = self.type_format(dst_type.element_type)
 
-        # Get device/source view
-        memview = cast(
-            memoryview, self.device.queue.read_buffer(src)  # pyright: ignore
+            memview = memview.cast(format, [i.value.data for i in dst_type.shape])
+            for index in dst.indices():
+                dst.store(index, memview.__getitem__(index))  # pyright: ignore
+            return ()
+
+        if isinstance(src, ShapedArray) and isinstance(dst, wgpu.GPUBuffer):
+            # Get device/source view
+            src_type = cast(MemRefType[Attribute], op.src.type)
+            size = self.type_size(src_type.element_type)
+            format = self.type_format(src_type.element_type)
+            memview = memoryview(bytearray(size * prod(src_type.get_shape())))
+            memview = memview.cast(format, src_type.get_shape())
+            for index in src.indices():
+                v = src.load(index)
+                if isinstance(v, MemrefValue):
+                    v = 0
+                memview.__setitem__(index, v)
+                # dst.store(index, memview.__getitem__(index))  # pyright: ignore
+            self.device.queue.write_buffer(dst, 0, memview)
+            return ()
+
+        raise NotImplementedError(
+            f"Copy from {type(src)} to {type(dst)} is not Implemented."
         )
-        dst_type = cast(MemRefType[Attribute], op.dst.type)
-        match (dst_type.element_type):
-            case IndexType():
-                format = "I"
-            case _:
-                raise NotImplementedError(
-                    f"copy for element type {dst_type.element_type} not yet implemented."
-                )
-        memview = memview.cast(format, [i.value.data for i in dst_type.shape])
-        for index in dst.indices():
-            dst.store(index, memview.__getitem__(index))  # pyright: ignore
-        return ()
 
     @impl(gpu.LaunchFuncOp)
     def run_launch_func(

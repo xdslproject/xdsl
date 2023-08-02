@@ -40,25 +40,29 @@ class WGSLPrinter:
         workgroup_size = (1,)
         if op.known_block_size:
             workgroup_size = tuple(item.data for item in op.known_block_size.data)
+        arg_accesses = ""
+
         for arg in op.body.block.args:
-            auth = "read"
-            arg_type = ""
+            is_scalar = False
+            auth = "read_write"
+            arg_type = arg.type
             for use in arg.uses:
                 if isinstance(use.operation, memref.Store):
                     auth = "read_write"
-            if arg.type == builtin.f32:
+            if isa(arg_type, MemRefType[Attribute]):
+                arg_type = arg_type.element_type
+            else:
+                is_scalar = True
+            if arg_type == builtin.f32:
                 arg_type = "f32"
-            elif arg.type == builtin.IndexType():
+            elif arg_type == builtin.IndexType():
                 arg_type = "u32"
-            elif isa(arg.type, MemRefType[Attribute]):
-                if arg.type.element_type == builtin.IndexType():
-                    arg_type = "u32"
-                else:
-                    arg_type = arg.type.element_type
-                arg_type = f"array<{arg_type}>"
+            if is_scalar:
+                arg_accesses += f"""
+        let {self.wgsl_name(arg)}  = {self.wgsl_name(arg)}_binding[0];"""
             arguments = f"""
     @group(0) @binding({arg.index})
-    var<storage,{auth}> {self.wgsl_name(arg)}: {arg_type};
+    var<storage,{auth}> {self.wgsl_name(arg)}{'_binding'*is_scalar}: array<{arg_type}>;
 """
             out_stream.write(arguments)
 
@@ -70,6 +74,7 @@ class WGSLPrinter:
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
     @builtin(num_workgroups) num_workgroups : vec3<u32>) {{
+{arg_accesses}
 """
         )
         for operation in op.body.ops:
