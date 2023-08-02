@@ -21,6 +21,8 @@ from typing import (
     overload,
 )
 
+from typing_extensions import Self
+
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
@@ -391,8 +393,6 @@ class Attribute(ABC):
 
 DataElement = TypeVar("DataElement", covariant=True)
 
-_D = TypeVar("_D", bound="Data[Any]")
-
 AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
 AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
 
@@ -404,7 +404,7 @@ class Data(Generic[DataElement], Attribute, ABC):
     data: DataElement
 
     @classmethod
-    def new(cls: type[_D], params: Any) -> _D:
+    def new(cls: type[Self], params: Any) -> Self:
         """
         Create a new `Data` given its parameter.
 
@@ -420,7 +420,7 @@ class Data(Generic[DataElement], Attribute, ABC):
         attr = cls.__new__(cls)
 
         # Call the __init__ of Data, which will set the parameters field.
-        Data[Any].__init__(attr, params)
+        Data.__init__(attr, params)  # pyright: ignore[reportUnknownMemberType]
         return attr
 
     @classmethod
@@ -433,9 +433,6 @@ class Data(Generic[DataElement], Attribute, ABC):
         """Print the attribute parameter."""
 
 
-_PA = TypeVar("_PA", bound="ParametrizedAttribute")
-
-
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
@@ -443,7 +440,7 @@ class ParametrizedAttribute(Attribute):
     parameters: list[Attribute] = field(default_factory=list)
 
     @classmethod
-    def new(cls: type[_PA], params: Sequence[Attribute]) -> _PA:
+    def new(cls: type[Self], params: Sequence[Attribute]) -> Self:
         """
         Create a new `ParametrizedAttribute` given its parameters.
 
@@ -482,7 +479,7 @@ class ParametrizedAttribute(Attribute):
         ...
 
 
-@dataclass
+@dataclass(init=False)
 class IRNode(ABC):
     parent: IRNode | None = field(default=None, init=False, repr=False)
 
@@ -552,7 +549,7 @@ class OpOperands(Sequence[SSAValue]):
         return len(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
 
-@dataclass(init=False)
+@dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
@@ -562,19 +559,19 @@ class Operation(IRNode):
     _operands: tuple[SSAValue, ...] = field(default=())
     """The operation operands."""
 
-    results: list[OpResult]
+    results: list[OpResult] = field(default_factory=list)
     """The results created by the operation."""
 
-    successors: list[Block]
+    successors: list[Block] = field(default_factory=list)
     """
     The basic blocks that the operation may give control to.
     This list should be empty for non-terminator operations.
     """
 
-    attributes: dict[str, Attribute]
+    attributes: dict[str, Attribute] = field(default_factory=dict)
     """The attributes attached to the operation."""
 
-    regions: list[Region]
+    regions: list[Region] = field(default_factory=list)
     """Regions arguments of the operation."""
 
     parent: Block | None = field(default=None, repr=False)
@@ -696,13 +693,13 @@ class Operation(IRNode):
 
     @classmethod
     def create(
-        cls: type[OpT],
+        cls: type[Self],
         operands: Sequence[SSAValue] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute] = {},
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
-    ) -> OpT:
+    ) -> Self:
         op = cls.__new__(cls)
         Operation.__init__(op, operands, result_types, attributes, successors, regions)
         return op

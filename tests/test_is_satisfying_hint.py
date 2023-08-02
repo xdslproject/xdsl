@@ -2,6 +2,7 @@ from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    DictionaryAttr,
     FloatData,
     IndexType,
     IntAttr,
@@ -332,6 +333,16 @@ def test_generic_data():
     assert not isa(attr2, ArrayAttr[IntAttr])
     assert isa(attr2, ArrayAttr[IntAttr | FloatData])
     assert not isa(attr2, ArrayAttr[FloatData])
+
+    intattr = IntAttr(42)
+
+    assert not isa(intattr, ArrayAttr[Attribute])
+    assert not isa(intattr, DictionaryAttr)
+
+    integerattr = IntegerAttr.from_index_int_value(42)
+
+    assert not isa(integerattr, ArrayAttr[Attribute])
+    assert not isa(integerattr, DictionaryAttr)
 
 
 def test_nested_generic_data():

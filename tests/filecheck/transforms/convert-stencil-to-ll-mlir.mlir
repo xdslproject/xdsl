@@ -411,5 +411,67 @@ builtin.module {
   //CHECK-NEXT:   func.return
   //CHECK-NEXT: }
 
+  func.func @apply_kernel(%69 : !stencil.field<[-2,13]x[-2,13]xf32>, %70 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr<f64>)  attributes {"param_names" = ["u_vec_0", "u_vec_1", "timers"]}{
+    %71 = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> memref<15x15xf32>
+    %u_vec_1 = "builtin.unrealized_conversion_cast"(%71) : (memref<15x15xf32>) -> !stencil.field<[-2,13]x[-2,13]xf32>
+    %72 = "builtin.unrealized_conversion_cast"(%70) : (!stencil.field<[-2,13]x[-2,13]xf32>) -> memref<15x15xf32>
+    "gpu.memcpy"(%71, %72) {"operand_segment_sizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
+    %73 = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> memref<15x15xf32>
+    %u_vec_0 = "builtin.unrealized_conversion_cast"(%73) : (memref<15x15xf32>) -> !stencil.field<[-2,13]x[-2,13]xf32>
+    %74 = "builtin.unrealized_conversion_cast"(%69) : (!stencil.field<[-2,13]x[-2,13]xf32>) -> memref<15x15xf32>
+    "gpu.memcpy"(%73, %74) {"operand_segment_sizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
+    %time_m_1 = arith.constant 0 : index
+    %time_M_1 = arith.constant 10 : index
+    %step_1 = arith.constant 1 : index
+    %75, %76 = "scf.for"(%time_m_1, %time_M_1, %step_1, %u_vec_0, %u_vec_1) ({
+    ^12(%time_1 : index, %t0 : !stencil.field<[-2,13]x[-2,13]xf32>, %t1 : !stencil.field<[-2,13]x[-2,13]xf32>):
+      %t0_temp = "stencil.load"(%t0) : (!stencil.field<[-2,13]x[-2,13]xf32>) -> !stencil.temp<[0,11]x[0,11]xf32>
+      %t1_result = "stencil.apply"(%t0_temp) ({
+      ^13(%t0_buff : !stencil.temp<[0,11]x[0,11]xf32>):
+        %77 = "stencil.access"(%t0_buff) {"offset" = #stencil.index<0, 0>} : (!stencil.temp<[0,11]x[0,11]xf32>) -> f32
+        "stencil.return"(%77) : (f32) -> ()
+      }) : (!stencil.temp<[0,11]x[0,11]xf32>) -> !stencil.temp<[0,11]x[0,11]xf32>
+      "stencil.store"(%t1_result, %t1) {"lb" = #stencil.index<0, 0>, "ub" = #stencil.index<11, 11>} : (!stencil.temp<[0,11]x[0,11]xf32>, !stencil.field<[-2,13]x[-2,13]xf32>) -> ()
+      "scf.yield"(%t1, %t0) : (!stencil.field<[-2,13]x[-2,13]xf32>, !stencil.field<[-2,13]x[-2,13]xf32>) -> ()
+    }) : (index, index, index, !stencil.field<[-2,13]x[-2,13]xf32>, !stencil.field<[-2,13]x[-2,13]xf32>) -> (!stencil.field<[-2,13]x[-2,13]xf32>, !stencil.field<[-2,13]x[-2,13]xf32>)
+    func.return
+  }
+
+// CHECK-NEXT: func.func @apply_kernel(%146 : memref<15x15xf32>, %147 : memref<15x15xf32>, %timers : !llvm.ptr<f64>)  attributes {"param_names" = ["u_vec_0", "u_vec_1", "timers"]}{
+// CHECK-NEXT:   %148 = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> memref<15x15xf32>
+// CHECK-NEXT:   %u_vec_1 = "builtin.unrealized_conversion_cast"(%148) : (memref<15x15xf32>) -> memref<15x15xf32>
+// CHECK-NEXT:   %149 = "builtin.unrealized_conversion_cast"(%147) : (memref<15x15xf32>) -> memref<15x15xf32>
+// CHECK-NEXT:   "gpu.memcpy"(%148, %149) {"operand_segment_sizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
+// CHECK-NEXT:   %150 = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> memref<15x15xf32>
+// CHECK-NEXT:   %u_vec_0 = "builtin.unrealized_conversion_cast"(%150) : (memref<15x15xf32>) -> memref<15x15xf32>
+// CHECK-NEXT:   %151 = "builtin.unrealized_conversion_cast"(%146) : (memref<15x15xf32>) -> memref<15x15xf32>
+// CHECK-NEXT:   "gpu.memcpy"(%150, %151) {"operand_segment_sizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
+// CHECK-NEXT:   %time_m_1 = arith.constant 0 : index
+// CHECK-NEXT:   %time_M_1 = arith.constant 10 : index
+// CHECK-NEXT:   %step_1 = arith.constant 1 : index
+// CHECK-NEXT:   %152, %153 = "scf.for"(%time_m_1, %time_M_1, %step_1, %u_vec_0, %u_vec_1) ({
+// CHECK-NEXT:   ^20(%time_1 : index, %t0 : memref<15x15xf32>, %t1 : memref<15x15xf32>):
+// CHECK-NEXT:     %t1_storeview = "memref.subview"(%t1) {"static_offsets" = array<i64: 2, 2>, "static_sizes" = array<i64: 11, 11>, "static_strides" = array<i64: 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<15x15xf32>) -> memref<11x11xf32, strided<[15, 1], offset: 32>>
+// CHECK-NEXT:     %t0_loadview = "memref.subview"(%t0) {"static_offsets" = array<i64: 2, 2>, "static_sizes" = array<i64: 11, 11>, "static_strides" = array<i64: 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<15x15xf32>) -> memref<11x11xf32, strided<[15, 1], offset: 32>>
+// CHECK-NEXT:     %154 = arith.constant 0 : index
+// CHECK-NEXT:     %155 = arith.constant 0 : index
+// CHECK-NEXT:     %156 = arith.constant 1 : index
+// CHECK-NEXT:     %157 = arith.constant 11 : index
+// CHECK-NEXT:     %158 = arith.constant 11 : index
+// CHECK-NEXT:     "scf.parallel"(%154, %157, %156) ({
+// CHECK-NEXT:     ^21(%159 : index):
+// CHECK-NEXT:       "scf.for"(%155, %158, %156) ({
+// CHECK-NEXT:       ^22(%160 : index):
+// CHECK-NEXT:         %161 = "memref.load"(%t0_loadview, %159, %160) : (memref<11x11xf32, strided<[15, 1], offset: 32>>, index, index) -> f32
+// CHECK-NEXT:         "memref.store"(%161, %t1_storeview, %159, %160) : (f32, memref<11x11xf32, strided<[15, 1], offset: 32>>, index, index) -> ()
+// CHECK-NEXT:         "scf.yield"() : () -> ()
+// CHECK-NEXT:       }) : (index, index, index) -> ()
+// CHECK-NEXT:       "scf.yield"() : () -> ()
+// CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
+// CHECK-NEXT:     "scf.yield"(%t1, %t0) : (memref<15x15xf32>, memref<15x15xf32>) -> ()
+// CHECK-NEXT:   }) : (index, index, index, memref<15x15xf32>, memref<15x15xf32>) -> (memref<15x15xf32>, memref<15x15xf32>)
+// CHECK-NEXT:   func.return
+// CHECK-NEXT: }
+
 }
 // CHECK-NEXT: }

@@ -28,7 +28,7 @@ def cmpi(lhs: _Int, rhs: _Int, mnemonic: str) -> i1:
 
 
 def resolve_cmpi() -> Callable[..., Operation]:
-    return arith.Cmpi.get
+    return arith.Cmpi
 
 
 def muli(lhs: _Int, rhs: _Int) -> _Int:
