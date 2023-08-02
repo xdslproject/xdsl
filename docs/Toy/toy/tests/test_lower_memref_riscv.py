@@ -9,11 +9,11 @@ from xdsl.utils.test_value import TestSSAValue
 
 from ..rewrites.lower_memref_riscv import LowerMemrefToRiscv, insert_shape_ops
 
-memref_type_2xf64 = memref.MemRefType.from_element_type_and_shape(f64, ([2]))
-memref_type_2x2xf64 = memref.MemRefType.from_element_type_and_shape(f64, ([2, 2]))
-memref_type_2x2x2xf64 = memref.MemRefType.from_element_type_and_shape(f64, ([2, 2, 2]))
+MEMREF_TYPE_2XF64 = memref.MemRefType.from_element_type_and_shape(f64, ([2]))
+MEMREF_TYPE_2X2XF64 = memref.MemRefType.from_element_type_and_shape(f64, ([2, 2]))
+MEMREF_TYPE_2X2X2XF64 = memref.MemRefType.from_element_type_and_shape(f64, ([2, 2, 2]))
 
-register_type = riscv.IntRegisterType.unallocated()
+REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 
 
 def test_lower_memref_alloc():
@@ -28,9 +28,9 @@ def test_lower_memref_alloc():
     def expected():
         v1 = riscv.LiOp(2, comment="memref alloc size")
         v2 = riscv.CustomAssemblyInstructionOp(
-            "buffer.alloc", (v1.results[0],), (register_type,)
+            "buffer.alloc", (v1.results[0],), (REGISTER_TYPE,)
         )
-        v3 = UnrealizedConversionCastOp.get((v2.results[0],), (memref_type_2xf64,))
+        v3 = UnrealizedConversionCastOp.get((v2.results[0],), (MEMREF_TYPE_2XF64,))
         riscv.CustomAssemblyInstructionOp("do_stuff_with_alloc", (v3.results[0],), ())
 
     LowerMemrefToRiscv().apply(MLContext(), simple_alloc)
@@ -41,7 +41,7 @@ def test_lower_memref_dealloc():
     @ModuleOp
     @Builder.implicit_region
     def simple_dealloc():
-        with ImplicitBuilder(func.FuncOp("impl", ((memref_type_2xf64,), ())).body) as (
+        with ImplicitBuilder(func.FuncOp("impl", ((MEMREF_TYPE_2XF64,), ())).body) as (
             b,
         ):
             memref.Dealloc.get(b)
@@ -49,7 +49,7 @@ def test_lower_memref_dealloc():
     @ModuleOp
     @Builder.implicit_region
     def expected():
-        with ImplicitBuilder(func.FuncOp("impl", ((memref_type_2xf64,), ())).body) as (
+        with ImplicitBuilder(func.FuncOp("impl", ((MEMREF_TYPE_2XF64,), ())).body) as (
             _,
         ):
             pass
@@ -59,8 +59,8 @@ def test_lower_memref_dealloc():
 
 
 def test_insert_shape_ops_1d():
-    mem = TestSSAValue(memref_type_2xf64)
-    indices = [TestSSAValue(register_type)]
+    mem = TestSSAValue(MEMREF_TYPE_2XF64)
+    indices = [TestSSAValue(REGISTER_TYPE)]
 
     @ModuleOp
     @Builder.implicit_region
@@ -84,8 +84,8 @@ def test_insert_shape_ops_1d():
 
 
 def test_insert_shape_ops_2d():
-    mem = TestSSAValue(memref_type_2x2xf64)
-    indices = [TestSSAValue(register_type), TestSSAValue(register_type)]
+    mem = TestSSAValue(MEMREF_TYPE_2X2XF64)
+    indices = [TestSSAValue(REGISTER_TYPE), TestSSAValue(REGISTER_TYPE)]
 
     @ModuleOp
     @Builder.implicit_region
@@ -113,11 +113,11 @@ def test_insert_shape_ops_2d():
 
 
 def test_insert_shape_ops_invalid_dim():
-    mem = TestSSAValue(memref_type_2x2x2xf64)
+    mem = TestSSAValue(MEMREF_TYPE_2X2X2XF64)
     indices = [
-        TestSSAValue(register_type),
-        TestSSAValue(register_type),
-        TestSSAValue(register_type),
+        TestSSAValue(REGISTER_TYPE),
+        TestSSAValue(REGISTER_TYPE),
+        TestSSAValue(REGISTER_TYPE),
     ]
 
     @ModuleOp
@@ -143,7 +143,7 @@ def test_memref_load():
     @Builder.implicit_region
     def simple_load():
         with ImplicitBuilder(
-            func.FuncOp("impl", ((memref_type_2xf64, (IndexType())), ())).body
+            func.FuncOp("impl", ((MEMREF_TYPE_2XF64, (IndexType())), ())).body
         ) as (v, i):
             memref.Load.get(v, [i])
 
@@ -151,13 +151,13 @@ def test_memref_load():
     @Builder.implicit_region
     def expected():
         with ImplicitBuilder(
-            func.FuncOp("impl", ((memref_type_2xf64, IndexType()), ())).body
+            func.FuncOp("impl", ((MEMREF_TYPE_2XF64, IndexType()), ())).body
         ) as (v, i):
-            v1 = UnrealizedConversionCastOp.get([v], (register_type,))
-            v2 = UnrealizedConversionCastOp.get([i], (register_type,))
+            v1 = UnrealizedConversionCastOp.get([v], (REGISTER_TYPE,))
+            v2 = UnrealizedConversionCastOp.get([i], (REGISTER_TYPE,))
             v4 = riscv.AddOp(v1.results[0], v2.results[0])
             v5 = riscv.LwOp(v4, 0, comment="load value from memref of shape (2,)")
-            _ = UnrealizedConversionCastOp.get([v5], (register_type,))
+            _ = UnrealizedConversionCastOp.get([v5], (REGISTER_TYPE,))
 
     LowerMemrefToRiscv().apply(MLContext(), simple_load)
     assert f"{expected}" == f"{simple_load}"
@@ -168,7 +168,7 @@ def test_memref_store():
     @Builder.implicit_region
     def simple_store():
         with ImplicitBuilder(
-            func.FuncOp("impl", ((f64, memref_type_2xf64, IndexType()), ())).body
+            func.FuncOp("impl", ((f64, MEMREF_TYPE_2XF64, IndexType()), ())).body
         ) as (v, m, i):
             memref.Store.get(v, m, [i])
 
@@ -176,11 +176,11 @@ def test_memref_store():
     @Builder.implicit_region
     def expected():
         with ImplicitBuilder(
-            func.FuncOp("impl", ((f64, memref_type_2xf64, IndexType()), ())).body
+            func.FuncOp("impl", ((f64, MEMREF_TYPE_2XF64, IndexType()), ())).body
         ) as (v, m, i):
-            v1 = UnrealizedConversionCastOp.get([v], (register_type,))
-            v2 = UnrealizedConversionCastOp.get([m], (register_type,))
-            v3 = UnrealizedConversionCastOp.get([i], (register_type,))
+            v1 = UnrealizedConversionCastOp.get([v], (REGISTER_TYPE,))
+            v2 = UnrealizedConversionCastOp.get([m], (REGISTER_TYPE,))
+            v3 = UnrealizedConversionCastOp.get([i], (REGISTER_TYPE,))
             v4 = riscv.AddOp(v2.results[0], v3.results[0])
             riscv.SwOp(
                 v4, v1.results[0], 0, comment="store value to memref of shape (2,)"
