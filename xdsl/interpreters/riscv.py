@@ -150,7 +150,7 @@ class RiscvFunctions(InterpreterFunctions):
         unsigned_lhs = to_unsigned(args[0], self.bitwidth)
         imm = self.get_immediate_value(op, op.immediate)
         if isinstance(imm, Buffer):
-            raise NotImplemented(f"Cannot compare buffer pointer in interpreter")
+            raise NotImplementedError("Cannot compare buffer pointer in interpreter")
         unsigned_imm = to_unsigned(imm, self.bitwidth)
         return (int(unsigned_lhs < unsigned_imm),)
 
@@ -162,6 +162,17 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         return (args[0] + args[1],)
+
+    @impl(riscv.SlliOp)
+    def run_shift_left(
+        self,
+        interpreter: Interpreter,
+        op: riscv.SlliOp,
+        args: tuple[Any, ...],
+    ):
+        imm = self.get_immediate_value(op, op.immediate)
+        assert isinstance(imm, int)
+        return (args[0] << imm,)
 
     @impl(riscv.MulOp)
     def run_mul(

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from xdsl.dialects import memref, riscv
-from xdsl.dialects.builtin import Float64Type
+from xdsl.dialects.builtin import Float64Type, IndexType
 from xdsl.interpreter import InterpreterFunctions, impl_cast, register_impls
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
@@ -71,6 +71,35 @@ class BufferMemrefConversion(InterpreterFunctions):
     ) -> Any:
         return Buffer(value.data)
 
+    @impl_cast(IndexType, riscv.IntRegisterType)
+    def cast_index_to_int_reg(
+        self,
+        input_type: IndexType,
+        output_type: riscv.IntRegisterType,
+        value: Any,
+    ) -> Any:
+        return value
+
+    # Hack for partial lowering and lack of support for float registers
+    @impl_cast(Float64Type, riscv.IntRegisterType)
+    def cast_float_to_int_reg(
+        self,
+        input_type: Float64Type,
+        output_type: riscv.IntRegisterType,
+        value: Any,
+    ) -> Any:
+        return value
+
+    # Hack for partial lowering and lack of support for float registers
+    @impl_cast(riscv.IntRegisterType, Float64Type)
+    def cast_int_reg_to_float(
+        self,
+        input_type: riscv.IntRegisterType,
+        output_type: Float64Type,
+        value: Any,
+    ) -> Any:
+        return float(value)
+
 
 def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool):
     ctx = context()
@@ -128,7 +157,6 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
         # TODO: remove as we add lowerings to riscv
         interpreter.register_implementations(ScfFunctions())
         interpreter.register_implementations(ArithFunctions())
-        interpreter.register_implementations(MemrefFunctions())
         interpreter.register_implementations(PrintfFunctions())
         interpreter.register_implementations(FuncFunctions())
 
