@@ -22,14 +22,14 @@ class ScfForLowering(RewritePattern):
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         cast_block_args_to_int_regs(new_region.block, rewriter)
         cast_results_from_int_regs(rewriter)
-        rewriter.replace_matched_op([riscv_scf.ForOp(lb, ub, step, args, new_region)])
+        rewriter.replace_matched_op(riscv_scf.ForOp(lb, ub, step, args, new_region))
 
 
 class ScfYieldLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.Yield, rewriter: PatternRewriter) -> None:
         rewriter.replace_matched_op(
-            [riscv_scf.YieldOp(*cast_operands_to_int_regs(rewriter))]
+            riscv_scf.YieldOp(*cast_operands_to_int_regs(rewriter))
         )
 
 
