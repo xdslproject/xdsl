@@ -380,7 +380,7 @@ class CheckAndInlineConstants:
                         file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"All constant expressions have to be assigned to "
+                        "All constant expressions have to be assigned to "
                         "'ast.Name' nodes.",
                     )
 
