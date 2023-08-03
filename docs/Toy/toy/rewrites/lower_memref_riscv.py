@@ -105,9 +105,7 @@ class LowerMemrefLoadOp(RewritePattern):
                 lw := riscv.LwOp(
                     ptr, 0, comment=f"load value from memref of shape {shape}"
                 ),
-                UnrealizedConversionCastOp.get(
-                    lw.results, (riscv.IntRegisterType.unallocated(),)
-                ),
+                UnrealizedConversionCastOp.get(lw.results, (op.res.type,)),
             ],
         )
 
