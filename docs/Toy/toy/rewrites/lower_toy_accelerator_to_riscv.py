@@ -11,7 +11,7 @@ from xdsl.pattern_rewriter import (
 )
 
 from ..dialects import toy_accelerator
-from .helpers import cast_value_to_register
+from .helpers import cast_value_to_int_register
 
 
 class LowerTransposeOp(RewritePattern):
@@ -19,8 +19,8 @@ class LowerTransposeOp(RewritePattern):
     def match_and_rewrite(
         self, op: toy_accelerator.Transpose, rewriter: PatternRewriter
     ):
-        destination = cast_value_to_register(op.destination, rewriter)
-        source = cast_value_to_register(op.source, rewriter)
+        destination = cast_value_to_int_register(op.destination, rewriter)
+        source = cast_value_to_int_register(op.source, rewriter)
 
         rewriter.replace_matched_op(
             [
@@ -45,9 +45,9 @@ class LowerBinOp(RewritePattern):
         instruction_name = (
             "buffer.add" if isinstance(op, toy_accelerator.Add) else "buffer.mul"
         )
-        dest = cast_value_to_register(op.dest, rewriter)
-        lhs = cast_value_to_register(op.lhs, rewriter)
-        rhs = cast_value_to_register(op.rhs, rewriter)
+        dest = cast_value_to_int_register(op.dest, rewriter)
+        lhs = cast_value_to_int_register(op.lhs, rewriter)
+        rhs = cast_value_to_int_register(op.rhs, rewriter)
         rewriter.replace_matched_op(
             [
                 size_op := riscv.LiOp(size, comment="size"),
