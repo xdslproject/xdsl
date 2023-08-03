@@ -619,11 +619,11 @@ class CopyOp(IRDLOperation):
         destination = cast(MemRefType[Attribute], self.destination.type)
         if source.get_shape() != destination.get_shape():
             raise VerifyException(
-                f"Expected source and destination to have the same shape."
+                "Expected source and destination to have the same shape."
             )
         if source.get_element_type() != destination.get_element_type():
             raise VerifyException(
-                f"Expected source and destination to have the same element type."
+                "Expected source and destination to have the same element type."
             )
 
 
