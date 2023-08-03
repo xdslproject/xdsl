@@ -141,7 +141,7 @@ class TypeConverter:
                 self.file,
                 type_hint.lineno,
                 type_hint.col_offset,
-                f"Converting subscript type hints is not supported.",
+                "Converting subscript type hints is not supported.",
             )
 
         # Type hint can also be a TypeAlias. For example, one can define

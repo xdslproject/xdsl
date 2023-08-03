@@ -618,7 +618,6 @@ class Printer:
 
         if isinstance(attribute, Data):
             self.print("<")
-            attribute = cast(Data[Any], attribute)
             attribute.print_parameter(self)
             self.print(">")
             return
