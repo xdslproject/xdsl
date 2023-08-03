@@ -1,37 +1,15 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from xdsl.builder import Builder
 from xdsl.dialects import riscv, riscv_func, riscv_scf
-from xdsl.ir import BlockArgument, Region, SSAValue
-
-
-@Builder.implicit_region([riscv.Registers.A0, riscv.Registers.A1])
-def myfunc_body(args: tuple[BlockArgument, ...]):
-    a0, a1 = args
-    # these moves are added by default by the lowering to func
-    lb = riscv.MVOp(a0)
-    ub = riscv.MVOp(a1)
-
-    step = riscv.LiOp(1)
-    acc = riscv.LiOp(0)
-
-    @Builder.implicit_region(
-        [riscv.IntRegisterType.unallocated(), riscv.IntRegisterType.unallocated()]
-    )
-    def loop_body(args: tuple[BlockArgument, ...]):
-        i, acc = args
-        new_acc = riscv.AddOp(acc, i)
-        riscv_scf.YieldOp(new_acc)
-
-    loop = riscv_scf.ForOp(lb, ub, step, [acc], loop_body)
-
-    a0_new = riscv.MVOp(loop.res[0], rd=riscv.Registers.A0)
-
-    riscv_func.ReturnOp([a0_new])
-
-
-testfunc = riscv_func.FuncOp("funky", myfunc_body)
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.ir import MLContext, Region, SSAValue
+from xdsl.passes import ModulePass
+from xdsl.pattern_rewriter import (
+    PatternRewriter,
+    RewritePattern,
+    op_type_rewrite_pattern,
+)
 
 
 @dataclass
@@ -135,12 +113,10 @@ def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
         yielded.type = input_val.type
         ret_val.type = input_val.type
 
+    # if the lb has no other uses, use it as the loop counter otherwise
     # grab a free register for the loop counter (from the inner context)
-    loop_counter_reg = inner_ctx.free_reg()
-
-    # if the lb has no other uses, use it as the loop counter
-    if len(op.lb.uses) == 1:
-        loop_counter_reg = op.lb.type
+    loop_counter_reg = op.lb.type if len(op.lb.uses) == 1 else inner_ctx.free_reg()
+    assert isinstance(loop_counter_reg, riscv.IntRegisterType)
 
     iter_val = op.body.block.args[0]
     iter_val.type = loop_counter_reg
@@ -172,11 +148,11 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
                 for operand in op.operands:
                     ctx.register_use(operand)
                 # skip already allocated registers
+                assert isinstance(op.rd.type, riscv.IntRegisterType)
                 if op.rd.type.is_allocated:
                     continue
                 # grab a free register and set it
-                reg = ctx.free_reg()
-                op.rd.type = reg
+                op.rd.type = ctx.free_reg()
                 ctx.add_reg(op.rd)
             # the scf for loop has a special case function
             elif isinstance(op, riscv_scf.ForOp):
@@ -188,9 +164,21 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
                 raise RuntimeError(f"Unknown op {op}")
 
 
-if __name__ == "__main__":
-    # print(testfunc)
+class AllocateRISCVFunction(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: riscv_func.FuncOp, rewriter: PatternRewriter
+    ) -> None:
+        register_allocate_function(op)
 
-    register_allocate_function(testfunc)
 
-    print(testfunc)
+@dataclass
+class RVSCFRegisterAllocation(ModulePass):
+    """
+    Allocates unallocated registers for all riscv functions in a module
+    """
+
+    name = "rvscf-allocate-registers"
+
+    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        pass
