@@ -31,11 +31,15 @@ def cast_results_to_int_regs(
     vals: Sequence[SSAValue], rewriter: PatternRewriter
 ) -> list[SSAValue]:
     results = [
-        builtin.UnrealizedConversionCastOp.get(
-            [val], (riscv.IntRegisterType.unallocated(),)
-        )
-        for val in vals
+        builtin.UnrealizedConversionCastOp.get([val], (val.type,)) for val in vals
     ]
+
+    for val, result in zip(vals, results):
+        for use in set(val.uses):
+            # avoid recursion on the casts we just inserted
+            if use.operation != result:
+                use.operation.operands[use.index] = result.results[0]
+
     rewriter.insert_op_after_matched_op(results)
     return [result.results[0] for result in results]
 
