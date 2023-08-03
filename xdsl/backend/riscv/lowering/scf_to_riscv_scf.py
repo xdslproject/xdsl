@@ -1,7 +1,7 @@
 from xdsl.backend.riscv.lowering.utils import (
     cast_block_args_to_int_regs,
     cast_operands_to_int_regs,
-    cast_results_to_int_regs,
+    cast_results_from_int_regs,
 )
 from xdsl.dialects import builtin, riscv_scf, scf
 from xdsl.ir import MLContext
@@ -18,12 +18,10 @@ from xdsl.pattern_rewriter import (
 class ScfForLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
-        lb, ub, step, *args = cast_operands_to_int_regs(
-            [op.lb, op.ub, op.step, *op.iter_args], rewriter
-        )
+        lb, ub, step, *args = cast_operands_to_int_regs(rewriter)
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         cast_block_args_to_int_regs(new_region.block, rewriter)
-        cast_results_to_int_regs(op.results, rewriter)
+        cast_results_from_int_regs(rewriter)
         rewriter.replace_matched_op([riscv_scf.ForOp(lb, ub, step, args, new_region)])
 
 
@@ -31,7 +29,7 @@ class ScfYieldLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.Yield, rewriter: PatternRewriter) -> None:
         rewriter.replace_matched_op(
-            [riscv_scf.YieldOp(*cast_operands_to_int_regs(op.arguments, rewriter))]
+            [riscv_scf.YieldOp(*cast_operands_to_int_regs(rewriter))]
         )
 
 
