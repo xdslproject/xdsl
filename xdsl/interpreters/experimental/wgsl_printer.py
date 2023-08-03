@@ -183,7 +183,8 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: arith.Constant, out_stream: IO[str]):
-        value = int(str(op.attributes.get("value")).split()[0])
+        value = str(op.value.value.data)
+
         cons_type = op.result.type
         if isinstance(op.result.type, builtin.IndexType):
             cons_type = "u32"
@@ -198,7 +199,7 @@ class WGSLPrinter:
         else:
             out_stream.write(
                 f"""
-        let {name_hint} : {cons_type} = {value};"""
+        let {name_hint} : {cons_type} = {float(value):.20f};"""
             )
 
     @print.register

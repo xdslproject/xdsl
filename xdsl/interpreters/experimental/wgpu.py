@@ -39,7 +39,8 @@ class WGPUFunctions(InterpreterFunctions):
             return value
         if isinstance(operand.type, Float32Type | IndexType):
             view = memoryview(bytearray(self.type_size(operand.type)))
-            view.cast(self.type_format(operand.type), [1])
+            view = view.cast(self.type_format(operand.type), [1])
+            view[0] = interpreter.get_values((operand,))[0]
             buffer = self.device.create_buffer_with_data(
                 data=view,
                 usage=wgpu.BufferUsage.STORAGE
@@ -87,6 +88,7 @@ class WGPUFunctions(InterpreterFunctions):
             wgsl_printer = WGSLPrinter()
             wgsl_source = StringIO("")
             wgsl_printer.print(op, wgsl_source)
+            print(wgsl_source.getvalue())
             self.shader_modules[op] = cast(
                 wgpu.GPUShaderModule,
                 self.device.create_shader_module(  # pyright: ignore
@@ -164,7 +166,9 @@ class WGPUFunctions(InterpreterFunctions):
         Only Device to Host copy is implemented here, to keep the first draft bearable.
         """
         src, dst = interpreter.get_values((op.src, op.dst))
+        # DtoH copy
         if isinstance(src, wgpu.GPUBuffer) and isinstance(dst, ShapedArray):
+            print("DtoH copy")
             # Get device/source view
             memview = cast(
                 memoryview, self.device.queue.read_buffer(src)  # pyright: ignore
@@ -173,12 +177,15 @@ class WGPUFunctions(InterpreterFunctions):
             format = self.type_format(dst_type.element_type)
 
             memview = memview.cast(format, [i.value.data for i in dst_type.shape])
+            print(memview.tolist())
             for index in dst.indices():
                 dst.store(index, memview.__getitem__(index))  # pyright: ignore
             return ()
 
+        # HtoD copy
         if isinstance(src, ShapedArray) and isinstance(dst, wgpu.GPUBuffer):
             # Get device/source view
+            print("HtoD copy")
             src_type = cast(MemRefType[Attribute], op.src.type)
             size = self.type_size(src_type.element_type)
             format = self.type_format(src_type.element_type)
@@ -190,6 +197,7 @@ class WGPUFunctions(InterpreterFunctions):
                     v = 0
                 memview.__setitem__(index, v)
                 # dst.store(index, memview.__getitem__(index))  # pyright: ignore
+            print(memview.tolist())
             self.device.queue.write_buffer(dst, 0, memview)
             return ()
 
