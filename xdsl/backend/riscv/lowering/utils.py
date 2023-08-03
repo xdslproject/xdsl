@@ -18,7 +18,8 @@ def cast_operands_to_int_regs(
     ]
     rewriter.insert_op_before_matched_op(mapped_vals)
 
-    # return the original values if they were already int registers, otherwise return the casted values
+    # return the original values if they were already int registers, otherwise
+    # return the casted values
     return [
         mapped_vals.pop(0).results[0]
         if not isinstance(v.type, riscv.IntRegisterType)
