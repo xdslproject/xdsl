@@ -1120,7 +1120,8 @@ class UnrealizedConversionCastOp(IRDLOperation):
             )
             parser.parse_punctuation(":")
             input_types = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parser.parse_type
+                parser.Delimiter.NONE,
+                parser.parse_type,
             )
             parser.parse_characters("to")
             inputs = parser.resolve_operands(args, input_types, parser.pos)
