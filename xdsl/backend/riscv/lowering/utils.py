@@ -59,15 +59,13 @@ def cast_block_args_to_int_regs(block: Block, rewriter: PatternRewriter):
     add cast operations just after the block entry.
     """
 
-    if first_op := block.first_op:
-        unallocated_reg = riscv.IntRegisterType.unallocated()
+    unallocated_reg = riscv.IntRegisterType.unallocated()
 
-        for arg in block.args:
-            rewriter.insert_op_before(
-                new_val := builtin.UnrealizedConversionCastOp([arg], [arg.type]),
-                first_op,
-            )
+    for arg in block.args:
+        rewriter.insert_op_at_start(
+            new_val := builtin.UnrealizedConversionCastOp([arg], [arg.type]), block
+        )
 
-            arg.type = unallocated_reg
-            arg.replace_by(new_val.results[0])
-            new_val.operands[new_val.results[0].index] = arg
+        arg.type = unallocated_reg
+        arg.replace_by(new_val.results[0])
+        new_val.operands[new_val.results[0].index] = arg

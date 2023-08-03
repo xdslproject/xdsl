@@ -41,8 +41,8 @@ def test_lower_simple_scf_for():
         @Builder.implicit_region((REGISTER_TYPE, REGISTER_TYPE))
         def for_loop_region(args: tuple[BlockArgument, ...]):
             (i, acc) = args
-            i_cast = builtin.UnrealizedConversionCastOp.get((i,), (INDEX_TYPE,))
             acc_cast = builtin.UnrealizedConversionCastOp.get((acc,), (INDEX_TYPE,))
+            i_cast = builtin.UnrealizedConversionCastOp.get((i,), (INDEX_TYPE,))
             res = arith.Addi(i_cast, acc_cast)
             res_cast = builtin.UnrealizedConversionCastOp((res,), (REGISTER_TYPE,))
             riscv_scf.YieldOp(res_cast)

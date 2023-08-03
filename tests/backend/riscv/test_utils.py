@@ -100,12 +100,11 @@ def test_block_cast_utils():
         )
         def inner(args: tuple[BlockArgument, ...]):
             (first_arg, second_arg) = args
-
-            first_arg_cast = builtin.UnrealizedConversionCastOp(
-                (first_arg,), (INDEX_TYPE,)
-            )
             second_arg_cast = builtin.UnrealizedConversionCastOp(
                 (second_arg,), (INDEX_TYPE,)
+            )
+            first_arg_cast = builtin.UnrealizedConversionCastOp(
+                (first_arg,), (INDEX_TYPE,)
             )
 
             v = test.TestOp.create(
