@@ -106,13 +106,13 @@ def get_all_passes() -> list[type[ModulePass]]:
         lower_snitch_runtime.LowerSnitchRuntimePass,
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
-        reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
         riscv_register_allocation.RISCVRegisterAllocation,
         RISCVLowerArith,
         LowerFuncToRiscvFunc,
         scf_to_riscv_scf.ScfToRiscvPass,
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
+        reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
     ]
 
 
