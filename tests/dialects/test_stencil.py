@@ -649,7 +649,7 @@ def test_access_patterns():
         AccessOp.get(t1, (1, 1), (1, 0))
         AccessOp.get(t1, (-1, -1), (1, 0))
 
-    apply = ApplyOp.get((temp, temp), apply_op_region.detach_block(0), [temp])
+    apply = ApplyOp.get((temp, temp), apply_op_region.detach_block(0), [typ])
 
     t0_acc, t1_acc = tuple(apply.get_accesses())
 
