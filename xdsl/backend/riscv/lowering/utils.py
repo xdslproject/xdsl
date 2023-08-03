@@ -1,5 +1,5 @@
 from xdsl.dialects import builtin, riscv
-from xdsl.ir import Block, SSAValue
+from xdsl.ir import Block, Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
 
 
@@ -9,27 +9,20 @@ def cast_operands_to_int_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     if the operands were not already int registers
     """
 
-    # convert all values to int registers if they are not already
-    casted_ops = [
-        builtin.UnrealizedConversionCastOp.get(
-            [not_reg], (riscv.IntRegisterType.unallocated(),)
-        )
-        for not_reg in filter(
-            lambda v: not isinstance(v.type, riscv.IntRegisterType),
-            rewriter.current_operation.operands,
-        )
-    ]
+    new_ops = list[Operation]()
+    new_operands = list[SSAValue]()
 
-    rewriter.insert_op_before_matched_op(casted_ops)
+    for operand in rewriter.current_operation.operands:
+        if not isinstance(operand.type, riscv.IntRegisterType):
+            cast_op = builtin.UnrealizedConversionCastOp.get(
+                (operand,), (riscv.IntRegisterType.unallocated(),)
+            )
+            new_ops.append(cast_op)
+            operand = cast_op.results[0]
+        new_operands.append(operand)
 
-    # return the original value if it's already an int register
-    # otherwise return the casted value
-    return [
-        casted_ops.pop(0).results[0]
-        if not isinstance(operand.type, riscv.IntRegisterType)
-        else operand
-        for operand in rewriter.current_operation.operands
-    ]
+    rewriter.insert_op_before_matched_op(new_ops)
+    return new_operands
 
 
 def cast_results_from_int_regs(rewriter: PatternRewriter) -> list[SSAValue]:
