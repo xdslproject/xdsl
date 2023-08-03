@@ -108,7 +108,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop end, got 'i32'.
         def test_not_supported_loop_I(end: i32):
-            for _ in range(end):  # type: ignore
+            for _ in range(end):
                 pass
             return
 
@@ -121,7 +121,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop start, got 'f32'.
         def test_not_supported_loop_II(start: f32, end: index):
-            for _ in range(start, end):  # type: ignore
+            for _ in range(start, end):
                 pass
             return
 
@@ -214,7 +214,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected the same types for if expression, but got i32 and f32.
         def test_type_mismatch_in_if_expr(cond: i1, x: i32, y: f32) -> i32:
-            return x if cond else y  # type: ignore
+            return x if cond else y
 
     p.compile(desymref=False)
     print(p.textual_format())

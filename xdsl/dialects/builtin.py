@@ -727,9 +727,9 @@ class VectorBaseTypeConstraint(AttrConstraint):
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         attr = cast(VectorType[Attribute], attr)
-        if attr.element_type != self.expected_type:  # type: ignore
+        if attr.element_type != self.expected_type:
             raise VerifyException(
-                f"Expected vector type to be {self.expected_type}, got {attr.element_type}."  # type: ignore
+                f"Expected vector type to be {self.expected_type}, got {attr.element_type}."
             )
 
 

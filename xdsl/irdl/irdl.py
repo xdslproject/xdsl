@@ -1747,7 +1747,7 @@ def irdl_op_arg_definition(
     # attribute that holds the variadic sizes.
     arg_size_option = get_attr_size_option(construct)
     if previous_variadics > 1 and (arg_size_option not in op_def.options):
-        arg_size_option_name = type(arg_size_option).__name__  # type: ignore
+        arg_size_option_name = type(arg_size_option).__name__
         raise Exception(
             f"Operation {op_def.name} defines more than two variadic "
             f"{get_construct_name(construct)}s, but do not define the "
