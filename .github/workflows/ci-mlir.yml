@@ -52,8 +52,8 @@ jobs:
       uses: actions/cache@v3
       with:
         path: llvm-project/build
-        key: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
-        restore-keys: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
+        key: binaries-${{ runner.os }}-${{ env.MLIR-Version }}-removeme
+        restore-keys: binaries-${{ runner.os }}-${{ env.MLIR-Version }}-removeme
 
     - name: Checkout MLIR
       if: steps.cache-binary.outputs.cache-hit != 'true'
