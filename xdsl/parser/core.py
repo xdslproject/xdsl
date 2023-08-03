@@ -37,7 +37,7 @@ class ForwardDeclaredValue(SSAValue):
     def __eq__(self, other: object) -> bool:
         return self is other
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         return id(self)
 
 

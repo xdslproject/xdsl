@@ -7,7 +7,7 @@ import hashlib
 import os
 import sys
 
-import yaml  # type: ignore
+import yaml
 
 meta_yaml_path = sys.argv[1]
 xdsl_directory = sys.argv[2]
