@@ -71,6 +71,9 @@ class ParseError(Exception):
     def __repr__(self) -> str:
         return self.span.print_with_context(self.msg)
 
+    def with_context(self) -> str:
+        return self.span.print_with_context(self.msg)
+
 
 @dataclass
 class MultipleSpansParseError(ParseError):

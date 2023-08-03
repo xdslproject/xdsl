@@ -652,6 +652,24 @@ class Printer:
 
         self.print("}")
 
+    def print_op_attributes_with_keyword(
+        self, attributes: dict[str, Attribute], reserved_attr_names: Iterable[str] = ()
+    ) -> None:
+        if reserved_attr_names:
+            attribute_list = [
+                i for i in attributes.items() if i[0] not in reserved_attr_names
+            ]
+        else:
+            attribute_list = attributes.items()
+
+        if not attribute_list:
+            return
+        self.print(" attributes {")
+
+        self.print_list(attribute_list, self._print_attr_string)
+
+        self.print("}")
+
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)
         self.print_successors(op.successors)

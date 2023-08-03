@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-from typing import Iterable, Literal, TypeVar, cast
+from typing import Iterable, Literal, TypeVar
 from warnings import warn
 
 from xdsl.dialects import arith, builtin, gpu, memref, scf
-from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.stencil import (
@@ -38,6 +37,8 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
+    TypeConversionPattern,
+    attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -145,10 +146,15 @@ class ReturnOpToMemref(RewritePattern):
 def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
     assert isinstance(field.bounds, StencilBoundsAttr)
     assert isinstance(temp.bounds, StencilBoundsAttr)
-    if temp.bounds.lb < field.bounds.lb or temp.bounds.ub > field.bounds.ub:
+    if temp.bounds.lb < field.bounds.lb:
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
             f"{temp.bounds.lb}, got {field.bounds.lb}, min: {min(field.bounds.lb, temp.bounds.lb)}"
+        )
+    if temp.bounds.ub > field.bounds.ub:
+        raise VerifyException(
+            "The stencil computation requires a field with upper bound at least "
+            f"{temp.bounds.ub}, got {field.bounds.ub}, max: {max(field.bounds.ub, temp.bounds.ub)}"
         )
 
 
@@ -410,38 +416,6 @@ class AccessOpToMemref(RewritePattern):
         rewriter.replace_matched_op([*off_const_ops, load], [load.res])
 
 
-class StencilTypeConversionFuncOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        inputs: list[Attribute] = [
-            StencilToMemRefType(inp) if isa(inp, FieldType[Attribute]) else inp
-            for inp in op.function_type.inputs
-        ]
-        outputs: list[Attribute] = [
-            StencilToMemRefType(out) if isa(out, FieldType[Attribute]) else out
-            for out in op.function_type.outputs
-        ]
-        op.attributes["function_type"] = FunctionType.from_lists(inputs, outputs)
-        if op.body.blocks:
-            for inp, arg in zip(inputs, op.body.blocks[0].args):
-                if inp != arg.type:
-                    rewriter.modify_block_argument_type(arg, inp)
-
-
-class UpdateLoopCarriedVarTypes(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter, /):
-        for i in range(len(op.iter_args)):
-            block_arg = op.body.block.args[i + 1]
-            iter_type = op.iter_args[i].type
-            if block_arg.type != iter_type:
-                rewriter.modify_block_argument_type(block_arg, iter_type)
-            y = cast(scf.Yield, op.body.ops.last)
-            y.arguments[i].type = iter_type
-            if op.res[i].type != iter_type:
-                op.res[i].type = iter_type
-
-
 @dataclass
 class StencilStoreToSubview(RewritePattern):
     return_targets: dict[ReturnOp, list[SSAValue | None]]
@@ -537,6 +511,12 @@ def return_target_analysis(module: builtin.ModuleOp):
     return return_targets
 
 
+class StencilTypeConversion(TypeConversionPattern):
+    @attr_type_rewrite_pattern
+    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
+        return StencilToMemRefType(typ)
+
+
 @dataclass
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
@@ -569,8 +549,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         type_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    UpdateLoopCarriedVarTypes(),
-                    StencilTypeConversionFuncOp(),
+                    StencilTypeConversion(recursive=True),
                     BufferOpCleanUp(),
                 ]
             )
