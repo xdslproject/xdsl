@@ -809,9 +809,9 @@ class AccessPattern:
             [" " for _ in range(y_axis_halo[1] - y_axis_halo[0] + 1)]
             for __ in range(x_axis_halo[1] - x_axis_halo[0] + 1)
         ]
-        points[-y_axis_halo[0]][-x_axis_halo[0]] = "O"
+        points[-x_axis_halo[0]][-y_axis_halo[0]] = "O"
         for access in self.accesses:
-            points[access[1] - y_axis_halo[0]][access[0] - x_axis_halo[0]] = "X"
+            points[access[0] - x_axis_halo[0]][access[1] - y_axis_halo[0]] = "X"
         return "\n".join("".join(row) for row in points)
 
 
