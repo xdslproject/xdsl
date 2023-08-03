@@ -14,6 +14,15 @@ def cast_value_to_int_register(
     return cast.results[0]
 
 
+def cast_value_to_float_register(
+    operand: SSAValue, rewriter: PatternRewriter
+) -> OpResult:
+    types = (riscv.FloatRegisterType.unallocated(),)
+    cast = builtin.UnrealizedConversionCastOp.get((operand,), types)
+    rewriter.insert_op_before_matched_op(cast)
+    return cast.results[0]
+
+
 def copy_registers(
     operands: Sequence[SSAValue], rewriter: PatternRewriter
 ) -> list[OpResult]:
