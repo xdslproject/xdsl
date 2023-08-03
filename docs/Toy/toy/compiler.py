@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
 from xdsl.dialects import (
     affine,
     arith,
@@ -18,6 +19,7 @@ from xdsl.transforms.mlir_opt import MLIROptPass
 from .dialects import toy
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
+from .rewrites.arith_float_to_int import CastArithFloatToInt
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_to_toy_accelerator import LowerToToyAccelerator
@@ -101,11 +103,12 @@ def transform(
     # When the commented passes are uncommented, we can print RISC-V assembly
 
     SetupRiscvPass().apply(ctx, module_op)
+    CastArithFloatToInt().apply(ctx, module_op)
     # LowerFuncToRiscvFunc().apply(ctx, module_op)
     LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
     # LowerPrintfRiscvPass().apply(ctx, module_op)
-    # LowerArithRiscvPass().apply(ctx, module_op)
+    RISCVLowerArith().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
     # ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 

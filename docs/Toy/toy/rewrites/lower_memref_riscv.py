@@ -1,6 +1,7 @@
 from math import prod
 from typing import Any, Sequence, cast
 
+from xdsl.backend.riscv.lowering.helpers import cast_value_to_int_register
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir.core import MLContext, SSAValue
@@ -11,8 +12,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
-from .helpers import cast_value_to_register
 
 
 class LowerMemrefAllocOp(RewritePattern):
@@ -72,9 +71,11 @@ def insert_shape_ops(
 class LowerMemrefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
-        value = cast_value_to_register(op.value, rewriter)
-        mem = cast_value_to_register(op.memref, rewriter)
-        indices = tuple(cast_value_to_register(index, rewriter) for index in op.indices)
+        value = cast_value_to_int_register(op.value, rewriter)
+        mem = cast_value_to_int_register(op.memref, rewriter)
+        indices = tuple(
+            cast_value_to_int_register(index, rewriter) for index in op.indices
+        )
 
         assert isinstance(op.memref.type, memref.MemRefType)
         memref_typ = cast(memref.MemRefType[Any], op.memref.type)
@@ -93,8 +94,10 @@ class LowerMemrefStoreOp(RewritePattern):
 class LowerMemrefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
-        mem = cast_value_to_register(op.memref, rewriter)
-        indices = tuple(cast_value_to_register(index, rewriter) for index in op.indices)
+        mem = cast_value_to_int_register(op.memref, rewriter)
+        indices = tuple(
+            cast_value_to_int_register(index, rewriter) for index in op.indices
+        )
 
         assert isinstance(op.memref.type, memref.MemRefType)
         memref_typ = cast(memref.MemRefType[Any], op.memref.type)

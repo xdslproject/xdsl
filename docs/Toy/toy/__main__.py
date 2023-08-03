@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from xdsl.dialects import memref, riscv
-from xdsl.dialects.builtin import Float64Type, IndexType
+from xdsl.dialects.builtin import Float64Type, IndexType, IntegerType
 from xdsl.interpreter import InterpreterFunctions, impl_cast, register_impls
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
@@ -99,6 +99,62 @@ class BufferMemrefConversion(InterpreterFunctions):
         value: Any,
     ) -> Any:
         return float(value)
+
+    @impl_cast(riscv.IntRegisterType, IntegerType)
+    def cast_reg_to_int(
+        self,
+        input_type: riscv.IntRegisterType,
+        output_type: IntegerType,
+        value: Any,
+    ) -> Any:
+        return value
+
+    @impl_cast(IntegerType, riscv.IntRegisterType)
+    def cast_int_to_reg(
+        self,
+        input_type: IntegerType,
+        output_type: riscv.IntRegisterType,
+        value: Any,
+    ) -> Any:
+        return value
+
+    @impl_cast(IndexType, riscv.IntRegisterType)
+    def cast_index_to_reg(
+        self,
+        input_type: IndexType,
+        output_type: riscv.IntRegisterType,
+        value: Any,
+    ) -> Any:
+        return value
+
+    @impl_cast(riscv.IntRegisterType, IndexType)
+    def cast_reg_to_index(
+        self,
+        input_type: riscv.IntRegisterType,
+        output_type: IndexType,
+        value: Any,
+    ) -> Any:
+        return value
+
+    # Below casts temporary workaround for lack of float support in the pipeline
+
+    @impl_cast(IntegerType, Float64Type)
+    def cast_int_to_float(
+        self,
+        input_type: IntegerType,
+        output_type: Float64Type,
+        value: Any,
+    ) -> Any:
+        return float(value)
+
+    @impl_cast(Float64Type, IntegerType)
+    def cast_float_to_int(
+        self,
+        input_type: Float64Type,
+        output_type: IntegerType,
+        value: Any,
+    ) -> Any:
+        return int(value)
 
 
 def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool):
