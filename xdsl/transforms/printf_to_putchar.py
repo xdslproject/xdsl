@@ -14,6 +14,8 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.printer import Printer
 
+i8 = IntegerType(8)
+
 
 class LowerPrintCharToPutchar(RewritePattern):
     """
@@ -131,7 +133,7 @@ def get_inline_itoa():
 
         return absolute_value
 
-    def print_digits(digits: SSAValue, absolute_value: SSAValue) -> scf.For:
+    def print_digits(digits: SSAValue, absolute_value: scf.If) -> scf.For:
         """
         Return an scf.for loop that prints all digits of the given value.
         In python code:
@@ -157,10 +159,9 @@ def get_inline_itoa():
             i_0 = math.IPowIOp((ten, position), (i32,))
             i_1 = arith.DivUI(absolute_value, i_0)
             digit = arith.RemUI(i_1, ten)
-            # ascii value for zero is 48 in decimal
-            ascii_offset = arith.Constant.from_int_and_width(48, i32)
+            ascii_offset = arith.Constant.from_int_and_width(ord("0"), i32)
             char = arith.Addi(digit, ascii_offset)
-            char_i8 = arith.TruncIOp(char, IntegerType(8))
+            char_i8 = arith.TruncIOp(char, i8)
             PrintCharOp((char_i8,))
             scf.Yield.get()
         return for_loop
@@ -199,7 +200,6 @@ def get_inline_itoa():
             absolute_value = print_minus_if_negative(integer)
             # Get amount  of digits to be printed
             digits = get_number_of_digits(absolute_value)
-            # Now print the digits of the absolute value
             print_digits(digits, absolute_value)
             # Yield from is_not_zero_block
             scf.Yield.get()

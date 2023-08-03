@@ -719,15 +719,6 @@ class ExtFOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ExtUIOp(IRDLOperation):
-    name = "arith.extui"
-
-    input: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(IntegerType)
-
-
-
-@irdl_op_definition
 class TruncFOp(IRDLOperation):
     name = "arith.truncf"
 
@@ -754,11 +745,12 @@ class TruncIOp(IRDLOperation):
         return super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
+        assert isinstance(self.input.type, IntegerType)
+        assert isinstance(self.result.type, IntegerType)
         if not self.result.type.width.data < self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be smaller than the input bit-width"
             )
-
 
 
 @irdl_op_definition
@@ -783,6 +775,8 @@ class ExtUIOp(IRDLOperation):
         return super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
+        assert isinstance(self.input.type, IntegerType)
+        assert isinstance(self.result.type, IntegerType)
         if not self.result.type.width.data > self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be larger than the input bit-width"

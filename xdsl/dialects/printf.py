@@ -108,7 +108,7 @@ class PrintCharOp(IRDLOperation):
         """
         assert len(char) == 1, "Only single characters are supported"
         ascii_value = ord(char)
-        assert ascii_value < 255, "Only ascii characters are supported"
+        assert ascii_value < 128, "Only ascii characters are supported"
         char_constant = arith.Constant.from_int_and_width(ascii_value, i8)
         return PrintCharOp((char_constant,))
 
