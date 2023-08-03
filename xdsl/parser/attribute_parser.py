@@ -626,7 +626,7 @@ class AttrParser(BaseParser):
                 f"shape from the type, but got {shape} shape."
             )
         if any(dim == -1 for dim in type_shape):
-            self.raise_error(f"Dense literal attribute should have a static shape.")
+            self.raise_error("Dense literal attribute should have a static shape.")
 
         element_type = type.element_type
         # Convert list of elements to a list of values.

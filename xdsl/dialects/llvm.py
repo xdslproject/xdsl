@@ -989,7 +989,7 @@ class CallingConventionAttr(ParametrizedAttribute):
             if parser.parse_optional_characters(conv) is not None:
                 parser.parse_characters(">")
                 return [StringAttr(conv)]
-        parser.raise_error(f"Unknown calling convention")
+        parser.raise_error("Unknown calling convention")
 
 
 @irdl_op_definition
