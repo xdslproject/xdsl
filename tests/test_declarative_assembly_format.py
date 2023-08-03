@@ -102,7 +102,7 @@ def test_expected_attr_dict():
     with pytest.raises(PyRDLOpDefinitionError, match="'attr-dict' directive not found"):
 
         @irdl_op_definition
-        class NoAttrDictOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoAttrDictOp0(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_attr_dict"
 
             assembly_format = ""
@@ -116,7 +116,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoAttrDictOp1(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict attr-dict"
@@ -126,7 +126,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoAttrDictOp2(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict attr-dict-with-keyword"
@@ -136,7 +136,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoAttrDictOp3(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict-with-keyword attr-dict"
@@ -146,7 +146,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoAttrDictOp4(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict-with-keyword attr-dict-with-keyword"

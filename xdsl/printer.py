@@ -405,8 +405,9 @@ class Printer:
             return
 
         if isinstance(attribute, ArrayAttr):
+            attribute = cast(ArrayAttr[Attribute], attribute)
             self.print_string("[")
-            self.print_list(attribute.data, self.print_attribute)  # type: ignore
+            self.print_list(attribute.data, self.print_attribute)
             self.print_string("]")
             return
 

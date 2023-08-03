@@ -245,10 +245,10 @@ class OperandOp(IRDLOperation):
 
 def test_operand_accessors():
     """Test accessors for operands."""
-    operand1 = OpResult(i32, None, None)  # type: ignore
-    operand2 = OpResult(i32, None, None)  # type: ignore
-    operand3 = OpResult(i32, None, None)  # type: ignore
-    operand4 = OpResult(i32, None, None)  # type: ignore
+    operand1 = TestSSAValue(i32)
+    operand2 = TestSSAValue(i32)
+    operand3 = TestSSAValue(i32)
+    operand4 = TestSSAValue(i32)
 
     op = OperandOp.build(operands=[operand1, [operand2], [operand3, operand4]])
     assert op.operand is op.operands[0]

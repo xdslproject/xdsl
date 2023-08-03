@@ -289,8 +289,7 @@ class OpResult(SSAValue):
     def __eq__(self, other: object) -> bool:
         return self is other
 
-    # This might be problematic, as the superclass is not hashable ...
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         return id(self)
 
 
@@ -319,7 +318,7 @@ class BlockArgument(SSAValue):
     def __eq__(self, other: object) -> bool:
         return self is other
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         return id(self)
 
 
@@ -336,7 +335,7 @@ class ErasedSSAValue(SSAValue):
     def owner(self) -> Operation | Block:
         return self.old_value.owner
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         return hash(id(self))
 
 
