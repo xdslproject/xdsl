@@ -157,7 +157,7 @@ def test_memref_load():
             v2 = UnrealizedConversionCastOp.get([i], (REGISTER_TYPE,))
             v4 = riscv.AddOp(v1.results[0], v2.results[0])
             v5 = riscv.LwOp(v4, 0, comment="load value from memref of shape (2,)")
-            _ = UnrealizedConversionCastOp.get([v5], (REGISTER_TYPE,))
+            _ = UnrealizedConversionCastOp.get([v5], (f64,))
 
     LowerMemrefToRiscv().apply(MLContext(), simple_load)
     assert f"{expected}" == f"{simple_load}"
