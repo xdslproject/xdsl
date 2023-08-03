@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
 from xdsl.dialects import (
     affine,
     arith,
@@ -101,7 +102,7 @@ def transform(
     # When the commented passes are uncommented, we can print RISC-V assembly
 
     SetupRiscvPass().apply(ctx, module_op)
-    # LowerFuncToRiscvFunc().apply(ctx, module_op)
+    LowerFuncToRiscvFunc().apply(ctx, module_op)
     LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
     # LowerPrintfRiscvPass().apply(ctx, module_op)
