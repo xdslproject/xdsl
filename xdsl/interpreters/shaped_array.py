@@ -4,7 +4,7 @@ import operator
 from dataclasses import dataclass
 from itertools import accumulate, product
 from math import prod
-from typing import Any, Generic, Iterable, TypeAlias, TypeVar, cast
+from typing import Generic, Iterable, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
