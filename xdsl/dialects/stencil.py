@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from operator import add, lt, neg
 from typing import Generic, Iterable, Iterator, Sequence, TypeVar, cast
 
@@ -344,6 +345,29 @@ class ApplyOp(IRDLOperation):
         res_type = self.res[0].type
         assert isa(res_type, TempType[Attribute])
         return res_type.get_num_dims()
+
+    def get_accesses(self) -> Iterable[AccessPattern]:
+        """
+        Return the access patterns of each input.
+
+        An access is a tuple if offsets: tuple[int, ...]
+        An access pattern is a sequence of accesses: Sequence[tuple[int, ...], ...]
+        This method returns an access pattern for each stencil field the apply operates
+        on.
+        """
+        for arg in self.region.block.args:
+            accesses: list[tuple[int, ...]] = []
+            for use in arg.uses:
+                if not isinstance(use.operation, AccessOp):
+                    continue
+                access: AccessOp = use.operation
+                offsets = tuple(access.offset)
+                if access.offset_mapping is not None:
+                    offset_mapping = tuple(x.data for x in access.offset_mapping)
+                    new_offsets = tuple(offsets[i] for i in offset_mapping)
+                    offsets = new_offsets
+                accesses.append(offsets)
+            yield AccessPattern(tuple(accesses))
 
 
 @irdl_op_definition
@@ -729,6 +753,66 @@ class ReturnOp(IRDLOperation):
                 "stencil.return expected operand types to match the parent "
                 "stencil.apply result element types."
             )
+
+
+@dataclass(frozen=True)
+class AccessPattern:
+    """
+    Represents access patterns of a stencil apply operation.
+
+    Contains a bunch of helpers to get common information about accesses.
+    """
+
+    accesses: tuple[tuple[int, ...], ...]
+
+    @property
+    def dims(self):
+        if not self.accesses:
+            return 0
+        return len(self.accesses[0])
+
+    @property
+    def is_diagonal(self) -> bool:
+        for _ in self.get_diagonals():
+            return True
+        return False
+
+    def get_diagonals(self) -> Iterable[tuple[int, ...]]:
+        for ax in self.accesses:
+            # number of nonzero offset > 1 => diagonal
+            if sum(1 if x != 0 else 0 for x in ax) > 1:
+                yield ax
+
+    def extent_in_axis(self, axis: int) -> tuple[int, int]:
+        left, right = 0, 0
+        for ax in self.accesses:
+            left = min(ax[axis], left)
+            right = max(ax[axis], right)
+        return left, right
+
+    def halos(self) -> tuple[tuple[int, int], ...]:
+        n = self.dims
+        lefts, rights = [0] * n, [0] * n
+        for ax in self.accesses:
+            for axis in range(n):
+                lefts[axis] = min(ax[axis], lefts[axis])
+                rights[axis] = max(ax[axis], rights[axis])
+        return tuple(zip(lefts, rights))
+
+    def visual_pattern(self) -> str:
+        if self.dims == 0:
+            return "O"
+        if self.dims > 2:
+            return "Too many dimensions in access"
+        x_axis_halo, y_axis_halo = self.halos()
+        points = [
+            [" " for _ in range(y_axis_halo[1] - y_axis_halo[0] + 1)]
+            for __ in range(x_axis_halo[1] - x_axis_halo[0] + 1)
+        ]
+        points[-y_axis_halo[0]][-x_axis_halo[0]] = "O"
+        for access in self.accesses:
+            points[access[1] - y_axis_halo[0]][access[0] - x_axis_halo[0]] = "X"
+        return "\n".join("".join(row) for row in points)
 
 
 Stencil = Dialect(
