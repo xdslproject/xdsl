@@ -600,11 +600,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        match self.immediate:
-            case IntegerAttr():
-                printer.print(self.immediate.value.data)
-            case LabelAttr():
-                printer.print_string_literal(self.immediate.data)
+        _print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -661,11 +657,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        match self.immediate:
-            case IntegerAttr():
-                printer.print(self.immediate.value.data)
-            case LabelAttr():
-                printer.print_string_literal(self.immediate.data)
+        _print_immediate_value(printer, self.immediate)
         if self.rd is not None:
             printer.print(", ")
             printer.print_attribute(self.rd)
@@ -808,11 +800,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        match self.immediate:
-            case IntegerAttr():
-                printer.print(self.immediate.value.data)
-            case LabelAttr():
-                printer.print_string_literal(self.immediate.data)
+        _print_immediate_value(printer, self.immediate)
         if self.rd is not None:
             printer.print(", ")
             printer.print_attribute(self.rd)
@@ -3111,6 +3099,14 @@ def _parse_immediate_value(
         lambda: _parse_optional_immediate_value(parser, integer_type),
         "Expected immediate",
     )
+
+
+def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
+    match immediate:
+        case IntegerAttr():
+            printer.print(immediate.value.data)
+        case LabelAttr():
+            printer.print_string_literal(immediate.data)
 
 
 RISCV = Dialect(
