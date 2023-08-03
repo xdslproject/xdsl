@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.builder import Builder, ImplicitBuilder
+from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, func, memref, scf
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
@@ -31,7 +31,6 @@ from xdsl.dialects.memref import (
 )
 from xdsl.ir import Attribute, OpResult
 from xdsl.ir.core import BlockArgument
-from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
