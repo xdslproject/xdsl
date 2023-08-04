@@ -14,8 +14,6 @@ from xdsl.pattern_rewriter import (
 class RemoveRedundantMv(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MVOp, rewriter: PatternRewriter) -> None:
-        assert isinstance(op.rd.type, riscv.IntRegisterType), op.rd.type
-        assert isinstance(op.rs.type, riscv.IntRegisterType), op.rs.type
         if op.rd.type == op.rs.type:
             rewriter.replace_matched_op([], [op.rs])
 
