@@ -6,7 +6,9 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
@@ -161,9 +163,7 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
 
 class AllocateRISCVFunction(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: riscv_func.FuncOp, rewriter: PatternRewriter
-    ) -> None:
+    def match_and_rewrite(self, op: riscv_func.FuncOp, _: PatternRewriter) -> None:
         register_allocate_function(op)
 
 
@@ -176,4 +176,11 @@ class RVSCFRegisterAllocation(ModulePass):
     name = "rvscf-allocate-registers"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        pass
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    AllocateRISCVFunction(),
+                ]
+            ),
+            apply_recursively=False,
+        ).rewrite_module(op)
