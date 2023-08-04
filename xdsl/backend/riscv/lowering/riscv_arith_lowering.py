@@ -4,6 +4,7 @@ from typing import overload
 from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_float_regs,
     cast_operands_to_int_regs,
+    cast_results_from_int_regs,
 )
 from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
@@ -224,6 +225,7 @@ class LowerArithCmpi(RewritePattern):
     def match_and_rewrite(self, op: arith.Cmpi, rewriter: PatternRewriter) -> None:
         # based on https://github.com/llvm/llvm-project/blob/main/llvm/test/CodeGen/RISCV/i32-icmp.ll
         lhs, rhs = cast_operands_to_int_regs(rewriter)
+        cast_results_from_int_regs(rewriter)
 
         match op.predicate.value.data:
             # eq
@@ -315,6 +317,7 @@ class LowerArithCmpf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpf, rewriter: PatternRewriter) -> None:
         lhs, rhs = cast_operands_to_float_regs(rewriter)
+        cast_results_from_int_regs(rewriter)
 
         match op.predicate.value.data:
             # false
