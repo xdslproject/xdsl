@@ -19,7 +19,7 @@ from xdsl.irdl import (
 
 from typing import TypeVar
 
-from xdsl.dialects.builtin import IntegerType
+from xdsl.dialects.builtin import IntegerType, DenseArrayBase
 from xdsl.traits import IsTerminator
 
 _StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True)
@@ -135,6 +135,30 @@ class HLSStreamRead(IRDLOperation):
         super().__init__(operands=[stream], result_types=[stream.typ.element_type])
 
 
+@irdl_op_definition
+class HLSExtractStencilValue(IRDLOperation):
+    name = "hls.extract_stencil_value"
+
+    position: DenseArrayBase = attr_def(DenseArrayBase)
+    container: Operand = operand_def(Attribute)
+
+    res: OpResult = result_def(Attribute)
+
+    def __init__(
+        self,
+        position: DenseArrayBase,
+        container: SSAValue | Operation,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[container],
+            attributes={
+                "position": position,
+            },
+            result_types=[result_type],
+        )
+
+
 HLS = Dialect(
     [
         PragmaPipeline,
@@ -145,6 +169,7 @@ HLS = Dialect(
         HLSStreamWrite,
         HLSStreamRead,
         HLSYield,
+        HLSExtractStencilValue,
     ],
     [HLSStreamType],
 )

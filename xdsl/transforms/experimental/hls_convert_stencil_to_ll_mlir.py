@@ -43,6 +43,7 @@ from xdsl.dialects.experimental.hls import (
     PragmaDataflow,
     PragmaPipeline,
     HLSYield,
+    HLSExtractStencilValue,
 )
 
 from xdsl.dialects.memref import MemRefType
@@ -257,6 +258,28 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         ndims = len(field.typ.get_shape())
         if inout is IN and ndims == 3:
+            # @Builder.region
+            # def data_stream_df_region(builder: Builder):
+            #    builder.insert(data_stream)
+            #    hls_yield_op = HLSYield.get()
+            #    builder.insert(hls_yield_op)
+
+            # @Builder.region
+            # def stencil_stream_df_region(builder: Builder):
+            #    builder.insert(stencil_stream)
+            #    hls_yield_op = HLSYield.get()
+            #    builder.insert(hls_yield_op)
+
+            # @Builder.region
+            # def copy_stream_df_region(builder: Builder):
+            #    builder.insert(copy_stencil_stream)
+            #    hls_yield_op = HLSYield.get()
+            #    builder.insert(hls_yield_op)
+
+            # data_stream_df = PragmaDataflow(data_stream_df_region)
+            # stencil_stream_df = PragmaDataflow(stencil_stream_df_region)
+            # copy_stream_df = PragmaDataflow(copy_stream_df_region)
+
             rewriter.insert_op_before_matched_op(
                 [
                     data_stream,
@@ -564,6 +587,8 @@ def transform_apply_into_loop(
     y_for_op.operands = (
         [old_operands_lst[0]] + [chunk_size_y_1.results[0]] + old_operands_lst[2:]
     )
+
+    p.attributes["compute_loop"] = IntAttr(1)
 
     @Builder.region
     def p_region(builder: Builder):
@@ -877,7 +902,13 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
                 i64, [0] + access_idx
             )
 
-            stencil_value = ExtractValueOp(access_idx_array, result_hls_read, f64)
+            # stencil_value = ExtractValueOp(access_idx_array, result_hls_read, f64)
+            stencil_value = HLSExtractStencilValue(
+                access_idx_array, result_hls_read, f64
+            )
+            # values = GEPOp.get(
+            #    result_hls_read, [0,0], result_type=result_hls_read.typ
+            # )
             # dummy_element = Constant.from_float_and_width(5.0, f64)
 
             rewriter.replace_matched_op(stencil_value)
@@ -889,11 +920,9 @@ class StencilStoreToSubview(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         stores = [o for o in op.walk() if isinstance(o, stencil.StoreOp)]
-        print("----> STORES: ", stores)
 
         for store in stores:
             field = store.field
-            print("----> FIELD: ", field)
             assert isa(field.typ, FieldType[Attribute])
             assert isa(field.typ.bounds, StencilBoundsAttr)
             temp = store.temp
@@ -1140,6 +1169,7 @@ class PackDataInStencilField(RewritePattern):
 class CreateLocalCopyOfCoefficients(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
+        op.attributes["main"] = IntAttr(1)
         packed_type = LLVMPointerType.typed(
             LLVMStructType.from_type_list([LLVMArrayType.from_size_and_type(8, f64)])
         )
@@ -1159,7 +1189,6 @@ class CreateLocalCopyOfCoefficients(RewritePattern):
         loop_body = []
 
         for coeff in coefficients:
-            print(coeff)
             local_copy = AllocaOp.get(size, coeff.typ.type)
             addr_local_copy = AllocaOp.get(one, coeff.typ)
             addr_original = AllocaOp.get(one, coeff.typ)
@@ -1220,6 +1249,105 @@ class CreateLocalCopyOfCoefficients(RewritePattern):
         rewriter.insert_op_at_start([*pre_loop, for_local_copy], op.body.blocks[0])
 
 
+def get_stencil_load(op: Operation):
+    if isinstance(op, stencil.LoadOp):
+        return op
+
+    for use in op.results[0].uses:
+        get_stencil_load(use.operation)
+
+
+def walk_down(op: Operation, rewriter: PatternRewriter):
+    if isinstance(op, ExternalLoadOp):
+        field = op.field.typ
+
+        dim = len(field.shape.data)
+        if (
+            dim == 1
+        ):  # We want to replace the corresponding temps for these coefficients by these memrefs, so they are accessed directly
+            print("SHAPE: ", field.shape.data[0])
+            load = get_stencil_load(op)
+            # print("SUBVIEW: ", subview)
+
+    else:
+        if op.results:
+            for use in op.results[0].uses:
+                # print("---> USE OP: ", use.operation)
+                walk_down(use.operation)
+
+
+# We create copies for all the coefficients. We create more than one copy where necesssary
+@dataclass
+class GetRepeatedCoefficients(RewritePattern):
+    original_memref_lst: list[memref.Cast]
+    clone_memref_lst: list[memref.Alloca]
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.Subview, rewriter: PatternRewriter, /):
+        cast = op.source.op  # original memref
+        clone_cast = cast.clone()
+
+        dim = len(cast.dest.typ.shape.data)
+        size = cast.dest.typ.shape.data[0].value.data
+        if dim == 1:
+            uses_copy = set(op.results[0].uses)
+            for use in uses_copy:
+                if isinstance(use.operation, memref.Load):
+                    memref_copy = memref.Alloca.get(
+                        return_type=f64, shape=cast.dest.typ.shape
+                    )
+                    use.operation.operands[0] = memref_copy.results[0]
+                    rewriter.insert_op_before_matched_op(memref_copy)
+
+                    self.original_memref_lst.append(cast)
+                    self.clone_memref_lst.append(memref_copy)
+                elif isinstance(use.operation, stencil.ApplyOp):
+                    op.results[0].remove_use(use)
+
+            rewriter.erase_matched_op()
+
+
+@dataclass
+class MakeLocaCopiesOfCoefficients(RewritePattern):
+    original_memref_lst: list[memref.Cast]
+    clone_memref_lst: list[memref.Alloca]
+    inserted_already = False
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: PragmaDataflow, rewriter: PatternRewriter, /):
+        if (
+            "compute_loop" in op.body.blocks[0].first_op.attributes
+            and not self.inserted_already
+        ):
+            dim = len(self.original_memref_lst[0].dest.typ.shape.data)
+
+            lb = Constant.from_int_and_width(0, IndexType())
+            ub = Constant.from_int_and_width(dim, IndexType())
+            step = Constant.from_int_and_width(1, IndexType())
+
+            ii = Constant.from_int_and_width(1, i32)
+
+            @Builder.region([IndexType()])
+            def for_body(builder: Builder, args: tuple[BlockArgument, ...]):
+                hls_pipeline_op = PragmaPipeline(ii)
+                builder.insert(hls_pipeline_op)
+                for i in range(len(self.original_memref_lst)):
+                    load_op = memref.Load.get(self.original_memref_lst[i], args[0])
+                    store_op = memref.Store.get(
+                        load_op, self.clone_memref_lst[i], args[0]
+                    )
+                    builder.insert(load_op)
+                    builder.insert(store_op)
+
+                yield_op = scf.Yield.get()
+                builder.insert(yield_op)
+
+            for_local_copies = scf.For.get(lb, ub, step, [], for_body)
+            rewriter.insert_op_before_matched_op([lb, ub, step, ii, for_local_copies])
+
+            self.inserted_already = True
+
+
 @dataclass
 class HLSConvertStencilToLLMLIRPass(ModulePass):
     name = "hls-convert-stencil-to-ll-mlir"
@@ -1263,7 +1391,7 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
             apply_recursively=False,
             walk_reverse=False,
         )
-        local_copies.rewrite_module(op)
+        # local_copies.rewrite_module(op)
 
         hls_pass = PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
@@ -1336,3 +1464,28 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
             walk_reverse=False,
         )
         clean_apply_pass.rewrite_module(op)
+
+        original_memref_lst: list[memref.Cast] = []
+        clone_memref_lst: list[memref.Alloca] = []
+
+        get_repeated = PatternRewriteWalker(
+            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+            GreedyRewritePatternApplier(
+                [
+                    GetRepeatedCoefficients(original_memref_lst, clone_memref_lst),
+                ]
+            ),
+            apply_recursively=True,
+            walk_reverse=True,
+        )
+        get_repeated.rewrite_module(op)
+
+        make_local_copies = PatternRewriteWalker(
+            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+            GreedyRewritePatternApplier(
+                [MakeLocaCopiesOfCoefficients(original_memref_lst, clone_memref_lst)]
+            ),
+            apply_recursively=True,
+            walk_reverse=False,
+        )
+        make_local_copies.rewrite_module(op)

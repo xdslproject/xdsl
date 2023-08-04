@@ -11,7 +11,7 @@ from xdsl.ir import Block, MLContext, Region, Operation, OpResult
 from xdsl.irdl import VarOperand, VarOpResult
 from xdsl.dialects.func import FuncOp, Return, Call
 from xdsl.dialects import builtin, func
-from xdsl.dialects.builtin import i32, IndexType
+from xdsl.dialects.builtin import i32, IndexType, f64
 from xdsl.dialects.arith import Constant
 
 from xdsl.dialects.experimental.hls import (
@@ -22,6 +22,7 @@ from xdsl.dialects.experimental.hls import (
     HLSStreamRead,
     HLSStreamWrite,
     HLSYield,
+    HLSExtractStencilValue,
 )
 from xdsl.dialects import llvm
 from xdsl.dialects.llvm import (
@@ -39,6 +40,7 @@ from xdsl.dialects.scf import ParallelOp, For, Yield
 
 from typing import cast, Any
 from xdsl.utils.hints import isa
+from xdsl.builder import Builder
 
 
 @dataclass
@@ -137,10 +139,24 @@ class LowerHLSStreamRead(RewritePattern):
 
             pop_call = func.Call.get("llvm.fpga.fifo.pop.stencil", [gep], [op.res.typ])
 
+        current_parent = op.parent_op()
+        while not isinstance(current_parent, FuncOp):
+            current_parent = current_parent.parent_op()
+            # print("----> PARENT OP: ", current_parent)
+
         store = StoreOp.get(pop_call, alloca)
         load = LoadOp.get(alloca)
 
-        rewriter.replace_matched_op([size, alloca, gep, pop_call, store, load])
+        # rewriter.insert_op_at_start(alloca, current_parent.body.blocks[0])
+        current_parent.body.blocks[0].insert_op_before(
+            alloca, current_parent.body.blocks[0].first_op
+        )
+        current_parent.body.blocks[0].insert_op_before(
+            size, current_parent.body.blocks[0].first_op
+        )
+
+        # rewriter.replace_matched_op([size, alloca, gep, pop_call, store, load])
+        rewriter.replace_matched_op([gep, pop_call, store, load])
 
 
 @dataclass
@@ -148,6 +164,8 @@ class LowerHLSStreamToAlloca(RewritePattern):
     def __init__(self, op: builtin.ModuleOp):
         self.module = op
         self.set_stream_depth_declaration = False
+        self.set_stream_size_qualifier_double_declaration = False
+        self.set_stream_size_qualifier_stencil_declaration = False
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStream, rewriter: PatternRewriter, /):
@@ -158,6 +176,9 @@ class LowerHLSStreamToAlloca(RewritePattern):
             uses.append(use)
 
         hls_elem_type = op.elem_type
+        stream_type = LLVMPointerType.typed(
+            LLVMStructType.from_type_list([hls_elem_type])
+        )
 
         if not self.set_stream_depth_declaration:
             stream_depth_func = llvm.FuncOp(
@@ -167,10 +188,16 @@ class LowerHLSStreamToAlloca(RewritePattern):
             )
             self.module.body.block.add_op(stream_depth_func)
 
+            # sideeffect_func = llvm.FuncOp(
+            #    llvm.LLVMFunctionType([]),
+            #    linkage=llvm.LinkageAttr("external")
+            # )
+            # self.module.body.block.add_op(sideeffect_func)
+
             self.set_stream_depth_declaration = True
 
         # As can be seen on the compiled synthetic stream benchmark of the FPL paper
-        size = Constant.from_int_and_width(512, i32)
+        size = Constant.from_int_and_width(1, i32)
         alloca = AllocaOp.get(size, LLVMStructType.from_type_list([hls_elem_type]))
         gep = GEPOp.get(
             alloca, [0, 0], result_type=LLVMPointerType.typed(hls_elem_type)
@@ -178,7 +205,44 @@ class LowerHLSStreamToAlloca(RewritePattern):
         depth = Constant.from_int_and_width(0, i32)
         depth_call = llvm.CallOp("llvm.fpga.set.stream.depth", gep, depth)
 
-        rewriter.insert_op_after_matched_op([depth, gep, depth_call])
+        stream_size = Constant.from_int_and_width(32, i32)
+
+        if hls_elem_type == f64:
+            stream_size_call = Call.get(
+                "stream_size_qualifier_double", [op, stream_size], []
+            )
+            if not self.set_stream_size_qualifier_double_declaration:
+                stream_size_qualifier_double = FuncOp.external(
+                    "stream_size_qualifier_double", [stream_type, i32], []
+                )
+                self.module.body.block.add_op(stream_size_qualifier_double)
+                self.set_stream_size_qualifier_double_declaration = True
+        else:
+            stream_size_call = Call.get(
+                "stream_size_qualifier_stencil", [op, stream_size], []
+            )
+            if not self.set_stream_size_qualifier_stencil_declaration:
+                stream_size_qualifier_double = FuncOp.external(
+                    "stream_size_qualifier_stencil", [stream_type, i32], []
+                )
+                self.module.body.block.add_op(stream_size_qualifier_double)
+                self.set_stream_size_qualifier_stencil_declaration = True
+
+        start_df_call = Call.get("_start_df_call", [], [i32])
+        end_df_call = Call.get("_end_df_call", [], [])
+
+        rewriter.insert_op_after_matched_op(
+            [
+                start_df_call,
+                depth,
+                gep,
+                depth_call,
+                stream_size,
+                stream_size_call,
+                end_df_call,
+            ]
+        )
+        # rewriter.insert_op_after_matched_op([depth, gep, depth_call])
         rewriter.replace_matched_op([size, alloca])
 
         for use in uses:
@@ -370,6 +434,68 @@ class LowerDataflow(RewritePattern):
 
 
 @dataclass
+class LowerHLSExtractStencilValue(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: HLSExtractStencilValue, rewriter: PatternRewriter, /
+    ):
+        # print("----> CONTAINER: ", op.container.op.ptr)
+        # print("----> INDICES: ", [attr.data for attr in op.position.data])
+        indices = [attr.data for attr in op.position.data]
+
+        stencil = op.container.op.ptr
+        # result_hls_read = op.container
+        # p_stencil = op.container.
+        struct_types = stencil.typ.type.types
+        array_type = struct_types.data[0]
+        values = GEPOp.get(
+            stencil, [0, 0], result_type=LLVMPointerType.typed(array_type)
+        )
+        # print("---> TYPE: ", array_type.type)
+        first_array = GEPOp.get(
+            values, [0, indices[1]], result_type=LLVMPointerType.typed(array_type.type)
+        )
+        second_array = GEPOp.get(
+            first_array,
+            [0, indices[2]],
+            result_type=LLVMPointerType.typed(array_type.type.type),
+        )
+        third_array = GEPOp.get(
+            second_array,
+            [0, indices[3]],
+            result_type=LLVMPointerType.typed(array_type.type.type.type),
+        )
+        point = LoadOp.get(third_array)
+
+        # print("---> VALUES: ", values)
+        # print("---> FIRST ARRAY: ", first_array)
+        # print("---> SECOND ARRAY: ", second_array)
+        # print("---> THIRD ARRAY: ", third_array)
+        # print("---> POINT: ", point)
+
+        rewriter.replace_matched_op(
+            [values, first_array, second_array, third_array, point]
+        )
+
+
+@dataclass
+class GetHLSStreamInDataflow(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: HLSStream, rewriter: PatternRewriter, /):
+        hls_yield = HLSYield.get()
+
+        @Builder.region
+        def empty_region(builder: Builder):
+            builder.insert(hls_yield)
+
+        dataflow = PragmaDataflow(empty_region)
+        rewriter.insert_op_before_matched_op(dataflow)
+        op.detach()
+        dataflow.body.blocks[0].insert_op_before(op, hls_yield)
+        print("------> OP: ", op)
+
+
+@dataclass
 class LowerHLSPass(ModulePass):
     name = "lower-hls"
 
@@ -390,6 +516,13 @@ class LowerHLSPass(ModulePass):
 
             return walkers
 
+        hlsstream_df = PatternRewriteWalker(
+            GreedyRewritePatternApplier([GetHLSStreamInDataflow()]),
+            apply_recursively=False,
+            walk_reverse=False,
+        )
+        # hlsstream_df.rewrite_module(op)
+
         walkers = gen_greedy_walkers(
             [
                 # SCFParallelToHLSPipelinedFor(),
@@ -400,6 +533,7 @@ class LowerHLSPass(ModulePass):
                 LowerHLSStreamToAlloca(op),
                 LowerHLSStreamRead(op),
                 LowerHLSStreamWrite(op),
+                LowerHLSExtractStencilValue(),
             ]
         )
 
