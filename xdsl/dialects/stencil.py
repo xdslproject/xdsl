@@ -350,18 +350,23 @@ class ApplyOp(IRDLOperation):
         """
         Return the access patterns of each input.
 
-        An access is a tuple if offsets: tuple[int, ...]
-        An access pattern is a sequence of accesses: Sequence[tuple[int, ...], ...]
-        This method returns an access pattern for each stencil field the apply operates
-        on.
+         - An offset is a tuple describing a relative access
+         - An access pattern is a class wrappoing a sequence of offsets
+         - This method returns an access pattern for each stencil
+           field of the apply operation.
         """
+        # iterate over the block arguments
         for arg in self.region.block.args:
             accesses: list[tuple[int, ...]] = []
+            # walk the uses of the argument
             for use in arg.uses:
+                # filter out all non access ops
                 if not isinstance(use.operation, AccessOp):
                     continue
                 access: AccessOp = use.operation
+                # grab the offsets as a tuple[int, ...]
                 offsets = tuple(access.offset)
+                # account for offset_mappings:
                 if access.offset_mapping is not None:
                     offset_mapping = tuple(x.data for x in access.offset_mapping)
                     new_offsets = tuple(offsets[i] for i in offset_mapping)
@@ -760,58 +765,100 @@ class AccessPattern:
     """
     Represents access patterns of a stencil apply operation.
 
-    Contains a bunch of helpers to get common information about accesses.
+    Contains helpers to get common information about accesses such as diagonals.
     """
 
-    accesses: tuple[tuple[int, ...], ...]
+    offsets: tuple[tuple[int, ...], ...]
 
     @property
     def dims(self):
-        if not self.accesses:
+        """
+        Dimensionality of the accesses.
+        """
+        if not self.offsets:
             return 0
-        return len(self.accesses[0])
+        return len(self.offsets[0])
 
     @property
     def is_diagonal(self) -> bool:
+        """
+        Check if the access pattern has diagonal accesses.
+        """
         for _ in self.get_diagonals():
             return True
         return False
 
-    def get_diagonals(self) -> Iterable[tuple[int, ...]]:
-        for ax in self.accesses:
-            # number of nonzero offset > 1 => diagonal
-            if sum(1 if x != 0 else 0 for x in ax) > 1:
+    def get_diagonals(self, degree: int = 2) -> Iterable[tuple[int, ...]]:
+        """
+        Returns all offsets that have <degree=2> or more non-zero entries.
+
+        For <degree> >= 2 this makes them diagonals.
+
+        For <degree> = 1 it returns all accesses that are nonzero.
+        """
+        for ax in self.offsets:
+            # get the number of nonzero entries in offset
+            if sum(1 if x != 0 else 0 for x in ax) >= degree:
                 yield ax
 
-    def extent_in_axis(self, axis: int) -> tuple[int, int]:
+    def halo_in_axis(self, axis: int) -> tuple[int, int]:
+        """
+        Returns the minimum and maximum access distance for a single axis.
+        """
         left, right = 0, 0
-        for ax in self.accesses:
+        for ax in self.offsets:
             left = min(ax[axis], left)
             right = max(ax[axis], right)
         return left, right
 
     def halos(self) -> tuple[tuple[int, int], ...]:
+        """
+        Return a tuple containing the maximum and minimum offsets in each axis.
+        E.g. ((-2, 2), (-1, 1)) represents a pattern that accesses cells at most
+        (-2, 2) away in the x-axis, and -1, 1 away in the y-axis.
+        """
         n = self.dims
         lefts, rights = [0] * n, [0] * n
-        for ax in self.accesses:
+        for ax in self.offsets:
             for axis in range(n):
                 lefts[axis] = min(ax[axis], lefts[axis])
                 rights[axis] = max(ax[axis], rights[axis])
         return tuple(zip(lefts, rights))
 
     def visual_pattern(self) -> str:
+        """
+        Returns a visual equivalent of the access pattern, only works for 1d and 2d.
+
+        Returns patterns where O signifies the center point and X represents an access.
+        E.g.:
+
+         X
+        XOX
+         X
+
+        For a 2d-4pt stencil.
+        """
+        # handle special cases:
         if self.dims == 0:
             return "O"
-        if self.dims > 2:
+        elif self.dims > 2:
             return "Too many dimensions in access"
-        x_axis_halo, y_axis_halo = self.halos()
+        elif self.dims == 1:
+            halos = (self.halo_in_axis(0), (0, 0))
+        else:
+            halos = self.halos()
+        x_axis_halo, y_axis_halo = halos
+        # construct a matrix of the required size:
         points = [
             [" " for _ in range(y_axis_halo[1] - y_axis_halo[0] + 1)]
             for __ in range(x_axis_halo[1] - x_axis_halo[0] + 1)
         ]
+        # set the center point:
         points[-x_axis_halo[0]][-y_axis_halo[0]] = "O"
-        for access in self.accesses:
+        # set each access:
+        for access in self.offsets:
             points[access[0] - x_axis_halo[0]][access[1] - y_axis_halo[0]] = "X"
+        # construct the string:
         return "\n".join("".join(row) for row in points)
 
 
