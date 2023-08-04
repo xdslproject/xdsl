@@ -39,6 +39,27 @@ builtin.module {
 
 builtin.module {   
   "riscv_func.func"() ({
+  ^0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>):
+    %2 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<>
+    %3 = riscv.mv %1 : (!riscv.reg<a1>) -> !riscv.reg<>
+    %4 = riscv.li 1 : () -> !riscv.reg<>
+    %55 = riscv.li 0 : () -> !riscv.reg<>
+    %5 = riscv.fcvt.s.w %55 : (!riscv.reg<>) -> !riscv.freg<>
+    %6 = "riscv_scf.for"(%2, %3, %4, %5) ({
+    ^1(%7 : !riscv.reg<>, %8 : !riscv.freg<>):
+      %99 = riscv.fcvt.s.w %7 : (!riscv.reg<>) -> !riscv.freg<>
+      %9 = riscv.fadd.s %8, %99 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+      "riscv_scf.yield"(%9) : (!riscv.freg<>) -> ()
+    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.freg<>) -> !riscv.freg<>
+    %10 = riscv.fcvt.w.s %6 : (!riscv.freg<>) -> !riscv.reg<a0>
+    "riscv_func.return"(%10) : (!riscv.reg<a0>) -> ()
+  }) {"sym_name" = "foo"} : () -> ()
+}
+
+// -----
+
+builtin.module {   
+  "riscv_func.func"() ({
   ^0(%arg0 : !riscv.reg<a0>):
     %0 = riscv.li 0 : () -> !riscv.reg<>
     %2 = riscv.li 0 : () -> !riscv.reg<>

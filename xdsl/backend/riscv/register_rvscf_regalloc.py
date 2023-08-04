@@ -128,7 +128,7 @@ def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
     # if the lb has no other uses, use it as the loop counter otherwise
     # grab a free register for the loop counter (from the inner context)
     loop_counter_reg = op.lb.type if len(op.lb.uses) == 1 else inner_ctx.free_int_reg()
-    assert isinstance(loop_counter_reg, riscv.RISCVRegisterType)
+    assert isinstance(loop_counter_reg, riscv.IntRegisterType)
 
     iter_val = op.body.block.args[0]
     iter_val.type = loop_counter_reg
