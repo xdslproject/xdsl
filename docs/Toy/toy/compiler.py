@@ -2,6 +2,7 @@ from pathlib import Path
 
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
 from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
+from xdsl.backend.riscv.lowering.scf_to_riscv_scf import ScfToRiscvPass
 from xdsl.dialects import (
     affine,
     arith,
@@ -103,8 +104,6 @@ def transform(
     if target == "scf":
         return
 
-    # When the commented passes are uncommented, we can print RISC-V assembly
-
     SetupRiscvPass().apply(ctx, module_op)
     LowerFuncToRiscvFunc().apply(ctx, module_op)
     LowerToyAccelerator().apply(ctx, module_op)
@@ -112,6 +111,7 @@ def transform(
     LowerPrintfRiscvPass().apply(ctx, module_op)
     CastArithFloatToInt().apply(ctx, module_op)
     RISCVLowerArith().apply(ctx, module_op)
+    ScfToRiscvPass().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
     ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 
