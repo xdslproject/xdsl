@@ -52,11 +52,21 @@ class RegAllocCtx:
             forbidden_vals={reg for reg, cnt in self.liveliness.items() if cnt > 0}
         )
 
-    def free_reg(self) -> riscv.IntRegisterType:
+    def free_int_reg(self) -> riscv.IntRegisterType:
         for reg in (
             *riscv.Registers.A,
             *riscv.Registers.T,
             *riscv.Registers.S,
+        ):
+            if reg not in self.forbidden_vals and self.liveliness[reg] == 0:
+                return reg
+        raise NotImplementedError("Out of registers, spilling not implemented")
+
+    def free_float_reg(self) -> riscv.FloatRegisterType:
+        for reg in (
+            *riscv.Registers.FA,
+            *riscv.Registers.FT,
+            *riscv.Registers.FS,
         ):
             if reg not in self.forbidden_vals and self.liveliness[reg] == 0:
                 return reg
@@ -84,7 +94,7 @@ def register_allocate_function(func: riscv_func.FuncOp):
 
     # register all function args and their liveliness
     for arg in func.func_body.blocks[0].args:
-        assert isinstance(arg.type, riscv.IntRegisterType)
+        assert isinstance(arg.type, riscv.RISCVRegisterType)
         assert arg.type.is_allocated
         ctx.add_reg(arg)
 
@@ -117,8 +127,8 @@ def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
 
     # if the lb has no other uses, use it as the loop counter otherwise
     # grab a free register for the loop counter (from the inner context)
-    loop_counter_reg = op.lb.type if len(op.lb.uses) == 1 else inner_ctx.free_reg()
-    assert isinstance(loop_counter_reg, riscv.IntRegisterType)
+    loop_counter_reg = op.lb.type if len(op.lb.uses) == 1 else inner_ctx.free_int_reg()
+    assert isinstance(loop_counter_reg, riscv.RISCVRegisterType)
 
     iter_val = op.body.block.args[0]
     iter_val.type = loop_counter_reg
@@ -140,7 +150,7 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
                 (riscv.RISCVOp,),
             ):
                 for result in op.results:
-                    assert isinstance(result.type, riscv.IntRegisterType)
+                    assert isinstance(result.type, riscv.RISCVRegisterType)
                     # keep track of the "alive" registers
                     for operand in op.operands:
                         ctx.register_use(operand)
@@ -148,7 +158,11 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
                     if result.type.is_allocated:
                         continue
                     # grab a free register and set it
-                    result.type = ctx.free_reg()
+                    result.type = (
+                        ctx.free_int_reg()
+                        if isinstance(result.type, riscv.IntRegisterType)
+                        else ctx.free_float_reg()
+                    )
                     ctx.add_reg(result)
             # the scf for loop has a special case function
             elif isinstance(op, riscv_scf.ForOp):
@@ -157,7 +171,8 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
                 if len(op.results) == 0:
                     continue
                 raise ValueError(
-                    f"SCF Register allocation for {op} with {op.results} is not implemented"
+                    f"SCF Register allocation for {op}"
+                    f"with {op.results} is not implemented"
                 )
 
 
