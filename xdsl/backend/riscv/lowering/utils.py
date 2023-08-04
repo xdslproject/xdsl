@@ -47,14 +47,14 @@ def cast_operands_to_float_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     return new_operands
 
 
-def cast_results_from_int_regs(rewriter: PatternRewriter) -> list[SSAValue]:
+def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:
     """
-    Add cast operations just after the targeted operation from int registers
-    to the original type.
+    Add cast operations just after the matched operation, to preserve the type validity of
+    arguments of uses of results.
     """
 
     results = [
-        builtin.UnrealizedConversionCastOp.get([val], (val.type,))
+        builtin.UnrealizedConversionCastOp.get((val,), (val.type,))
         for val in rewriter.current_operation.results
     ]
 
