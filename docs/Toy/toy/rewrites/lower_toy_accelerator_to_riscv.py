@@ -1,4 +1,4 @@
-from xdsl.backend.riscv.lowering.helpers import cast_value_to_int_register
+from xdsl.backend.riscv.lowering.utils import cast_operands_to_int_regs
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
@@ -19,8 +19,7 @@ class LowerTransposeOp(RewritePattern):
     def match_and_rewrite(
         self, op: toy_accelerator.Transpose, rewriter: PatternRewriter
     ):
-        destination = cast_value_to_int_register(op.destination, rewriter)
-        source = cast_value_to_int_register(op.source, rewriter)
+        destination, source = cast_operands_to_int_regs(rewriter)
 
         rewriter.replace_matched_op(
             [
@@ -45,9 +44,7 @@ class LowerBinOp(RewritePattern):
         instruction_name = (
             "buffer.add" if isinstance(op, toy_accelerator.Add) else "buffer.mul"
         )
-        dest = cast_value_to_int_register(op.dest, rewriter)
-        lhs = cast_value_to_int_register(op.lhs, rewriter)
-        rhs = cast_value_to_int_register(op.rhs, rewriter)
+        dest, lhs, rhs = cast_operands_to_int_regs(rewriter)
         rewriter.replace_matched_op(
             [
                 size_op := riscv.LiOp(size, comment="size"),

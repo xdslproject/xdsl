@@ -1,6 +1,10 @@
 import ctypes
 from typing import overload
 
+from xdsl.backend.riscv.lowering.utils import (
+    cast_operands_to_float_regs,
+    cast_operands_to_int_regs,
+)
 from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
     Float32Type,
@@ -21,8 +25,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.dead_code_elimination import dce
-
-from .helpers import cast_value_to_float_register, cast_value_to_int_register
 
 
 def convert_float_to_int(value: float) -> int:
@@ -217,8 +219,8 @@ class LowerArithCmpi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpi, rewriter: PatternRewriter) -> None:
         # based on https://github.com/llvm/llvm-project/blob/main/llvm/test/CodeGen/RISCV/i32-icmp.ll
-        lhs = cast_value_to_int_register(op.lhs, rewriter)
-        rhs = cast_value_to_int_register(op.rhs, rewriter)
+        lhs, rhs = cast_operands_to_int_regs(rewriter)
+
         match op.predicate.value.data:
             # eq
             case 0:
@@ -308,8 +310,8 @@ class LowerArithMaxfOp(RewritePattern):
 class LowerArithCmpf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpf, rewriter: PatternRewriter) -> None:
-        lhs = cast_value_to_float_register(op.lhs, rewriter)
-        rhs = cast_value_to_float_register(op.rhs, rewriter)
+        lhs, rhs = cast_operands_to_float_regs(rewriter)
+
         match op.predicate.value.data:
             # false
             case 0:
