@@ -83,18 +83,18 @@
   // CHECK-NEXT: ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
 
     // Conditional Branch Instructions
-    riscv.beq %0, %1 {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.beq %{{.*}}, %{{.*}} {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bne %0, %1 {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.bne %{{.*}}, %{{.*}} {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.blt %0, %1 {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.blt %{{.*}}, %{{.*}} {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bge %0, %1 {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.bge %{{.*}}, %{{.*}} {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bltu %0, %1 {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.bltu %{{.*}}, %{{.*}} {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bgeu %0, %1 {"offset" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.bgeu %{{.*}}, %{{.*}} {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.beq %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.beq %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.bne %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.bne %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.blt %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.blt %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.bge %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.bge %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.bltu %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.bltu %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.bgeu %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.bgeu %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
 
     // RV32I/RV64I: 2.6 Load and Store Instructions
 
