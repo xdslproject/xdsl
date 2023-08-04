@@ -56,6 +56,26 @@ builtin.module {
   }) {"sym_name" = "foo"} : () -> ()
 }
 
+// CHECK:       builtin.module {
+// CHECK-NEXT:    "riscv_func.func"() ({
+// CHECK-NEXT:    ^0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>):
+// CHECK-NEXT:      %2 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<a0>
+// CHECK-NEXT:      %3 = riscv.mv %1 : (!riscv.reg<a1>) -> !riscv.reg<a1>
+// CHECK-NEXT:      %4 = riscv.li 1 : () -> !riscv.reg<a2>
+// CHECK-NEXT:      %5 = riscv.li 0 : () -> !riscv.reg<a3>
+// CHECK-NEXT:      %6 = riscv.fcvt.s.w %5 : (!riscv.reg<a3>) -> !riscv.freg<fa0>
+// CHECK-NEXT:      %7 = "riscv_scf.for"(%2, %3, %4, %6) ({
+// CHECK-NEXT:      ^1(%8 : !riscv.reg<a0>, %9 : !riscv.freg<fa0>):
+// CHECK-NEXT:        %10 = riscv.fcvt.s.w %8 : (!riscv.reg<a0>) -> !riscv.freg<fa1>
+// CHECK-NEXT:        %11 = riscv.fadd.s %9, %10 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa0>
+// CHECK-NEXT:        "riscv_scf.yield"(%11) : (!riscv.freg<fa0>) -> ()
+// CHECK-NEXT:      }) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
+// CHECK-NEXT:      %12 = riscv.fcvt.w.s %7 : (!riscv.freg<fa0>) -> !riscv.reg<a0>
+// CHECK-NEXT:      "riscv_func.return"(%12) : (!riscv.reg<a0>) -> ()
+// CHECK-NEXT:    }) {"sym_name" = "foo"} : () -> ()
+// CHECK-NEXT:  }
+
+
 // -----
 
 builtin.module {   
