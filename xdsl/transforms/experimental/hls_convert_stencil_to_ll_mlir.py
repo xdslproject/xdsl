@@ -112,13 +112,26 @@ def add_pragma_interface(func_arg: BlockArgument, inout: int, kernel: FuncOp):
     kernel.body.block.insert_op_before(func_call, kernel.body.block.first_op)
 
 
-# def duplicate_streams(input_stream: HLSStream, output_streams: list[HLSStream], number: i32):
-#    zero = Constant.from_int_and_width(0, IndexType())
-#    one = Constant.from_int_and_width(1, IndexType())
-#    N = Constant.from_int_and_width(len(output_streams), i32)
-#
-#
-#    outer = For.get(zero, number, one, [],
+def gen_duplicate_loop(input_stream, duplicate_stream_lst):
+    @Builder.region([IndexType()])
+    def for_body(builder: Builder, args: tuple([BlockArgument, ...])):
+        hls_read = HLSStreamRead(input_stream.results[0])
+        builder.insert(hls_read)
+
+        for duplicate_stream in duplicate_stream_lst:
+            hls_write = HLSStreamWrite(hls_read, duplicate_stream)
+            builder.insert(hls_write)
+
+        yield_op = scf.Yield.get()
+        builder.insert(yield_op)
+
+    lb = Constant.from_int_and_width(0, IndexType())
+    ub = Constant.from_int_and_width(len(duplicate_stream_lst), IndexType())
+    step = Constant.from_int_and_width(1, IndexType())
+
+    for_duplicate = scf.For.get(lb, ub, step, [], for_body)
+
+    return [lb, ub, step, for_duplicate]
 
 
 @dataclass
@@ -240,51 +253,29 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         shift_buffer_dataflow = PragmaDataflow(shift_buffer_region)
 
-        # duplicate_streams(stencil_stream, copy_stencil_stream_lst, copy_n)
+        duplicate_loop = gen_duplicate_loop(stencil_stream, copy_stencil_stream_lst)
 
-        duplicateStream_call = Call.get(
-            "duplicateStream",
-            [stencil_stream, copy_stencil_stream, copy_n],
-            [],
-        )
+        ii = Constant.from_int_and_width(1, i32)
 
         @Builder.region
         def duplicateStream_region(builder: Builder):
+            hls_pipeline_op = PragmaPipeline(ii)
+
+            builder.insert(hls_pipeline_op)
+            for dup_op in duplicate_loop:
+                builder.insert(dup_op)
             yield_op = HLSYield.get()
-            builder.insert(duplicateStream_call)
             builder.insert(yield_op)
 
         duplicateStream_dataflow = PragmaDataflow(duplicateStream_region)
 
         ndims = len(field.typ.get_shape())
         if inout is IN and ndims == 3:
-            # @Builder.region
-            # def data_stream_df_region(builder: Builder):
-            #    builder.insert(data_stream)
-            #    hls_yield_op = HLSYield.get()
-            #    builder.insert(hls_yield_op)
-
-            # @Builder.region
-            # def stencil_stream_df_region(builder: Builder):
-            #    builder.insert(stencil_stream)
-            #    hls_yield_op = HLSYield.get()
-            #    builder.insert(hls_yield_op)
-
-            # @Builder.region
-            # def copy_stream_df_region(builder: Builder):
-            #    builder.insert(copy_stencil_stream)
-            #    hls_yield_op = HLSYield.get()
-            #    builder.insert(hls_yield_op)
-
-            # data_stream_df = PragmaDataflow(data_stream_df_region)
-            # stencil_stream_df = PragmaDataflow(stencil_stream_df_region)
-            # copy_stream_df = PragmaDataflow(copy_stream_df_region)
-
             rewriter.insert_op_before_matched_op(
                 [
                     data_stream,
                     stencil_stream,
-                    copy_stencil_stream,
+                    *copy_stencil_stream_lst,
                     shape_x,
                     shape_y,
                     shape_z,
@@ -300,10 +291,11 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
                     copy_shift_z,
                     prod_x_y,
                     copy_n,
+                    ii,
                     duplicateStream_dataflow,
                 ]
             )
-            self.shift_streams.append(copy_stencil_stream)
+            self.shift_streams.append(copy_stencil_stream_lst)
         elif inout is OUT:
             out_data_stream = HLSStream.get(f64)
             out_data_stream.attributes["inout"] = op.attributes["inout"]
@@ -311,11 +303,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             rewriter.insert_op_before_matched_op(
                 [
                     out_data_stream,
-                    # stencil_stream
                 ]
             )
             self.out_data_streams.append(out_data_stream)
-            # self.shift_streams.append(stencil_stream)
 
         if not self.load_data_declaration:
             shift_buffer_func = FuncOp.external(
@@ -334,20 +324,6 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
                 [],
             )
             self.module.body.block.add_op(shift_buffer_func)
-            duplicateStream_func = FuncOp.external(
-                "duplicateStream",
-                [
-                    LLVMPointerType.typed(
-                        LLVMStructType.from_type_list([stencil_stream.elem_type])
-                    ),
-                    LLVMPointerType.typed(
-                        LLVMStructType.from_type_list([stencil_stream.elem_type])
-                    ),
-                    i32,
-                ],
-                [],
-            )
-            self.module.body.block.add_op(duplicateStream_func)
 
             self.load_data_declaration = True
 
@@ -625,53 +601,60 @@ class ApplyOpToHLS(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        # Insert the HLS stream operands and their corresponding block arguments for reading from the shift buffer and writing # to external memory # We replace by streams only the 3D temps. The rest should be left as is operand_stream = dict()
-        current_stream = 0
-        new_operands_lst = []
+        body_block = op.region.blocks[0]
+        return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
+        n_components = len(return_op.arg)
+        apply_clones_lst = [op.clone() for i in range(n_components)]
 
         # We replace the temp arguments by HLS streams. Only for the 3D temps
-        for i in range(len(op.operands)):
-            operand = op.operands[i]
-            n_dims = len(operand.typ.bounds.lb)
+        for k in range(len(apply_clones_lst)):
+            # Insert the HLS stream operands and their corresponding block arguments for reading from the shift buffer and writing # to external memory # We replace by streams only the 3D temps. The rest should be left as is operand_stream = dict()
+            current_stream = 0
 
-            if n_dims == 3:
-                stream = self.shift_streams[current_stream]
-                rewriter.modify_block_argument_type(
-                    op.region.block.args[i], stream.results[0].typ
+            new_operands_lst = []
+            apply_clone = apply_clones_lst[k]
+
+            for i in range(len(apply_clone.operands)):
+                operand = apply_clone.operands[i]
+                n_dims = len(operand.typ.bounds.lb)
+
+                if n_dims == 3:
+                    stream = self.shift_streams[k][current_stream]
+                    rewriter.modify_block_argument_type(
+                        apply_clone.region.block.args[i], stream.results[0].typ
+                    )
+
+                    new_operands_lst.append(stream.results[0])
+                    current_stream += 1
+                else:
+                    new_operands_lst.append(operand)
+
+            apply_clone.operands = new_operands_lst + [
+                self.out_data_streams[k].results[0]
+            ]
+
+            indices_stream_to_read = []
+            indices_stream_to_write = []
+            i = 0
+            for _operand in apply_clone.operands:
+                if (
+                    isinstance(_operand.op, HLSStream)
+                    and "stencil" in _operand.op.attributes
+                    and _operand.op.attributes["inout"].data is IN
+                ):
+                    indices_stream_to_read.append(i)
+                if (
+                    isinstance(_operand.op, HLSStream)
+                    and "data" in _operand.op.attributes
+                    and _operand.op.attributes["inout"].data is OUT
+                ):
+                    indices_stream_to_write.append(i)
+                i += 1
+
+            for write_idx in indices_stream_to_write:
+                apply_clone.region.blocks[0].insert_arg(
+                    self.out_data_streams[0].results[0].typ, write_idx
                 )
-
-                new_operands_lst.append(stream.results[0])
-                current_stream += 1
-            else:
-                new_operands_lst.append(operand)
-
-        # We add the data output streams at the end of the operands list
-        op.operands = new_operands_lst + [
-            stream.results[0] for stream in self.out_data_streams
-        ]
-
-        indices_stream_to_read = []
-        indices_stream_to_write = []
-        i = 0
-        for _operand in op.operands:
-            if (
-                isinstance(_operand.op, HLSStream)
-                and "stencil" in _operand.op.attributes
-                and _operand.op.attributes["inout"].data is IN
-            ):
-                indices_stream_to_read.append(i)
-            if (
-                isinstance(_operand.op, HLSStream)
-                and "data" in _operand.op.attributes
-                and _operand.op.attributes["inout"].data is OUT
-            ):
-                indices_stream_to_write.append(i)
-            i += 1
-
-        for write_idx in indices_stream_to_write:
-            op.region.blocks[0].insert_arg(
-                self.out_data_streams[0].results[0].typ, write_idx
-            )
 
         # Get this apply's ReturnOp
         body_block = op.region.blocks[0]
@@ -683,8 +666,11 @@ class ApplyOpToHLS(RewritePattern):
         new_return_component_lst = []
 
         component_idx = 0
+        k = 0
         for component in return_op.arg:
-            new_apply = op.clone()
+            new_apply = apply_clones_lst[k]
+            k += 1
+
             component_operations = dict()
             operation_indices = set()
             component_operations[
@@ -1265,14 +1251,11 @@ def walk_down(op: Operation, rewriter: PatternRewriter):
         if (
             dim == 1
         ):  # We want to replace the corresponding temps for these coefficients by these memrefs, so they are accessed directly
-            print("SHAPE: ", field.shape.data[0])
             load = get_stencil_load(op)
-            # print("SUBVIEW: ", subview)
 
     else:
         if op.results:
             for use in op.results[0].uses:
-                # print("---> USE OP: ", use.operation)
                 walk_down(use.operation)
 
 
@@ -1346,6 +1329,10 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
             rewriter.insert_op_before_matched_op([lb, ub, step, ii, for_local_copies])
 
             self.inserted_already = True
+
+
+# @dataclass
+# class DuplicateShiftBufferStreams(RewriterPattern):
 
 
 @dataclass
