@@ -27,6 +27,9 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.transforms.dead_code_elimination import dce
 
+_INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
+_FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
+
 
 def convert_float_to_int(value: float) -> int:
     """
@@ -61,7 +64,7 @@ class LowerArithConstant(RewritePattern):
                     [
                         lui := riscv.LiOp(
                             convert_float_to_int(op.value.value.data),
-                            rd=riscv.IntRegisterType.unallocated(),
+                            rd=_INT_REGISTER_TYPE,
                         ),
                         fld := riscv.FCvtSWOp(lui.rd),
                         UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
@@ -145,10 +148,6 @@ class LowerBinaryOp(RewritePattern):
         cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.type,))
 
         rewriter.replace_matched_op((lhs, rhs, add, cast))
-
-
-_INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
-_FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
 
 
 def lower_signless_integer_binary_op(
@@ -393,7 +392,7 @@ class LowerArithSIToFPOp(RewritePattern):
         rewriter.replace_matched_op(
             (
                 cast_input := UnrealizedConversionCastOp.get(
-                    (op.input,), (riscv.IntRegisterType.unallocated(),)
+                    (op.input,), (_INT_REGISTER_TYPE,)
                 ),
                 new_op := riscv.FCvtSWOp(cast_input.results[0]),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
@@ -407,7 +406,7 @@ class LowerArithFPToSIOp(RewritePattern):
         rewriter.replace_matched_op(
             (
                 cast_input := UnrealizedConversionCastOp.get(
-                    (op.input,), (riscv.FloatRegisterType.unallocated(),)
+                    (op.input,), (_FLOAT_REGISTER_TYPE,)
                 ),
                 new_op := riscv.FCvtWSOp(cast_input.results[0]),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
