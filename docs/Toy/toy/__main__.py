@@ -13,6 +13,7 @@ from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv import Buffer
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
+from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.interpreters.scf import ScfFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
@@ -76,6 +77,15 @@ class BufferMemrefConversion(InterpreterFunctions):
         self,
         input_type: IndexType,
         output_type: riscv.IntRegisterType,
+        value: Any,
+    ) -> Any:
+        return value
+
+    @impl_cast(riscv.IntRegisterType, IndexType)
+    def cast_int_reg_to_index(
+        self,
+        input_type: riscv.IntRegisterType,
+        output_type: IndexType,
         value: Any,
     ) -> Any:
         return value
@@ -158,6 +168,7 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
         interpreter.register_implementations(ScfFunctions())
         interpreter.register_implementations(ArithFunctions())
         interpreter.register_implementations(FuncFunctions())
+        interpreter.register_implementations(RiscvScfFunctions())
 
     interpreter.call_op("main", ())
 

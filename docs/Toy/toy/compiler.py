@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
+from xdsl.backend.riscv.lowering.scf_to_riscv_scf import ScfToRiscvPass
 from xdsl.dialects import (
     affine,
     arith,
@@ -108,6 +109,7 @@ def transform(
     LowerMemrefToRiscv().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
     # LowerArithRiscvPass().apply(ctx, module_op)
+    ScfToRiscvPass().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
     # ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 
