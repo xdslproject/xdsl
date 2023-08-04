@@ -58,7 +58,7 @@ class RegAllocCtx:
         ):
             if reg not in self.forbidden_vals and self.liveliness[reg] == 0:
                 return reg
-        raise NotImplementedError("Out of registers, spill not implemented")
+        raise NotImplementedError("Out of registers, spilling not implemented")
 
     def add_reg(self, val: SSAValue):
         assert isinstance(val.type, riscv.RISCVRegisterType) and val.type.is_allocated
