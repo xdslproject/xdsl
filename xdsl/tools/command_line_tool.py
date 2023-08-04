@@ -3,6 +3,7 @@ import os
 import sys
 from typing import IO, Callable
 
+from xdsl.backend.riscv.lowering import scf_to_riscv_scf
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
 from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
 from xdsl.backend.riscv.register_rvscf_regalloc import RVSCFRegisterAllocation
@@ -110,6 +111,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         RVSCFRegisterAllocation,
         RISCVLowerArith,
         LowerFuncToRiscvFunc,
+        scf_to_riscv_scf.ScfToRiscvPass,
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,

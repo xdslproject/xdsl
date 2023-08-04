@@ -32,7 +32,11 @@ builtin.module {
 
 builtin.module {
   %0 = "test.op"() : () -> ()
+  "test.op"() : () -> ()
 }
+
+// Checks that the diagnostic is printed about the correct operation
+// CHECK: %0 = "test.op"() : () -> ()
 // CHECK: Operation has 0 results, but was given 1 to bind.
 
 // -----
