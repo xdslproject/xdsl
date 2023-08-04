@@ -5,8 +5,8 @@ builtin.module {
   ^0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>):
     %2 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<a0>
     %3 = riscv.mv %1 : (!riscv.reg<a1>) -> !riscv.reg<a1>
-    %4 = riscv.li  {"immediate" = 1 : si32} : () -> !riscv.reg<t0>
-    %5 = riscv.li  {"immediate" = 0 : si32} : () -> !riscv.reg<t1>
+    %4 = riscv.li 1 : () -> !riscv.reg<t0>
+    %5 = riscv.li 1 : () -> !riscv.reg<t1>
     %6 = "riscv_scf.for"(%2, %3, %4, %5) ({
     ^1(%7 : !riscv.reg<a0>, %8 : !riscv.reg<t1>):
       %9 = riscv.add %8, %7 : (!riscv.reg<t1>, !riscv.reg<a0>) -> !riscv.reg<t1>
@@ -20,8 +20,8 @@ builtin.module {
 // CHECK: builtin.module {
 // CHECK-NEXT:   "riscv_func.func"() ({
 // CHECK-NEXT:   ^0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>):
-// CHECK-NEXT:     %2 = riscv.li {"immediate" = 1 : si32} : () -> !riscv.reg<t0>
-// CHECK-NEXT:     %3 = riscv.li {"immediate" = 0 : si32} : () -> !riscv.reg<t1>
+// CHECK-NEXT:     %2 = riscv.li 1 : () -> !riscv.reg<t0>
+// CHECK-NEXT:     %3 = riscv.li 1 : () -> !riscv.reg<t1>
 // CHECK-NEXT:     %4 = "riscv_scf.for"(%0, %1, %2, %3) ({
 // CHECK-NEXT:     ^1(%5 : !riscv.reg<a0>, %6 : !riscv.reg<t1>):
 // CHECK-NEXT:       %7 = riscv.add %6, %5 : (!riscv.reg<t1>, !riscv.reg<a0>) -> !riscv.reg<t1>

@@ -473,9 +473,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         argument_types: List[Attribute] = []
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None:
-                raise CodeGenerationException(
-                    self.file, arg.lineno, arg.col_offset, f""
-                )
+                raise CodeGenerationException(self.file, arg.lineno, arg.col_offset, "")
             xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
             argument_types.append(xdsl_type)
 

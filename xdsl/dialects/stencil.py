@@ -338,7 +338,7 @@ class ApplyOp(IRDLOperation):
         for other in self.res[1:]:
             other = cast(TempType[Attribute], other.type)
             if res_type.bounds != other.bounds:
-                raise VerifyException(f"Expected all output types bounds to be equals.")
+                raise VerifyException("Expected all output types bounds to be equals.")
 
     def get_rank(self) -> int:
         res_type = self.res[0].type

@@ -1747,7 +1747,7 @@ def irdl_op_arg_definition(
     # attribute that holds the variadic sizes.
     arg_size_option = get_attr_size_option(construct)
     if previous_variadics > 1 and (arg_size_option not in op_def.options):
-        arg_size_option_name = type(arg_size_option).__name__  # type: ignore
+        arg_size_option_name = type(arg_size_option).__name__
         raise Exception(
             f"Operation {op_def.name} defines more than two variadic "
             f"{get_construct_name(construct)}s, but do not define the "
@@ -1847,7 +1847,9 @@ def irdl_op_definition(cls: TypeIRDLOperationInvT) -> TypeIRDLOperationInvT:
         new_attrs["parse"] = parse_with_format
         new_attrs["print"] = print_with_format
 
-    return type(cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs})  # type: ignore
+    return type.__new__(
+        type(cls), cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs}
+    )
 
 
 #  ____        _
@@ -2014,8 +2016,8 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     new_fields["irdl_definition"] = irdl_definition
 
     return dataclass(frozen=True, init=False)(
-        type(cls.__name__, (cls,), {**cls.__dict__, **new_fields})
-    )  # type: ignore
+        type.__new__(type(cls), cls.__name__, (cls,), {**cls.__dict__, **new_fields})
+    )
 
 
 TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])

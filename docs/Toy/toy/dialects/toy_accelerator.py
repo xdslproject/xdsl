@@ -55,13 +55,13 @@ class Transpose(IRDLOperation):
         source_shape = self.source.type.shape
 
         if source_shape != expected_source_shape:
-            raise VerifyException(f"Transpose source shape mismatch")
+            raise VerifyException("Transpose source shape mismatch")
 
         expected_destination_shape = ArrayAttr((self.source_cols, self.source_rows))
         destination_shape = self.destination.type.shape
 
         if destination_shape != expected_destination_shape:
-            raise VerifyException(f"Transpose source shape mismatch")
+            raise VerifyException("Transpose source shape mismatch")
 
 
 class BinOp(IRDLOperation, abc.ABC):
