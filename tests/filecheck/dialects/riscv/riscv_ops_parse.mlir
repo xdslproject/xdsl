@@ -37,20 +37,20 @@ builtin.module {
     riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
     riscv.ret : () -> ()
   ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
-    riscv.beq %0, %1 {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bne %0, %1 {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.blt %0, %1 {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bge %0, %1 {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bltu %0, %1 {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bgeu %0, %1 {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.beq %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.bne %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.blt %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.bge %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.bltu %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.bgeu %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
     %lb = riscv.lb %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     %lbu = riscv.lbu %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     %lh = riscv.lh %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     %lhu = riscv.lhu %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     %lw = riscv.lw %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
-    riscv.sb %0, %1 {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.sh %0, %1 {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.sw %0, %1 {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.sb %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.sh %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.sw %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
     %csrrw_rw = riscv.csrrw %0 {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
     %csrrw_w = riscv.csrrw %0 {"csr" = 1024 : i32, "writeonly"} : (!riscv.reg<>) -> !riscv.reg<>
     %csrrs_rw = riscv.csrrs %0 {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
@@ -154,20 +154,20 @@ builtin.module {
 // CHECK-NEXT:     "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
 // CHECK-NEXT:     "riscv.ret"() : () -> ()
 // CHECK-NEXT:   ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
-// CHECK-NEXT:     "riscv.beq"(%0, %1) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-NEXT:     "riscv.bne"(%0, %1) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-NEXT:     "riscv.blt"(%0, %1) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-NEXT:     "riscv.bge"(%0, %1) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-NEXT:     "riscv.bltu"(%0, %1) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-NEXT:     "riscv.bgeu"(%0, %1) {"offset" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:     "riscv.beq"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:     "riscv.bne"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:     "riscv.blt"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:     "riscv.bge"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:     "riscv.bltu"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:     "riscv.bgeu"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-NEXT:     %lb = "riscv.lb"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:     %lbu = "riscv.lbu"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:     %lh = "riscv.lh"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:     %lhu = "riscv.lhu"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:     %lw = "riscv.lw"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:     "riscv.sb"(%0, %1) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-NEXT:     "riscv.sh"(%0, %1) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-NEXT:     "riscv.sw"(%0, %1) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:     "riscv.sb"(%0, %1) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:     "riscv.sh"(%0, %1) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:     "riscv.sw"(%0, %1) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-NEXT:     %csrrw_rw = "riscv.csrrw"(%0) {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:     %csrrw_w = "riscv.csrrw"(%0) {"csr" = 1024 : i32, "writeonly"} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:     %csrrs_rw = "riscv.csrrs"(%0) {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
