@@ -315,6 +315,7 @@ class LowerArithMaxfOp(RewritePattern):
 class LowerArithCmpf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpf, rewriter: PatternRewriter) -> None:
+        # https://llvm.org/docs/LangRef.html#id309
         lhs, rhs = cast_operands_to_float_regs(rewriter)
         cast_matched_op_results(rewriter)
 
