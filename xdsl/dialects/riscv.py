@@ -748,6 +748,14 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
 
         super().__init__(rs1, immediate, rd=rd, comment=comment)
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(5, Signedness.UNSIGNED)
+        )
+        return attributes
+
 
 class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     """
