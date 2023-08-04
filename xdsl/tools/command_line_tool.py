@@ -4,7 +4,7 @@ import sys
 from typing import IO, Callable
 
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
-from xdsl.backend.riscv.lowering.optimisation_riscv_mv import RISCVMvOpt
+from xdsl.backend.riscv.lowering.optimisation_riscv import OptimiseRiscvPass
 from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
@@ -109,7 +109,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         riscv_register_allocation.RISCVRegisterAllocation,
         RISCVLowerArith,
         LowerFuncToRiscvFunc,
-        RISCVMvOpt,
+        OptimiseRiscvPass,
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,

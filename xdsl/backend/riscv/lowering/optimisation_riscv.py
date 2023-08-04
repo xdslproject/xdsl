@@ -9,30 +9,27 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.dead_code_elimination import dce
 
 
-class RemoveMv(RewritePattern):
+class RemoveRedundantMv(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MVOp, rewriter: PatternRewriter) -> None:
         assert isinstance(op.rd.type, riscv.IntRegisterType), op.rd.type
         assert isinstance(op.rs.type, riscv.IntRegisterType), op.rs.type
-        if op.rd.type.name == op.rs.type.name:
+        if op.rd.type == op.rs.type:
             rewriter.replace_matched_op([], [op.rs])
 
 
-class RISCVMvOpt(ModulePass):
-    name = "optimisation-riscv-mv"
+class OptimiseRiscvPass(ModulePass):
+    name = "optimise-riscv"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    RemoveMv(),
+                    RemoveRedundantMv(),
                 ]
             ),
             apply_recursively=False,
         )
         walker.rewrite_module(op)
-
-        dce(op)
