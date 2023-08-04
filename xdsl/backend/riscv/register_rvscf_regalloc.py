@@ -137,22 +137,21 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
                 op,
                 (riscv.RISCVOp,),
             ):
-                assert len(op.results) == 1
-                # keep track of the "alive" registers
-                for operand in op.operands:
-                    ctx.register_use(operand)
-                # skip already allocated registers
-                assert isinstance(op.results[0].type, riscv.IntRegisterType)
-                if op.results[0].type.is_allocated:
-                    continue
-                # grab a free register and set it
-                op.results[0].type = ctx.free_reg()
-                ctx.add_reg(op.results[0])
+                for result in op.results:
+                    assert isinstance(result.type, riscv.IntRegisterType)
+                    # keep track of the "alive" registers
+                    for operand in op.operands:
+                        ctx.register_use(operand)
+                    # skip already allocated registers
+                    if result.type.is_allocated:
+                        continue
+                    # grab a free register and set it
+                    result.type = ctx.free_reg()
+                    ctx.add_reg(result)
             # the scf for loop has a special case function
             elif isinstance(op, riscv_scf.ForOp):
                 register_allocate_for_op(op, ctx)
             else:
-                # unknown ops without results are fine, I think?
                 if len(op.results) == 0:
                     continue
                 raise ValueError(
