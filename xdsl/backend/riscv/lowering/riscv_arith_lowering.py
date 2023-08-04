@@ -47,7 +47,9 @@ class LowerArithConstant(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         constant := riscv.LiOp(op.value.value.data),
-                        UnrealizedConversionCastOp(constant.results, (op_result_type,)),
+                        UnrealizedConversionCastOp.get(
+                            constant.results, (op_result_type,)
+                        ),
                     ],
                 )
             else:
@@ -61,7 +63,7 @@ class LowerArithConstant(RewritePattern):
                             rd=riscv.IntRegisterType.unallocated(),
                         ),
                         fld := riscv.FCvtSWOp(lui.rd),
-                        UnrealizedConversionCastOp(fld.results, (op_result_type,)),
+                        UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
                     ],
                 )
             else:
@@ -72,7 +74,7 @@ class LowerArithConstant(RewritePattern):
             rewriter.replace_matched_op(
                 [
                     constant := riscv.LiOp(op.value.value.data),
-                    UnrealizedConversionCastOp(constant.results, (op_result_type,)),
+                    UnrealizedConversionCastOp.get(constant.results, (op_result_type,)),
                 ],
             )
         else:
