@@ -38,8 +38,8 @@ class CastConstantOp(RewritePattern):
         op_value = cast(FloatAttr[AnyFloat], op.value)
 
         value = op.value.value.data
-        assert value == float(
-            int(value)
+        assert (
+            value.is_integer()
         ), f"Only support integer values in arith.Constant, got {value}"
         value = int(value)
 
