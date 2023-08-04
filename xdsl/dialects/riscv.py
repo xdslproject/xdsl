@@ -3076,6 +3076,15 @@ class FLwOp(RdRsImmFloatOperation):
 
     name = "riscv.flw"
 
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rd)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
+
 
 @irdl_op_definition
 class FSwOp(RsRsImmFloatOperation):
@@ -3088,6 +3097,15 @@ class FSwOp(RsRsImmFloatOperation):
     """
 
     name = "riscv.fsw"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rs2)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
 
 
 # endregion
