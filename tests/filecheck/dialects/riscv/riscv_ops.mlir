@@ -24,10 +24,10 @@
     // CHECK-NEXT: %{{.*}} = riscv.srli %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
     %srai = riscv.srai %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.srai %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %lui = riscv.lui {"immediate" = 1 : i32}: () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.lui {"immediate" = 1 : i32} : () -> !riscv.reg<>
-    %auipc = riscv.auipc {"immediate" = 1 : i32}: () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.auipc {"immediate" = 1 : i32} : () -> !riscv.reg<>
+    %lui = riscv.lui 1 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.lui 1 : () -> !riscv.reg<>
+    %auipc = riscv.auipc 1 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.auipc 1 : () -> !riscv.reg<>
     %mv = riscv.mv %0 : (!riscv.reg<>) -> !riscv.reg<>
     // CHECK: %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<>
 
@@ -171,8 +171,8 @@
 
     // Assembler pseudo-instructions
 
-    %li = riscv.li {"immediate" = 1 : i32}: () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
+    %li = riscv.li 1 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
     // Environment Call and Breakpoints
     riscv.ecall : () -> ()
     // CHECK-NEXT: riscv.ecall : () -> ()
@@ -181,17 +181,17 @@
     riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
     // CHECK-NEXT: riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
     riscv.assembly_section ".text" attributes {"foo" = i32} {
-      %nested_li = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
+      %nested_li = riscv.li 1 : () -> !riscv.reg<>
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" attributes {"foo" = i32} {
-    // CHECK-NEXT:    %{{.*}} = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
+    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
     // CHECK-NEXT:  }
     
     riscv.assembly_section ".text" {
-      %nested_li = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
+      %nested_li = riscv.li 1 : () -> !riscv.reg<>
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" {
-    // CHECK-NEXT:    %{{.*}} = riscv.li {"immediate" = 1 : i32} : () -> !riscv.reg<>
+    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
     // CHECK-NEXT:  }
 
     // Custom instruction

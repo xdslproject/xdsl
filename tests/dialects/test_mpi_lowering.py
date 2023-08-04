@@ -489,4 +489,7 @@ def test_mpi_type_conversion():
 
     for type, target in checks:
         # we test a private member function here, so we ignore pyright
-        assert lowering._translate_to_mpi_type(type) == target  # type: ignore
+        translate_to_mpi_type = (
+            lowering._translate_to_mpi_type  # pyright: ignore[reportPrivateUsage]
+        )
+        assert translate_to_mpi_type(type) == target

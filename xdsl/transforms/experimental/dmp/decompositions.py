@@ -142,7 +142,7 @@ class GridSlice2d(DomainDecompositionStrategy):
         yield dmp.HaloExchangeDecl(
             offset=(
                 dims.buffer_start(dmp.DIM_X),
-                dims.core_end(dmp.DIM_X),
+                dims.core_end(dmp.DIM_Y),
                 *residual_offsets,
             ),
             size=(
