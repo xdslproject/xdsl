@@ -108,12 +108,12 @@
     // CHECK-NEXT: %{{.*}} = riscv.lhu %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     %lw = riscv.lw %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.lw %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
-    riscv.sb %0, %1 {"immediate" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.sb %0, %1 {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.sh %0, %1 {"immediate" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.sh %0, %1 {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.sw %0, %1 {"immediate" = 1 : i32}: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.sw %0, %1 {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.sb %0, %1, 1: (!riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.sb %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.sh %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.sh %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.sw %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: riscv.sw %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
 
     // RV32I/RV64I: 2.8 Control and Status Register Instructions
 
