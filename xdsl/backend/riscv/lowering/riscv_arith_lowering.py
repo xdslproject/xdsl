@@ -267,18 +267,18 @@ class LowerArithSelect(RewritePattern):
         raise NotImplementedError("Select is not supported")
 
 
-LowerArithAndI = lower_signless_integer_binary_op(arith.AndI, riscv.AndOp)
-LowerArithOrI = lower_signless_integer_binary_op(arith.OrI, riscv.OrOp)
-LowerArithXOrI = lower_signless_integer_binary_op(arith.XOrI, riscv.XorOp)
-LowerArithShLI = lower_signless_integer_binary_op(arith.ShLI, riscv.SllOp)
-LowerArithShRUI = lower_signless_integer_binary_op(arith.ShRUI, riscv.SrlOp)
-LowerArithShRSI = lower_signless_integer_binary_op(arith.ShRSI, riscv.SraOp)
+lower_arith_andi = lower_signless_integer_binary_op(arith.AndI, riscv.AndOp)
+lower_arith_ori = lower_signless_integer_binary_op(arith.OrI, riscv.OrOp)
+lower_arith_xori = lower_signless_integer_binary_op(arith.XOrI, riscv.XorOp)
+lower_arith_shli = lower_signless_integer_binary_op(arith.ShLI, riscv.SllOp)
+lower_arith_shrui = lower_signless_integer_binary_op(arith.ShRUI, riscv.SrlOp)
+lower_arith_shrsi = lower_signless_integer_binary_op(arith.ShRSI, riscv.SraOp)
 
 
-LowerArithAddf = lower_float_binary_op(arith.Addf, riscv.FAddSOp)
-LowerArithSubf = lower_float_binary_op(arith.Subf, riscv.FSubSOp)
-LowerArithMulf = lower_float_binary_op(arith.Mulf, riscv.FMulSOp)
-LowerArithDivf = lower_float_binary_op(arith.Divf, riscv.FDivSOp)
+lower_arith_addf = lower_float_binary_op(arith.Addf, riscv.FAddSOp)
+lower_arith_subf = lower_float_binary_op(arith.Subf, riscv.FSubSOp)
+lower_arith_mulf = lower_float_binary_op(arith.Mulf, riscv.FMulSOp)
+lower_arith_divf = lower_float_binary_op(arith.Divf, riscv.FDivSOp)
 
 
 class LowerArithNegf(RewritePattern):
@@ -439,19 +439,19 @@ class RISCVLowerArith(ModulePass):
                     LowerArithFloorDivSI(),
                     lower_arith_remsi,
                     LowerArithCmpi(),
-                    LowerArithAddf,
-                    LowerArithSubf,
-                    LowerArithDivf,
+                    lower_arith_addf,
+                    lower_arith_subf,
+                    lower_arith_divf,
                     LowerArithNegf(),
-                    LowerArithMulf,
+                    lower_arith_mulf,
                     LowerArithCmpf(),
                     lower_arith_remui,
-                    LowerArithAndI,
-                    LowerArithOrI,
-                    LowerArithXOrI,
-                    LowerArithShLI,
-                    LowerArithShRUI,
-                    LowerArithShRSI,
+                    lower_arith_andi,
+                    lower_arith_ori,
+                    lower_arith_xori,
+                    lower_arith_shli,
+                    lower_arith_shrui,
+                    lower_arith_shrsi,
                     LowerArithCeilDivSI(),
                     LowerArithCeilDivUI(),
                     LowerArithMinSI(),
