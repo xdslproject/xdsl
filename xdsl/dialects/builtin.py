@@ -1131,7 +1131,8 @@ class UnrealizedConversionCastOp(IRDLOperation):
             parser.Delimiter.NONE,
             parser.parse_type,
         )
-        return UnrealizedConversionCastOp([inputs], [output_types])
+        attributes = parser.parse_optional_attr_dict()
+        return UnrealizedConversionCastOp([inputs], [output_types], attributes)
 
     def print(self, printer: Printer):
         def print_fn(operand: SSAValue) -> None:
@@ -1144,6 +1145,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
             printer.print_list(self.inputs, print_fn)
         printer.print_string(" to ")
         printer.print_list(self.outputs, print_fn)
+        printer.print_op_attributes(self.attributes)
 
 
 class UnregisteredOp(IRDLOperation, ABC):
