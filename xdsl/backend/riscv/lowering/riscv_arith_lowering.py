@@ -2,6 +2,7 @@ import ctypes
 from typing import overload
 
 from xdsl.backend.riscv.lowering.utils import (
+    cast_matched_op_results,
     cast_operands_to_float_regs,
     cast_operands_to_int_regs,
 )
@@ -47,7 +48,9 @@ class LowerArithConstant(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         constant := riscv.LiOp(op.value.value.data),
-                        UnrealizedConversionCastOp(constant.results, (op_result_type,)),
+                        UnrealizedConversionCastOp.get(
+                            constant.results, (op_result_type,)
+                        ),
                     ],
                 )
             else:
@@ -61,7 +64,7 @@ class LowerArithConstant(RewritePattern):
                             rd=riscv.IntRegisterType.unallocated(),
                         ),
                         fld := riscv.FCvtSWOp(lui.rd),
-                        UnrealizedConversionCastOp(fld.results, (op_result_type,)),
+                        UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
                     ],
                 )
             else:
@@ -72,7 +75,7 @@ class LowerArithConstant(RewritePattern):
             rewriter.replace_matched_op(
                 [
                     constant := riscv.LiOp(op.value.value.data),
-                    UnrealizedConversionCastOp(constant.results, (op_result_type,)),
+                    UnrealizedConversionCastOp.get(constant.results, (op_result_type,)),
                 ],
             )
         else:
@@ -90,7 +93,9 @@ class LowerArithIndexCast(RewritePattern):
         On a RV32 triple, the index type is 32 bits, so we can just drop the cast.
         """
 
-        rewriter.replace_matched_op([], [op.input])
+        rewriter.replace_matched_op(
+            UnrealizedConversionCastOp.get((op.input,), (op.result.type,))
+        )
 
 
 class LowerBinaryOp(RewritePattern):
@@ -220,6 +225,7 @@ class LowerArithCmpi(RewritePattern):
     def match_and_rewrite(self, op: arith.Cmpi, rewriter: PatternRewriter) -> None:
         # based on https://github.com/llvm/llvm-project/blob/main/llvm/test/CodeGen/RISCV/i32-icmp.ll
         lhs, rhs = cast_operands_to_int_regs(rewriter)
+        cast_matched_op_results(rewriter)
 
         match op.predicate.value.data:
             # eq
@@ -311,6 +317,7 @@ class LowerArithCmpf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpf, rewriter: PatternRewriter) -> None:
         lhs, rhs = cast_operands_to_float_regs(rewriter)
+        cast_matched_op_results(rewriter)
 
         match op.predicate.value.data:
             # false
