@@ -58,7 +58,7 @@ class RegAllocCtx:
         ):
             if reg not in self.forbidden_vals and self.liveliness[reg] == 0:
                 return reg
-        assert False, "Out of registers"
+        raise NotImplementedError("Out of registers, spill not implemented")
 
     def add_reg(self, val: SSAValue):
         assert isinstance(val.type, riscv.RISCVRegisterType) and val.type.is_allocated
@@ -122,7 +122,7 @@ def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
     iter_val.type = loop_counter_reg
     inner_ctx.register_use(iter_val)
     # make the iter_val forbidden so it is not overwritten in the loop
-    inner_ctx.forbidden_vals.add(loop_counter_reg)
+    inner_ctx.make_forbidden(loop_counter_reg)
 
     register_allocate_region(op.body, inner_ctx)
 
@@ -133,27 +133,21 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
     """
     for block in reg.blocks:
         for op in block.ops:
-            # handle the "default" riscv instructions with rd and rs regs
-            # this is how we register allocate 99% of riscv operations
             if isinstance(
                 op,
-                (
-                    riscv.RdImmIntegerOperation,
-                    riscv.RdRsRsIntegerOperation,
-                    riscv.RdRsIntegerOperation,
-                    # TODO: add more
-                ),
+                (riscv.RISCVOp,),
             ):
+                assert len(op.results) == 1
                 # keep track of the "alive" registers
                 for operand in op.operands:
                     ctx.register_use(operand)
                 # skip already allocated registers
-                assert isinstance(op.rd.type, riscv.IntRegisterType)
-                if op.rd.type.is_allocated:
+                assert isinstance(op.results[0].type, riscv.IntRegisterType)
+                if op.results[0].type.is_allocated:
                     continue
                 # grab a free register and set it
-                op.rd.type = ctx.free_reg()
-                ctx.add_reg(op.rd)
+                op.results[0].type = ctx.free_reg()
+                ctx.add_reg(op.results[0])
             # the scf for loop has a special case function
             elif isinstance(op, riscv_scf.ForOp):
                 register_allocate_for_op(op, ctx)
@@ -161,7 +155,9 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
                 # unknown ops without results are fine, I think?
                 if len(op.results) == 0:
                     continue
-                raise RuntimeError(f"Unknown op {op}")
+                raise ValueError(
+                    f"SCF Register allocation for {op} with {op.results} is not implemented"
+                )
 
 
 class AllocateRISCVFunction(RewritePattern):
