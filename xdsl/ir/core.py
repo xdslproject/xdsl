@@ -31,6 +31,7 @@ from xdsl.utils.exceptions import VerifyException
 if TYPE_CHECKING:
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
+    from xdsl.pattern_rewriter import RewritePattern
     from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
@@ -66,6 +67,12 @@ class MLContext:
     _registeredAttrs: dict[str, type[Attribute]] = field(
         init=False, default_factory=dict
     )
+
+    def registered_ops(self):
+        """
+        Returns all the registered operations. Not valid across mutations of this object.
+        """
+        return self._registeredOps.values()
 
     def register_dialect(self, dialect: Dialect):
         """Register a dialect. Operation and Attribute names should be unique"""
@@ -931,6 +938,10 @@ class Operation(IRNode):
         Get all the traits of the given type satisfied by this operation.
         """
         return [t for t in cls.traits if isinstance(t, trait_type)]
+
+    @classmethod
+    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
+        return iter(())
 
     def erase(self, safe_erase: bool = True, drop_references: bool = True) -> None:
         """

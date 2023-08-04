@@ -5,7 +5,7 @@ Toy language dialect from MLIR tutorial.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TypeAlias, cast
+from typing import Iterator, TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
@@ -35,6 +35,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import (
     CallableOpInterface,
     IsTerminator,
@@ -397,6 +398,16 @@ class ReshapeOp(IRDLOperation):
         t = TensorTypeF64.from_type_and_list(element_type, shape)
         return super().__init__(result_types=[t], operands=[arg])
 
+    @classmethod
+    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
+        from ..rewrites.optimise_toy import (
+            FoldConstantReshapeOpPattern,
+            ReshapeReshapeOpPattern,
+        )
+
+        yield ReshapeReshapeOpPattern()
+        yield FoldConstantReshapeOpPattern()
+
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
         if not isa(arg.type, AnyTensorTypeF64):
@@ -455,6 +466,12 @@ class TransposeOp(IRDLOperation):
             output_type = arg.type
 
         super().__init__(operands=[arg], result_types=[output_type])
+
+    @classmethod
+    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
+        from ..rewrites.optimise_toy import SimplifyRedundantTranspose
+
+        yield SimplifyRedundantTranspose()
 
 
 class InferCastOpShapeTrait(ToyShapeInferenceTrait):
