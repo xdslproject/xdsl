@@ -10,8 +10,8 @@ from xdsl.utils.exceptions import InterpretationError
 
 
 class MemrefValue(Enum):
-    Allocated = 1
-    Deallocated = 2
+    Initialized = 1
+    Freed = 2
 
 
 @register_impls
@@ -22,7 +22,7 @@ class MemrefFunctions(InterpreterFunctions):
 
         shape = memref_type.get_shape()
         size = prod(shape)
-        data = [MemrefValue.Allocated] * size
+        data = [MemrefValue.Initialized] * size
 
         shaped_array = ShapedArray(data, list(shape))
         return (shaped_array,)
@@ -33,7 +33,7 @@ class MemrefFunctions(InterpreterFunctions):
     ):
         (shaped_array,) = args
         for i in range(len(shaped_array.data)):
-            shaped_array.data[i] = MemrefValue.Deallocated
+            shaped_array.data[i] = MemrefValue.Freed
         return ()
 
     @impl(memref.Store)
@@ -61,7 +61,9 @@ class MemrefFunctions(InterpreterFunctions):
         value = shaped_array.load(indices)
 
         if isinstance(value, MemrefValue):
-            state = "uninitialized" if value == MemrefValue.Allocated else "deallocated"
+            state = (
+                "uninitialized" if value == MemrefValue.Initialized else "deallocated"
+            )
             raise InterpretationError(
                 f"Cannot load {state} value from memref {shaped_array}"
             )

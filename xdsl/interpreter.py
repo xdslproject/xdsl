@@ -364,6 +364,10 @@ class Interpreter:
     file: IO[str] | None = field(default=None)
     _symbol_table: dict[str, Operation] | None = None
 
+    _runtime_callables: dict[
+        str, Callable[[tuple[Any, ...], str], tuple[Any, ...]]
+    ] = field(default_factory=dict)
+
     @property
     def symbol_table(self) -> dict[str, Operation]:
         if self._symbol_table is None:
@@ -419,6 +423,25 @@ class Interpreter:
         """
         self._impls.register_from(impls, override=override)
 
+    def register_runtime_functions(
+        self,
+        impls: dict[str, Callable[[tuple[Any, ...], str], tuple[Any, ...]]],
+        override: bool = False,
+    ) -> None:
+        """
+        Register runtime functions. These are used to supply functions that are marked as external.
+        """
+        if override:
+            self._runtime_callables.update(impls)
+            return
+
+        for key, impl in impls.items():
+            if key in self._runtime_callables:
+                raise InterpretationError(
+                    f"Cannot register runtime function {key}, it's already registered."
+                )
+            self._runtime_callables[key] = impl
+
     def run_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
         """
         Calls the implementation for the given operation.
@@ -449,7 +472,13 @@ class Interpreter:
 
         body = interface.get_callable_region(op)
 
-        results = self.run_ssacfg_region(body, inputs, name)
+        # TODO: make this robust, probably use trait
+        # something like interface.is_external_impl()
+        if len(body.blocks) == 0 or not body.block.ops:
+            results = self._runtime_callables[name](inputs, name)
+        else:
+            results = self.run_ssacfg_region(body, inputs, name)
+
         assert results is not None
         return results
 

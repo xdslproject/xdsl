@@ -45,6 +45,9 @@ class Buffer(Generic[_T]):
         Aliases the data list, so storing into the offset stores for all other references
         to the list.
         """
+        assert (
+            offset % 4 == 0
+        ), "riscv buffer currently only supports word aligned offsets"
         return Buffer(self.data, self.offset + offset // 4)
 
     def __getitem__(self, key: int) -> _T:
