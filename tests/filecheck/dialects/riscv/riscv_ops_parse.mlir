@@ -1,3 +1,5 @@
+// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | filecheck %s
+
 builtin.module {
   riscv.label {"label" = #riscv.label<"main">} ({
     %0 = riscv.get_register : () -> !riscv.reg<>
