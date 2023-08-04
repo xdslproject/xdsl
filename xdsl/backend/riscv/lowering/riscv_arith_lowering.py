@@ -167,42 +167,43 @@ class LowerArithMaxUI(RewritePattern):
 class LowerArithCmpi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpi, rewriter: PatternRewriter) -> None:
+        lhs, rhs = op.lhs, op.rhs
         # based on https://github.com/llvm/llvm-project/blob/main/llvm/test/CodeGen/RISCV/i32-icmp.ll
         match op.predicate.value.data:
             # eq
             case 0:
-                xor_op = riscv.XorOp(op.lhs, op.rhs)
+                xor_op = riscv.XorOp(lhs, rhs)
                 seqz_op = riscv.SltiuOp(xor_op, 1)
                 rewriter.replace_matched_op([xor_op, seqz_op])
             # ne
             case 1:
                 zero = riscv.GetRegisterOp(riscv.Registers.ZERO)
-                xor_op = riscv.XorOp(op.lhs, op.rhs)
+                xor_op = riscv.XorOp(lhs, rhs)
                 snez_op = riscv.SltuOp(zero, xor_op)
                 rewriter.replace_matched_op([zero, xor_op, snez_op])
                 pass
             # slt
             case 2:
-                rewriter.replace_matched_op([riscv.SltOp(op.lhs, op.rhs)])
+                rewriter.replace_matched_op([riscv.SltOp(lhs, rhs)])
             # sle
             case 3:
-                slt = riscv.SltOp(op.lhs, op.rhs)
+                slt = riscv.SltOp(lhs, rhs)
                 xori = riscv.XoriOp(slt, 1)
                 rewriter.replace_matched_op([slt, xori])
             # ult
             case 4:
-                rewriter.replace_matched_op([riscv.SltuOp(op.lhs, op.rhs)])
+                rewriter.replace_matched_op([riscv.SltuOp(lhs, rhs)])
             # ule
             case 5:
-                sltu = riscv.SltuOp(op.lhs, op.rhs)
+                sltu = riscv.SltuOp(lhs, rhs)
                 xori = riscv.XoriOp(sltu, 1)
                 rewriter.replace_matched_op([sltu, xori])
             # ugt
             case 6:
-                rewriter.replace_matched_op([riscv.SltuOp(op.rhs, op.lhs)])
+                rewriter.replace_matched_op([riscv.SltuOp(rhs, lhs)])
             # uge
             case 7:
-                sltu = riscv.SltuOp(op.rhs, op.lhs)
+                sltu = riscv.SltuOp(rhs, lhs)
                 xori = riscv.XoriOp(sltu, 1)
                 rewriter.replace_matched_op([sltu, xori])
             case _:
