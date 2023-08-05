@@ -563,8 +563,7 @@ def transform_apply_into_loop(
 
     chunk_num = p.body.block.args[0]
 
-    # MAX_Y_SIZE = 16
-    MAX_Y_SIZE = 8  # TODO: we use this size because our Y dimension is under 16 and that way the kernel doesn't finish. It's not a problem for size > 16
+    MAX_Y_SIZE = 16
     max_chunk_length = Constant.from_int_and_width(MAX_Y_SIZE, i32)
 
     remainder = LoadOp.get(p_remainder)
