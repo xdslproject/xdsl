@@ -424,57 +424,13 @@ def add_read_write_ops(
         rewriter.insert_op_at_end(write_op, op.region.block)
 
     for arg_index_read in indices_stream_to_read:
-        # We store the address of the output array outside the loop
-        func_arg_datatype = out_global_mem[global_mem_idx].typ
-        p_func_arg_addr = AllocaOp.get(alloca_size, func_arg_datatype)
-        store_func_arg_addr = StoreOp.get(
-            out_global_mem[global_mem_idx], p_func_arg_addr
-        )
-
-        store_func_arg_addr_lst.append(store_func_arg_addr)
-
-        # Inside the loop, we do the pointer arithmetic to write on the next array element in every teration
-        dummy_element = Constant.from_float_and_width(5.0, f64)
-
-        copy_func_arg = LoadOp.get(p_func_arg_addr)
-        write_op = StoreOp.get(stencil_return_vals[0], copy_func_arg)
-
-        # write_op = HLSStreamWrite(stencil_return_vals[0], out_stream)
-
-        # write_op = StoreOp.get(dummy_element, copy_func_arg)
-        incr_copy_func_arg_addr = GEPOp.get(
-            copy_func_arg, [1], result_type=func_arg_datatype
-        )
-        update_copy_func_arg_addr = StoreOp.get(
-            incr_copy_func_arg_addr, p_func_arg_addr
-        )
-
-        p_func_arg_addr_lst.append(p_func_arg_addr)
-
         stream_to_read = op.region.block.args[arg_index_read]
-        # stream_to_write = op.region.block.args[arg_index_write]
 
         read_op = HLSStreamRead(stream_to_read)
         read_op.attributes["write_data"] = IntAttr(1)
         read_elem = read_op.res
 
-        # TODO: this stream will be passsed to the write_data intrinsic, but for now we are just going to write to memory directly here.
-        global_mem_idx += 1
-
-        # rewriter.insert_op_at_end(
-        #    [
-        #        #copy_func_arg,
-        #        write_op,
-        #        #incr_copy_func_arg_addr,
-        #        #update_copy_func_arg_addr,
-        #        # df_write
-        #    ],
-        #    op.region.block,
-        # )
-
         rewriter.insert_op_at_start(read_op, op.region.block)
-
-    boilerplate += [alloca_size, *p_func_arg_addr_lst, *store_func_arg_addr_lst]
 
 
 def transform_apply_into_loop(
@@ -763,16 +719,12 @@ class ApplyOpToHLS(RewritePattern):
             p_dataflow_lst.append(p_dataflow)
             component_idx += 1
 
-        rewriter.insert_op_before_matched_op(
-            [
-                *boilerplate[0],
-                p_dataflow_lst[0],
-                *boilerplate[1],
-                p_dataflow_lst[1],
-                *boilerplate[2],
-                p_dataflow_lst[2],
-            ]
-        )
+        operations_to_insert = []
+        for i in range(n_components):
+            operations_to_insert += boilerplate[i] + [p_dataflow_lst[i]]
+
+        rewriter.insert_op_before_matched_op(operations_to_insert)
+
         rewriter.replace_matched_op(new_apply)
 
 
@@ -787,6 +739,15 @@ def collectComponentOperations(op: Operation, component_operations, operation_in
             collectComponentOperations(operand, component_operations, operation_indices)
 
 
+def get_number_external_stores(op: FuncOp):
+    external_stores_lst = [
+        o for o in op.body.blocks[0].ops if isinstance(o, ExternalStoreOp)
+    ]
+    print("-----> NUMBER: ", len(external_stores_lst))
+
+    return len(external_stores_lst)
+
+
 @dataclass
 class StencilExternalStoreToHLSWriteData(RewritePattern):
     module: builtin.ModuleOp
@@ -794,9 +755,12 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
     write_data_declaration: bool = False
     func_args_lst: list = field(default_factory=list)
     n_args: int = 0
+    total_args: int = None
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalStoreOp, rewriter: PatternRewriter, /):
+        if self.total_args == None:
+            self.total_args = get_number_external_stores(op.parent_op())
         field = op.field
         temp = op.temp
 
@@ -815,7 +779,7 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
         self.func_args_lst.append(func_arg)
         self.n_args += 1
 
-        if self.n_args == 3:
+        if self.n_args == self.total_args:
             # packed_type = LLVMPointerType.typed(LLVMArrayType.from_size_and_type(8, f64))
             packed_type = LLVMPointerType.typed(
                 LLVMStructType.from_type_list(
@@ -983,6 +947,16 @@ class GetInoutAttributeFromExternalStore(RewritePattern):
                 use.operation.attributes["inout"] = IntAttr(OUT)
 
 
+def get_number_input_stencils(op: FuncOp):
+    external_load_lst = [
+        o for o in op.body.blocks[0].ops if isinstance(o, ExternalLoadOp)
+    ]
+
+    n = sum([1 for o in external_load_lst if o.attributes["inout"].data == 1])
+
+    return n
+
+
 @dataclass
 class GroupLoadsUnderSameDataflow(RewritePattern):
     module: builtin.ModuleOp
@@ -992,15 +966,18 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
     sizes: IntegerType | None = None
     in_module_load_all_data_func: FuncOp | None = None
     n_current_load: int = 0
+    n_input: int = -1
 
     data_arrays: list = field(default_factory=list)
     data_streams: list = field(default_factory=list)
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: Call, rewriter: PatternRewriter, /):
+        if op.callee.root_reference.data == "dummy_load_data":
+            self.n_input = get_number_input_stencils(op.parent_op().parent_op())
         if (
             op.callee.root_reference.data == "dummy_load_data"
-            and self.n_current_load < 3
+            and self.n_current_load < self.n_input
         ):
             self.load_lst.append(op)
             self.n_current_load += 1
@@ -1022,7 +999,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                 parent_dataflow.erase()
 
             # TODO: There are 3 IN loads in pw_advection. Generalise this by counting the number of IN loads
-            if self.n_current_load == 3:
+            if self.n_current_load == self.n_input:
                 load_data_func = FuncOp.external(
                     "load_data",
                     [
@@ -1441,7 +1418,7 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     StencilExternalStoreToHLSWriteData(module, out_data_streams),
-                    TrivialExternalLoadOpCleanup(),
+                    # TrivialExternalLoadOpCleanup(),
                     TrivialExternalStoreOpCleanup(),
                     TrivialStoreOpCleanup(),
                 ]
@@ -1450,6 +1427,14 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
             walk_reverse=True,
         )
         write_data_pass.rewrite_module(op)
+
+        grouploads_pass = PatternRewriteWalker(
+            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+            GreedyRewritePatternApplier([GroupLoadsUnderSameDataflow(op)]),
+            apply_recursively=False,
+            walk_reverse=False,
+        )
+        grouploads_pass.rewrite_module(op)
 
         cleanup_pass = PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
@@ -1468,7 +1453,7 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
         clean_apply_pass = PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
             GreedyRewritePatternApplier(
-                [TrivialApplyOpCleanup(), GroupLoadsUnderSameDataflow(op)]
+                [TrivialApplyOpCleanup()]  # , GroupLoadsUnderSameDataflow(op)]
             ),
             apply_recursively=False,
             walk_reverse=False,
