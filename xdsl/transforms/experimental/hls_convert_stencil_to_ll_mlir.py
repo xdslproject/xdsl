@@ -780,7 +780,7 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
         self.n_args += 1
 
         if self.n_args == self.total_args:
-            # packed_type = LLVMPointerType.typed(LLVMArrayType.from_size_and_type(8, f64))
+            write_data_func_name = f"write_data_{self.total_args}"
             packed_type = LLVMPointerType.typed(
                 LLVMStructType.from_type_list(
                     [LLVMArrayType.from_size_and_type(8, f64)]
@@ -791,19 +791,14 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
             out_data_stream_type = LLVMPointerType.typed(
                 LLVMStructType.from_type_list([out_data_type])
             )
+            write_data_func_args_lst = (
+                self.total_args * [out_data_stream_type]
+                + self.total_args * [packed_type]
+                + self.total_args * [i32]
+            )
             write_data_func = FuncOp.external(
-                "write_data",
-                [
-                    out_data_stream_type,
-                    out_data_stream_type,
-                    out_data_stream_type,
-                    packed_type,
-                    packed_type,
-                    packed_type,
-                    i32,
-                    i32,
-                    i32,
-                ],
+                write_data_func_name,
+                write_data_func_args_lst,
                 [],
             )
             self.module.body.block.add_op(write_data_func)
@@ -820,7 +815,7 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
             shape_z = Constant.from_int_and_width(shape.data[2].value.data, i32)
 
             call_write_data = Call.get(
-                "write_data",
+                write_data_func_name,
                 [
                     *[stream.results[0] for stream in self.out_data_streams],
                     *reversed(self.func_args_lst),
@@ -1000,38 +995,27 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
 
             # TODO: There are 3 IN loads in pw_advection. Generalise this by counting the number of IN loads
             if self.n_current_load == self.n_input:
+                load_data_func_name = f"load_data_{self.n_input}"
+                hls_stream_type = LLVMPointerType.typed(
+                    LLVMStructType.from_type_list(
+                        [self.first_load.arguments[1].typ.element_type]
+                    )
+                )
+                load_data_args_lst = (
+                    self.n_input * [self.first_load.arguments[0].typ]
+                    + self.n_input * [hls_stream_type]
+                    + 3 * [i32]
+                )
                 load_data_func = FuncOp.external(
-                    "load_data",
-                    [
-                        self.first_load.arguments[0].typ,
-                        self.first_load.arguments[0].typ,
-                        self.first_load.arguments[0].typ,
-                        LLVMPointerType.typed(
-                            LLVMStructType.from_type_list(
-                                [self.first_load.arguments[1].typ.element_type]
-                            )
-                        ),
-                        LLVMPointerType.typed(
-                            LLVMStructType.from_type_list(
-                                [self.first_load.arguments[1].typ.element_type]
-                            )
-                        ),
-                        LLVMPointerType.typed(
-                            LLVMStructType.from_type_list(
-                                [self.first_load.arguments[1].typ.element_type]
-                            )
-                        ),
-                        i32,
-                        i32,
-                        i32,
-                    ],
+                    load_data_func_name,
+                    load_data_args_lst,
                     [],
                 )
 
                 self.module.body.block.add_op(load_data_func)
 
                 call_load_all_data = Call.get(
-                    "load_data",
+                    load_data_func_name,
                     self.data_arrays + self.data_streams + list(self.sizes),
                     [],
                 )
