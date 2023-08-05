@@ -114,10 +114,10 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
                     "and, max, min, mul, or, or xor ",
                 )
         else:
-            parser.raise_error(f"'dim' or 'all_reduce_op' expected")
+            parser.raise_error("'dim' or 'all_reduce_op' expected")
         parser.parse_characters(
             ">",
-            f". gpu attributes currently have the #gpu<name value> syntax.",
+            ". gpu attributes currently have the #gpu<name value> syntax.",
         )
         return [attrtype([StringAttr(vtok)])]
 
@@ -244,12 +244,12 @@ class AllReduceOp(IRDLOperation):
         if non_empty_body == op_attr:
             if op_attr:
                 raise VerifyException(
-                    f"gpu.all_reduce can't have both a non-empty region and an op "
+                    "gpu.all_reduce can't have both a non-empty region and an op "
                     "attribute."
                 )
             else:
                 raise VerifyException(
-                    f"gpu.all_reduce need either a non empty body or an op attribute."
+                    "gpu.all_reduce need either a non empty body or an op attribute."
                 )
         if non_empty_body:
             region_args = self.body.blocks[0].args
@@ -439,7 +439,7 @@ class FuncOp(IRDLOperation):
                 "function input types"
             )
         if (self.kernel is not None) and (len(self.function_type.outputs) != 0):
-            raise VerifyException(f"Expected void return type for kernel function")
+            raise VerifyException("Expected void return type for kernel function")
 
 
 @irdl_op_definition

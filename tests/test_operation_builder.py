@@ -437,8 +437,8 @@ class VarRegionOp(IRDLOperation):
 def test_var_region_builder():
     op = VarRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op.verify()
-    assert len(op.regs[0].blocks) == 0  # type: ignore
-    assert len(op.regs[1].blocks) == 2  # type: ignore
+    assert len(op.regs[0].blocks) == 0
+    assert len(op.regs[1].blocks) == 2
 
 
 @irdl_op_definition
@@ -453,10 +453,10 @@ def test_var_sbregion_one_block():
     op2 = VarSBRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op1.verify()
     op2.verify()
-    assert len(op1.regs) == 1  # type: ignore
-    assert len(op2.regs) == 2  # type: ignore
-    assert len(op2.regs[0].blocks) == 0  # type: ignore
-    assert len(op2.regs[1].blocks) == 2  # type: ignore
+    assert len(op1.regs) == 1
+    assert len(op2.regs) == 2
+    assert len(op2.regs[0].blocks) == 0
+    assert len(op2.regs[1].blocks) == 2
 
 
 @irdl_op_definition

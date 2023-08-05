@@ -1,6 +1,9 @@
 from io import StringIO
 from pathlib import Path
 
+from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
+from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
+from xdsl.backend.riscv.lowering.scf_to_riscv_scf import ScfToRiscvPass
 from xdsl.dialects import (
     affine,
     arith,
@@ -17,27 +20,24 @@ from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
+from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_scf_to_asm import LowerScfForToLabelsPass
 from xdsl.transforms.rvscf_regalloc import register_allocate_function
-from xdsl.transforms.scf_to_riscv_scf import ScfToRiscvPass
 
 from .dialects import toy
 from .emulator.toy_accelerator_instructions import ToyAccelerator
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
+from .rewrites.arith_float_to_int import CastArithFloatToInt
 from .rewrites.inline_toy import InlineToyPass
-from .rewrites.lower_arith_riscv import LowerArithRiscvPass
-from .rewrites.lower_func_riscv_func import LowerFuncToRiscvFunc
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
-from .rewrites.lower_riscv_cf import LowerCfRiscvCfPass
 from .rewrites.lower_to_toy_accelerator import LowerToToyAccelerator
 from .rewrites.lower_toy_accelerator_to_riscv import LowerToyAccelerator
 from .rewrites.lower_toy_affine import LowerToAffinePass
-from .rewrites.mlir_opt import MLIROptPass
 from .rewrites.optimise_toy import OptimiseToy
-from .rewrites.setup_riscv_pass import FinalizeRiscvPass, SetupRiscvPass
+from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
 
 
@@ -115,25 +115,14 @@ def transform(
         return
 
     SetupRiscvPass().apply(ctx, module_op)
-
     LowerFuncToRiscvFunc().apply(ctx, module_op)
-
-    # Toy lowerings
     LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
-
-    # xDSL lowerings
-    LowerArithRiscvPass().apply(ctx, module_op)
+    CastArithFloatToInt().apply(ctx, module_op)
+    RISCVLowerArith().apply(ctx, module_op)
     ScfToRiscvPass().apply(ctx, module_op)
-
     DeadCodeElimination().apply(ctx, module_op)
-
-    # Maybe not at first
-    LowerCfRiscvCfPass().apply(ctx, module_op)
-
-    # xDSL again
-    FinalizeRiscvPass().apply(ctx, module_op)
     ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 
     DeadCodeElimination().apply(ctx, module_op)

@@ -226,7 +226,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         required by the underlying MPI library
         """
         if hasattr(self.info, op_attr.op_str.data):
-            return getattr(self.info, op_attr.op_str.data)  # type: ignore
+            return getattr(self.info, op_attr.op_str.data)
         else:
             raise RuntimeError("Unknown MPI operation type")
 

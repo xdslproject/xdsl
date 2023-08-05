@@ -1,18 +1,13 @@
 import argparse
 from pathlib import Path
-from typing import Any
 
-from xdsl.dialects import memref, riscv
-from xdsl.dialects.builtin import Float64Type
-from xdsl.interpreter import InterpreterFunctions, impl_cast, register_impls
+from xdsl.dialects import riscv
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.builtin import BuiltinFunctions
-from xdsl.interpreters.cf import CfFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
-from xdsl.interpreters.riscv import Buffer
 from xdsl.interpreters.riscv_cf import RiscvCfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
@@ -23,7 +18,6 @@ from xdsl.printer import Printer
 from .compiler import context, emulate_riscv, transform
 from .emulator.toy_accelerator_functions import ToyAcceleratorFunctions
 from .emulator.toy_accelerator_instruction_functions import (
-    ShapedArrayBuffer,
     ToyAcceleratorInstructionFunctions,
 )
 from .frontend.ir_gen import IRGen
@@ -57,28 +51,6 @@ parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
 parser.add_argument("--accelerate", dest="accelerate", action="store_true")
 parser.add_argument("--skip-mlir-opt", dest="skip_mlir_opt", action="store_true")
-
-
-@register_impls
-class BufferMemrefConversion(InterpreterFunctions):
-    @impl_cast(riscv.IntRegisterType, memref.MemRefType[Float64Type])
-    def cast_buffer_to_memref(
-        self,
-        input_type: riscv.IntRegisterType,
-        output_type: memref.MemRefType[Float64Type],
-        value: Any,
-    ) -> Any:
-        shape = output_type.get_shape()
-        return ShapedArrayBuffer(value.data, list(shape))
-
-    @impl_cast(memref.MemRefType[Float64Type], riscv.IntRegisterType)
-    def cast_memref_to_buffer(
-        self,
-        input_type: memref.MemRefType[Float64Type],
-        output_type: riscv.IntRegisterType,
-        value: Any,
-    ) -> Any:
-        return Buffer(value.data)
 
 
 def main(
@@ -152,21 +124,16 @@ def main(
         interpreter.register_implementations(ToyFunctions())
     if emit in ("affine"):
         interpreter.register_implementations(AffineFunctions())
-    if accelerate and emit in ("affine", "scf", "cf"):
+    if accelerate and emit in ("affine", "scf"):
         interpreter.register_implementations(ToyAcceleratorFunctions())
-    if emit in ("affine", "scf", "cf"):
+    if emit in ("affine", "scf"):
         interpreter.register_implementations(ArithFunctions())
         interpreter.register_implementations(MemrefFunctions())
         interpreter.register_implementations(PrintfFunctions())
         interpreter.register_implementations(FuncFunctions())
     if emit == "scf":
         interpreter.register_implementations(ScfFunctions())
-    if emit == "cf":
-        interpreter.register_implementations(CfFunctions())
-
-    if emit in ("scf, cf"):
         interpreter.register_implementations(BuiltinFunctions())
-        interpreter.register_implementations(BufferMemrefConversion())
 
     if emit in ("riscv", "riscv-regalloc"):
         interpreter.register_implementations(

@@ -18,6 +18,8 @@ from typing import (
     overload,
 )
 
+from typing_extensions import Self
+
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
@@ -679,7 +681,8 @@ class ContainerOf(AttrConstraint):
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if isinstance(attr, VectorType) or isinstance(attr, TensorType):
-            self.elem_constr.verify(attr.element_type, constraint_vars)  # type: ignore
+            attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
+            self.elem_constr.verify(attr.element_type, constraint_vars)
         else:
             self.elem_constr.verify(attr, constraint_vars)
 
@@ -725,9 +728,10 @@ class VectorBaseTypeConstraint(AttrConstraint):
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
-        if attr.element_type != self.expected_type:  # type: ignore
+        attr = cast(VectorType[Attribute], attr)
+        if attr.element_type != self.expected_type:
             raise VerifyException(
-                f"Expected vector type to be {self.expected_type}, got {attr.element_type}."  # type: ignore
+                f"Expected vector type to be {self.expected_type}, got {attr.element_type}."
             )
 
 
@@ -1106,6 +1110,42 @@ class UnrealizedConversionCastOp(IRDLOperation):
             operands=[inputs],
             result_types=[result_type],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        if parser.parse_optional_characters("to") is None:
+            args = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE,
+                parser.parse_unresolved_operand,
+            )
+            parser.parse_punctuation(":")
+            input_types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE,
+                parser.parse_type,
+            )
+            parser.parse_characters("to")
+            inputs = parser.resolve_operands(args, input_types, parser.pos)
+        else:
+            inputs = list[SSAValue]()
+        output_types = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE,
+            parser.parse_type,
+        )
+        attributes = parser.parse_optional_attr_dict()
+        return UnrealizedConversionCastOp([inputs], [output_types], attributes)
+
+    def print(self, printer: Printer):
+        def print_fn(operand: SSAValue) -> None:
+            return printer.print_attribute(operand.type)
+
+        if self.inputs:
+            printer.print(" ")
+            printer.print_list(self.inputs, printer.print_operand)
+            printer.print_string(" : ")
+            printer.print_list(self.inputs, print_fn)
+        printer.print_string(" to ")
+        printer.print_list(self.outputs, print_fn)
+        printer.print_op_attributes(self.attributes)
 
 
 class UnregisteredOp(IRDLOperation, ABC):

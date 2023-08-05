@@ -9,34 +9,34 @@ def main() {
 }
 
 # generated scf for loop:
-# SCF:    "scf.for"(%8, %9, %10) ({
-# SCF:    ^0(%arg0 : index):
-# SCF:      %11 = "memref.load"(%4, %arg0) {"nontemporal" = false} : (memref<3xf64>, index) -> f64
-# SCF:      %12 = arith.addf %11, %11 : f64
-# SCF:      "memref.store"(%12, %3, %arg0) {"nontemporal" = false} : (f64, memref<3xf64>, index) -> ()
-# SCF:      "scf.yield"() : () -> ()
-# SCF:    }) : (index, index, index) -> ()
+# SCF:       "scf.for"(%8, %9, %10) ({
+# SCF:       ^0(%arg0 : index):
+# SCF:         %11 = "memref.load"(%4, %arg0) {"nontemporal" = false} : (memref<3xf64>, index) -> f64
+# SCF:         %12 = arith.addf %11, %11 : f64
+# SCF:         "memref.store"(%12, %3, %arg0) {"nontemporal" = false} : (f64, memref<3xf64>, index) -> ()
+# SCF:         "scf.yield"() : () -> ()
+# SCF:       }) : (index, index, index) -> ()
 
 # register allocated for loop (in riscv-scf dialect)
-# RV_IR: "riscv_scf.for"(%20, %22, %24) ({
-# RV_IR: ^0(%arg0 : !riscv.reg<t0>):
-# RV_IR:   %25 = riscv.add %9, %arg0 : (!riscv.reg<a4>, !riscv.reg<t0>) -> !riscv.reg<t3>
-# RV_IR:   %26 = riscv.lw %25 {"immediate" = 0 : si12, "comment" = "load value from memref of shape (3,)"} : (!riscv.reg<t3>) -> !riscv.reg<t3>
-# RV_IR:   %27 = riscv.add %26, %26 : (!riscv.reg<t3>, !riscv.reg<t3>) -> !riscv.reg<t3>
-# RV_IR:   %28 = riscv.add %7, %arg0 : (!riscv.reg<a3>, !riscv.reg<t0>) -> !riscv.reg<t4>
-# RV_IR:   riscv.sw %28, %27 {"immediate" = 0 : si12, "comment" = "store value to memref of shape (3,)"} : (!riscv.reg<t4>, !riscv.reg<t3>) -> ()
-# RV_IR:   "riscv_scf.yield"() : () -> ()
-# RV_IR: }) : (!riscv.reg<t0>, !riscv.reg<t1>, !riscv.reg<t2>) -> ()
+# RV_IR:     "riscv_scf.for"(%13, %14, %15) ({
+# RV_IR:     ^0(%arg0 : !riscv.reg<t0>):
+# RV_IR:       %16 = riscv.add %6, %arg0 : (!riscv.reg<a4>, !riscv.reg<t0>) -> !riscv.reg<t3>
+# RV_IR:       %17 = riscv.lw %16, 0 {"comment" = "load value from memref of shape (3,)"} : (!riscv.reg<t3>) -> !riscv.reg<t3>
+# RV_IR:       %18 = riscv.add %17, %17 : (!riscv.reg<t3>, !riscv.reg<t3>) -> !riscv.reg<t3>
+# RV_IR:       %19 = riscv.add %4, %arg0 : (!riscv.reg<a3>, !riscv.reg<t0>) -> !riscv.reg<t4>
+# RV_IR:       riscv.sw %19, %18, 0 {"comment" = "store value to memref of shape (3,)"} : (!riscv.reg<t4>, !riscv.reg<t3>) -> ()
+# RV_IR:       "riscv_scf.yield"() : () -> ()
+# RV_IR:     }) : (!riscv.reg<t0>, !riscv.reg<t1>, !riscv.reg<t2>) -> ()
 
 # generated assembly code for the loop:
-# RV_ASM: scf_leader_0:
-# RV_ASM:     bge t0, t1, scf_body_end_0
-# RV_ASM: scf_body_0:
-# RV_ASM:     add t3, a4, t0
-# RV_ASM:     lw t3, 0(t3)                                 # load value from memref of shape (3,)
-# RV_ASM:     add t3, t3, t3
-# RV_ASM:     add t4, a3, t0
-# RV_ASM:     sw t3, 0(t4)                                 # store value to memref of shape (3,)
-# RV_ASM:     add t0, t0, t2
-# RV_ASM:     blt t0, t1, scf_body_0
-# RV_ASM: scf_body_end_0:
+# RV_ASM:     scf_leader_0:
+# RV_ASM:         bge t0, t1, scf_body_end_0
+# RV_ASM:     scf_body_0:
+# RV_ASM:         add t3, a4, t0
+# RV_ASM:         lw t3, 0(t3)                                 # load value from memref of shape (3,)
+# RV_ASM:         add t3, t3, t3
+# RV_ASM:         add t4, a3, t0
+# RV_ASM:         sw t3, 0(t4)                                 # store value to memref of shape (3,)
+# RV_ASM:         add t0, t0, t2
+# RV_ASM:         blt t0, t1, scf_body_0
+# RV_ASM:     scf_body_end_0:

@@ -1,6 +1,9 @@
 from math import prod
 from typing import Any, Sequence, cast
 
+from xdsl.backend.riscv.lowering.utils import (
+    cast_operands_to_int_regs,
+)
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir.core import MLContext, SSAValue
@@ -11,8 +14,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
-from .helpers import cast_value_to_register
 
 
 class LowerMemrefAllocOp(RewritePattern):
@@ -45,34 +46,34 @@ def insert_shape_ops(
     """
     assert len(shape) == len(indices)
 
-    if len(shape) == 1:
-        rewriter.insert_op_before_matched_op(
-            [
-                ptr := riscv.AddOp(mem, indices[0]),
-            ]
-        )
-    elif len(shape) == 2:
-        rewriter.insert_op_before_matched_op(
-            [
-                cols := riscv.LiOp(shape[1]),
-                row_offset := riscv.MulOp(cols, indices[0]),
-                offset := riscv.AddOp(row_offset, indices[1]),
-                word_bytes := riscv.LiOp(4),
-                offset_bytes := riscv.MulOp(offset, word_bytes),
-                ptr := riscv.AddOp(mem, offset_bytes),
-            ]
-        )
-    else:
-        assert False, f"Unsupported memref shape {shape}"
+    match indices:
+        case [idx1]:
+            rewriter.insert_op_before_matched_op(
+                [
+                    ptr := riscv.AddOp(mem, idx1),
+                ]
+            )
+        case [idx1, idx2]:
+            rewriter.insert_op_before_matched_op(
+                [
+                    cols := riscv.LiOp(shape[1]),
+                    row_offset := riscv.MulOp(cols, idx1),
+                    offset := riscv.AddOp(row_offset, idx2),
+                    offset_bytes := riscv.SlliOp(
+                        offset, 2, comment="mutiply by elm size"
+                    ),
+                    ptr := riscv.AddOp(mem, offset_bytes),
+                ]
+            )
+        case _:
+            raise NotImplementedError(f"Unsupported memref shape {shape}")
     return ptr.rd
 
 
 class LowerMemrefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
-        value = cast_value_to_register(op.value, rewriter)
-        mem = cast_value_to_register(op.memref, rewriter)
-        indices = tuple(cast_value_to_register(index, rewriter) for index in op.indices)
+        value, mem, *indices = cast_operands_to_int_regs(rewriter)
 
         assert isinstance(op.memref.type, memref.MemRefType)
         memref_typ = cast(memref.MemRefType[Any], op.memref.type)
@@ -91,8 +92,7 @@ class LowerMemrefStoreOp(RewritePattern):
 class LowerMemrefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
-        mem = cast_value_to_register(op.memref, rewriter)
-        indices = tuple(cast_value_to_register(index, rewriter) for index in op.indices)
+        mem, *indices = cast_operands_to_int_regs(rewriter)
 
         assert isinstance(op.memref.type, memref.MemRefType)
         memref_typ = cast(memref.MemRefType[Any], op.memref.type)
@@ -103,9 +103,7 @@ class LowerMemrefLoadOp(RewritePattern):
                 lw := riscv.LwOp(
                     ptr, 0, comment=f"load value from memref of shape {shape}"
                 ),
-                UnrealizedConversionCastOp.get(
-                    lw.results, (riscv.IntRegisterType.unallocated(),)
-                ),
+                UnrealizedConversionCastOp.get(lw.results, (op.res.type,)),
             ],
         )
 

@@ -600,6 +600,19 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(20, Signedness.UNSIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
 
 class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -654,11 +667,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        match self.immediate:
-            case IntegerAttr():
-                printer.print(self.immediate.value.data)
-            case LabelAttr():
-                printer.print_string_literal(self.immediate.data)
+        _print_immediate_value(printer, self.immediate)
         if self.rd is not None:
             printer.print(", ")
             printer.print_attribute(self.rd)
@@ -711,6 +720,19 @@ class _RdRsImmIntegerOperation(IRDLOperation, ABC):
 class RdRsImmIntegerOperation(_RdRsImmIntegerOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 class RdRsImmShiftOperation(RdRsImmIntegerOperation):
@@ -805,11 +827,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        match self.immediate:
-            case IntegerAttr():
-                printer.print(self.immediate.value.data)
-            case LabelAttr():
-                printer.print_string_literal(self.immediate.data)
+        _print_immediate_value(printer, self.immediate)
         if self.rd is not None:
             printer.print(", ")
             printer.print_attribute(self.rd)
@@ -886,6 +904,17 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.offset
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["offset"] = _parse_immediate_value(parser, IntegerType(12))
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
 
 class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -924,6 +953,19 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 class RsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -2069,6 +2111,14 @@ class LiOp(RdImmIntegerOperation):
 
         super().__init__(immediate, rd=rd, comment=comment)
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(32, Signedness.SIGNED)
+        )
+        return attributes
+
 
 @irdl_op_definition
 class EcallOp(NullaryOperation):
@@ -3124,6 +3174,14 @@ def _parse_immediate_value(
         lambda: _parse_optional_immediate_value(parser, integer_type),
         "Expected immediate",
     )
+
+
+def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
+    match immediate:
+        case IntegerAttr():
+            printer.print(immediate.value.data)
+        case LabelAttr():
+            printer.print_string_literal(immediate.data)
 
 
 RISCV = Dialect(

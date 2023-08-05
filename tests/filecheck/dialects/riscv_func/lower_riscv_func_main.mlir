@@ -9,7 +9,7 @@
 
 // CHECK-NEXT:     riscv.code_section ({
 // CHECK-NEXT:         riscv.label {"label" = #riscv.label<"main">} : () -> ()
-// CHECK-NEXT:         %{{.*}} = riscv.li {"immediate" = 93 : i32} : () -> !riscv.reg<a7>
+// CHECK-NEXT:         %{{.*}} = riscv.li 93 : () -> !riscv.reg<a7>
 // CHECK-NEXT:         riscv.ecall : () -> ()
 // CHECK-NEXT:         riscv.ret : () -> ()
 // CHECK-NEXT:     }) : () -> ()

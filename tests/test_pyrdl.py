@@ -248,7 +248,7 @@ def test_param_attr_verify_params_num_params_fail():
     attr = DoubleParamAttr([bool_true, IntData(0)])
     with pytest.raises(VerifyException) as e:
         constraint.verify(attr, {})
-    assert e.value.args[0] == (f"1 parameters expected, but got 2")
+    assert e.value.args[0] == ("1 parameters expected, but got 2")
 
 
 def test_param_attr_verify_params_fail():

@@ -1,11 +1,11 @@
 // RUN: xdsl-opt --split-input-file -t riscemu %s | filecheck %s
 
 builtin.module {
-  %0 = riscv.li {"immediate" = 6 : si32} : () -> !riscv.reg<j0>
-  %1 = riscv.li {"immediate" = 7 : si32} : () -> !riscv.reg<j1>
+  %0 = riscv.li 6 : () -> !riscv.reg<j0>
+  %1 = riscv.li 7 : () -> !riscv.reg<j1>
   %2 = riscv.mul %0, %1 : (!riscv.reg<j0>, !riscv.reg<j1>) -> !riscv.reg<j2>
   riscv.custom_assembly_instruction %2 {"instruction_name" = "print"} : (!riscv.reg<j2>) -> ()
-  %3 = riscv.li {"immediate" = 93 : si32} : () -> !riscv.reg<a7>
+  %3 = riscv.li 93 : () -> !riscv.reg<a7>
   riscv.ecall : () -> ()
   riscv.ret : () -> ()
 }
