@@ -112,7 +112,7 @@ def add_pragma_interface(func_arg: BlockArgument, inout: int, kernel: FuncOp):
     kernel.body.block.insert_op_before(func_call, kernel.body.block.first_op)
 
 
-def gen_duplicate_loop(input_stream, duplicate_stream_lst):
+def gen_duplicate_loop(input_stream, duplicate_stream_lst, n):
     @Builder.region([IndexType()])
     def for_body(builder: Builder, args: tuple([BlockArgument, ...])):
         hls_read = HLSStreamRead(input_stream.results[0])
@@ -120,18 +120,33 @@ def gen_duplicate_loop(input_stream, duplicate_stream_lst):
 
         for duplicate_stream in duplicate_stream_lst:
             hls_write = HLSStreamWrite(hls_read, duplicate_stream)
+            hls_write.attributes["duplicate"] = IntAttr(1)
             builder.insert(hls_write)
 
         yield_op = scf.Yield.get()
         builder.insert(yield_op)
 
-    lb = Constant.from_int_and_width(0, IndexType())
-    ub = Constant.from_int_and_width(len(duplicate_stream_lst), IndexType())
-    step = Constant.from_int_and_width(1, IndexType())
+    inner_lb = Constant.from_int_and_width(0, IndexType())
+    inner_ub = Constant.from_int_and_width(len(duplicate_stream_lst), IndexType())
+    inner_step = Constant.from_int_and_width(1, IndexType())
 
-    for_duplicate = scf.For.get(lb, ub, step, [], for_body)
+    inner_for = scf.For.get(inner_lb, inner_ub, inner_step, [], for_body)
 
-    return [lb, ub, step, for_duplicate]
+    @Builder.region([IndexType()])
+    def outer_for_body(builder: Builder, args: tuple([BlockArgument, ...])):
+        builder.insert(inner_for)
+
+        yield_op = scf.Yield.get()
+        builder.insert(yield_op)
+
+    outer_lb = inner_lb
+    outer_ub = n
+    outer_step = inner_step
+    outer_for_duplicate = scf.For.get(
+        outer_lb, outer_ub, outer_step, [], outer_for_body
+    )
+
+    return [outer_lb, outer_ub, outer_step, inner_ub, outer_for_duplicate]
 
 
 @dataclass
@@ -253,7 +268,11 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         shift_buffer_dataflow = PragmaDataflow(shift_buffer_region)
 
-        duplicate_loop = gen_duplicate_loop(stencil_stream, copy_stencil_stream_lst)
+        n_idx = arith.IndexCastOp.get(copy_n, IndexType())
+
+        duplicate_loop = gen_duplicate_loop(
+            stencil_stream, copy_stencil_stream_lst, n_idx
+        )
 
         ii = Constant.from_int_and_width(1, i32)
 
@@ -436,6 +455,7 @@ def add_read_write_ops(
         # stream_to_write = op.region.block.args[arg_index_write]
 
         read_op = HLSStreamRead(stream_to_read)
+        read_op.attributes["write_data"] = IntAttr(1)
         read_elem = read_op.res
 
         # TODO: this stream will be passsed to the write_data intrinsic, but for now we are just going to write to memory directly here.
@@ -619,7 +639,7 @@ class ApplyOpToHLS(RewritePattern):
                 n_dims = len(operand.typ.bounds.lb)
 
                 if n_dims == 3:
-                    stream = self.shift_streams[k][current_stream]
+                    stream = self.shift_streams[current_stream][k]
                     rewriter.modify_block_argument_type(
                         apply_clone.region.block.args[i], stream.results[0].typ
                     )
@@ -840,7 +860,7 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
                 "write_data",
                 [
                     *[stream.results[0] for stream in self.out_data_streams],
-                    *self.func_args_lst,
+                    *reversed(self.func_args_lst),
                     shape_x,
                     shape_y,
                     shape_z,
@@ -1155,7 +1175,7 @@ class PackDataInStencilField(RewritePattern):
 class CreateLocalCopyOfCoefficients(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        op.attributes["main"] = IntAttr(1)
+        # op.attributes["main"] = IntAttr(1)
         packed_type = LLVMPointerType.typed(
             LLVMStructType.from_type_list([LLVMArrayType.from_size_and_type(8, f64)])
         )
@@ -1302,7 +1322,7 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
             "compute_loop" in op.body.blocks[0].first_op.attributes
             and not self.inserted_already
         ):
-            dim = len(self.original_memref_lst[0].dest.typ.shape.data)
+            dim = self.original_memref_lst[0].dest.typ.shape.data[0].value.data
 
             lb = Constant.from_int_and_width(0, IndexType())
             ub = Constant.from_int_and_width(dim, IndexType())
@@ -1331,8 +1351,12 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
             self.inserted_already = True
 
 
-# @dataclass
-# class DuplicateShiftBufferStreams(RewriterPattern):
+@dataclass
+class TrivialCleanUpAuxAttributes(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: scf.ParallelOp, rewriter: PatternRewriter, /):
+        if "compute_loop" in op.attributes:
+            del op.attributes["compute_loop"]
 
 
 @dataclass
@@ -1476,3 +1500,11 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
             walk_reverse=False,
         )
         make_local_copies.rewrite_module(op)
+
+        final_cleanup = PatternRewriteWalker(
+            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+            GreedyRewritePatternApplier([TrivialCleanUpAuxAttributes()]),
+            apply_recursively=True,
+            walk_reverse=False,
+        )
+        final_cleanup.rewrite_module(op)
