@@ -142,7 +142,6 @@ class LowerHLSStreamRead(RewritePattern):
         current_parent = op.parent_op()
         while not isinstance(current_parent, FuncOp):
             current_parent = current_parent.parent_op()
-            # print("----> PARENT OP: ", current_parent)
 
         store = StoreOp.get(pop_call, alloca)
         load = LoadOp.get(alloca)
@@ -187,12 +186,6 @@ class LowerHLSStreamToAlloca(RewritePattern):
                 linkage=llvm.LinkageAttr("external"),
             )
             self.module.body.block.add_op(stream_depth_func)
-
-            # sideeffect_func = llvm.FuncOp(
-            #    llvm.LLVMFunctionType([]),
-            #    linkage=llvm.LinkageAttr("external")
-            # )
-            # self.module.body.block.add_op(sideeffect_func)
 
             self.set_stream_depth_declaration = True
 
@@ -242,7 +235,6 @@ class LowerHLSStreamToAlloca(RewritePattern):
                 end_df_call,
             ]
         )
-        # rewriter.insert_op_after_matched_op([depth, gep, depth_call])
         rewriter.replace_matched_op([size, alloca])
 
         for use in uses:
@@ -250,7 +242,6 @@ class LowerHLSStreamToAlloca(RewritePattern):
 
             # This is specially important when the stream is an argument of ApplyOp
             if use.operation.regions:
-                print("----> USE OPERATION: ", use.operation)
                 block_arg = use.operation.regions[0].block.args[use.index]
                 block_arg.typ = alloca.res.typ
 
@@ -439,8 +430,6 @@ class LowerHLSExtractStencilValue(RewritePattern):
     def match_and_rewrite(
         self, op: HLSExtractStencilValue, rewriter: PatternRewriter, /
     ):
-        # print("----> CONTAINER: ", op.container.op.ptr)
-        # print("----> INDICES: ", [attr.data for attr in op.position.data])
         indices = [attr.data for attr in op.position.data]
 
         stencil = op.container.op.ptr
@@ -451,7 +440,6 @@ class LowerHLSExtractStencilValue(RewritePattern):
         values = GEPOp.get(
             stencil, [0, 0], result_type=LLVMPointerType.typed(array_type)
         )
-        # print("---> TYPE: ", array_type.type)
         first_array = GEPOp.get(
             values, [0, indices[1]], result_type=LLVMPointerType.typed(array_type.type)
         )
@@ -466,12 +454,6 @@ class LowerHLSExtractStencilValue(RewritePattern):
             result_type=LLVMPointerType.typed(array_type.type.type.type),
         )
         point = LoadOp.get(third_array)
-
-        # print("---> VALUES: ", values)
-        # print("---> FIRST ARRAY: ", first_array)
-        # print("---> SECOND ARRAY: ", second_array)
-        # print("---> THIRD ARRAY: ", third_array)
-        # print("---> POINT: ", point)
 
         rewriter.replace_matched_op(
             [values, first_array, second_array, third_array, point]
@@ -492,7 +474,6 @@ class GetHLSStreamInDataflow(RewritePattern):
         rewriter.insert_op_before_matched_op(dataflow)
         op.detach()
         dataflow.body.blocks[0].insert_op_before(op, hls_yield)
-        print("------> OP: ", op)
 
 
 @dataclass

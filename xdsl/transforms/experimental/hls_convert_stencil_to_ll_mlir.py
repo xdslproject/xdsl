@@ -743,7 +743,6 @@ def get_number_external_stores(op: FuncOp):
     external_stores_lst = [
         o for o in op.body.blocks[0].ops if isinstance(o, ExternalStoreOp)
     ]
-    print("-----> NUMBER: ", len(external_stores_lst))
 
     return len(external_stores_lst)
 
@@ -794,7 +793,7 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
             write_data_func_args_lst = (
                 self.total_args * [out_data_stream_type]
                 + self.total_args * [packed_type]
-                + self.total_args * [i32]
+                + 3 * [i32]
             )
             write_data_func = FuncOp.external(
                 write_data_func_name,
@@ -943,11 +942,15 @@ class GetInoutAttributeFromExternalStore(RewritePattern):
 
 
 def get_number_input_stencils(op: FuncOp):
+    # ndims = len(field.typ.get_shape())
+    dim = lambda o: len(o.field.typ.get_shape())
     external_load_lst = [
-        o for o in op.body.blocks[0].ops if isinstance(o, ExternalLoadOp)
+        o
+        for o in op.body.blocks[0].ops
+        if isinstance(o, ExternalLoadOp) and dim(o) == 3
     ]
 
-    n = sum([1 for o in external_load_lst if o.attributes["inout"].data == 1])
+    n = sum([1 for o in external_load_lst if o.attributes["inout"].data == IN])
 
     return n
 
