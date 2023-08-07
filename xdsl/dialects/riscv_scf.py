@@ -86,7 +86,7 @@ class WhileOp(IRDLOperation):
     def __init__(
         self,
         arguments: Sequence[SSAValue | Operation],
-        result_types: Sequence[IntRegisterType],
+        result_types: Sequence[RISCVRegisterType],
         before_region: Region | Sequence[Operation] | Sequence[Block],
         after_region: Region | Sequence[Operation] | Sequence[Block],
     ):
