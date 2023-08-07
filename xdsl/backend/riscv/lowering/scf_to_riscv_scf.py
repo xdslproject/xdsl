@@ -1,7 +1,7 @@
 from xdsl.backend.riscv.lowering.utils import (
     cast_block_args_to_int_regs,
+    cast_matched_op_results,
     cast_operands_to_int_regs,
-    cast_results_from_int_regs,
 )
 from xdsl.dialects import builtin, riscv_scf, scf
 from xdsl.ir import MLContext
@@ -21,7 +21,7 @@ class ScfForLowering(RewritePattern):
         lb, ub, step, *args = cast_operands_to_int_regs(rewriter)
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         cast_block_args_to_int_regs(new_region.block, rewriter)
-        cast_results_from_int_regs(rewriter)
+        cast_matched_op_results(rewriter)
         rewriter.replace_matched_op(riscv_scf.ForOp(lb, ub, step, args, new_region))
 
 
