@@ -18,6 +18,8 @@ from typing import (
     overload,
 )
 
+from typing_extensions import Self
+
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
@@ -1108,6 +1110,42 @@ class UnrealizedConversionCastOp(IRDLOperation):
             operands=[inputs],
             result_types=[result_type],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        if parser.parse_optional_characters("to") is None:
+            args = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE,
+                parser.parse_unresolved_operand,
+            )
+            parser.parse_punctuation(":")
+            input_types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE,
+                parser.parse_type,
+            )
+            parser.parse_characters("to")
+            inputs = parser.resolve_operands(args, input_types, parser.pos)
+        else:
+            inputs = list[SSAValue]()
+        output_types = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE,
+            parser.parse_type,
+        )
+        attributes = parser.parse_optional_attr_dict()
+        return UnrealizedConversionCastOp([inputs], [output_types], attributes)
+
+    def print(self, printer: Printer):
+        def print_fn(operand: SSAValue) -> None:
+            return printer.print_attribute(operand.type)
+
+        if self.inputs:
+            printer.print(" ")
+            printer.print_list(self.inputs, printer.print_operand)
+            printer.print_string(" : ")
+            printer.print_list(self.inputs, print_fn)
+        printer.print_string(" to ")
+        printer.print_list(self.outputs, print_fn)
+        printer.print_op_attributes(self.attributes)
 
 
 class UnregisteredOp(IRDLOperation, ABC):
