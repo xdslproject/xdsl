@@ -98,18 +98,32 @@ class WhileOp(IRDLOperation):
 
     # TODO verify dependencies between riscv_scf.condition, riscv_scf.yield and the regions
     def verify_(self):
-        for idx, arg in enumerate(self.arguments):
-            if self.before_region.block.args[idx].type != arg.type:
+        for idx, (block_arg, arg) in enumerate(
+            zip(
+                self.before_region.block.args,
+                self.arguments,
+                strict=True,
+            )
+        ):
+            if block_arg.type != arg.type:
                 raise Exception(
-                    f"Block arguments with wrong type, expected {arg.type}, "
-                    f"got {self.before_region.block.args[idx].type}"
+                    f"Block arguments at {idx} has wrong type,"
+                    f" expected {arg.type},"
+                    f" got {block_arg.type}"
                 )
 
-        for idx, res in enumerate(self.res):
-            if self.after_region.block.args[idx].type != res.type:
+        for idx, (block_arg, res) in enumerate(
+            zip(
+                self.after_region.block.args,
+                self.res,
+                strict=True,
+            )
+        ):
+            if block_arg.type != res.type:
                 raise Exception(
-                    f"Block arguments with wrong type, expected {res.type}, "
-                    f"got {self.after_region.block.args[idx].type}"
+                    f"Block arguments at {idx} has wrong type,"
+                    f" expected {res.type},"
+                    f" got {self.after_region.block.args[idx].type}"
                 )
 
 
