@@ -87,24 +87,25 @@ class ForOp(IRDLOperation):
                     f"The first block argument of the body is of type {iter_var.type}"
                     " instead of riscv.IntRegisterType"
                 )
-        for idx, arg in enumerate(self.iter_args):
-            if self.body.block.args[idx + 1].type != arg.type:
+        for arg, block_arg in zip(self.iter_args, self.body.block.args[1:]):
+            if block_arg.type != arg.type:
                 raise VerifyException(
                     f"Block arguments with wrong type, expected {arg.type}, "
-                    f"got {self.body.block.args[idx].type}. Arguments after the "
+                    f"got {block_arg.type}. Arguments after the "
                     f"induction variable must match the carried variables."
                 )
-        if len(self.body.ops) > 0 and isinstance(self.body.block.last_op, YieldOp):
-            yieldop = self.body.block.last_op
+        if len(self.body.ops) > 0 and isinstance(
+            yieldop := self.body.block.last_op, YieldOp
+        ):
             if len(yieldop.arguments) != len(self.iter_args):
                 raise VerifyException(
                     f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
                     f"The riscv_scf.for must yield its carried variables."
                 )
-            for idx, arg in enumerate(yieldop.arguments):
-                if self.iter_args[idx].type != arg.type:
+            for iter_arg, yield_arg in zip(self.iter_args, yieldop.arguments):
+                if iter_arg.type != yield_arg.type:
                     raise VerifyException(
-                        f"Expected {self.iter_args[idx].type}, got {arg.type}. The "
+                        f"Expected {iter_arg.type}, got {yield_arg.type}. The "
                         f"riscv_scf.for's riscv_scf.yield must match carried"
                         f"variables types."
                     )
