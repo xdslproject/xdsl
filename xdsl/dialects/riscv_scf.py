@@ -124,7 +124,7 @@ class WhileOp(IRDLOperation):
                 raise VerifyException(
                     f"Block arguments at {idx} has wrong type,"
                     f" expected {res.type},"
-                    f" got {self.after_region.block.args[idx].type}"
+                    f" got {block_arg.type}"
                 )
 
 
