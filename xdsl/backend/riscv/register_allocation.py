@@ -1,6 +1,6 @@
 from abc import ABC
 
-from xdsl.dialects import riscv, riscv_cf
+from xdsl.dialects import riscv, riscv_cf, riscv_scf
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, RISCVOp
 from xdsl.ir import SSAValue
@@ -225,6 +225,13 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                     else:
                         typ = arg.type
                     op.block_arguments[i].type = typ
+
+            if isinstance(op, riscv_scf.ForOp):
+                for i, arg in enumerate(op.body.block.args):
+                    assert isinstance(arg.type, IntRegisterType)
+                    if not arg.type.is_allocated:
+                        arg.type = IntRegisterType(f"j{self.idx}")
+                        self.idx += 1
 
         for op in module.walk():
             # Do not allocate registers on non-RISCV-ops

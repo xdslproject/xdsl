@@ -11,9 +11,9 @@
             "module": "docs.Toy.toy",
             "justMyCode": false,
             "args": [
-                "docs/Toy/examples/bla.toy",
-                "--emit=riscv",
-                "--accelerate"
+                "docs/Toy/examples/interpret.toy",
+                "--emit=riscv-assembly",
+                // "--accelerate"
             ]
         }
     ]

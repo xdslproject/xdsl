@@ -22,9 +22,10 @@ from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
+from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.riscv_scf_to_asm import LowerScfForToLabelsPass
-from xdsl.transforms.rvscf_regalloc import register_allocate_function
 
+# from xdsl.transforms.rvscf_regalloc import register_allocate_function
 from .dialects import toy
 from .emulator.toy_accelerator_instructions import ToyAccelerator
 from .frontend.ir_gen import IRGen
@@ -132,16 +133,16 @@ def transform(
     if target == "riscv":
         return
 
-    for op in module_op.walk():
-        if isinstance(op, riscv_func.FuncOp):
-            register_allocate_function(op)
+    # for op in module_op.walk():
+    #     if isinstance(op, riscv_func.FuncOp):
+    #         register_allocate_function(op)
+    RISCVRegisterAllocation().apply(ctx, module_op)
 
     if target == "riscv-regalloc":
         return
 
     LowerScfForToLabelsPass().apply(ctx, module_op)
     LowerRISCVFunc(insert_exit_syscall=True).apply(ctx, module_op)
-    # RISCVRegisterAllocation().apply(ctx, module_op)
 
     module_op.verify()
 

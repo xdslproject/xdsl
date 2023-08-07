@@ -19,28 +19,28 @@ def main() {
 
 # register allocated for loop (in riscv-scf dialect)
 # RV_IR:    "riscv_scf.for"(%16, %17, %18) ({
-# RV_IR:    ^0(%arg0 : !riscv.reg<t0>):
-# RV_IR:      %19 = riscv.slli %arg0, 2 {"comment" = "multiply by elm size"} : (!riscv.reg<t0>) -> !riscv.reg<t3>
-# RV_IR:      %20 = riscv.add %6, %19 : (!riscv.reg<a4>, !riscv.reg<t3>) -> !riscv.reg<t3>
-# RV_IR:      %21 = riscv.lw %20, 0 {"comment" = "load value from memref of shape (3,)"} : (!riscv.reg<t3>) -> !riscv.reg<t3>
-# RV_IR:      %22 = riscv.add %21, %21 : (!riscv.reg<t3>, !riscv.reg<t3>) -> !riscv.reg<t3>
-# RV_IR:      %23 = riscv.slli %arg0, 2 {"comment" = "multiply by elm size"} : (!riscv.reg<t0>) -> !riscv.reg<t4>
-# RV_IR:      %24 = riscv.add %4, %23 : (!riscv.reg<a3>, !riscv.reg<t4>) -> !riscv.reg<t4>
-# RV_IR:      riscv.sw %24, %22, 0 {"comment" = "store value to memref of shape (3,)"} : (!riscv.reg<t4>, !riscv.reg<t3>) -> ()
+# RV_IR:    ^0(%arg0 : !riscv.reg<{{.+}}>):
+# RV_IR:      %19 = riscv.slli %arg0, 2 {"comment" = "multiply by elm size"} : (!riscv.reg<{{.+}}>) -> !riscv.reg<{{.+}}>
+# RV_IR:      %20 = riscv.add %6, %19 : (!riscv.reg<{{.+}}>, !riscv.reg<{{.+}}>) -> !riscv.reg<{{.+}}>
+# RV_IR:      %21 = riscv.lw %20, 0 {"comment" = "load value from memref of shape (3,)"} : (!riscv.reg<{{.+}}>) -> !riscv.reg<{{.+}}>
+# RV_IR:      %22 = riscv.add %21, %21 : (!riscv.reg<{{.+}}>, !riscv.reg<{{.+}}>) -> !riscv.reg<{{.+}}>
+# RV_IR:      %23 = riscv.slli %arg0, 2 {"comment" = "multiply by elm size"} : (!riscv.reg<{{.+}}>) -> !riscv.reg<{{.+}}>
+# RV_IR:      %24 = riscv.add %4, %23 : (!riscv.reg<{{.+}}>, !riscv.reg<{{.+}}>) -> !riscv.reg<{{.+}}>
+# RV_IR:      riscv.sw %24, %22, 0 {"comment" = "store value to memref of shape (3,)"} : (!riscv.reg<{{.+}}>, !riscv.reg<{{.+}}>) -> ()
 # RV_IR:      "riscv_scf.yield"() : () -> ()
-# RV_IR:    }) : (!riscv.reg<t0>, !riscv.reg<t1>, !riscv.reg<t2>) -> ()
+# RV_IR:    }) : (!riscv.reg<{{.+}}>, !riscv.reg<{{.+}}>, !riscv.reg<{{.+}}>) -> ()
 
 # generated assembly code for the loop:
 # RV_ASM:     scf_leader_0:
-# RV_ASM:         bge t0, t1, scf_body_end_0
+# RV_ASM:         bge {{.+}}, {{.+}}, scf_body_end_0
 # RV_ASM:     scf_body_0:
-# RV_ASM:         slli t3, t0, 2                               # multiply by elm size
-# RV_ASM:         add t3, a4, t3
-# RV_ASM:         lw t3, 0(t3)                                 # load value from memref of shape (3,)
-# RV_ASM:         add t3, t3, t3
-# RV_ASM:         slli t4, t0, 2                               # multiply by elm size
-# RV_ASM:         add t4, a3, t4
-# RV_ASM:         sw t3, 0(t4)                                 # store value to memref of shape (3,)
-# RV_ASM:         add t0, t0, t2
-# RV_ASM:         blt t0, t1, scf_body_0
+# RV_ASM:         slli {{.+}}, {{.+}}, 2                               # multiply by elm size
+# RV_ASM:         add {{.+}}, {{.+}}, {{.+}}
+# RV_ASM:         lw {{.+}}, 0({{.+}})                                 # load value from memref of shape (3,)
+# RV_ASM:         add {{.+}}, {{.+}}, {{.+}}
+# RV_ASM:         slli {{.+}}, {{.+}}, 2                               # multiply by elm size
+# RV_ASM:         add {{.+}}, {{.+}}, {{.+}}
+# RV_ASM:         sw {{.+}}, 0({{.+}})                                 # store value to memref of shape (3,)
+# RV_ASM:         add {{.+}}, {{.+}}, {{.+}}
+# RV_ASM:         blt {{.+}}, {{.+}}, scf_body_0
 # RV_ASM:     scf_body_end_0:

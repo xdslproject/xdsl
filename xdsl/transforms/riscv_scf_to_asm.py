@@ -19,15 +19,17 @@ class LowerRiscvScfToLabels(RewritePattern):
     def match_and_rewrite(self, op: riscv_scf.ForOp, rewriter: PatternRewriter, /):
         self.cnt += 1
 
-        # get loop var
-        loop_var = op.lb
+        loop_var_type = op.body.block.args[0].type
+        assert isinstance(loop_var_type, riscv.IntRegisterType)
+        assert loop_var_type.is_allocated, "Must be allocated by now"
+
         # insert leader:
-        # TODO: only works if loop variable register == lb register
         rewriter.insert_op_before_matched_op(
             [
+                mv_op := riscv.MVOp(op.lb, rd=loop_var_type),
                 riscv.LabelOp(f"scf_leader_{self.cnt}"),
                 riscv.BgeOp(
-                    loop_var, op.ub, riscv.LabelAttr(f"scf_body_end_{self.cnt}")
+                    mv_op.rd, op.ub, riscv.LabelAttr(f"scf_body_end_{self.cnt}")
                 ),
                 # start of loop body:
                 riscv.LabelOp(f"scf_body_{self.cnt}"),
@@ -37,13 +39,14 @@ class LowerRiscvScfToLabels(RewritePattern):
         body = op.body.detach_block(0)
         yield_op = body.last_op
         assert isinstance(yield_op, riscv_scf.YieldOp)
-        assert isinstance(loop_var.type, riscv.IntRegisterType)
+
         body.insert_ops_after(
             [
                 # increment loop var in-place
-                riscv.AddOp(loop_var, op.step, rd=loop_var.type),
+                get_register := riscv.GetRegisterOp(loop_var_type),
+                inc := riscv.AddOp(get_register.res, op.step, rd=loop_var_type),
                 # branch to start of loop
-                riscv.BltOp(loop_var, op.ub, riscv.LabelAttr(f"scf_body_{self.cnt}")),
+                riscv.BltOp(inc.rd, op.ub, riscv.LabelAttr(f"scf_body_{self.cnt}")),
                 # add end of loop thingy
                 riscv.LabelOp(f"scf_body_end_{self.cnt}"),
             ],
