@@ -1,6 +1,8 @@
 from pathlib import Path
 
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
+from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
+from xdsl.backend.riscv.lowering.scf_to_riscv_scf import ScfToRiscvPass
 from xdsl.dialects import (
     affine,
     arith,
@@ -16,10 +18,12 @@ from xdsl.ir import MLContext
 from xdsl.transforms.canonicalize.canonicalize_pass import CanonicalizationPass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.mlir_opt import MLIROptPass
+from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 
 from .dialects import toy
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
+from .rewrites.arith_float_to_int import CastArithFloatToInt
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
@@ -100,16 +104,16 @@ def transform(
     if target == "scf":
         return
 
-    # When the commented passes are uncommented, we can print RISC-V assembly
-
     SetupRiscvPass().apply(ctx, module_op)
     LowerFuncToRiscvFunc().apply(ctx, module_op)
     LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
-    # LowerArithRiscvPass().apply(ctx, module_op)
+    CastArithFloatToInt().apply(ctx, module_op)
+    RISCVLowerArith().apply(ctx, module_op)
+    ScfToRiscvPass().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
-    # ReconcileUnrealizedCastsPass().apply(ctx, module_op)
+    ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 
     DeadCodeElimination().apply(ctx, module_op)
 
