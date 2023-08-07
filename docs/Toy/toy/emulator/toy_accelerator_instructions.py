@@ -108,6 +108,20 @@ class ToyAccelerator(InstructionSet):
 
         print(tensor_description(shape, data), file=type(self).stream)
 
+    def instruction_tensor_print1d(self, ins: Instruction):
+        """
+        This instruction prints a formatted tensor
+        [1, 2, 3, 4, 5, 6]
+        """
+
+        b_ptr, b_els = (self.get_reg(ins.get_reg(i)) for i in range(2))
+
+        data = self.buffer_read(b_ptr, b_els)
+
+        shaped_array = ShapedArray([float(value) for value in data], [b_els])
+
+        print(f"{shaped_array}", file=type(self).stream)
+
     def instruction_tensor_print2d(self, ins: Instruction):
         """
         This instruction prints a formatted tensor
