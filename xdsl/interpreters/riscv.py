@@ -347,6 +347,17 @@ class RiscvFunctions(InterpreterFunctions):
         results = (int(unsigned_lhs < unsigned_imm),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.SltOp)
+    def run_slt(
+        self,
+        interpreter: Interpreter,
+        op: riscv.SltOp,
+        args: tuple[Any, ...],
+    ):
+        signed_lhs = to_signed(args[0], self.bitwidth)
+        signed_rhs = to_signed(args[1], self.bitwidth)
+        return (int(signed_lhs < signed_rhs),)
+
     @impl(riscv.AddOp)
     def run_add(
         self,
