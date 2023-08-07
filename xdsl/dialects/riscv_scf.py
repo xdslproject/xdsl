@@ -77,9 +77,9 @@ class ForOp(IRDLOperation):
 @irdl_op_definition
 class WhileOp(IRDLOperation):
     name = "riscv_scf.while"
-    arguments: VarOperand = var_operand_def(IntRegisterType)
+    arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
-    res: VarOpResult = var_result_def(IntRegisterType)
+    res: VarOpResult = var_result_def(RISCVRegisterType)
     before_region: Region = region_def()
     after_region: Region = region_def()
 
@@ -117,7 +117,7 @@ class WhileOp(IRDLOperation):
 class ConditionOp(IRDLOperation):
     name = "riscv_scf.condition"
     cond: Operand = operand_def(IntRegisterType)
-    arguments: VarOperand = var_operand_def(IntRegisterType)
+    arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     traits = frozenset([HasParent(WhileOp), IsTerminator()])
 
