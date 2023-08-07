@@ -11,7 +11,7 @@
             "module": "docs.Toy.toy",
             "justMyCode": false,
             "args": [
-                "docs/Toy/examples/interpret.toy",
+                "docs/Toy/examples/bla.toy",
                 "--emit=riscv",
                 "--accelerate"
             ]

@@ -47,10 +47,13 @@ def insert_shape_ops(
     assert len(shape) == len(indices)
 
     match indices:
-        case [idx1]:
+        case [offset]:
             rewriter.insert_op_before_matched_op(
                 [
-                    ptr := riscv.AddOp(mem, idx1),
+                    offset_bytes := riscv.SlliOp(
+                        offset, 2, comment="multiply by elm size"
+                    ),
+                    ptr := riscv.AddOp(mem, offset_bytes),
                 ]
             )
         case [idx1, idx2]:
@@ -60,7 +63,7 @@ def insert_shape_ops(
                     row_offset := riscv.MulOp(cols, idx1),
                     offset := riscv.AddOp(row_offset, idx2),
                     offset_bytes := riscv.SlliOp(
-                        offset, 2, comment="mutiply by elm size"
+                        offset, 2, comment="multiply by elm size"
                     ),
                     ptr := riscv.AddOp(mem, offset_bytes),
                 ]

@@ -72,7 +72,8 @@ def test_insert_shape_ops_1d():
     @Builder.implicit_region
     def expected_1d():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
-            _ = riscv.AddOp(mem, indices[0])
+            offset = riscv.SlliOp(indices[0], 2, comment="multiply by elm size").rd
+            _ = riscv.AddOp(mem, offset)
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
 
     shape = [2]
@@ -100,7 +101,7 @@ def test_insert_shape_ops_2d():
             v1 = riscv.LiOp(2)
             v2 = riscv.MulOp(v1, indices[0])
             v3 = riscv.AddOp(v2, indices[1])
-            v4 = riscv.SlliOp(v3, 2, comment="mutiply by elm size")
+            v4 = riscv.SlliOp(v3, 2, comment="multiply by elm size")
             _ = riscv.AddOp(mem, v4)
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
 
@@ -155,7 +156,8 @@ def test_memref_load():
         ) as (v, i):
             v1 = UnrealizedConversionCastOp.get([v], (REGISTER_TYPE,))
             v2 = UnrealizedConversionCastOp.get([i], (REGISTER_TYPE,))
-            v4 = riscv.AddOp(v1.results[0], v2.results[0])
+            v3 = riscv.SlliOp(v2.results[0], 2, comment="multiply by elm size")
+            v4 = riscv.AddOp(v1.results[0], v3.results[0])
             v5 = riscv.LwOp(v4, 0, comment="load value from memref of shape (2,)")
             _ = UnrealizedConversionCastOp.get([v5], (f64,))
 
@@ -181,9 +183,10 @@ def test_memref_store():
             v1 = UnrealizedConversionCastOp.get([v], (REGISTER_TYPE,))
             v2 = UnrealizedConversionCastOp.get([m], (REGISTER_TYPE,))
             v3 = UnrealizedConversionCastOp.get([i], (REGISTER_TYPE,))
-            v4 = riscv.AddOp(v2.results[0], v3.results[0])
+            v4 = riscv.SlliOp(v3.results[0], 2, comment="multiply by elm size")
+            v5 = riscv.AddOp(v2.results[0], v4.results[0])
             riscv.SwOp(
-                v4, v1.results[0], 0, comment="store value to memref of shape (2,)"
+                v5, v1.results[0], 0, comment="store value to memref of shape (2,)"
             )
 
     LowerMemrefToRiscv().apply(MLContext(), simple_store)
