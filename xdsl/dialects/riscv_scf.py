@@ -87,10 +87,16 @@ class ForOp(IRDLOperation):
                     f"The first block argument of the body is of type {iter_var.type}"
                     " instead of riscv.IntRegisterType"
                 )
-        for arg, block_arg in zip(self.iter_args, self.body.block.args[1:]):
+        for idx, (arg, block_arg) in enumerate(
+            zip(
+                self.iter_args,
+                self.body.block.args[1:],
+                strict=True,
+            )
+        ):
             if block_arg.type != arg.type:
                 raise VerifyException(
-                    f"Block arguments with wrong type, expected {arg.type}, "
+                    f"Block arguments at {idx} has wrong type, expected {arg.type}, "
                     f"got {block_arg.type}. Arguments after the "
                     f"induction variable must match the carried variables."
                 )
