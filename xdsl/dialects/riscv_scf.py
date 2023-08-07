@@ -88,11 +88,7 @@ class ForOp(IRDLOperation):
                     " instead of riscv.IntRegisterType"
                 )
         for idx, (arg, block_arg) in enumerate(
-            zip(
-                self.iter_args,
-                self.body.block.args[1:],
-                strict=True,
-            )
+            zip(self.iter_args, self.body.block.args[1:])
         ):
             if block_arg.type != arg.type:
                 raise VerifyException(
