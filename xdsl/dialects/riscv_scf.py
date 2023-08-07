@@ -23,6 +23,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.traits import IsTerminator, SingleBlockImplicitTerminator
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
@@ -72,6 +73,41 @@ class ForOp(IRDLOperation):
             result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
         )
+
+    def verify_(self):
+        if (len(self.iter_args) + 1) != len(self.body.block.args):
+            raise VerifyException(
+                f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
+                f"{len(self.body.block.args)}. The body must have the induction "
+                f"variable and loop-carried variables as arguments."
+            )
+        if self.body.block.args and (iter_var := self.body.block.args[0]):
+            if not isinstance(iter_var.type, IntRegisterType):
+                raise VerifyException(
+                    f"The first block argument of the body is of type {iter_var.type}"
+                    " instead of riscv.IntRegisterType"
+                )
+        for idx, arg in enumerate(self.iter_args):
+            if self.body.block.args[idx + 1].type != arg.type:
+                raise VerifyException(
+                    f"Block arguments with wrong type, expected {arg.type}, "
+                    f"got {self.body.block.args[idx].type}. Arguments after the "
+                    f"induction variable must match the carried variables."
+                )
+        if len(self.body.ops) > 0 and isinstance(self.body.block.last_op, YieldOp):
+            yieldop = self.body.block.last_op
+            if len(yieldop.arguments) != len(self.iter_args):
+                raise VerifyException(
+                    f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
+                    f"The riscv_scf.for must yield its carried variables."
+                )
+            for idx, arg in enumerate(yieldop.arguments):
+                if self.iter_args[idx].type != arg.type:
+                    raise VerifyException(
+                        f"Expected {self.iter_args[idx].type}, got {arg.type}. The "
+                        f"riscv_scf.for's riscv_scf.yield must match carried"
+                        f"variables types."
+                    )
 
 
 RISCV_Scf = Dialect(
