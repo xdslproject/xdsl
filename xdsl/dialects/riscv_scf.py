@@ -23,6 +23,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
@@ -106,7 +107,7 @@ class WhileOp(IRDLOperation):
             )
         ):
             if block_arg.type != arg.type:
-                raise Exception(
+                raise VerifyException(
                     f"Block arguments at {idx} has wrong type,"
                     f" expected {arg.type},"
                     f" got {block_arg.type}"
@@ -120,7 +121,7 @@ class WhileOp(IRDLOperation):
             )
         ):
             if block_arg.type != res.type:
-                raise Exception(
+                raise VerifyException(
                     f"Block arguments at {idx} has wrong type,"
                     f" expected {res.type},"
                     f" got {self.after_region.block.args[idx].type}"
