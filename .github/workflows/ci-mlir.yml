@@ -89,7 +89,7 @@ jobs:
       if: steps.cache-binary.outputs.cache-hit != 'true'
       run: |
         cd llvm-project/build
-        cmake --build . --target mlir-opt mlir-cpu-runner
+        cmake --build . --target mlir-opt
 
     - name: Test with pytest and generate code coverage
       run: |
