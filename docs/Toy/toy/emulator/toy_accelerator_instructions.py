@@ -95,8 +95,8 @@ class ToyAccelerator(InstructionSet):
 
     def instruction_tensor_transpose2d(self, ins: Instruction):
         """
-        This instruction prints a formatted tensor
-        [[1, 2, 3], [4, 5, 6]]
+        This instruction transposes a 2d tensor, swapping its row and column indices:
+        [[1, 2, 3], [4, 5, 6]] -> [[1, 4], [2, 5], [3, 6]]
         """
 
         dest_ptr, source_ptr, b_rows, b_cols = (
@@ -113,6 +113,9 @@ class ToyAccelerator(InstructionSet):
         self.buffer_write(dest_ptr, data=result_shaped_array.data)
 
     def instruction_buffer_copy(self, ins: Instruction):
+        """
+        Copies the elements of one buffer to another.
+        """
         c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
 
         count = self.get_reg(c_reg)
@@ -125,6 +128,9 @@ class ToyAccelerator(InstructionSet):
         self.buffer_write(d_ptr, data=s_data)
 
     def instruction_buffer_add(self, ins: Instruction):
+        """
+        Pointwise addition of two buffers.
+        """
         c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
 
         count = self.get_reg(c_reg)
@@ -140,6 +146,9 @@ class ToyAccelerator(InstructionSet):
         )
 
     def instruction_buffer_mul(self, ins: Instruction):
+        """
+        Pointwise multiplication of two buffers.
+        """
         c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
 
         count = self.get_reg(c_reg)
