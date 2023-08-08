@@ -5,6 +5,7 @@
 # RUN: python -m toy %s --emit=scf --accelerate | filecheck %s
 # RUN: python -m toy %s --emit=riscv --accelerate | filecheck %s
 # RUN: python -m toy %s --emit=riscv-regalloc --accelerate | filecheck %s
+# RUN: python -m toy %s --emit=riscv-asm --accelerate | filecheck %s
 
 # RUN: python -m toy %s --emit=riscv-regalloc --ir --accelerate | filecheck %s --check-prefix=REGALLOC
 
