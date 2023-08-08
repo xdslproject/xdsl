@@ -37,7 +37,8 @@ from xdsl.dialects.builtin import (
     AnyFloat,
 )
 from xdsl.printer import Printer
-from xdsl.parser import AttrParser
+from xdsl.parser import Parser
+from xdsl.traits import NoTerminator, IsTerminator
 
 
 @irdl_attr_definition
@@ -66,7 +67,7 @@ class ReferenceType(ParametrizedAttribute, TypeAttribute):
         printer.print(">")
 
     @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         # This is complicated by the fact we need to parse tuple
         # here also as the buildin dialect does not support this
         # yet
@@ -190,7 +191,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
         printer.print(">")
 
     @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         # We need extra work here as the builtin tuple is not being supported
         # yet, therefore handle this here
         def parse_interval() -> IntegerAttr[IntegerType] | DeferredAttr:
@@ -260,7 +261,7 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
         printer.print(">")
 
     @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         def parse_value():
             if parser.parse_optional_punctuation("?"):
                 return DeferredAttr()
@@ -293,7 +294,7 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
         printer.print(">")
 
     @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_characters("<")
         s = parser.parse_integer(allow_boolean=False)
         parser.parse_characters(">")
@@ -345,7 +346,7 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
         printer.print(">")
 
     @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(parser: Parser) -> list[Attribute]:
         parser.parse_characters("<")
         s = parser.parse_integer(allow_boolean=False)
         parser.parse_characters(">")
@@ -1437,6 +1438,8 @@ class HasValue(IRDLOperation):
     resval: Operand = operand_def()
     regs: VarRegion = var_region_def()
 
+    traits = frozenset([IsTerminator()])
+
 
 @irdl_op_definition
 class If(IRDLOperation):
@@ -1693,6 +1696,8 @@ class Result(IRDLOperation):
     name = "fir.result"
     regs: VarRegion = var_region_def()
     _results: OptOperand = opt_operand_def()
+
+    traits = frozenset([IsTerminator()])
 
 
 @irdl_op_definition
