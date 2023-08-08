@@ -3,7 +3,7 @@ import os
 import sys
 from typing import IO, Callable
 
-from xdsl.backend.riscv.experimental import riscv_scf_to_asm
+from xdsl.backend.riscv import riscv_scf_to_asm
 from xdsl.backend.riscv.lowering import scf_to_riscv_scf
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
 from xdsl.backend.riscv.lowering.optimisation_riscv import OptimiseRiscvPass
