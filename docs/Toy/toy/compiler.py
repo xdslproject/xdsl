@@ -18,6 +18,7 @@ from xdsl.ir import MLContext
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
+from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 from .dialects import toy
 from .frontend.ir_gen import IRGen
@@ -120,6 +121,13 @@ def transform(
     module_op.verify()
 
     if target == "riscv":
+        return
+
+    RISCVRegisterAllocation().apply(ctx, module_op)
+
+    module_op.verify()
+
+    if target == "riscv-regalloc":
         return
 
     raise ValueError(f"Unknown target option {target}")

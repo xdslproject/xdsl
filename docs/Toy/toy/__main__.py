@@ -36,6 +36,7 @@ parser.add_argument(
         "affine",
         "scf",
         "riscv",
+        "riscv-regalloc",
     ],
     default="riscv",
     help="Action to perform on source file (default: riscv)",
@@ -91,7 +92,7 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
         interpreter.register_implementations(ScfFunctions())
         interpreter.register_implementations(BuiltinFunctions())
 
-    if emit in ("riscv",):
+    if emit in ("riscv", "riscv-regalloc"):
         interpreter.register_implementations(
             ToyAcceleratorInstructionFunctions(module_op)
         )
