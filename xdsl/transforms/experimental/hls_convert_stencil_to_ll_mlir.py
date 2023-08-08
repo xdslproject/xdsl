@@ -1284,6 +1284,7 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
         if (
             "compute_loop" in op.body.blocks[0].first_op.attributes
             and not self.inserted_already
+            and len(self.original_memref_lst) > 0
         ):
             dim = self.original_memref_lst[0].dest.typ.shape.data[0].value.data
 
