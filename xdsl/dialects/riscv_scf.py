@@ -74,6 +74,44 @@ class ForOp(IRDLOperation):
             regions=[body],
         )
 
+    def verify_(self):
+        if (len(self.iter_args) + 1) != len(self.body.block.args):
+            raise VerifyException(
+                f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
+                f"{len(self.body.block.args)}. The body must have the induction "
+                f"variable and loop-carried variables as arguments."
+            )
+        if self.body.block.args and (iter_var := self.body.block.args[0]):
+            if not isinstance(iter_var.type, IntRegisterType):
+                raise VerifyException(
+                    f"The first block argument of the body is of type {iter_var.type}"
+                    " instead of riscv.IntRegisterType"
+                )
+        for idx, (arg, block_arg) in enumerate(
+            zip(self.iter_args, self.body.block.args[1:])
+        ):
+            if block_arg.type != arg.type:
+                raise VerifyException(
+                    f"Block arguments at {idx} has wrong type, expected {arg.type}, "
+                    f"got {block_arg.type}. Arguments after the "
+                    f"induction variable must match the carried variables."
+                )
+        if len(self.body.ops) > 0 and isinstance(
+            yieldop := self.body.block.last_op, YieldOp
+        ):
+            if len(yieldop.arguments) != len(self.iter_args):
+                raise VerifyException(
+                    f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
+                    f"The riscv_scf.for must yield its carried variables."
+                )
+            for iter_arg, yield_arg in zip(self.iter_args, yieldop.arguments):
+                if iter_arg.type != yield_arg.type:
+                    raise VerifyException(
+                        f"Expected {iter_arg.type}, got {yield_arg.type}. The "
+                        f"riscv_scf.for's riscv_scf.yield must match carried"
+                        f"variables types."
+                    )
+
 
 @irdl_op_definition
 class WhileOp(IRDLOperation):

@@ -1,7 +1,7 @@
 // RUN: xdsl-opt %s | xdsl-opt --print-op-generic | filecheck %s
 
 builtin.module {
-  riscv.label {"label" = #riscv.label<"main">} ({
+  riscv.label "main" ({
     %0 = riscv.get_register : () -> !riscv.reg<>
     %1 = riscv.get_register : () -> !riscv.reg<>
     %addi = riscv.addi %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
@@ -51,18 +51,18 @@ builtin.module {
     riscv.sb %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
     riscv.sh %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
     riscv.sw %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    %csrrw_rw = riscv.csrrw %0 {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrw_w = riscv.csrrw %0 {"csr" = 1024 : i32, "writeonly"} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrs_rw = riscv.csrrs %0 {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrs_r = riscv.csrrs %0 {"csr" = 1024 : i32, "readonly"} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrc_rw = riscv.csrrc %0 {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrc_r = riscv.csrrc %0 {"csr" = 1024 : i32, "readonly"} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrsi_rw = riscv.csrrsi {"csr" = 1024 : i32, "immediate" = 8 : i32} : () -> !riscv.reg<>
-    %csrrsi_r = riscv.csrrsi {"csr" = 1024 : i32, "immediate" = 0 : i32} : () -> !riscv.reg<>
-    %csrrci_rw = riscv.csrrci {"csr" = 1024 : i32, "immediate" = 8 : i32} : () -> !riscv.reg<>
-    %csrrci_r = riscv.csrrci {"csr" = 1024 : i32, "immediate" = 0 : i32} : () -> !riscv.reg<>
-    %csrrwi_rw = riscv.csrrwi {"csr" = 1024 : i32, "immediate" = 1 : i32} : () -> !riscv.reg<>
-    %csrrwi_w = riscv.csrrwi {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32} : () -> !riscv.reg<>
+    %csrrw_rw = riscv.csrrw %0, 1024 : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrw_w = riscv.csrrw %0, 1024, "w" : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrs_rw = riscv.csrrs %0, 1024 : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrs_r = riscv.csrrs %0, 1024, "r" : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrc_rw = riscv.csrrc %0, 1024 : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrc_r = riscv.csrrc %0, 1024, "r" : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrsi_rw = riscv.csrrsi 1024, 8 : () -> !riscv.reg<>
+    %csrrsi_r = riscv.csrrsi 1024, 0 : () -> !riscv.reg<>
+    %csrrci_rw = riscv.csrrci 1024, 8 : () -> !riscv.reg<>
+    %csrrci_r = riscv.csrrci 1024, 0 : () -> !riscv.reg<>
+    %csrrwi_rw = riscv.csrrwi 1024, 1 : () -> !riscv.reg<>
+    %csrrwi_w = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg<>
     riscv.wfi : () -> ()
     %mul = riscv.mul %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     %mulh = riscv.mulh %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
@@ -75,7 +75,8 @@ builtin.module {
     %li = riscv.li 1 : () -> !riscv.reg<>
     riscv.ecall : () -> ()
     riscv.ebreak : () -> ()
-    riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
+    riscv.directive ".bss" : () -> ()
+    riscv.directive ".align" "2" : () -> ()
     riscv.assembly_section ".text" attributes {"foo" = i32} {
       %nested_li = riscv.li 1 : () -> !riscv.reg<>
     }
@@ -111,8 +112,8 @@ builtin.module {
     %fcvt_s_w = riscv.fcvt.s.w %0 : (!riscv.reg<>) -> !riscv.freg<>
     %fcvt_s_wu = riscv.fcvt.s.wu %0 : (!riscv.reg<>) -> !riscv.freg<>
     %fmv_w_x = riscv.fmv.w.x %0 : (!riscv.reg<>) -> !riscv.freg<>
-    %flw = riscv.flw %0 {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.freg<>
-    riscv.fsw %0, %f0 {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.freg<>) -> ()
+    %flw = riscv.flw %0, 1 : (!riscv.reg<>) -> !riscv.freg<>
+    riscv.fsw %0, %f0, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
     riscv.ret : () -> ()
   }) : () -> ()
 }
@@ -179,7 +180,7 @@ builtin.module {
 // CHECK-NEXT:     %csrrci_rw = "riscv.csrrci"() {"csr" = 1024 : i32, "immediate" = 8 : i32} : () -> !riscv.reg<>
 // CHECK-NEXT:     %csrrci_r = "riscv.csrrci"() {"csr" = 1024 : i32, "immediate" = 0 : i32} : () -> !riscv.reg<>
 // CHECK-NEXT:     %csrrwi_rw = "riscv.csrrwi"() {"csr" = 1024 : i32, "immediate" = 1 : i32} : () -> !riscv.reg<>
-// CHECK-NEXT:     %csrrwi_w = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32} : () -> !riscv.reg<>
+// CHECK-NEXT:     %csrrwi_w = "riscv.csrrwi"() {"csr" = 1024 : i32, "immediate" = 1 : i32, "writeonly"} : () -> !riscv.reg<>
 // CHECK-NEXT:     "riscv.wfi"() : () -> ()
 // CHECK-NEXT:     %mul = "riscv.mul"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:     %mulh = "riscv.mulh"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
@@ -192,6 +193,7 @@ builtin.module {
 // CHECK-NEXT:     %li = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<>
 // CHECK-NEXT:     "riscv.ecall"() : () -> ()
 // CHECK-NEXT:     "riscv.ebreak"() : () -> ()
+// CHECK-NEXT:     "riscv.directive"() {"directive" = ".bss"} : () -> ()
 // CHECK-NEXT:     "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
 // CHECK-NEXT:     "riscv.assembly_section"() ({
 // CHECK-NEXT:       %nested_li = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<>
@@ -228,8 +230,8 @@ builtin.module {
 // CHECK-NEXT:     %fcvt_s_w = "riscv.fcvt.s.w"(%0) : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-NEXT:     %fcvt_s_wu = "riscv.fcvt.s.wu"(%0) : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-NEXT:     %fmv_w_x = "riscv.fmv.w.x"(%0) : (!riscv.reg<>) -> !riscv.freg<>
-// CHECK-NEXT:     %flw = "riscv.flw"(%0) {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.freg<>
-// CHECK-NEXT:     "riscv.fsw"(%0, %f0) {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.freg<>) -> ()
+// CHECK-NEXT:     %flw = "riscv.flw"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.freg<>
+// CHECK-NEXT:     "riscv.fsw"(%0, %f0) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.freg<>) -> ()
 // CHECK-NEXT:     "riscv.ret"() : () -> ()
 // CHECK-NEXT:   }) {"label" = #riscv.label<"main">} : () -> ()
 // CHECK-NEXT: }) : () -> ()
