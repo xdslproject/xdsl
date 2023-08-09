@@ -43,7 +43,7 @@ class HasParent(OpTrait):
     parameters: tuple[type[Operation], ...]
 
     def __init__(self, *parameters: type[Operation]):
-        if len(parameters) == 0:
+        if not parameters:
             raise ValueError("parameters must not be empty")
         super().__init__(parameters)
 
