@@ -20,7 +20,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
 )
 from xdsl.dialects.func import FuncOp, Call
-from xdsl.dialects import arith, builtin, scf, stencil, func, memref
+from xdsl.dialects import arith, builtin, scf, stencil, func, memref, llvm
 from xdsl.dialects.arith import Constant
 from xdsl.builder import Builder
 
@@ -576,6 +576,9 @@ class ApplyOpToHLS(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
+        # We qualify the parent function as a kernel for futher processing
+        op.parent_op().attributes["kernel"] = IntAttr(1)
+
         body_block = op.region.blocks[0]
         return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
         n_components = len(return_op.arg)
@@ -1324,6 +1327,56 @@ class TrivialCleanUpAuxAttributes(RewritePattern):
 
 
 @dataclass
+class QualifyInterfacesPass(RewritePattern):
+    module: builtin.ModuleOp
+    declared_coeff_func: bool = False
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
+        bundle_idx = 1
+        arg_idx = 0
+
+        if not self.declared_coeff_func:
+            interface_coeff_func_name = "_maxi_coeff"
+            interface_coeff_func_type = llvm.LLVMFunctionType([], None, True)
+            interface_coeff_func = llvm.FuncOp(
+                interface_coeff_func_name,
+                interface_coeff_func_type,
+                llvm.LinkageAttr("external"),
+            )
+            self.module.body.block.add_op(interface_coeff_func)
+
+            self.declared_coeff_func = True
+
+        if "kernel" in op.attributes:
+            del op.attributes["kernel"]
+
+            for input_arg in op.function_type.inputs:
+                if isinstance(input_arg, LLVMPointerType) and isinstance(
+                    input_arg.type, LLVMStructType
+                ):
+                    interface_func_name = f"_maxi_gmem{bundle_idx}"
+                    interface_func = func.FuncOp.external(
+                        interface_func_name, [input_arg], []
+                    )
+                    self.module.body.block.add_op(interface_func)
+
+                    call_interface_func = func.Call.get(
+                        interface_func_name, op.body.blocks[0].args[arg_idx], []
+                    )
+                    rewriter.insert_op_at_start(call_interface_func, op.body.blocks[0])
+
+                    bundle_idx += 1
+                else:
+                    call_interface_func = llvm.CallOp(
+                        interface_coeff_func_name, op.body.blocks[0].args[arg_idx]
+                    )
+                    rewriter.insert_op_at_start(call_interface_func, op.body.blocks[0])
+
+                arg_idx += 1
+
+
+@dataclass
 class HLSConvertStencilToLLMLIRPass(ModulePass):
     name = "hls-convert-stencil-to-ll-mlir"
 
@@ -1480,3 +1533,11 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
             walk_reverse=False,
         )
         final_cleanup.rewrite_module(op)
+
+        interfaces_pass = PatternRewriteWalker(
+            # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
+            QualifyInterfacesPass(op),
+            apply_recursively=True,
+            walk_reverse=False,
+        )
+        interfaces_pass.rewrite_module(op)
