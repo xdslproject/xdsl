@@ -178,6 +178,8 @@
     // CHECK-NEXT: riscv.ecall : () -> ()
     riscv.ebreak : () -> ()
     // CHECK-NEXT: riscv.ebreak : () -> ()
+    riscv.directive ".bss": () -> ()
+    // CHECK-NEXT: riscv.directive ".bss" : () -> ()
     riscv.directive ".align" "2" : () -> ()
     // CHECK-NEXT: riscv.directive ".align" "2" : () -> ()
     riscv.assembly_section ".text" attributes {"foo" = i32} {
