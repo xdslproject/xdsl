@@ -267,10 +267,10 @@
     %fmv_w_x = riscv.fmv.w.x %0 : (!riscv.reg<>) -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.fmv.w.x %{{.*}} : (!riscv.reg<>) -> !riscv.freg<>
 
-    %flw = riscv.flw %0 {"immediate" = 1 : i32}: (!riscv.reg<>) -> !riscv.freg<>
-    // CHECK-NEXT: %{{.*}} = riscv.flw %{{.*}} {"immediate" = 1 : i32} : (!riscv.reg<>) -> !riscv.freg<>
-    riscv.fsw %0, %f0 {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.freg<>) -> ()
-    // CHECK-NEXT: riscv.fsw %{{.*}}, %{{.*}} {"immediate" = 1 : i32} : (!riscv.reg<>, !riscv.freg<>) -> ()
+    %flw = riscv.flw %0, 1 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.flw %{{.*}}, 1 : (!riscv.reg<>) -> !riscv.freg<>
+    riscv.fsw %0, %f0, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
+    // CHECK-NEXT: riscv.fsw %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
 
     // Terminate block
     riscv.ret : () -> ()
