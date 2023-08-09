@@ -5,7 +5,6 @@ These are temporary, until xDSL supports all the functionality necessary to lowe
 builtin+printf to riscv.
 """
 
-from functools import reduce
 from typing import IO, ClassVar
 
 from riscemu.instructions.instruction_set import InstructionSet
@@ -13,20 +12,6 @@ from riscemu.types.instruction import Instruction
 from riscemu.types.int32 import Int32
 
 from xdsl.interpreters.shaped_array import ShapedArray
-
-
-def tensor_description(shape: list[int], data: list[int]) -> str:
-    if len(shape) == 1:
-        return str(data)
-    if len(shape):
-        size = reduce(lambda acc, el: acc * el, shape[1:], 1)
-        inner = (
-            tensor_description(shape[1:], data[start : start + size])
-            for start in range(0, size * shape[0], size)
-        )
-        return f'[{", ".join(inner)}]'
-    else:
-        return "[]"
 
 
 # Define a RISC-V ISA extension by subclassing InstructionSet

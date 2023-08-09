@@ -1050,6 +1050,26 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.rs1
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["csr"] = IntegerAttr(
+            parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
+            IntegerType(32),
+        )
+        if parser.parse_optional_punctuation(",") is not None:
+            if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
+                parser.raise_error(f"Expected 'w' flag, got '{flag}'")
+            attributes["writeonly"] = UnitAttr()
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        printer.print(self.csr.value.data)
+        if self.writeonly is not None:
+            printer.print(', "w"')
+        return {"csr", "writeonly"}
+
 
 class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -1108,6 +1128,26 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.rs1
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["csr"] = IntegerAttr(
+            parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
+            IntegerType(32),
+        )
+        if parser.parse_optional_punctuation(",") is not None:
+            if (flag := parser.parse_str_literal("Expected 'r' flag")) != "r":
+                parser.raise_error(f"Expected 'r' flag, got '{flag}'")
+            attributes["readonly"] = UnitAttr()
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        printer.print(self.csr.value.data)
+        if self.readonly is not None:
+            printer.print(', "r"')
+        return {"csr", "readonly"}
+
 
 class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -1164,6 +1204,30 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.rd, self.csr, self.immediate
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["csr"] = IntegerAttr(
+            parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
+            IntegerType(32),
+        )
+        parser.parse_punctuation(",")
+        attributes["immediate"] = _parse_immediate_value(parser, IntegerType(32))
+        if parser.parse_optional_punctuation(",") is not None:
+            if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
+                parser.raise_error(f"Expected 'w' flag, got '{flag}'")
+            attributes["writeonly"] = UnitAttr()
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        printer.print(self.csr.value.data)
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        if self.writeonly is not None:
+            printer.print(', "w"')
+        return {"csr", "immediate", "writeonly"}
+
 
 class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -1207,6 +1271,24 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["csr"] = IntegerAttr(
+            parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
+            IntegerType(32),
+        )
+        parser.parse_punctuation(",")
+        attributes["immediate"] = _parse_immediate_value(parser, IntegerType(32))
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        printer.print(self.csr.value.data)
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        return {"csr", "immediate"}
 
 
 # endregion
@@ -2181,6 +2263,17 @@ class LabelOp(IRDLOperation, RISCVOp):
     def assembly_line(self) -> str | None:
         return _append_comment(f"{self.label.data}:", self.comment)
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        printer.print_string_literal(self.label.data)
+        return {"label"}
+
 
 @irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
@@ -2220,6 +2313,24 @@ class DirectiveOp(IRDLOperation, RISCVOp):
             arg_str = ""
 
         return _assembly_line(self.directive.data, arg_str, is_indented=False)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["directive"] = StringAttr(
+            parser.parse_str_literal("Expected directive")
+        )
+        if (value := parser.parse_optional_str_literal()) is not None:
+            attributes["value"] = StringAttr(value)
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        printer.print_string_literal(self.directive.data)
+        if self.value is not None:
+            printer.print(" ")
+            printer.print_string_literal(self.value.data)
+        return {"directive", "value"}
 
 
 @irdl_op_definition
@@ -2718,6 +2829,19 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rs1, self.rs2, self.immediate
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
 
 class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -2760,6 +2884,19 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 @irdl_op_definition

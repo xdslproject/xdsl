@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -p lower-riscv-scf-to-labels -t riscemu %s
 
 builtin.module {
-  riscv.label {"label" = #riscv.label<"main">} ({
+  riscv.label "main" ({
     %0 = riscv.li 0 : () -> !riscv.reg<a0>
     %1 = riscv.li 10 : () -> !riscv.reg<a1>
     %2 = riscv.li 1 : () -> !riscv.reg<a2>
