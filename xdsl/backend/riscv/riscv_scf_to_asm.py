@@ -65,7 +65,7 @@ class LowerRiscvScfToLabels(RewritePattern):
         # Append the loop increment and the branch back to the loop header
         # to the end of the body.
 
-        body = op.body.detach_block(0)
+        body = op.body.block
         yield_op = body.last_op
         assert isinstance(yield_op, riscv_scf.YieldOp)
 
