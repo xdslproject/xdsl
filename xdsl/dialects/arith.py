@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated, Generic, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -20,7 +20,6 @@ from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
 from xdsl.ir import Dialect, Operation, OpResult, SSAValue
 from xdsl.ir.core import Attribute
 from xdsl.irdl import (
-    AnyAttr,
     AnyOf,
     ConstraintVar,
     IRDLOperation,
@@ -55,20 +54,33 @@ class FastMathFlagsAttr(LLVMFastMathAttr):
 @irdl_op_definition
 class Constant(IRDLOperation):
     name = "arith.constant"
-    result: OpResult = result_def(AnyAttr())
+    result: OpResult = result_def(Attribute)
     value: Attribute = attr_def(Attribute)
 
-    def __init__(self, value: AnyIntegerAttr | FloatAttr[AnyFloat]):
-        value_type: IntegerType | IndexType | AnyFloat
-        if isinstance(value, FloatAttr):
-            value_type = value.type
-        else:
+    @overload
+    def __init__(
+        self, value: AnyIntegerAttr | FloatAttr[AnyFloat], value_type: None = None
+    ) -> None:
+        ...
+
+    @overload
+    def __init__(self, value: Attribute, value_type: Attribute) -> None:
+        ...
+
+    def __init__(
+        self,
+        value: AnyIntegerAttr | FloatAttr[AnyFloat] | Attribute,
+        value_type: Attribute | None = None,
+    ):
+        if value_type is None:
+            value = cast(AnyIntegerAttr | FloatAttr[AnyFloat], value)
             value_type = value.type
         super().__init__(
             operands=[], result_types=[value_type], attributes={"value": value}
         )
 
     @staticmethod
+    @deprecated("Please use Constant(attr, value_type)")
     def from_attr(attr: Attribute, value_type: Attribute) -> Constant:
         return Constant.create(result_types=[value_type], attributes={"value": attr})
 
@@ -83,8 +95,8 @@ class Constant(IRDLOperation):
             attributes={"value": IntegerAttr(value, value_type)},
         )
 
-    # To add tests for this constructor
     @staticmethod
+    @deprecated("Please use Constant(attr) or Constant(FloatAttr(value, value_type))")
     def from_float_and_width(
         value: float | FloatAttr[_FloatTypeT], value_type: _FloatTypeT
     ) -> Constant:
