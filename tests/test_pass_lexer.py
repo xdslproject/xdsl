@@ -2,18 +2,20 @@ import pytest
 
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import (
-    Token,
     PipelineLexer,
-    parse_pipeline,
     PipelinePassSpec,
+    Token,
+    parse_pipeline,
 )
 
 Kind = Token.Kind
 
+generator = PipelineLexer._generator  # pyright: ignore[reportPrivateUsage]
+
 
 def test_pass_lexer():
     tokens = list(
-        PipelineLexer._generator(  # type: ignore[reportPrivateUsage]
+        generator(
             'pass-1,pass-2{arg1=1 arg2=test arg3="test-str" arg-4=-34.4e-12 no-val-arg},pass-3'
         )
     )
@@ -36,17 +38,15 @@ def test_pass_lexer():
     assert tokens[3].span.text == "{"
     assert tokens[18].span.text == "-34.4e-12"
 
-    assert (
-        len(list(PipelineLexer._generator(""))) == 1  # type: ignore[reportPrivateUsage]
-    )
+    assert len(list(generator(""))) == 1
 
 
 def test_pass_lex_errors():
     with pytest.raises(PassPipelineParseError, match="Unknown token"):
-        list(PipelineLexer._generator("pass-1["))  # type: ignore[reportPrivateUsage]
+        list(generator("pass-1["))
 
     with pytest.raises(PassPipelineParseError, match="Unknown token"):
-        list(PipelineLexer._generator("pass-1{thing$=1}"))  # type: ignore[reportPrivateUsage]
+        list(generator("pass-1{thing$=1}"))
 
 
 def test_pass_parser():

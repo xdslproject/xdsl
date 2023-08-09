@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Annotated, Generic, Iterable, Sequence, TypeVar
 
-from xdsl.traits import HasParent, IsTerminator, NoTerminator
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
     ArrayAttr,
@@ -15,35 +14,36 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    TypeAttribute,
     OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    IRDLOperation,
     Operand,
     OptOperand,
     OptRegion,
     ParameterDef,
+    VarOperand,
+    VarOpResult,
     attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_operand_def,
     opt_region_def,
     region_def,
+    result_def,
     var_operand_def,
     var_result_def,
-    VarOperand,
-    VarOpResult,
-    irdl_attr_definition,
-    irdl_op_definition,
-    IRDLOperation,
-    result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.traits import HasParent, IsTerminator, NoTerminator, OptionalSymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -68,7 +68,7 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
             "Mismatched between the numbers of operands and types", pos, end_pos
         )
     for operand, type in zip(operands, types):
-        if operand.typ != type:
+        if operand.type != type:
             parser.raise_error(
                 "Mismatched between operands and their types", pos, end_pos
             )
@@ -79,7 +79,7 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
 def print_operands_with_types(printer: Printer, operands: Iterable[SSAValue]) -> None:
     printer.print_list(operands, printer.print)
     printer.print(" : ")
-    printer.print_list([operand.typ for operand in operands], printer.print)
+    printer.print_list([operand.type for operand in operands], printer.print)
 
 
 @irdl_attr_definition
@@ -379,18 +379,17 @@ class OperationOp(IRDLOperation):
             operands = parse_operands_with_types(parser)
             parser.parse_punctuation(")")
 
-        def parse_pattribute_entry() -> tuple[str, SSAValue]:
+        def parse_attribute_entry() -> tuple[str, SSAValue]:
             name = parser.parse_str_literal()
             parser.parse_punctuation("=")
             type = parser.parse_operand()
             return (name, type)
 
-        attributes = []
-        if parser.parse_optional_punctuation("{"):
-            attributes = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parse_pattribute_entry
-            )
-            parser.parse_punctuation("}")
+        attributes = parser.parse_optional_comma_separated_list(
+            Parser.Delimiter.BRACES, parse_attribute_entry
+        )
+        if attributes is None:
+            attributes = []
         attribute_names = [StringAttr(attr[0]) for attr in attributes]
         attribute_values = [attr[1] for attr in attributes]
 
@@ -440,6 +439,8 @@ class PatternOp(IRDLOperation):
     )
     sym_name: StringAttr | None = opt_attr_def(StringAttr)
     body: Region = region_def()
+
+    traits = frozenset([OptionalSymbolOpInterface()])
 
     def __init__(
         self,
@@ -491,10 +492,10 @@ class RangeOp(IRDLOperation):
 
     def verify_(self) -> None:
         def get_type_or_elem_type(arg: SSAValue) -> Attribute:
-            if isa(arg.typ, RangeType[AnyPDLType]):
-                return arg.typ.element_type
+            if isa(arg.type, RangeType[AnyPDLType]):
+                return arg.type.element_type
             else:
-                return arg.typ
+                return arg.type
 
         if len(self.arguments) > 0:
             elem_type = get_type_or_elem_type(self.result)
@@ -516,10 +517,10 @@ class RangeOp(IRDLOperation):
             if len(arguments) == 0:
                 raise ValueError("Empty range constructions require a return type.")
 
-            if isa(arguments[0].typ, RangeType[AnyPDLType]):
-                result_type = RangeType(arguments[0].typ.element_type)
-            elif isa(arguments[0].typ, AnyPDLType):
-                result_type = RangeType(arguments[0].typ)
+            if isa(arguments[0].type, RangeType[AnyPDLType]):
+                result_type = RangeType(arguments[0].type.element_type)
+            elif isa(arguments[0].type, AnyPDLType):
+                result_type = RangeType(arguments[0].type)
             else:
                 raise ValueError(
                     f"Arguments of {self.name} are expected to be PDL types"
@@ -537,7 +538,7 @@ class RangeOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if len(self.arguments) == 0:
-            printer.print(" : ", self.result.typ)
+            printer.print(" : ", self.result.type)
             return
 
         print_operands_with_types(printer, self.arguments)
@@ -688,7 +689,7 @@ class ResultsOp(IRDLOperation):
             printer.print(" of ", self.parent_)
             return
         printer.print(
-            " ", self.index.value.data, " of ", self.parent_, " -> ", self.val.typ
+            " ", self.index.value.data, " of ", self.parent_, " -> ", self.val.type
         )
 
 

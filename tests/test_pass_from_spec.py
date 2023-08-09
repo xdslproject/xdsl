@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -5,7 +6,6 @@ import pytest
 
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
-
 from xdsl.passes import ModulePass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
@@ -83,7 +83,7 @@ def test_pass_instantiation():
         (PipelinePassSpec("simple", {}), 'requires argument "a"'),
         (
             PipelinePassSpec("simple", {"a": [1], "no": []}),
-            'Unrecognised pass arguments "no"',
+            'Provided arguments ["no"] not found in expected pass arguments ["a", "b"]',
         ),
         (PipelinePassSpec("simple", {"a": []}), "Argument must contain a value"),
         (PipelinePassSpec("simple", {"a": ["test"]}), "Incompatible types"),
@@ -97,5 +97,5 @@ def test_pass_instantiation_error(spec: PipelinePassSpec, error_msg: str):
     """
     Test all possible failure modes in pass instantiation
     """
-    with pytest.raises(Exception, match=error_msg):
+    with pytest.raises(Exception, match=re.escape(error_msg)):
         SimplePass.from_pass_spec(spec)

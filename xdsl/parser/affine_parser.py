@@ -1,9 +1,9 @@
 from __future__ import annotations
-from xdsl.parser.base_parser import BaseParser
 
-from xdsl.utils.exceptions import ParseError
-from xdsl.parser.core import ParserState, Token
 from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.parser.base_parser import BaseParser, ParserState
+from xdsl.utils.exceptions import ParseError
+from xdsl.utils.lexer import Token
 
 
 class AffineParser(BaseParser):
@@ -153,4 +153,4 @@ class AffineParser(BaseParser):
         # Parse list of affine expressions
         exprs = self._parse_multi_affine_expr(dims, syms)
         # Create map and return.
-        return AffineMap(len(dims), len(syms), exprs)
+        return AffineMap(len(dims), len(syms), tuple(exprs))

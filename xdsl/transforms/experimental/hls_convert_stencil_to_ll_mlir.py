@@ -1,80 +1,69 @@
 from dataclasses import dataclass, field
 
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    GreedyRewritePatternApplier,
-    op_type_rewrite_pattern,
-)
-from xdsl.ir import MLContext, Operation, OpResult, Attribute
+from xdsl.builder import Builder
+from xdsl.dialects import arith, builtin, func, llvm, memref, scf, stencil
+from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
-    i32,
-    f64,
-    i64,
-    ArrayAttr,
     DenseArrayBase,
     IndexType,
     IntAttr,
     IntegerType,
-    FunctionType,
+    f64,
+    i32,
+    i64,
 )
-from xdsl.dialects.func import FuncOp, Call
-from xdsl.dialects import arith, builtin, scf, stencil, func, memref, llvm
-from xdsl.dialects.arith import Constant
-from xdsl.builder import Builder
-
+from xdsl.dialects.experimental.hls import (
+    HLSExtractStencilValue,
+    HLSStream,
+    HLSStreamRead,
+    HLSStreamWrite,
+    HLSYield,
+    PragmaDataflow,
+    PragmaPipeline,
+)
+from xdsl.dialects.func import Call, FuncOp
+from xdsl.dialects.llvm import (
+    AllocaOp,
+    GEPOp,
+    InsertValueOp,
+    LLVMArrayType,
+    LLVMPointerType,
+    LLVMStructType,
+    LoadOp,
+    StoreOp,
+    UndefOp,
+)
+from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.stencil import (
-    ExternalLoadOp,
-    ExternalStoreOp,
     AccessOp,
     ApplyOp,
-    ReturnOp,
+    ExternalLoadOp,
+    ExternalStoreOp,
     FieldType,
+    ReturnOp,
     StencilBoundsAttr,
     TempType,
 )
-
-from xdsl.dialects.experimental.hls import (
-    HLSStream,
-    HLSStreamType,
-    HLSStreamRead,
-    HLSStreamWrite,
-    PragmaDataflow,
-    PragmaPipeline,
-    HLSYield,
-    HLSExtractStencilValue,
-)
-
-from xdsl.dialects.memref import MemRefType
-
+from xdsl.ir import Attribute, MLContext, Operation
+from xdsl.ir.core import Block, BlockArgument, Region
 from xdsl.passes import ModulePass
-
-from xdsl.utils.hints import isa
-
-from xdsl.dialects.llvm import (
-    LLVMPointerType,
-    LLVMStructType,
-    LLVMArrayType,
-    GEPOp,
-    LoadOp,
-    StoreOp,
-    AllocaOp,
-    ExtractValueOp,
-    InsertValueOp,
-    UndefOp,
+from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-
-from xdsl.ir.core import BlockArgument, Block, Region
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
-    prepare_apply_body,
     AccessOpToMemref,
-    LoadOpToMemref,
     CastOpToMemref,
+    LoadOpToMemref,
+    StencilToMemRefType,
     TrivialExternalLoadOpCleanup,
     TrivialExternalStoreOpCleanup,
-    StencilToMemRefType,
+    prepare_apply_body,
 )
+from xdsl.utils.hints import isa
 
 IN = 0
 OUT = 1
@@ -97,7 +86,7 @@ class StencilAccessToGEP(RewritePattern):
         gep = GEPOp.get(stream, [0, 0], result_type=LLVMPointerType.typed(f64))
         gep = GEPOp.get(stream, [0, x, y, z], result_type=LLVMPointerType.typed(f64))
 
-        load = LoadOp.get(gep, f64)
+        load = LoadOp(gep, f64)
 
         rewriter.replace_matched_op([gep, load])
 
@@ -105,9 +94,9 @@ class StencilAccessToGEP(RewritePattern):
 def add_pragma_interface(func_arg: BlockArgument, inout: int, kernel: FuncOp):
     func_call = None
     if inout is IN:
-        func_call = Call.get("IN", func_arg, [])
+        func_call = Call("IN", func_arg, [])
     elif inout is OUT:
-        func_call = Call.get("OUT", func_arg, [])
+        func_call = Call("OUT", func_arg, [])
 
     kernel.body.block.insert_op_before(func_call, kernel.body.block.first_op)
 
@@ -173,10 +162,10 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             func_arg = new_op.owner.operands[-1]
             new_op = new_op.owner.operands[0]
 
-        if isa(func_arg.typ, LLVMPointerType):
-            func_arg_elem_type = func_arg.typ.type
+        if isa(func_arg.type, LLVMPointerType):
+            func_arg_elem_type = func_arg.type.type
         else:
-            func_arg_elem_type = func_arg.typ
+            func_arg_elem_type = func_arg.type
 
         # add_pragma_interface(func_arg, op.attributes["inout"].data, op.parent_op())
 
@@ -194,12 +183,11 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             ]
         )
 
-        data_type = func_arg_elem_type
-        struct_data_type = LLVMStructType.from_type_list([func_arg_elem_type])
-        struct_stencil_type = LLVMStructType.from_type_list([stencil_type])
+        LLVMStructType.from_type_list([func_arg_elem_type])
+        LLVMStructType.from_type_list([stencil_type])
 
-        assert isinstance(field.typ, MemRefType)
-        shape = field.typ.get_shape()
+        assert isinstance(field.type, MemRefType)
+        shape = field.type.get_shape()
 
         if len(shape) < 3:
             return
@@ -242,7 +230,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
             copy_stencil_stream_lst.append(copy_stencil_stream)
 
-        threedload_call = Call.get(
+        threedload_call = Call(
             "dummy_load_data", [func_arg, data_stream, shape_x, shape_y, shape_z], []
         )
 
@@ -254,7 +242,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         load_data_dataflow = PragmaDataflow(load_data_region)
 
-        shift_buffer_call = Call.get(
+        shift_buffer_call = Call(
             "shift_buffer",
             [data_stream, stencil_stream, shift_shape_x, shape_y, shape_z],
             [],
@@ -268,7 +256,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         shift_buffer_dataflow = PragmaDataflow(shift_buffer_region)
 
-        n_idx = arith.IndexCastOp.get(copy_n, IndexType())
+        n_idx = arith.IndexCastOp(copy_n, IndexType())
 
         duplicate_loop = gen_duplicate_loop(
             stencil_stream, copy_stencil_stream_lst, n_idx
@@ -288,7 +276,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         duplicateStream_dataflow = PragmaDataflow(duplicateStream_region)
 
-        ndims = len(field.typ.get_shape())
+        ndims = len(field.type.get_shape())
         if inout is IN and ndims == 3:
             rewriter.insert_op_before_matched_op(
                 [
@@ -409,12 +397,7 @@ def add_read_write_ops(
     return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
     stencil_return_vals = [val for val in return_op.arg]
 
-    alloca_size = Constant.from_int_and_width(1, i32)
-
-    global_mem_idx = 0
-    store_func_arg_addr_lst = []
-
-    p_func_arg_addr_lst = []
+    Constant.from_int_and_width(1, i32)
 
     stencil_idx = 0
     for arg_index_write in indices_stream_to_write:
@@ -428,7 +411,6 @@ def add_read_write_ops(
 
         read_op = HLSStreamRead(stream_to_read)
         read_op.attributes["write_data"] = IntAttr(1)
-        read_elem = read_op.res
 
         rewriter.insert_op_at_start(read_op, op.region.block)
 
@@ -447,7 +429,7 @@ def transform_apply_into_loop(
     size_y = Constant.from_int_and_width(
         op.attributes["shape_y"].value.data, builtin.IndexType()
     )
-    size_z = Constant.from_int_and_width(
+    Constant.from_int_and_width(
         op.attributes["shape_z"].value.data, builtin.IndexType()
     )
     one_int = Constant.from_int_and_width(1, i32)
@@ -467,9 +449,9 @@ def transform_apply_into_loop(
         op.attributes["shape_z"].value.data, builtin.IndexType()
     )
 
-    p_remainder = AllocaOp.get(one_int, i32)
+    p_remainder = AllocaOp(one_int, i32)
 
-    call_get_number_chunks = Call.get(
+    call_get_number_chunks = Call(
         "get_number_chunks", [size_y, p_remainder], [builtin.IndexType()]
     )
 
@@ -522,9 +504,9 @@ def transform_apply_into_loop(
     MAX_Y_SIZE = 16
     max_chunk_length = Constant.from_int_and_width(MAX_Y_SIZE, i32)
 
-    remainder = LoadOp.get(p_remainder)
+    remainder = LoadOp(p_remainder)
 
-    call_get_chunk_size = Call.get(
+    call_get_chunk_size = Call(
         "get_chunk_size",
         [chunk_num, call_get_number_chunks, max_chunk_length, remainder],
         [builtin.IndexType()],
@@ -594,12 +576,12 @@ class ApplyOpToHLS(RewritePattern):
 
             for i in range(len(apply_clone.operands)):
                 operand = apply_clone.operands[i]
-                n_dims = len(operand.typ.bounds.lb)
+                n_dims = len(operand.type.bounds.lb)
 
                 if n_dims == 3:
                     stream = self.shift_streams[current_stream][k]
                     rewriter.modify_block_argument_type(
-                        apply_clone.region.block.args[i], stream.results[0].typ
+                        apply_clone.region.block.args[i], stream.results[0].type
                     )
 
                     new_operands_lst.append(stream.results[0])
@@ -631,7 +613,7 @@ class ApplyOpToHLS(RewritePattern):
 
             for write_idx in indices_stream_to_write:
                 apply_clone.region.blocks[0].insert_arg(
-                    self.out_data_streams[0].results[0].typ, write_idx
+                    self.out_data_streams[0].results[0].type, write_idx
                 )
 
         # Get this apply's ReturnOp
@@ -706,7 +688,7 @@ class ApplyOpToHLS(RewritePattern):
         self.module.body.block.add_op(get_number_chunks)
         self.module.body.block.add_op(get_chunk_size)
 
-        res_type = op.res[0].typ
+        res_type = op.res[0].type
 
         rewriter.erase_op(return_op)
         for new_return_component in new_return_component_lst:
@@ -761,9 +743,8 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalStoreOp, rewriter: PatternRewriter, /):
-        if self.total_args == None:
+        if self.total_args is None:
             self.total_args = get_number_external_stores(op.parent_op())
-        field = op.field
         temp = op.temp
 
         # Find the llvm.ptr to external memory that genrates the argument to the stencil.external_load. For PSyclone, this is
@@ -789,7 +770,7 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
                 )
             )
             out_data_type = self.out_data_streams[0].elem_type
-            p_out_data_type = LLVMPointerType.typed(out_data_type)
+            LLVMPointerType.typed(out_data_type)
             out_data_stream_type = LLVMPointerType.typed(
                 LLVMStructType.from_type_list([out_data_type])
             )
@@ -811,12 +792,12 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
                 assert isinstance(new_op.owner, Operation)
                 func_arg = new_op.owner.operands[-1]
 
-            shape = op.field.typ.shape
+            shape = op.field.type.shape
             shape_x = Constant.from_int_and_width(shape.data[0].value.data, i32)
             shape_y = Constant.from_int_and_width(shape.data[1].value.data, i32)
             shape_z = Constant.from_int_and_width(shape.data[2].value.data, i32)
 
-            call_write_data = Call.get(
+            call_write_data = Call(
                 write_data_func_name,
                 [
                     *[stream.results[0] for stream in self.out_data_streams],
@@ -889,15 +870,15 @@ class StencilStoreToSubview(RewritePattern):
 
         for store in stores:
             field = store.field
-            assert isa(field.typ, FieldType[Attribute])
-            assert isa(field.typ.bounds, StencilBoundsAttr)
+            assert isa(field.type, FieldType[Attribute])
+            assert isa(field.type.bounds, StencilBoundsAttr)
             temp = store.temp
-            assert isa(temp.typ, TempType[Attribute])
-            offsets = [i for i in -field.typ.bounds.lb]
-            sizes = [i for i in temp.typ.get_shape()]
+            assert isa(temp.type, TempType[Attribute])
+            offsets = [i for i in -field.type.bounds.lb]
+            sizes = [i for i in temp.type.get_shape()]
             subview = memref.Subview.from_static_parameters(
                 field,
-                StencilToMemRefType(field.typ),
+                StencilToMemRefType(field.type),
                 offsets,
                 sizes,
                 [1] * len(sizes),
@@ -946,7 +927,9 @@ class GetInoutAttributeFromExternalStore(RewritePattern):
 
 def get_number_input_stencils(op: FuncOp):
     # ndims = len(field.typ.get_shape())
-    dim = lambda o: len(o.field.typ.get_shape())
+    def dim(o):
+        return len(o.field.type.get_shape())
+
     external_load_lst = [
         o
         for o in op.body.blocks[0].ops
@@ -999,16 +982,15 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                 parent_dataflow.detach()
                 parent_dataflow.erase()
 
-            # TODO: There are 3 IN loads in pw_advection. Generalise this by counting the number of IN loads
             if self.n_current_load == self.n_input:
                 load_data_func_name = f"load_data_{self.n_input}"
                 hls_stream_type = LLVMPointerType.typed(
                     LLVMStructType.from_type_list(
-                        [self.first_load.arguments[1].typ.element_type]
+                        [self.first_load.arguments[1].type.element_type]
                     )
                 )
                 load_data_args_lst = (
-                    self.n_input * [self.first_load.arguments[0].typ]
+                    self.n_input * [self.first_load.arguments[0].type]
                     + self.n_input * [hls_stream_type]
                     + 3 * [i32]
                 )
@@ -1020,7 +1002,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
 
                 self.module.body.block.add_op(load_data_func)
 
-                call_load_all_data = Call.get(
+                call_load_all_data = Call(
                     load_data_func_name,
                     self.data_arrays + self.data_streams + list(self.sizes),
                     [],
@@ -1053,7 +1035,7 @@ class PackData(RewritePattern):
             func_arg = new_op.owner.operands[-1]
             new_op = new_op.owner.operands[0]
 
-        shape = field.typ.get_shape()
+        shape = field.type.get_shape()
         ndims = len(shape)
 
         arg_idx = func_arg.index
@@ -1068,15 +1050,7 @@ class PackData(RewritePattern):
                     [LLVMArrayType.from_size_and_type(8, f64)]
                 )
             )
-            parent_func.body.block.args[arg_idx].typ = packed_type
-
-            old_inputs = list(parent_func.function_type.inputs.data)
-            old_outputs = list(parent_func.function_type.outputs.data)
-            new_inputs = (
-                old_inputs[:arg_idx] + [packed_type] + old_inputs[arg_idx + 1 :]
-            )
-            new_function_type = FunctionType.from_lists(new_inputs, old_outputs)
-            parent_func.function_type = new_function_type
+            parent_func.replace_argument_type(arg_idx, packed_type)
 
             for use in func_arg.uses:
                 if isinstance(use.operation, InsertValueOp):
@@ -1090,7 +1064,7 @@ class PackData(RewritePattern):
                         container_op.attributes["replace"] = IntAttr(0)
 
                         # Update the return types of the chain of insertvalues used to generatate the field structure
-                        field_struct = insertvalue.res.typ
+                        field_struct = insertvalue.res.type
 
                         old_type = list(field_struct.types.data)
                         new_type = old_type
@@ -1099,14 +1073,14 @@ class PackData(RewritePattern):
                         struct_new_type = LLVMStructType.from_type_list(new_type)
 
                         current_insertvalue = insertvalue
-                        current_insertvalue.res.typ = struct_new_type
+                        current_insertvalue.res.type = struct_new_type
                         update_types_insertvalue(current_insertvalue, struct_new_type)
 
 
 def update_types_insertvalue(op: InsertValueOp, new_type):
     for use in op.res.uses:
         if isinstance(use.operation, InsertValueOp):
-            use.operation.res.typ = new_type
+            use.operation.res.type = new_type
             update_types_insertvalue(use.operation, new_type)
 
 
@@ -1121,7 +1095,7 @@ class PackDataInStencilField(RewritePattern):
                     [LLVMArrayType.from_size_and_type(8, f64)]
                 )
             )
-            field_struct = op.res.typ
+            field_struct = op.res.type
 
             old_type = list(field_struct.types.data)
             new_type = old_type
@@ -1175,9 +1149,9 @@ class CreateLocalCopyOfCoefficients(RewritePattern):
                 store_local_copy_addr,
             ]
 
-            p_current_element_original = LoadOp.get(addr_original)
-            p_current_element_local_copy = LoadOp.get(addr_local_copy)
-            current_elem = LoadOp.get(p_current_element_original)
+            p_current_element_original = LoadOp(addr_original)
+            p_current_element_local_copy = LoadOp(addr_local_copy)
+            current_elem = LoadOp(p_current_element_original)
             store_current_element_in_copy = StoreOp.get(
                 current_elem, p_current_element_local_copy
             )
@@ -1237,7 +1211,7 @@ def walk_down(op: Operation, rewriter: PatternRewriter):
         if (
             dim == 1
         ):  # We want to replace the corresponding temps for these coefficients by these memrefs, so they are accessed directly
-            load = get_stencil_load(op)
+            get_stencil_load(op)
 
     else:
         if op.results:
@@ -1254,16 +1228,16 @@ class GetRepeatedCoefficients(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Subview, rewriter: PatternRewriter, /):
         cast = op.source.op  # original memref
-        clone_cast = cast.clone()
+        cast.clone()
 
-        dim = len(cast.dest.typ.shape.data)
-        size = cast.dest.typ.shape.data[0].value.data
+        dim = len(cast.dest.type.shape.data)
+        cast.dest.type.shape.data[0].value.data
         if dim == 1:
             uses_copy = set(op.results[0].uses)
             for use in uses_copy:
                 if isinstance(use.operation, memref.Load):
                     memref_copy = memref.Alloca.get(
-                        return_type=f64, shape=cast.dest.typ.shape
+                        return_type=f64, shape=cast.dest.type.shape
                     )
                     use.operation.operands[0] = memref_copy.results[0]
                     rewriter.insert_op_before_matched_op(memref_copy)
@@ -1289,7 +1263,7 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
             and not self.inserted_already
             and len(self.original_memref_lst) > 0
         ):
-            dim = self.original_memref_lst[0].dest.typ.shape.data[0].value.data
+            dim = self.original_memref_lst[0].dest.type.shape.data[0].value.data
 
             lb = Constant.from_int_and_width(0, IndexType())
             ub = Constant.from_int_and_width(dim, IndexType())
@@ -1361,7 +1335,7 @@ class QualifyInterfacesPass(RewritePattern):
                     )
                     self.module.body.block.add_op(interface_func)
 
-                    call_interface_func = func.Call.get(
+                    call_interface_func = func.Call(
                         interface_func_name, op.body.blocks[0].args[arg_idx], []
                     )
                     rewriter.insert_op_at_start(call_interface_func, op.body.blocks[0])
@@ -1381,7 +1355,6 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
     name = "hls-convert-stencil-to-ll-mlir"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        load_data_declaration: bool = False
         module: builtin.ModuleOp = op
         shift_streams = []
         out_data_streams = []
@@ -1413,7 +1386,7 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
         )
         pack_data_pass.rewrite_module(op)
 
-        local_copies = PatternRewriteWalker(
+        PatternRewriteWalker(
             # GreedyRewritePatternApplier([StencilExternalLoadToHLSExternalLoad(op), StencilAccessToGEP(op)]),
             GreedyRewritePatternApplier([CreateLocalCopyOfCoefficients()]),
             apply_recursively=False,

@@ -1,7 +1,6 @@
 from typing import Sequence
 
-from xdsl.ir import SSAValue, BlockArgument
-from xdsl.irdl import Operation, Region, Block
+from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
 
 
 class Rewriter:

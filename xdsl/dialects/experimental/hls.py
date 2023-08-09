@@ -1,25 +1,31 @@
 from __future__ import annotations
 
-from xdsl.dialects.builtin import Attribute, ParametrizedAttribute, StringAttr
-from xdsl.ir import Operation, SSAValue, Dialect, TypeAttribute, OpResult
-from xdsl.irdl import (
-    AnyAttr,
-    irdl_op_definition,
-    irdl_attr_definition,
-    Operand,
-    IRDLOperation,
-    operand_def,
-    var_operand_def,
-    opt_attr_def,
-    attr_def,
-    result_def,
-    ParameterDef,
-    region_def,
-)
-
 from typing import TypeVar
 
-from xdsl.dialects.builtin import IntegerType, DenseArrayBase
+from xdsl.dialects.builtin import (
+    Attribute,
+    DenseArrayBase,
+    IntegerType,
+    ParametrizedAttribute,
+    StringAttr,
+)
+from xdsl.ir import Dialect, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.ir.core import Region
+from xdsl.irdl import (
+    AnyAttr,
+    IRDLOperation,
+    Operand,
+    ParameterDef,
+    VarOperand,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
+    operand_def,
+    opt_attr_def,
+    region_def,
+    result_def,
+    var_operand_def,
+)
 from xdsl.traits import IsTerminator
 
 _StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True)
@@ -132,7 +138,7 @@ class HLSStreamRead(IRDLOperation):
     res: OpResult = result_def(AnyAttr())
 
     def __init__(self, stream: SSAValue | Operation):
-        super().__init__(operands=[stream], result_types=[stream.typ.element_type])
+        super().__init__(operands=[stream], result_types=[stream.type.element_type])
 
 
 @irdl_op_definition

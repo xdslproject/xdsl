@@ -1,7 +1,10 @@
-import versioneer
-from setuptools import find_packages, setup
-from pathlib import Path
 import re
+from pathlib import Path
+from typing import Mapping, cast
+
+from setuptools import Command, find_packages, setup
+
+import versioneer
 
 # Add README.md as long description
 this_directory = Path(__file__).parent
@@ -15,11 +18,11 @@ with open("requirements.txt") as f:
 with open("requirements-optional.txt") as f:
     optionals = f.read().splitlines()
 
-reqs = []
+reqs: list[str] = []
 for ir in required:
     if ir[0:3] == "git":
         name = ir.split("/")[-1]
-        reqs += ["%s @ %s@main" % (name, ir)]
+        reqs += [f"{name} @ {ir}@main"]
     else:
         reqs += [ir]
 
@@ -32,7 +35,7 @@ for mreqs, mode in zip(
         "extras",
     ],
 ):
-    opt_reqs = []
+    opt_reqs: list[str] = []
     for ir in mreqs:
         # For conditionals like pytest=2.1; python == 3.6
         if ";" in ir:
@@ -55,8 +58,8 @@ for mreqs, mode in zip(
 
 setup(
     name="xdsl",
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version=cast(str, versioneer.get_version()),
+    cmdclass=cast(Mapping[str, type[Command]], versioneer.get_cmdclass()),
     description="xDSL",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -64,6 +67,7 @@ setup(
         "console_scripts": [
             "xdsl-opt = xdsl.tools.xdsl_opt:main",
             "irdl-to-pyrdl = xdsl.tools.irdl_to_pyrdl:main",
+            "xdsl-run = xdsl.tools.xdsl_run:main",
         ]
     },
     project_urls={

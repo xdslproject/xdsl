@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from xdsl.parser import Span
     from xdsl.ir import Attribute
+    from xdsl.parser import Span
     from xdsl.utils.parse_pipeline import Token
 
 
@@ -69,6 +69,9 @@ class ParseError(Exception):
     msg: str
 
     def __repr__(self) -> str:
+        return self.span.print_with_context(self.msg)
+
+    def with_context(self) -> str:
         return self.span.print_with_context(self.msg)
 
 

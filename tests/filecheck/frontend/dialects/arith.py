@@ -1,9 +1,9 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import i1, i32, i64, f16, f32, f64
+from xdsl.frontend.dialects.builtin import f16, f32, f64, i1, i32, i64
 from xdsl.frontend.exception import CodeGenerationException
+from xdsl.frontend.program import FrontendProgram
 
 p = FrontendProgram()
 with CodeContext(p):
@@ -100,7 +100,7 @@ try:
         # CHECK: Binary operation 'FloorDiv' is not supported by type '_Float64' which does not overload '__floordiv__'.
         def test_missing_floordiv_overload_f64(a: f64, b: f64) -> f64:
             # We expect the type error here, since the function doesn't exist on f64
-            return a // b  # type: ignore
+            return a // b
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -112,7 +112,7 @@ try:
         # CHECK: Comparison operation 'In' is not supported by type '_Float64' which does not overload '__contains__'.
         def test_missing_contains_overload_f64(a: f64, b: f64) -> f64:
             # We expect the type error here, since the function doesn't exist on f64
-            return a in b  # type: ignore
+            return a in b
 
     p.compile(desymref=False)
     print(p.textual_format())

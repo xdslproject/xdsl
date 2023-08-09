@@ -1,15 +1,15 @@
-from xdsl.dialects import mpi, func, llvm, builtin, arith
-from xdsl.ir import Operation, Attribute, OpResult
+from xdsl.dialects import arith, builtin, func, llvm, mpi
+from xdsl.dialects.builtin import i32, i64
+from xdsl.ir import Attribute, Operation, OpResult
 from xdsl.irdl import (
+    IRDLOperation,
+    Operand,
     VarOpResult,
     irdl_op_definition,
     var_result_def,
-    IRDLOperation,
-    Operand,
 )
-from xdsl.transforms import lower_mpi
 from xdsl.pattern_rewriter import PatternRewriteWalker
-from xdsl.dialects.builtin import i32, i64
+from xdsl.transforms import lower_mpi
 
 info = lower_mpi.MpiLibraryInfo()
 
@@ -28,12 +28,12 @@ def check_emitted_function_signature(
     call = extract_func_call(ops, name)
     assert call is not None, f"Missing {func.Call.name} op to {name} in output!"
     assert len(call.arguments) == len(types)
-    for arg, typ in zip(call.arguments, types):
+    for arg, arg_type in zip(call.arguments, types):
         # check that the argument type is correct (if constraint present)
-        if typ is not None:
+        if arg_type is not None:
             assert isinstance(
-                arg.typ, typ
-            ), f"Expected argument to be of type {typ} (got {arg.typ} instead)"
+                arg.type, arg_type
+            ), f"Expected argument to be of type {arg_type} (got {arg.type} instead)"
 
 
 @irdl_op_definition
@@ -95,7 +95,7 @@ def test_lower_mpi_wait_with_status():
 
     assert len(result) == 1
     assert result[0] is not None
-    assert isinstance(result[0].typ, llvm.LLVMPointerType)
+    assert isinstance(result[0].type, llvm.LLVMPointerType)
     call = extract_func_call(ops)
     assert call is not None
     assert call.callee.string_value() == "MPI_Wait"
@@ -109,7 +109,7 @@ def test_lower_mpi_comm_rank():
 
     assert len(result) == 1
     assert result[0] is not None
-    assert result[0].typ == i32
+    assert result[0].type == i32
 
     # check signature of emitted function call
     # int MPI_Comm_rank(MPI_Comm comm, int *rank)
@@ -125,7 +125,7 @@ def test_lower_mpi_comm_size():
 
     assert len(result) == 1
     assert result[0] is not None
-    assert result[0].typ == i32
+    assert result[0].type == i32
 
     # check signature of emitted function call
     # int MPI_Comm_size(MPI_Comm comm, int *size)
@@ -416,7 +416,7 @@ def test_lower_mpi_vec_get():
 
     assert len(res) == 1
     assert res[0] is not None
-    assert isinstance(res[0].typ, llvm.LLVMPointerType)
+    assert isinstance(res[0].type, llvm.LLVMPointerType)
     assert len(ops) > 0
 
 
@@ -466,7 +466,7 @@ def test_mpi_type_conversion():
 
     lowering = lower_mpi.LowerMpiRecv(info)
 
-    from xdsl.dialects.builtin import f64, f32, IntegerType, i32, i64, Signedness
+    from xdsl.dialects.builtin import IntegerType, Signedness, f32, f64, i32, i64
 
     u64 = IntegerType(64, Signedness.UNSIGNED)
     u32 = IntegerType(32, Signedness.UNSIGNED)
@@ -484,9 +484,12 @@ def test_mpi_type_conversion():
         for sign in (Signedness.UNSIGNED, Signedness.SIGNLESS, Signedness.SIGNED):
             sign_str = "UNSIGNED_" if sign == Signedness.UNSIGNED else ""
             name = "CHAR" if width == 8 else "SHORT"
-            typ = IntegerType(width, sign)
-            checks.append((typ, getattr(info, f"MPI_{sign_str}{name}")))
+            mpi_type = IntegerType(width, sign)
+            checks.append((mpi_type, getattr(info, f"MPI_{sign_str}{name}")))
 
     for type, target in checks:
         # we test a private member function here, so we ignore pyright
-        assert lowering._translate_to_mpi_type(type) == target  # type: ignore
+        translate_to_mpi_type = (
+            lowering._translate_to_mpi_type  # pyright: ignore[reportPrivateUsage]
+        )
+        assert translate_to_mpi_type(type) == target

@@ -1,9 +1,13 @@
 import pytest
 
+from xdsl.builder import Builder
 from xdsl.dialects.builtin import (
     AnyFloat,
+    ArrayAttr,
     FloatAttr,
+    IndexType,
     IntAttr,
+    IntegerType,
     bf16,
     f16,
     f32,
@@ -12,30 +16,27 @@ from xdsl.dialects.builtin import (
     f128,
     i32,
     i64,
-    IntegerType,
-    ArrayAttr,
-    IndexType,
-)
-from xdsl.dialects.stencil import (
-    CastOp,
-    BufferOp,
-    ExternalLoadOp,
-    ExternalStoreOp,
-    ReturnOp,
-    ResultType,
-    ApplyOp,
-    StencilBoundsAttr,
-    StoreOp,
-    TempType,
-    LoadOp,
-    FieldType,
-    IndexAttr,
-    StoreResultOp,
-    IndexOp,
-    AccessOp,
 )
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Attribute, Block
+from xdsl.dialects.stencil import (
+    AccessOp,
+    ApplyOp,
+    BufferOp,
+    CastOp,
+    ExternalLoadOp,
+    ExternalStoreOp,
+    FieldType,
+    IndexAttr,
+    IndexOp,
+    LoadOp,
+    ResultType,
+    ReturnOp,
+    StencilBoundsAttr,
+    StoreOp,
+    StoreResultOp,
+    TempType,
+)
+from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
@@ -95,8 +96,8 @@ def test_stencil_return_multiple_ResultType():
 
 
 def test_stencil_cast_op_verifier():
-    typ = FieldType(3, f32)
-    field = TestSSAValue(typ)
+    field_type = FieldType(3, f32)
+    field = TestSSAValue(field_type)
 
     # check that correct op verifies correctly
     cast = CastOp.get(field, StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))))
@@ -154,7 +155,7 @@ def test_cast_op_constructor():
         StencilBoundsAttr(((-2, 100), (-3, 100), (-4, 0))),
     )
 
-    assert cast.result.typ == FieldType(((-2, 100), (-3, 100), (-4, 0)), f32)
+    assert cast.result.type == FieldType(((-2, 100), (-3, 100), (-4, 0)), f32)
 
 
 def test_stencil_apply():
@@ -165,7 +166,7 @@ def test_stencil_apply():
 
     assert len(apply_op.args) == 1
     assert len(apply_op.res) == 1
-    assert isinstance(apply_op.res[0].typ, TempType)
+    assert isinstance(apply_op.res[0].type, TempType)
     assert apply_op.get_rank() == 2
 
 
@@ -175,7 +176,7 @@ def test_stencil_apply_no_args():
 
     assert len(apply_op.args) == 0
     assert len(apply_op.res) == 2
-    assert isinstance(apply_op.res[0].typ, TempType)
+    assert isinstance(apply_op.res[0].type, TempType)
     assert apply_op.get_rank() == 1
 
 
@@ -397,13 +398,13 @@ def test_stencil_load():
 
     load = LoadOp.get(result_type_val1)
 
-    assert isinstance(load.field.typ, FieldType)
-    assert load.field.typ == field_type
-    assert len(load.field.typ.get_shape()) == 2
-    assert isinstance(load.field.typ.bounds, StencilBoundsAttr)
-    assert isa(load.res.typ, TempType[Attribute])
-    assert isa(load.res.typ.bounds, IntAttr)
-    assert load.res.typ.bounds.data == 2
+    assert isinstance(load.field.type, FieldType)
+    assert load.field.type == field_type
+    assert len(load.field.type.get_shape()) == 2
+    assert isinstance(load.field.type.bounds, StencilBoundsAttr)
+    assert isa(load.res.type, TempType[Attribute])
+    assert isa(load.res.type.bounds, IntAttr)
+    assert load.res.type.bounds.data == 2
 
 
 def test_stencil_load_bounds():
@@ -415,14 +416,14 @@ def test_stencil_load_bounds():
 
     load = LoadOp.get(result_type_val1, lb, ub)
 
-    assert isa(load.res.typ, TempType[Attribute])
-    assert isinstance(load.res.typ.bounds, StencilBoundsAttr)
-    assert isinstance(load.res.typ.bounds.lb, IndexAttr)
-    assert isinstance(load.res.typ.bounds.ub, IndexAttr)
-    assert len(load.res.typ.bounds.lb) == 2
-    assert load.res.typ.bounds.lb == lb
-    assert len(load.res.typ.bounds.ub) == 2
-    assert load.res.typ.bounds.ub == ub
+    assert isa(load.res.type, TempType[Attribute])
+    assert isinstance(load.res.type.bounds, StencilBoundsAttr)
+    assert isinstance(load.res.type.bounds.lb, IndexAttr)
+    assert isinstance(load.res.type.bounds.ub, IndexAttr)
+    assert len(load.res.type.bounds.lb) == 2
+    assert load.res.type.bounds.lb == lb
+    assert len(load.res.type.bounds.ub) == 2
+    assert load.res.type.bounds.ub == ub
 
 
 @pytest.mark.parametrize(
@@ -506,12 +507,12 @@ def test_stencil_store():
     store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, lb, ub)
 
     assert isinstance(store, StoreOp)
-    assert isinstance(store.field.typ, FieldType)
-    assert store.field.typ == field_type
-    assert isinstance(store.temp.typ, TempType)
-    assert store.temp.typ == temp_type
-    assert len(store.field.typ.get_shape()) == 2
-    assert len(store.temp.typ.get_shape()) == 2
+    assert isinstance(store.field.type, FieldType)
+    assert store.field.type == field_type
+    assert isinstance(store.temp.type, TempType)
+    assert store.temp.type == temp_type
+    assert len(store.field.type.get_shape()) == 2
+    assert len(store.temp.type.get_shape()) == 2
     assert store.lb is lb
     assert store.ub is ub
 
@@ -564,7 +565,7 @@ def test_stencil_access():
 
     assert isinstance(access, AccessOp)
     assert access.offset == offset_index_attr
-    assert access.temp.typ == temp_type
+    assert access.temp.type == temp_type
 
 
 def test_stencil_access_offset_mapping():
@@ -581,7 +582,7 @@ def test_stencil_access_offset_mapping():
 
     assert isinstance(access, AccessOp)
     assert access.offset == offset_index_attr
-    assert access.temp.typ == temp_type
+    assert access.temp.type == temp_type
     assert access.offset_mapping is not None
     assert access.offset_mapping == offset_mapping_attr
 
@@ -597,7 +598,7 @@ def test_store_result():
 
     assert isinstance(store_result, StoreResultOp)
     assert store_result.args[0] == elem_ssa_val
-    assert store_result.res.typ == result_type
+    assert store_result.res.type == result_type
 
 
 def test_external_load():
@@ -608,7 +609,7 @@ def test_external_load():
 
     assert isinstance(external_load, ExternalLoadOp)
     assert external_load.field == memref
-    assert external_load.result.typ == field_type
+    assert external_load.result.type == field_type
 
 
 def test_external_store():
@@ -624,10 +625,38 @@ def test_external_store():
 
 def test_buffer():
     temp = TestSSAValue(TempType((5), f32))
-    res_typ = TempType((5), f32)
+    res_type = TempType((5), f32)
 
-    buffer = BufferOp.build(operands=[temp], result_types=[res_typ])
+    buffer = BufferOp.build(operands=[temp], result_types=[res_type])
 
     assert isinstance(buffer, BufferOp)
     assert buffer.temp == temp
-    assert buffer.res.typ == res_typ
+    assert buffer.res.type == res_type
+
+
+def test_access_patterns():
+    typ = TempType((5), f32)
+    temp = TestSSAValue(typ)
+
+    @Builder.implicit_region((typ, typ))
+    def apply_op_region(args: tuple[SSAValue, ...]):
+        t0, t1 = args
+        for x in (-1, 1):
+            AccessOp.get(t0, (x, 0), (1, 0))
+        for y in (-1, 1):
+            AccessOp.get(t0, (0, y), (1, 0))
+
+        AccessOp.get(t1, (1, 1), (1, 0))
+        AccessOp.get(t1, (-1, -1), (1, 0))
+
+    apply = ApplyOp.get((temp, temp), apply_op_region.detach_block(0), [typ])
+
+    t0_acc, t1_acc = tuple(apply.get_accesses())
+
+    assert t0_acc.visual_pattern() == " X \nXOX\n X "
+    assert t1_acc.visual_pattern() == "X  \n O \n  X"
+
+    assert not t0_acc.is_diagonal
+    assert t1_acc.is_diagonal
+
+    assert len(tuple(t1_acc.get_diagonals())) == 2

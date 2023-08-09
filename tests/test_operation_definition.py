@@ -1,34 +1,33 @@
 from __future__ import annotations
+
 from typing import Annotated, Generic, TypeVar
 
 import pytest
 
 from xdsl.dialects.builtin import IndexType, IntAttr, IntegerType, StringAttr, i32
 from xdsl.dialects.test import TestType
-
-from xdsl.utils.test_value import TestSSAValue
 from xdsl.ir import Attribute, OpResult, Region
 from xdsl.irdl import (
+    AnyAttr,
+    AttributeDef,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     ConstraintVar,
+    IRDLOperation,
+    OpDef,
     Operand,
-    OptOpResult,
+    OperandDef,
     OptOperand,
+    OptOpResult,
     OptRegion,
-    VarOpResult,
+    RegionDef,
+    ResultDef,
     VarOperand,
+    VarOpResult,
     VarRegion,
     attr_def,
     irdl_op_definition,
-    OperandDef,
-    ResultDef,
-    AttributeDef,
-    AnyAttr,
-    OpDef,
-    RegionDef,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -45,6 +44,7 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
+from xdsl.utils.test_value import TestSSAValue
 
 ################################################################################
 #                              IRDL definition                                 #
@@ -245,10 +245,10 @@ class OperandOp(IRDLOperation):
 
 def test_operand_accessors():
     """Test accessors for operands."""
-    operand1 = OpResult(i32, None, None)  # type: ignore
-    operand2 = OpResult(i32, None, None)  # type: ignore
-    operand3 = OpResult(i32, None, None)  # type: ignore
-    operand4 = OpResult(i32, None, None)  # type: ignore
+    operand1 = TestSSAValue(i32)
+    operand2 = TestSSAValue(i32)
+    operand3 = TestSSAValue(i32)
+    operand4 = TestSSAValue(i32)
 
     op = OperandOp.build(operands=[operand1, [operand2], [operand3, operand4]])
     assert op.operand is op.operands[0]

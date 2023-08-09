@@ -2,14 +2,14 @@ import pytest
 
 from xdsl.dialects.affine import For, Yield
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, IntegerType
-from xdsl.ir import Attribute, Region, Block
+from xdsl.ir import Attribute, Block, Region
 from xdsl.ir.affine.affine_expr import AffineExpr
 
 
 def test_simple_for():
     f = For.from_region([], [], 0, 5, Region())
-    assert f.lower_bound.data.results == [AffineExpr.constant(0)]
-    assert f.upper_bound.data.results == [AffineExpr.constant(5)]
+    assert f.lower_bound.data.results == (AffineExpr.constant(0),)
+    assert f.upper_bound.data.results == (AffineExpr.constant(5),)
 
 
 def test_for_mismatch_operands_results_counts():

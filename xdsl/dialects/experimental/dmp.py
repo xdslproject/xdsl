@@ -12,30 +12,29 @@ from __future__ import annotations
 from math import prod
 from typing import Sequence
 
-from xdsl.printer import Printer
-from xdsl.parser import AttrParser
-from xdsl.utils.hints import isa
-from xdsl.dialects import stencil
+from xdsl.dialects import builtin, memref, stencil
 from xdsl.ir import (
-    Operation,
-    Region,
-    SSAValue,
-    ParametrizedAttribute,
     Attribute,
     Dialect,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
 )
 from xdsl.irdl import (
-    Operand,
-    attr_def,
-    irdl_op_definition,
-    irdl_attr_definition,
-    ParameterDef,
     IRDLOperation,
+    Operand,
+    ParameterDef,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     region_def,
 )
-from xdsl.dialects import builtin, memref
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
+from xdsl.utils.hints import isa
 
 # helpers for named dimensions:
 DIM_X = 0
@@ -90,13 +89,13 @@ class HaloExchangeDecl(ParametrizedAttribute):
         source_offset: Sequence[int],
         neighbor: Sequence[int],
     ):
-        typ = builtin.i64
+        data_type = builtin.i64
         super().__init__(
             [
-                builtin.DenseArrayBase.from_list(typ, offset),
-                builtin.DenseArrayBase.from_list(typ, size),
-                builtin.DenseArrayBase.from_list(typ, source_offset),
-                builtin.DenseArrayBase.from_list(typ, neighbor),
+                builtin.DenseArrayBase.from_list(data_type, offset),
+                builtin.DenseArrayBase.from_list(data_type, size),
+                builtin.DenseArrayBase.from_list(data_type, source_offset),
+                builtin.DenseArrayBase.from_list(data_type, neighbor),
             ]
         )
 
@@ -155,9 +154,34 @@ class HaloExchangeDecl(ParametrizedAttribute):
         printer.print_list(self.size, lambda x: printer.print_string(str(x)))
         printer.print_string("] source offset [")
         printer.print_list(self.source_offset, lambda x: printer.print_string(str(x)))
-        printer.print_string("] to {}>".format(list(self.neighbor)))
+        printer.print_string(f"] to {list(self.neighbor)}>")
 
-    # TODO: def parse_parameters()
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_characters("<")
+        parser.parse_characters("at")
+        offset = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        parser.parse_characters("size")
+        size = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        parser.parse_characters("source")
+        parser.parse_characters("offset")
+        source_offset = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        parser.parse_characters("to")
+        to = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        parser.parse_characters(">")
+
+        return [
+            builtin.DenseArrayBase.from_list(builtin.i64, x)
+            for x in (offset, size, source_offset, to)
+        ]
 
 
 @irdl_attr_definition
@@ -234,6 +258,9 @@ class HaloShapeInformation(ParametrizedAttribute):
 
     @property
     def dims(self) -> int:
+        """
+        Number of axis of the data (len(shape))
+        """
         return len(self.core_ub)
 
     @staticmethod
@@ -243,10 +270,10 @@ class HaloShapeInformation(ParametrizedAttribute):
         core_ub: stencil.IndexAttr,
         buff_ub: stencil.IndexAttr,
     ):
-        typ = builtin.i64
+        data_type = builtin.i64
         return HaloShapeInformation(
             [
-                builtin.DenseArrayBase.from_list(typ, tuple(data))
+                builtin.DenseArrayBase.from_list(data_type, tuple(data))
                 for data in (buff_lb, buff_ub, core_lb, core_ub)
             ]
         )
@@ -288,11 +315,11 @@ class HaloShapeInformation(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         dims = zip(self.buff_lb, self.core_lb, self.core_ub, self.buff_ub)
         printer.print_string("<")
-        printer.print_string("x".join("{}".format(list(vals)) for vals in dims))
+        printer.print_string("x".join(f"{list(vals)}" for vals in dims))
         printer.print_string(">")
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """
         Parses the attribute, the format of it is:
 
@@ -322,9 +349,9 @@ class HaloShapeInformation(ParametrizedAttribute):
                 break
         parser.parse_characters(">")
 
-        typ = builtin.i64
+        data_type = builtin.i64
         return [
-            builtin.DenseArrayBase.from_list(typ, data)
+            builtin.DenseArrayBase.from_list(data_type, data)
             for data in (buff_lb, buff_ub, core_lb, core_ub)
         ]
 
@@ -357,16 +384,18 @@ class NodeGrid(ParametrizedAttribute):
     def node_count(self) -> int:
         return prod(self.as_tuple())
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
+        shape: list[int] = [
+            parser.parse_integer(allow_negative=False, allow_boolean=False)
+        ]
 
-        shape: list[int] = [parser.parse_integer(allow_negative=False)]
-
-        while parser.parse_optional_characters("x") is not None:
-            shape.append(parser.parse_integer(allow_negative=False))
-
-        parser.parse_characters(">")
+        while parser.parse_optional_punctuation(">") is None:
+            parser.parse_shape_delimiter()
+            shape.append(
+                parser.parse_integer(allow_negative=False, allow_boolean=False)
+            )
 
         return [builtin.DenseArrayBase.from_list(builtin.i64, shape)]
 

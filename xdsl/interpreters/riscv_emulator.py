@@ -1,14 +1,14 @@
 from __future__ import annotations
-from typing import IO, ClassVar
-
-from riscemu.config import RunConfig
-from riscemu import RV32F, RV32I, RV32M
-from riscemu.CPU import UserModeCPU
-from riscemu.parser import AssemblyFileLoader
-from riscemu.instructions.instruction_set import InstructionSet
-from riscemu.types.instruction import Instruction
 
 from io import StringIO
+from typing import IO, ClassVar
+
+from riscemu import RV32F, RV32I, RV32M
+from riscemu.config import RunConfig
+from riscemu.CPU import UserModeCPU
+from riscemu.instructions.instruction_set import InstructionSet
+from riscemu.parser import AssemblyFileLoader
+from riscemu.types.instruction import Instruction
 
 
 class RV_Debug(InstructionSet):

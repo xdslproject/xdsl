@@ -1,16 +1,17 @@
 from abc import ABC
-from xdsl.ir import MLContext, Attribute
-from xdsl.dialects.builtin import i32, ModuleOp
-from xdsl.dialects import snitch_runtime, func
+
+from xdsl.dialects import func, snitch_runtime
+from xdsl.dialects.builtin import ModuleOp, i32
+from xdsl.dialects.snitch_runtime import tx_id
+from xdsl.ir import Attribute, MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
-    PatternRewriteWalker,
-    GreedyRewritePatternApplier,
 )
-from xdsl.dialects.snitch_runtime import tx_id
 
 
 class LowerGetInfoOpToFunc(RewritePattern, ABC):
@@ -26,7 +27,7 @@ class LowerGetInfoOpToFunc(RewritePattern, ABC):
     def match_and_rewrite(
         self, op: snitch_runtime.SnitchRuntimeGetInfo, rewriter: PatternRewriter, /
     ):
-        func_call = func.Call.get("snrt_" + op.name[5:], [], [i32])
+        func_call = func.Call("snrt_" + op.name[5:], [], [i32])
         rewriter.replace_matched_op(func_call)
 
 
@@ -41,9 +42,12 @@ class LowerBarrierOpToFunc(RewritePattern, ABC):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: snitch_runtime.SnitchRuntimeBarrier, rewriter: PatternRewriter, /
+        self,
+        op: snitch_runtime.NoOperandNoResultBaseOperation,
+        rewriter: PatternRewriter,
+        /,
     ):
-        func_call = func.Call.get("snrt_" + op.name[5:], [], [])
+        func_call = func.Call("snrt_" + op.name[5:], [], [])
         rewriter.replace_matched_op(func_call)
 
 
@@ -60,9 +64,7 @@ class LowerDma1DOpToFunc(RewritePattern, ABC):
         op: snitch_runtime.DmaStart1DOp | snitch_runtime.DmaStart1DWideptrOp,
         rewriter: PatternRewriter,
     ):
-        func_call = func.Call.get(
-            "snrt_" + op.name[5:], [op.dst, op.src, op.size], [tx_id]
-        )
+        func_call = func.Call("snrt_" + op.name[5:], [op.dst, op.src, op.size], [tx_id])
         rewriter.replace_matched_op(func_call)
 
 
@@ -78,7 +80,7 @@ class LowerDma2DOpToFunc(RewritePattern, ABC):
         op: snitch_runtime.DmaStart2DOp | snitch_runtime.DmaStart2DWideptrOp,
         rewriter: PatternRewriter,
     ):
-        func_call = func.Call.get(
+        func_call = func.Call(
             "snrt_" + op.name[5:],
             [op.dst, op.src, op.dst_stride, op.src_stride, op.size, op.repeat],
             [tx_id],
@@ -100,8 +102,8 @@ class AddExternalFuncs(RewritePattern, ABC):
             if "snrt" not in op.callee.string_value():
                 continue
             funcs_to_emit[op.callee.string_value()] = (
-                [arg.typ for arg in op.arguments],
-                [res.typ for res in op.results],
+                [arg.type for arg in op.arguments],
+                [res.type for res in op.results],
             )
 
         for name, types in funcs_to_emit.items():

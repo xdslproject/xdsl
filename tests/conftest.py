@@ -1,7 +1,7 @@
 from io import StringIO
 from typing import Any
-from xdsl.ir import Operation
 
+from xdsl.ir import Operation
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 

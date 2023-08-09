@@ -1,9 +1,8 @@
 import ast
-
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from inspect import getsource
-from sys import _getframe  # type: ignore
+from sys import _getframe  # pyright: ignore[reportPrivateUsage]
 from typing import Any
 
 from xdsl.frontend.program import FrontendProgram

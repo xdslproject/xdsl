@@ -3,24 +3,25 @@ Test the definition of attributes and their constraints.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, TypeVar, cast, Annotated, Generic, TypeAlias
+from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
 
 import pytest
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
 
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
+    AnyAttr,
     AttrConstraint,
+    BaseAttr,
     ConstraintVar,
     GenericData,
+    ParamAttrDef,
     ParameterDef,
     irdl_attr_definition,
     irdl_to_attr_constraint,
-    AnyAttr,
-    BaseAttr,
-    ParamAttrDef,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -37,8 +38,8 @@ class BoolData(Data[bool]):
 
     name = "bool"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> bool:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> bool:
         if parser.parse_optional_keyword("True"):
             return True
         if parser.parse_optional_keyword("False"):
@@ -55,8 +56,8 @@ class IntData(Data[int]):
 
     name = "int"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> int:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> int:
         return parser.parse_integer()
 
     def print_parameter(self, printer: Printer):
@@ -69,8 +70,8 @@ class StringData(Data[str]):
 
     name = "str"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> str:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer):
@@ -94,19 +95,14 @@ class IntListData(Data[list[int]]):
 
     name = "int_list"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> list[int]:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> list[int]:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
         printer.print_list(self.data, lambda x: printer.print_string(str(x)))
         printer.print_string("]")
-
-    def verify(self) -> None:
-        # We must override verify on Attribute
-        # https://github.com/xdslproject/xdsl/issues/1075
-        ...
 
 
 def test_non_class_data():
@@ -403,8 +399,8 @@ _MissingGenericDataData = TypeVar("_MissingGenericDataData")
 class MissingGenericDataData(Data[_MissingGenericDataData]):
     name = "missing_genericdata"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> _MissingGenericDataData:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> _MissingGenericDataData:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -447,7 +443,7 @@ class DataListAttr(AttrConstraint):
     elem_constr: AttrConstraint
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
-        attr = cast(ListData[Any], attr)
+        attr = cast(ListData[Attribute], attr)
         for e in attr.data:
             self.elem_constr.verify(e, constraint_vars)
 
@@ -456,8 +452,8 @@ class DataListAttr(AttrConstraint):
 class ListData(GenericData[list[A]]):
     name = "list"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> list[A]:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> list[A]:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:

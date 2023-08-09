@@ -1,7 +1,9 @@
 """Definition of the IRDL dialect."""
 
 from __future__ import annotations
+
 from typing import Sequence
+
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import (
     Attribute,
@@ -25,7 +27,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, NoTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    NoTerminator,
+    SymbolOpInterface,
+    SymbolTable,
+)
 
 ################################################################################
 # Dialect, Operation, and Attribute definitions                                #
@@ -48,7 +56,7 @@ class DialectOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([NoTerminator()])
+    traits = frozenset([NoTerminator(), SymbolOpInterface(), SymbolTable()])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -78,7 +86,7 @@ class TypeOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([NoTerminator(), HasParent(DialectOp)])
+    traits = frozenset([NoTerminator(), HasParent(DialectOp), SymbolOpInterface()])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -108,7 +116,7 @@ class AttributeOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([NoTerminator(), HasParent(DialectOp)])
+    traits = frozenset([NoTerminator(), HasParent(DialectOp), SymbolOpInterface()])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):
@@ -164,7 +172,7 @@ class OperationOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def("single_block")
 
-    traits = frozenset([NoTerminator(), HasParent(DialectOp)])
+    traits = frozenset([NoTerminator(), HasParent(DialectOp), SymbolOpInterface()])
 
     def __init__(self, name: str | StringAttr, body: Region):
         if isinstance(name, str):

@@ -1,7 +1,7 @@
-from xdsl.ir import Block
-from xdsl.dialects.arith import Addi, Subi, Muli, Constant
+from xdsl.dialects.arith import Addi, Constant, Muli, Subi
 from xdsl.dialects.builtin import StringAttr, i1, i32
 from xdsl.dialects.cf import Assert, Branch, ConditionalBranch
+from xdsl.ir import Block
 
 
 def test_assert():

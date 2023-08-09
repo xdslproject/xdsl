@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from typing import Union
-
 from xdsl.dialects.arith import FastMathFlagsAttr
-from xdsl.dialects.builtin import IntegerType, AnyFloat
-from xdsl.ir import Operation, SSAValue, OpResult, Dialect
+from xdsl.dialects.builtin import AnyFloat, IntegerType
+from xdsl.ir import Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
-    irdl_op_definition,
-    Operand,
     IRDLOperation,
+    Operand,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     result_def,
@@ -35,13 +33,13 @@ class AbsFOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> AbsFOp:
         operand = SSAValue.get(operand)
         return AbsFOp.build(
             attributes={"fastmath": fastmath},
             operands=[operand],
-            result_types=[operand.typ],
+            result_types=[operand.type],
         )
 
 
@@ -63,9 +61,9 @@ class AbsIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue]) -> AbsIOp:
+    def get(operand: Operation | SSAValue) -> AbsIOp:
         operand = SSAValue.get(operand)
-        return AbsIOp.build(operands=[operand], result_types=[operand.typ])
+        return AbsIOp.build(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -99,8 +97,8 @@ class Atan2Op(IRDLOperation):
 
     @staticmethod
     def get(
-        lhs: Union[Operation, SSAValue],
-        rhs: Union[Operation, SSAValue],
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
     ) -> Atan2Op:
         attributes = {"fastmath": fastmath}
@@ -108,7 +106,7 @@ class Atan2Op(IRDLOperation):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
         return Atan2Op.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
         )
 
 
@@ -135,13 +133,13 @@ class AtanOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> AtanOp:
         operand = SSAValue.get(operand)
         return AtanOp.build(
             attributes={"fastmath": fastmath},
             operands=[operand],
-            result_types=[operand.typ],
+            result_types=[operand.type],
         )
 
 
@@ -167,13 +165,13 @@ class CbrtOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> CbrtOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return CbrtOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -200,13 +198,13 @@ class CeilOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> CeilOp:
         operand = SSAValue.get(operand)
         return CeilOp.build(
             attributes={"fastmath": fastmath},
             operands=[operand],
-            result_types=[operand.typ],
+            result_types=[operand.type],
         )
 
 
@@ -235,8 +233,8 @@ class CopySignOp(IRDLOperation):
 
     @staticmethod
     def get(
-        lhs: Union[Operation, SSAValue],
-        rhs: Union[Operation, SSAValue],
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
     ) -> CopySignOp:
         attributes = {"fastmath": fastmath}
@@ -244,7 +242,7 @@ class CopySignOp(IRDLOperation):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
         return CopySignOp.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
         )
 
 
@@ -271,13 +269,13 @@ class CosOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> CosOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return CosOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -298,9 +296,11 @@ class CountLeadingZerosOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue]) -> CountLeadingZerosOp:
+    def get(operand: Operation | SSAValue) -> CountLeadingZerosOp:
         operand = SSAValue.get(operand)
-        return CountLeadingZerosOp.build(operands=[operand], result_types=[operand.typ])
+        return CountLeadingZerosOp.build(
+            operands=[operand], result_types=[operand.type]
+        )
 
 
 @irdl_op_definition
@@ -320,10 +320,10 @@ class CountTrailingZerosOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue]) -> CountTrailingZerosOp:
+    def get(operand: Operation | SSAValue) -> CountTrailingZerosOp:
         operand = SSAValue.get(operand)
         return CountTrailingZerosOp.build(
-            operands=[operand], result_types=[operand.typ]
+            operands=[operand], result_types=[operand.type]
         )
 
 
@@ -344,9 +344,9 @@ class CtPopOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
-    def get(operand: Union[Operation, SSAValue]) -> CtPopOp:
+    def get(operand: Operation | SSAValue) -> CtPopOp:
         operand = SSAValue.get(operand)
-        return CtPopOp.build(operands=[operand], result_types=[operand.typ])
+        return CtPopOp.build(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -372,13 +372,13 @@ class ErfOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> ErfOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return ErfOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -405,13 +405,13 @@ class Exp2Op(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> Exp2Op:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return Exp2Op.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -440,13 +440,13 @@ class ExpM1Op(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> ExpM1Op:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return ExpM1Op.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -473,13 +473,13 @@ class ExpOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> ExpOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return ExpOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -515,8 +515,8 @@ class FPowIOp(IRDLOperation):
 
     @staticmethod
     def get(
-        lhs: Union[Operation, SSAValue],
-        rhs: Union[Operation, SSAValue],
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
     ) -> FPowIOp:
         attributes = {"fastmath": fastmath}
@@ -524,7 +524,7 @@ class FPowIOp(IRDLOperation):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
         return FPowIOp.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
         )
 
 
@@ -551,13 +551,13 @@ class FloorOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> FloorOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return FloorOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -591,9 +591,9 @@ class FmaOp(IRDLOperation):
 
     @staticmethod
     def get(
-        a: Union[Operation, SSAValue],
-        b: Union[Operation, SSAValue],
-        c: Union[Operation, SSAValue],
+        a: Operation | SSAValue,
+        b: Operation | SSAValue,
+        c: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
     ) -> FmaOp:
         attributes = {"fastmath": fastmath}
@@ -602,7 +602,7 @@ class FmaOp(IRDLOperation):
         b = SSAValue.get(b)
         c = SSAValue.get(c)
         return FmaOp.build(
-            attributes=attributes, operands=[a, b, c], result_types=[a.typ]
+            attributes=attributes, operands=[a, b, c], result_types=[a.type]
         )
 
 
@@ -627,12 +627,10 @@ class IPowIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     @staticmethod
-    def get(
-        lhs: Union[Operation, SSAValue], rhs: Union[Operation, SSAValue]
-    ) -> IPowIOp:
+    def get(lhs: Operation | SSAValue, rhs: Operation | SSAValue) -> IPowIOp:
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
-        return IPowIOp.build(operands=[lhs, rhs], result_types=[lhs.typ])
+        return IPowIOp.build(operands=[lhs, rhs], result_types=[lhs.type])
 
 
 @irdl_op_definition
@@ -655,13 +653,13 @@ class Log10Op(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> Log10Op:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return Log10Op.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -687,13 +685,13 @@ class Log1pOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> Log1pOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return Log1pOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -717,13 +715,13 @@ class Log2Op(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> Log2Op:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return Log2Op.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -747,13 +745,13 @@ class LogOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> LogOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return LogOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -781,8 +779,8 @@ class PowFOp(IRDLOperation):
 
     @staticmethod
     def get(
-        lhs: Union[Operation, SSAValue],
-        rhs: Union[Operation, SSAValue],
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
     ) -> PowFOp:
         attributes = {"fastmath": fastmath}
@@ -790,7 +788,7 @@ class PowFOp(IRDLOperation):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
         return PowFOp.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.typ]
+            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
         )
 
 
@@ -820,13 +818,13 @@ class RoundEvenOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> RoundEvenOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return RoundEvenOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -856,13 +854,13 @@ class RoundOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> RoundOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return RoundOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -885,13 +883,13 @@ class RsqrtOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> RsqrtOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return RsqrtOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -918,13 +916,13 @@ class SinOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> SinOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return SinOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -947,13 +945,13 @@ class SqrtOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> SqrtOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return SqrtOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -977,13 +975,13 @@ class TanOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> TanOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return TanOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -1007,13 +1005,13 @@ class TanhOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> TanhOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return TanhOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
@@ -1042,13 +1040,13 @@ class TruncOp(IRDLOperation):
 
     @staticmethod
     def get(
-        operand: Union[Operation, SSAValue], fastmath: FastMathFlagsAttr | None = None
+        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ) -> TruncOp:
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
         return TruncOp.build(
-            attributes=attributes, operands=[operand], result_types=[operand.typ]
+            attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 

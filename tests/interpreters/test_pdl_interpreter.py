@@ -1,17 +1,16 @@
 from io import StringIO
-from xdsl.builder import Builder, ImplicitBuilder
 
-from xdsl.ir import MLContext, OpResult
+from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, pdl
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr
+from xdsl.interpreters.experimental.pdl import PDLRewritePattern
+from xdsl.ir import MLContext, OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
-    PatternRewriteWalker,
 )
-
-from xdsl.interpreters.experimental.pdl import PDLRewritePattern
 
 
 class SwapInputs(RewritePattern):
@@ -97,22 +96,24 @@ def swap_arguments_pdl():
         with ImplicitBuilder(pdl.PatternOp(2, None).body):
             x = pdl.OperandOp().value
             y = pdl.OperandOp().value
-            typ = pdl.TypeOp().result
+            pdl_type = pdl.TypeOp().result
 
             x_y_op = pdl.OperationOp(
-                StringAttr("arith.addi"), operand_values=[x, y], type_values=[typ]
+                StringAttr("arith.addi"), operand_values=[x, y], type_values=[pdl_type]
             ).op
             x_y = pdl.ResultOp(IntegerAttr(0, 32), parent=x_y_op).val
             z = pdl.OperandOp().value
             x_y_z_op = pdl.OperationOp(
                 op_name=StringAttr("arith.addi"),
                 operand_values=[x_y, z],
-                type_values=[typ],
+                type_values=[pdl_type],
             ).op
 
             with ImplicitBuilder(pdl.RewriteOp(x_y_z_op).body):
                 z_x_y_op = pdl.OperationOp(
-                    StringAttr("arith.addi"), operand_values=[z, x_y], type_values=[typ]
+                    StringAttr("arith.addi"),
+                    operand_values=[z, x_y],
+                    type_values=[pdl_type],
                 ).op
                 pdl.ReplaceOp(x_y_z_op, z_x_y_op)
 

@@ -1,14 +1,17 @@
 from __future__ import annotations
+
 from abc import ABC
 from dataclasses import dataclass
-from typing import Sequence, TypeGuard, Any
+from typing import Any, Sequence, TypeGuard, cast
+
 from immutabledict import immutabledict
+
 from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
-    OpResult,
     Operation,
+    OpResult,
     Region,
     SSAValue,
 )
@@ -23,11 +26,11 @@ class ISSAValue(ABC):
     or a basic block argument.
     """
 
-    typ: Attribute
+    type: Attribute
     users: IList[IOperation]
 
     def _add_user(self, op: IOperation):
-        self.users._unfreeze()  # type: ignore
+        self.users._unfreeze()  # pyright: ignore[reportPrivateUsage]
         self.users.append(op)
         self.users.freeze()
 
@@ -37,7 +40,7 @@ class ISSAValue(ABC):
                 f"Trying to remove a user ({op.name}) that is not an actual user of this value!"
             )
 
-        self.users._unfreeze()  # type: ignore
+        self.users._unfreeze()  # pyright: ignore[reportPrivateUsage]
         self.users.remove(op)
         self.users.freeze()
 
@@ -72,7 +75,7 @@ class IBlockArg(ISSAValue):
         return self is __o
 
     def __repr__(self) -> str:
-        return "BlockArg(type:" + self.typ.name + ("attached") + ")"  # type: ignore
+        return "BlockArg(type:" + self.type.name + ("attached") + ")"
 
 
 @dataclass(frozen=True)
@@ -210,7 +213,7 @@ class IBlock:
 
     @property
     def arg_types(self) -> list[Attribute]:
-        frozen_arg_types = [arg.typ for arg in self.args]
+        frozen_arg_types = [arg.type for arg in self.args]
         return frozen_arg_types
 
     def __hash__(self) -> int:
@@ -279,7 +282,10 @@ class IBlock:
             # The IBlock that will house this IBlockArg is not constructed yet.
             # After construction the block field will be set by the IBlock.
             immutable_arg = IBlockArg(
-                arg.typ, IList([]), None, arg.index  # type: ignore
+                arg.type,
+                IList(),
+                cast(IBlock, None),
+                arg.index,
             )
             args.append(immutable_arg)
             value_map[arg] = immutable_arg
@@ -358,7 +364,7 @@ class IOperation:
         object.__setattr__(self, "attributes", attributes)
         object.__setattr__(self, "operands", IList(operands))
         for operand in operands:
-            operand._add_user(self)  # type: ignore
+            operand._add_user(self)  # pyright: ignore[reportPrivateUsage]
         object.__setattr__(
             self,
             "results",
@@ -426,7 +432,7 @@ class IOperation:
 
     @property
     def result_types(self) -> list[Attribute]:
-        return [result.typ for result in self.results]
+        return [result.type for result in self.results]
 
     def to_mutable(
         self,
@@ -451,7 +457,9 @@ class IOperation:
                 print(f"ERROR: op {self.name} uses SSAValue before definition")
                 # Continuing to enable printing the IR including missing
                 # operands for investigation
-                mutable_operands.append(OpResult(operand.typ, None, 0))  # type: ignore
+                mutable_operands.append(
+                    OpResult(operand.type, cast(Operation, None), 0)
+                )
 
         mutable_successors: list[Block] = []
         for successor in self.successors:
@@ -472,7 +480,7 @@ class IOperation:
 
         new_op: Operation = self.op_type.create(
             operands=mutable_operands,
-            result_types=[result.typ for result in self.results],
+            result_types=[result.type for result in self.results],
             attributes=dict(self.attributes),
             successors=mutable_successors,
             regions=mutable_regions,
@@ -548,7 +556,7 @@ class IOperation:
             op.name,
             op_type,
             operands,
-            [result.typ for result in op.results],
+            [result.type for result in op.results],
             attributes,
             successors,
             regions,

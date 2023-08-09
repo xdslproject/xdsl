@@ -1,16 +1,16 @@
 from typing import List
-from xdsl.ir import Operation, MLContext, TypeAttribute
+
+from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
+from xdsl.ir import MLContext, Operation, TypeAttribute
 from xdsl.irdl import Operand
-from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (
-    RewritePattern,
-    PatternRewriter,
-    op_type_rewrite_pattern,
-    PatternRewriteWalker,
     GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-from xdsl.dialects import builtin, llvm, arith, mpi, memref, scf
-from xdsl.dialects import stencil
+from xdsl.utils.hints import isa
 
 AnyNumericType = builtin.AnyFloat | builtin.IntegerType
 
@@ -20,8 +20,8 @@ class ApplyMPIToExternalLoad(RewritePattern):
     def match_and_rewrite(
         self, op: stencil.ExternalLoadOp, rewriter: PatternRewriter, /
     ):
-        assert isa(op.field.typ, memref.MemRefType[AnyNumericType])
-        memref_type: memref.MemRefType[AnyNumericType] = op.field.typ
+        assert isa(op.field.type, memref.MemRefType[AnyNumericType])
+        memref_type: memref.MemRefType[AnyNumericType] = op.field.type
         if len(memref_type.shape) <= 1:
             return
         mpi_operations: List[Operation] = []
@@ -50,11 +50,11 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
         dim_zero_const = arith.Constant.from_attr(int_attr, builtin.IndexType())
         dim_zero_size_op = memref.Dim.from_source_and_index(op.field, dim_zero_const)
-        dim_zero_i32_op = arith.IndexCastOp.get(dim_zero_size_op, builtin.i32)
-        dim_zero_i64_op = arith.IndexCastOp.get(dim_zero_size_op, builtin.i64)
+        dim_zero_i32_op = arith.IndexCastOp(dim_zero_size_op, builtin.i32)
+        dim_zero_i64_op = arith.IndexCastOp(dim_zero_size_op, builtin.i64)
 
         index_memref = memref.ExtractAlignedPointerAsIndexOp.get(op.field)
-        index_memref_i64 = arith.IndexCastOp.get(index_memref, builtin.i64)
+        index_memref_i64 = arith.IndexCastOp(index_memref, builtin.i64)
 
         mpi_operations += [
             datatype_op,
@@ -71,9 +71,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
         mpi_operations += [alloc_request_op]
 
         # Comparison for top and bottom ranks
-        compare_top_op = arith.Cmpi.get(comm_rank_op, zero, "sgt")
+        compare_top_op = arith.Cmpi(comm_rank_op, zero, "sgt")
         size_minus_one = arith.Subi(comm_size_op, one)
-        compare_bottom_op = arith.Cmpi.get(comm_rank_op, size_minus_one, "slt")
+        compare_bottom_op = arith.Cmpi(comm_rank_op, size_minus_one, "slt")
         mpi_operations += [compare_top_op, size_minus_one, compare_bottom_op]
 
         # MPI Request look ups (we need these regardless)

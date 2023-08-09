@@ -2,10 +2,7 @@ from xdsl.builder import Builder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
-
-from xdsl.transforms.riscv_register_allocation import (
-    RISCVRegisterAllocation,
-)
+from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 
 def context() -> MLContext:
@@ -69,7 +66,7 @@ def simple_linear_riscv():
 
         riscv.LabelOp("main", main_region)
 
-    riscv.DirectiveOp(".text", None, text_region)
+    riscv.AssemblySectionOp(".text", text_region)
 
 
 @ModuleOp
@@ -112,7 +109,7 @@ def simple_linear_riscv_allocated():
 
         riscv.LabelOp("main", main_region)
 
-    riscv.DirectiveOp(".text", None, text_region)
+    riscv.AssemblySectionOp(".text", text_region)
 
 
 def test_allocate_simple_linear():

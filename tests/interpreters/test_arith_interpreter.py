@@ -1,17 +1,13 @@
 import operator
 from typing import Callable
+
 import pytest
+
+from xdsl.dialects import test
+from xdsl.dialects.arith import Addf, Addi, Cmpi, Constant, Mulf, Muli, Subf, Subi
+from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
-from xdsl.dialects.arith import Addf, Addi, Cmpi, Constant, Mulf, Muli, Subf, Subi
-from xdsl.dialects.builtin import (
-    IndexType,
-    IntegerType,
-    ModuleOp,
-    Signedness,
-)
-from xdsl.dialects import test
-
 
 interpreter = Interpreter(ModuleOp([]))
 interpreter.register_implementations(ArithFunctions())
@@ -127,7 +123,7 @@ def test_cmpi(
     lhs_value: int, rhs_value: int, pred: tuple[str, Callable[[int, int], int]]
 ):
     arg, fn = pred
-    cmpi = Cmpi.get(lhs_op, rhs_op, arg)
+    cmpi = Cmpi(lhs_op, rhs_op, arg)
 
     ret = interpreter.run_op(cmpi, (lhs_value, rhs_value))
 

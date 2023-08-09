@@ -1,4 +1,5 @@
 import pytest
+
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, cf, func
 from xdsl.dialects.builtin import ModuleOp, i32
@@ -34,7 +35,7 @@ def sum_to_op():
     with ImplicitBuilder(loop_iter):
         (n,) = prologue.args
         result, i = loop_iter.args
-        cond = arith.Cmpi.get(i, n, "sle")
+        cond = arith.Cmpi(i, n, "sle")
         cf.ConditionalBranch.get(cond, loop_body, (result, i), epilogue, (result,))
 
     with ImplicitBuilder(loop_body):

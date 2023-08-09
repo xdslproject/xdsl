@@ -1,6 +1,6 @@
 from typing import Any
-from xdsl.dialects import cf
 
+from xdsl.dialects import cf
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,

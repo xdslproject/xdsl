@@ -1,18 +1,16 @@
-from typing import Iterable
 import hashlib
 import re
+from typing import Iterable
 
-from xdsl.ir import SSAValue, Attribute, MLContext, Operation
-from xdsl.dialects import builtin, arith, llvm, printf
+from xdsl.dialects import arith, builtin, llvm, printf
+from xdsl.ir import Attribute, MLContext, Operation, SSAValue
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
-    PatternRewriteWalker,
 )
-
-from xdsl.passes import ModulePass
-
 
 i8 = builtin.IntegerType(8)
 
@@ -72,7 +70,7 @@ def _format_string_spec_from_print_op(
         yield format_str[-1]
 
 
-def _format_str_for_typ(t: Attribute):
+def _format_str_for_type(t: Attribute):
     match t:
         case builtin.f64:
             return "%f"
@@ -99,7 +97,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
 
         t_type = builtin.TensorType.from_type_and_list(i8, [len(data)])
 
-        return llvm.GlobalOp.get(
+        return llvm.GlobalOp(
             llvm.LLVMArrayType.from_size_and_type(len(data), i8),
             _key_from_str(val),
             constant=True,
@@ -117,19 +115,19 @@ class PrintlnOpToPrintfCall(RewritePattern):
         for part in _format_string_spec_from_print_op(op):
             if isinstance(part, str):
                 format_str += part
-            elif isinstance(part.typ, builtin.IndexType):
+            elif isinstance(part.type, builtin.IndexType):
                 # index must be cast to fixed bitwidth before printing
-                casts.append(new_val := arith.IndexCastOp.get(part, builtin.i64))
+                casts.append(new_val := arith.IndexCastOp(part, builtin.i64))
                 args.append(new_val.result)
                 format_str += "%li"
-            elif part.typ == builtin.f32:
+            elif part.type == builtin.f32:
                 # f32 must be promoted to f64 before printing
-                casts.append(new_val := arith.ExtFOp.get(part, builtin.f64))
+                casts.append(new_val := arith.ExtFOp(part, builtin.f64))
                 args.append(new_val.result)
                 format_str += "%f"
             else:
                 args.append(part)
-                format_str += _format_str_for_typ(part.typ)
+                format_str += _format_str_for_type(part.type)
 
         globl = self._construct_global(format_str + "\n")
         self.collected_global_symbs[globl.sym_name.data] = globl

@@ -1,12 +1,12 @@
-from xdsl.builder import Builder
-from xdsl.utils.test_value import TestSSAValue
-from xdsl.dialects import riscv
-
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
-
-from xdsl.utils.exceptions import VerifyException
-
 import pytest
+
+from xdsl.builder import Builder
+from xdsl.dialects import riscv
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
+from xdsl.ir import MLContext
+from xdsl.parser import Parser
+from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_add_op():
@@ -15,14 +15,14 @@ def test_add_op():
     add_op = riscv.AddOp(a1, a2, rd=riscv.Registers.A0)
     a0 = add_op.rd
 
-    assert a1.typ is add_op.rs1.typ
-    assert a2.typ is add_op.rs2.typ
-    assert isinstance(a0.typ, riscv.RegisterType)
-    assert isinstance(a1.typ, riscv.RegisterType)
-    assert isinstance(a2.typ, riscv.RegisterType)
-    assert a0.typ.data.name == "a0"
-    assert a1.typ.data.name == "a1"
-    assert a2.typ.data.name == "a2"
+    assert a1.type is add_op.rs1.type
+    assert a2.type is add_op.rs2.type
+    assert isinstance(a0.type, riscv.IntRegisterType)
+    assert isinstance(a1.type, riscv.IntRegisterType)
+    assert isinstance(a2.type, riscv.IntRegisterType)
+    assert a0.type.data == "a0"
+    assert a1.type.data == "a1"
+    assert a2.type.data == "a2"
 
 
 def test_csr_op():
@@ -234,17 +234,27 @@ def test_immediate_shift_inst():
     riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
 
 
-def check_float_register():
-    with pytest.raises(VerifyException):
-        riscv.RegisterType(riscv.Register("ft9"))
-    with pytest.raises(VerifyException):
-        riscv.FloatRegisterType(riscv.Register("a0"))
+def test_float_register():
+    with pytest.raises(VerifyException, match="not in"):
+        riscv.IntRegisterType("ft9")
+    with pytest.raises(VerifyException, match="not in"):
+        riscv.FloatRegisterType("a0")
 
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
-    with pytest.raises(VerifyException):
-        riscv.FAddSOp(a1, a2)
+    with pytest.raises(VerifyException, match="Operation does not verify"):
+        riscv.FAddSOp(a1, a2).verify()
 
     f1 = TestSSAValue(riscv.Registers.FT0)
     f2 = TestSSAValue(riscv.Registers.FT1)
-    riscv.FAddSOp(f1, f2)
+    riscv.FAddSOp(f1, f2).verify()
+
+
+def test_riscv_parse_immediate_value():
+    ctx = MLContext()
+    ctx.register_dialect(riscv.RISCV)
+
+    prog = """riscv.jalr %0, 1.1, !riscv.reg<> : (!riscv.reg<>) -> ()"""
+    parser = Parser(ctx, prog)
+    with pytest.raises(ParseError, match="Expected immediate"):
+        parser.parse_operation()

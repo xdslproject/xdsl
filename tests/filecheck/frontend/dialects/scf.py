@@ -1,10 +1,9 @@
 # RUN: python %s | filecheck %s
 
 from xdsl.frontend.context import CodeContext
+from xdsl.frontend.dialects.builtin import f32, i1, i32, index
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.frontend.program import FrontendProgram
-from xdsl.frontend.dialects.builtin import index, i1, i32, f32
-
 
 p = FrontendProgram()
 with CodeContext(p):
@@ -20,7 +19,9 @@ with CodeContext(p):
     # CHECK-NEXT: }
 
     def test_for_I(end: index):
-        for _ in range(end):  # type: ignore
+        for _ in range(
+            end  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+        ):
             pass
         return
 
@@ -35,7 +36,10 @@ with CodeContext(p):
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
     def test_for_II(start: index, end: index):
-        for _ in range(start, end):  # type: ignore
+        for _ in range(
+            start,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            end,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+        ):
             pass
         return
 
@@ -50,7 +54,11 @@ with CodeContext(p):
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
     def test_for_III(start: index, end: index, step: index):
-        for _ in range(start, end, step):  # type: ignore
+        for _ in range(
+            start,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            end,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            step,  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+        ):
             pass
         return
 
@@ -79,9 +87,15 @@ with CodeContext(p):
     # CHECK-NEXT:   func.return
     # CHECK-NEXT:   }
     def test_for_IV(a: index, b: index, c: index):
-        for _ in range(a):  # type: ignore
-            for _ in range(b):  # type: ignore
-                for _ in range(c):  # type: ignore
+        for _ in range(
+            a  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+        ):
+            for _ in range(
+                b  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+            ):
+                for _ in range(
+                    c  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues]
+                ):
                     pass
         return
 
@@ -94,7 +108,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop end, got 'i32'.
         def test_not_supported_loop_I(end: i32):
-            for _ in range(end):  # type: ignore
+            for _ in range(end):
                 pass
             return
 
@@ -107,7 +121,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop start, got 'f32'.
         def test_not_supported_loop_II(start: f32, end: index):
-            for _ in range(start, end):  # type: ignore
+            for _ in range(start, end):
                 pass
             return
 
@@ -120,7 +134,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected 'index' type for loop step, got 'f32'.
         def test_not_supported_loop_III(start: index, end: index, step: f32):
-            for _ in range(start, end, step):  # type: ignore
+            for _ in range(start, end, step):
                 pass
             return
 
@@ -200,7 +214,7 @@ try:
     with CodeContext(p):
         # CHECK: Expected the same types for if expression, but got i32 and f32.
         def test_type_mismatch_in_if_expr(cond: i1, x: i32, y: f32) -> i32:
-            return x if cond else y  # type: ignore
+            return x if cond else y
 
     p.compile(desymref=False)
     print(p.textual_format())
