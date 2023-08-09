@@ -36,16 +36,16 @@ class LowerPrintCharToPutchar(RewritePattern):
 class ConvertPrintIntToItoa(RewritePattern):
     """
     Rewrite Pattern that rewrites printf.print_int to an
-    inline_itoa function
+    mlir_itoa function
     """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: PrintIntOp, rewriter: PatternRewriter, /):
-        func_call = func.Call("inline_itoa", [op.int], [])
+        func_call = func.Call("mlir_itoa", [op.int], [])
         rewriter.replace_matched_op(func_call)
 
 
-def get_inline_itoa():
+def get_mlir_itoa():
     """
     This function returns an MLIR func.func that holds a routine that calls
     an external putchar implementation several times on all individual digits
@@ -166,7 +166,7 @@ def get_inline_itoa():
             scf.Yield.get()
         return for_loop
 
-    # Beginning of inline_itoa_func declaration
+    # Beginning of mlir_itoa declaration
     """
     Python code for this implementation:
     ```
@@ -178,8 +178,8 @@ def get_inline_itoa():
         print_digits(digits, absolute_value)
     ```
     """
-    inline_itoa_func = func.FuncOp("inline_itoa", ((i32,), ()))
-    with ImplicitBuilder(inline_itoa_func.body) as (integer,):
+    mlir_itoa_func = func.FuncOp("mlir_itoa", ((i32,), ()))
+    with ImplicitBuilder(mlir_itoa_func.body) as (integer,):
         zero = arith.Constant.from_int_and_width(0, i32)
         is_zero_block = Block()
         is_not_zero_block = Block()
@@ -206,7 +206,7 @@ def get_inline_itoa():
         # Return from itoa function
         func.Return()
 
-    return inline_itoa_func
+    return mlir_itoa_func
 
 
 class PrintfToPutcharPass(ModulePass):
@@ -231,11 +231,11 @@ class PrintfToPutcharPass(ModulePass):
                 apply_recursively=True,
             )
             print_int_walker.rewrite_module(op)
-            # This has to happen first, since inline itoa
+            # This has to happen first, since mlir_itoa
             # contains some references to printf.print_char
-            # Add function implementation for inline_itoa if it isn't there already
-            if SymbolTable.lookup_symbol(op, "inline_itoa") is None:
-                op.body.block.add_ops([get_inline_itoa()])
+            # Add function implementation for mlir_itoa if it isn't there already
+            if SymbolTable.lookup_symbol(op, "mlir_itoa") is None:
+                op.body.block.add_ops([get_mlir_itoa()])
         contains_printchar = False
         # Check if there are any printchars
         for op_in_module in op.walk():
@@ -249,6 +249,6 @@ class PrintfToPutcharPass(ModulePass):
                 apply_recursively=True,
             )
             print_char_walker.rewrite_module(op)
-            # Add external putchar reference
+            # Add external putchar reference if not already there
             if SymbolTable.lookup_symbol(op, "putchar") is None:
                 op.body.block.add_ops([func.FuncOp.external("putchar", [i32], [i32])])
