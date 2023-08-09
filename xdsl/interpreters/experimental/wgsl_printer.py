@@ -40,29 +40,25 @@ class WGSLPrinter:
         workgroup_size = (1,)
         if op.known_block_size:
             workgroup_size = tuple(item.data for item in op.known_block_size.data)
-        arg_accesses = ""
-
         for arg in op.body.block.args:
-            is_scalar = False
             auth = "read_write"
-            arg_type = arg.type
+            arg_type = ""
             for use in arg.uses:
                 if isinstance(use.operation, memref.Store):
                     auth = "read_write"
-            if isa(arg_type, MemRefType[Attribute]):
-                arg_type = arg_type.element_type
-            else:
-                is_scalar = True
-            if arg_type == builtin.f32:
+            if arg.type == builtin.f32:
                 arg_type = "f32"
-            elif arg_type == builtin.IndexType():
+            elif arg.type == builtin.IndexType():
                 arg_type = "u32"
-            if is_scalar:
-                arg_accesses += f"""
-        let {self.wgsl_name(arg)}  = {self.wgsl_name(arg)}_binding[0];"""
+            elif isa(arg.type, MemRefType[Attribute]):
+                if arg.type.element_type == builtin.IndexType():
+                    arg_type = "u32"
+                else:
+                    arg_type = arg.type.element_type
+                arg_type = f"array<{arg_type}>"
             arguments = f"""
     @group(0) @binding({arg.index})
-    var<storage,{auth}> {self.wgsl_name(arg)}{'_binding'*is_scalar}: array<{arg_type}>;
+    var<storage,{auth}> {self.wgsl_name(arg)}: {arg_type};
 """
             out_stream.write(arguments)
 
@@ -74,7 +70,6 @@ class WGSLPrinter:
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
     @builtin(num_workgroups) num_workgroups : vec3<u32>) {{
-{arg_accesses}
 """
         )
         for operation in op.body.ops:
@@ -183,7 +178,16 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: arith.Constant, out_stream: IO[str]):
-        value = str(op.value.value.data)
+        value = op.value
+        match value:
+            case (builtin.IntegerAttr()):
+                value = value.value.data
+            case (builtin.FloatAttr()):
+                value = value.value.data
+            case _:
+                raise NotImplementedError(
+                    f"Constant value type {type(value)} not implented."
+                )
 
         cons_type = op.result.type
         if isinstance(op.result.type, builtin.IndexType):
@@ -199,7 +203,7 @@ class WGSLPrinter:
         else:
             out_stream.write(
                 f"""
-        let {name_hint} : {cons_type} = {float(value):.20f};"""
+        let {name_hint} : {cons_type} = {value};"""
             )
 
     @print.register
