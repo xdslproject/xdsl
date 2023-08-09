@@ -253,43 +253,43 @@ builtin.module attributes {gpu.container_module} {
 
     expected = """
     @group(0) @binding(0)
-    var<storage,read> varg0: u32;
+    var<storage,read_write> varg0: u32;
 
     @group(0) @binding(1)
-    var<storage,read> varg1: u32;
+    var<storage,read_write> varg1: u32;
 
     @group(0) @binding(2)
-    var<storage,read> varg2: u32;
+    var<storage,read_write> varg2: u32;
 
     @group(0) @binding(3)
-    var<storage,read> varg3: array<f32>;
+    var<storage,read_write> varg3: array<f32>;
 
     @group(0) @binding(4)
-    var<storage,read> varg4: u32;
+    var<storage,read_write> varg4: u32;
 
     @group(0) @binding(5)
-    var<storage,read> varg5: f32;
+    var<storage,read_write> varg5: f32;
 
     @group(0) @binding(6)
-    var<storage,read> varg6: f32;
+    var<storage,read_write> varg6: f32;
 
     @group(0) @binding(7)
-    var<storage,read> varg7: f32;
+    var<storage,read_write> varg7: f32;
 
     @group(0) @binding(8)
-    var<storage,read> varg8: f32;
+    var<storage,read_write> varg8: f32;
 
     @group(0) @binding(9)
-    var<storage,read> varg9: f32;
+    var<storage,read_write> varg9: f32;
 
     @group(0) @binding(10)
-    var<storage,read> varg10: f32;
+    var<storage,read_write> varg10: f32;
 
     @group(0) @binding(11)
     var<storage,read_write> varg11: array<f32>;
 
     @group(0) @binding(12)
-    var<storage,read> varg12: array<u32>;
+    var<storage,read_write> varg12: array<u32>;
 
     @compute
     @workgroup_size(128,1,1)
