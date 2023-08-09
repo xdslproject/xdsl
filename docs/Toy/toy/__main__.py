@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+from xdsl.dialects.riscv import riscv_code
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.builtin import BuiltinFunctions
@@ -8,12 +9,16 @@ from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
+from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.interpreters.scf import ScfFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
-from .compiler import context, transform
+from .compiler import context, emulate_riscv, transform
 from .emulator.toy_accelerator_functions import ToyAcceleratorFunctions
+from .emulator.toy_accelerator_instruction_functions import (
+    ToyAcceleratorInstructionFunctions,
+)
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser as ToyParser
 from .interpreter import Interpreter, ToyFunctions
@@ -32,9 +37,12 @@ parser.add_argument(
         "affine",
         "scf",
         "riscv",
+        "riscv-regalloc",
+        "riscv-lowered",
+        "riscv-asm",
     ],
-    default="riscv",
-    help="Action to perform on source file (default: riscv)",
+    default="riscv-asm",
+    help="Compilation target (default: riscv-asm)",
 )
 parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
@@ -64,11 +72,32 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
                 print(f"Unknown file format {path}")
                 return
 
+    asm = emit == "riscv-asm"
+
+    if asm:
+        emit = "riscv-lowered"
+
     transform(ctx, module_op, target=emit, accelerate=accelerate)
+
+    if asm:
+        code = riscv_code(module_op)
+
+        if ir:
+            print(code)
+            return
+
+        emulate_riscv(code)
+        return
 
     if ir:
         printer = Printer(print_generic_format=print_generic)
         printer.print(module_op)
+        return
+
+    if emit == "riscv-lowered":
+        print("Interpretation of lowered riscv code currently unsupported")
+        # The reason is that we lower functions before register allocation, and lose
+        # the mechanism of function calls in the interpreter.
         return
 
     interpreter = Interpreter(module_op)
@@ -87,18 +116,12 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
         interpreter.register_implementations(ScfFunctions())
         interpreter.register_implementations(BuiltinFunctions())
 
-    if accelerate and emit in ("riscv",):
-        # TODO: remove when we add lowering from Toy accelerator to custom riscv
-        interpreter.register_implementations(ToyAcceleratorFunctions())
-    if emit in ("riscv",):
+    if emit in ("riscv", "riscv-regalloc"):
+        interpreter.register_implementations(
+            ToyAcceleratorInstructionFunctions(module_op)
+        )
         interpreter.register_implementations(RiscvFuncFunctions())
-        interpreter.register_implementations(BuiltinFunctions())
-        # TODO: remove as we add lowerings to riscv
-        interpreter.register_implementations(ScfFunctions())
-        interpreter.register_implementations(ArithFunctions())
-        interpreter.register_implementations(MemrefFunctions())
-        interpreter.register_implementations(PrintfFunctions())
-        interpreter.register_implementations(FuncFunctions())
+        interpreter.register_implementations(RiscvScfFunctions())
 
     interpreter.call_op("main", ())
 

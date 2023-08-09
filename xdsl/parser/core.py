@@ -37,7 +37,7 @@ class ForwardDeclaredValue(SSAValue):
     def __eq__(self, other: object) -> bool:
         return self is other
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         return id(self)
 
 
@@ -712,6 +712,7 @@ class Parser(AttrParser):
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
         """
         # Parse the operation results
+        op_loc = self._current_token.span
         bound_results = self._parse_op_result_list()
 
         if (op_name := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
@@ -730,7 +731,8 @@ class Parser(AttrParser):
         if (n_bound_results != 0) and (len(op.results) != n_bound_results):
             self.raise_error(
                 f"Operation has {len(op.results)} results, "
-                f"but was given {n_bound_results} to bind."
+                f"but was given {n_bound_results} to bind.",
+                at_position=op_loc,
             )
 
         # Register the result SSA value names in the parser

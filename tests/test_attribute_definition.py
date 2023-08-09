@@ -443,7 +443,7 @@ class DataListAttr(AttrConstraint):
     elem_constr: AttrConstraint
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
-        attr = cast(ListData[Any], attr)
+        attr = cast(ListData[Attribute], attr)
         for e in attr.data:
             self.elem_constr.verify(e, constraint_vars)
 

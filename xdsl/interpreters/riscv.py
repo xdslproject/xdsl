@@ -57,7 +57,7 @@ class Buffer(Generic[_T]):
 @register_impls
 class RiscvFunctions(InterpreterFunctions):
     module_op: ModuleOp
-    data: dict[str, Any]
+    _data: dict[str, Any] | None
     custom_instructions: dict[str, CustomInstructionFn] = {}
     bitwidth: int
 
@@ -72,17 +72,21 @@ class RiscvFunctions(InterpreterFunctions):
         super().__init__()
         self.module_op = module_op
         self.bitwidth = bitwidth
-        if data is None:
-            data = RiscvFunctions.get_data(module_op)
-        self.data = data
+        self._data = data
         if custom_instructions is None:
             custom_instructions = {}
         self.custom_instructions = custom_instructions
 
+    @property
+    def data(self) -> dict[str, Any]:
+        if self._data is None:
+            self._data = RiscvFunctions.get_data(self.module_op)
+        return self._data
+
     @staticmethod
     def get_data(module_op: ModuleOp) -> dict[str, Any]:
         for op in module_op.ops:
-            if isinstance(op, riscv.DirectiveOp):
+            if isinstance(op, riscv.AssemblySectionOp):
                 if op.directive.data == ".data":
                     data: dict[str, Any] = {}
 
@@ -146,7 +150,7 @@ class RiscvFunctions(InterpreterFunctions):
         unsigned_lhs = to_unsigned(args[0], self.bitwidth)
         imm = self.get_immediate_value(op, op.immediate)
         if isinstance(imm, Buffer):
-            raise NotImplemented(f"Cannot compare buffer pointer in interpreter")
+            raise NotImplementedError("Cannot compare buffer pointer in interpreter")
         unsigned_imm = to_unsigned(imm, self.bitwidth)
         return (int(unsigned_lhs < unsigned_imm),)
 
@@ -158,6 +162,17 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         return (args[0] + args[1],)
+
+    @impl(riscv.SlliOp)
+    def run_shift_left(
+        self,
+        interpreter: Interpreter,
+        op: riscv.SlliOp,
+        args: tuple[Any, ...],
+    ):
+        imm = self.get_immediate_value(op, op.immediate)
+        assert isinstance(imm, int)
+        return (args[0] << imm,)
 
     @impl(riscv.MulOp)
     def run_mul(

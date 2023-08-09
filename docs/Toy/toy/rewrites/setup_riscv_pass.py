@@ -14,9 +14,8 @@ class AddSections(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ModuleOp, rewriter: PatternRewriter):
         # bss stands for block starting symbol
-        heap_section = riscv.DirectiveOp(
+        heap_section = riscv.AssemblySectionOp(
             ".bss",
-            None,
             Region(
                 Block(
                     [
@@ -26,9 +25,9 @@ class AddSections(RewritePattern):
                 )
             ),
         )
-        data_section = riscv.DirectiveOp(".data", None, Region(Block()))
-        text_section = riscv.DirectiveOp(
-            ".text", None, rewriter.move_region_contents_to_new_regions(op.regions[0])
+        data_section = riscv.AssemblySectionOp(".data", Region(Block()))
+        text_section = riscv.AssemblySectionOp(
+            ".text", rewriter.move_region_contents_to_new_regions(op.regions[0])
         )
 
         op.body.add_block(Block([heap_section, data_section, text_section]))

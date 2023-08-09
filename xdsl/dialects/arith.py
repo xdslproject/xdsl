@@ -230,7 +230,7 @@ class RemUI(SignlessIntegerBinaryOp):
 
 
 @irdl_op_definition
-class RemSI(IntegerBinaryOp):
+class RemSI(SignlessIntegerBinaryOp):
     name = "arith.remsi"
 
 
@@ -270,7 +270,7 @@ class XOrI(SignlessIntegerBinaryOp):
 
 
 @irdl_op_definition
-class ShLI(IntegerBinaryOp):
+class ShLI(SignlessIntegerBinaryOp):
     """
     The `shli` operation shifts an integer value to the left by a variable
     amount. The low order bits are filled with zeros.
@@ -291,7 +291,7 @@ class ShRUI(SignlessIntegerBinaryOp):
 
 
 @irdl_op_definition
-class ShRSI(IntegerBinaryOp):
+class ShRSI(SignlessIntegerBinaryOp):
     """
     The `shrsi` operation shifts an integer value to the right by a variable
     amount. The integer is interpreted as signed. The high order bits in the

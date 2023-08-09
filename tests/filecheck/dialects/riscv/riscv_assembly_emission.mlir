@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -t riscv-asm %s | filecheck %s
 
 "builtin.module"() ({
-  "riscv.label"() ({
+  riscv.label "main" ({
     %0 = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<zero>
     // CHECK:      li zero, 6
     %1 = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<j1>
@@ -141,10 +141,10 @@
     // CHECK-NEXT: csrrci j0, 1024, 8
     %csrrci_r = "riscv.csrrci"() {"csr" = 1024 : i32, "immediate" = 0 : i32}: () -> !riscv.reg<j1>
     // CHECK-NEXT: csrrci j1, 1024, 0
-    %csrrwi_rw = "riscv.csrrwi"() {"csr" = 1024 : i32}: () -> !riscv.reg<j0>
-    // CHECK-NEXT: csrrwi j0, 1024
-    %csrrwi_w = "riscv.csrrwi"() {"csr" = 1024 : i32, "writeonly"}: () -> !riscv.reg<zero>
-    // CHECK-NEXT: csrrwi zero, 1024
+    %csrrwi_rw = "riscv.csrrwi"() {"csr" = 1024 : i32, "immediate" = 8}: () -> !riscv.reg<j0>
+    // CHECK-NEXT: csrrwi j0, 1024, 8
+    %csrrwi_w = "riscv.csrrwi"() {"csr" = 1024 : i32, "immediate" = 8, "writeonly"}: () -> !riscv.reg<zero>
+    // CHECK-NEXT: csrrwi zero, 1024, 8
 
     // Assembler pseudo-instructions
     %li = "riscv.li"() {"immediate" = 1 : i32}: () -> !riscv.reg<j0>
@@ -160,9 +160,9 @@
 
     "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
     // CHECK-NEXT: .align 2
-    "riscv.directive"() ({
+    riscv.assembly_section ".text" {
       %nested_addi = "riscv.addi"(%1) {"immediate" = 1 : i32}: (!riscv.reg<j1>) -> !riscv.reg<j1>
-    }) {"directive" = ".text"} : () -> ()
+    }
     // CHECK-NEXT:  .text
     // CHECK-NEXT:  addi j1, j1, 1
     "riscv.label"() {"label" = #riscv.label<"label0">} : () -> ()
@@ -238,12 +238,12 @@
     %fmvwx = "riscv.fmv.w.x"(%0) : (!riscv.reg<zero>) -> !riscv.freg<j8>
     // CHECK-NEXT: fmv.w.x j8, zero
     %flw = "riscv.flw"(%0) {"immediate" = 1 : i32}: (!riscv.reg<zero>) -> !riscv.freg<j8>
-    // CHECK-NEXT: flw j8, zero, 1
+    // CHECK-NEXT: flw j8, 1(zero)
     "riscv.fsw"(%0, %f0) {"immediate" = 1 : i32} : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
-    // CHECK-NEXT: fsw zero, j5, 1
+    // CHECK-NEXT: fsw j5, 1(zero)
 
     // Terminate block
     "riscv.ret"() : () -> ()
     // CHECK-NEXT: ret
-  }) {"label" = #riscv.label<"main">}: () -> ()
+  }) : () -> ()
 }) : () -> ()
