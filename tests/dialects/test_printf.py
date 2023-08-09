@@ -58,3 +58,13 @@ def test_global_symbol_name_generation():
     s3 = printf_to_llvm._key_from_str(")")  # pyright: ignore[reportPrivateUsage]
 
     assert s2 == s3
+
+
+def test_printchar_non_ascii():
+    with pytest.raises(ValueError):
+        print_dialect.PrintCharOp.from_constant_char("🔥")
+
+
+def test_printchar_no_char():
+    with pytest.raises(ValueError):
+        print_dialect.PrintCharOp.from_constant_char("This should not work")
