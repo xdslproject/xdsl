@@ -1,6 +1,6 @@
 // RUN: xdsl-opt %s | xdsl-opt --print-op-generic | xdsl-opt | filecheck %s
 "builtin.module"() ({
-  riscv.label {"label" = #riscv.label<"main">} ({
+  riscv.label "main" ({
     %0 = riscv.get_register : () -> !riscv.reg<>
     %1 = riscv.get_register : () -> !riscv.reg<>
     // RV32I/RV64I: 2.4 Integer Computational Instructions

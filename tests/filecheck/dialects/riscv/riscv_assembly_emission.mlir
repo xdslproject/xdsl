@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -t riscv-asm %s | filecheck %s
 
 "builtin.module"() ({
-  riscv.label {"label" = #riscv.label<"main">} ({
+  riscv.label "main" ({
     %0 = "riscv.li"() {"immediate" = 6 : i32} : () -> !riscv.reg<zero>
     // CHECK:      li zero, 6
     %1 = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<j1>
