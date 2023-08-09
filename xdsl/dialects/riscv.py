@@ -1050,6 +1050,25 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.rs1
 
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["csr"] = IntegerAttr(
+            parser.parse_integer(allow_boolean=False),
+            IntegerType(32),
+        )
+        if parser.parse_optional_punctuation(",") is not None:
+            parser.parse_str_literal("w")
+            attributes["writeonly"] = UnitAttr()
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        printer.print(self.csr.value.data)
+        if self.writeonly is not None:
+            printer.print(', "w"')
+        return {"csr", "writeonly"}
+
 
 class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -1107,6 +1126,25 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.csr, self.rs1
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["csr"] = IntegerAttr(
+            parser.parse_integer(allow_boolean=False),
+            IntegerType(32),
+        )
+        if parser.parse_optional_punctuation(",") is not None:
+            parser.parse_str_literal("r")
+            attributes["readonly"] = UnitAttr()
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        printer.print(self.csr.value.data)
+        if self.readonly is not None:
+            printer.print(', "r"')
+        return {"csr", "readonly"}
 
 
 class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):

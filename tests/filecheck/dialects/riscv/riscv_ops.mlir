@@ -117,18 +117,18 @@
 
     // RV32I/RV64I: 2.8 Control and Status Register Instructions
 
-    %csrrw_rw = riscv.csrrw %0 {"csr" = 1024 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrw %0 {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrw_w = riscv.csrrw %0 {"csr" = 1024 : i32, "writeonly"}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrw %0 {"csr" = 1024 : i32, "writeonly"} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrs_rw = riscv.csrrs %0 {"csr" = 1024 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrs %0 {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrs_r = riscv.csrrs %0 {"csr" = 1024 : i32, "readonly"}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrs %0 {"csr" = 1024 : i32, "readonly"} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrc_rw = riscv.csrrc %0 {"csr" = 1024 : i32}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrc %0 {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrc_r = riscv.csrrc %0 {"csr" = 1024 : i32, "readonly"}: (!riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrc %0 {"csr" = 1024 : i32, "readonly"} : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrw_rw = riscv.csrrw %0 1024 : (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrw %0, 1024 : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrw_w = riscv.csrrw %0 1024, "w" : (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrw %0, 1024, "w" : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrs_rw = riscv.csrrs %0, 1024 : (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrs %0, 1024 : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrs_r = riscv.csrrs %0, 1024, "r" : (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrs %0, 1024, "r" : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrc_rw = riscv.csrrc %0, 1024 : (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024 : (!riscv.reg<>) -> !riscv.reg<>
+    %csrrc_r = riscv.csrrc %0, 1024, "r" : (!riscv.reg<>) -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024, "r" : (!riscv.reg<>) -> !riscv.reg<>
     %csrrsi_rw = riscv.csrrsi {"csr" = 1024 : i32, "immediate" = 8 : i32}: () -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.csrrsi {"csr" = 1024 : i32, "immediate" = 8 : i32} : () -> !riscv.reg<>
     %csrrsi_r = riscv.csrrsi {"csr" = 1024 : i32, "immediate" = 0 : i32}: () -> !riscv.reg<>
