@@ -10,9 +10,9 @@ builtin.module {
         %6 = riscv.fcvt.s.w %5 : (!riscv.reg<a3>) -> !riscv.freg<fa0>
         %7 = "riscv_scf.for"(%2, %3, %4, %6) ({
         ^1(%8 : !riscv.reg<a0>, %9 : !riscv.freg<fa0>):
-        %10 = riscv.fcvt.s.w %8 : (!riscv.reg<a0>) -> !riscv.freg<fa1>
-        %11 = riscv.fadd.s %9, %10 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa0>
-        "riscv_scf.yield"(%11) : (!riscv.freg<fa0>) -> ()
+            %10 = riscv.fcvt.s.w %8 : (!riscv.reg<a0>) -> !riscv.freg<fa1>
+            %11 = riscv.fadd.s %9, %10 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa0>
+            "riscv_scf.yield"(%11) : (!riscv.freg<fa0>) -> ()
         }) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
         %12 = riscv.fcvt.w.s %7 : (!riscv.freg<fa0>) -> !riscv.reg<a0>
         "riscv_func.return"(%12) : (!riscv.reg<a0>) -> ()
@@ -57,15 +57,15 @@ builtin.module {
         %2 = riscv.li 1 : () -> !riscv.reg<a3>
         %3 = "riscv_scf.for"(%1, %arg0, %2, %0) ({
         ^1(%arg1 : !riscv.reg<a2>, %arg2 : !riscv.reg<a1>):
-        %4 = riscv.li 0 : () -> !riscv.reg<a4>
-        %5 = riscv.li 1 : () -> !riscv.reg<a5>
-        %6 = "riscv_scf.for"(%4, %arg0, %5, %arg2) ({
-        ^2(%arg3 : !riscv.reg<a4>, %arg4 : !riscv.reg<a1>):
-            %7 = riscv.add %arg1, %arg3 : (!riscv.reg<a2>, !riscv.reg<a4>) -> !riscv.reg<a0>
-            %8 = riscv.add %arg4, %7 : (!riscv.reg<a1>, !riscv.reg<a0>) -> !riscv.reg<a1>
-            "riscv_scf.yield"(%8) : (!riscv.reg<a1>) -> ()
-        }) : (!riscv.reg<a4>, !riscv.reg<a0>, !riscv.reg<a5>, !riscv.reg<a1>) -> !riscv.reg<a1>
-        "riscv_scf.yield"(%6) : (!riscv.reg<a1>) -> ()
+            %4 = riscv.li 0 : () -> !riscv.reg<a4>
+            %5 = riscv.li 1 : () -> !riscv.reg<a5>
+            %6 = "riscv_scf.for"(%4, %arg0, %5, %arg2) ({
+            ^2(%arg3 : !riscv.reg<a4>, %arg4 : !riscv.reg<a1>):
+                %7 = riscv.add %arg1, %arg3 : (!riscv.reg<a2>, !riscv.reg<a4>) -> !riscv.reg<a0>
+                %8 = riscv.add %arg4, %7 : (!riscv.reg<a1>, !riscv.reg<a0>) -> !riscv.reg<a1>
+                "riscv_scf.yield"(%8) : (!riscv.reg<a1>) -> ()
+            }) : (!riscv.reg<a4>, !riscv.reg<a0>, !riscv.reg<a5>, !riscv.reg<a1>) -> !riscv.reg<a1>
+            "riscv_scf.yield"(%6) : (!riscv.reg<a1>) -> ()
         }) : (!riscv.reg<a2>, !riscv.reg<a0>, !riscv.reg<a3>, !riscv.reg<a1>) -> !riscv.reg<a1>
         "riscv_func.return"(%3) : (!riscv.reg<a1>) -> ()
     }) {"sym_name" = "foo"} : () -> ()
