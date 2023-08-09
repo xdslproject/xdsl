@@ -129,18 +129,18 @@
     // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024 : (!riscv.reg<>) -> !riscv.reg<>
     %csrrc_r = riscv.csrrc %0, 1024, "r" : (!riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024, "r" : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrsi_rw = riscv.csrrsi {"csr" = 1024 : i32, "immediate" = 8 : i32}: () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrsi {"csr" = 1024 : i32, "immediate" = 8 : i32} : () -> !riscv.reg<>
-    %csrrsi_r = riscv.csrrsi {"csr" = 1024 : i32, "immediate" = 0 : i32}: () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrsi {"csr" = 1024 : i32, "immediate" = 0 : i32} : () -> !riscv.reg<>
-    %csrrci_rw = riscv.csrrci {"csr" = 1024 : i32, "immediate" = 8 : i32}: () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrci {"csr" = 1024 : i32, "immediate" = 8 : i32} : () -> !riscv.reg<>
-    %csrrci_r = riscv.csrrci {"csr" = 1024 : i32, "immediate" = 0 : i32}: () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrci {"csr" = 1024 : i32, "immediate" = 0 : i32} : () -> !riscv.reg<>
-    %csrrwi_rw = riscv.csrrwi {"csr" = 1024 : i32, "immediate" = 1 : i32}: () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrwi {"csr" = 1024 : i32, "immediate" = 1 : i32} : () -> !riscv.reg<>
-    %csrrwi_w = riscv.csrrwi {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32}: () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrwi {"csr" = 1024 : i32, "writeonly", "immediate" = 1 : i32} : () -> !riscv.reg<>
+    %csrrsi_rw = riscv.csrrsi 1024, 8 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrsi 1024, 8 : () -> !riscv.reg<>
+    %csrrsi_r = riscv.csrrsi 1024, 0 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrsi 1024, 0 : () -> !riscv.reg<>
+    %csrrci_rw = riscv.csrrci 1024, 8 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 8 : () -> !riscv.reg<>
+    %csrrci_r = riscv.csrrci 1024, 0 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 0 : () -> !riscv.reg<>
+    %csrrwi_rw = riscv.csrrwi 1024, 1 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1 : () -> !riscv.reg<>
+    %csrrwi_w = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg<>
 
     // Machine Mode Privileged Instructions
     riscv.wfi : () -> ()
