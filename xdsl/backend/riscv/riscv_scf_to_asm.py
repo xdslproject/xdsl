@@ -10,8 +10,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
-_REG_TYPES = riscv.IntRegisterType | riscv.FloatRegisterType
-
 
 def get_register_ops_from_values(
     values: Sequence[SSAValue],
@@ -23,7 +21,7 @@ def get_register_ops_from_values(
     """
 
     for value in values:
-        assert isinstance(value.type, _REG_TYPES)
+        assert isinstance(value.type, riscv.IntRegisterType | riscv.FloatRegisterType)
 
         get_target_register = (
             riscv.GetRegisterOp(value.type)
