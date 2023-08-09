@@ -1054,11 +1054,12 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
     def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
-            parser.parse_integer(allow_boolean=False),
+            parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
             IntegerType(32),
         )
         if parser.parse_optional_punctuation(",") is not None:
-            parser.parse_str_literal("w")
+            if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
+                parser.raise_error(f"Expected 'w' flag, got '{flag}'")
             attributes["writeonly"] = UnitAttr()
         return attributes
 
@@ -1131,11 +1132,12 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
     def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
-            parser.parse_integer(allow_boolean=False),
+            parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
             IntegerType(32),
         )
         if parser.parse_optional_punctuation(",") is not None:
-            parser.parse_str_literal("r")
+            if (flag := parser.parse_str_literal("Expected 'r' flag")) != "r":
+                parser.raise_error(f"Expected 'r' flag, got '{flag}'")
             attributes["readonly"] = UnitAttr()
         return attributes
 
