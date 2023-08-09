@@ -12,7 +12,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.printer import Printer
+from xdsl.traits import SymbolTable
 
 i8 = IntegerType(8)
 
@@ -162,7 +162,7 @@ def get_inline_itoa():
             ascii_offset = arith.Constant.from_int_and_width(ord("0"), i32)
             char = arith.Addi(digit, ascii_offset)
             char_i8 = arith.TruncIOp(char, i8)
-            PrintCharOp((char_i8,))
+            PrintCharOp(char_i8)
             scf.Yield.get()
         return for_loop
 
@@ -209,35 +209,46 @@ def get_inline_itoa():
     return inline_itoa_func
 
 
-if __name__ == "__main__":
-    printer = Printer()
-    printer.print(get_inline_itoa())
-
-
-class LowerPrintCharToPutcharPass(ModulePass):
-    name = "lower-printchar-to-putchar"
+class PrintfToPutcharPass(ModulePass):
+    name = "printf-to-putchar"
 
     # lower to func.call
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        print_int_walker = PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    ConvertPrintIntToItoa(),
-                ]
-            ),
-            apply_recursively=True,
-        )
-        print_int_walker.rewrite_module(op)
-        # This has to happen first, since inline itoa
-        # contains some references to printf.print_char
-        op.body.block.add_ops([get_inline_itoa()])
-        # Add function implementation for inline_itoa
-        # TODO Don't insert this if the operation is not there!
-        print_char_walker = PatternRewriteWalker(
-            GreedyRewritePatternApplier([LowerPrintCharToPutchar()]),
-            apply_recursively=True,
-        )
-        print_char_walker.rewrite_module(op)
-        # Add external putchar reference
-        # TODO Don't insert this if the operation is not there!
-        op.body.block.add_ops([func.FuncOp.external("putchar", [i32], [i32])])
+        # Check if there are any printints
+        contains_printint = False
+        for op_in_module in op.walk():
+            if isinstance(op_in_module, PrintIntOp):
+                contains_printint = True
+                # One printint encountered is enough
+                break
+        if contains_printint:
+            print_int_walker = PatternRewriteWalker(
+                GreedyRewritePatternApplier(
+                    [
+                        ConvertPrintIntToItoa(),
+                    ]
+                ),
+                apply_recursively=True,
+            )
+            print_int_walker.rewrite_module(op)
+            # This has to happen first, since inline itoa
+            # contains some references to printf.print_char
+            # Add function implementation for inline_itoa if it isn't there already
+            if SymbolTable.lookup_symbol(op, "inline_itoa") is None:
+                op.body.block.add_ops([get_inline_itoa()])
+        contains_printchar = False
+        # Check if there are any printchars
+        for op_in_module in op.walk():
+            if isinstance(op_in_module, PrintCharOp):
+                contains_printchar = True
+                # One printchar encountered is enough
+                break
+        if contains_printchar:
+            print_char_walker = PatternRewriteWalker(
+                GreedyRewritePatternApplier([LowerPrintCharToPutchar()]),
+                apply_recursively=True,
+            )
+            print_char_walker.rewrite_module(op)
+            # Add external putchar reference
+            if SymbolTable.lookup_symbol(op, "putchar") is None:
+                op.body.block.add_ops([func.FuncOp.external("putchar", [i32], [i32])])

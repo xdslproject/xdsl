@@ -106,7 +106,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         lower_snitch_runtime.LowerSnitchRuntimePass,
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
-        printf_to_putchar.LowerPrintCharToPutcharPass,
+        printf_to_putchar.PrintfToPutcharPass,
         riscv_register_allocation.RISCVRegisterAllocation,
         RISCVLowerArith,
         LowerFuncToRiscvFunc,
