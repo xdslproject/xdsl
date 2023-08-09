@@ -178,8 +178,8 @@
     // CHECK-NEXT: riscv.ecall : () -> ()
     riscv.ebreak : () -> ()
     // CHECK-NEXT: riscv.ebreak : () -> ()
-    riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
-    // CHECK-NEXT: riscv.directive {"directive" = ".align", "value" = "2"} : () -> ()
+    riscv.directive ".align" "2" : () -> ()
+    // CHECK-NEXT: riscv.directive ".align" "2" : () -> ()
     riscv.assembly_section ".text" attributes {"foo" = i32} {
       %nested_li = riscv.li 1 : () -> !riscv.reg<>
     }
