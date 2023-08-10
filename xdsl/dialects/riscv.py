@@ -43,7 +43,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import OptRegion, opt_region_def, region_def
+from xdsl.irdl.irdl import OptRegion, VarOperandDef, opt_region_def, region_def
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
@@ -341,31 +341,48 @@ class RISCVOp(Operation, ABC):
         # TODO ensure distinct keys for attributes
         attributes = custom_attributes | remaining_attributes
         regions = parser.parse_region_list()
-        parser.parse_punctuation(":")
-        func_type = parser.parse_function_type()
-        operands = parser.resolve_operands(args, func_type.inputs.data, parser.pos)
-        return cls.create(
-            operands=operands,
-            result_types=func_type.outputs.data,
-            attributes=attributes,
-            regions=regions,
-        )
+        if parser.parse_optional_punctuation(":") is not None:
+            func_type = parser.parse_function_type()
+            operands = parser.resolve_operands(args, func_type.inputs.data, parser.pos)
+            return cls.create(
+                operands=operands,
+                result_types=func_type.outputs.data,
+                attributes=attributes,
+                regions=regions,
+            )
+        else:
+            return cls.create(
+                attributes=attributes,
+                regions=regions,
+            )
 
     @classmethod
     def parse_unresolved_operand(cls, parser: Parser) -> list[UnresolvedOperand]:
         """
         Parse a list of comma separated unresolved operands.
-
+        Currently does not support VarOperandDef.
         Notice that this method will consume trailing comma.
         """
-        if operand := parser.parse_optional_unresolved_operand():
-            operands = [operand]
-            while parser.parse_optional_punctuation(",") and (
-                operand := parser.parse_optional_unresolved_operand()
-            ):
-                operands.append(operand)
-            return operands
-        return []
+        assert issubclass(cls, IRDLOperation), cls
+        if any(
+            isinstance(operand, VarOperandDef)
+            for _, operand in cls.irdl_definition.operands
+        ):
+            raise NotImplementedError("VarOperand is not supported")
+        match cls.irdl_definition.operands:
+            case []:
+                parser.parse_optional_punctuation(",")
+                return []
+            case [_, *remain]:
+                operands = [parser.parse_unresolved_operand()]
+                for _ in remain:
+                    parser.parse_punctuation(",")
+                    operands.append(parser.parse_unresolved_operand())
+                parser.parse_optional_punctuation(",")
+                return operands
+            case _:
+                # TODO use assert_never
+                raise RuntimeError("Unexpected error.")
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
@@ -386,8 +403,9 @@ class RISCVOp(Operation, ABC):
         }
         printer.print_op_attributes(unprinted_attributes)
         printer.print_regions(self.regions)
-        printer.print(" : ")
-        printer.print_operation_type(self)
+        if self.operands or self.results:
+            printer.print(" : ")
+            printer.print_operation_type(self)
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         """
@@ -2455,6 +2473,17 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return *self.results, *self.operands
+
+    @classmethod
+    def parse_unresolved_operand(cls, parser: Parser) -> list[UnresolvedOperand]:
+        if operand := parser.parse_optional_unresolved_operand():
+            operands = [operand]
+            while parser.parse_optional_punctuation(",") and (
+                operand := parser.parse_optional_unresolved_operand()
+            ):
+                operands.append(operand)
+            return operands
+        return []
 
 
 @irdl_op_definition
