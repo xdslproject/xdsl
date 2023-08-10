@@ -341,20 +341,19 @@ class RISCVOp(Operation, ABC):
         # TODO ensure distinct keys for attributes
         attributes = custom_attributes | remaining_attributes
         regions = parser.parse_region_list()
-        if parser.parse_optional_punctuation(":") is not None:
-            func_type = parser.parse_function_type()
-            operands = parser.resolve_operands(args, func_type.inputs.data, parser.pos)
-            return cls.create(
-                operands=operands,
-                result_types=func_type.outputs.data,
-                attributes=attributes,
-                regions=regions,
-            )
-        else:
+        if parser.parse_optional_punctuation(":") is None:
             return cls.create(
                 attributes=attributes,
                 regions=regions,
             )
+        func_type = parser.parse_function_type()
+        operands = parser.resolve_operands(args, func_type.inputs.data, parser.pos)
+        return cls.create(
+            operands=operands,
+            result_types=func_type.outputs.data,
+            attributes=attributes,
+            regions=regions,
+        )
 
     @classmethod
     def parse_unresolved_operand(cls, parser: Parser) -> list[UnresolvedOperand]:
