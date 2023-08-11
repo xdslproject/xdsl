@@ -220,9 +220,7 @@ class FuncOp(IRDLOperation):
                 arg = self.body.blocks[0].args[arg]
             except IndexError:
                 raise IndexError(
-                    "Block {} does not have argument #{}".format(
-                        self.body.blocks[0], arg
-                    )
+                    f"Block {self.body.blocks[0]} does not have argument #{arg}"
                 )
 
         if arg not in self.args:

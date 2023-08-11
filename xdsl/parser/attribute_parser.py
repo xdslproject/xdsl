@@ -242,9 +242,7 @@ class AttrParser(BaseParser):
                 closing = parentheses[token.kind]
                 if symbols_stack[-1] != closing:
                     self.raise_error(
-                        "Mismatched {} in attribute body!".format(
-                            parentheses_names[token.kind]
-                        ),
+                        f"Mismatched {parentheses_names[token.kind]} in attribute body!",
                         self._current_token.span,
                     )
                 symbols_stack.pop()
