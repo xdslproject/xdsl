@@ -61,10 +61,14 @@ def test_global_symbol_name_generation():
 
 
 def test_printchar_non_ascii():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Only ascii characters are supported"):
         print_dialect.PrintCharOp.from_constant_char("🔥")
 
 
 def test_printchar_no_char():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as e:
         print_dialect.PrintCharOp.from_constant_char("This should not work")
+    assert (
+        e.value.args[0]
+        == 'Unexpected char value "This should not work", input must be a single ascii character'
+    )

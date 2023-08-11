@@ -113,7 +113,9 @@ class PrintCharOp(IRDLOperation):
         in "char" as a python char.
         """
         if len(char) != 1:
-            raise ValueError("Only single characters are supported")
+            raise ValueError(
+                f'Unexpected char value "{char}", input must be a single ascii character'
+            )
         ascii_value = ord(char)
         if ascii_value > 128:
             raise ValueError("Only ascii characters are supported")

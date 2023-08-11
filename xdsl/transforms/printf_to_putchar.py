@@ -6,7 +6,6 @@ from xdsl.dialects.printf import PrintCharOp, PrintIntOp
 from xdsl.ir import Block, MLContext, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -215,20 +214,13 @@ class PrintfToPutcharPass(ModulePass):
     # lower to func.call
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         # Check if there are any printints
-        contains_printint = False
-        for op_in_module in op.walk():
-            if isinstance(op_in_module, PrintIntOp):
-                contains_printint = True
-                # One printint encountered is enough
-                break
+        contains_printint = any(
+            isinstance(op_in_module, PrintIntOp) for op_in_module in op.walk()
+        )
         if contains_printint:
             print_int_walker = PatternRewriteWalker(
-                GreedyRewritePatternApplier(
-                    [
-                        ConvertPrintIntToItoa(),
-                    ]
-                ),
-                apply_recursively=True,
+                ConvertPrintIntToItoa(),
+                apply_recursively=False,
             )
             print_int_walker.rewrite_module(op)
             # This has to happen first, since mlir_itoa
@@ -236,17 +228,14 @@ class PrintfToPutcharPass(ModulePass):
             # Add function implementation for mlir_itoa if it isn't there already
             if SymbolTable.lookup_symbol(op, "mlir_itoa") is None:
                 op.body.block.add_ops([get_mlir_itoa()])
-        contains_printchar = False
         # Check if there are any printchars
-        for op_in_module in op.walk():
-            if isinstance(op_in_module, PrintCharOp):
-                contains_printchar = True
-                # One printchar encountered is enough
-                break
+        contains_printchar = any(
+            isinstance(op_in_module, PrintCharOp) for op_in_module in op.walk()
+        )
         if contains_printchar:
             print_char_walker = PatternRewriteWalker(
-                GreedyRewritePatternApplier([LowerPrintCharToPutchar()]),
-                apply_recursively=True,
+                LowerPrintCharToPutchar(),
+                apply_recursively=False,
             )
             print_char_walker.rewrite_module(op)
             # Add external putchar reference if not already there
