@@ -101,7 +101,7 @@ class ToyAccelerator(InstructionSet):
         """
         Copies the elements of one buffer to another.
         """
-        c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
+        c_reg, d_reg, s_reg = (ins.get_reg(i) for i in range(3))
 
         count = self.get_reg(c_reg)
 
@@ -116,7 +116,7 @@ class ToyAccelerator(InstructionSet):
         """
         Pointwise addition of two buffers.
         """
-        c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
+        c_reg, d_reg, s_reg = (ins.get_reg(i) for i in range(3))
 
         count = self.get_reg(c_reg)
 
@@ -134,7 +134,7 @@ class ToyAccelerator(InstructionSet):
         """
         Pointwise multiplication of two buffers.
         """
-        c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
+        c_reg, d_reg, s_reg = (ins.get_reg(i) for i in range(3))
 
         count = self.get_reg(c_reg)
 
