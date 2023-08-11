@@ -1111,7 +1111,7 @@ class OpDef:
 
                 # Methods, properties, and functions are allowed
                 if isinstance(
-                    value, (FunctionType, PropertyType, classmethod, staticmethod)
+                    value, FunctionType | PropertyType | classmethod | staticmethod
                 ):
                     continue
                 # Constraint variables are allowed
@@ -1943,7 +1943,7 @@ class ParamAttrDef:
             if field_name == "name":
                 continue
             if isinstance(
-                value, (FunctionType, PropertyType, classmethod, staticmethod)
+                value, FunctionType | PropertyType | classmethod | staticmethod
             ):
                 continue
             # Constraint variables are allowed

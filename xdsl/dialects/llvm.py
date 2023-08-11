@@ -920,7 +920,7 @@ class AddressOfOp(IRDLOperation):
         global_name: str | StringAttr | SymbolRefAttr,
         result_type: LLVMPointerType,
     ):
-        if isinstance(global_name, (StringAttr, str)):
+        if isinstance(global_name, StringAttr | str):
             global_name = SymbolRefAttr(global_name)
 
         super().__init__(

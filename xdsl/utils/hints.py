@@ -79,9 +79,7 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
 
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
 
-    if (origin is not None) and issubclass(
-        origin, (GenericData, ParametrizedAttribute)
-    ):
+    if (origin is not None) and issubclass(origin, GenericData | ParametrizedAttribute):
         constraint = irdl_to_attr_constraint(hint)
         try:
             constraint.verify(arg, {})
