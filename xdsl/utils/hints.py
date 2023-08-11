@@ -1,10 +1,10 @@
+from collections.abc import Iterable
 from inspect import isclass
 from types import UnionType
 from typing import (
     Annotated,
     Any,
     Generic,
-    Iterable,
     Literal,
     TypeGuard,
     TypeVar,

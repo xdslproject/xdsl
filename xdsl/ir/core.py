@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -10,12 +11,8 @@ from typing import (
     Any,
     ClassVar,
     Generic,
-    Iterable,
-    Iterator,
-    Mapping,
     NoReturn,
     Protocol,
-    Sequence,
     TypeVar,
     cast,
     overload,

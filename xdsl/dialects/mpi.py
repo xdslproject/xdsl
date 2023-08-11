@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Sequence
 from enum import Enum
-from typing import Generic, Sequence, TypeVar, cast
+from typing import Generic, TypeVar, cast
 
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import AnyFloat, IntegerType, Signedness, StringAttr, i32

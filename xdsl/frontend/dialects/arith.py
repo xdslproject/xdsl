@@ -1,4 +1,5 @@
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 import xdsl.dialects.arith as arith
 from xdsl.frontend.dialects.builtin import f16, f32, f64, i1, i32, i64, index

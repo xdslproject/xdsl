@@ -3,8 +3,9 @@ from __future__ import annotations
 import itertools
 import re
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Iterable, Sequence, cast
+from typing import Any, cast
 
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp, UnregisteredAttr
 from xdsl.ir import (

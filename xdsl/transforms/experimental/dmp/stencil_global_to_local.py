@@ -1,6 +1,7 @@
 from abc import ABC
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Callable, ClassVar, Iterable, TypeVar, cast
+from typing import ClassVar, TypeVar, cast
 
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
 from xdsl.dialects.experimental import dmp

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import Enum
 from types import EllipsisType
-from typing import Literal, Sequence
+from typing import Literal
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,

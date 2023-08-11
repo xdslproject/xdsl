@@ -1,7 +1,8 @@
 import argparse
 import sys
+from collections.abc import Callable, Sequence
 from io import StringIO
-from typing import IO, Callable, Sequence
+from typing import IO
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import print_assembly, riscv_code

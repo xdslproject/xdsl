@@ -3,7 +3,7 @@ RISC-V SCF dialect
 """
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
 from xdsl.ir import Dialect

@@ -1,7 +1,8 @@
 import argparse
 import os
 import sys
-from typing import IO, Callable
+from collections.abc import Callable
+from typing import IO
 
 from xdsl.backend.riscv.lowering import scf_to_riscv_scf
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
