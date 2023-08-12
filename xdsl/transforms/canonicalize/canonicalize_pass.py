@@ -9,6 +9,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
 )
+from xdsl.traits import HasCanonicalisationPatternsTrait
 from xdsl.transforms.dead_code_elimination import dce
 
 
@@ -44,7 +45,8 @@ class CanonicalizationPass(ModulePass):
         patterns = [
             pattern
             for ctx_op in ctx.registered_ops()
-            for pattern in ctx_op.get_canonicalization_patterns()
+            if (trait := ctx_op.get_trait(HasCanonicalisationPatternsTrait)) is not None
+            for pattern in trait.get_canonicalization_patterns()
         ]
         PatternRewriteWalker(CanonicalizationPattern(patterns)).rewrite_module(op)
         dce(op)

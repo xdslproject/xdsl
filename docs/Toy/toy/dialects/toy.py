@@ -5,7 +5,8 @@ Toy language dialect from MLIR tutorial.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Iterator, TypeAlias, cast
+from collections.abc import Iterator
+from typing import TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
@@ -38,6 +39,7 @@ from xdsl.irdl import (
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import (
     CallableOpInterface,
+    HasCanonicalisationPatternsTrait,
     IsTerminator,
     OpTrait,
     Pure,
@@ -370,6 +372,18 @@ class ReturnOp(IRDLOperation):
         return super().__init__(operands=[input])
 
 
+class ReshapeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
+        from ..rewrites.optimise_toy import (
+            FoldConstantReshapeOpPattern,
+            ReshapeReshapeOpPattern,
+        )
+
+        yield ReshapeReshapeOpPattern()
+        yield FoldConstantReshapeOpPattern()
+
+
 @irdl_op_definition
 class ReshapeOp(IRDLOperation):
     """
@@ -386,7 +400,7 @@ class ReshapeOp(IRDLOperation):
     # We expect that the reshape operation returns a statically shaped tensor.
     res: OpResult = result_def(TensorTypeF64)
 
-    traits = frozenset((Pure(),))
+    traits = frozenset((Pure(), ReshapeOpHasCanonicalisationPatternsTrait()))
 
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not isa(arg.type, AnyTensorTypeF64):
@@ -397,16 +411,6 @@ class ReshapeOp(IRDLOperation):
         element_type = arg.type.element_type
         t = TensorTypeF64.from_type_and_list(element_type, shape)
         return super().__init__(result_types=[t], operands=[arg])
-
-    @classmethod
-    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
-        from ..rewrites.optimise_toy import (
-            FoldConstantReshapeOpPattern,
-            ReshapeReshapeOpPattern,
-        )
-
-        yield ReshapeReshapeOpPattern()
-        yield FoldConstantReshapeOpPattern()
 
     @staticmethod
     def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
@@ -442,13 +446,27 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
             op.res.type = TensorType.from_type_and_list(f64, res_shape)
 
 
+class TransposeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
+        from ..rewrites.optimise_toy import SimplifyRedundantTranspose
+
+        yield SimplifyRedundantTranspose()
+
+
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
     name = "toy.transpose"
     arg: Operand = operand_def(AnyTensorTypeF64)
     res: OpResult = result_def(AnyTensorTypeF64)
 
-    traits = frozenset((Pure(), InferTransposeOpShapeTrait()))
+    traits = frozenset(
+        (
+            Pure(),
+            InferTransposeOpShapeTrait(),
+            TransposeOpHasCanonicalisationPatternsTrait(),
+        )
+    )
 
     def __init__(self, arg: SSAValue):
         output_type: TensorTypeF64 | UnrankedTensorTypeF64
@@ -466,12 +484,6 @@ class TransposeOp(IRDLOperation):
             output_type = arg.type
 
         super().__init__(operands=[arg], result_types=[output_type])
-
-    @classmethod
-    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
-        from ..rewrites.optimise_toy import SimplifyRedundantTranspose
-
-        yield SimplifyRedundantTranspose()
 
 
 class InferCastOpShapeTrait(ToyShapeInferenceTrait):

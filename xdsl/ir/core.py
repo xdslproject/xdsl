@@ -31,7 +31,6 @@ from xdsl.utils.exceptions import VerifyException
 if TYPE_CHECKING:
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
-    from xdsl.pattern_rewriter import RewritePattern
     from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
@@ -938,10 +937,6 @@ class Operation(IRNode):
         Get all the traits of the given type satisfied by this operation.
         """
         return [t for t in cls.traits if isinstance(t, trait_type)]
-
-    @classmethod
-    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
-        return iter(())
 
     def erase(self, safe_erase: bool = True, drop_references: bool = True) -> None:
         """
