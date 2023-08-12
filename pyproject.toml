@@ -3,6 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 
 [tool.pyright]
 reportImportCycles = false
+enableTypeIgnoreComments = false
 typeCheckingMode = "strict"
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
@@ -14,17 +15,28 @@ typeCheckingMode = "strict"
 "ignore" = [
     "tests/filecheck/frontend/dialects/builtin.py",
     "tests/filecheck/frontend/dialects/invalid.py",
+    "tests/filecheck/frontend/dialects/arith.py",
+    "tests/filecheck/frontend/dialects/scf.py",
     "tests/filecheck/frontend/programs/invalid.py",
+    "xdsl/_version.py",
 ]
 
 [tool.isort]
 profile = "black"
 
 [tool.ruff]
-select = ["E", "W", "I"]
-ignore = ["E741"]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E741", "UP006", "UP007", "UP027", "UP032", "UP034", "UP035", "UP038"]
 line-length = 300
 target-version = "py310"
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F403"]
+"tests/filecheck/frontend/programs/invalid.py" = ["F811", "F841"]
+"tests/filecheck/frontend/dialects/invalid.py" = ["F811"]
+"tests/test_declarative_assembly_format.py" = ["F811"]
+"versioneer.py" = ["ALL"]
+"_version.py" = ["ALL"]
 
 [tool.ruff.mccabe]
 max-complexity = 10

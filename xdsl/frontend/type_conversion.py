@@ -1,10 +1,18 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Any, Dict, Type, TypeAlias, _GenericAlias  # type: ignore
+from typing import (
+    Any,
+    Dict,
+    Type,
+    TypeAlias,
+    _GenericAlias,  # pyright: ignore[reportPrivateUsage, reportGeneralTypeIssues, reportUnknownVariableType]
+)
 
 import xdsl.dialects.builtin as xdsl_builtin
 import xdsl.frontend.dialects.builtin as frontend_builtin
-from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
+from xdsl.frontend.dialects.builtin import (
+    _FrontendType,  # pyright: ignore[reportPrivateUsage]
+)
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.ir import Attribute
 
@@ -43,7 +51,7 @@ class TypeConverter:
     def __post_init__(self) -> None:
         # Cache index type because it is always used implicitly in loops and
         # many other IR constructs.
-        index = frontend_builtin._Index  # type: ignore
+        index = frontend_builtin._Index  # pyright: ignore[reportPrivateUsage]
         self._cache_type(index, xdsl_builtin.IndexType(), "index")
 
     def _cache_type(
@@ -133,7 +141,7 @@ class TypeConverter:
                 self.file,
                 type_hint.lineno,
                 type_hint.col_offset,
-                f"Converting subscript type hints is not supported.",
+                "Converting subscript type hints is not supported.",
             )
 
         # Type hint can also be a TypeAlias. For example, one can define

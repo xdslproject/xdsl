@@ -72,7 +72,7 @@ builtin.module {
     }
 
     // CHECK-NEXT:    func.func @failure_simple_cast(%{{.*}} : i64) -> i32 {
-    // CHECK-NEXT:      %3 = "builtin.unrealized_conversion_cast"(%{{.*}}) : (i64) -> i32
+    // CHECK-NEXT:      %3 = builtin.unrealized_conversion_cast %{{.*}} : i64 to i32
     // CHECK-NEXT:      func.return %3 : i32
     // CHECK-NEXT:    }
 
@@ -85,8 +85,8 @@ builtin.module {
     }
 
     // CHECK-NEXT:    func.func @failure_chain(%{{.*}} : i64) -> i32 {
-    // CHECK-NEXT:      %4 = "builtin.unrealized_conversion_cast"(%{{.*}}) : (i64) -> i1
-    // CHECK-NEXT:      %5 = "builtin.unrealized_conversion_cast"(%4) : (i1) -> i32
+    // CHECK-NEXT:      %4 = builtin.unrealized_conversion_cast %{{.*}} : i64 to i1
+    // CHECK-NEXT:      %5 = builtin.unrealized_conversion_cast %4 : i1 to i32
     // CHECK-NEXT:      func.return %5 : i32
     // CHECK-NEXT:    }
 
@@ -114,8 +114,8 @@ builtin.module {
     }
 
     // CHECK-NEXT:    func.func @mismatch_size_cast_use(%{{.*}} : i64, %{{.*}} : i64) -> i64 {
-    // CHECK-NEXT:      %7, %8 = "builtin.unrealized_conversion_cast"(%{{.*}}, %{{.*}}) : (i64, i64) -> (i16, i16)
-    // CHECK-NEXT:      %9 = "builtin.unrealized_conversion_cast"(%7) : (i16) -> i1
+    // CHECK-NEXT:      %7, %8 = builtin.unrealized_conversion_cast %{{.*}}, %{{.*}} : i64, i64 to i16, i16
+    // CHECK-NEXT:      %9 = builtin.unrealized_conversion_cast %7 : i16 to i1
     // CHECK-NEXT:      %10 = "test.op"(%9, %9) : (i1, i1) -> i64
     // CHECK-NEXT:      func.return %10 : i64
     // CHECK-NEXT:    }

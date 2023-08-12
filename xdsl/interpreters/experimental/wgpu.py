@@ -33,7 +33,7 @@ class WGPUFunctions(InterpreterFunctions):
             value = interpreter.get_values((operand,))[0]
             if not isinstance(value, wgpu.GPUBuffer):
                 raise ValueError(
-                    f"gpu.launch_func memref operand expected to be GPU-allocated"
+                    "gpu.launch_func memref operand expected to be GPU-allocated"
                 )
             return value
         raise NotImplementedError(f"{operand.type} not yet mapped to WGPU.")

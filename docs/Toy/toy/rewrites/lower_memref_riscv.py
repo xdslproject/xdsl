@@ -1,6 +1,9 @@
 from math import prod
 from typing import Any, Sequence, cast
 
+from xdsl.backend.riscv.lowering.utils import (
+    cast_operands_to_int_regs,
+)
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir.core import MLContext, SSAValue
@@ -11,8 +14,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
-from .helpers import cast_value_to_register
 
 
 class LowerMemrefAllocOp(RewritePattern):
@@ -72,9 +73,7 @@ def insert_shape_ops(
 class LowerMemrefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
-        value = cast_value_to_register(op.value, rewriter)
-        mem = cast_value_to_register(op.memref, rewriter)
-        indices = tuple(cast_value_to_register(index, rewriter) for index in op.indices)
+        value, mem, *indices = cast_operands_to_int_regs(rewriter)
 
         assert isinstance(op.memref.type, memref.MemRefType)
         memref_typ = cast(memref.MemRefType[Any], op.memref.type)
@@ -93,8 +92,7 @@ class LowerMemrefStoreOp(RewritePattern):
 class LowerMemrefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
-        mem = cast_value_to_register(op.memref, rewriter)
-        indices = tuple(cast_value_to_register(index, rewriter) for index in op.indices)
+        mem, *indices = cast_operands_to_int_regs(rewriter)
 
         assert isinstance(op.memref.type, memref.MemRefType)
         memref_typ = cast(memref.MemRefType[Any], op.memref.type)
@@ -105,9 +103,7 @@ class LowerMemrefLoadOp(RewritePattern):
                 lw := riscv.LwOp(
                     ptr, 0, comment=f"load value from memref of shape {shape}"
                 ),
-                UnrealizedConversionCastOp.get(
-                    lw.results, (riscv.IntRegisterType.unallocated(),)
-                ),
+                UnrealizedConversionCastOp.get(lw.results, (op.res.type,)),
             ],
         )
 

@@ -439,12 +439,12 @@ builtin.module {
 
 // CHECK-NEXT: func.func @apply_kernel(%146 : memref<15x15xf32>, %147 : memref<15x15xf32>, %timers : !llvm.ptr<f64>)  attributes {"param_names" = ["u_vec_0", "u_vec_1", "timers"]}{
 // CHECK-NEXT:   %148 = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> memref<15x15xf32>
-// CHECK-NEXT:   %u_vec_1 = "builtin.unrealized_conversion_cast"(%148) : (memref<15x15xf32>) -> memref<15x15xf32>
-// CHECK-NEXT:   %149 = "builtin.unrealized_conversion_cast"(%147) : (memref<15x15xf32>) -> memref<15x15xf32>
+// CHECK-NEXT:   %u_vec_1 = builtin.unrealized_conversion_cast %148 : memref<15x15xf32> to memref<15x15xf32>
+// CHECK-NEXT:   %149 = builtin.unrealized_conversion_cast %147 : memref<15x15xf32> to memref<15x15xf32>
 // CHECK-NEXT:   "gpu.memcpy"(%148, %149) {"operand_segment_sizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
 // CHECK-NEXT:   %150 = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> memref<15x15xf32>
-// CHECK-NEXT:   %u_vec_0 = "builtin.unrealized_conversion_cast"(%150) : (memref<15x15xf32>) -> memref<15x15xf32>
-// CHECK-NEXT:   %151 = "builtin.unrealized_conversion_cast"(%146) : (memref<15x15xf32>) -> memref<15x15xf32>
+// CHECK-NEXT:   %u_vec_0 = builtin.unrealized_conversion_cast %150 : memref<15x15xf32> to memref<15x15xf32>
+// CHECK-NEXT:   %151 = builtin.unrealized_conversion_cast %146 : memref<15x15xf32> to memref<15x15xf32>
 // CHECK-NEXT:   "gpu.memcpy"(%150, %151) {"operand_segment_sizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
 // CHECK-NEXT:   %time_m_1 = arith.constant 0 : index
 // CHECK-NEXT:   %time_M_1 = arith.constant 10 : index
