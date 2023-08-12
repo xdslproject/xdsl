@@ -72,8 +72,6 @@ def test_memref_get_global():
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
             fetch = memref.GetGlobal.get("my_global", memref_type)
 
-    # assert SymbolTable.lookup_symbol(fetch, "my_global") is define
-
     interpreter = Interpreter(module)
     interpreter.register_implementations(MemrefFunctions())
 
