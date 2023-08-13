@@ -1,4 +1,5 @@
 import ctypes
+import os
 import subprocess
 from pathlib import Path
 from typing import Callable, TypeVar, cast
@@ -44,25 +45,28 @@ def c_type_for_xdsl_type(attr: Attribute) -> type:
 
 
 def _compile_module(module_str: str, directory: Path, filename: str):
+    input_name = (directory / f"{filename}_in.mlir").as_posix()
+    output_name = (directory / f"{filename}_out.mlir").as_posix()
+
+    with open(input_name, "w") as f:
+        f.write(module_str)
+
     # Lower to LLVM dialect
 
-    mlir_opt_cmd = subprocess.run(
-        ["mlir-opt", "--convert-func-to-llvm"],
-        input=module_str,
-        stdout=subprocess.PIPE,
-        text=True,
+    os.system(
+        f"mlir-opt {input_name} "
+        + '--pass-pipeline="builtin.module(convert-func-to-llvm{use-bare-ptr-memref-call-conv})"'
+        + f" > {output_name}"
     )
-
-    mlir_opt_cmd.check_returncode()
-
-    with open(directory / f"{filename}.mlir", "w") as f:
-        f.write(mlir_opt_cmd.stdout)
 
     # Translate MLIR IR to LLVM IR
 
     mlir_translate_cmd = subprocess.run(
-        ["mlir-translate", "--mlir-to-llvmir"],
-        input=mlir_opt_cmd.stdout,
+        [
+            "mlir-translate",
+            "--mlir-to-llvmir",
+            output_name,
+        ],
         stdout=subprocess.PIPE,
         text=True,
     )
@@ -116,8 +120,15 @@ def jit_module(
         raise ValueError(f"Unexpected op type {op.name}, expected func.func")
 
     input_type_attrs = op.function_type.inputs.data
-    c_types = tuple(c_type_for_xdsl_type(attr) for attr in input_type_attrs)
-    print(c_types)
+    result_type_attrs = op.function_type.outputs.data
+
+    if len(result_type_attrs) != 1:
+        raise ValueError(
+            f"Function type can only have one result value, got {result_type_attrs}"
+        )
+
+    argtypes = tuple(c_type_for_xdsl_type(attr) for attr in input_type_attrs)
+    restype = c_type_for_xdsl_type(result_type_attrs[0])
 
     module_str = str(module)
     filename = _filename(module_str)
@@ -125,11 +136,16 @@ def jit_module(
     file_path = Path() / f"{filename}.so"
 
     if not file_path.exists():
-        _compile_module(module_str, Path(), filename)
+        try:
+            _compile_module(module_str, Path(), filename)
+        except Exception as error:
+            print(error)
+            raise
 
     libc = ctypes.CDLL(file_path.absolute().as_posix())
 
     cfunc = libc[name]
-    cfunc.argtypes = c_types
+    cfunc.argtypes = argtypes
+    cfunc.restype = restype
 
     return cfunc
