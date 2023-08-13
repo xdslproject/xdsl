@@ -1,4 +1,5 @@
 import ctypes
+import hashlib
 import os
 import subprocess
 from pathlib import Path
@@ -11,8 +12,9 @@ from xdsl.traits import SymbolTable
 
 
 def _filename(text: str) -> str:
-    module_str = str(text)
-    return hex(abs(hash(module_str)))[2:]
+    m = hashlib.sha256()
+    m.update(text.encode())
+    return m.hexdigest()
 
 
 def c_type_for_xdsl_type(attr: Attribute) -> type:
