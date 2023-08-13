@@ -55,7 +55,7 @@ def _compile_module(module_str: str, directory: Path, filename: str):
 
     os.system(
         f"mlir-opt {input_name} "
-        + '--pass-pipeline="builtin.module(convert-func-to-llvm{use-bare-ptr-memref-call-conv})"'
+        + '--pass-pipeline="builtin.module(finalize-memref-to-llvm, convert-scf-to-cf, convert-func-to-llvm{use-bare-ptr-memref-call-conv}, reconcile-unrealized-casts)"'
         + f" > {output_name}"
     )
 
