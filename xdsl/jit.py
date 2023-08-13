@@ -1,10 +1,10 @@
 import ctypes
 import subprocess
 from pathlib import Path
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, cast
 
-from xdsl.dialects import func
-from xdsl.dialects.builtin import IntegerType, ModuleOp
+from xdsl.dialects import func, memref
+from xdsl.dialects.builtin import Float32Type, Float64Type, IntegerType, ModuleOp
 from xdsl.ir import Attribute
 from xdsl.traits import SymbolTable
 
@@ -14,7 +14,7 @@ def _filename(text: str) -> str:
     return hex(abs(hash(module_str)))[2:]
 
 
-def jit_types_for_xdsl_type(attr: Attribute) -> tuple[type, type]:
+def c_type_for_xdsl_type(attr: Attribute) -> type:
     match attr:
         case IntegerType():
             match attr.width.data:
@@ -29,7 +29,16 @@ def jit_types_for_xdsl_type(attr: Attribute) -> tuple[type, type]:
                         f"Unhandled integer width {attr.width.data} for jit conversion"
                     )
 
-            return int, ctypes_type
+            return ctypes_type
+        case Float64Type():
+            return ctypes.c_double
+        case Float32Type():
+            return ctypes.c_float
+        case memref.MemRefType():
+            attr = cast(memref.MemRefType[Attribute], attr)
+            # TODO: check that shape is fully known
+            c_type = c_type_for_xdsl_type(attr.element_type)
+            return ctypes.POINTER(c_type)
         case _:
             raise ValueError(f"Unknown attr type {attr} for jit conversion")
 
@@ -96,7 +105,7 @@ def jit_module(
     module: ModuleOp,
     name: str,
     *,
-    c_types: tuple[tuple[type[T0], type[T1]], type[T2]],
+    types: tuple[tuple[type[T0], type[T1]], type[T2]],
 ) -> Callable[[T0, T1], T2]:
     # check that the types match
     op = SymbolTable.lookup_symbol(module, name)
@@ -105,6 +114,10 @@ def jit_module(
 
     if not isinstance(op, func.FuncOp):
         raise ValueError(f"Unexpected op type {op.name}, expected func.func")
+
+    input_type_attrs = op.function_type.inputs.data
+    c_types = tuple(c_type_for_xdsl_type(attr) for attr in input_type_attrs)
+    print(c_types)
 
     module_str = str(module)
     filename = _filename(module_str)
@@ -117,6 +130,6 @@ def jit_module(
     libc = ctypes.CDLL(file_path.absolute().as_posix())
 
     cfunc = libc[name]
-    cfunc.argtypes = (ctypes.c_int64, ctypes.c_int64)
+    cfunc.argtypes = c_types
 
     return cfunc
