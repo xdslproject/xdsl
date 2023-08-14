@@ -3,6 +3,7 @@
 "builtin.module"() ({
   %lhsi1, %rhsi1 = "test.op"() : () -> (i1, i1)
   %lhsi32, %rhsi32 = "test.op"() : () -> (i32, i32)
+  %lhsi64, %rhsi64 = "test.op"() : () -> (i64, i64)
   %lhsindex, %rhsindex = "test.op"() : () -> (index, index)
   %lhsf32, %rhsf32 = "test.op"() : () -> (f32, f32)
   %lhsf64, %rhsf64 = "test.op"() : () -> (f64, f64)
@@ -136,9 +137,17 @@
 
   // CHECK-NEXT: %extf = "arith.extf"(%lhsf32) : (f32) -> f64
 
+  %extui = "arith.extui"(%lhsi32) : (i32) -> i64
+
+  // CHECK-NEXT: %extui = "arith.extui"(%lhsi32) : (i32) -> i64
+
   %truncf = "arith.truncf"(%lhsf64) : (f64) -> f32
 
   // CHECK-NEXT: %truncf = "arith.truncf"(%lhsf64) : (f64) -> f32
+
+  %trunci = "arith.trunci"(%lhsi64) : (i64) -> i32
+
+  // CHECK-NEXT: %trunci = "arith.trunci"(%lhsi64) : (i64) -> i32
 
   %cmpf = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 2 : i64} : (f32, f32) -> i1
 
