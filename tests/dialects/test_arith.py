@@ -260,7 +260,6 @@ def test_cmpi_incorrect_comparison():
 def test_cmpi_index_type():
     a = Constant.from_int_and_width(1, IndexType())
     b = Constant.from_int_and_width(2, IndexType())
-
     Cmpi(a, b, "eq").verify()
 
 
@@ -280,3 +279,17 @@ def test_extend_truncate_iops():
     assert extu_op.result.type == i64
     assert trunc_op.input == b.result
     assert trunc_op.result.type == i32
+
+
+def test_trunci_incorrect_bitwidth():
+    a = Constant.from_int_and_width(1, 16)
+    # bitwidth of b has to be smaller than the one of a
+    with pytest.raises(VerifyException):
+        _trunci_op = TruncIOp(a, i32).verify()
+
+
+def test_extui_incorrect_bitwidth():
+    a = Constant.from_int_and_width(1, 64)
+    # bitwidth of b has to be larger than the one of a
+    with pytest.raises(VerifyException):
+        _extui_op = ExtUIOp(a, i32).verify()
