@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence, Set
 from io import StringIO
-from typing import IO, ClassVar, TypeAlias
+from typing import IO, ClassVar, Generic, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
@@ -209,6 +209,9 @@ class FloatRegisterType(RISCVRegisterType):
         "ft10": 30,
         "ft11": 31,
     }
+
+
+RD = TypeVar("RD", bound=RISCVRegisterType)
 
 
 class Registers(ABC):
@@ -2506,8 +2509,7 @@ class WfiOp(NullaryOperation):
 # region RISC-V SSA Helpers
 
 
-@irdl_op_definition
-class GetRegisterOp(IRDLOperation, RISCVOp):
+class GetAnyRegisterOperation(Generic[RD], IRDLOperation, RISCVOp):
     """
     This instruction allows us to create an SSAValue with for a given integer register name. This
     is useful for bridging the RISC-V convention that stores the result of function calls
@@ -2529,15 +2531,12 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
     ```
     """
 
-    name = "riscv.get_register"
-    res: OpResult = result_def(IntRegisterType)
+    res: OpResult = result_def(RD)
 
     def __init__(
         self,
-        register_type: IntRegisterType | str,
+        register_type: RD,
     ):
-        if isinstance(register_type, str):
-            register_type = IntRegisterType(register_type)
         super().__init__(result_types=[register_type])
 
     def assembly_line(self) -> str | None:
@@ -2546,27 +2545,13 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class GetFloatRegisterOp(IRDLOperation, RISCVOp):
-    """
-    This instruction allows us to create an SSAValue with for a given floating register name. This
-    is useful for bridging the RISC-V convention that stores the result of function calls
-    in `a0` and `a1` into SSA form.
-    """
+class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
+    name = "riscv.get_register"
 
+
+@irdl_op_definition
+class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
     name = "riscv.get_float_register"
-    res: OpResult = result_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        register_type: FloatRegisterType | str,
-    ):
-        if isinstance(register_type, str):
-            register_type = FloatRegisterType(register_type)
-        super().__init__(result_types=[register_type])
-
-    def assembly_line(self) -> str | None:
-        # Don't print assembly for creating a SSA value representing register
-        return None
 
 
 # endregion
