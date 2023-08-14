@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC
-from enum import Enum
 from typing import cast
 
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import AnyFloat, IntegerType, Signedness, StringAttr, i32
+from xdsl.dialects.builtin import AnyFloat, IntegerType, Signedness, i32
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (
     Attribute,
-    Data,
     Dialect,
     Operation,
     OpResult,
@@ -20,7 +18,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    OptOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -28,7 +25,7 @@ from xdsl.irdl import (
     opt_result_def,
     result_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
@@ -43,41 +40,6 @@ class DataType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "mpi.datatype"
-
-
-@irdl_attr_definition
-class StatusType(ParametrizedAttribute, TypeAttribute):
-    """
-    This type represents MPI_Status
-    """
-
-    name = "mpi.status"
-
-
-class StatusTypeField(Enum):
-    """
-    This enum lists all fields in the MPI_Status struct
-    """
-
-    MPI_SOURCE = "MPI_SOURCE"
-    MPI_TAG = "MPI_TAG"
-    MPI_ERROR = "MPI_ERROR"
-
-
-@irdl_attr_definition
-class StatusTypeFieldAttr(Data[StatusTypeField]):
-    name = "mpi.status.field"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> StatusTypeField:
-        for val in StatusTypeField:
-            if parser.parse_characters(val.value):
-                return val
-        expected_vals = "|".join(v.value for v in StatusTypeField)
-        parser.raise_error(f"Expected one of ({expected_vals})")
-
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(self.data.value)
 
 
 class MPIBaseOp(IRDLOperation, ABC):
@@ -170,8 +132,6 @@ class RecvOp(MPIBaseOp):
     source: Operand = operand_def(i32)
     tag: Operand = operand_def(i32)
 
-    status: OptOpResult = opt_result_def(StatusType)
-
     def __init__(
         self,
         buffer: SSAValue | Operation,
@@ -179,81 +139,11 @@ class RecvOp(MPIBaseOp):
         datatype: SSAValue | Operation,
         source: SSAValue | Operation,
         tag: SSAValue | Operation,
-        ignore_status: bool = True,
     ):
         super().__init__(
             operands=[buffer, count, datatype, source, tag],
-            result_types=[[]] if ignore_status else [[StatusType()]],
+            result_types=[],
         )
-
-
-@irdl_op_definition
-class GetStatusFieldOp(MPIBaseOp):
-    """
-    Accessors for the MPI_Status struct
-
-    This allows access to the three integer properties in the struct called
-        - MPI_SOURCE
-        - MPI_TAG
-        - MPI_ERROR
-
-    All fields are of type int.
-    """
-
-    name = "mpi.status.get"
-
-    status: Operand = operand_def(StatusType)
-
-    field: StringAttr = attr_def(StatusTypeFieldAttr)
-
-    result: OpResult = result_def(i32)
-
-    def __init__(
-        self, status_obj: Operand, field: StatusTypeField | StatusTypeFieldAttr
-    ):
-        if not isinstance(field, StatusTypeFieldAttr):
-            field = StatusTypeFieldAttr(field)
-        super().__init__(
-            operands=[status_obj],
-            attributes={"field": field},
-            result_types=[i32],
-        )
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print(self.status)
-        printer.print("[")
-        printer.print(self.field)
-        printer.print("]")
-
-        attrs = self.attributes.copy()
-        attrs.pop("field")
-        if attrs:
-            printer.print(" ")
-            printer.print_op_attributes(attrs)
-
-        printer.print_string(" : ")
-        printer.print(self.status.type)
-        printer.print_string(" -> ")
-        printer.print(self.result.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> GetStatusFieldOp:
-        status = parser.parse_operand()
-        parser.parse_punctuation("[")
-        field = parser.parse_attribute()
-        parser.parse_punctuation("]")
-
-        attrs = parser.parse_optional_attr_dict()
-
-        parser.parse_punctuation(":")
-        parser.parse_type()
-        parser.parse_punctuation("->")
-        parser.parse_type()
-
-        op = cls(status, field)
-        op.attributes.update(attrs)
-        return op
 
 
 @irdl_op_definition
@@ -386,7 +276,7 @@ class UnwrapMemrefOp(MPIBaseOp):
     It takes any MemRef as input, and returns an llvm.ptr, element count and MPI_Datatype.
     """
 
-    name = "mpi.unwrap_memref"
+    name = "mpi.mlir.unwrap_memref"
 
     ref: Operand = operand_def(MemRefType[AnyNumericType])
 
@@ -418,7 +308,7 @@ class GetDtypeOp(MPIBaseOp):
     docstring for more detail on which types are supported.
     """
 
-    name = "mpi.get_dtype"
+    name = "mpi.mlir.get_dtype"
 
     dtype: Attribute = attr_def(Attribute)
 
@@ -462,12 +352,9 @@ MPI = Dialect(
         GetDtypeOp,
         SendOp,
         RecvOp,
-        GetStatusFieldOp,
         FinalizeOp,
     ],
     [
-        StatusType,
         DataType,
-        StatusTypeFieldAttr,
     ],
 )

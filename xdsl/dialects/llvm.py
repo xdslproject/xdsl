@@ -1169,11 +1169,14 @@ class CallOp(IRDLOperation):
     callee: SymbolRefAttr = attr_def(SymbolRefAttr)
     fastmathFlags: FastMathAttr = attr_def(FastMathAttr)
 
+    result: OpResult = result_def(Attribute)
+
     def __init__(
         self,
         callee: str | SymbolRefAttr | StringAttr,
         *args: SSAValue | Operation,
         fastmath: FastMathAttr = FastMathAttr(None),
+        result_type: Attribute | None = None,
     ):
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
@@ -1184,6 +1187,14 @@ class CallOp(IRDLOperation):
                 "callee": callee,
                 "fastmathFlags": fastmath,
             },
+            result_types=[result_type],
+        )
+
+    def to_declaration(self, linkage: LinkageAttr = LinkageAttr("internal")) -> FuncOp:
+        return FuncOp(
+            self.callee.string_value(),
+            LLVMFunctionType([a.type for a in self.operands], self.result.type),
+            linkage,
         )
 
 
