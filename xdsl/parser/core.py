@@ -606,9 +606,7 @@ class Parser(AttrParser):
                 [
                     (
                         span,
-                        'reference to block "{}" without implementation'.format(
-                            span.text
-                        ),
+                        f'reference to block "{span.text}" without implementation',
                     )
                     for span in itertools.chain(*self.forward_block_references.values())
                 ],

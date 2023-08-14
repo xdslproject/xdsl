@@ -278,13 +278,7 @@ class OpResult(SSAValue):
         return self.op
 
     def __repr__(self) -> str:
-        return "<{}[{}] index: {}, operation: {}, uses: {}>".format(
-            self.__class__.__name__,
-            self.type,
-            self.index,
-            self.op.name,
-            len(self.uses),
-        )
+        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, operation: {self.op.name}, uses: {len(self.uses)}>"
 
     def __eq__(self, other: object) -> bool:
         return self is other
@@ -308,12 +302,7 @@ class BlockArgument(SSAValue):
         return self.block
 
     def __repr__(self) -> str:
-        return "<{}[{}] index: {}, uses: {}>".format(
-            self.__class__.__name__,
-            self.type,
-            self.index,
-            len(self.uses),
-        )
+        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, uses: {len(self.uses)}>"
 
     def __eq__(self, other: object) -> bool:
         return self is other
