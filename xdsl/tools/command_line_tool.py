@@ -13,7 +13,6 @@ from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.cmath import CMath
-from xdsl.dialects.experimental.dmp import DMP
 from xdsl.dialects.experimental.fir import FIR
 from xdsl.dialects.experimental.math import Math
 from xdsl.dialects.func import Func
@@ -40,7 +39,6 @@ from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.transforms import (
-    canonicalize_dmp,
     dead_code_elimination,
     lower_mpi,
     lower_riscv_func,
@@ -57,7 +55,6 @@ from xdsl.transforms.experimental import (
     stencil_shape_inference,
     stencil_storage_materialization,
 )
-from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 
 
@@ -69,7 +66,6 @@ def get_all_dialects() -> list[Dialect]:
         Builtin,
         Cf,
         CMath,
-        DMP,
         FIR,
         Func,
         GPU,
@@ -97,12 +93,9 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
-        canonicalize_dmp.CanonicalizeDmpPass,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
-        stencil_global_to_local.GlobalStencilToLocalStencil2DHorizontal,
-        stencil_global_to_local.LowerHaloToMPI,
         lower_mpi.LowerMPIPass,
         lower_riscv_func.LowerRISCVFunc,
         lower_snitch.LowerSnitchPass,

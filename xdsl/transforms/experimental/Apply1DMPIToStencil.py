@@ -25,7 +25,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         mpi_operations: list[Operation] = []
 
         # Rank and size
-        comm_size_op = mpi.CommSize.get()
+        comm_size_op = mpi.CommSizeOp.get()
         comm_rank_op = mpi.CommRank.get()
         mpi_operations += [comm_size_op, comm_rank_op]
 
