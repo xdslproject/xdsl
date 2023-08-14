@@ -139,6 +139,10 @@ class PrintIntOp(IRDLOperation):
 
 
 Printf = Dialect(
-    [PrintFormatOp, PrintCharOp, PrintIntOp],
+    [
+        PrintFormatOp,
+        PrintCharOp,
+        PrintIntOp,
+    ],
     [],
 )

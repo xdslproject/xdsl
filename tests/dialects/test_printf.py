@@ -66,9 +66,9 @@ def test_printchar_non_ascii():
 
 
 def test_printchar_no_char():
-    with pytest.raises(ValueError) as e:
-        print_dialect.PrintCharOp.from_constant_char("This should not work")
-    assert (
-        e.value.args[0]
-        == 'Unexpected char value "This should not work", input must be a single ascii character'
-    )
+    string = "This should not work"
+    with pytest.raises(
+        ValueError,
+        match=f'Unexpected char value "{string}", input must be a single ascii character',
+    ):
+        print_dialect.PrintCharOp.from_constant_char(string)

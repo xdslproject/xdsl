@@ -3,7 +3,7 @@ from xdsl.dialects import arith, func, scf
 from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
 from xdsl.dialects.experimental import math
 from xdsl.dialects.printf import PrintCharOp, PrintIntOp
-from xdsl.ir import Block, MLContext, Operation, OpResult, SSAValue
+from xdsl.ir import Block, MLContext, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -62,7 +62,7 @@ def get_mlir_itoa():
     """
 
     # get_number_of_digits implementation
-    def get_number_of_digits(absolute_value: Operation) -> OpResult:
+    def get_number_of_digits(absolute_value: SSAValue) -> SSAValue:
         """
         Return the result of an MLIR scf.while op that gets the number of
         digits of a positive integer. Roughly goes like this in
@@ -100,7 +100,7 @@ def get_mlir_itoa():
         return while_loop.results[1]
 
     # print_minus_if_negative implementation
-    def print_minus_if_negative(integer: SSAValue) -> scf.If:
+    def print_minus_if_negative(integer: SSAValue) -> SSAValue:
         """
         This function returns an MLIR scf.if op that prints a minus sign
         if the integer value is negative and returns the absolute value
@@ -130,9 +130,9 @@ def get_mlir_itoa():
         with ImplicitBuilder(is_positive_block):
             scf.Yield.get(integer)
 
-        return absolute_value
+        return absolute_value.results[0]
 
-    def print_digits(digits: SSAValue, absolute_value: scf.If) -> scf.For:
+    def print_digits(digits: SSAValue, absolute_value: SSAValue) -> scf.For:
         """
         Return an scf.for loop that prints all digits of the given value.
         In python code:
