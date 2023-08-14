@@ -2380,7 +2380,7 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
     @classmethod
     def parse(cls, parser: Parser) -> AssemblySectionOp:
         directive = parser.parse_str_literal()
-        attr_dict = parser.parse_optional_attr_dict_with_keyword(("directive"))
+        attr_dict = parser.parse_optional_attr_dict_with_keyword(("directive",))
         region = parser.parse_optional_region()
 
         if region is None:
