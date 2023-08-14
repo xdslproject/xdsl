@@ -31,23 +31,24 @@
     ^0(%15 : index):
       "affine.for"() ({
       ^1(%16 : index):
-        %10 = arith.constant 0.0 : f64
-        %11 = "affine.for"() ({
-        ^2(%k : index):
-            %17 = "affine.load"(%14, %15, %16) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (memref<2x3xf64>, index, index) -> f64
-            %18 = "affine.load"(%14, %15, %16) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (memref<2x3xf64>, index, index) -> f64
-            %19 = "arith.addf"(%17, %18) : (f64, f64) -> f64
-            "affine.yield"() : () -> ()
-        }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (3)>, "step" = 1 : index} : () -> ()
-        "affine.store"(%19, %0, %15, %16) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (f64, memref<2x3xf64>, index, index) -> ()
+        %init = arith.constant 0.0 : f64
+        %cell = "affine.for"(%init) ({
+        ^2(%k : index, %acc : f64):
+            %17 = "affine.load"(%14, %15, %k) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (memref<2x3xf64>, index, index) -> f64
+            %18 = "affine.load"(%14, %k, %16) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (memref<2x3xf64>, index, index) -> f64
+            %x = "arith.mulf"(%17, %18) : (f64, f64) -> f64
+            %acc_new = "arith.addf"(%acc, %x) : (f64, f64) -> f64
+            "affine.yield"(%acc_new) : (f64) -> ()
+        }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (3)>, "step" = 1 : index} : (f64) -> (f64)
+        "affine.store"(%cell, %0, %15, %16) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (f64, memref<2x2xf64>, index, index) -> ()
+        "affine.yield"() : () -> ()
       }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (2)>, "step" = 1 : index} : () -> ()
       "affine.yield"() : () -> ()
     }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (2)>, "step" = 1 : index} : () -> ()
-    "printf.print_format"(%0) {"format_str" = "{}"} : (memref<2x3xf64>) -> ()
-    "printf.print_format"(%7) {"format_str" = "{}"} : (memref<3x2xf64>) -> ()
+    "printf.print_format"(%0) {"format_str" = "{}"} : (memref<2x2xf64>) -> ()
     "memref.dealloc"(%14) : (memref<2x3xf64>) -> ()
     "memref.dealloc"(%7) : (memref<3x2xf64>) -> ()
-    "memref.dealloc"(%0) : (memref<2x3xf64>) -> ()
+    "memref.dealloc"(%0) : (memref<2x2xf64>) -> ()
     "func.return"() : () -> ()
   }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
 }) : () -> ()
