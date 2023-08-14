@@ -47,6 +47,7 @@ from xdsl.transforms import (
     lower_snitch_runtime,
     mlir_opt,
     printf_to_llvm,
+    printf_to_putchar,
     reconcile_unrealized_casts,
     riscv_register_allocation,
 )
@@ -107,6 +108,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         lower_snitch_runtime.LowerSnitchRuntimePass,
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
+        printf_to_putchar.PrintfToPutcharPass,
         riscv_register_allocation.RISCVRegisterAllocation,
         RISCVLowerArith,
         LowerFuncToRiscvFunc,

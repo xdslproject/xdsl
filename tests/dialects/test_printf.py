@@ -58,3 +58,17 @@ def test_global_symbol_name_generation():
     s3 = printf_to_llvm._key_from_str(")")  # pyright: ignore[reportPrivateUsage]
 
     assert s2 == s3
+
+
+def test_printchar_non_ascii():
+    with pytest.raises(ValueError, match="Only ascii characters are supported"):
+        print_dialect.PrintCharOp.from_constant_char("🔥")
+
+
+def test_printchar_no_char():
+    string = "This should not work"
+    with pytest.raises(
+        ValueError,
+        match=f'Unexpected char value "{string}", input must be a single ascii character',
+    ):
+        print_dialect.PrintCharOp.from_constant_char(string)
