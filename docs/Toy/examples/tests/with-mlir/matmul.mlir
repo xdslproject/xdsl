@@ -1,3 +1,5 @@
+// RUN: python -m toy %s --emit=scf | filecheck %s
+
 "builtin.module"() ({
   "func.func"() ({
     %0 = "memref.alloc"() {"operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<2x2xf64>
@@ -35,7 +37,7 @@
         %cell = "affine.for"(%init) ({
         ^2(%k : index, %acc : f64):
             %17 = "affine.load"(%14, %15, %k) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (memref<2x3xf64>, index, index) -> f64
-            %18 = "affine.load"(%14, %k, %16) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (memref<2x3xf64>, index, index) -> f64
+            %18 = "affine.load"(%7, %k, %16) {"map" = affine_map<(d0, d1) -> (d0, d1)>} : (memref<3x2xf64>, index, index) -> f64
             %x = "arith.mulf"(%17, %18) : (f64, f64) -> f64
             %acc_new = "arith.addf"(%acc, %x) : (f64, f64) -> f64
             "affine.yield"(%acc_new) : (f64) -> ()
@@ -52,3 +54,5 @@
     "func.return"() : () -> ()
   }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
 }) : () -> ()
+
+// CHECK:       [[22.0, 28.0], [49.0, 64.0]]
