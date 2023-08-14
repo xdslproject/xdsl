@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Iterator, TypeAlias, TypeVar
+from typing import Any, Generic, TypeAlias, TypeVar
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, ModuleOp

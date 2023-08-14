@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from io import StringIO
-from typing import Any, Sequence, cast
+from typing import Any, cast
 
 import wgpu  # pyright: ignore
 import wgpu.utils  # pyright: ignore

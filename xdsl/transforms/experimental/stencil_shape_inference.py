@@ -1,4 +1,5 @@
-from typing import Iterable, TypeVar, cast
+from collections.abc import Iterable
+from typing import TypeVar, cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (

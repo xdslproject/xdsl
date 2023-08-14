@@ -1,6 +1,6 @@
 import hashlib
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from xdsl.dialects import arith, builtin, llvm, printf
 from xdsl.ir import Attribute, MLContext, Operation, SSAValue

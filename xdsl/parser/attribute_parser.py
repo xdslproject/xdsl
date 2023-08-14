@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, NoReturn, cast
+from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser.affine_parser as affine_parser
 from xdsl.dialects.builtin import (

@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from math import prod
-from typing import Any, Sequence, cast
+from typing import Any, cast
 
 from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_int_regs,

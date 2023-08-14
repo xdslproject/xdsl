@@ -1,5 +1,6 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, Literal, TypeVar
+from typing import Literal, TypeVar
 from warnings import warn
 
 from xdsl.dialects import arith, builtin, gpu, memref, scf

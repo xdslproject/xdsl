@@ -1,8 +1,8 @@
 import ast
 import importlib
 import inspect
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from xdsl.frontend.dialects.builtin import (
     _FrontendType,  # pyright: ignore[reportPrivateUsage]

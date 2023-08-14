@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
@@ -13,8 +14,6 @@ from typing import (
     ClassVar,
     Generic,
     Literal,
-    Mapping,
-    Sequence,
     TypeAlias,
     TypeVar,
     Union,

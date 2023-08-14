@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import ast
+from collections.abc import Callable
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
-from typing import Any, Callable, Generic, Literal, TypeAlias, TypeVar
+from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
 import pytest
 

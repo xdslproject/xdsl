@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Set
+from collections.abc import Mapping, Sequence, Set
 from io import StringIO
-from typing import IO, ClassVar, Sequence, TypeAlias
+from typing import IO, ClassVar, TypeAlias
 
 from typing_extensions import Self
 
