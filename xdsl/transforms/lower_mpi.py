@@ -271,7 +271,7 @@ class MpiLoweringPattern(RewritePattern):
             *comm_world_ops,
             *status_ignore_ops,
             llvm.CallOp(
-                "MPI_Send",
+                "MPI_Recv",
                 *op.operands,
                 comm_world,
                 status_ignore,
