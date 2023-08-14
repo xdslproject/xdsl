@@ -502,13 +502,11 @@ class MpiLoopInvariantCodeMotion:
         def match(op: Operation):
             if isinstance(
                 op,
-                (
-                    memref.Alloc,
-                    mpi.CommRank,
-                    mpi.AllocateTypeOp,
-                    mpi.UnwrapMemrefOp,
-                    mpi.Init,
-                ),
+                memref.Alloc
+                | mpi.CommRank
+                | mpi.AllocateTypeOp
+                | mpi.UnwrapMemrefOp
+                | mpi.Init,
             ):
                 worklist.append(op)
 
