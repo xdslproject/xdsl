@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, IntegerType, StringAttr

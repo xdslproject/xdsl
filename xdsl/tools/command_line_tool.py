@@ -1,8 +1,10 @@
 import argparse
 import os
 import sys
-from typing import IO, Callable
+from collections.abc import Callable
+from typing import IO
 
+from xdsl.backend.riscv import riscv_scf_to_asm
 from xdsl.backend.riscv.lowering import scf_to_riscv_scf
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
 from xdsl.backend.riscv.lowering.optimisation_riscv import OptimiseRiscvPass
@@ -47,6 +49,7 @@ from xdsl.transforms import (
     lower_snitch_runtime,
     mlir_opt,
     printf_to_llvm,
+    printf_to_putchar,
     reconcile_unrealized_casts,
     riscv_register_allocation,
 )
@@ -107,11 +110,13 @@ def get_all_passes() -> list[type[ModulePass]]:
         lower_snitch_runtime.LowerSnitchRuntimePass,
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
+        printf_to_putchar.PrintfToPutcharPass,
         riscv_register_allocation.RISCVRegisterAllocation,
         RISCVLowerArith,
         LowerFuncToRiscvFunc,
         OptimiseRiscvPass,
         scf_to_riscv_scf.ScfToRiscvPass,
+        riscv_scf_to_asm.LowerScfForToLabels,
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,

@@ -3,8 +3,9 @@ from __future__ import annotations
 import itertools
 import re
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Iterable, Sequence, cast
+from typing import Any, cast
 
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp, UnregisteredAttr
 from xdsl.ir import (
@@ -606,9 +607,7 @@ class Parser(AttrParser):
                 [
                     (
                         span,
-                        'reference to block "{}" without implementation'.format(
-                            span.text
-                        ),
+                        f'reference to block "{span.text}" without implementation',
                     )
                     for span in itertools.chain(*self.forward_block_references.values())
                 ],

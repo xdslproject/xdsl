@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-from xdsl.dialects import builtin
+from xdsl.dialects import arith, builtin
 from xdsl.ir import Dialect, Operation, SSAValue, VerifyException
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     VarOperand,
     attr_def,
     irdl_op_definition,
+    operand_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+
+i8 = builtin.IntegerType(8)
 
 
 @irdl_op_definition
@@ -85,9 +89,60 @@ class PrintFormatOp(IRDLOperation):
         return op
 
 
+@irdl_op_definition
+class PrintCharOp(IRDLOperation):
+    """
+    Print a single character
+
+    Equivalent to putchar in C, but uses signless bytes as input (instead of ui32).
+    Unlike the C implementation, this op does not return anything.
+    """
+
+    name = "printf.print_char"
+    char: Operand = operand_def(i8)
+
+    def __init__(self, char: SSAValue | Operation):
+        super().__init__(
+            operands=[char],
+        )
+
+    @staticmethod
+    def from_constant_char(char: str) -> PrintCharOp:
+        """
+        This constructor returns a PrintCharOp that prints the value supplied
+        in "char" as a python char.
+        """
+        if len(char) != 1:
+            raise ValueError(
+                f'Unexpected char value "{char}", input must be a single ascii character'
+            )
+        ascii_value = ord(char)
+        if ascii_value > 128:
+            raise ValueError("Only ascii characters are supported")
+        char_constant = arith.Constant.from_int_and_width(ascii_value, i8)
+        return PrintCharOp(char_constant)
+
+
+@irdl_op_definition
+class PrintIntOp(IRDLOperation):
+    """
+    Print a single Integer
+    """
+
+    name = "printf.print_int"
+    int: Operand = operand_def(builtin.IntegerType)
+
+    def __init__(self, integer: SSAValue | Operation):
+        super().__init__(
+            operands=[integer],
+        )
+
+
 Printf = Dialect(
     [
         PrintFormatOp,
+        PrintCharOp,
+        PrintIntOp,
     ],
     [],
 )

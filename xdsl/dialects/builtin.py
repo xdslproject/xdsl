@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -8,10 +9,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
-    Iterable,
-    Iterator,
-    Mapping,
-    Sequence,
     TypeAlias,
     TypeVar,
     cast,

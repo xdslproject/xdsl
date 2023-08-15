@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import (
@@ -145,7 +145,7 @@ class ParametersOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
-    traits = frozenset([HasParent((TypeOp, AttributeOp))])
+    traits = frozenset([HasParent(TypeOp, AttributeOp)])
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])

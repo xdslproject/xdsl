@@ -4,8 +4,9 @@ affine loops, memref operations and standard operations. This lowering
 expects that all calls have been inlined, and all shapes have been resolved.
 """
 
+from collections.abc import Callable, Sequence
 from itertools import product
-from typing import Callable, Sequence, TypeAlias, TypeVar, cast
+from typing import TypeAlias, TypeVar, cast
 
 from xdsl.builder import Builder
 from xdsl.dialects import affine, arith, func, memref

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable, NoReturn
+from typing import NoReturn
 
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import ModuleOp, TensorType, UnrankedTensorType, f64

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import Enum
 from types import EllipsisType
-from typing import Literal, Sequence
+from typing import Literal
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -920,7 +921,7 @@ class AddressOfOp(IRDLOperation):
         global_name: str | StringAttr | SymbolRefAttr,
         result_type: LLVMPointerType,
     ):
-        if isinstance(global_name, (StringAttr, str)):
+        if isinstance(global_name, StringAttr | str):
             global_name = SymbolRefAttr(global_name)
 
         super().__init__(

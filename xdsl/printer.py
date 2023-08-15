@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable, Sequence, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,

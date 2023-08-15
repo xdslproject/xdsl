@@ -1,12 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Generator, Iterable
 from dataclasses import dataclass, field
 from typing import (
     IO,
     Any,
-    Callable,
-    Generator,
-    Iterable,
     NamedTuple,
     ParamSpec,
     TypeAlias,

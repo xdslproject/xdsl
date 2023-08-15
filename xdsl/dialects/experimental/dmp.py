@@ -9,8 +9,8 @@ makes them run on node clusters.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from math import prod
-from typing import Sequence
 
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.ir import (

@@ -90,7 +90,7 @@ class LowerAffineForOp(RewritePattern):
                 isinstance(lhs_load, affine.Load)
                 and isinstance(rhs_load, affine.Load)
                 and isinstance(store, affine.Store)
-                and isinstance(binop, (arith.Addf, arith.Mulf))
+                and isinstance(binop, arith.Addf | arith.Mulf)
             ):
                 return
 

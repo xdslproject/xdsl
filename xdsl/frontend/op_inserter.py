@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List
 
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Block, Operation, Region, SSAValue
@@ -18,7 +17,7 @@ class OpInserter:
     appended.
     """
 
-    stack: List[SSAValue] = field(default_factory=list)
+    stack: list[SSAValue] = field(default_factory=list)
     """
     Stack to hold the intermediate results of operations. For each new
     operation, its operands will be popped from the stack.

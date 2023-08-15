@@ -19,6 +19,7 @@ class ToyAcceleratorInstructionFunctions(RiscvFunctions):
         super().__init__(
             module_op,
             custom_instructions={
+                "tensor.print1d": accelerator_tensor_print1d,
                 "tensor.print2d": accelerator_tensor_print2d,
                 "tensor.transpose2d": accelerator_tensor_transpose2d,
                 "buffer.alloc": accelerator_buffer_alloc,
@@ -34,6 +35,15 @@ def print_(
     interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
 ) -> PythonValues:
     interpreter.print(f"{args[0]}")
+    return ()
+
+
+def accelerator_tensor_print1d(
+    interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
+) -> PythonValues:
+    buffer, els = args
+    shaped_array = ShapedArray([float(value) for value in buffer.data], [els])
+    interpreter.print(f"{shaped_array}")
     return ()
 
 
