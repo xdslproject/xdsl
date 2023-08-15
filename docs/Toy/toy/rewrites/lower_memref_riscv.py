@@ -3,7 +3,8 @@ from math import prod
 from typing import Any, cast
 
 from xdsl.backend.riscv.lowering.utils import (
-    cast_operands_to_int_regs,
+    cast_operands_to_regs,
+    register_type_for_type,
 )
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
@@ -74,36 +75,50 @@ def insert_shape_ops(
 class LowerMemrefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
-        value, mem, *indices = cast_operands_to_int_regs(rewriter)
+        value, mem, *indices = cast_operands_to_regs(rewriter)
 
         assert isinstance(op.memref.type, memref.MemRefType)
         memref_typ = cast(memref.MemRefType[Any], op.memref.type)
         shape = memref_typ.get_shape()
 
         ptr = insert_shape_ops(mem, indices, shape, rewriter)
-        rewriter.replace_matched_op(
-            [
-                riscv.SwOp(
-                    ptr, value, 0, comment=f"store value to memref of shape {shape}"
-                ),
-            ]
-        )
+        if isinstance(value.type, riscv.IntRegisterType):
+            new_op = riscv.SwOp(
+                ptr, value, 0, comment=f"store int value to memref of shape {shape}"
+            )
+        else:
+            new_op = riscv.FSwOp(
+                ptr, value, 0, comment=f"store float value to memref of shape {shape}"
+            )
+        rewriter.replace_matched_op(new_op)
 
 
 class LowerMemrefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
-        mem, *indices = cast_operands_to_int_regs(rewriter)
+        mem, *indices = cast_operands_to_regs(rewriter)
 
         assert isinstance(op.memref.type, memref.MemRefType)
         memref_typ = cast(memref.MemRefType[Any], op.memref.type)
         shape = memref_typ.get_shape()
         ptr = insert_shape_ops(mem, indices, shape, rewriter)
+
+        result_register_type = register_type_for_type(op.res.type)
+        if result_register_type is None:
+            raise ValueError(f"Unknown register value for type {op.res.type}")
+
+        if result_register_type is riscv.IntRegisterType:
+            lw_op = riscv.LwOp(
+                ptr, 0, comment=f"load value from memref of shape {shape}"
+            )
+        else:
+            lw_op = riscv.FLwOp(
+                ptr, 0, comment=f"load value from memref of shape {shape}"
+            )
+
         rewriter.replace_matched_op(
             [
-                lw := riscv.LwOp(
-                    ptr, 0, comment=f"load value from memref of shape {shape}"
-                ),
+                lw := lw_op,
                 UnrealizedConversionCastOp.get(lw.results, (op.res.type,)),
             ],
         )

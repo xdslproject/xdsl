@@ -1,9 +1,23 @@
 from xdsl.dialects import builtin, riscv
-from xdsl.ir import Block, Operation, SSAValue
+from xdsl.ir import Attribute, Block, Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
 
 
-def cast_operands_to_int_regs(rewriter: PatternRewriter) -> list[SSAValue]:
+def register_type_for_type(
+    attr: Attribute,
+) -> type[riscv.IntRegisterType] | type[riscv.FloatRegisterType] | None:
+    """
+    Returns the appropriate register fype for a given input type, None if the input is
+    already a register.
+    """
+    if isinstance(attr, riscv.IntRegisterType | riscv.FloatRegisterType):
+        return None
+    if isinstance(attr, builtin.AnyFloat):
+        return riscv.FloatRegisterType
+    return riscv.IntRegisterType
+
+
+def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     """
     Add cast operations just before the targeted operation
     if the operands were not already int registers
@@ -13,31 +27,10 @@ def cast_operands_to_int_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     new_operands = list[SSAValue]()
 
     for operand in rewriter.current_operation.operands:
-        if not isinstance(operand.type, riscv.IntRegisterType):
+        new_type = register_type_for_type(operand.type)
+        if new_type is not None:
             cast_op = builtin.UnrealizedConversionCastOp.get(
-                (operand,), (riscv.IntRegisterType.unallocated(),)
-            )
-            new_ops.append(cast_op)
-            operand = cast_op.results[0]
-        new_operands.append(operand)
-
-    rewriter.insert_op_before_matched_op(new_ops)
-    return new_operands
-
-
-def cast_operands_to_float_regs(rewriter: PatternRewriter) -> list[SSAValue]:
-    """
-    Add cast operations just before the targeted operation
-    if the operands were not already float registers
-    """
-
-    new_ops = list[Operation]()
-    new_operands = list[SSAValue]()
-
-    for operand in rewriter.current_operation.operands:
-        if not isinstance(operand.type, riscv.FloatRegisterType):
-            cast_op = builtin.UnrealizedConversionCastOp.get(
-                (operand,), (riscv.FloatRegisterType.unallocated(),)
+                (operand,), (new_type.unallocated(),)
             )
             new_ops.append(cast_op)
             operand = cast_op.results[0]

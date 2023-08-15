@@ -1,7 +1,7 @@
 from xdsl.backend.riscv.lowering.utils import (
     cast_block_args_to_int_regs,
     cast_matched_op_results,
-    cast_operands_to_int_regs,
+    cast_operands_to_regs,
 )
 from xdsl.builder import Builder
 from xdsl.dialects import builtin, riscv, test
@@ -60,7 +60,7 @@ def test_op_cast_utils():
     target_op = next(filter(lambda op: len(op.results) == 2, input.walk()))
     assert target_op is not None
     rewriter = PatternRewriter(target_op)
-    (first_arg_cast, second_arg_cast) = cast_operands_to_int_regs(rewriter)
+    (first_arg_cast, second_arg_cast) = cast_operands_to_regs(rewriter)
     cast_matched_op_results(rewriter)
     lowered_op = riscv.CustomAssemblyInstructionOp(
         "foo", (first_arg_cast, second_arg_cast), (REGISTER_TYPE, REGISTER_TYPE)

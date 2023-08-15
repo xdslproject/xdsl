@@ -15,6 +15,7 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.comparisons import to_signed, to_unsigned
 from xdsl.ir.core import Operation
+from xdsl.utils.bitwise_casts import convert_i32_to_float
 from xdsl.utils.exceptions import InterpretationError
 
 _T = TypeVar("_T")
@@ -215,6 +216,48 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         return ()
+
+    # region F extension
+
+    @impl(riscv.FMulSOp)
+    def run_fmul(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMulSOp,
+        args: tuple[Any, ...],
+    ):
+        return (args[0] * args[1],)
+
+    @impl(riscv.FCvtSWOp)
+    def run_fcvt_s_w(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FCvtSWOp,
+        args: tuple[Any, ...],
+    ):
+        return (convert_i32_to_float(args[0]),)
+
+    @impl(riscv.FSwOp)
+    def run_fsw(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FSwOp,
+        args: tuple[Any, ...],
+    ):
+        args[0][op.immediate.value.data] = args[1]
+        return ()
+
+    @impl(riscv.FLwOp)
+    def run_flw(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FLwOp,
+        args: tuple[Any, ...],
+    ):
+        offset = self.get_immediate_value(op, op.immediate)
+        return (args[0][offset],)
+
+    # endregion
 
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(

@@ -1,10 +1,8 @@
-import ctypes
 from typing import overload
 
 from xdsl.backend.riscv.lowering.utils import (
     cast_matched_op_results,
-    cast_operands_to_float_regs,
-    cast_operands_to_int_regs,
+    cast_operands_to_regs,
 )
 from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
@@ -26,18 +24,10 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.dead_code_elimination import dce
+from xdsl.utils.bitwise_casts import convert_float_to_int
 
 _INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 _FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
-
-
-def convert_float_to_int(value: float) -> int:
-    """
-    Convert an IEEE 754 float to a raw integer representation, useful for loading constants.
-    """
-    raw_float = ctypes.c_float(value)
-    raw_int = ctypes.c_int.from_address(ctypes.addressof(raw_float)).value
-    return raw_int
 
 
 class LowerArithConstant(RewritePattern):
@@ -223,7 +213,7 @@ class LowerArithCmpi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpi, rewriter: PatternRewriter) -> None:
         # based on https://github.com/llvm/llvm-project/blob/main/llvm/test/CodeGen/RISCV/i32-icmp.ll
-        lhs, rhs = cast_operands_to_int_regs(rewriter)
+        lhs, rhs = cast_operands_to_regs(rewriter)
         cast_matched_op_results(rewriter)
 
         match op.predicate.value.data:
@@ -316,7 +306,7 @@ class LowerArithCmpf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpf, rewriter: PatternRewriter) -> None:
         # https://llvm.org/docs/LangRef.html#id309
-        lhs, rhs = cast_operands_to_float_regs(rewriter)
+        lhs, rhs = cast_operands_to_regs(rewriter)
         cast_matched_op_results(rewriter)
 
         match op.predicate.value.data:
