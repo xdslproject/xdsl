@@ -4,6 +4,7 @@ import sys
 from collections.abc import Callable
 from typing import IO
 
+from xdsl.backend.riscv import riscv_scf_to_asm
 from xdsl.backend.riscv.lowering import scf_to_riscv_scf
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
 from xdsl.backend.riscv.lowering.optimisation_riscv import OptimiseRiscvPass
@@ -115,6 +116,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         LowerFuncToRiscvFunc,
         OptimiseRiscvPass,
         scf_to_riscv_scf.ScfToRiscvPass,
+        riscv_scf_to_asm.LowerScfForToLabels,
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
