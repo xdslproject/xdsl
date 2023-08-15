@@ -1,4 +1,4 @@
-from typing import Iterator, Sequence
+from collections.abc import Iterator, Sequence
 
 from xdsl.dialects import builtin, riscv, riscv_scf
 from xdsl.ir import MLContext, SSAValue
