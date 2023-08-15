@@ -27,7 +27,7 @@ builtin.module {
 // CHECK-NEXT:      %4 = riscv.li 1 : () -> !riscv.reg<a2>
 // CHECK-NEXT:      %5 = riscv.li 0 : () -> !riscv.reg<a3>
 // CHECK-NEXT:      %6 = riscv.fcvt.s.w %5 : (!riscv.reg<a3>) -> !riscv.freg<fa0>
-// CHECK-NEXT:      %7 = riscv.get_register : () -> !riscv.reg<a0>
+// CHECK-NEXT:      %7 = riscv.mv %2 : (!riscv.reg<a0>) -> !riscv.reg<a0>
 // CHECK-NEXT:      riscv.label "scf_cond_0_for" ({
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      riscv.bge %7, %3, "scf_body_end_0_for" : (!riscv.reg<a0>, !riscv.reg<a1>) -> ()
@@ -77,7 +77,7 @@ builtin.module {
 // CHECK-NEXT:      %0 = riscv.li 0 : () -> !riscv.reg<a1>
 // CHECK-NEXT:      %1 = riscv.li 0 : () -> !riscv.reg<a2>
 // CHECK-NEXT:      %2 = riscv.li 1 : () -> !riscv.reg<a3>
-// CHECK-NEXT:      %3 = riscv.get_register : () -> !riscv.reg<a2>
+// CHECK-NEXT:      %3 = riscv.mv %1 : (!riscv.reg<a2>) -> !riscv.reg<a2>
 // CHECK-NEXT:      riscv.label "scf_cond_0_for" ({
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      riscv.bge %3, %arg0, "scf_body_end_0_for" : (!riscv.reg<a2>, !riscv.reg<a0>) -> ()
@@ -87,7 +87,7 @@ builtin.module {
 // CHECK-NEXT:      %arg1 = riscv.get_register : () -> !riscv.reg<a2>
 // CHECK-NEXT:      %4 = riscv.li 0 : () -> !riscv.reg<a4>
 // CHECK-NEXT:      %5 = riscv.li 1 : () -> !riscv.reg<a5>
-// CHECK-NEXT:      %6 = riscv.get_register : () -> !riscv.reg<a4>
+// CHECK-NEXT:      %6 = riscv.mv %4 : (!riscv.reg<a4>) -> !riscv.reg<a4>
 // CHECK-NEXT:      riscv.label "scf_cond_1_for" ({
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      riscv.bge %6, %arg0, "scf_body_end_1_for" : (!riscv.reg<a4>, !riscv.reg<a0>) -> ()
