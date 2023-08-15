@@ -194,17 +194,78 @@ class RegisterAllocatorJRegs(RegisterAllocator):
         """
         for op in module.walk():
             if isinstance(op, riscv_scf.ForOp):
-                for i, arg in enumerate(op.body.block.args):
-                    assert isinstance(arg.type, IntRegisterType)
-                    if not arg.type.is_allocated:
-                        arg.type = IntRegisterType(f"j{self.idx}")
+                yield_op = op.body.block.last_op
+                assert (
+                    yield_op is not None
+                ), "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
+                block_args = op.body.block.args
+
+                # Induction variable
+                assert isinstance(block_args[0].type, IntRegisterType)
+                if not block_args[0].type.is_allocated:
+                    block_args[0].type = IntRegisterType(f"j{self.idx}")
+                    self.idx += 1
+
+                # The loop-carried variables are trickier
+                # The for op operand, block arg, and yield operand must have the same type
+                for i, (block_arg, operand, yield_operand, op_result) in enumerate(
+                    zip(block_args[1:], op.iter_args, yield_op.operands, op.results)
+                ):
+                    # TODO: instead of checking that they're all the same, check whether they are all None, or if all the not-None are the same reg.
+                    # if some allocated then assign all to that type, otherwise get new j reg
+                    assert isinstance(block_arg.type, IntRegisterType)
+                    assert isinstance(operand.type, IntRegisterType)
+                    assert isinstance(yield_operand.type, IntRegisterType)
+                    assert isinstance(op_result.type, IntRegisterType)
+
+                    shared_type: IntRegisterType | None = None
+                    if block_arg.type.is_allocated:
+                        shared_type = block_arg.type
+
+                    if operand.type.is_allocated:
+                        if shared_type is not None:
+                            if shared_type != operand.type:
+                                raise ValueError(
+                                    "Operand iteration variable types must match: "
+                                    f"operand {i} type: {operand.type}, block argument {i+1} "
+                                    f"type: {block_arg.type}, yield operand {0} type: "
+                                    f"{yield_operand.type}"
+                                )
+                        else:
+                            shared_type = operand.type
+
+                    if yield_operand.type.is_allocated:
+                        if shared_type is not None:
+                            if shared_type != yield_operand.type:
+                                raise ValueError(
+                                    "Operand iteration variable types must match: "
+                                    f"operand {i} type: {operand.type}, block argument {i+1} "
+                                    f"type: {block_arg.type}, yield operand {0} type: "
+                                    f"{yield_operand.type}"
+                                )
+                        else:
+                            shared_type = yield_operand.type
+
+                    if op_result.type.is_allocated:
+                        if shared_type is not None:
+                            if shared_type != op_result.type:
+                                raise ValueError(
+                                    "Operand iteration variable types must match: "
+                                    f"operand {i} type: {operand.type}, block argument {i+1} "
+                                    f"type: {block_arg.type}, yield operand {0} type: "
+                                    f"{yield_operand.type}"
+                                )
+                        else:
+                            shared_type = op_result.type
+
+                    if shared_type is None:
+                        shared_type = IntRegisterType(f"j{self.idx}")
                         self.idx += 1
 
-                        if i:
-                            op.iter_args[i - 1].type = arg.type
-                            assert op.body.block.last_op is not None
-                            op.body.block.last_op.operands[i - 1].type = arg.type
-                            op.results[i - 1].type = arg.type
+                    block_arg.type = shared_type
+                    operand.type = shared_type
+                    yield_operand.type = shared_type
+                    op_result.type = shared_type
 
             # Do not allocate registers on non-RISCV-ops
             if not isinstance(op, RISCVOp):
