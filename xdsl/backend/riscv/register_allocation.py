@@ -194,11 +194,16 @@ class RegisterAllocatorJRegs(RegisterAllocator):
         """
         for op in module.walk():
             if isinstance(op, riscv_scf.ForOp):
-                for arg in op.body.block.args:
+                for i, arg in enumerate(op.body.block.args):
                     assert isinstance(arg.type, IntRegisterType)
                     if not arg.type.is_allocated:
                         arg.type = IntRegisterType(f"j{self.idx}")
                         self.idx += 1
+
+                        if i:
+                            op.iter_args[i - 1].type = arg.type
+                            assert op.body.block.last_op is not None
+                            op.body.block.last_op.operands[i - 1].type = arg.type
 
             # Do not allocate registers on non-RISCV-ops
             if not isinstance(op, RISCVOp):
