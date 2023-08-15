@@ -1,4 +1,4 @@
-from typing import Iterator, Sequence
+from collections.abc import Iterator, Sequence
 
 from xdsl.dialects import builtin, riscv, riscv_scf
 from xdsl.ir import MLContext, SSAValue
@@ -53,7 +53,7 @@ class LowerRiscvScfToLabels(RewritePattern):
         # upper bound and branching to the loop body if the condition is met.
         rewriter.insert_op_before_matched_op(
             [
-                get_loop_var := riscv.GetRegisterOp(loop_var_reg),
+                get_loop_var := riscv.MVOp(op.lb, rd=loop_var_reg),
                 riscv.LabelOp(scf_cond),
                 riscv.BgeOp(get_loop_var, op.ub, scf_body_end),
                 riscv.LabelOp(scf_body),

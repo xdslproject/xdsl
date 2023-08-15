@@ -92,7 +92,7 @@ class ForOp(IRDLOperation):
         ):
             if block_arg.type != arg.type:
                 raise VerifyException(
-                    f"Block arguments at {idx} has wrong type, expected {arg.type}, "
+                    f"Block argument {idx + 1} has wrong type, expected {arg.type}, "
                     f"got {block_arg.type}. Arguments after the "
                     f"induction variable must match the carried variables."
                 )
