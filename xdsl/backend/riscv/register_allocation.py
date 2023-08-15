@@ -204,6 +204,7 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                             op.iter_args[i - 1].type = arg.type
                             assert op.body.block.last_op is not None
                             op.body.block.last_op.operands[i - 1].type = arg.type
+                            op.results[i - 1].type = arg.type
 
             # Do not allocate registers on non-RISCV-ops
             if not isinstance(op, RISCVOp):
