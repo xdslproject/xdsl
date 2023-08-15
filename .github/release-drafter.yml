@@ -13,6 +13,8 @@ categories:
     label: 'transformations'
   - title: 'Backend'
     label: 'backend'
+  - title: 'Interpreter'
+    label: 'interpreter'
   - title: 'API'
     label: 'API'
   - title: 'Examples/Tutorials'
