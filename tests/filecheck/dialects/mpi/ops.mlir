@@ -8,13 +8,9 @@
 
         %rank = mpi.comm.rank : i32
 
-        %ptr, %size, %typ = "mpi.mlir.unwrap_memref"(%ref) : (memref<100xf32>) -> (!llvm.ptr, i32, !mpi.datatype)
+        "mpi.send"(%ref, %dest, %tag) : (memref<100xf32>, i32, i32) -> ()
 
-        %typ_i32 = mpi.mlir.get_dtype of i32 -> !mpi.datatype
-
-        "mpi.send"(%ptr, %size, %typ, %dest, %tag) : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> ()
-
-        "mpi.recv"(%ptr, %size, %typ, %dest, %tag) : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> ()
+        "mpi.recv"(%ref, %dest, %tag) : (memref<100xf32>, i32, i32) -> ()
 
         mpi.finalize
 
@@ -23,17 +19,15 @@
 }) : () -> ()
 
 
-// CHECK:      mpi.init
-// CHECK-NEXT: %rank = mpi.comm.rank : i32
-// CHECK-NEXT: %ptr, %size, %typ = "mpi.mlir.unwrap_memref"(%ref) : (memref<100xf32>) -> (!llvm.ptr, i32, !mpi.datatype)
-// CHECK-NEXT: %typ_i32 = mpi.mlir.get_dtype of i32 -> !mpi.datatype
-// CHECK-NEXT: "mpi.send"(%ptr, %size, %typ, %dest, %tag) : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> ()
-// CHECK-NEXT: "mpi.recv"(%ptr, %size, %typ, %dest, %tag) : (!llvm.ptr, i32, !mpi.datatype, i32, i32) -> ()
-// CHECK-NEXT: mpi.finalize
-// CHECK-NEXT: func.return
+//CHECK:         mpi.init
+//CHECK-NEXT:    %rank = mpi.comm.rank : i32
+//CHECK-NEXT:    "mpi.send"(%ref, %dest, %tag) : (memref<100xf32>, i32, i32) -> ()
+//CHECK-NEXT:    "mpi.recv"(%ref, %dest, %tag) : (memref<100xf32>, i32, i32) -> ()
+//CHECK-NEXT:    mpi.finalize
+//CHECK-NEXT:    func.return
 
 
-// OMPI: builtin.module {
+// OMPI:      builtin.module {
 // OMPI-NEXT:   func.func @mpi_example(%ref : memref<100xf32>, %dest : i32, %tag : i32) {
 // OMPI-NEXT:     %0 = "llvm.mlir.null"() : () -> !llvm.ptr
 // OMPI-NEXT:     %1 = "llvm.call"(%0, %0) {"callee" = @MPI_Init, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, !llvm.ptr) -> i32
@@ -42,24 +36,28 @@
 // OMPI-NEXT:     %rank_2 = "llvm.alloca"(%rank_1) {"alignment" = 32 : i64, "elem_type" = i32} : (i64) -> !llvm.ptr
 // OMPI-NEXT:     %rank_3 = "llvm.call"(%rank, %rank_2) {"callee" = @MPI_Comm_rank, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, !llvm.ptr) -> i32
 // OMPI-NEXT:     %rank_4 = "llvm.load"(%rank_2) : (!llvm.ptr) -> i32
-// OMPI-NEXT:     %ptr = "llvm.mlir.null"() : () -> !llvm.ptr
-// OMPI-NEXT:     %ptr_1 = arith.constant 100 : i32
-// OMPI-NEXT:     %ptr_2 = "llvm.mlir.addressof"() {"global_name" = @ompi_mpi_float} : () -> !llvm.ptr
-// OMPI-NEXT:     %typ_i32 = "llvm.mlir.addressof"() {"global_name" = @ompi_mpi_int} : () -> !llvm.ptr
-// OMPI-NEXT:     %2 = "llvm.mlir.addressof"() {"global_name" = @ompi_mpi_comm_world} : () -> !llvm.ptr
-// OMPI-NEXT:     %3 = "llvm.call"(%ptr, %ptr_1, %ptr_2, %dest, %tag, %2) {"callee" = @MPI_Send, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, i32, !llvm.ptr, i32, i32, !llvm.ptr) -> i32
-// OMPI-NEXT:     %4 = "llvm.mlir.addressof"() {"global_name" = @ompi_mpi_comm_world} : () -> !llvm.ptr
-// OMPI-NEXT:     %5 = "llvm.mlir.null"() : () -> !llvm.ptr
-// OMPI-NEXT:     %6 = "llvm.call"(%ptr, %ptr_1, %ptr_2, %dest, %tag, %4, %5) {"callee" = @MPI_Send, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, i32, !llvm.ptr, i32, i32, !llvm.ptr, !llvm.ptr) -> i32
-// OMPI-NEXT:     %7 = "llvm.call"() {"callee" = @MPI_Finalize, "fastmathFlags" = #llvm.fastmath<none>} : () -> i32
+// OMPI-NEXT:     %2 = "memref.extract_aligned_pointer_as_index"(%ref) : (memref<100xf32>) -> index
+// OMPI-NEXT:     %3 = "arith.index_cast"(%2) : (index) -> i64
+// OMPI-NEXT:     %4 = "llvm.inttoptr"(%3) : (i64) -> !llvm.ptr
+// OMPI-NEXT:     %5 = arith.constant 100 : i32
+// OMPI-NEXT:     %6 = "llvm.mlir.addressof"() {"global_name" = @ompi_mpi_float} : () -> !llvm.ptr
+// OMPI-NEXT:     %7 = "llvm.mlir.addressof"() {"global_name" = @ompi_mpi_comm_world} : () -> !llvm.ptr
+// OMPI-NEXT:     %8 = "llvm.call"(%4, %5, %6, %dest, %tag, %7) {"callee" = @MPI_Send, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, i32, !llvm.ptr, i32, i32, !llvm.ptr) -> i32
+// OMPI-NEXT:     %9 = "memref.extract_aligned_pointer_as_index"(%ref) : (memref<100xf32>) -> index
+// OMPI-NEXT:     %10 = "arith.index_cast"(%9) : (index) -> i64
+// OMPI-NEXT:     %11 = "llvm.inttoptr"(%10) : (i64) -> !llvm.ptr
+// OMPI-NEXT:     %12 = arith.constant 100 : i32
+// OMPI-NEXT:     %13 = "llvm.mlir.addressof"() {"global_name" = @ompi_mpi_float} : () -> !llvm.ptr
+// OMPI-NEXT:     %14 = "llvm.mlir.addressof"() {"global_name" = @ompi_mpi_comm_world} : () -> !llvm.ptr
+// OMPI-NEXT:     %15 = "llvm.mlir.null"() : () -> !llvm.ptr
+// OMPI-NEXT:     %16 = "llvm.call"(%11, %12, %13, %dest, %tag, %14, %15) {"callee" = @MPI_Recv, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, i32, !llvm.ptr, i32, i32, !llvm.ptr, !llvm.ptr) -> i32
+// OMPI-NEXT:     %17 = "llvm.call"() {"callee" = @MPI_Finalize, "fastmathFlags" = #llvm.fastmath<none>} : () -> i32
 // OMPI-NEXT:     func.return
 // OMPI-NEXT:   }
 // OMPI-NEXT:   "llvm.mlir.global"() ({
 // OMPI-NEXT:   }) {"global_type" = i32, "sym_name" = "ompi_mpi_comm_world", "linkage" = #llvm.linkage<"external">, "addr_space" = 0 : i32} : () -> ()
 // OMPI-NEXT:   "llvm.mlir.global"() ({
 // OMPI-NEXT:   }) {"global_type" = i32, "sym_name" = "ompi_mpi_float", "linkage" = #llvm.linkage<"external">, "addr_space" = 0 : i32} : () -> ()
-// OMPI-NEXT:   "llvm.mlir.global"() ({
-// OMPI-NEXT:   }) {"global_type" = i32, "sym_name" = "ompi_mpi_int", "linkage" = #llvm.linkage<"external">, "addr_space" = 0 : i32} : () -> ()
 // OMPI-NEXT:   "llvm.func"() ({
 // OMPI-NEXT:   }) {"sym_name" = "MPI_Init", "function_type" = !llvm.func<i32 (!llvm.ptr, !llvm.ptr)>, "CConv" = #llvm.cconv<ccc>, "linkage" = #llvm.linkage<"external">, "visibility_" = 0 : i64} : () -> ()
 // OMPI-NEXT:   "llvm.func"() ({
@@ -67,11 +65,14 @@
 // OMPI-NEXT:   "llvm.func"() ({
 // OMPI-NEXT:   }) {"sym_name" = "MPI_Send", "function_type" = !llvm.func<i32 (!llvm.ptr, i32, !llvm.ptr, i32, i32, !llvm.ptr)>, "CConv" = #llvm.cconv<ccc>, "linkage" = #llvm.linkage<"external">, "visibility_" = 0 : i64} : () -> ()
 // OMPI-NEXT:   "llvm.func"() ({
+// OMPI-NEXT:   }) {"sym_name" = "MPI_Recv", "function_type" = !llvm.func<i32 (!llvm.ptr, i32, !llvm.ptr, i32, i32, !llvm.ptr, !llvm.ptr)>, "CConv" = #llvm.cconv<ccc>, "linkage" = #llvm.linkage<"external">, "visibility_" = 0 : i64} : () -> ()
+// OMPI-NEXT:   "llvm.func"() ({
 // OMPI-NEXT:   }) {"sym_name" = "MPI_Finalize", "function_type" = !llvm.func<i32 ()>, "CConv" = #llvm.cconv<ccc>, "linkage" = #llvm.linkage<"external">, "visibility_" = 0 : i64} : () -> ()
 // OMPI-NEXT: }
 
 
-// MPICH: builtin.module {
+
+// MPICH:      builtin.module {
 // MPICH-NEXT:   func.func @mpi_example(%ref : memref<100xf32>, %dest : i32, %tag : i32) {
 // MPICH-NEXT:     %0 = "llvm.mlir.null"() : () -> !llvm.ptr
 // MPICH-NEXT:     %1 = "llvm.call"(%0, %0) {"callee" = @MPI_Init, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, !llvm.ptr) -> i32
@@ -80,16 +81,22 @@
 // MPICH-NEXT:     %rank_2 = "llvm.alloca"(%rank_1) {"alignment" = 32 : i64, "elem_type" = i32} : (i64) -> !llvm.ptr
 // MPICH-NEXT:     %rank_3 = "llvm.call"(%rank, %rank_2) {"callee" = @MPI_Comm_rank, "fastmathFlags" = #llvm.fastmath<none>} : (i32, !llvm.ptr) -> i32
 // MPICH-NEXT:     %rank_4 = "llvm.load"(%rank_2) : (!llvm.ptr) -> i32
-// MPICH-NEXT:     %ptr = "llvm.mlir.null"() : () -> !llvm.ptr
-// MPICH-NEXT:     %ptr_1 = arith.constant 100 : i32
-// MPICH-NEXT:     %ptr_2 = arith.constant 1275069450 : i32
-// MPICH-NEXT:     %typ_i32 = arith.constant 1275069445 : i32
-// MPICH-NEXT:     %2 = arith.constant 1140850688 : i32
-// MPICH-NEXT:     %3 = "llvm.call"(%ptr, %ptr_1, %ptr_2, %dest, %tag, %2) {"callee" = @MPI_Send, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, i32, i32, i32, i32, i32) -> i32
-// MPICH-NEXT:     %4 = arith.constant 1140850688 : i32
-// MPICH-NEXT:     %5 = arith.constant 1 : i32
-// MPICH-NEXT:     %6 = "llvm.call"(%ptr, %ptr_1, %ptr_2, %dest, %tag, %4, %5) {"callee" = @MPI_Send, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, i32, i32, i32, i32, i32, i32) -> i32
-// MPICH-NEXT:     %7 = "llvm.call"() {"callee" = @MPI_Finalize, "fastmathFlags" = #llvm.fastmath<none>} : () -> i32
+// MPICH-NEXT:     %2 = "memref.extract_aligned_pointer_as_index"(%ref) : (memref<100xf32>) -> index
+// MPICH-NEXT:     %3 = "arith.index_cast"(%2) : (index) -> i64
+// MPICH-NEXT:     %4 = "llvm.inttoptr"(%3) : (i64) -> !llvm.ptr
+// MPICH-NEXT:     %5 = arith.constant 100 : i32
+// MPICH-NEXT:     %6 = arith.constant 1275069450 : i32
+// MPICH-NEXT:     %7 = arith.constant 1140850688 : i32
+// MPICH-NEXT:     %8 = "llvm.call"(%4, %5, %6, %dest, %tag, %7) {"callee" = @MPI_Send, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, i32, i32, i32, i32, i32) -> i32
+// MPICH-NEXT:     %9 = "memref.extract_aligned_pointer_as_index"(%ref) : (memref<100xf32>) -> index
+// MPICH-NEXT:     %10 = "arith.index_cast"(%9) : (index) -> i64
+// MPICH-NEXT:     %11 = "llvm.inttoptr"(%10) : (i64) -> !llvm.ptr
+// MPICH-NEXT:     %12 = arith.constant 100 : i32
+// MPICH-NEXT:     %13 = arith.constant 1275069450 : i32
+// MPICH-NEXT:     %14 = arith.constant 1140850688 : i32
+// MPICH-NEXT:     %15 = arith.constant 1 : i32
+// MPICH-NEXT:     %16 = "llvm.call"(%11, %12, %13, %dest, %tag, %14, %15) {"callee" = @MPI_Recv, "fastmathFlags" = #llvm.fastmath<none>} : (!llvm.ptr, i32, i32, i32, i32, i32, i32) -> i32
+// MPICH-NEXT:     %17 = "llvm.call"() {"callee" = @MPI_Finalize, "fastmathFlags" = #llvm.fastmath<none>} : () -> i32
 // MPICH-NEXT:     func.return
 // MPICH-NEXT:   }
 // MPICH-NEXT:   "llvm.func"() ({
@@ -98,6 +105,8 @@
 // MPICH-NEXT:   }) {"sym_name" = "MPI_Comm_rank", "function_type" = !llvm.func<i32 (i32, !llvm.ptr)>, "CConv" = #llvm.cconv<ccc>, "linkage" = #llvm.linkage<"external">, "visibility_" = 0 : i64} : () -> ()
 // MPICH-NEXT:   "llvm.func"() ({
 // MPICH-NEXT:   }) {"sym_name" = "MPI_Send", "function_type" = !llvm.func<i32 (!llvm.ptr, i32, i32, i32, i32, i32)>, "CConv" = #llvm.cconv<ccc>, "linkage" = #llvm.linkage<"external">, "visibility_" = 0 : i64} : () -> ()
+// MPICH-NEXT:   "llvm.func"() ({
+// MPICH-NEXT:   }) {"sym_name" = "MPI_Recv", "function_type" = !llvm.func<i32 (!llvm.ptr, i32, i32, i32, i32, i32, i32)>, "CConv" = #llvm.cconv<ccc>, "linkage" = #llvm.linkage<"external">, "visibility_" = 0 : i64} : () -> ()
 // MPICH-NEXT:   "llvm.func"() ({
 // MPICH-NEXT:   }) {"sym_name" = "MPI_Finalize", "function_type" = !llvm.func<i32 ()>, "CConv" = #llvm.cconv<ccc>, "linkage" = #llvm.linkage<"external">, "visibility_" = 0 : i64} : () -> ()
 // MPICH-NEXT: }

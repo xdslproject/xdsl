@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import ClassVar
 
-from xdsl.dialects import arith, builtin, llvm, mpi
+from xdsl.dialects import arith, builtin, llvm, memref, mpi
 from xdsl.ir import Attribute, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -102,7 +102,7 @@ class MPITargetInfo(ABC):
         pass
 
     @abstractmethod
-    def materilaize_type(self, type: Attribute) -> tuple[list[Operation], SSAValue]:
+    def materialize_type(self, type: Attribute) -> tuple[list[Operation], SSAValue]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -118,7 +118,7 @@ class MpichTargetInfo(MPITargetInfo):
     name = "mpich"
     constants: MpichLibraryInfo = MpichLibraryInfo()
 
-    def materilaize_type(self, typ: Attribute):
+    def materialize_type(self, typ: Attribute):
         return [
             res := arith.Constant.from_int_and_width(
                 self._type_to_magic_number(typ), 32
@@ -157,7 +157,7 @@ class OpenMPITargetInfo(MPITargetInfo):
         super().__init__()
         self.seen_globals = set()
 
-    def materilaize_type(self, typ: Attribute):
+    def materialize_type(self, typ: Attribute):
         name = self._type_to_global_name(typ)
         self.seen_globals.add(name)
         return [
@@ -210,14 +210,20 @@ class MpiLoweringPattern(RewritePattern):
             case mpi.FinalizeOp():
                 rewriter.replace_matched_op(self.lower_finalize(), [])
             case mpi.GetDtypeOp(dtype=typ):
-                ops, res = self.target.materilaize_type(typ)
+                ops, res = self.target.materialize_type(typ)
                 rewriter.replace_matched_op(ops, [res])
             case mpi.UnwrapMemrefOp() as unw:
                 rewriter.replace_matched_op(*self.lower_unwrap_memref(unw))
             case mpi.SendOp() as send:
-                rewriter.replace_matched_op(self.lower_send(send), [])
+                assert isinstance(send, mpi.SendOp)
+                conv = mpi.UnwrapMemrefOp(send.buffer)
+                send.operands = [*conv.results, *send.operands[1:]]
+                rewriter.replace_matched_op([conv] + self.lower_send(send), [])
             case mpi.RecvOp() as recv:
-                rewriter.replace_matched_op(self.lower_recv(recv), [])
+                assert isinstance(recv, mpi.RecvOp)
+                conv = mpi.UnwrapMemrefOp(recv.buffer)
+                recv.operands = [*conv.results, *recv.operands[1:]]
+                rewriter.replace_matched_op([conv] + self.lower_recv(recv), [])
             case mpi.CommRankOp():
                 rewriter.replace_matched_op(*self.lower_comm_rank())
 
@@ -246,10 +252,12 @@ class MpiLoweringPattern(RewritePattern):
         self, op: mpi.UnwrapMemrefOp
     ) -> tuple[list[Operation], list[SSAValue]]:
         return [
-            ptr := llvm.NullOp(),
+            index := memref.ExtractAlignedPointerAsIndexOp.get(op.ref),
+            i64 := arith.IndexCastOp(index, builtin.i64),
+            ptr := llvm.IntToPtrOp(i64),
             size := arith.Constant.from_int_and_width(op.ref.type.element_count(), 32),
             dtype := mpi.GetDtypeOp(op.ref.type.get_element_type()),
-        ], [ptr.nullptr, size.result, dtype.result]
+        ], [ptr.output, size.result, dtype.result]
 
     def lower_send(self, op: mpi.SendOp):
         comm_world_ops, comm_world = self.target.materialize_named_constant(

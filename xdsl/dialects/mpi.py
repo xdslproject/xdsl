@@ -68,17 +68,11 @@ class SendOp(MPIBaseOp):
         - tag: Message tag (integer).
         - comm: Communicator (handle).
 
-    ## Our Abstraction:
-
-        - We omit the possibility of using multiple communicators, defaulting
-          to MPI_COMM_WORLD
     """
 
     name = "mpi.send"
 
-    buffer: Operand = operand_def(Attribute)
-    count: Operand = operand_def(i32)
-    datatype: Operand = operand_def(DataType)
+    buffer: Operand = operand_def(MemRefType[Attribute])
     dest: Operand = operand_def(i32)
     tag: Operand = operand_def(i32)
 
@@ -88,13 +82,11 @@ class SendOp(MPIBaseOp):
     def __init__(
         self,
         buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
         dest: SSAValue | Operation,
         tag: SSAValue | Operation,
     ):
         super().__init__(
-            operands=[buffer, count, datatype, dest, tag],
+            operands=[buffer, dest, tag],
             result_types=[],
         )
 
@@ -118,30 +110,22 @@ class RecvOp(MPIBaseOp):
         - comm: Communicator (handle).
         - status: status object (Status).
 
-    ## Our Abstractions:
-
-        - We omit the possibility of using multiple communicators, defaulting
-          to MPI_COMM_WORLD
     """
 
     name = "mpi.recv"
 
-    buffer: Operand = operand_def(Attribute)
-    count: Operand = operand_def(i32)
-    datatype: Operand = operand_def(DataType)
+    buffer: Operand = operand_def(MemRefType[Attribute])
     source: Operand = operand_def(i32)
     tag: Operand = operand_def(i32)
 
     def __init__(
         self,
         buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
         source: SSAValue | Operation,
         tag: SSAValue | Operation,
     ):
         super().__init__(
-            operands=[buffer, count, datatype, source, tag],
+            operands=[buffer, source, tag],
             result_types=[],
         )
 
@@ -149,7 +133,7 @@ class RecvOp(MPIBaseOp):
 @irdl_op_definition
 class CommRankOp(MPIBaseOp):
     """
-    Represents the MPI_Comm_size(MPI_Comm comm, int *rank) function call which returns
+    Represents the MPI_Comm_rank(MPI_Comm comm, int *rank) function call which returns
     the rank of the communicator
 
     Currently limited to COMM_WORLD
@@ -170,39 +154,6 @@ class CommRankOp(MPIBaseOp):
 
     @classmethod
     def parse(cls, parser: Parser) -> CommRankOp:
-        attrs = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        res_type = parser.parse_type()
-        assert res_type == i32
-        op = cls()
-        op.attributes.update(attrs)
-        return op
-
-
-@irdl_op_definition
-class CommSizeOp(MPIBaseOp):
-    """
-    Represents the MPI_Comm_size(MPI_Comm comm, int *size) function call which returns
-    the size of the communicator
-
-    Currently limited to COMM_WORLD
-    """
-
-    name = "mpi.comm.size"
-
-    size: OpResult = result_def(i32)
-
-    def __init__(self):
-        super().__init__(result_types=[i32])
-
-    def print(self, printer: Printer):
-        if self.attributes:
-            printer.print_op_attributes(self.attributes)
-        printer.print_string(" : ")
-        printer.print(self.size.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> CommSizeOp:
         attrs = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         res_type = parser.parse_type()
@@ -348,8 +299,6 @@ MPI = Dialect(
     [
         InitOp,
         CommRankOp,
-        UnwrapMemrefOp,
-        GetDtypeOp,
         SendOp,
         RecvOp,
         FinalizeOp,
