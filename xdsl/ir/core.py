@@ -64,7 +64,7 @@ class MLContext:
         init=False, default_factory=dict
     )
 
-    def registered_ops(self):
+    def registered_ops(self) -> Iterable[type[Operation]]:
         """
         Returns all the registered operations. Not valid across mutations of this object.
         """
