@@ -14,7 +14,6 @@ from xdsl.utils.bitwise_casts import convert_f32_to_u32, convert_u32_to_f32
     ],
 )
 def test_float_bitwise_casts(i: int, f: float):
-    # assert i == 0
     assert convert_f32_to_u32(f) == i
     # N.B. this is an IEEE float comparison, 0.0 == -0.0, but still a useful test
     assert convert_u32_to_f32(i) == f
