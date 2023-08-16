@@ -118,7 +118,7 @@ class LowerRISCVCallOp(RewritePattern):
         new_results: list[OpResult] = []
 
         for i in range(len(op.results)):
-            get_reg = riscv.GetRegisterOp(f"a{i}")
+            get_reg = riscv.GetRegisterOp(riscv.IntRegisterType(f"a{i}"))
             move_res = riscv.MVOp(get_reg)
             ops.extend((get_reg, move_res))
             new_results.append(move_res.rd)
