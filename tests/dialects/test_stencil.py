@@ -100,51 +100,46 @@ def test_stencil_cast_op_verifier():
     field = TestSSAValue(field_type)
 
     # check that correct op verifies correctly
-    cast = CastOp.get(field, StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))))
-    cast.verify()
+    CastOp.get(field, StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100)))).verify()
 
     # check that output has same dims as input and lb, ub
     with pytest.raises(
         VerifyException, match="Input and output types must have the same rank"
     ):
-        cast = CastOp.get(
+        CastOp.get(
             field,
             StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))),
             FieldType(((-2, 102), (-2, 102)), f32),
-        )
-        cast.verify()
+        ).verify()
 
     # check that input and output have same element type
     with pytest.raises(
         VerifyException,
         match="Input and output fields must have the same element types",
     ):
-        cast = CastOp.get(
+        CastOp.get(
             field,
             StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))),
             FieldType(((-2, 102), (-2, 102), (-2, 102)), f64),
-        )
-        cast.verify()
+        ).verify()
 
     # check that non-dynamic input verifies
     non_dyn_field = TestSSAValue(FieldType(((-2, 102), (-2, 102), (-2, 102)), f32))
-    cast = CastOp.get(
+    CastOp.get(
         non_dyn_field,
         StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))),
         FieldType(((-2, 102), (-2, 102), (-2, 102)), f32),
-    )
-    cast.verify()
+    ).verify()
 
     with pytest.raises(
         VerifyException,
         match="If input shape is not dynamic, it must be the same as output",
     ):
-        cast = CastOp.get(
+        CastOp.get(
             non_dyn_field,
             StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 101))),
             FieldType(((-2, 102), (-2, 102), (-3, 103)), f32),
-        )
-        cast.verify()
+        ).verify()
 
 
 def test_cast_op_constructor():

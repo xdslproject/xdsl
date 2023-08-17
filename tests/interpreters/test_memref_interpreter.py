@@ -46,16 +46,14 @@ def test_functions():
     (forty_two_1,) = interpreter.run_op(load_42_op, (shaped_array, zero, one))
     assert forty_two_1 == 42
 
-    with pytest.raises(InterpretationError) as e:
+    with pytest.raises(InterpretationError, match="uninitialized"):
         interpreter.run_op(load_undef_op, (shaped_array, zero, two))
-        e.match("uninitialized")
 
     dealloc_res = interpreter.run_op(dealloc_op, (shaped_array,))
     assert dealloc_res == ()
 
-    with pytest.raises(InterpretationError) as e:
+    with pytest.raises(InterpretationError, match="deallocated"):
         interpreter.run_op(load_undef_op, (shaped_array, zero, one))
-        e.match("deallocated")
 
 
 def test_memref_get_global():

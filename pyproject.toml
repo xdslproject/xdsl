@@ -26,7 +26,7 @@ profile = "black"
 
 [tool.ruff]
 select = ["E", "F", "W", "I", "UP", "PT"]
-ignore = ["E741", "PT006", "PT007", "PT011", "PT012", "PT015"]
+ignore = ["E741", "PT006", "PT007", "PT011", "PT015"]
 line-length = 300
 target-version = "py310"
 

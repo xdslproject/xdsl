@@ -357,9 +357,8 @@ def test_dma_start():
         ).verify()
 
     # check that tag element type is verified
+    new_tag = TestSSAValue(src_type)
     with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
-        new_tag = TestSSAValue(src_type)
-
         DmaStartOp.get(
             src,
             [index, index],
@@ -388,10 +387,9 @@ def test_memref_dma_wait():
         DmaWaitOp.get(tag, [index, index], num_elements).verify()
 
     # check that tag element type is verified
+    wrong_tag_type = MemRefType.from_element_type_and_shape(i64, [4])
+    wrong_tag = TestSSAValue(wrong_tag_type)
     with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
-        wrong_tag_type = MemRefType.from_element_type_and_shape(i64, [4])
-        wrong_tag = TestSSAValue(wrong_tag_type)
-
         DmaWaitOp.get(wrong_tag, [index], num_elements).verify()
 
 

@@ -84,14 +84,12 @@ def test_build_operation_replace():
     assert replace.repl_values == (val_val,)
 
     with pytest.raises(VerifyException):
-        replace = pdl.ReplaceOp(op_value=op_val)
-        replace.verify()
+        pdl.ReplaceOp(op_value=op_val).verify()
 
     with pytest.raises(VerifyException):
-        replace = pdl.ReplaceOp(
+        pdl.ReplaceOp(
             op_value=op_val, repl_operation=operation.results[0], repl_values=[val_val]
-        )
-        replace.verify()
+        ).verify()
 
 
 def test_build_result():

@@ -346,25 +346,25 @@ def test_reduce_op_num_block_args():
     init_val = Constant.from_int_and_width(10, i32)
     reduce_constant = Constant.from_int_and_width(100, i32)
 
+    rro = ReduceReturnOp.get(reduce_constant)
     with pytest.raises(
         VerifyException,
         match="scf.reduce block must have exactly two arguments, but ",
     ):
-        rro = ReduceReturnOp.get(reduce_constant)
         ReduceOp.get(init_val, Block([rro], arg_types=[i32, i32, i32])).verify()
 
+    rro = ReduceReturnOp.get(reduce_constant)
     with pytest.raises(
         VerifyException,
         match="scf.reduce block must have exactly two arguments, but ",
     ):
-        rro = ReduceReturnOp.get(reduce_constant)
         ReduceOp.get(init_val, Block([rro], arg_types=[i32])).verify()
 
+    rro = ReduceReturnOp.get(reduce_constant)
     with pytest.raises(
         VerifyException,
         match="scf.reduce block must have exactly two arguments, but ",
     ):
-        rro = ReduceReturnOp.get(reduce_constant)
         ReduceOp.get(init_val, Block([rro], arg_types=[])).verify()
 
 
@@ -372,18 +372,18 @@ def test_reduce_op_num_block_arg_types():
     init_val = Constant.from_int_and_width(10, i32)
     reduce_constant = Constant.from_int_and_width(100, i32)
 
+    rro = ReduceReturnOp.get(reduce_constant)
     with pytest.raises(
         VerifyException,
         match="scf.reduce block argument types must be the same but have",
     ):
-        rro = ReduceReturnOp.get(reduce_constant)
         ReduceOp.get(init_val, Block([rro], arg_types=[i32, i64])).verify()
 
+    rro = ReduceReturnOp.get(reduce_constant)
     with pytest.raises(
         VerifyException,
         match="scf.reduce block argument types must be the same but have",
     ):
-        rro = ReduceReturnOp.get(reduce_constant)
         ReduceOp.get(init_val, Block([rro], arg_types=[i64, i32])).verify()
 
 
