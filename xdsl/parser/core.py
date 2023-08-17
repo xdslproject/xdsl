@@ -660,9 +660,23 @@ class Parser(AttrParser):
         dictionary, and usually correspond to the names of the attributes that are
         already passed through the operation custom assembly format.
         """
-        begin_pos = self.lexer.pos
         if self.parse_optional_keyword("attributes") is None:
             return None
+        return self.parse_optional_attr_dict_with_reserved_attr_names(
+            reserved_attr_names
+        )
+
+    def parse_optional_attr_dict_with_reserved_attr_names(
+        self, reserved_attr_names: Iterable[str] = ()
+    ) -> DictionaryAttr | None:
+        """
+        Parse a dictionary attribute if present.
+        This is intended to be used in operation custom assembly format.
+        `reserved_attr_names` contains names that should not be present in the attribute
+        dictionary, and usually correspond to the names of the attributes that are
+        already passed through the operation custom assembly format.
+        """
+        begin_pos = self.lexer.pos
         attr = self._parse_builtin_dict_attr()
         for reserved_name in reserved_attr_names:
             if reserved_name in attr.data:
