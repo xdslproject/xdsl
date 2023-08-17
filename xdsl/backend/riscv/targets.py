@@ -7,6 +7,7 @@ And the RISC-V specification
 """
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import Literal
@@ -32,7 +33,7 @@ def _isa_sort_key(ext: str) -> int:
     return 200
 
 
-def _expand_isa_letters(extensions_: list[str]) -> list[str]:
+def _expand_isa_letters(extensions_: Sequence[str]) -> list[str]:
     """
     Normalizes (expands) ISA extensions as per RISC-V ISA Manual version 20191213
 
@@ -78,7 +79,7 @@ class ABISpec:
     call_with_floats: Literal[None, 32, 64]
     """
     Are the floating point registers used to pass arguments?
-    
+
     None => No
     32   => 32-bit fp registers are used
     64   => 64-bit fp registers are used
@@ -89,7 +90,7 @@ class ABISpec:
     """
     The output file format (for example of object files).
 
-    "elf" is the default, and I don't know of any others.
+    "elf" is the default for most
     """
 
 
@@ -111,7 +112,7 @@ class MachineArchSpec:
     extensions: list[str]
     """
     A list of extensions, fully expanded.
-    
+
     RV32G would be: ["I", "M", "A", "F", "D", "Zifencei", "Zicsr", "Zam"]
     """
 
@@ -125,7 +126,7 @@ class MachineArchSpec:
         if not march.startswith("RV"):
             raise ValueError("Spec must start with RV...")
 
-        match = re.fullmatch(r"(\d+)([A-Y]*)((Z[A-Y]+)*)((X[A-WYZ]+)*)", march[2:])
+        match = re.fullmatch(r"RV(\d+)([A-Y]*)((Z[A-Y]+)*)((X[A-WYZ]+)*)", march)
         if match is None:
             raise ValueError(f'Malformed march string: "{march}"')
         width_str, letters, exts, _, more_exts, _ = match.groups()
@@ -172,17 +173,17 @@ class TargetDefinition:
     """
     Code model (usually handled by -mcmodel=med<model>):
     https://github.com/riscv-non-isa/riscv-toolchain-conventions#specifying-the-target-code-model-with--mcmodel
-    
+
     low: The program and its statically defined symbols must lie within a single 2GiB
     address range, between the absolute addresses -2GiB and +2GiB. lui and addi pairs
     are used to generate addresses.
-    
+
     any: The program and its statically defined symbols must lie within a single 4GiB
     address range. auipc and addi pairs are used to generate addresses.
     """
 
 
-class MAbi:
+class MAbi(Enum):
     """
     Collection of common -mabi values
     """
@@ -191,11 +192,15 @@ class MAbi:
     ILP32F = ABISpec(32, 32, 32, stack_alignment=32, call_with_floats=32)
     ILP32D = ABISpec(32, 32, 32, stack_alignment=64, call_with_floats=64)
 
-    LP32 = ABISpec(32, 64, 64, stack_alignment=64, call_with_floats=None)
-    LP32F = ABISpec(32, 64, 64, stack_alignment=64, call_with_floats=32)
-    LP32D = ABISpec(32, 64, 64, stack_alignment=64, call_with_floats=64)
+    LP64 = ABISpec(32, 64, 64, stack_alignment=64, call_with_floats=None)
+    LP64F = ABISpec(32, 64, 64, stack_alignment=64, call_with_floats=32)
+    LP64D = ABISpec(32, 64, 64, stack_alignment=64, call_with_floats=64)
+
+    ILP64 = ABISpec(64, 64, 64, stack_alignment=64, call_with_floats=None)
+    ILP64F = ABISpec(64, 64, 64, stack_alignment=64, call_with_floats=32)
+    ILP64D = ABISpec(64, 64, 64, stack_alignment=64, call_with_floats=64)
 
 
 class RecognizedTargets(Enum):
-    riscv32_riscemu = TargetDefinition(MAbi.ILP32, MachineArchSpec("RV32IMAZto"))
-    riscv64_linux = TargetDefinition(MAbi.ILP32D, MachineArchSpec("RV64G"))
+    riscv32_riscemu = TargetDefinition(MAbi.ILP32.value, MachineArchSpec("RV32IMAZto"))
+    riscv64_linux = TargetDefinition(MAbi.ILP64D.value, MachineArchSpec("RV64G"))
