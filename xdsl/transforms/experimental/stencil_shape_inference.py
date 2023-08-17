@@ -56,7 +56,8 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
         shape_lb = IndexAttr.min(res_type.bounds.lb, shape_lb)
         shape_ub = IndexAttr.max(res_type.bounds.ub, shape_ub)
 
-    assert shape_lb is not None and shape_ub is not None
+    assert shape_lb is not None
+    assert shape_ub is not None
     return shape_lb, shape_ub
 
 

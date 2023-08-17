@@ -1668,7 +1668,7 @@ class Region(IRNode):
         """
         Clone all block of this region into `dest` to position `insert_index`
         """
-        assert dest and dest != self
+        assert dest != self
         if insert_index is None:
             insert_index = len(dest.blocks)
         if value_mapper is None:
