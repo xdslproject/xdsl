@@ -33,7 +33,7 @@ def _isa_sort_key(ext: str) -> int:
     return 200
 
 
-def _expand_isa_letters(extensions_: Sequence[str]) -> list[str]:
+def _expand_isa_letters(extensions_: Sequence[str]) -> tuple[str]:
     """
     Normalizes (expands) ISA extensions as per RISC-V ISA Manual version 20191213
 
@@ -54,7 +54,7 @@ def _expand_isa_letters(extensions_: Sequence[str]) -> list[str]:
     if "Zam" in extensions:
         extensions.add("A")
 
-    return list(sorted(extensions, key=_isa_sort_key))
+    return tuple(sorted(extensions, key=_isa_sort_key))
 
 
 @dataclass(frozen=True, unsafe_hash=True)
@@ -109,27 +109,34 @@ class MachineArchSpec:
     Floating point register width (32/64/128)
     """
 
-    extensions: list[str]
+    extensions: tuple[str]
     """
     A list of extensions, fully expanded.
 
-    RV32G would be: ["I", "M", "A", "F", "D", "Zifencei", "Zicsr", "Zam"]
+    RV32G would be: ["I", "M", "A", "F", "D", "Zifencei", "Zicsr"]
     """
 
+    @property
+    def spec_string(self) -> str:
+        i = 0
+        for i, e in enumerate(self.extensions):
+            if len(e) > 1:
+                break
+        return "".join(self.extensions[:i]) + "_".join(self.extensions[i:])
+
     def __repr__(self):
-        return 'MachineArchSpec("RV{}{}")'.format(self.xlen, "".join(self.extensions))
+        return f'MachineArchSpec("RV{self.xlen}{self.spec_string}")'
 
     def __init__(self, march: str):
-        # make it not case-sensitive
-        march = march.upper()
-
         if not march.startswith("RV"):
             raise ValueError("Spec must start with RV...")
 
-        match = re.fullmatch(r"RV(\d+)([A-Y]*)((Z[A-Y]+)*)((X[A-WYZ]+)*)", march)
+        match = re.fullmatch(
+            r"RV(\d+)([A-Y]*)((Z[a-z]+)?(_Z[a-z]+)*)_?((X[a-z]+)?(_X[a-z]+)*)", march
+        )
         if match is None:
             raise ValueError(f'Malformed march string: "{march}"')
-        width_str, letters, exts, _, more_exts, _ = match.groups()
+        width_str, letters, exts, _, _, more_exts, _, _ = match.groups()
 
         # set bitwidth
         object.__setattr__(self, "xlen", int(width_str))
@@ -140,8 +147,8 @@ class MachineArchSpec:
             "extensions",
             _expand_isa_letters(
                 list(letters)
-                + ["Z" + z.lower() for z in exts.split("Z")[1:]]
-                + ["X" + x.lower() for x in more_exts.split("X")[1:]]
+                + ["Z" + z.lower().strip("_") for z in exts.split("Z")[1:]]
+                + ["X" + x.lower().strip("_") for x in more_exts.split("X")[1:]]
             ),
         )
 
@@ -202,5 +209,5 @@ class MAbi(Enum):
 
 
 class RecognizedTargets(Enum):
-    riscv32_riscemu = TargetDefinition(MAbi.ILP32.value, MachineArchSpec("RV32IMAZto"))
+    riscv32_riscemu = TargetDefinition(MAbi.ILP32.value, MachineArchSpec("RV32IMA_Zto"))
     riscv64_linux = TargetDefinition(MAbi.ILP64D.value, MachineArchSpec("RV64G"))
