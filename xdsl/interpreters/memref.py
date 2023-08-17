@@ -2,10 +2,11 @@ from enum import Enum
 from math import prod
 from typing import Any, cast
 
-from xdsl.dialects import memref
+from xdsl.dialects import builtin, memref
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir.core import Attribute
+from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import InterpretationError
 
 
@@ -67,3 +68,20 @@ class MemrefFunctions(InterpreterFunctions):
             )
 
         return (value,)
+
+    @impl(memref.GetGlobal)
+    def run_get_global(
+        self, interpreter: Interpreter, op: memref.GetGlobal, args: tuple[Any, ...]
+    ):
+        mem = SymbolTable.lookup_symbol(op, op.name_)
+        assert isinstance(mem, memref.Global)
+        initial_value = mem.initial_value
+        if not isinstance(initial_value, builtin.DenseIntOrFPElementsAttr):
+            raise NotImplementedError(
+                "Memrefs that are not dense int or float arrays are not implemented"
+            )
+        data = [el.value.data for el in initial_value.data]
+        shape = initial_value.get_shape()
+        assert shape is not None
+        shaped_array = ShapedArray(data, list(shape))
+        return (shaped_array,)
