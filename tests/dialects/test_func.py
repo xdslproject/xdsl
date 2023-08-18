@@ -51,12 +51,12 @@ def test_func():
 
 
 def test_func_II():
-    # Create constants `from_attr` and add them, add them in blocks, blocks in
+    # Create constants and add them, add them in blocks, blocks in
     # a region and create a function
-    a = Constant.from_attr(IntegerAttr.from_int_and_width(1, 32), i32)
-    b = Constant.from_attr(IntegerAttr.from_int_and_width(2, 32), i32)
-    c = Constant.from_attr(IntegerAttr.from_int_and_width(3, 32), i32)
-    d = Constant.from_attr(IntegerAttr.from_int_and_width(4, 32), i32)
+    a = Constant(IntegerAttr.from_int_and_width(1, 32), i32)
+    b = Constant(IntegerAttr.from_int_and_width(2, 32), i32)
+    c = Constant(IntegerAttr.from_int_and_width(3, 32), i32)
+    d = Constant(IntegerAttr.from_int_and_width(4, 32), i32)
 
     # Operation to add these constants
     e = Addi(a, b)

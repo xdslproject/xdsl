@@ -46,7 +46,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         int_attr: builtin.IntegerAttr[builtin.IndexType] = builtin.IntegerAttr(
             0, builtin.IndexType()
         )
-        dim_zero_const = arith.Constant.from_attr(int_attr, builtin.IndexType())
+        dim_zero_const = arith.Constant(int_attr, builtin.IndexType())
         dim_zero_size_op = memref.Dim.from_source_and_index(op.field, dim_zero_const)
         dim_zero_i32_op = arith.IndexCastOp(dim_zero_size_op, builtin.i32)
         dim_zero_i64_op = arith.IndexCastOp(dim_zero_size_op, builtin.i64)
