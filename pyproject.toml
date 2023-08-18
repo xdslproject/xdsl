@@ -25,8 +25,8 @@ typeCheckingMode = "strict"
 profile = "black"
 
 [tool.ruff]
-select = ["E", "F", "W", "I", "UP"]
-ignore = ["E741"]
+select = ["E", "F", "W", "I", "UP", "PT"]
+ignore = ["E741", "PT006", "PT007", "PT011", "PT012", "PT015", "PT017", "PT018"]
 line-length = 300
 target-version = "py310"
 
