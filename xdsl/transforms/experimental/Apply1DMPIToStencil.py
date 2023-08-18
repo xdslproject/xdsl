@@ -1,5 +1,3 @@
-from typing import List
-
 from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
 from xdsl.ir import MLContext, Operation, TypeAttribute
 from xdsl.irdl import Operand
@@ -24,7 +22,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         memref_type: memref.MemRefType[AnyNumericType] = op.field.type
         if len(memref_type.shape) <= 1:
             return
-        mpi_operations: List[Operation] = []
+        mpi_operations: list[Operation] = []
 
         # Rank and size
         comm_size_op = mpi.CommSize.get()

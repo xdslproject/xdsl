@@ -4,12 +4,20 @@ affine loops, memref operations and standard operations. This lowering
 expects that all calls have been inlined, and all shapes have been resolved.
 """
 
+from collections.abc import Callable, Sequence
 from itertools import product
-from typing import Callable, Sequence, TypeAlias, TypeVar, cast
+from typing import TypeAlias, TypeVar, cast
 
 from xdsl.builder import Builder
 from xdsl.dialects import affine, arith, func, memref
-from xdsl.dialects.builtin import Float64Type, IndexType, IntegerAttr, ModuleOp, f64
+from xdsl.dialects.builtin import (
+    Float32Type,
+    FloatAttr,
+    IndexType,
+    IntegerAttr,
+    ModuleOp,
+    f32,
+)
 from xdsl.dialects.printf import PrintFormatOp
 from xdsl.ir import Block, MLContext, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
@@ -25,18 +33,18 @@ from ..dialects import toy
 
 # region Helpers
 
-MemrefTypeF64: TypeAlias = memref.MemRefType[Float64Type]
+MemrefTypeF32: TypeAlias = memref.MemRefType[Float32Type]
 
 
-def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF64:
+def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF32:
     """
     Convert the given RankedTensorType into the corresponding MemRefType.
     """
-    return memref.MemRefType.from_element_type_and_shape(f64, type.shape)
+    return memref.MemRefType.from_element_type_and_shape(f32, type.shape)
 
 
 def insert_alloc_and_dealloc(
-    type: MemrefTypeF64, op: Operation, rewriter: PatternRewriter
+    type: MemrefTypeF32, op: Operation, rewriter: PatternRewriter
 ) -> memref.Alloc:
     """
     Insert an allocation and deallocation for the given MemRefType.
@@ -353,7 +361,7 @@ class ConstantOpLowering(RewritePattern):
 
         # Scalar constant values for elements of the tensor
         constants: list[arith.Constant] = [
-            arith.Constant(i) for i in constant_value.data
+            arith.Constant(FloatAttr(i.value.data, f32)) for i in constant_value.data
         ]
 
         # n-d indices of elements

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Sequence, cast
+from collections.abc import Sequence
+from typing import cast
 
 from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolRefAttr
 from xdsl.ir import (
@@ -178,7 +179,9 @@ class FuncOp(IRDLOperation):
                 printer.print(" ")
         else:
             printer.print_attribute(self.function_type)
-        printer.print_op_attributes_with_keyword(self.attributes, reserved)
+        printer.print_op_attributes(
+            self.attributes, reserved_attr_names=reserved, print_keyword=True
+        )
 
         if len(self.body.blocks) > 0:
             printer.print_region(self.body, False, False)
@@ -220,9 +223,7 @@ class FuncOp(IRDLOperation):
                 arg = self.body.blocks[0].args[arg]
             except IndexError:
                 raise IndexError(
-                    "Block {} does not have argument #{}".format(
-                        self.body.blocks[0], arg
-                    )
+                    f"Block {self.body.blocks[0]} does not have argument #{arg}"
                 )
 
         if arg not in self.args:

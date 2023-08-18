@@ -3,9 +3,10 @@ This file contains the definition of `BaseParser`, a recursive descent parser
 that is inherited from the different parsers used in xDSL.
 """
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Iterable, NoReturn, TypeVar, overload
+from typing import NoReturn, TypeVar, overload
 
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, Token

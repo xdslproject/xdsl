@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Generic, Literal, TypeAlias, TypeVar
+from collections.abc import Callable
+from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
 import xdsl.dialects.builtin as builtin
 from xdsl.dialects.builtin import Signedness

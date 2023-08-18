@@ -1,10 +1,11 @@
-from typing import Callable, TypeVar, Union
+from collections.abc import Callable
+from typing import TypeVar
 
 import xdsl.dialects.arith as arith
 from xdsl.frontend.dialects.builtin import f16, f32, f64, i1, i32, i64, index
 from xdsl.ir import Operation
 
-_Int = TypeVar("_Int", bound=Union[index, i1, i32, i64])
+_Int = TypeVar("_Int", bound=index | i1 | i32 | i64)
 
 
 def addi(lhs: _Int, rhs: _Int) -> _Int:
@@ -63,7 +64,7 @@ def resolve_subi() -> Callable[..., Operation]:
     return arith.Subi
 
 
-_Float = TypeVar("_Float", bound=Union[f16, f32, f64])
+_Float = TypeVar("_Float", bound=f16 | f32 | f64)
 
 
 def addf(lhs: _Float, rhs: _Float) -> _Float:

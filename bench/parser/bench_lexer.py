@@ -8,7 +8,7 @@ import argparse
 import cProfile
 import glob
 import timeit
-from typing import Iterable
+from collections.abc import Iterable
 
 from xdsl.utils.lexer import Input, Lexer, Token
 

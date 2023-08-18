@@ -21,14 +21,14 @@ builtin.module {
 // CHECK-NEXT:   %5 = builtin.unrealized_conversion_cast %1 : index to !riscv.reg<>
 // CHECK-NEXT:   %6 = builtin.unrealized_conversion_cast %2 : index to !riscv.reg<>
 // CHECK-NEXT:   %7 = builtin.unrealized_conversion_cast %3 : index to !riscv.reg<>
-// CHECK-NEXT:   %8 = "riscv_scf.for"(%4, %5, %6, %7) ({
-// CHECK-NEXT:   ^0(%9 : !riscv.reg<>, %10 : !riscv.reg<>):
-// CHECK-NEXT:     %11 = builtin.unrealized_conversion_cast %10 : !riscv.reg<> to index
-// CHECK-NEXT:     %12 = builtin.unrealized_conversion_cast %9 : !riscv.reg<> to index
-// CHECK-NEXT:     %13 = arith.addi %12, %11 : index
-// CHECK-NEXT:     %14 = builtin.unrealized_conversion_cast %13 : index to !riscv.reg<>
-// CHECK-NEXT:     "riscv_scf.yield"(%14) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:   %8 = riscv.mv %7 : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:   %9 = "riscv_scf.for"(%4, %5, %6, %8) ({
+// CHECK-NEXT:   ^0(%10 : !riscv.reg<>, %11 : !riscv.reg<>):
+// CHECK-NEXT:     %12 = builtin.unrealized_conversion_cast %11 : !riscv.reg<> to index
+// CHECK-NEXT:     %13 = builtin.unrealized_conversion_cast %10 : !riscv.reg<> to index
+// CHECK-NEXT:     %14 = arith.addi %13, %12 : index
+// CHECK-NEXT:     %15 = builtin.unrealized_conversion_cast %14 : index to !riscv.reg<>
+// CHECK-NEXT:     "riscv_scf.yield"(%15) : (!riscv.reg<>) -> ()
 // CHECK-NEXT:   }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %15 = builtin.unrealized_conversion_cast %8 : !riscv.reg<> to index
+// CHECK-NEXT:   %16 = builtin.unrealized_conversion_cast %9 : !riscv.reg<> to index
 // CHECK-NEXT: }
-

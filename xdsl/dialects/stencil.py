@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from operator import add, lt, neg
-from typing import Generic, Iterable, Iterator, Sequence, TypeVar, cast
+from typing import Generic, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import AnyFloat, AnyIntegerAttr, ArrayAttr, IntAttr

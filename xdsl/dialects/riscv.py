@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Set
+from collections.abc import Mapping, Sequence, Set
 from io import StringIO
-from typing import IO, ClassVar, Sequence, TypeAlias
+from typing import IO, ClassVar, Generic, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
@@ -209,6 +209,9 @@ class FloatRegisterType(RISCVRegisterType):
         "ft10": 30,
         "ft11": 31,
     }
+
+
+RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
 
 
 class Registers(ABC):
@@ -2380,7 +2383,7 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
     @classmethod
     def parse(cls, parser: Parser) -> AssemblySectionOp:
         directive = parser.parse_str_literal()
-        attr_dict = parser.parse_optional_attr_dict_with_keyword(("directive"))
+        attr_dict = parser.parse_optional_attr_dict_with_keyword(("directive",))
         region = parser.parse_optional_region()
 
         if region is None:
@@ -2394,7 +2397,9 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         printer.print_string_literal(self.directive.data)
-        printer.print_op_attributes_with_keyword(self.attributes, ("directive"))
+        printer.print_op_attributes(
+            self.attributes, reserved_attr_names=("directive",), print_keyword=True
+        )
         printer.print_string(" ")
         if self.data.block.ops:
             printer.print_region(self.data)
@@ -2506,10 +2511,9 @@ class WfiOp(NullaryOperation):
 # region RISC-V SSA Helpers
 
 
-@irdl_op_definition
-class GetRegisterOp(IRDLOperation, RISCVOp):
+class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
     """
-    This instruction allows us to create an SSAValue with for a given integer register name. This
+    This instruction allows us to create an SSAValue with for a given register name. This
     is useful for bridging the RISC-V convention that stores the result of function calls
     in `a0` and `a1` into SSA form.
 
@@ -2529,15 +2533,12 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
     ```
     """
 
-    name = "riscv.get_register"
-    res: OpResult = result_def(IntRegisterType)
+    res: OpResult = result_def(RDInvT)
 
     def __init__(
         self,
-        register_type: IntRegisterType | str,
+        register_type: RDInvT,
     ):
-        if isinstance(register_type, str):
-            register_type = IntRegisterType(register_type)
         super().__init__(result_types=[register_type])
 
     def assembly_line(self) -> str | None:
@@ -2546,27 +2547,13 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class GetFloatRegisterOp(IRDLOperation, RISCVOp):
-    """
-    This instruction allows us to create an SSAValue with for a given floating register name. This
-    is useful for bridging the RISC-V convention that stores the result of function calls
-    in `a0` and `a1` into SSA form.
-    """
+class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
+    name = "riscv.get_register"
 
+
+@irdl_op_definition
+class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
     name = "riscv.get_float_register"
-    res: OpResult = result_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        register_type: FloatRegisterType | str,
-    ):
-        if isinstance(register_type, str):
-            register_type = FloatRegisterType(register_type)
-        super().__init__(result_types=[register_type])
-
-    def assembly_line(self) -> str | None:
-        # Don't print assembly for creating a SSA value representing register
-        return None
 
 
 # endregion

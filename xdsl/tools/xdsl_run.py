@@ -2,7 +2,7 @@
 
 import argparse
 import sys
-from typing import Sequence
+from collections.abc import Sequence
 
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import (

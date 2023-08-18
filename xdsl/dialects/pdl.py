@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Annotated, Generic, Iterable, Sequence, TypeVar
+from collections.abc import Iterable, Sequence
+from typing import Annotated, Generic, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
