@@ -36,21 +36,21 @@ from xdsl.utils.bits import (
 )
 def test_8bits(i: int):
     b = from_u8(i)
-    assert as_str(b).endswith(bin(int(b.hex(), 16)).removeprefix("0b"))
+    assert as_str(b).endswith(bin(i).removeprefix("0b"))
     assert from_i8(to_i8(b)) == b
     assert from_u8(to_u8(b)) == b
     b = from_u16(i)
-    assert as_str(b).endswith(bin(int(b.hex(), 16)).removeprefix("0b"))
+    assert as_str(b).endswith(bin(i).removeprefix("0b"))
     assert from_i16(to_i16(b)) == b
     assert from_u16(to_u16(b)) == b
     assert isnan(v := to_f16(b)) or isinf(v) or from_f16(v) == b
     b = from_u32(i)
-    assert as_str(b).endswith(bin(int(b.hex(), 16)).removeprefix("0b"))
+    assert as_str(b).endswith(bin(i).removeprefix("0b"))
     assert from_i32(to_i32(b)) == b
     assert from_u32(to_u32(b)) == b
     assert isnan(v := to_f32(b)) or isinf(v) or from_f32(v) == b
     b = from_u64(i)
-    assert as_str(b).endswith(bin(int(b.hex(), 16)).removeprefix("0b"))
+    assert as_str(b).endswith(bin(i).removeprefix("0b"))
     assert from_i64(to_i64(b)) == b
     assert from_u64(to_u64(b)) == b
     assert isnan(v := to_f64(b)) or isinf(v) or from_f64(v) == b
@@ -62,17 +62,17 @@ def test_8bits(i: int):
 )
 def test_16bits(i: int):
     b = from_u16(i)
-    assert as_str(b).endswith(bin(int(b.hex(), 16)).removeprefix("0b"))
+    assert as_str(b).endswith(bin(i).removeprefix("0b"))
     assert from_i16(to_i16(b)) == b
     assert from_u16(to_u16(b)) == b
     assert isnan(v := to_f16(b)) or isinf(v) or from_f16(v) == b
     b = from_u32(i)
-    assert as_str(b).endswith(bin(int(b.hex(), 16)).removeprefix("0b"))
+    assert as_str(b).endswith(bin(i).removeprefix("0b"))
     assert from_i32(to_i32(b)) == b
     assert from_u32(to_u32(b)) == b
     assert isnan(v := to_f32(b)) or isinf(v) or from_f32(v) == b
     b = from_u64(i)
-    assert as_str(b).endswith(bin(int(b.hex(), 16)).removeprefix("0b"))
+    assert as_str(b).endswith(bin(i).removeprefix("0b"))
     assert from_i64(to_i64(b)) == b
     assert from_u64(to_u64(b)) == b
     assert isnan(v := to_f64(b)) or isinf(v) or from_f64(v) == b
@@ -84,12 +84,12 @@ def test_16bits(i: int):
 )
 def test_32bits(i: int):
     b = from_u32(i)
-    assert as_str(b).endswith(bin(int(b.hex(), 16)).removeprefix("0b"))
+    assert as_str(b).endswith(bin(i).removeprefix("0b"))
     assert from_i32(to_i32(b)) == b
     assert from_u32(to_u32(b)) == b
     assert isnan(v := to_f32(b)) or isinf(v) or from_f32(v) == b
     b = from_u64(i)
-    assert as_str(b).endswith(bin(int(b.hex(), 16)).removeprefix("0b"))
+    assert as_str(b).endswith(bin(i).removeprefix("0b"))
     assert from_i64(to_i64(b)) == b
     assert from_u64(to_u64(b)) == b
     assert isnan(v := to_f64(b)) or isinf(v) or from_f64(v) == b
@@ -101,7 +101,7 @@ def test_32bits(i: int):
 )
 def test_64bits(i: int):
     b = from_u64(i)
-    assert as_str(b).endswith(bin(int(b.hex(), 16)).removeprefix("0b"))
+    assert as_str(b).endswith(bin(i).removeprefix("0b"))
     assert from_i64(to_i64(b)) == b
     assert from_u64(to_u64(b)) == b
     assert isnan(v := to_f64(b)) or isinf(v) or from_f64(v) == b
