@@ -15,7 +15,7 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.comparisons import to_signed, to_unsigned
 from xdsl.ir.core import Operation
-from xdsl.utils.bitwise_casts import convert_i32_to_float
+from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.exceptions import InterpretationError
 
 _T = TypeVar("_T")
@@ -235,7 +235,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FCvtSWOp,
         args: tuple[Any, ...],
     ):
-        return (convert_i32_to_float(args[0]),)
+        return (convert_u32_to_f32(args[0]),)
 
     @impl(riscv.FSwOp)
     def run_fsw(

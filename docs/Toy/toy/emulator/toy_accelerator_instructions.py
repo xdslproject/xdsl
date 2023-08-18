@@ -12,7 +12,7 @@ from riscemu.types.instruction import Instruction
 from riscemu.types.int32 import Int32
 
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.utils.bitwise_casts import convert_float_to_int, convert_i32_to_float
+from xdsl.utils.bitwise_casts import convert_f32_to_u32, convert_u32_to_f32
 
 
 # Define a RISC-V ISA extension by subclassing InstructionSet
@@ -60,7 +60,7 @@ class ToyAccelerator(InstructionSet):
         data = self.buffer_read(b_ptr, b_els)
 
         shaped_array = ShapedArray(
-            [convert_i32_to_float(value) for value in data], [b_els]
+            [convert_u32_to_f32(value) for value in data], [b_els]
         )
 
         print(f"{shaped_array}", file=type(self).stream)
@@ -78,7 +78,7 @@ class ToyAccelerator(InstructionSet):
         data = self.buffer_read(b_ptr, size)
 
         shaped_array = ShapedArray(
-            [convert_i32_to_float(value) for value in data], [b_rows, b_cols]
+            [convert_u32_to_f32(value) for value in data], [b_rows, b_cols]
         )
 
         print(f"{shaped_array}", file=type(self).stream)
@@ -134,9 +134,7 @@ class ToyAccelerator(InstructionSet):
         self.buffer_write(
             d_ptr,
             data=[
-                convert_float_to_int(
-                    convert_i32_to_float(l_el) + convert_i32_to_float(r_el)
-                )
+                convert_f32_to_u32(convert_u32_to_f32(l_el) + convert_u32_to_f32(r_el))
                 for l_el, r_el in zip(s_data, d_data)
             ],
         )
@@ -158,9 +156,7 @@ class ToyAccelerator(InstructionSet):
         self.buffer_write(
             d_ptr,
             data=[
-                convert_float_to_int(
-                    convert_i32_to_float(l_el) * convert_i32_to_float(r_el)
-                )
+                convert_f32_to_u32(convert_u32_to_f32(l_el) * convert_u32_to_f32(r_el))
                 for l_el, r_el in zip(s_data, d_data)
             ],
         )

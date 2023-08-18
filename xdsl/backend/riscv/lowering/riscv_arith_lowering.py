@@ -24,7 +24,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.dead_code_elimination import dce
-from xdsl.utils.bitwise_casts import convert_float_to_int
+from xdsl.utils.bitwise_casts import convert_f32_to_u32
 
 _INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 _FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
@@ -53,7 +53,7 @@ class LowerArithConstant(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         lui := riscv.LiOp(
-                            convert_float_to_int(op.value.value.data),
+                            convert_f32_to_u32(op.value.value.data),
                             rd=_INT_REGISTER_TYPE,
                         ),
                         fld := riscv.FCvtSWOp(lui.rd),

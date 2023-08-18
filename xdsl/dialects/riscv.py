@@ -211,7 +211,7 @@ class FloatRegisterType(RISCVRegisterType):
     }
 
 
-RD = TypeVar("RD", bound=RISCVRegisterType)
+RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
 
 
 class Registers(ABC):
@@ -2397,7 +2397,9 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         printer.print_string_literal(self.directive.data)
-        printer.print_op_attributes_with_keyword(self.attributes, ("directive"))
+        printer.print_op_attributes(
+            self.attributes, reserved_attr_names=("directive",), print_keyword=True
+        )
         printer.print_string(" ")
         if self.data.block.ops:
             printer.print_region(self.data)
@@ -2509,9 +2511,9 @@ class WfiOp(NullaryOperation):
 # region RISC-V SSA Helpers
 
 
-class GetAnyRegisterOperation(Generic[RD], IRDLOperation, RISCVOp):
+class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
     """
-    This instruction allows us to create an SSAValue with for a given integer register name. This
+    This instruction allows us to create an SSAValue with for a given register name. This
     is useful for bridging the RISC-V convention that stores the result of function calls
     in `a0` and `a1` into SSA form.
 
@@ -2531,11 +2533,11 @@ class GetAnyRegisterOperation(Generic[RD], IRDLOperation, RISCVOp):
     ```
     """
 
-    res: OpResult = result_def(RD)
+    res: OpResult = result_def(RDInvT)
 
     def __init__(
         self,
-        register_type: RD,
+        register_type: RDInvT,
     ):
         super().__init__(result_types=[register_type])
 
