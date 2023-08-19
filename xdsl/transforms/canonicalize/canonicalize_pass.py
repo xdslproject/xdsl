@@ -23,14 +23,17 @@ class CanonicalizationPattern(GreedyRewritePatternApplier):
     op_match_count: dict[Operation, int] = field(
         default_factory=lambda: defaultdict(int)
     )
-    repeat_apply_limit: int = field(default=5)
+    repeat_apply_limit: int = field(default=0)
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-        # apply at most n times per op
-        if self.op_match_count[op] > self.repeat_apply_limit:
+        # Apply at most n times per op, if the limit is set
+        if (
+            self.repeat_apply_limit
+            and self.op_match_count[op] > self.repeat_apply_limit
+        ):
             return
         self.op_match_count[op] += 1
-        # invoke the greedy rewrite pattern applier
+        # Invoke the greedy rewrite pattern applier
         super().match_and_rewrite(op, rewriter)
 
 
