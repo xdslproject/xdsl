@@ -36,7 +36,7 @@ class CanonicalizationPattern(GreedyRewritePatternApplier):
 
 class CanonicalizationPass(ModulePass):
     """
-    Applies all canonicalization patters.
+    Applies all canonicalization patterns.
     """
 
     name = "canonicalize"
