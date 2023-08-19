@@ -5,7 +5,6 @@ Toy language dialect from MLIR tutorial.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
 from typing import TypeAlias, cast
 
 from xdsl.dialects.builtin import (
@@ -374,14 +373,13 @@ class ReturnOp(IRDLOperation):
 
 class ReshapeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
-    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from ..rewrites.optimise_toy import (
             FoldConstantReshapeOpPattern,
             ReshapeReshapeOpPattern,
         )
 
-        yield ReshapeReshapeOpPattern()
-        yield FoldConstantReshapeOpPattern()
+        return (ReshapeReshapeOpPattern(), FoldConstantReshapeOpPattern())
 
 
 @irdl_op_definition
@@ -448,10 +446,10 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
 
 class TransposeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
-    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from ..rewrites.optimise_toy import SimplifyRedundantTranspose
 
-        yield SimplifyRedundantTranspose()
+        return (SimplifyRedundantTranspose(),)
 
 
 @irdl_op_definition

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -359,5 +358,5 @@ class HasCanonicalisationPatternsTrait(OpTrait):
 
     @classmethod
     @abc.abstractmethod
-    def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
