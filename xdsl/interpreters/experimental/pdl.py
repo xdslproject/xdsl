@@ -276,6 +276,14 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         return (result_op,)
 
+    @impl(pdl.ResultOp)
+    def run_result(
+        self, interpreter: Interpreter, op: pdl.ResultOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        (parent,) = args
+        assert isinstance(parent, Operation)
+        return (parent.results[op.index.value.data],)
+
     @impl(pdl.ReplaceOp)
     def run_replace(
         self, interpreter: Interpreter, op: pdl.ReplaceOp, args: tuple[Any, ...]
