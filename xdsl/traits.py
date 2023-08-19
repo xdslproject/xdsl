@@ -360,4 +360,4 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     @classmethod
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> Iterator[RewritePattern]:
-        yield from iter(())
+        raise NotImplementedError()
