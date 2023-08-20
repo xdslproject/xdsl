@@ -134,7 +134,8 @@ class FormatParser(BaseParser):
         """
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
-        The variable should refer to an operand, attribute, region, result, or succesor.
+        The variable should refer to an operand, attribute, region, result,
+        or successor.
         """
         if self._current_token.text[0] != "$":
             return None

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Generic
 
 from xdsl.ir import Attribute
 from xdsl.irdl import IRDLOperation, IRDLOperationInvT, OpDef, VariadicDef
@@ -26,8 +25,8 @@ class ParsingState:
     It contains the elements that have already been parsed.
     """
 
-    operands: list[None | UnresolvedOperand]
-    operand_types: list[None | Attribute]
+    operands: list[UnresolvedOperand | None]
+    operand_types: list[Attribute | None]
     attributes: dict[str, Attribute]
 
     def __init__(self, op_def: OpDef):

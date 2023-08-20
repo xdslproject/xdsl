@@ -5,6 +5,7 @@ from io import StringIO
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.test import Test
 from xdsl.ir import MLContext, Operation
 from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def
 from xdsl.parser import Parser
@@ -248,7 +249,7 @@ def test_unknown_variable():
     ):
 
         @irdl_op_definition
-        class UnknownVarOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class UnknownVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.unknown_var_op"
 
             assembly_format = "$var attr-dict"
@@ -264,7 +265,7 @@ def test_missing_operand():
     with pytest.raises(PyRDLOpDefinitionError, match="operand 'operand' not found"):
 
         @irdl_op_definition
-        class NoOperandTypeOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoOperandTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_operand_type_op"
             operand = operand_def()
 
@@ -278,7 +279,7 @@ def test_operands_missing_type():
     ):
 
         @irdl_op_definition
-        class NoOperandTypeOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoOperandTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_operand_type_op"
             operand = operand_def()
 
@@ -292,7 +293,9 @@ def test_operands_duplicated_type():
     ):
 
         @irdl_op_definition
-        class DuplicatedOperandTypeOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class DuplicatedOperandTypeOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
             name = "test.duplicated_operand_type_op"
             operand = operand_def()
 
