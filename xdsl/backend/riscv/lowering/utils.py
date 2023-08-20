@@ -5,13 +5,12 @@ from xdsl.pattern_rewriter import PatternRewriter
 
 def register_type_for_type(
     attr: Attribute,
-) -> type[riscv.IntRegisterType] | type[riscv.FloatRegisterType] | None:
+) -> type[riscv.IntRegisterType] | type[riscv.FloatRegisterType]:
     """
-    Returns the appropriate register fype for a given input type, None if the input is
-    already a register.
+    Returns the appropriate register fype for a given input type.
     """
     if isinstance(attr, riscv.IntRegisterType | riscv.FloatRegisterType):
-        return None
+        return type(attr)
     if isinstance(attr, builtin.AnyFloat):
         return riscv.FloatRegisterType
     return riscv.IntRegisterType
@@ -27,13 +26,16 @@ def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     new_operands = list[SSAValue]()
 
     for operand in rewriter.current_operation.operands:
-        new_type = register_type_for_type(operand.type)
-        if new_type is not None:
+        if not isinstance(
+            operand.type, riscv.IntRegisterType | riscv.FloatRegisterType
+        ):
+            new_type = register_type_for_type(operand.type)
             cast_op = builtin.UnrealizedConversionCastOp.get(
                 (operand,), (new_type.unallocated(),)
             )
             new_ops.append(cast_op)
             operand = cast_op.results[0]
+
         new_operands.append(operand)
 
     rewriter.insert_op_before_matched_op(new_ops)

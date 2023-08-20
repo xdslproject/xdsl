@@ -104,8 +104,6 @@ class LowerMemrefLoadOp(RewritePattern):
         ptr = insert_shape_ops(mem, indices, shape, rewriter)
 
         result_register_type = register_type_for_type(op.res.type)
-        if result_register_type is None:
-            raise ValueError(f"Unknown register value for type {op.res.type}")
 
         if result_register_type is riscv.IntRegisterType:
             lw_op = riscv.LwOp(
