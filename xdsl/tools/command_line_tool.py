@@ -5,10 +5,12 @@ from collections.abc import Callable
 from typing import IO
 
 from xdsl.backend.riscv import riscv_scf_to_asm
-from xdsl.backend.riscv.lowering import scf_to_riscv_scf
-from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
-from xdsl.backend.riscv.lowering.optimisation_riscv import OptimiseRiscvPass
-from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
+from xdsl.backend.riscv.lowering import (
+    convert_arith_to_riscv,
+    convert_func_to_riscv_func,
+    convert_scf_to_riscv_scf,
+)
+from xdsl.backend.riscv.lowering.optimise_riscv import OptimiseRiscvPass
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin, ModuleOp
@@ -112,10 +114,10 @@ def get_all_passes() -> list[type[ModulePass]]:
         printf_to_llvm.PrintfToLLVM,
         printf_to_putchar.PrintfToPutcharPass,
         riscv_register_allocation.RISCVRegisterAllocation,
-        RISCVLowerArith,
-        LowerFuncToRiscvFunc,
+        convert_arith_to_riscv.ConvertArithToRiscvPass,
+        convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
         OptimiseRiscvPass,
-        scf_to_riscv_scf.ScfToRiscvPass,
+        convert_scf_to_riscv_scf.ConvertScfToRiscvPass,
         riscv_scf_to_asm.LowerScfForToLabels,
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
