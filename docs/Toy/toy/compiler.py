@@ -112,7 +112,6 @@ def transform(
     LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
-    # CastArithFloatToInt().apply(ctx, module_op)
     RISCVLowerArith().apply(ctx, module_op)
     ScfToRiscvPass().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
