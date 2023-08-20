@@ -3,6 +3,9 @@ from pathlib import Path
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
 from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
 from xdsl.backend.riscv.lowering.scf_to_riscv_scf import ScfToRiscvPass
+from xdsl.backend.riscv.riscv_scf_to_asm import (
+    LowerScfForToLabels,
+)
 from xdsl.dialects import (
     affine,
     arith,
@@ -132,6 +135,7 @@ def transform(
         return
 
     LowerRISCVFunc(insert_exit_syscall=True).apply(ctx, module_op)
+    LowerScfForToLabels().apply(ctx, module_op)
 
     if target == "riscv-lowered":
         return
