@@ -1,5 +1,5 @@
 from xdsl.backend.riscv.lowering.utils import (
-    cast_block_args_to_int_regs,
+    cast_block_args_to_regs,
     cast_matched_op_results,
     cast_operands_to_regs,
 )
@@ -124,6 +124,6 @@ def test_block_cast_utils():
     target_block = target_op.regions[0].blocks[0]
     assert target_block is not None
 
-    cast_block_args_to_int_regs(target_block, rewriter)
+    cast_block_args_to_regs(target_block, rewriter)
     input.verify()
     assert f"{input}" == f"{expected}"

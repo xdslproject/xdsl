@@ -42,6 +42,17 @@ def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     return new_operands
 
 
+def move_op_for_value(value: SSAValue) -> riscv.MVOp | riscv.FSgnJSOp:
+    """
+    Returns the operation that moves the value from the input to a new register.
+    """
+
+    if register_type_for_type(value.type) is riscv.IntRegisterType:
+        return riscv.MVOp(value)
+    else:
+        return riscv.FSgnJSOp(value, value)
+
+
 def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:
     """
     Add cast operations just after the matched operation, to preserve the type validity of
@@ -63,19 +74,17 @@ def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:
     return [result.results[0] for result in results]
 
 
-def cast_block_args_to_int_regs(block: Block, rewriter: PatternRewriter):
+def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
     """
-    Change the type of the block arguments to int registers and
-    add cast operations just after the block entry.
+    Change the type of the block arguments to registers and add cast operations just after
+    the block entry.
     """
-
-    unallocated_reg = riscv.IntRegisterType.unallocated()
 
     for arg in block.args:
         rewriter.insert_op_at_start(
             new_val := builtin.UnrealizedConversionCastOp([arg], [arg.type]), block
         )
 
-        arg.type = unallocated_reg
+        arg.type = register_type_for_type(arg.type).unallocated()
         arg.replace_by(new_val.results[0])
         new_val.operands[new_val.results[0].index] = arg
