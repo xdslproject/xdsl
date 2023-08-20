@@ -350,7 +350,7 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     """
     Provides the rewrite passes to canonicalize an operation.
 
-    Each pass must have the trait's op as root.
+    Each rewrite pattern must have the trait's op as root.
     """
 
     def verify(self, op: Operation) -> None:
