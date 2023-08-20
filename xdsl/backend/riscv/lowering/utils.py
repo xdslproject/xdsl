@@ -42,15 +42,20 @@ def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     return new_operands
 
 
-def move_op_for_value(value: SSAValue) -> riscv.MVOp | riscv.FSgnJSOp:
+def move_ops_for_value(
+    value: SSAValue,
+) -> tuple[riscv.MVOp] | tuple[riscv.GetRegisterOp, riscv.FSwOp, riscv.FLwOp]:
     """
     Returns the operation that moves the value from the input to a new register.
     """
 
     if register_type_for_type(value.type) is riscv.IntRegisterType:
-        return riscv.MVOp(value)
+        return (riscv.MVOp(value),)
     else:
-        return riscv.FSgnJSOp(value, value)
+        sp = riscv.GetRegisterOp(riscv.Registers.SP)
+        sw = riscv.FSwOp(sp, value, 0)
+        lw = riscv.FLwOp(sp, 0)
+        return (sp, sw, lw)
 
 
 def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:

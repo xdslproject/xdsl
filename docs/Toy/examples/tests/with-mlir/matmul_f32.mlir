@@ -1,4 +1,4 @@
-// RUN: python -m toy %s --emit=scf | filecheck %s
+// RUN: python -m toy %s --emit=riscv-asm | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({
