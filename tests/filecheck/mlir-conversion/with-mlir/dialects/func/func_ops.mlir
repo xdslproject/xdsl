@@ -12,22 +12,32 @@ builtin.module {
    // CHECK-NEXT: }
 
   func.func @call_void() {
-    "func.call"() {"callee" = @call_void} : () -> ()
+    func.call @call_void() : () -> ()
     func.return
   }
 
    // CHECK: func.func @call_void() {
-   // CHECK-NEXT:   "func.call"() {"callee" = @call_void} : () -> ()
+   // CHECK-NEXT:   func.call @call_void() : () -> ()
+   // CHECK-NEXT:   func.return
+   // CHECK-NEXT: }
+
+  func.func @call_void_attributes() {
+    func.call @call_void_attributes() {"hello" = "world"} : () -> ()
+    func.return
+  }
+
+   // CHECK: func.func @call_void_attributes() {
+   // CHECK-NEXT:   func.call @call_void_attributes() {"hello" = "world"} : () -> ()
    // CHECK-NEXT:   func.return
    // CHECK-NEXT: }
 
   func.func @arg_rec(%arg0 : i32) -> i32 {
-    %1 = "func.call"(%arg0) {"callee" = @arg_rec} : (i32) -> i32
+    %1 = func.call @arg_rec(%arg0) : (i32) -> i32
     func.return %1 : i32
   }
 
    // CHECK: func.func @arg_rec(%{{.*}} : i32) -> i32 {
-   // CHECK-NEXT:   %{{.*}} = "func.call"(%{{.*}}) {"callee" = @arg_rec} : (i32) -> i32
+   // CHECK-NEXT:   %{{.*}} = func.call @arg_rec(%{{.*}}) : (i32) -> i32
    // CHECK-NEXT:   func.return %{{.*}} : i32
    // CHECK-NEXT: }
 
@@ -38,7 +48,7 @@ builtin.module {
   }
 
   // CHECK: func.func @arg_rec_block(%{{.*}} : i32) -> i32 {
-  // CHECK-NEXT:   %{{.*}} = "func.call"(%{{.*}}) {"callee" = @arg_rec_block} : (i32) -> i32
+  // CHECK-NEXT:   %{{.*}} = func.call @arg_rec_block(%{{.*}}) : (i32) -> i32
   // CHECK-NEXT:   func.return %{{.*}} : i32
   // CHECK-NEXT: }
 
