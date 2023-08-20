@@ -335,9 +335,7 @@ class Call(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Call:
         callee = parser.parse_symbol_name()
-        unresolved_arguments = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, lambda: parser.parse_unresolved_operand()
-        )
+        unresolved_arguments = parser.parse_op_args_list()
         extra_attributes = parser.parse_optional_attr_dict_with_reserved_attr_names(
             ("callee",)
         )
