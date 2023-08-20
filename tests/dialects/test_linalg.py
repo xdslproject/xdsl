@@ -2,7 +2,7 @@ from typing import Any
 
 from xdsl.builder import Builder
 from xdsl.dialects import arith, func, linalg, memref
-from xdsl.dialects.builtin import AffineMapAttr, f32
+from xdsl.dialects.builtin import AffineMapAttr, FloatAttr, f32
 from xdsl.ir.affine import AffineExpr, AffineMap
 
 
@@ -10,7 +10,7 @@ def test_linalg_on_memrefs():
     @Builder.implicit_region(())
     def funcBody(args: tuple[Any, ...]):
         mem = memref.Alloc.get(f32, shape=[100])
-        constant = arith.Constant.from_float_and_width(0.0, f32)
+        constant = arith.Constant(FloatAttr(0.0, f32))
 
         inputs = [constant.results[0]]
         outputs = [mem.results[0]]
