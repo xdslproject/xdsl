@@ -43,6 +43,7 @@ from xdsl.passes import ModulePass
 from xdsl.transforms import (
     canonicalize_dmp,
     dead_code_elimination,
+    lower_affine,
     lower_mpi,
     lower_riscv_func,
     lower_snitch,
@@ -104,6 +105,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         DesymrefyPass,
         stencil_global_to_local.GlobalStencilToLocalStencil2DHorizontal,
         stencil_global_to_local.LowerHaloToMPI,
+        lower_affine.LowerAffinePass,
         lower_mpi.LowerMPIPass,
         lower_riscv_func.LowerRISCVFunc,
         lower_snitch.LowerSnitchPass,
