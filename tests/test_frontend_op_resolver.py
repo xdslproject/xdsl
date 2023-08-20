@@ -5,6 +5,7 @@ from xdsl.dialects.arith import Addi, Constant, Mulf
 from xdsl.dialects.builtin import (
     Float32Type,
     Float64Type,
+    FloatAttr,
     IntegerType,
     f32,
     f64,
@@ -45,7 +46,7 @@ def test_resolves_ops():
     assert isinstance(addi_op.results[0].type, IntegerType)
     assert addi_op.results[0].type.width.data == 32
 
-    c = Constant.from_float_and_width(5.0, f32)
+    c = Constant(FloatAttr(5.0, f32))
     mulf = OpResolver.resolve_op("xdsl.frontend.dialects.arith", "mulf")
     mulf_op = mulf(c, c)
 
@@ -68,7 +69,7 @@ def test_resolves_overloads():
     assert isinstance(addi_op.results[0].type, IntegerType)
     assert addi_op.results[0].type.width.data == 64
 
-    c = Constant.from_float_and_width(5.0, f64)
+    c = Constant(FloatAttr(5.0, f64))
     mulf = OpResolver.resolve_op_overload("__mul__", builtin._Float64)
     mulf_op = mulf(c, c)
 
