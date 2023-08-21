@@ -694,8 +694,8 @@ class Printer:
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)
         self.print_successors(op.successors)
-        self.print_regions(op.regions)
         self._print_op_properties(op.properties)
+        self.print_regions(op.regions)
         self.print_op_attributes(op.attributes)
         self.print(" : ")
         self.print_operation_type(op)
