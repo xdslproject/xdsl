@@ -689,10 +689,11 @@ class Parser(AttrParser):
 
     def parse_optional_operation(self) -> Operation | None:
         """
-        Parse an operation, if present, with format:
+        Parse an operation with format:
             operation             ::= op-result-list? (generic-operation | custom-operation)
             generic-operation     ::= string-literal `(` value-use-list? `)`  successor-list?
-                                      region-list? dictionary-attribute? `:` function-type
+                                      properties? region-list? dictionary-attribute? `:`
+                                      function-type location?
             custom-operation      ::= bare-id custom-operation-format
             op-result-list        ::= op-result (`,` op-result)* `=`
             op-result             ::= value-id (`:` integer-literal)
@@ -700,6 +701,7 @@ class Parser(AttrParser):
             successor             ::= caret-id (`:` block-arg-list)?
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
+            properties            ::= `<` dictionary-attribute `>`
         """
         if self._current_token.kind not in (
             Token.Kind.PERCENT_IDENT,
@@ -714,8 +716,8 @@ class Parser(AttrParser):
         Parse an operation with format:
             operation             ::= op-result-list? (generic-operation | custom-operation)
             generic-operation     ::= string-literal `(` value-use-list? `)`  successor-list?
-                                      region-list? dictionary-attribute? `:` function-type
-                                      location?
+                                      properties? region-list? dictionary-attribute? `:`
+                                      function-type location?
             custom-operation      ::= bare-id custom-operation-format
             op-result-list        ::= op-result (`,` op-result)* `=`
             op-result             ::= value-id (`:` integer-literal)
@@ -723,6 +725,7 @@ class Parser(AttrParser):
             successor             ::= caret-id (`:` block-arg-list)?
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
+            properties            ::= `<` dictionary-attribute `>`
         """
         # Parse the operation results
         op_loc = self._current_token.span
@@ -807,6 +810,20 @@ class Parser(AttrParser):
     def parse_optional_attr_dict(self) -> dict[str, Attribute]:
         return self.parse_optional_dictionary_attr_dict()
 
+    def parse_optional_properties_dict(self) -> dict[str, Attribute]:
+        """
+        Parse a property dictionary, if present, with format:
+            dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
+            properties            ::= `<` dictionary-attribute `>`
+        """
+        if self.parse_optional_punctuation("<") is not None:
+            entries = self.parse_comma_separated_list(
+                self.Delimiter.BRACES, self._parse_attribute_entry
+            )
+            self.parse_punctuation(">")
+            return dict(entries)
+        return dict()
+
     def resolve_operands(
         self,
         args: Sequence[UnresolvedOperand],
@@ -838,14 +855,18 @@ class Parser(AttrParser):
 
     def _parse_generic_operation(self, op_type: type[Operation]) -> Operation:
         """
-        Parse an operation with format:
+        Parse a generic operation with format:
             generic-operation     ::= string-literal `(` value-use-list? `)`  successor-list?
-                                      region-list? dictionary-attribute? `:` function-type
-                                      location?
+                                      properties? region-list? dictionary-attribute? `:`
+                                      function-type location?
+            custom-operation      ::= bare-id custom-operation-format
+            op-result-list        ::= op-result (`,` op-result)* `=`
+            op-result             ::= value-id (`:` integer-literal)
             successor-list        ::= `[` successor (`,` successor)* `]`
-            successor             ::= caret-id
+            successor             ::= caret-id (`:` block-arg-list)?
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
+            properties            ::= `<` dictionary-attribute `>`
         """
         # Parse arguments
         args = self.parse_op_args_list()
@@ -854,6 +875,9 @@ class Parser(AttrParser):
         successors = self.parse_optional_successors()
         if successors is None:
             successors = []
+
+        # Parse attribute dictionary
+        properties = self.parse_optional_properties_dict()
 
         # Parse regions
         regions = self.parse_region_list()
@@ -875,6 +899,7 @@ class Parser(AttrParser):
         return op_type.create(
             operands=operands,
             result_types=func_type.outputs.data,
+            properties=properties,
             attributes=attrs,
             successors=successors,
             regions=regions,
