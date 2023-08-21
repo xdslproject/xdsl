@@ -167,12 +167,8 @@ def test_recursive_rewriter():
             val = op.value.value.data
             if val == 0 or val == 1:
                 return
-            constant_op = Constant.from_attr(
-                IntegerAttr.from_int_and_width(val - 1, 32), i32
-            )
-            constant_one = Constant.from_attr(
-                IntegerAttr.from_int_and_width(1, 32), i32
-            )
+            constant_op = Constant(IntegerAttr.from_int_and_width(val - 1, 32), i32)
+            constant_one = Constant(IntegerAttr.from_int_and_width(1, 32), i32)
             add_op = Addi(constant_op, constant_one)
             rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
@@ -208,12 +204,8 @@ def test_recursive_rewriter_reversed():
             val = op.value.value.data
             if val == 0 or val == 1:
                 return
-            constant_op = Constant.from_attr(
-                IntegerAttr.from_int_and_width(val - 1, 32), i32
-            )
-            constant_one = Constant.from_attr(
-                IntegerAttr.from_int_and_width(1, 32), i32
-            )
+            constant_op = Constant(IntegerAttr.from_int_and_width(val - 1, 32), i32)
+            constant_one = Constant(IntegerAttr.from_int_and_width(1, 32), i32)
             add_op = Addi(constant_op, constant_one)
             rewriter.replace_matched_op([constant_op, constant_one, add_op])
 

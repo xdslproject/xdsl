@@ -179,7 +179,9 @@ class FuncOp(IRDLOperation):
                 printer.print(" ")
         else:
             printer.print_attribute(self.function_type)
-        printer.print_op_attributes_with_keyword(self.attributes, reserved)
+        printer.print_op_attributes(
+            self.attributes, reserved_attr_names=reserved, print_keyword=True
+        )
 
         if len(self.body.blocks) > 0:
             printer.print_region(self.body, False, False)
@@ -319,6 +321,34 @@ class Call(IRDLOperation):
             result_types=[return_types],
             attributes={"callee": callee},
         )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_attribute(self.callee)
+        printer.print_string("(")
+        printer.print_list(self.arguments, lambda val: printer.print_ssa_value(val))
+        printer.print_string(")")
+        printer.print_op_attributes(self.attributes, reserved_attr_names=("callee",))
+        printer.print_string(" : ")
+        printer.print_operation_type(self)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Call:
+        callee = parser.parse_symbol_name()
+        unresolved_arguments = parser.parse_op_args_list()
+        extra_attributes = parser.parse_optional_attr_dict_with_reserved_attr_names(
+            ("callee",)
+        )
+        parser.parse_characters(":")
+        pos = parser.pos
+        function_type = parser.parse_function_type()
+        arguments = parser.resolve_operands(
+            unresolved_arguments, function_type.inputs.data, pos
+        )
+        call = Call(callee.data, arguments, function_type.outputs.data)
+        if extra_attributes is not None:
+            call.attributes |= extra_attributes.data
+        return call
 
 
 @irdl_op_definition
