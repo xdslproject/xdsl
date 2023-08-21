@@ -34,7 +34,6 @@ from xdsl.traits import (
     IsTerminator,
     SymbolOpInterface,
 )
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -307,21 +306,6 @@ class Call(IRDLOperation):
             attributes={"callee": callee},
         )
 
-    @deprecated("Use func.Call(...) instead!")
-    @staticmethod
-    def get(
-        callee: str | SymbolRefAttr,
-        arguments: Sequence[SSAValue | Operation],
-        return_types: Sequence[Attribute],
-    ) -> Call:
-        if isinstance(callee, str):
-            callee = SymbolRefAttr(callee)
-        return Call.build(
-            operands=[arguments],
-            result_types=[return_types],
-            attributes={"callee": callee},
-        )
-
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_attribute(self.callee)
@@ -371,11 +355,6 @@ class Return(IRDLOperation):
             raise VerifyException(
                 "Expected arguments to have the same types as the function output types"
             )
-
-    @staticmethod
-    @deprecated("Use func.Return(...) instead!")
-    def get(*ops: Operation | SSAValue) -> Return:
-        return Return.build(operands=[list(ops)])
 
     def print(self, printer: Printer):
         if self.attributes:
