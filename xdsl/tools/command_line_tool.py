@@ -7,7 +7,6 @@ from typing import IO
 from xdsl.backend.riscv import riscv_scf_to_asm
 from xdsl.backend.riscv.lowering import scf_to_riscv_scf
 from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
-from xdsl.backend.riscv.lowering.optimisation_riscv import OptimiseRiscvPass
 from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
@@ -41,6 +40,7 @@ from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.transforms import (
+    canonicalize,
     canonicalize_dmp,
     dead_code_elimination,
     lower_mpi,
@@ -98,6 +98,7 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
+        canonicalize.CanonicalizePass,
         canonicalize_dmp.CanonicalizeDmpPass,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
@@ -114,7 +115,6 @@ def get_all_passes() -> list[type[ModulePass]]:
         riscv_register_allocation.RISCVRegisterAllocation,
         RISCVLowerArith,
         LowerFuncToRiscvFunc,
-        OptimiseRiscvPass,
         scf_to_riscv_scf.ScfToRiscvPass,
         riscv_scf_to_asm.LowerScfForToLabels,
         stencil_shape_inference.StencilShapeInferencePass,
