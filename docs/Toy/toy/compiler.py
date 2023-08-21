@@ -1,8 +1,10 @@
 from pathlib import Path
 
-from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
-from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
-from xdsl.backend.riscv.lowering.scf_to_riscv_scf import ScfToRiscvPass
+from xdsl.backend.riscv.lowering.convert_arith_to_riscv import ConvertArithToRiscvPass
+from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
+    ConvertFuncToRiscvFuncPass,
+)
+from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
 from xdsl.backend.riscv.riscv_scf_to_asm import (
     LowerScfForToLabels,
 )
@@ -112,13 +114,13 @@ def transform(
         return
 
     SetupRiscvPass().apply(ctx, module_op)
-    LowerFuncToRiscvFunc().apply(ctx, module_op)
+    ConvertFuncToRiscvFuncPass().apply(ctx, module_op)
     LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
     CastArithFloatToInt().apply(ctx, module_op)
-    RISCVLowerArith().apply(ctx, module_op)
-    ScfToRiscvPass().apply(ctx, module_op)
+    ConvertArithToRiscvPass().apply(ctx, module_op)
+    ConvertScfToRiscvPass().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
     ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 

@@ -37,8 +37,8 @@ class ScfYieldLowering(RewritePattern):
         )
 
 
-class ScfToRiscvPass(ModulePass):
-    name = "scf-to-rvscf-lowering"
+class ConvertScfToRiscvPass(ModulePass):
+    name = "convert-scf-to-riscv-scf"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
