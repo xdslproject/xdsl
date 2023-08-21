@@ -1129,7 +1129,9 @@ class UnrealizedConversionCastOp(IRDLOperation):
             parser.parse_type,
         )
         attributes = parser.parse_optional_attr_dict()
-        return UnrealizedConversionCastOp([inputs], [output_types], attributes)
+        return UnrealizedConversionCastOp(
+            operands=[inputs], result_types=[output_types], attributes=attributes
+        )
 
     def print(self, printer: Printer):
         def print_fn(operand: SSAValue) -> None:
@@ -1174,6 +1176,7 @@ class UnregisteredOp(IRDLOperation, ABC):
             @classmethod
             def create(
                 cls,
+                *,
                 operands: Sequence[SSAValue] = (),
                 result_types: Sequence[Attribute] = (),
                 attributes: Mapping[str, Attribute] = {},
@@ -1181,7 +1184,11 @@ class UnregisteredOp(IRDLOperation, ABC):
                 regions: Sequence[Region] = (),
             ):
                 op = super().create(
-                    operands, result_types, attributes, successors, regions
+                    operands=operands,
+                    result_types=result_types,
+                    attributes=attributes,
+                    successors=successors,
+                    regions=regions,
                 )
                 op.attributes["op_name__"] = StringAttr(name)
                 return op

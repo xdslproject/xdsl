@@ -659,6 +659,7 @@ class Operation(IRNode):
 
     def __init__(
         self,
+        *,
         operands: Sequence[SSAValue] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute] = {},
@@ -685,6 +686,7 @@ class Operation(IRNode):
     @classmethod
     def create(
         cls: type[Self],
+        *,
         operands: Sequence[SSAValue] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute] = {},
@@ -692,7 +694,14 @@ class Operation(IRNode):
         regions: Sequence[Region] = (),
     ) -> Self:
         op = cls.__new__(cls)
-        Operation.__init__(op, operands, result_types, attributes, successors, regions)
+        Operation.__init__(
+            op,
+            operands=operands,
+            result_types=result_types,
+            attributes=attributes,
+            successors=successors,
+            regions=regions,
+        )
         return op
 
     @deprecated("Use op.operands.__setindex__ instead")
