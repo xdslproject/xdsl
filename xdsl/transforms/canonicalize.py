@@ -9,7 +9,7 @@ from xdsl.traits import HasCanonicalisationPatternsTrait
 from xdsl.transforms.dead_code_elimination import dce
 
 
-class CanonicalizationPass(ModulePass):
+class CanonicalizePass(ModulePass):
     """
     Applies all canonicalization patterns.
     """

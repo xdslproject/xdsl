@@ -45,8 +45,9 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.irdl import OptRegion, opt_region_def, region_def
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, NoTerminator
+from xdsl.traits import HasCanonicalisationPatternsTrait, IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -1464,6 +1465,14 @@ class AuipcOp(RdImmIntegerOperation):
     name = "riscv.auipc"
 
 
+class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import RemoveRedundantMv
+
+        return (RemoveRedundantMv(),)
+
+
 @irdl_op_definition
 class MVOp(RdRsIntegerOperation):
     """
@@ -1473,6 +1482,8 @@ class MVOp(RdRsIntegerOperation):
     """
 
     name = "riscv.mv"
+
+    traits = frozenset((MVHasCanonicalizationPatternsTrait(),))
 
 
 ## Integer Register-Register Operations

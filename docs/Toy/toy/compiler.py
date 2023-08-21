@@ -21,7 +21,7 @@ from xdsl.dialects import (
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
-from xdsl.transforms.canonicalize.canonicalize_pass import CanonicalizationPass
+from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -75,7 +75,7 @@ def transform(
     if target == "toy":
         return
 
-    CanonicalizationPass().apply(ctx, module_op)
+    CanonicalizePass().apply(ctx, module_op)
 
     if target == "toy-opt":
         return
