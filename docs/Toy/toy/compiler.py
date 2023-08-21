@@ -129,11 +129,6 @@ def transform(
     if target == "riscv":
         return
 
-    CanonicalizePass().apply(ctx, module_op)
-
-    if target == "riscv-opt":
-        return
-
     RISCVRegisterAllocation().apply(ctx, module_op)
 
     module_op.verify()
