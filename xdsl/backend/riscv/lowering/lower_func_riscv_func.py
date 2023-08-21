@@ -25,7 +25,9 @@ class LowerFuncOp(RewritePattern):
             )
 
         new_func = riscv_func.FuncOp(
-            op.sym_name.data, rewriter.move_region_contents_to_new_regions(op.body)
+            op.sym_name.data,
+            rewriter.move_region_contents_to_new_regions(op.body),
+            ((), ()),
         )
 
         rewriter.replace_matched_op(new_func)

@@ -8,8 +8,8 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:      "riscv_func.func"() ({
+// CHECK-NEXT:      riscv_func.func @main() {
 // CHECK-NEXT:          "test.op"() : () -> ()
-// CHECK-NEXT:          "riscv_func.return"() : () -> ()
-// CHECK-NEXT:      }) {"sym_name" = "main"} : () -> ()
+// CHECK-NEXT:          riscv_func.return
+// CHECK-NEXT:      }
 // CHECK-NEXT:  }
