@@ -1160,6 +1160,8 @@ class UnregisteredOp(IRDLOperation, ABC):
     res: VarOpResult = var_result_def()
     regs: VarRegion = var_region_def()
 
+    traits = frozenset()
+
     @classmethod
     def with_name(cls, name: str) -> type[Operation]:
         """
