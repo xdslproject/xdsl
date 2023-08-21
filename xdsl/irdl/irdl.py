@@ -459,6 +459,7 @@ class IRDLOperation(Operation):
         operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block | Sequence[Block] | None] | None = None,
         regions: Sequence[
@@ -474,6 +475,8 @@ class IRDLOperation(Operation):
             operands = []
         if result_types is None:
             result_types = []
+        if properties is None:
+            properties = {}
         if attributes is None:
             attributes = {}
         if successors is None:
@@ -485,6 +488,7 @@ class IRDLOperation(Operation):
             self.irdl_definition,
             operands=operands,
             result_types=result_types,
+            properties=properties,
             attributes=attributes,
             successors=successors,
             regions=regions,
@@ -712,28 +716,47 @@ class AttributeDef:
     constr: AttrConstraint
     """The attribute constraint."""
 
-    attr_name: str | None = None
-    """The attribute name, in case it is different from the field name."""
-
     def __init__(
         self,
         attr: Attribute | type[Attribute] | AttrConstraint,
-        attr_name: str | None = None,
     ):
         self.constr = attr_constr_coercion(attr)
-        self.attr_name = attr_name
 
 
 @dataclass(init=False)
-class OptAttributeDef(AttributeDef):
+class OptAttributeDef(AttributeDef, OptionalDef):
     """An IRDL attribute definition for an optional attribute."""
 
     def __init__(
         self,
         attr: Attribute | type[Attribute] | AttrConstraint,
-        attr_name: str | None = None,
     ):
-        super().__init__(attr, attr_name=attr_name)
+        super().__init__(attr)
+
+
+@dataclass(init=False)
+class PropertyDef:
+    """An IRDL property definition."""
+
+    constr: AttrConstraint
+    """The property constraint."""
+
+    def __init__(
+        self,
+        attr: Attribute | type[Attribute] | AttrConstraint,
+    ):
+        self.constr = attr_constr_coercion(attr)
+
+
+@dataclass(init=False)
+class OptPropertyDef(PropertyDef, OptionalDef):
+    """An IRDL property definition for an optional property."""
+
+    def __init__(
+        self,
+        attr: Attribute | type[Attribute] | AttrConstraint,
+    ):
+        super().__init__(attr)
 
 
 class SuccessorDef:
@@ -801,6 +824,20 @@ class _AttributeFieldDef(_ConstrainedOpDefField[AttributeDef]):
         self.attr_name = attr_name
 
 
+class _PropertyFieldDef(_ConstrainedOpDefField[PropertyDef]):
+    property_name: str | None = None
+    """The name of the property, in case it is different from the field name."""
+
+    def __init__(
+        self,
+        cls: type[PropertyDef],
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+        property_name: str | None = None,
+    ):
+        super().__init__(cls, param)
+        self.property_name = property_name
+
+
 class _RegionFieldDef(_OpDefField[RegionDef]):
     pass
 
@@ -846,6 +883,30 @@ def opt_result_def(
     Defines an optional result of an operation.
     """
     return cast(OptOpResult, _ResultFieldDef(OptResultDef, constraint))
+
+
+def prop_def(
+    constraint: type[AttributeInvT] | TypeVar,
+    *,
+    prop_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT:
+    """Defines a property of an operation."""
+    return cast(AttributeInvT, _PropertyFieldDef(PropertyDef, constraint, prop_name))
+
+
+def opt_prop_def(
+    constraint: type[AttributeInvT] | TypeVar,
+    *,
+    prop_name: str | None = None,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> AttributeInvT | None:
+    """Defines an optional property of an operation."""
+    return cast(AttributeInvT, _PropertyFieldDef(OptPropertyDef, constraint, prop_name))
 
 
 def attr_def(
@@ -1006,15 +1067,16 @@ class OpDef:
     name: str = field(kw_only=False)
     operands: list[tuple[str, OperandDef]] = field(default_factory=list)
     results: list[tuple[str, ResultDef]] = field(default_factory=list)
+    properties: dict[str, PropertyDef] = field(default_factory=dict)
     attributes: dict[str, AttributeDef] = field(default_factory=dict)
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
     traits: frozenset[OpTrait] = field(default_factory=frozenset)
 
-    attribute_accessor_names: dict[str, str] = field(default_factory=dict)
+    accessor_names: dict[str, str] = field(default_factory=dict)
     """
-    Mapping from the accessor name to the attribute name.
+    Mapping from the accessor name to the attribute or property name.
     In some cases, the attribute name is not a valid Python identifier,
     or is already used by the operation, so we need to use a different name.
     """
@@ -1041,8 +1103,8 @@ class OpDef:
                 "Operands should be defined with type hints of "
                 "operand_def(<Constraint>), results with "
                 "result_def(<Constraint>), regions with "
-                "region_def(), and attributes with "
-                "attr_def(<Constraint>)"
+                "region_def(), attributes with "
+                "attr_def(<Constraint>), and properties with prop_def(<Constraint>)"
             )
 
         op_def = OpDef(pyrdl_def.name)
@@ -1148,15 +1210,25 @@ class OpDef:
                         continue
                     case _AttributeFieldDef():
                         constraint = get_constraint(value.param)
-                        attribute_def = value.cls(constraint, attr_name=value.attr_name)
+                        attribute_def = value.cls(constraint)
                         attr_name = (
-                            field_name
-                            if attribute_def.attr_name is None
-                            else attribute_def.attr_name
+                            field_name if value.attr_name is None else value.attr_name
                         )
                         op_def.attributes[attr_name] = attribute_def
-                        op_def.attribute_accessor_names[field_name] = attr_name
+                        op_def.accessor_names[field_name] = attr_name
                         continue
+                    case _PropertyFieldDef():
+                        constraint = get_constraint(value.param)
+                        property_def = value.cls(constraint)
+                        property_name = (
+                            field_name
+                            if value.property_name is None
+                            else value.property_name
+                        )
+                        op_def.properties[property_name] = property_def
+                        op_def.accessor_names[field_name] = property_name
+                        continue
+
                     case _RegionFieldDef():
                         region_def = value.cls()
                         op_def.regions.append((field_name, region_def))
@@ -1201,6 +1273,14 @@ class OpDef:
 
         # Verify successors.
         irdl_op_verify_arg_list(op, self, VarIRConstruct.SUCCESSOR, constraint_vars)
+
+        # Verify properties.
+        for attr_name, attr_def in self.properties.items():
+            if attr_name not in op.properties:
+                if isinstance(attr_def, OptPropertyDef):
+                    continue
+                raise VerifyException(f"property {attr_name} expected")
+            attr_def.constr.verify(op.properties[attr_name], constraint_vars)
 
         # Verify attributes.
         for attr_name, attr_def in self.attributes.items():
@@ -1649,6 +1729,7 @@ def irdl_op_init(
     *,
     operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None],
     result_types: Sequence[Attribute | Sequence[Attribute] | None],
+    properties: Mapping[str, Attribute | None],
     attributes: Mapping[str, Attribute | None],
     successors: Sequence[Successor | Sequence[Successor] | None],
     regions: Sequence[
@@ -1691,6 +1772,12 @@ def irdl_op_init(
     built_successors, successor_sizes = irdl_build_arg_list(
         VarIRConstruct.SUCCESSOR, successors, op_def.successors, error_prefix
     )
+
+    built_properties = dict[str, Attribute]()
+    for attr_name, attr in properties.items():
+        if attr is None:
+            continue
+        built_properties[attr_name] = attr
 
     built_attributes = dict[str, Attribute]()
     for attr_name, attr in attributes.items():
@@ -1803,12 +1890,40 @@ def irdl_op_definition(cls: TypeIRDLOperationInvT) -> TypeIRDLOperationInvT:
 
         return property(field_getter, field_setter)
 
-    for accessor_name, attribute_name in op_def.attribute_accessor_names.items():
-        attr_def = op_def.attributes[attribute_name]
-        if isinstance(attr_def, OptAttributeDef):
-            new_attrs[accessor_name] = optional_attribute_field(attribute_name)
+    def optional_property_field(property_name: str):
+        def field_getter(self: IRDLOperation):
+            return self.properties.get(property_name, None)
+
+        def field_setter(self: IRDLOperation, value: Attribute | None):
+            if value is None:
+                self.properties.pop(property_name, None)
+            else:
+                self.properties[property_name] = value
+
+        return property(field_getter, field_setter)
+
+    def property_field(property_name: str):
+        def field_getter(self: IRDLOperation):
+            return self.properties[property_name]
+
+        def field_setter(self: IRDLOperation, value: Attribute):
+            self.properties[property_name] = value
+
+        return property(field_getter, field_setter)
+
+    for accessor_name, attribute_name in op_def.accessor_names.items():
+        if attribute_name in op_def.attributes:
+            attr_def = op_def.attributes[attribute_name]
+            if isinstance(attr_def, OptAttributeDef):
+                new_attrs[accessor_name] = optional_attribute_field(attribute_name)
+            else:
+                new_attrs[accessor_name] = attribute_field(attribute_name)
         else:
-            new_attrs[accessor_name] = attribute_field(attribute_name)
+            prop_def = op_def.properties[attribute_name]
+            if isinstance(prop_def, OptPropertyDef):
+                new_attrs[accessor_name] = optional_property_field(attribute_name)
+            else:
+                new_attrs[accessor_name] = property_field(attribute_name)
 
     new_attrs["traits"] = op_def.traits
 
