@@ -41,16 +41,13 @@ from xdsl.irdl import (
     ParameterDef,
     VarOperand,
     VarOpResult,
-    VarRegion,
     attr_constr_coercion,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_attr_def,
     region_def,
     var_operand_def,
-    var_region_def,
     var_result_def,
 )
 from xdsl.traits import (
@@ -1156,13 +1153,18 @@ class UnregisteredOp(IRDLOperation, ABC):
     """
 
     name = "builtin.unregistered"
-
-    op_name: StringAttr = attr_def(StringAttr, attr_name="op_name__")
-    args: VarOperand = var_operand_def()
-    res: VarOpResult = var_result_def()
-    regs: VarRegion = var_region_def()
-
     traits = frozenset()
+
+    @property
+    def op_name(self) -> StringAttr:
+        if "op_name__" not in self.attributes:
+            raise ValueError("missing 'op_name__' attribute")
+        op_name = self.attributes["op_name__"]
+        if not isinstance(op_name, StringAttr):
+            raise ValueError(
+                f"'op_name__' is expected to have 'StringAttr' type, got {op_name}"
+            )
+        return op_name
 
     @classmethod
     def with_name(cls, name: str) -> type[Operation]:
@@ -1195,7 +1197,7 @@ class UnregisteredOp(IRDLOperation, ABC):
                 op.attributes["op_name__"] = StringAttr(name)
                 return op
 
-        return irdl_op_definition(UnregisteredOpWithName)
+        return UnregisteredOpWithName
 
 
 @irdl_attr_definition

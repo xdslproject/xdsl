@@ -502,6 +502,7 @@ class IRDLOperation(Operation):
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block | Sequence[Block] | None] | None = None,
         regions: Sequence[
             Region
@@ -518,6 +519,7 @@ class IRDLOperation(Operation):
             op,
             operands=operands,
             result_types=result_types,
+            properties=properties,
             attributes=attributes,
             successors=successors,
             regions=regions,
@@ -1074,7 +1076,9 @@ class OpDef:
     options: list[IRDLOption] = field(default_factory=list)
     traits: frozenset[OpTrait] = field(default_factory=frozenset)
 
-    accessor_names: dict[str, str] = field(default_factory=dict)
+    accessor_names: dict[str, tuple[str, Literal["attribute", "property"]]] = field(
+        default_factory=dict
+    )
     """
     Mapping from the accessor name to the attribute or property name.
     In some cases, the attribute name is not a valid Python identifier,
@@ -1215,7 +1219,7 @@ class OpDef:
                             field_name if value.attr_name is None else value.attr_name
                         )
                         op_def.attributes[attr_name] = attribute_def
-                        op_def.accessor_names[field_name] = attr_name
+                        op_def.accessor_names[field_name] = (attr_name, "attribute")
                         continue
                     case _PropertyFieldDef():
                         constraint = get_constraint(value.param)
@@ -1226,9 +1230,8 @@ class OpDef:
                             else value.property_name
                         )
                         op_def.properties[property_name] = property_def
-                        op_def.accessor_names[field_name] = property_name
+                        op_def.accessor_names[field_name] = (property_name, "property")
                         continue
-
                     case _RegionFieldDef():
                         region_def = value.cls()
                         op_def.regions.append((field_name, region_def))
@@ -1275,12 +1278,20 @@ class OpDef:
         irdl_op_verify_arg_list(op, self, VarIRConstruct.SUCCESSOR, constraint_vars)
 
         # Verify properties.
-        for attr_name, attr_def in self.properties.items():
-            if attr_name not in op.properties:
+        for prop_name, attr_def in self.properties.items():
+            if prop_name not in op.properties:
                 if isinstance(attr_def, OptPropertyDef):
                     continue
-                raise VerifyException(f"property {attr_name} expected")
-            attr_def.constr.verify(op.properties[attr_name], constraint_vars)
+                raise VerifyException(f"property {prop_name} expected")
+            attr_def.constr.verify(op.properties[prop_name], constraint_vars)
+
+        for prop_name in op.properties.keys():
+            if prop_name not in self.properties:
+                raise VerifyException(
+                    f"property '{prop_name}' is not defined by the operation. "
+                    "Use the dictionary attribute to add arbitrary information "
+                    "to the operation."
+                )
 
         # Verify attributes.
         for attr_name, attr_def in self.attributes.items():
@@ -1773,12 +1784,14 @@ def irdl_op_init(
         VarIRConstruct.SUCCESSOR, successors, op_def.successors, error_prefix
     )
 
+    # Remove all None properties
     built_properties = dict[str, Attribute]()
     for attr_name, attr in properties.items():
         if attr is None:
             continue
         built_properties[attr_name] = attr
 
+    # Remove all None attributes
     built_attributes = dict[str, Attribute]()
     for attr_name, attr in attributes.items():
         if attr is None:
@@ -1810,6 +1823,7 @@ def irdl_op_init(
         self,
         operands=built_operands,
         result_types=built_res_types,
+        properties=built_properties,
         attributes=built_attributes,
         successors=built_successors,
         regions=built_regions,
@@ -1911,8 +1925,11 @@ def irdl_op_definition(cls: TypeIRDLOperationInvT) -> TypeIRDLOperationInvT:
 
         return property(field_getter, field_setter)
 
-    for accessor_name, attribute_name in op_def.accessor_names.items():
-        if attribute_name in op_def.attributes:
+    for accessor_name, (
+        attribute_name,
+        attribute_type,
+    ) in op_def.accessor_names.items():
+        if attribute_type == "attribute":
             attr_def = op_def.attributes[attribute_name]
             if isinstance(attr_def, OptAttributeDef):
                 new_attrs[accessor_name] = optional_attribute_field(attribute_name)
