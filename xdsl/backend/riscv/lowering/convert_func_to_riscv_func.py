@@ -48,8 +48,8 @@ class LowerReturnOp(RewritePattern):
         rewriter.replace_matched_op(riscv_func.ReturnOp(()))
 
 
-class LowerFuncToRiscvFunc(ModulePass):
-    name = "lower-func-to-riscv-func"
+class ConvertFuncToRiscvFuncPass(ModulePass):
+    name = "convert-func-to-riscv-func"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(

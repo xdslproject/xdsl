@@ -1,6 +1,8 @@
 import pytest
 
-from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
+from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
+    ConvertFuncToRiscvFuncPass,
+)
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func
 from xdsl.dialects.builtin import ModuleOp
@@ -19,7 +21,7 @@ def test_lower_non_main_failure():
     with pytest.raises(
         NotImplementedError, match="Only support lowering main function for now"
     ):
-        LowerFuncToRiscvFunc().apply(MLContext(), non_main)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_main)
 
 
 def test_lower_with_args_failure():
@@ -34,7 +36,7 @@ def test_lower_with_args_failure():
     with pytest.raises(
         NotImplementedError, match="Only support functions with no arguments for now"
     ):
-        LowerFuncToRiscvFunc().apply(MLContext(), multiple_args)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), multiple_args)
 
 
 def test_lower_with_non_empty_return_failure():
@@ -48,7 +50,7 @@ def test_lower_with_non_empty_return_failure():
     with pytest.raises(
         NotImplementedError, match="Only support return with no arguments for now"
     ):
-        LowerFuncToRiscvFunc().apply(MLContext(), non_empty_return)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
 
 
 def test_lower_function_call_failure():
@@ -63,4 +65,4 @@ def test_lower_function_call_failure():
     with pytest.raises(
         NotImplementedError, match="Function call lowering not implemented yet"
     ):
-        LowerFuncToRiscvFunc().apply(MLContext(), function_call)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), function_call)
