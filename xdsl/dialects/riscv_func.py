@@ -72,13 +72,13 @@ class CallOp(IRDLOperation):
     name = "riscv_func.call"
     args: VarOperand = var_operand_def(riscv.IntRegisterType)
     callee: SymbolRefAttr = attr_def(SymbolRefAttr)
-    ress: VarOpResult = var_result_def(riscv.IntRegisterType)
+    ress: VarOpResult = var_result_def(riscv.RISCVRegisterType)
 
     def __init__(
         self,
         callee: SymbolRefAttr,
         args: Sequence[Operation | SSAValue],
-        result_types: Sequence[riscv.IntRegisterType],
+        result_types: Sequence[riscv.RISCVRegisterType],
         comment: StringAttr | None = None,
     ):
         super().__init__(

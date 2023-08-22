@@ -407,7 +407,9 @@ class Return(IRDLOperation):
                 parser.Delimiter.NONE, parser.parse_type, "Expected return value type"
             )
             if len(args) != len(types):
-                parser.raise_error("Expected the same number of types and arguments!")
+                parser.raise_error(
+                    f"Expected the same number of types ({len(types)}) and arguments ({len(args)})"
+                )
             for arg, arg_type in zip(args, types):
                 # can we do this?
                 if arg.type != arg_type:

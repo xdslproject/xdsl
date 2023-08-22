@@ -106,6 +106,11 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
     def abi_index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
 
+    @classmethod
+    @abstractmethod
+    def a_register(cls, index: int) -> Self:
+        raise NotImplementedError()
+
 
 @irdl_attr_definition
 class IntRegisterType(RISCVRegisterType):
@@ -122,6 +127,10 @@ class IntRegisterType(RISCVRegisterType):
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return IntRegisterType.RV32I_INDEX_BY_NAME
+
+    @classmethod
+    def a_register(cls, index: int) -> Self:
+        return _INT_A_REGISTERS[index]
 
     RV32I_INDEX_BY_NAME = {
         "zero": 0,
@@ -175,6 +184,10 @@ class FloatRegisterType(RISCVRegisterType):
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return FloatRegisterType.RV32F_INDEX_BY_NAME
+
+    @classmethod
+    def a_register(cls, index: int) -> Self:
+        return _FLOAT_A_REGISTERS[index]
 
     RV32F_INDEX_BY_NAME = {
         "ft0": 0,
@@ -284,6 +297,28 @@ class Registers(ABC):
     FT9 = FloatRegisterType("ft9")
     FT10 = FloatRegisterType("ft10")
     FT11 = FloatRegisterType("ft11")
+
+
+_INT_A_REGISTERS = (
+    Registers.A0,
+    Registers.A1,
+    Registers.A2,
+    Registers.A3,
+    Registers.A4,
+    Registers.A5,
+    Registers.A6,
+    Registers.A7,
+)
+_FLOAT_A_REGISTERS = (
+    Registers.FA0,
+    Registers.FA1,
+    Registers.FA2,
+    Registers.FA3,
+    Registers.FA4,
+    Registers.FA5,
+    Registers.FA6,
+    Registers.FA7,
+)
 
 
 @irdl_attr_definition
