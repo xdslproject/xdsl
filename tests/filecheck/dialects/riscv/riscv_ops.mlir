@@ -1,5 +1,5 @@
-// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | xdsl-opt | filecheck %s
-// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | filecheck %s --check-prefix=GENERIC
+// RUN: XDSL_ROUNDTRIP
+// RUN: XDSL_GENERIC_ROUNDTRIP
 
 "builtin.module"() ({
   riscv.label "main" ({

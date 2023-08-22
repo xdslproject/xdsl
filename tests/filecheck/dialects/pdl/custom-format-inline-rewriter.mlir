@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-op-generic | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 
 "builtin.module"() ({
     %value1 = "test.op"() : () -> (!pdl.value)
