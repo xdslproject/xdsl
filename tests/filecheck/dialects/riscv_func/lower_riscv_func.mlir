@@ -17,13 +17,13 @@
 // CHECK-NEXT:     %{{.+}} = riscv.li 93 : () -> !riscv.reg<a7>
 // CHECK-NEXT:     riscv.ecall : () -> ()
 
-    "riscv_func.func"() ({
-        %0 = "riscv_func.call"() {"callee" = "get_one"} : () -> !riscv.reg<>
-        %1 = "riscv_func.call"() {"callee" = "get_one"} : () -> !riscv.reg<>
-        %2 = "riscv_func.call"(%0, %1) {"callee" = "add"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-        "riscv_func.call"(%2) {"callee" = "my_print"} : (!riscv.reg<>) -> ()
+    riscv_func.func @main() {
+        %0 = riscv_func.call @get_one() : () -> !riscv.reg<>
+        %1 = riscv_func.call @get_one() : () -> !riscv.reg<>
+        %2 = riscv_func.call @add(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        riscv_func.call @my_print(%2) : (!riscv.reg<>) -> ()
         "riscv_func.return"() : () -> ()
-    }) {"sym_name" = "main"} : () -> ()
+    }
 
 // CHECK-NEXT:     riscv.label "main" ({
 // CHECK-NEXT:         riscv.jal "get_one" : () -> ()
@@ -43,18 +43,18 @@
 // CHECK-NEXT:     }) : () -> ()
 
 
-    "riscv_func.func"() ({
+    riscv_func.func @my_print() {
         "riscv_func.return"() : () -> ()
-    }) {"sym_name" = "my_print"} : () -> ()
+    }
 
 // CHECK-NEXT:     riscv.label "my_print" ({
 // CHECK-NEXT:         riscv.ret : () -> ()
 // CHECK-NEXT:     }) : () -> ()
 
-    "riscv_func.func"() ({
+    riscv_func.func @get_one() {
         %0 = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
         "riscv_func.return"(%0) : (!riscv.reg<>) -> ()
-    }) {"sym_name" = "get_one"} : () -> ()
+    }
 
 // CHECK-NEXT:     riscv.label "get_one" ({
 // CHECK-NEXT:         %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
@@ -62,11 +62,10 @@
 // CHECK-NEXT:         riscv.ret : () -> ()
 // CHECK-NEXT:     }) : () -> ()
 
-    "riscv_func.func"() ({
-    ^0(%0 : !riscv.reg<>, %1 : !riscv.reg<>):
+    riscv_func.func @add(%0 : !riscv.reg<>, %1 : !riscv.reg<>) {
         %2 = "riscv.add"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-        "riscv_func.return"(%2) : (!riscv.reg<>) -> ()
-    }) {"sym_name" = "add"} : () -> ()
+        riscv_func.return %2 : !riscv.reg<>
+    }
 
 // CHECK-NEXT:     riscv.label "add" ({
 // CHECK-NEXT:         %{{.*}} = riscv.get_register : () -> !riscv.reg<a0>
