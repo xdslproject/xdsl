@@ -56,7 +56,6 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.diagnostic import Diagnostic
 
 indentNumSpaces = 2
@@ -671,17 +670,6 @@ class Printer:
         self.print_list(attributes.items(), self._print_attr_string)
 
         self.print("}")
-
-    @deprecated(
-        "Please use print_op_attributes(attributes, reserved_attr_names=..., "
-        "print_keyword=...)"
-    )
-    def print_op_attributes_with_keyword(
-        self, attributes: dict[str, Attribute], reserved_attr_names: Iterable[str] = ()
-    ) -> None:
-        self.print_op_attributes(
-            attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
-        )
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)

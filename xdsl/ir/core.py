@@ -14,14 +14,12 @@ from typing import (
     NoReturn,
     Protocol,
     TypeVar,
-    cast,
     overload,
 )
 
 from typing_extensions import Self
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
 # Used for cyclic dependencies in type hints
@@ -196,11 +194,6 @@ class SSAValue(ABC):
         This property returns the Operation or Block that currently defines a specific value.
         """
         pass
-
-    @property
-    @deprecated("Please use SSAValue.name_hint")
-    def name(self) -> str | None:
-        return self.name_hint
 
     @property
     def name_hint(self) -> str | None:
@@ -695,22 +688,6 @@ class Operation(IRNode):
         Operation.__init__(op, operands, result_types, attributes, successors, regions)
         return op
 
-    @deprecated("Use op.operands.__setindex__ instead")
-    def replace_operand(self, operand: int | SSAValue, new_operand: SSAValue) -> None:
-        """
-        Replace an operand with another operand.
-        Raises ValueError if the specified operand is not an operand of this op
-        """
-        if isinstance(operand, SSAValue):
-            try:
-                operand_idx = self._operands.index(operand)
-            except ValueError as err:
-                raise ValueError(f"{operand} is not an operand of {self}.") from err
-        else:
-            operand_idx = operand
-
-        self.operands[operand_idx] = new_operand
-
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
         if region.parent:
@@ -1187,38 +1164,9 @@ class Block(IRNode):
         """Returns the block arguments."""
         return self._args
 
-    @deprecated("Please use Block(arg_types=arg_types)")
-    @staticmethod
-    def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
-        b = Block()
-        b._args = tuple(
-            BlockArgument(arg_type, b, index)
-            for index, arg_type in enumerate(arg_types)
-        )
-        return b
-
-    @deprecated("Please use Block(ops, arg_types=arg_types)")
-    @staticmethod
-    def from_ops(ops: list[Operation], arg_types: list[Attribute] | None = None):
-        b = Block()
-        if arg_types:
-            b._args = tuple(
-                BlockArgument(arg_type, b, index)
-                for index, arg_type in enumerate(arg_types)
-            )
-        b.add_ops(ops)
-        return b
-
     class BlockCallback(Protocol):
         def __call__(self, *args: BlockArgument) -> list[Operation]:
             ...
-
-    @deprecated("Please use Builder instead")
-    @staticmethod
-    def from_callable(block_arg_types: Iterable[Attribute], f: BlockCallback):
-        b = Block(arg_types=block_arg_types)
-        b.add_ops(f(*b.args))
-        return b
 
     def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
         """
@@ -1523,33 +1471,6 @@ class Region(IRNode):
 
     def __repr__(self) -> str:
         return f"Region(num_blocks={len(self.blocks)})"
-
-    @staticmethod
-    @deprecated("Please use Region([Block(ops)])")
-    def from_operation_list(ops: list[Operation]) -> Region:
-        return Region([Block(ops)])
-
-    @deprecated("Please use Region(blocks, parent=None)")
-    @staticmethod
-    def from_block_list(blocks: list[Block]) -> Region:
-        return Region(blocks)
-
-    @deprecated("Please use Region(blocks) or Region(Block(ops))")
-    @staticmethod
-    def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
-        if isinstance(arg, Region):
-            return arg
-
-        if len(arg) == 0:
-            return Region([Block()])
-
-        match arg[0]:
-            case Block():
-                return Region(cast(list[Block], arg))
-            case Operation():
-                return Region([Block(cast(list[Operation], arg))])
-
-        raise TypeError(f"Can't build a region with argument {arg}")
 
     @property
     def ops(self) -> BlockOps:

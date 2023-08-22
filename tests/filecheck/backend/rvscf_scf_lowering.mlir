@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p scf-to-rvscf-lowering %s | filecheck %s
+// RUN: xdsl-opt -p convert-scf-to-riscv-scf %s | filecheck %s
 
 builtin.module {
   %0 = arith.constant 0 : index

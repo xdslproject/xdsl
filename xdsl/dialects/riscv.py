@@ -1503,7 +1503,7 @@ class AuipcOp(RdImmIntegerOperation):
 class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimisation_riscv import RemoveRedundantMv
+        from xdsl.backend.riscv.lowering.optimise_riscv import RemoveRedundantMv
 
         return (RemoveRedundantMv(),)
 

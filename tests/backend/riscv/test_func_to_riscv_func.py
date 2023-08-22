@@ -1,6 +1,8 @@
 import pytest
 
-from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
+from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
+    ConvertFuncToRiscvFuncPass,
+)
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func
 from xdsl.dialects.builtin import ModuleOp, f32
@@ -19,7 +21,7 @@ def test_lower_func_float_arg_failure():
     with pytest.raises(
         NotImplementedError, match="Moving float value not yet implemented"
     ):
-        LowerFuncToRiscvFunc().apply(MLContext(), non_main)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_main)
 
 
 NINE_TYPES = [TestType("misc")] * 9
@@ -35,7 +37,7 @@ def test_func_too_many_inputs_failure():
     with pytest.raises(
         ValueError, match="Cannot lower func.func with more than 8 inputs"
     ):
-        LowerFuncToRiscvFunc().apply(MLContext(), non_empty_return)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
 
 
 def test_func_too_many_outputs_failure():
@@ -48,7 +50,7 @@ def test_func_too_many_outputs_failure():
     with pytest.raises(
         ValueError, match="Cannot lower func.func with more than 8 outputs"
     ):
-        LowerFuncToRiscvFunc().apply(MLContext(), non_empty_return)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
 
 
 def test_return_too_many_values_failure():
@@ -61,7 +63,7 @@ def test_return_too_many_values_failure():
     with pytest.raises(
         ValueError, match="Cannot lower func.return with more than 8 arguments"
     ):
-        LowerFuncToRiscvFunc().apply(MLContext(), non_empty_return)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
 
 
 def test_call_too_many_operands_failure():
@@ -75,7 +77,7 @@ def test_call_too_many_operands_failure():
     with pytest.raises(
         ValueError, match="Cannot lower func.call with more than 8 operands"
     ):
-        LowerFuncToRiscvFunc().apply(MLContext(), non_empty_return)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
 
 
 def test_call_too_many_results_failure():
@@ -89,4 +91,4 @@ def test_call_too_many_results_failure():
     with pytest.raises(
         ValueError, match="Cannot lower func.call with more than 8 results"
     ):
-        LowerFuncToRiscvFunc().apply(MLContext(), non_empty_return)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
