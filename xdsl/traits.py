@@ -9,6 +9,7 @@ from xdsl.utils.exceptions import VerifyException
 if TYPE_CHECKING:
     from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
     from xdsl.ir import Operation, Region
+    from xdsl.pattern_rewriter import RewritePattern
 
 
 @dataclass(frozen=True)
@@ -342,3 +343,20 @@ class CallableOpInterface(OpTrait, abc.ABC):
         Returns the body of the operation
         """
         raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class HasCanonicalisationPatternsTrait(OpTrait):
+    """
+    Provides the rewrite passes to canonicalize an operation.
+
+    Each rewrite pattern must have the trait's op as root.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    @abc.abstractmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        raise NotImplementedError()

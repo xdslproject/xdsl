@@ -64,6 +64,12 @@ class MLContext:
         init=False, default_factory=dict
     )
 
+    def registered_ops(self) -> Iterable[type[Operation]]:
+        """
+        Returns all the registered operations. Not valid across mutations of this object.
+        """
+        return self._registeredOps.values()
+
     def register_dialect(self, dialect: Dialect):
         """Register a dialect. Operation and Attribute names should be unique"""
         for op in dialect.operations:

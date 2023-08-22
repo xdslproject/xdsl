@@ -10,7 +10,7 @@ lit<17.0.0
 pre-commit==3.3.3
 ruff==0.0.285
 riscemu==2.1.1
-asv<0.6
+asv<0.7
 isort==5.12.0
 nbconvert>=7.7.2,<8.0.0
 # pyright version has to be fixed with `==`. The CI parses this file

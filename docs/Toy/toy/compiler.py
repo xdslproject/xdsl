@@ -19,6 +19,7 @@ from xdsl.dialects import (
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
+from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -36,7 +37,6 @@ from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
 from .rewrites.lower_to_toy_accelerator import LowerToToyAccelerator
 from .rewrites.lower_toy_accelerator_to_riscv import LowerToyAccelerator
 from .rewrites.lower_toy_affine import LowerToAffinePass
-from .rewrites.optimise_toy import OptimiseToy
 from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
 
@@ -73,7 +73,7 @@ def transform(
     if target == "toy":
         return
 
-    OptimiseToy().apply(ctx, module_op)
+    CanonicalizePass().apply(ctx, module_op)
 
     if target == "toy-opt":
         return
