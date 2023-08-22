@@ -31,7 +31,10 @@ def test_riscv_interpreter():
     assert interpreter.run_op(riscv.LiOp("label0"), ()) == (
         Buffer(data=[42], offset=0),
     )
-    assert interpreter.run_op(riscv.MVOp(TestSSAValue(register)), (42,)) == (42,)
+    assert interpreter.run_op(
+        riscv.MVOp(TestSSAValue(register), rd=riscv.IntRegisterType.unallocated()),
+        (42,),
+    ) == (42,)
 
     assert interpreter.run_op(riscv.SltiuOp(TestSSAValue(register), 5), (0,)) == (1,)
     assert interpreter.run_op(riscv.SltiuOp(TestSSAValue(register), 5), (10,)) == (0,)

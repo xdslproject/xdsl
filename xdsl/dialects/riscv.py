@@ -226,6 +226,7 @@ class FloatRegisterType(RISCVRegisterType):
 
 
 RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
+RSInvT = TypeVar("RSInvT", bound=RISCVRegisterType)
 
 
 class Registers(ABC):
@@ -867,26 +868,22 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         return {"immediate", "rd"}
 
 
-class RdRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+class RdRsOperation(Generic[RDInvT, RSInvT], IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V pseudo-instructions that have one destination register and one
     source register.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs: Operand = operand_def(IntRegisterType)
+    rd: OpResult = result_def(RDInvT)
+    rs: Operand = operand_def(RSInvT)
 
     def __init__(
         self,
         rs: Operation | SSAValue,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: RDInvT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1509,7 +1506,7 @@ class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class MVOp(RdRsIntegerOperation):
+class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
     """
     A pseudo instruction to copy contents of one register to another.
 
