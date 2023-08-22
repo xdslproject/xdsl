@@ -57,7 +57,9 @@ class LowerArithConstant(RewritePattern):
                             convert_f32_to_u32(op.value.value.data),
                             rd=_INT_REGISTER_TYPE,
                         ),
-                        fld := riscv.FCvtSWOp(lui.rd),
+                        fld := riscv.FCvtSWOp(
+                            lui.rd, rd=riscv.FloatRegisterType.unallocated()
+                        ),
                         UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
                     ],
                 )
@@ -386,7 +388,9 @@ class LowerArithSIToFPOp(RewritePattern):
                 cast_input := UnrealizedConversionCastOp.get(
                     (op.input,), (_INT_REGISTER_TYPE,)
                 ),
-                new_op := riscv.FCvtSWOp(cast_input.results[0]),
+                new_op := riscv.FCvtSWOp(
+                    cast_input.results[0], rd=riscv.FloatRegisterType.unallocated()
+                ),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
             )
         )
@@ -400,7 +404,9 @@ class LowerArithFPToSIOp(RewritePattern):
                 cast_input := UnrealizedConversionCastOp.get(
                     (op.input,), (_FLOAT_REGISTER_TYPE,)
                 ),
-                new_op := riscv.FCvtWSOp(cast_input.results[0]),
+                new_op := riscv.FCvtWSOp(
+                    cast_input.results[0], rd=riscv.IntRegisterType.unallocated()
+                ),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
             )
         )

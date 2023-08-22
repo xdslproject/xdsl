@@ -91,7 +91,10 @@ def test_riscv_interpreter():
     # the top line is the one that should pass, the other is the same as riscemu
     # assert interpreter.run_op(riscv.FCvtSWOp(TestSSAValue(fregister)), (3,)) == (3.0,)
     assert interpreter.run_op(
-        riscv.FCvtSWOp(TestSSAValue(fregister)), (convert_f32_to_u32(3.0),)
+        riscv.FCvtSWOp(
+            TestSSAValue(fregister), rd=riscv.FloatRegisterType.unallocated()
+        ),
+        (convert_f32_to_u32(3.0),),
     ) == (3.0,)
 
     assert (
