@@ -38,8 +38,8 @@ class ScfYieldLowering(RewritePattern):
         rewriter.replace_matched_op(riscv_scf.YieldOp(*cast_operands_to_regs(rewriter)))
 
 
-class ScfToRiscvPass(ModulePass):
-    name = "scf-to-rvscf-lowering"
+class ConvertScfToRiscvPass(ModulePass):
+    name = "convert-scf-to-riscv-scf"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(

@@ -18,7 +18,6 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -59,18 +58,6 @@ class While(IRDLOperation):
                     f"Block arguments with wrong type, expected {res.type}, "
                     f"got {self.after_region.block.args[idx].type}"
                 )
-
-    @deprecated("Use While() instead")
-    @staticmethod
-    def get(
-        operands: Sequence[SSAValue | Operation],
-        result_types: Sequence[Attribute],
-        before: Region | Sequence[Operation] | Sequence[Block],
-        after: Region | Sequence[Operation] | Sequence[Block],
-    ) -> While:
-        return While.build(
-            operands=[operands], result_types=[result_types], regions=[before, after]
-        )
 
 
 @irdl_op_definition
