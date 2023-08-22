@@ -12,6 +12,14 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
 )
+from xdsl.dialects.utils import (
+    parse_call_op_like,
+    parse_func_op_like,
+    parse_return_op_like,
+    print_call_op_like,
+    print_func_op_like,
+    print_return_op_like,
+)
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
@@ -30,7 +38,6 @@ from xdsl.parser.core import Parser
 from xdsl.printer import Printer
 from xdsl.traits import CallableOpInterface, HasParent, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 
 @irdl_op_definition
@@ -70,7 +77,7 @@ class CallOp(IRDLOperation):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args: VarOperand = var_operand_def(riscv.RISCVRegisterType)
+    args: VarOperand = var_operand_def(riscv.IntRegisterType)
     callee: SymbolRefAttr = attr_def(SymbolRefAttr)
     ress: VarOpResult = var_result_def(riscv.RISCVRegisterType)
 
@@ -102,35 +109,22 @@ class CallOp(IRDLOperation):
             )
 
     def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_attribute(self.callee)
-        printer.print_string("(")
-        printer.print_list(self.args, printer.print_ssa_value)
-        printer.print_string(")")
-        printer.print_op_attributes(self.attributes, reserved_attr_names=("callee",))
-        printer.print_string(" : ")
-        printer.print_operation_type(self)
+        print_call_op_like(
+            printer,
+            self,
+            self.callee,
+            self.args,
+            self.attributes,
+            reserved_attr_names=("callee",),
+        )
 
     @classmethod
     def parse(cls, parser: Parser) -> CallOp:
-        callee = parser.parse_symbol_name()
-        unresolved_arguments = parser.parse_op_args_list()
-        extra_attributes = parser.parse_optional_attr_dict_with_reserved_attr_names(
-            ("callee",)
+        callee, arguments, results, extra_attributes = parse_call_op_like(
+            parser, reserved_attr_names=("callee",)
         )
-        parser.parse_characters(":")
-        pos = parser.pos
-        function_type = parser.parse_function_type()
-        arguments = parser.resolve_operands(
-            unresolved_arguments, function_type.inputs.data, pos
-        )
-        for attr in function_type.outputs.data:
-            if not isinstance(attr, riscv.RISCVRegisterType):
-                parser.raise_error(
-                    "Expected register type when parsing riscv_func.call type"
-                )
-        ress = cast(tuple[riscv.RISCVRegisterType, ...], function_type.outputs.data)
-        call = CallOp(SymbolRefAttr(callee), arguments, ress)
+        ress = cast(tuple[riscv.IntRegisterType, ...], results)
+        call = CallOp(callee, arguments, ress)
         if extra_attributes is not None:
             call.attributes |= extra_attributes.data
         return call
@@ -172,85 +166,29 @@ class FuncOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        # Parse function name
-        name = parser.parse_symbol_name().data
-
-        def parse_fun_input():
-            ret = parser.parse_optional_argument()
-            if ret is None:
-                ret = parser.parse_optional_type()
-            if ret is None:
-                parser.raise_error("Expected argument or type")
-            return ret
-
-        # Parse function arguments
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN,
-            parse_fun_input,
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+        ) = parse_func_op_like(
+            parser, reserved_attr_names=("sym_name", "function_type")
         )
-
-        # Check consistency (They should be either all named or none)
-        if isa(args, list[parser.Argument]):
-            entry_args = args
-            input_types = cast(list[Attribute], [a.type for a in args])
-        elif isa(args, list[Attribute]):
-            entry_args = None
-            input_types = args
-        else:
-            parser.raise_error(
-                "Expected all arguments to be named or all arguments to be unnamed."
-            )
-
-        # Parse return type
-        if parser.parse_optional_punctuation("->"):
-            return_types = parser.parse_optional_comma_separated_list(
-                parser.Delimiter.PAREN, parser.parse_type
-            )
-            if return_types is None:
-                return_types = [parser.parse_type()]
-        else:
-            return_types = []
-
-        attr_dict = parser.parse_optional_attr_dict_with_keyword(
-            (
-                "sym_name",
-                "function_type",
-            )
-        )
-
-        # Parse body
-        region = parser.parse_optional_region(entry_args)
-        if region is None:
-            region = Region()
         func = FuncOp(name, region, (input_types, return_types))
-        if attr_dict is not None:
-            func.attributes |= attr_dict.data
+        if extra_attrs is not None:
+            func.attributes |= extra_attrs.data
         return func
 
     def print(self, printer: Printer):
-        reserved = {"sym_name", "function_type"}
-
-        printer.print(f" @{self.sym_name.data}")
-        if len(self.body.blocks) > 0:
-            printer.print("(")
-            printer.print_list(self.body.blocks[0].args, printer.print_block_argument)
-            printer.print(") ")
-            if self.function_type.outputs:
-                printer.print("-> ")
-                if len(self.function_type.outputs) > 1:
-                    printer.print("(")
-                printer.print_list(self.function_type.outputs, printer.print_attribute)
-                if len(self.function_type.outputs) > 1:
-                    printer.print(")")
-                printer.print(" ")
-        else:
-            printer.print_attribute(self.function_type)
-        printer.print_op_attributes(
-            self.attributes, reserved_attr_names=reserved, print_keyword=True
+        print_func_op_like(
+            printer,
+            self.sym_name,
+            self.function_type,
+            self.body,
+            self.attributes,
+            reserved_attr_names=("sym_name", "function_type"),
         )
-
-        if len(self.body.blocks) > 0:
-            printer.print_region(self.body, False, False)
 
 
 @irdl_op_definition
@@ -285,38 +223,11 @@ class ReturnOp(IRDLOperation):
             )
 
     def print(self, printer: Printer):
-        if self.attributes:
-            printer.print(" ")
-            printer.print_op_attributes(self.attributes)
-
-        if self.values:
-            printer.print(" ")
-            printer.print_list(self.values, printer.print_ssa_value)
-            printer.print_string(" : ")
-
-            printer.print_list(
-                (value.type for value in self.values), printer.print_attribute
-            )
+        print_return_op_like(printer, self.attributes, self.values)
 
     @classmethod
     def parse(cls, parser: Parser) -> ReturnOp:
-        attrs = parser.parse_optional_attr_dict()
-
-        pos = parser.pos
-        unresolved_operands = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
-        )
-
-        args: Sequence[SSAValue]
-        if unresolved_operands is not None:
-            parser.parse_punctuation(":")
-            types = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parser.parse_type, "Expected return value type"
-            )
-            args = parser.resolve_operands(unresolved_operands, types, pos)
-        else:
-            args = []
-
+        attrs, args = parse_return_op_like(parser)
         op = ReturnOp(args)
         op.attributes.update(attrs)
         return op
