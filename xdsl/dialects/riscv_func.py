@@ -70,7 +70,7 @@ class CallOp(IRDLOperation):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args: VarOperand = var_operand_def(riscv.IntRegisterType)
+    args: VarOperand = var_operand_def(riscv.RISCVRegisterType)
     callee: SymbolRefAttr = attr_def(SymbolRefAttr)
     ress: VarOpResult = var_result_def(riscv.RISCVRegisterType)
 
@@ -125,11 +125,11 @@ class CallOp(IRDLOperation):
             unresolved_arguments, function_type.inputs.data, pos
         )
         for attr in function_type.outputs.data:
-            if not isinstance(attr, riscv.IntRegisterType):
+            if not isinstance(attr, riscv.RISCVRegisterType):
                 parser.raise_error(
                     "Expected register type when parsing riscv_func.call type"
                 )
-        ress = cast(tuple[riscv.IntRegisterType, ...], function_type.outputs.data)
+        ress = cast(tuple[riscv.RISCVRegisterType, ...], function_type.outputs.data)
         call = CallOp(SymbolRefAttr(callee), arguments, ress)
         if extra_attributes is not None:
             call.attributes |= extra_attributes.data
@@ -258,7 +258,7 @@ class ReturnOp(IRDLOperation):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values: VarOperand = var_operand_def(riscv.IntRegisterType)
+    values: VarOperand = var_operand_def(riscv.RISCVRegisterType)
     comment: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = frozenset([IsTerminator(), HasParent(FuncOp)])
