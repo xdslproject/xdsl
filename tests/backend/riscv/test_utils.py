@@ -43,10 +43,12 @@ def test_op_cast_utils():
             )
         )
         def inner(args: tuple[BlockArgument, ...]):
-            v = test.TestOp.create(args, [INDEX_TYPE, INDEX_TYPE])
-            test.TestTermOp.create(v.results, [INDEX_TYPE, INDEX_TYPE])
+            v = test.TestOp.create(operands=args, result_types=[INDEX_TYPE, INDEX_TYPE])
+            test.TestTermOp.create(
+                operands=v.results, result_types=[INDEX_TYPE, INDEX_TYPE]
+            )
 
-        test.TestOp.create((), (), regions=(inner,))
+        test.TestOp.create(regions=(inner,))
 
     @builtin.ModuleOp
     @Builder.implicit_region
@@ -55,10 +57,10 @@ def test_op_cast_utils():
         def inner(args: tuple[BlockArgument, ...]):
             (first_arg, second_arg) = args
             first_arg_cast = builtin.UnrealizedConversionCastOp(
-                (first_arg,), (REGISTER_TYPE,)
+                operands=(first_arg,), result_types=(REGISTER_TYPE,)
             )
             second_arg_cast = builtin.UnrealizedConversionCastOp(
-                (second_arg,), (REGISTER_TYPE,)
+                operands=(second_arg,), result_types=(REGISTER_TYPE,)
             )
             v = riscv.CustomAssemblyInstructionOp(
                 "foo",
@@ -68,14 +70,14 @@ def test_op_cast_utils():
             v1 = builtin.UnrealizedConversionCastOp.get((v.results[0],), (INDEX_TYPE,))
             v2 = builtin.UnrealizedConversionCastOp.get((v.results[1],), (INDEX_TYPE,))
             test.TestTermOp.create(
-                (
+                operands=(
                     v1.results[0],
                     v2.results[0],
                 ),
-                [INDEX_TYPE, INDEX_TYPE],
+                result_types=[INDEX_TYPE, INDEX_TYPE],
             )
 
-        test.TestOp.create((), (), regions=(inner,))
+        test.TestOp.create(regions=(inner,))
 
     target_op = next(filter(lambda op: len(op.results) == 2, input.walk()))
     assert target_op is not None
@@ -104,10 +106,12 @@ def test_block_cast_utils():
             )
         )
         def inner(args: tuple[BlockArgument, ...]):
-            v = test.TestOp.create(args, [INDEX_TYPE, INDEX_TYPE])
-            test.TestTermOp.create(v.results, [INDEX_TYPE, INDEX_TYPE])
+            v = test.TestOp.create(operands=args, result_types=[INDEX_TYPE, INDEX_TYPE])
+            test.TestTermOp.create(
+                operands=v.results, result_types=[INDEX_TYPE, INDEX_TYPE]
+            )
 
-        test.TestOp.create((), (), regions=(inner,))
+        test.TestOp.create(regions=(inner,))
 
     @builtin.ModuleOp
     @Builder.implicit_region
@@ -121,22 +125,24 @@ def test_block_cast_utils():
         def inner(args: tuple[BlockArgument, ...]):
             (first_arg, second_arg) = args
             second_arg_cast = builtin.UnrealizedConversionCastOp(
-                (second_arg,), (INDEX_TYPE,)
+                operands=(second_arg,), result_types=(INDEX_TYPE,)
             )
             first_arg_cast = builtin.UnrealizedConversionCastOp(
-                (first_arg,), (INDEX_TYPE,)
+                operands=(first_arg,), result_types=(INDEX_TYPE,)
             )
 
             v = test.TestOp.create(
-                (
+                operands=(
                     first_arg_cast.results[0],
                     second_arg_cast.results[0],
                 ),
-                [INDEX_TYPE, INDEX_TYPE],
+                result_types=[INDEX_TYPE, INDEX_TYPE],
             )
-            test.TestTermOp.create(v.results, [INDEX_TYPE, INDEX_TYPE])
+            test.TestTermOp.create(
+                operands=v.results, result_types=[INDEX_TYPE, INDEX_TYPE]
+            )
 
-        test.TestOp.create((), (), regions=(inner,))
+        test.TestOp.create(regions=(inner,))
 
     target_op = next(filter(lambda op: isinstance(op, test.TestOp), input.walk()))
     assert target_op is not None

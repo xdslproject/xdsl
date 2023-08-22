@@ -23,8 +23,8 @@ class LowerFuncOp(RewritePattern):
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
         if len(op.function_type.inputs.data) > 8:
             raise ValueError("Cannot lower func.func with more than 8 inputs")
-        if len(op.function_type.outputs.data) > 8:
-            raise ValueError("Cannot lower func.func with more than 8 outputs")
+        if len(op.function_type.outputs.data) > 2:
+            raise ValueError("Cannot lower func.func with more than 2 outputs")
 
         first_block = op.body.blocks[0]
         cast_block_args_from_a_regs(first_block, rewriter)
@@ -49,8 +49,8 @@ class LowerFuncCallOp(RewritePattern):
     def match_and_rewrite(self, op: func.Call, rewriter: PatternRewriter) -> None:
         if len(op.arguments) > 8:
             raise ValueError("Cannot lower func.call with more than 8 operands")
-        if len(op.res) > 8:
-            raise ValueError("Cannot lower func.call with more than 8 results")
+        if len(op.res) > 2:
+            raise ValueError("Cannot lower func.call with more than 2 results")
 
         cast_operand_ops, register_operands = cast_to_regs(op.arguments)
         move_operand_ops, moved_operands = move_to_a_regs(register_operands)
@@ -83,8 +83,8 @@ class LowerFuncCallOp(RewritePattern):
 class LowerReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.Return, rewriter: PatternRewriter):
-        if len(op.arguments) > 8:
-            raise ValueError("Cannot lower func.return with more than 8 arguments")
+        if len(op.arguments) > 2:
+            raise ValueError("Cannot lower func.return with more than 2 arguments")
 
         cast_ops, register_values = cast_to_regs(op.arguments)
         move_ops, moved_values = move_to_a_regs(register_values)

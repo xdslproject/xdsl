@@ -169,7 +169,10 @@ def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
 
     for arg in block.args:
         rewriter.insert_op_at_start(
-            new_val := builtin.UnrealizedConversionCastOp([arg], [arg.type]), block
+            new_val := builtin.UnrealizedConversionCastOp(
+                operands=[arg], result_types=[arg.type]
+            ),
+            block,
         )
 
         arg.type = register_type_for_type(arg.type).unallocated()

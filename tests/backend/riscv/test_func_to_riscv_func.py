@@ -25,6 +25,7 @@ def test_lower_func_float_arg_failure():
 
 
 NINE_TYPES = [TestType("misc")] * 9
+THREE_TYPES = [TestType("misc")] * 3
 
 
 def test_func_too_many_inputs_failure():
@@ -44,11 +45,11 @@ def test_func_too_many_outputs_failure():
     @ModuleOp
     @Builder.implicit_region
     def non_empty_return():
-        with ImplicitBuilder(func.FuncOp("main", ((), NINE_TYPES)).body):
+        with ImplicitBuilder(func.FuncOp("main", ((), THREE_TYPES)).body):
             func.Return()
 
     with pytest.raises(
-        ValueError, match="Cannot lower func.func with more than 8 outputs"
+        ValueError, match="Cannot lower func.func with more than 2 outputs"
     ):
         ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
 
@@ -58,10 +59,10 @@ def test_return_too_many_values_failure():
     @Builder.implicit_region
     def non_empty_return():
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            func.Return(*(TestSSAValue(t) for t in NINE_TYPES))
+            func.Return(*(TestSSAValue(t) for t in THREE_TYPES))
 
     with pytest.raises(
-        ValueError, match="Cannot lower func.return with more than 8 arguments"
+        ValueError, match="Cannot lower func.return with more than 2 arguments"
     ):
         ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
 
@@ -85,10 +86,10 @@ def test_call_too_many_results_failure():
     @Builder.implicit_region
     def non_empty_return():
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            func.Call("foo", [], NINE_TYPES)
+            func.Call("foo", [], THREE_TYPES)
             func.Return()
 
     with pytest.raises(
-        ValueError, match="Cannot lower func.call with more than 8 results"
+        ValueError, match="Cannot lower func.call with more than 2 results"
     ):
         ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
