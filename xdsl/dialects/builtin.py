@@ -1179,6 +1179,7 @@ class UnregisteredOp(IRDLOperation, ABC):
                 *,
                 operands: Sequence[SSAValue] = (),
                 result_types: Sequence[Attribute] = (),
+                properties: Mapping[str, Attribute] = {},
                 attributes: Mapping[str, Attribute] = {},
                 successors: Sequence[Block] = (),
                 regions: Sequence[Region] = (),
@@ -1186,6 +1187,7 @@ class UnregisteredOp(IRDLOperation, ABC):
                 op = super().create(
                     operands=operands,
                     result_types=result_types,
+                    properties=properties,
                     attributes=attributes,
                     successors=successors,
                     regions=regions,

@@ -559,6 +559,13 @@ class Operation(IRNode):
     This list should be empty for non-terminator operations.
     """
 
+    properties: dict[str, Attribute] = field(default_factory=dict)
+    """
+    The properties attached to the operation.
+    Properties are inherent to the definition of an operation's semantics, and
+    thus cannot be discarded by transformations.
+    """
+
     attributes: dict[str, Attribute] = field(default_factory=dict)
     """The attributes attached to the operation."""
 
@@ -662,6 +669,7 @@ class Operation(IRNode):
         *,
         operands: Sequence[SSAValue] = (),
         result_types: Sequence[Attribute] = (),
+        properties: Mapping[str, Attribute] = {},
         attributes: Mapping[str, Attribute] = {},
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
@@ -675,6 +683,7 @@ class Operation(IRNode):
             OpResult(result_type, self, idx)
             for (idx, result_type) in enumerate(result_types)
         ]
+        self.properties = dict(properties)
         self.attributes = dict(attributes)
         self.successors = list(successors)
         self.regions = []
@@ -689,6 +698,7 @@ class Operation(IRNode):
         *,
         operands: Sequence[SSAValue] = (),
         result_types: Sequence[Attribute] = (),
+        properties: Mapping[str, Attribute] = {},
         attributes: Mapping[str, Attribute] = {},
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
@@ -698,6 +708,7 @@ class Operation(IRNode):
             op,
             operands=operands,
             result_types=result_types,
+            properties=properties,
             attributes=attributes,
             successors=successors,
             regions=regions,
