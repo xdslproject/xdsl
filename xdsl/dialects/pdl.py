@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Annotated, Generic, Iterable, Sequence, TypeVar
+from collections.abc import Iterable, Sequence
+from typing import Annotated, Generic, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
@@ -549,7 +550,7 @@ class ReplaceOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-mlirpdlreplaceop
 
-    pdl.replace` operations are used within `pdl.rewrite` regions to specify
+    `pdl.replace` operations are used within `pdl.rewrite` regions to specify
     that an input operation should be marked as replaced. The semantics of this
     operation correspond with the `replaceOp` method on a `PatternRewriter`. The
     set of replacement values can be either:

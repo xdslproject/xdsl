@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
 from typing import (
-    Callable,
-    Iterable,
-    Sequence,
     TypeVar,
     Union,
     final,

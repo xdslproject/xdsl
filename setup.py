@@ -1,6 +1,7 @@
 import re
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping, cast
+from typing import cast
 
 from setuptools import Command, find_packages, setup
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
@@ -13,8 +14,6 @@ from typing import (
     ClassVar,
     Generic,
     Literal,
-    Mapping,
-    Sequence,
     TypeAlias,
     TypeVar,
     Union,
@@ -456,6 +455,7 @@ class IRDLOperation(Operation):
 
     def __init__(
         self: IRDLOperation,
+        *,
         operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
@@ -483,16 +483,17 @@ class IRDLOperation(Operation):
         irdl_op_init(
             self,
             self.irdl_definition,
-            operands,
-            result_types,
-            attributes,
-            successors,
-            regions,
+            operands=operands,
+            result_types=result_types,
+            attributes=attributes,
+            successors=successors,
+            regions=regions,
         )
 
     @classmethod
     def build(
         cls: type[IRDLOperationInvT],
+        *,
         operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
         | None = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
@@ -1111,7 +1112,7 @@ class OpDef:
 
                 # Methods, properties, and functions are allowed
                 if isinstance(
-                    value, (FunctionType, PropertyType, classmethod, staticmethod)
+                    value, FunctionType | PropertyType | classmethod | staticmethod
                 ):
                     continue
                 # Constraint variables are allowed
@@ -1645,8 +1646,9 @@ def irdl_build_regions_arg(
 def irdl_op_init(
     self: IRDLOperation,
     op_def: OpDef,
+    *,
     operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None],
-    res_types: Sequence[Attribute | Sequence[Attribute] | None],
+    result_types: Sequence[Attribute | Sequence[Attribute] | None],
     attributes: Mapping[str, Attribute | None],
     successors: Sequence[Successor | Sequence[Successor] | None],
     regions: Sequence[
@@ -1677,7 +1679,7 @@ def irdl_op_init(
 
     # Build the results
     built_res_types, result_sizes = irdl_build_arg_list(
-        VarIRConstruct.RESULT, res_types, op_def.results, error_prefix
+        VarIRConstruct.RESULT, result_types, op_def.results, error_prefix
     )
 
     # Build the regions
@@ -1943,7 +1945,7 @@ class ParamAttrDef:
             if field_name == "name":
                 continue
             if isinstance(
-                value, (FunctionType, PropertyType, classmethod, staticmethod)
+                value, FunctionType | PropertyType | classmethod | staticmethod
             ):
                 continue
             # Constraint variables are allowed

@@ -5,7 +5,6 @@ These are temporary, until xDSL supports all the functionality necessary to lowe
 builtin+printf to riscv.
 """
 
-from functools import reduce
 from typing import IO, ClassVar
 
 from riscemu.instructions.instruction_set import InstructionSet
@@ -13,20 +12,6 @@ from riscemu.types.instruction import Instruction
 from riscemu.types.int32 import Int32
 
 from xdsl.interpreters.shaped_array import ShapedArray
-
-
-def tensor_description(shape: list[int], data: list[int]) -> str:
-    if len(shape) == 1:
-        return str(data)
-    if len(shape):
-        size = reduce(lambda acc, el: acc * el, shape[1:], 1)
-        inner = (
-            tensor_description(shape[1:], data[start : start + size])
-            for start in range(0, size * shape[0], size)
-        )
-        return f'[{", ".join(inner)}]'
-    else:
-        return "[]"
 
 
 # Define a RISC-V ISA extension by subclassing InstructionSet
@@ -116,7 +101,7 @@ class ToyAccelerator(InstructionSet):
         """
         Copies the elements of one buffer to another.
         """
-        c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
+        c_reg, d_reg, s_reg = (ins.get_reg(i) for i in range(3))
 
         count = self.get_reg(c_reg)
 
@@ -131,7 +116,7 @@ class ToyAccelerator(InstructionSet):
         """
         Pointwise addition of two buffers.
         """
-        c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
+        c_reg, d_reg, s_reg = (ins.get_reg(i) for i in range(3))
 
         count = self.get_reg(c_reg)
 
@@ -149,7 +134,7 @@ class ToyAccelerator(InstructionSet):
         """
         Pointwise multiplication of two buffers.
         """
-        c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
+        c_reg, d_reg, s_reg = (ins.get_reg(i) for i in range(3))
 
         count = self.get_reg(c_reg)
 

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import ast
+from collections.abc import Callable
 from sys import _getframe  # pyright: ignore[reportPrivateUsage]
-from typing import Any, Callable, Generic, Literal, Tuple, TypeAlias, TypeVar
+from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
 import pytest
 
@@ -51,7 +52,7 @@ class _D(Generic[T], _FrontendType):
 a: TypeAlias = _A
 b: TypeAlias = _B
 c2: TypeAlias = _C[Literal[2]]
-d12: TypeAlias = _D[Tuple[Literal[1], Literal[2]]]
+d12: TypeAlias = _D[tuple[Literal[1], Literal[2]]]
 
 globals: dict[str, Any] = _getframe(0).f_globals
 

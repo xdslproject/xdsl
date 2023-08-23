@@ -141,9 +141,7 @@ class Span:
         return capture.getvalue()
 
     def __repr__(self):
-        return "{}[{}:{}](text='{}')".format(
-            self.__class__.__name__, self.start, self.end, self.text
-        )
+        return f"{self.__class__.__name__}[{self.start}:{self.end}](text='{self.text}')"
 
 
 @dataclass(frozen=True, repr=False)

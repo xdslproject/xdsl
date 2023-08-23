@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, Iterable, Sequence, TypeAlias, TypeVar, cast
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -544,23 +545,17 @@ class DmaStartOp(IRDLOperation):
 
         if len(self.src.type.shape) != len(self.src_indices):
             raise VerifyException(
-                "Expected {} source indices (because of shape of src memref)".format(
-                    len(self.src.type.shape)
-                )
+                f"Expected {len(self.src.type.shape)} source indices (because of shape of src memref)"
             )
 
         if len(self.dest.type.shape) != len(self.dest_indices):
             raise VerifyException(
-                "Expected {} dest indices (because of shape of dest memref)".format(
-                    len(self.dest.type.shape)
-                )
+                f"Expected {len(self.dest.type.shape)} dest indices (because of shape of dest memref)"
             )
 
         if len(self.tag.type.shape) != len(self.tag_indices):
             raise VerifyException(
-                "Expected {} tag indices (because of shape of tag memref)".format(
-                    len(self.tag.type.shape)
-                )
+                f"Expected {len(self.tag.type.shape)} tag indices (because of shape of tag memref)"
             )
 
         if self.tag.type.element_type != i32:
@@ -612,7 +607,7 @@ class CopyOp(IRDLOperation):
     destination: Operand = operand_def(MemRefType)
 
     def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
-        super().__init__([source, destination])
+        super().__init__(operands=[source, destination])
 
     def verify_(self) -> None:
         source = cast(MemRefType[Attribute], self.source.type)

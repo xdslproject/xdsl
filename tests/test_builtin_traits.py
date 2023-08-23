@@ -66,7 +66,7 @@ class HasMultipleParentOp(IRDLOperation):
 
     name = "test.has_multiple_parent"
 
-    traits = frozenset([HasParent((ParentOp, Parent2Op))])
+    traits = frozenset([HasParent(ParentOp, Parent2Op)])
 
 
 def test_has_parent_no_parent():

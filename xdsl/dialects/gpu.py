@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Generic, Sequence, TypeVar
+from collections.abc import Sequence
+from typing import Generic, TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
@@ -663,7 +664,7 @@ class ReturnOp(IRDLOperation):
     traits = frozenset([IsTerminator(), HasParent(FuncOp)])
 
     def __init__(self, operands: Sequence[SSAValue | Operation]):
-        return super().__init__([operands])
+        return super().__init__(operands=[operands])
 
 
 @irdl_op_definition
@@ -721,7 +722,7 @@ class YieldOp(IRDLOperation):
     values: VarOperand = var_operand_def(Attribute)
 
     def __init__(self, operands: Sequence[SSAValue | Operation]):
-        return super().__init__([operands])
+        return super().__init__(operands=[operands])
 
     traits = frozenset([IsTerminator()])
 

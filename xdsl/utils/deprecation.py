@@ -1,5 +1,6 @@
 import warnings
-from typing import Callable, ParamSpec, TypeVar
+from collections.abc import Callable
+from typing import ParamSpec, TypeVar
 
 # We could use the `decorated` library, but it did not seem necessary for
 # this simple use case.

@@ -1,12 +1,14 @@
 # RUN: python -m toy %s --emit=scf | filecheck %s
 # RUN: python -m toy %s --emit=riscv | filecheck %s
 # RUN: python -m toy %s --emit=riscv-regalloc | filecheck %s
+# RUN: python -m toy %s --emit=riscv-asm | filecheck %s
 
 # RUN: python -m toy %s --emit=scf --accelerate | filecheck %s
 # RUN: python -m toy %s --emit=riscv --accelerate | filecheck %s
 # RUN: python -m toy %s --emit=riscv-regalloc --accelerate | filecheck %s
 # RUN: python -m toy %s --emit=riscv-asm --accelerate | filecheck %s
 
+# RUN: python -m toy %s --emit=riscv-regalloc --ir | filecheck %s --check-prefix=REGALLOC
 # RUN: python -m toy %s --emit=riscv-regalloc --ir --accelerate | filecheck %s --check-prefix=REGALLOC
 
 # User defined generic function that operates on unknown shaped arguments

@@ -1,4 +1,3 @@
-import ctypes
 from typing import overload
 
 from xdsl.backend.riscv.lowering.utils import (
@@ -26,18 +25,10 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.dead_code_elimination import dce
+from xdsl.utils.bitwise_casts import convert_f32_to_u32
 
 _INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 _FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
-
-
-def convert_float_to_int(value: float) -> int:
-    """
-    Convert an IEEE 754 float to a raw integer representation, useful for loading constants.
-    """
-    raw_float = ctypes.c_float(value)
-    raw_int = ctypes.c_int.from_address(ctypes.addressof(raw_float)).value
-    return raw_int
 
 
 class LowerArithConstant(RewritePattern):
@@ -63,7 +54,7 @@ class LowerArithConstant(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         lui := riscv.LiOp(
-                            convert_float_to_int(op.value.value.data),
+                            convert_f32_to_u32(op.value.value.data),
                             rd=_INT_REGISTER_TYPE,
                         ),
                         fld := riscv.FCvtSWOp(lui.rd),
@@ -427,8 +418,8 @@ class LowerArithTruncFOp(RewritePattern):
         raise NotImplementedError("TruncF is not supported")
 
 
-class RISCVLowerArith(ModulePass):
-    name = "lower-arith-to-riscv"
+class ConvertArithToRiscvPass(ModulePass):
+    name = "convert-arith-to-riscv"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(

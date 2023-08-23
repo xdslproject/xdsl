@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, NoReturn, cast
+from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser.affine_parser as affine_parser
 from xdsl.dialects.builtin import (
@@ -242,9 +243,7 @@ class AttrParser(BaseParser):
                 closing = parentheses[token.kind]
                 if symbols_stack[-1] != closing:
                     self.raise_error(
-                        "Mismatched {} in attribute body!".format(
-                            parentheses_names[token.kind]
-                        ),
+                        f"Mismatched {parentheses_names[token.kind]} in attribute body!",
                         self._current_token.span,
                     )
                 symbols_stack.pop()

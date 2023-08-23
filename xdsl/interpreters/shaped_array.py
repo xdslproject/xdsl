@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import operator
+from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import accumulate, product
 from math import prod
-from typing import Generic, Iterable, TypeAlias, TypeVar
+from typing import Generic, TypeAlias, TypeVar
 
 from typing_extensions import Self
 

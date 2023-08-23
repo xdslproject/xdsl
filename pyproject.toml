@@ -25,8 +25,8 @@ typeCheckingMode = "strict"
 profile = "black"
 
 [tool.ruff]
-select = ["E", "F", "W", "I"]
-ignore = ["E741"]
+select = ["E", "F", "W", "I", "UP", "PT"]
+ignore = ["E741", "PT006", "PT007", "PT011", "PT012", "PT015", "PT017", "PT018"]
 line-length = 300
 target-version = "py310"
 
@@ -35,6 +35,8 @@ target-version = "py310"
 "tests/filecheck/frontend/programs/invalid.py" = ["F811", "F841"]
 "tests/filecheck/frontend/dialects/invalid.py" = ["F811"]
 "tests/test_declarative_assembly_format.py" = ["F811"]
+"versioneer.py" = ["ALL"]
+"_version.py" = ["ALL"]
 
 [tool.ruff.mccabe]
 max-complexity = 10

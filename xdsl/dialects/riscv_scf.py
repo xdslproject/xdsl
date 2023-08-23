@@ -3,7 +3,7 @@ RISC-V SCF dialect
 """
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
 from xdsl.ir import Dialect
@@ -92,7 +92,7 @@ class ForOp(IRDLOperation):
         ):
             if block_arg.type != arg.type:
                 raise VerifyException(
-                    f"Block arguments at {idx} has wrong type, expected {arg.type}, "
+                    f"Block argument {idx + 1} has wrong type, expected {arg.type}, "
                     f"got {block_arg.type}. Arguments after the "
                     f"induction variable must match the carried variables."
                 )

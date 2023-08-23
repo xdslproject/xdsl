@@ -2,8 +2,6 @@ import ast
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    Dict,
-    Type,
     TypeAlias,
     _GenericAlias,  # pyright: ignore[reportPrivateUsage, reportGeneralTypeIssues, reportUnknownVariableType]
 )
@@ -26,19 +24,19 @@ class TypeConverter:
     types.
     """
 
-    globals: Dict[str, Any]
+    globals: dict[str, Any]
     """
     Stores all globals in the current Python program, including imports. This is
     useful because we can lookup a class which corresponds to the type
     annotation without explicitly constructing it.
     """
 
-    name_to_xdsl_type_map: Dict[TypeName, Attribute] = field(default_factory=dict)
+    name_to_xdsl_type_map: dict[TypeName, Attribute] = field(default_factory=dict)
     """
     Map to cache xDSL types created so far to avoid repeated conversions.
     """
 
-    xdsl_to_frontend_type_map: Dict[Type[Attribute], Type[_FrontendType]] = field(
+    xdsl_to_frontend_type_map: dict[type[Attribute], type[_FrontendType]] = field(
         default_factory=dict
     )
     """
@@ -56,7 +54,7 @@ class TypeConverter:
 
     def _cache_type(
         self,
-        frontend_type: Type[_FrontendType],
+        frontend_type: type[_FrontendType],
         xdsl_type: Attribute,
         type_name: TypeName,
     ) -> None:

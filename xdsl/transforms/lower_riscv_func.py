@@ -64,7 +64,7 @@ class LowerSyscallOp(RewritePattern):
 class LowerRISCVFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
-        first_block = op.func_body.blocks[0]
+        first_block = op.body.blocks[0]
         first_op = first_block.first_op
         assert first_op is not None
         while len(first_block.args):
@@ -78,7 +78,7 @@ class LowerRISCVFuncOp(RewritePattern):
             first_op = get_reg_op
             rewriter.erase_block_argument(last_arg)
 
-        label_body = rewriter.move_region_contents_to_new_regions(op.func_body)
+        label_body = rewriter.move_region_contents_to_new_regions(op.body)
 
         rewriter.replace_matched_op(riscv.LabelOp(op.sym_name.data, region=label_body))
 
@@ -113,12 +113,12 @@ class LowerRISCVCallOp(RewritePattern):
             rewriter.insert_op_before_matched_op(riscv.MVOp(arg, rd=f"a{i}"))
 
         ops: list[Operation] = [
-            riscv.JalOp(op.callee.data),
+            riscv.JalOp(op.callee.string_value()),
         ]
         new_results: list[OpResult] = []
 
         for i in range(len(op.results)):
-            get_reg = riscv.GetRegisterOp(f"a{i}")
+            get_reg = riscv.GetRegisterOp(riscv.IntRegisterType(f"a{i}"))
             move_res = riscv.MVOp(get_reg)
             ops.extend((get_reg, move_res))
             new_results.append(move_res.rd)
