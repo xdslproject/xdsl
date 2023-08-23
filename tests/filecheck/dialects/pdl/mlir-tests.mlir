@@ -128,7 +128,7 @@ builtin.module {
 // CHECK-NEXT:   pdl.rewrite %root {
 // CHECK-NEXT:     %type3 = pdl.type
 // CHECK-NEXT:     %newOp = pdl.operation "foo.op" -> (%type1, %type3 : !pdl.type, !pdl.type)
-// CHECK-NEXT:     "pdl.replace"(%root, %newOp) {"operand_segment_sizes" = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
+// CHECK-NEXT:     pdl.replace %root with %newOp
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
