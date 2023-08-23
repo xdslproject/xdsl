@@ -1,12 +1,8 @@
-// RUN: XDSL_ROUNDTRIP
+// RUN: XDSL_AUTO_ROUNDTRIP
 
 builtin.module {
-  // CHECK: builtin.module {
-    builtin.module {}
-    // CHECK: builtin.module {
-    // CHECK-NEXT: }
-    builtin.module attributes {a = "foo", b = "bar", unit} {}
-    // CHECK-NEXT: builtin.module attributes {"a" = "foo", "b" = "bar", "unit"} {
-    // CHECK-NEXT: }
+    builtin.module {
+    }
+    builtin.module attributes {"a" = "foo", "b" = "bar", "unit"} {
+    }
 }
-// CHECK: }

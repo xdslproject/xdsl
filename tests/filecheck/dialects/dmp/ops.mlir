@@ -1,7 +1,7 @@
 // RUN: XDSL_ROUNDTRIP
 
 builtin.module {
-    %ref = "test.op"() : () -> (memref<1024x1024xf32>)
+    %ref = "test.op"() : () -> memref<1024x1024xf32>
 
     "dmp.swap"(%ref) {
         grid = #dmp.grid<2x2>,

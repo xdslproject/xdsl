@@ -1,22 +1,14 @@
-// RUN: XDSL_ROUNDTRIP
+// RUN: XDSL_AUTO_ROUNDTRIP
 
-// CHECK: module
-"builtin.module"() ({
-  "func.func"() ({
-    // CHECK: %0 = arith.constant 0 : i64
-    %0 = "arith.constant"() {"value" = 0 : i64} : () -> i64
-    // CHECK: %1 = builtin.unrealized_conversion_cast %0 : i64 to f32
-    %1 = "builtin.unrealized_conversion_cast"(%0) : (i64) -> f32
-    // CHECK: %2 = builtin.unrealized_conversion_cast %0 : i64 to i32
-    %2 = "builtin.unrealized_conversion_cast"(%0) : (i64) -> i32
-    // CHECK: %3 = builtin.unrealized_conversion_cast %0 : i64 to i64
-    %3 = "builtin.unrealized_conversion_cast"(%0) : (i64) -> i64
-    // CHECK: %4 = builtin.unrealized_conversion_cast to i64  {"comment" = "test"}
-    %4 = "builtin.unrealized_conversion_cast"() {"comment" = "test"} : () -> i64
-    // CHECK: %5 = builtin.unrealized_conversion_cast %0, %0 : i64, i64 to f32
-    %5 = "builtin.unrealized_conversion_cast"(%0, %0) : (i64, i64) -> f32
-    // CHECK: %6, %7 = builtin.unrealized_conversion_cast %5 : f32 to i64, i64
-    %6, %7 = "builtin.unrealized_conversion_cast"(%5) : (f32) -> (i64, i64)
-    "func.return"() : () -> ()
-  }) {"function_type" = () -> (), "sym_name" = "builtin"} : () -> ()
-}) : () -> ()
+builtin.module {
+  func.func @builtin() {
+    %0 = arith.constant 0 : i64
+    %1 = builtin.unrealized_conversion_cast %0 : i64 to f32
+    %2 = builtin.unrealized_conversion_cast %0 : i64 to i32
+    %3 = builtin.unrealized_conversion_cast %0 : i64 to i64
+    %4 = builtin.unrealized_conversion_cast to i64 {"comment" = "test"}
+    %5 = builtin.unrealized_conversion_cast %0, %0 : i64, i64 to f32
+    %6, %7 = builtin.unrealized_conversion_cast %5 : f32 to i64, i64
+    func.return
+  }
+}

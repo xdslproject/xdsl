@@ -1,4 +1,4 @@
-// RUN: XDSL_ROUNDTRIP
+// RUN: XDSL_AUTO_ROUNDTRIP
 
 builtin.module {
   pdl.pattern @operations : benefit(1) {
@@ -10,7 +10,7 @@ builtin.module {
 
     // Operation with input.
     %input = pdl.operand
-    %root = pdl.operation(%op0_result, %input : !pdl.value, !pdl.value)
+    %root = pdl.operation (%op0_result, %input : !pdl.value, !pdl.value)
     pdl.rewrite %root with "rewriter"
   }
 }
@@ -31,7 +31,7 @@ builtin.module {
 builtin.module {
   pdl.pattern @rewrite_with_args : benefit(1) {
     %input = pdl.operand
-    %root = pdl.operation(%input : !pdl.value)
+    %root = pdl.operation (%input : !pdl.value)
     pdl.rewrite %root with "rewriter"(%input : !pdl.value)
   }
 }
@@ -49,12 +49,12 @@ builtin.module {
     %input1 = pdl.operand
     %input2 = pdl.operand
     %type = pdl.type
-    %op1 = pdl.operation(%input1 : !pdl.value) -> (%type : !pdl.type)
+    %op1 = pdl.operation (%input1 : !pdl.value) -> (%type : !pdl.type)
     %val1 = pdl.result 0 of %op1
-    %root1 = pdl.operation(%val1 : !pdl.value)
-    %op2 = pdl.operation(%input2 : !pdl.value) -> (%type : !pdl.type)
+    %root1 = pdl.operation (%val1 : !pdl.value)
+    %op2 = pdl.operation (%input2 : !pdl.value) -> (%type : !pdl.type)
     %val2 = pdl.result 0 of %op2
-    %root2 = pdl.operation(%val1, %val2 : !pdl.value, !pdl.value)
+    %root2 = pdl.operation (%val1, %val2 : !pdl.value, !pdl.value)
     pdl.rewrite with "rewriter"(%root1, %root2 : !pdl.operation, !pdl.operation)
   }
 }
@@ -80,12 +80,12 @@ builtin.module {
     %input1 = pdl.operand
     %input2 = pdl.operand
     %type = pdl.type
-    %op1 = pdl.operation(%input1 : !pdl.value) -> (%type : !pdl.type)
+    %op1 = pdl.operation (%input1 : !pdl.value) -> (%type : !pdl.type)
     %val1 = pdl.result 0 of %op1
-    %root1 = pdl.operation(%val1 : !pdl.value)
-    %op2 = pdl.operation(%input2 : !pdl.value) -> (%type : !pdl.type)
+    %root1 = pdl.operation (%val1 : !pdl.value)
+    %op2 = pdl.operation (%input2 : !pdl.value) -> (%type : !pdl.type)
     %val2 = pdl.result 0 of %op2
-    %root2 = pdl.operation(%val1, %val2 : !pdl.value, !pdl.value)
+    %root2 = pdl.operation (%val1, %val2 : !pdl.value, !pdl.value)
     pdl.rewrite %root1 with "rewriter"(%root2 : !pdl.operation)
   }
 }
@@ -116,7 +116,7 @@ builtin.module {
     pdl.rewrite %root {
       %type3 = pdl.type
       %newOp = pdl.operation "foo.op" -> (%type1, %type3 : !pdl.type, !pdl.type)
-      pdl.replace %root with %newOp
+      "pdl.replace"(%root, %newOp) {"operand_segment_sizes" = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
     }
   }
 }

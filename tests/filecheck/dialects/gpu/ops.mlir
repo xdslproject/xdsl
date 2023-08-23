@@ -1,4 +1,4 @@
-// RUN: XDSL_ROUNDTRIP
+// RUN: XDSL_AUTO_ROUNDTRIP
 
 builtin.module attributes {"gpu.container_module"} {
     "gpu.module"() ({
@@ -32,7 +32,7 @@ builtin.module attributes {"gpu.container_module"} {
             %griddimz = "gpu.grid_dim"() {"dimension" = #gpu<dim z>} : () -> index
 
             %gmemref = "gpu.alloc"() {"operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> memref<10x10xi32>
-            %gdmemref = "gpu.alloc"(%griddimx, %griddimy,%griddimz) {"operand_segment_sizes" = array<i32: 0, 3, 0>}: (index, index, index) -> memref<?x?x?xf64>
+            %gdmemref = "gpu.alloc"(%griddimx, %griddimy, %griddimz) {"operand_segment_sizes" = array<i32: 0, 3, 0>} : (index, index, index) -> memref<?x?x?xf64>
 
             "gpu.memcpy"(%memref, %gmemref) {"operand_segment_sizes" = array<i32: 0, 1, 1>} : (memref<10x10xi32>, memref<10x10xi32>) -> ()
 
@@ -57,10 +57,7 @@ builtin.module attributes {"gpu.container_module"} {
             }) : (index) -> index
 
             "gpu.launch"(%one, %one, %one, %n, %one, %one) ({
-            ^bb0(%bx : index, %by : index, %bz : index,
-                %tx : index, %ty : index, %tz : index,
-                %num_bx : index, %num_by : index, %num_bz : index,
-                %num_tx : index, %num_ty : index, %num_tz : index):
+            ^bb0(%bx : index, %by : index, %bz : index, %tx : index, %ty : index, %tz : index, %num_bx : index, %num_by : index, %num_bz : index, %num_tx : index, %num_ty : index, %num_tz : index):
                 %sum = "gpu.all_reduce"(%tx) ({
                 }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
                 %final = arith.muli %sum, %one : index
