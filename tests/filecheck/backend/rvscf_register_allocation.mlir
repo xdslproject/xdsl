@@ -17,21 +17,20 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:  riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
-// CHECK-NEXT:    %2 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<a0>
-// CHECK-NEXT:    %3 = riscv.mv %1 : (!riscv.reg<a1>) -> !riscv.reg<a1>
-// CHECK-NEXT:    %4 = riscv.li 1 : () -> !riscv.reg<a2>
-// CHECK-NEXT:    %5 = riscv.li 0 : () -> !riscv.reg<a3>
-// CHECK-NEXT:    %6 = "riscv_scf.for"(%2, %3, %4, %5) ({
-// CHECK-NEXT:    ^0(%7 : !riscv.reg<a0>, %8 : !riscv.reg<a3>):
-// CHECK-NEXT:      %9 = riscv.add %8, %7 : (!riscv.reg<a3>, !riscv.reg<a0>) -> !riscv.reg<a3>
-// CHECK-NEXT:      "riscv_scf.yield"(%9) : (!riscv.reg<a3>) -> ()
-// CHECK-NEXT:    }) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>, !riscv.reg<a3>) -> !riscv.reg<a3>
-// CHECK-NEXT:    %10 = riscv.mv %6 : (!riscv.reg<a3>) -> !riscv.reg<a0>
-// CHECK-NEXT:    riscv_func.return %10 : !riscv.reg<a0>
+// CHECK-NEXT:    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
+// CHECK-NEXT:      %2 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<a0>
+// CHECK-NEXT:      %3 = riscv.mv %1 : (!riscv.reg<a1>) -> !riscv.reg<a1>
+// CHECK-NEXT:      %4 = riscv.li 1 : () -> !riscv.reg<a2>
+// CHECK-NEXT:      %5 = riscv.li 0 : () -> !riscv.reg<a3>
+// CHECK-NEXT:      %6 = "riscv_scf.for"(%2, %3, %4, %5) ({
+// CHECK-NEXT:      ^0(%7 : !riscv.reg<a0>, %8 : !riscv.reg<a3>):
+// CHECK-NEXT:        %9 = riscv.add %8, %7 : (!riscv.reg<a3>, !riscv.reg<a0>) -> !riscv.reg<a3>
+// CHECK-NEXT:        "riscv_scf.yield"(%9) : (!riscv.reg<a3>) -> ()
+// CHECK-NEXT:      }) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>, !riscv.reg<a3>) -> !riscv.reg<a3>
+// CHECK-NEXT:      %10 = riscv.mv %6 : (!riscv.reg<a3>) -> !riscv.reg<a0>
+// CHECK-NEXT:      riscv_func.return %10 : !riscv.reg<a0>
+// CHECK-NEXT:    }
 // CHECK-NEXT:  }
-// CHECK-NEXT:  }
-
 
 // -----
 
@@ -71,7 +70,6 @@ builtin.module {
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
 
-
 // -----
 
 builtin.module {   
@@ -94,7 +92,6 @@ builtin.module {
     "riscv_func.return"(%5) : (!riscv.reg<>) -> ()
   }
 }
-
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    riscv_func.func @foo(%arg0 : !riscv.reg<a0>) {
