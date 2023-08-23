@@ -1,5 +1,5 @@
-// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | xdsl-opt | filecheck %s
-// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | filecheck %s --check-prefix=GENERIC
+// RUN: XDSL_ROUNDTRIP
+// RUN: XDSL_GENERIC_ROUNDTRIP
 
 "builtin.module"() ({
   riscv.label "main" ({
@@ -279,7 +279,7 @@
   }) : () -> ()
 }) : () -> ()
 
-// GENERIC: "builtin.module"() ({
+// CHECK-GENERIC: "builtin.module"() ({
 // GENERIC-NEXT:   "riscv.label"() ({
 // GENERIC-NEXT:     %0 = "riscv.get_register"() : () -> !riscv.reg<>
 // GENERIC-NEXT:     %1 = "riscv.get_register"() : () -> !riscv.reg<>

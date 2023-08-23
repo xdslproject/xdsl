@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-op-generic | xdsl-opt | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 
 
 builtin.module {
