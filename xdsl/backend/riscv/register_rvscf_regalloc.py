@@ -93,13 +93,13 @@ def register_allocate_function(func: riscv_func.FuncOp):
     ctx = RegAllocCtx()
 
     # register all function args and their liveliness
-    for arg in func.func_body.blocks[0].args:
+    for arg in func.body.blocks[0].args:
         assert isinstance(arg.type, riscv.RISCVRegisterType)
         assert arg.type.is_allocated
         ctx.add_reg(arg)
 
     # allocate the body
-    register_allocate_region(func.func_body, ctx)
+    register_allocate_region(func.body, ctx)
 
 
 def register_allocate_for_op(op: riscv_scf.ForOp, ctx: RegAllocCtx):
@@ -147,7 +147,7 @@ def register_allocate_region(reg: Region, ctx: RegAllocCtx):
         for op in block.ops:
             if isinstance(
                 op,
-                (riscv.RISCVOp,),
+                riscv.RISCVOp,
             ):
                 for result in op.results:
                     assert isinstance(result.type, riscv.RISCVRegisterType)
