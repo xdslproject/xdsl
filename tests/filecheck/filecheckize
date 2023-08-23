@@ -4,5 +4,16 @@
 /^\s*\/\/ \-\-\-\-\-\s*$/ {print "\n"$0; next}
 # Then, ignore all remaining comment lines
 /^\s*\/\/.*/ { next }
+
+{
+# Anonymize SSA value names, as in
+# """percent-ident  ::= `%` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
+gsub(/%([[:digit:]]+|[[:alpha:]$._-][[:alnum:]$._-]*)/, "%{{.*}}");
+
+# Anonymize basic blocks names, as in
+# """caret-ident  ::= `^` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
+gsub(/\^([[:digit:]]+|[[:alpha:]$._-][[:alnum:]$._-]*)/, "^{{.*}}");
+
 # Then, just CHECK-NEXT: everything that remains!
-{ print "//CHECK-NEXT: "$0 }
+print "//CHECK-NEXT: "$0
+}
