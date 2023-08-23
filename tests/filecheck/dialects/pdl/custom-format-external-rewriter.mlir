@@ -6,13 +6,13 @@
 
     pdl.pattern @pattern_name : benefit(42) {}
 
-    // GENERIC: "pdl.pattern"() ({
+    // CHECK-GENERIC: "pdl.pattern"() ({
     // GENERIC-NEXT: }) {"benefit" = 42 : i16, "sym_name" = "pattern_name"} : () -> ()
 
 
     pdl.pattern : benefit(4) {
         pdl.apply_native_constraint "name"(%value1, %type1 : !pdl.value, !pdl.type)
-        // GENERIC:     "pdl.apply_native_constraint"(%value1, %type1) {"name" = "name"} : (!pdl.value, !pdl.type) -> ()
+        // CHECK-GENERIC:     "pdl.apply_native_constraint"(%value1, %type1) {"name" = "name"} : (!pdl.value, !pdl.type) -> ()
 
         %any_type = pdl.type
         // GENERIC-NEXT: %any_type = "pdl.type"() : () -> !pdl.type

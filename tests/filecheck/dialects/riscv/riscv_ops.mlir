@@ -279,7 +279,7 @@
   }) : () -> ()
 }) : () -> ()
 
-// GENERIC: "builtin.module"() ({
+// CHECK-GENERIC: "builtin.module"() ({
 // GENERIC-NEXT:   "riscv.label"() ({
 // GENERIC-NEXT:     %0 = "riscv.get_register"() : () -> !riscv.reg<>
 // GENERIC-NEXT:     %1 = "riscv.get_register"() : () -> !riscv.reg<>

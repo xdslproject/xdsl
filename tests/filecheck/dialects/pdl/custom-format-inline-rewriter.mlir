@@ -6,13 +6,13 @@
 
     pdl.pattern @pattern_name : benefit(42) {}
 
-    // GENERIC: "pdl.pattern"() ({
+    // CHECK-GENERIC: "pdl.pattern"() ({
     // GENERIC-NEXT: }) {"benefit" = 42 : i16, "sym_name" = "pattern_name"} : () -> ()
 
 
     pdl.pattern : benefit(4) {
         pdl.apply_native_constraint "name"(%value1, %type1 : !pdl.value, !pdl.type)
-        // GENERIC:     "pdl.apply_native_constraint"(%value1, %type1) {"name" = "name"} : (!pdl.value, !pdl.type) -> ()
+        // CHECK-GENERIC:     "pdl.apply_native_constraint"(%value1, %type1) {"name" = "name"} : (!pdl.value, !pdl.type) -> ()
 
         %any_type = pdl.type
         // GENERIC-NEXT: %any_type = "pdl.type"() : () -> !pdl.type
@@ -72,7 +72,7 @@
 
         pdl.rewrite {
             pdl.replace %any_op with %op_with_name
-            // GENERIC: "pdl.replace"(%any_op, %op_with_name) {"operand_segment_sizes" = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
+            // CHECK-GENERIC: "pdl.replace"(%any_op, %op_with_name) {"operand_segment_sizes" = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
             pdl.replace %any_op with (%res1, %any_operand : !pdl.value, !pdl.value)
             // GENERIC-NEXT: "pdl.replace"(%any_op, %res1, %any_operand) {"operand_segment_sizes" = array<i32: 1, 0, 2>} : (!pdl.operation, !pdl.value, !pdl.value) -> ()
         }
