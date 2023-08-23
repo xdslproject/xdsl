@@ -1,0 +1,8 @@
+# First, ignore all whitesapce-only lines
+/^\s*$/ { next }
+# Then, keep all filesplit markers (// ----) lines and also prepend a newline (To match xDSL's output)
+/^\s*\/\/ \-\-\-\-\-\s*$/ {print "\n"$0; next}
+# Then, ignore all remaining comment lines
+/^\s*\/\/.*/ { next }
+# Then, just CHECK-NEXT: everything that remains!
+{ print "//CHECK-NEXT: "$0 }
