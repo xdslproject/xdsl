@@ -609,8 +609,8 @@ class ReplaceOp(IRDLOperation):
         parser.parse_punctuation(")")
         return ReplaceOp(root, repl_values=repl_values)
 
-    def printer(self, printer: Printer) -> None:
-        printer.print(self.op_value, " with ")
+    def print(self, printer: Printer) -> None:
+        printer.print(" ", self.op_value, " with ")
         if self.repl_operation is not None:
             printer.print(self.repl_operation)
             return
