@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 
 builtin.module {
   func.func @stencil_copy(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {

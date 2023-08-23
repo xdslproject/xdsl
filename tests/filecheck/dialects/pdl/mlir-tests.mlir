@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file | xdsl-opt --split-input-file | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 
 builtin.module {
   pdl.pattern @operations : benefit(1) {
