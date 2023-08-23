@@ -77,15 +77,15 @@ class CallOp(IRDLOperation):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args: VarOperand = var_operand_def(riscv.IntRegisterType)
+    args: VarOperand = var_operand_def(riscv.RISCVRegisterType)
     callee: SymbolRefAttr = attr_def(SymbolRefAttr)
-    ress: VarOpResult = var_result_def(riscv.IntRegisterType)
+    ress: VarOpResult = var_result_def(riscv.RISCVRegisterType)
 
     def __init__(
         self,
         callee: SymbolRefAttr,
         args: Sequence[Operation | SSAValue],
-        result_types: Sequence[riscv.IntRegisterType],
+        result_types: Sequence[riscv.RISCVRegisterType],
         comment: StringAttr | None = None,
     ):
         super().__init__(
@@ -123,7 +123,7 @@ class CallOp(IRDLOperation):
         callee, arguments, results, extra_attributes = parse_call_op_like(
             parser, reserved_attr_names=("callee",)
         )
-        ress = cast(tuple[riscv.IntRegisterType, ...], results)
+        ress = cast(tuple[riscv.RISCVRegisterType, ...], results)
         call = CallOp(callee, arguments, ress)
         if extra_attributes is not None:
             call.attributes |= extra_attributes.data
@@ -196,7 +196,7 @@ class ReturnOp(IRDLOperation):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values: VarOperand = var_operand_def(riscv.IntRegisterType)
+    values: VarOperand = var_operand_def(riscv.RISCVRegisterType)
     comment: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = frozenset([IsTerminator(), HasParent(FuncOp)])
