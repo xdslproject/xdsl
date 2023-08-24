@@ -1,19 +1,50 @@
-# First, ignore all whitesapce-only lines
-/^\s*$/ { next }
-# Then, keep all filesplit markers (// ----) lines and also prepend a newline (To match xDSL's output)
-/^\s*\/\/ \-\-\-\-\-\s*$/ {print "//CHECK-NEXT: \n//CHECK-NEXT: "$0; next}
-# Then, ignore all remaining comment lines
-/^\s*\/\/.*/ { next }
+#!/usr/bin/env python3
+import argparse
+import re
+import sys
+from io import TextIOWrapper
+from typing import cast
 
-{
-# Anonymize SSA value names, as in
-# """percent-ident  ::= `%` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
-gsub(/%([[:digit:]]+|[[:alpha:]$._-][[:alnum:]$._-]*)/, "%{{.*}}");
 
-# Anonymize basic blocks names, as in
-# """caret-ident  ::= `^` (digit+ | (letter|[$._-]) (letter|[$._-]|digit)*)"""
-gsub(/\^([[:digit:]]+|[[:alpha:]$._-][[:alnum:]$._-]*)/, "^{{.*}}");
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "file", type=argparse.FileType("r"), default=sys.stdin, nargs="?"
+    )
+    args = parser.parse_args(sys.argv[1:])
 
-# Then, just CHECK-NEXT: everything that remains!
-print "//CHECK-NEXT: "$0
-}
+    comment_line = re.compile(r"^\s*\/\/.*")
+    ssa_value_name = re.compile(r"%([\d]+|[\w$._-][\w\d$._-]*)")
+    basic_block_name = re.compile(r"\^([\d]+|[\w$._-][\w\d$._-]*)")
+
+    for line in cast(TextIOWrapper, args.file):
+        line = line.rstrip()
+
+        # Ignore whitespace-only lines
+        # xDSL doesn't print spacing blank lines between ops or regions
+        if not line:
+            continue
+
+        # Keep filesplit markers and prepend newlines
+        # This is the only place where xDSL prints blank lines.
+        if line == "// -----":
+            print("//CHECK-NEXT:")
+            print("//CHECK-NEXT: // -----")
+            continue
+
+        # Ignore remaining comment lines
+        if re.match(comment_line, line):
+            continue
+
+        # Anonymize SSA value names
+        line = re.sub(ssa_value_name, r"%{{.*}}", line)
+
+        # Anonymize basic blocks names
+        line = re.sub(basic_block_name, r"^{{.*}}", line)
+
+        # Print the modified line
+        print("//CHECK-NEXT:", line)
+
+
+if __name__ == "__main__":
+    main()
