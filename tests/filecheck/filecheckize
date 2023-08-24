@@ -28,7 +28,7 @@ def main():
         # Keep filesplit markers and prepend newlines
         # This is the only place where xDSL prints blank lines.
         if line == "// -----":
-            print("//CHECK-NEXT:")
+            print("//CHECK-EMPTY:")
             print("//CHECK-NEXT: // -----")
             continue
 
