@@ -2,8 +2,9 @@ from io import StringIO
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, pdl
-from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr
-from xdsl.interpreters.experimental.pdl import PDLRewritePattern
+from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr, i32
+from xdsl.interpreter import Interpreter
+from xdsl.interpreters.experimental.pdl import PDLRewriteFunctions, PDLRewritePattern
 from xdsl.ir import MLContext, OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -11,6 +12,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.utils.test_value import TestSSAValue
 
 
 class SwapInputs(RewritePattern):
@@ -229,3 +231,17 @@ def add_zero_pdl():
                 pdl.ReplaceOp(sum, repl_values=[lhs])
 
     return pdl_module
+
+
+def test_interpreter_functions():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLRewriteFunctions(MLContext()))
+
+    c0 = TestSSAValue(i32)
+    c1 = TestSSAValue(i32)
+    add = arith.Addi(c0, c1)
+    add_res = add.result
+
+    assert interpreter.run_op(
+        pdl.ResultOp(0, TestSSAValue(pdl.OperationType())), (add,)
+    ) == (add_res,)

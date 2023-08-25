@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | xdsl-opt | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 "builtin.module"() ({
     %lb = "riscv.li"() {"immediate" = 0: i32} : () -> !riscv.reg<>
     %ub = "riscv.li"() {"immediate" = 100: i32} : () -> !riscv.reg<>
