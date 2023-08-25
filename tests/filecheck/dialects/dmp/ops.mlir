@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --print-op-generic %s | xdsl-opt | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 
 builtin.module {
     %ref = "test.op"() : () -> (memref<1024x1024xf32>)

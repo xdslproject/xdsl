@@ -56,8 +56,8 @@ def simple_linear_riscv():
             v15 = riscv.MulOp(v12, v8).rd
             v16 = riscv.AddOp(v14, v15).rd
 
-            v18 = riscv.FCvtSWOp(v16).rd
-            v19 = riscv.FCvtSWOp(v18).rd
+            v18 = riscv.FCvtSWOp(v16, rd=riscv.FloatRegisterType.unallocated()).rd
+            v19 = riscv.FCvtSWOp(v18, rd=riscv.FloatRegisterType.unallocated()).rd
             _ = riscv.FAddSOp(v18, v19).rd
 
             riscv.MVOp(v16, rd=riscv.Registers.A0)

@@ -6,6 +6,7 @@ from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
+    FloatAttr,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -186,7 +187,7 @@ def test_memref_matmul_verify():
             dim_b1 = memref.Dim.from_source_and_index(b, lit1)
             out = memref.Alloca.get(builtin.f64, 0, [-1, -1], [dim_a0, dim_b1])
             # TODO: assert dim_a0 == dim_b1
-            lit0_f = arith.Constant.from_float_and_width(0.0, builtin.f64)
+            lit0_f = arith.Constant(FloatAttr(0.0, builtin.f64))
 
             @Builder.implicit_region((builtin.IndexType(),))
             def outer_loop(args: tuple[BlockArgument, ...]):
@@ -238,14 +239,14 @@ def test_memref_subview():
 
     res_memref_type = MemRefType.from_element_type_and_shape(i32, [1, 1])
 
-    offset_arg1 = Constant.from_attr(IntegerAttr.from_int_and_width(0, 64), i64)
-    offset_arg2 = Constant.from_attr(IntegerAttr.from_int_and_width(0, 64), i64)
+    offset_arg1 = Constant(IntegerAttr.from_int_and_width(0, 64), i64)
+    offset_arg2 = Constant(IntegerAttr.from_int_and_width(0, 64), i64)
 
-    size_arg1 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i64)
-    size_arg2 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i64)
+    size_arg1 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
+    size_arg2 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
 
-    stride_arg1 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i64)
-    stride_arg2 = Constant.from_attr(IntegerAttr.from_int_and_width(1, 64), i64)
+    stride_arg1 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
+    stride_arg2 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
 
     operand_segment_sizes = ArrayAttr([IntAttr(1), IntAttr(2), IntAttr(2), IntAttr(2)])
 

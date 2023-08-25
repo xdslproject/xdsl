@@ -5,17 +5,13 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     Float64Type,
     FloatAttr,
-    ModuleOp,
 )
-from xdsl.ir import MLContext, OpResult
-from xdsl.passes import ModulePass
+from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
-    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.dead_code_elimination import dce
 from xdsl.utils.hints import isa
 
 from ..dialects.toy import ConstantOp, ReshapeOp, TensorTypeF64, TransposeOp
@@ -88,13 +84,3 @@ class FoldConstantReshapeOpPattern(RewritePattern):
         )
         new_op = ConstantOp(new_value)
         rewriter.replace_matched_op(new_op)
-
-
-class OptimiseToy(ModulePass):
-    name = "optimise-toy"
-
-    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        PatternRewriteWalker(SimplifyRedundantTranspose()).rewrite_module(op)
-        PatternRewriteWalker(ReshapeReshapeOpPattern()).rewrite_module(op)
-        PatternRewriteWalker(FoldConstantReshapeOpPattern()).rewrite_module(op)
-        dce(op)

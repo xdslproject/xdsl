@@ -1,11 +1,11 @@
-// RUN: xdsl-opt %s --print-op-generic | xdsl-opt | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 
 
 builtin.module {
   func.func @conorm(%p : !cmath.complex<f32>, %q : !cmath.complex<f32>) -> f32 {
     %norm_p = "cmath.norm"(%p) : (!cmath.complex<f32>) -> f32
     %norm_q = "cmath.norm"(%q) : (!cmath.complex<f32>) -> f32
-    %pq = "arith.mulf"(%norm_p, %norm_q) : (f32, f32) -> f32
+    %pq = arith.mulf %norm_p, %norm_q : f32
     func.return %pq : f32
   }
 

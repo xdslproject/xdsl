@@ -3,8 +3,7 @@
 // sum(range(arg0, arg1))
 
 builtin.module {
-    "riscv_func.func"() ({
-    ^0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>):
+    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
         %2 = riscv.li 1 : () -> !riscv.reg<a2>
         %3 = riscv.li 0 : () -> !riscv.reg<a3>
         %4 = "riscv_scf.for"(%0, %1, %2, %3) ({
@@ -14,12 +13,11 @@ builtin.module {
         }) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>, !riscv.reg<a3>) -> !riscv.reg<a3>
         %8 = "riscv.mv"(%4) : (!riscv.reg<a3>) -> !riscv.reg<a0>
         "riscv_func.return"(%8) : (!riscv.reg<a0>) -> ()
-    }) {"sym_name" = "foo"} : () -> ()
+    }
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    "riscv_func.func"() ({
-// CHECK-NEXT:    ^0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>):
+// CHECK-NEXT:    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
 // CHECK-NEXT:      %2 = riscv.li 1 : () -> !riscv.reg<a2>
 // CHECK-NEXT:      %3 = riscv.li 0 : () -> !riscv.reg<a3>
 // CHECK-NEXT:      %4 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<a4>
@@ -37,16 +35,15 @@ builtin.module {
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      %9 = riscv.get_register : () -> !riscv.reg<a3>
 // CHECK-NEXT:      %10 = riscv.mv %9 : (!riscv.reg<a3>) -> !riscv.reg<a0>
-// CHECK-NEXT:      "riscv_func.return"(%10) : (!riscv.reg<a0>) -> ()
-// CHECK-NEXT:    }) {"sym_name" = "foo"} : () -> ()
+// CHECK-NEXT:      riscv_func.return %10 : !riscv.reg<a0>
+// CHECK-NEXT:    }
 // CHECK-NEXT:  }
 // -----
 
 // sum(range(arg0, arg1))
 
   builtin.module {
-    "riscv_func.func"() ({
-    ^0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>):
+    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
         %2 = riscv.li 1 : () -> !riscv.reg<a2>
         %3 = riscv.li 0 : () -> !riscv.reg<a3>
         %4 = riscv.fcvt.s.w %3 : (!riscv.reg<a3>) -> !riscv.freg<fa0>
@@ -58,12 +55,11 @@ builtin.module {
         }) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
         %10 = riscv.fcvt.w.s %5 : (!riscv.freg<fa0>) -> !riscv.reg<a0>
         "riscv_func.return"(%10) : (!riscv.reg<a0>) -> ()
-    }) {"sym_name" = "foo"} : () -> ()
+    }
   }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    "riscv_func.func"() ({
-// CHECK-NEXT:    ^0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>):
+// CHECK-NEXT:    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
 // CHECK-NEXT:      %2 = riscv.li 1 : () -> !riscv.reg<a2>
 // CHECK-NEXT:      %3 = riscv.li 0 : () -> !riscv.reg<a3>
 // CHECK-NEXT:      %4 = riscv.fcvt.s.w %3 : (!riscv.reg<a3>) -> !riscv.freg<fa0>
@@ -83,15 +79,14 @@ builtin.module {
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      %11 = riscv.get_float_register : () -> !riscv.freg<fa0>
 // CHECK-NEXT:      %12 = riscv.fcvt.w.s %11 : (!riscv.freg<fa0>) -> !riscv.reg<a0>
-// CHECK-NEXT:      "riscv_func.return"(%12) : (!riscv.reg<a0>) -> ()
-// CHECK-NEXT:    }) {"sym_name" = "foo"} : () -> ()
+// CHECK-NEXT:      riscv_func.return %12 : !riscv.reg<a0>
+// CHECK-NEXT:    }
 // CHECK-NEXT:  }
 
 // -----
 
 builtin.module {
-    "riscv_func.func"() ({
-    ^0(%arg0 : !riscv.reg<a0>):
+    riscv_func.func @foo(%arg0 : !riscv.reg<a0>) {
         %0 = riscv.li 0 : () -> !riscv.reg<a1>
         %1 = riscv.li 0 : () -> !riscv.reg<a2>
         %2 = riscv.li 1 : () -> !riscv.reg<a3>
@@ -108,12 +103,11 @@ builtin.module {
             "riscv_scf.yield"(%6) : (!riscv.reg<a1>) -> ()
         }) : (!riscv.reg<a2>, !riscv.reg<a0>, !riscv.reg<a3>, !riscv.reg<a1>) -> !riscv.reg<a1>
         "riscv_func.return"(%3) : (!riscv.reg<a1>) -> ()
-    }) {"sym_name" = "foo"} : () -> ()
+    }
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    "riscv_func.func"() ({
-// CHECK-NEXT:    ^0(%arg0 : !riscv.reg<a0>):
+// CHECK-NEXT:    riscv_func.func @foo(%arg0 : !riscv.reg<a0>) {
 // CHECK-NEXT:      %0 = riscv.li 0 : () -> !riscv.reg<a1>
 // CHECK-NEXT:      %1 = riscv.li 0 : () -> !riscv.reg<a2>
 // CHECK-NEXT:      %2 = riscv.li 1 : () -> !riscv.reg<a3>
@@ -147,6 +141,6 @@ builtin.module {
 // CHECK-NEXT:      riscv.label "scf_body_end_0_for" ({
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      %12 = riscv.get_register : () -> !riscv.reg<a1>
-// CHECK-NEXT:      "riscv_func.return"(%12) : (!riscv.reg<a1>) -> ()
-// CHECK-NEXT:    }) {"sym_name" = "foo"} : () -> ()
+// CHECK-NEXT:      riscv_func.return %12 : !riscv.reg<a1>
+// CHECK-NEXT:    }
 // CHECK-NEXT:  }
