@@ -258,11 +258,3 @@ def test_riscv_parse_immediate_value():
     parser = Parser(ctx, prog)
     with pytest.raises(ParseError, match="Expected immediate"):
         parser.parse_operation()
-
-
-def test_cannot_print_fmv_op():
-    fmv = riscv.FMVOp(TestSSAValue(riscv.Registers.FA0), rd=riscv.Registers.FA0)
-    with pytest.raises(
-        NotImplementedError, match="Cannot print assembly line for fmv instruction"
-    ):
-        fmv.assembly_line()

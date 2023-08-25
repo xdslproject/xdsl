@@ -215,6 +215,9 @@
     %f2 = riscv.get_float_register : () -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.get_float_register : () -> !riscv.freg<>
 
+    %fmv = riscv.fmv.s %f0 : (!riscv.freg<>) -> !riscv.freg<>
+    // CHECK: %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
+
     %fmadd_s = riscv.fmadd.s %f0, %f1, %f2 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.fmadd.s %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     %fmsub_s = riscv.fmsub.s %f0, %f1, %f2 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
@@ -367,6 +370,7 @@
 // CHECK-GENERIC-NEXT:     %f0 = "riscv.get_float_register"() : () -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %f1 = "riscv.get_float_register"() : () -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %f2 = "riscv.get_float_register"() : () -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmv = "riscv.fmv.s"(%f0) : (!riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fmadd_s = "riscv.fmadd.s"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fmsub_s = "riscv.fmsub.s"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fnmsub_s = "riscv.fnmsub.s"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>

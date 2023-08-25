@@ -1531,22 +1531,12 @@ class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
     """
     A pseudo instruction to copy contents of one float register to another.
 
-    Equivalent to `fsw rs, 0(sp); flw rd, 0(sp)`.
-
-    This is a much more expensive operation than mv, and does not correspond to an
-    instruction in the RISC-V F extension. Possibly due to this, there is no common
-    assembly pseudo-op for it, so it must be rewritten before assembly printing.
+    Equivalent to `fsw rs, 0(sp); flw rd, 0(sp)` or `fsgnj.s rd, rs, rs`
     """
 
-    name = "riscv.fmv"
+    name = "riscv.fmv.s"
 
     traits = frozenset((FMVHasCanonicalizationPatternsTrait(),))
-
-    def assembly_line(self) -> str | None:
-        """
-        fmv is not a supported assembly instruction.
-        """
-        raise NotImplementedError("Cannot print assembly line for fmv instruction.")
 
 
 ## Integer Register-Register Operations
