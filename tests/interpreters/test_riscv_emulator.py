@@ -3,9 +3,10 @@ from io import StringIO
 import pytest
 
 from xdsl.builder import Builder
-from xdsl.dialects import riscv
+from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
+from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
@@ -20,12 +21,19 @@ def test_simple():
     @ModuleOp
     @Builder.implicit_region
     def module():
-        six = riscv.LiOp(6).rd
-        seven = riscv.LiOp(7).rd
-        forty_two = riscv.MulOp(six, seven).rd
-        riscv.CustomAssemblyInstructionOp("print", inputs=[forty_two], result_types=[])
+        @Builder.implicit_region
+        def body():
+            six = riscv.LiOp(6).rd
+            seven = riscv.LiOp(7).rd
+            forty_two = riscv.MulOp(six, seven).rd
+            riscv.CustomAssemblyInstructionOp(
+                "print", inputs=[forty_two], result_types=[]
+            )
+
+        riscv_func.FuncOp("main", body, ((), ()))
 
     RISCVRegisterAllocation().apply(ctx, module)
+    LowerRISCVFunc().apply(ctx, module)
 
     code = riscv.riscv_code(module)
 
