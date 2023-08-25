@@ -550,7 +550,7 @@ class ReplaceOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-mlirpdlreplaceop
 
-    pdl.replace` operations are used within `pdl.rewrite` regions to specify
+    `pdl.replace` operations are used within `pdl.rewrite` regions to specify
     that an input operation should be marked as replaced. The semantics of this
     operation correspond with the `replaceOp` method on a `PatternRewriter`. The
     set of replacement values can be either:
@@ -609,8 +609,8 @@ class ReplaceOp(IRDLOperation):
         parser.parse_punctuation(")")
         return ReplaceOp(root, repl_values=repl_values)
 
-    def printer(self, printer: Printer) -> None:
-        printer.print(self.op_value, " with ")
+    def print(self, printer: Printer) -> None:
+        printer.print(" ", self.op_value, " with ")
         if self.repl_operation is not None:
             printer.print(self.repl_operation)
             return

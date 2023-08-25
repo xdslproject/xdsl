@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 
 // Types that have cyclic references.
 builtin.module {

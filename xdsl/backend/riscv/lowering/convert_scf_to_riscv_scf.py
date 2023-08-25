@@ -2,6 +2,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_block_args_to_int_regs,
     cast_matched_op_results,
     cast_operands_to_int_regs,
+    move_to_unallocated_regs,
 )
 from xdsl.dialects import builtin, riscv_scf, scf
 from xdsl.ir import MLContext
@@ -21,8 +22,10 @@ class ScfForLowering(RewritePattern):
         lb, ub, step, *args = cast_operands_to_int_regs(rewriter)
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         cast_block_args_to_int_regs(new_region.block, rewriter)
+        mv_ops, values = move_to_unallocated_regs(args)
+        rewriter.insert_op_before_matched_op(mv_ops)
         cast_matched_op_results(rewriter)
-        rewriter.replace_matched_op(riscv_scf.ForOp(lb, ub, step, args, new_region))
+        rewriter.replace_matched_op(riscv_scf.ForOp(lb, ub, step, values, new_region))
 
 
 class ScfYieldLowering(RewritePattern):
@@ -33,8 +36,8 @@ class ScfYieldLowering(RewritePattern):
         )
 
 
-class ScfToRiscvPass(ModulePass):
-    name = "scf-to-rvscf-lowering"
+class ConvertScfToRiscvPass(ModulePass):
+    name = "convert-scf-to-riscv-scf"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(

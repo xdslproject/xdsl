@@ -1,5 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
-
+// RUN: XDSL_ROUNDTRIP
 builtin.module {
     printf.print_format "Hello world!"
 

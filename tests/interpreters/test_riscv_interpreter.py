@@ -4,6 +4,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import Buffer, RiscvFunctions
 from xdsl.ir.core import Block, Region
+from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -17,6 +18,7 @@ def test_riscv_interpreter():
 
     module_op = ModuleOp([])
     register = riscv.IntRegisterType.unallocated()
+    fregister = riscv.FloatRegisterType.unallocated()
 
     riscv_functions = RiscvFunctions(
         module_op,
@@ -29,7 +31,10 @@ def test_riscv_interpreter():
     assert interpreter.run_op(riscv.LiOp("label0"), ()) == (
         Buffer(data=[42], offset=0),
     )
-    assert interpreter.run_op(riscv.MVOp(TestSSAValue(register)), (42,)) == (42,)
+    assert interpreter.run_op(
+        riscv.MVOp(TestSSAValue(register), rd=riscv.IntRegisterType.unallocated()),
+        (42,),
+    ) == (42,)
 
     assert interpreter.run_op(riscv.SltiuOp(TestSSAValue(register), 5), (0,)) == (1,)
     assert interpreter.run_op(riscv.SltiuOp(TestSSAValue(register), 5), (10,)) == (0,)
@@ -77,6 +82,37 @@ def test_riscv_interpreter():
     )
 
     assert interpreter.run_op(custom_instruction_op, (1, 2)) == (1, 2)
+
+    assert interpreter.run_op(
+        riscv.FMulSOp(TestSSAValue(fregister), TestSSAValue(fregister)), (3.0, 4.0)
+    ) == (12.0,)
+
+    # same behaviour as riscemu currently, but incorrect
+    # the top line is the one that should pass, the other is the same as riscemu
+    # assert interpreter.run_op(riscv.FCvtSWOp(TestSSAValue(fregister)), (3,)) == (3.0,)
+    assert interpreter.run_op(
+        riscv.FCvtSWOp(
+            TestSSAValue(fregister), rd=riscv.FloatRegisterType.unallocated()
+        ),
+        (convert_f32_to_u32(3.0),),
+    ) == (3.0,)
+
+    assert (
+        interpreter.run_op(
+            riscv.FSwOp(TestSSAValue(register), TestSSAValue(fregister), 2),
+            (buffer, 3.0),
+        )
+        == ()
+    )
+
+    assert buffer == Buffer([1, 2, 3.0, 0])
+
+    assert interpreter.run_op(
+        riscv.FLwOp(TestSSAValue(register), 2),
+        (buffer,),
+    ) == (3.0,)
+
+    assert buffer == Buffer([1, 2, 3.0, 0])
 
 
 def test_get_data():
