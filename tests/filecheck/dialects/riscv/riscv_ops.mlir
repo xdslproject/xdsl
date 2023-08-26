@@ -190,7 +190,7 @@
     // CHECK-NEXT:  riscv.assembly_section ".text" attributes {"foo" = i32} {
     // CHECK-NEXT:    %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
     // CHECK-NEXT:  }
-    
+
     riscv.assembly_section ".text" {
       %nested_li = riscv.li 1 : () -> !riscv.reg<>
     }
@@ -216,7 +216,7 @@
     // CHECK-NEXT: %{{.*}} = riscv.get_float_register : () -> !riscv.freg<>
 
     %fmv = riscv.fmv.s %f0 : (!riscv.freg<>) -> !riscv.freg<>
-    // CHECK: %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
 
     %fmadd_s = riscv.fmadd.s %f0, %f1, %f2 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.fmadd.s %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
