@@ -1531,7 +1531,11 @@ class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
     """
     A pseudo instruction to copy contents of one float register to another.
 
-    Equivalent to `fsw rs, 0(sp); flw rd, 0(sp)` or `fsgnj.s rd, rs, rs`
+    Equivalent to `fsgnj.s rd, rs, rs`.
+
+    Both clang and gcc emit `fsw rs, 0(x); flw rd, 0(x)` to copy floats, possibly because
+    storing and loading bits from memory is a lower overhead in practice than reasoning
+    about floating-point values.
     """
 
     name = "riscv.fmv.s"
