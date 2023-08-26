@@ -15,3 +15,14 @@ class RemoveRedundantMv(RewritePattern):
             and op.rd.type.is_allocated
         ):
             rewriter.replace_matched_op([], [op.rs])
+
+
+class RemoveRedundantFMv(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.FMVOp, rewriter: PatternRewriter) -> None:
+        if (
+            op.rd.type == op.rs.type
+            and isinstance(op.rd.type, riscv.RISCVRegisterType)
+            and op.rd.type.is_allocated
+        ):
+            rewriter.replace_matched_op([], [op.rs])
