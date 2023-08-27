@@ -11,6 +11,11 @@ builtin.module {
         %res0, %res1 = "test.op"(%arg0, %arg1) : (i32, i32) -> (i32, i32)
         func.return %res0, %res1 : i32, i32
     }
+
+    func.func @foo_float(%farg0 : f32, %farg1 : f32) -> (f32, f32) {
+        %fres0, %fres1 = "test.op"(%farg0, %farg1) : (f32, f32) -> (f32, f32)
+        func.return %fres0, %fres1 : f32, f32
+    }
 }
 
 // CHECK:       builtin.module {
@@ -38,5 +43,17 @@ builtin.module {
 // CHECK-NEXT:        %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:        %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<a1>
 // CHECK-NEXT:        riscv_func.return %{{.*}}, %{{.*}} : !riscv.reg<a0>, !riscv.reg<a1>
+// CHECK-NEXT:      }
+// CHECK-NEXT:      riscv_func.func @foo_float(%farg0 : !riscv.freg<fa0>, %farg1 : !riscv.freg<fa1>) -> (!riscv.freg<fa0>, !riscv.freg<fa1>) {
+// CHECK-NEXT:        %{{.*}} = riscv.fmv.s %farg0 : (!riscv.freg<fa0>) -> !riscv.freg<>
+// CHECK-NEXT:        %farg0_1 = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg<> to f32
+// CHECK-NEXT:        %{{.*}} = riscv.fmv.s %farg1 : (!riscv.freg<fa1>) -> !riscv.freg<>
+// CHECK-NEXT:        %farg1_1 = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg<> to f32
+// CHECK-NEXT:        %fres0, %fres1 = "test.op"(%farg0_1, %farg1_1) : (f32, f32) -> (f32, f32)
+// CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %fres0 : f32 to !riscv.freg<>
+// CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %fres1 : f32 to !riscv.freg<>
+// CHECK-NEXT:        %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<fa0>
+// CHECK-NEXT:        %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<fa1>
+// CHECK-NEXT:        riscv_func.return %{{.*}}, %{{.*}} : !riscv.freg<fa0>, !riscv.freg<fa1>
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }

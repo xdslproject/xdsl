@@ -50,8 +50,11 @@ def move_ops_for_value(
     if isinstance(rd, riscv.IntRegisterType):
         mv_op = riscv.MVOp(value, rd=rd)
         return mv_op, mv_op.rd
+    elif isinstance(rd, riscv.FloatRegisterType):
+        mv_op = riscv.FMVOp(value, rd=rd)
+        return mv_op, mv_op.rd
     else:
-        raise NotImplementedError("Moving float value not yet implemented")
+        raise NotImplementedError(f"Unsupported register type for move op: {rd}")
 
 
 def move_to_a_regs(
