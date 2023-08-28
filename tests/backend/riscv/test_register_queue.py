@@ -1,0 +1,51 @@
+from xdsl.backend.riscv.register_queue import RegisterQueue
+from xdsl.dialects import riscv
+
+
+def test_default_reserved_registers():
+    register_queue = RegisterQueue()
+
+    for reg in (
+        riscv.Registers.ZERO,
+        riscv.Registers.SP,
+        riscv.Registers.GP,
+        riscv.Registers.TP,
+        riscv.Registers.FP,
+        riscv.Registers.S0,
+    ):
+        available_before = register_queue.available_int_registers.copy()
+        register_queue.push(reg)
+        assert available_before == register_queue.available_int_registers
+
+
+def test_push_j_register():
+    register_queue = RegisterQueue()
+
+    available_before = register_queue.available_int_registers.copy()
+    register_queue.push(riscv.IntRegisterType("j0"))
+    assert available_before == register_queue.available_int_registers
+
+    available_before = register_queue.available_int_registers.copy()
+    register_queue.push(riscv.FloatRegisterType("j0"))
+    assert available_before == register_queue.available_int_registers
+
+
+def test_push_register():
+    register_queue = RegisterQueue()
+
+    register_queue.push(riscv.Registers.A0)
+    assert riscv.Registers.A0 == register_queue.available_int_registers[-1]
+
+    register_queue.push(riscv.Registers.FA0)
+    assert riscv.Registers.FA0 == register_queue.available_float_registers[-1]
+
+
+def test_limit():
+    register_queue = RegisterQueue()
+    register_queue.limit_registers(1)
+
+    assert not register_queue.pop(riscv.IntRegisterType).register_name.startswith("j")
+    assert register_queue.pop(riscv.IntRegisterType).register_name.startswith("j")
+
+    assert not register_queue.pop(riscv.FloatRegisterType).register_name.startswith("j")
+    assert register_queue.pop(riscv.FloatRegisterType).register_name.startswith("j")
