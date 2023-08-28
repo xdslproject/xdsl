@@ -81,27 +81,27 @@ def simple_linear_riscv_allocated():
         @Builder.implicit_region
         def main_region() -> None:
             zero = riscv.GetRegisterOp(riscv.Registers.ZERO).res
-            v0 = riscv.AddiOp(zero, 1, rd=riscv.Registers.T6).rd
-            v1 = riscv.AddiOp(zero, 2, rd=riscv.Registers.T5).rd
+            v0 = riscv.AddiOp(zero, 1, rd=riscv.Registers.S11).rd
+            v1 = riscv.AddiOp(zero, 2, rd=riscv.Registers.A0).rd
 
-            v3 = riscv.AddOp(v1, v0, rd=riscv.Registers.T4).rd
-            v4 = riscv.MulOp(v3, v1, rd=riscv.Registers.T3).rd
-            v5 = riscv.SubOp(v0, v4, rd=riscv.Registers.T2).rd
-            v6 = riscv.MulOp(v1, v0, rd=riscv.Registers.T1).rd
-            v7 = riscv.AddOp(v6, v3, rd=riscv.Registers.T0).rd
-            v8 = riscv.AddOp(v7, v5, rd=riscv.Registers.A7).rd
-            v9 = riscv.SubOp(v0, v1, rd=riscv.Registers.A6).rd
-            v10 = riscv.MulOp(v5, v3, rd=riscv.Registers.A5).rd
-            v11 = riscv.AddOp(v9, v10, rd=riscv.Registers.A4).rd
-            v12 = riscv.AddOp(v11, v8, rd=riscv.Registers.A3).rd
-            v13 = riscv.AddOp(v4, v0, rd=riscv.Registers.A2).rd
-            v14 = riscv.SubOp(v13, v5, rd=riscv.Registers.A1).rd
-            v15 = riscv.MulOp(v12, v8, rd=riscv.Registers.A0).rd
-            v16 = riscv.AddOp(v14, v15, rd=riscv.Registers.S11).rd
+            v3 = riscv.AddOp(v1, v0, rd=riscv.Registers.A1).rd
+            v4 = riscv.MulOp(v3, v1, rd=riscv.Registers.A2).rd
+            v5 = riscv.SubOp(v0, v4, rd=riscv.Registers.A3).rd
+            v6 = riscv.MulOp(v1, v0, rd=riscv.Registers.A4).rd
+            v7 = riscv.AddOp(v6, v3, rd=riscv.Registers.A5).rd
+            v8 = riscv.AddOp(v7, v5, rd=riscv.Registers.A6).rd
+            v9 = riscv.SubOp(v0, v1, rd=riscv.Registers.A7).rd
+            v10 = riscv.MulOp(v5, v3, rd=riscv.Registers.T0).rd
+            v11 = riscv.AddOp(v9, v10, rd=riscv.Registers.T1).rd
+            v12 = riscv.AddOp(v11, v8, rd=riscv.Registers.T2).rd
+            v13 = riscv.AddOp(v4, v0, rd=riscv.Registers.T3).rd
+            v14 = riscv.SubOp(v13, v5, rd=riscv.Registers.T4).rd
+            v15 = riscv.MulOp(v12, v8, rd=riscv.Registers.T5).rd
+            v16 = riscv.AddOp(v14, v15, rd=riscv.Registers.T6).rd
 
-            v18 = riscv.FCvtSWOp(v16, rd=riscv.Registers.FT11).rd
+            v18 = riscv.FCvtSWOp(v16, rd=riscv.Registers.FT9).rd
             v19 = riscv.FCvtSWOp(v18, rd=riscv.Registers.FT10).rd
-            _ = riscv.FAddSOp(v18, v19, rd=riscv.Registers.FT9).rd
+            _ = riscv.FAddSOp(v18, v19, rd=riscv.Registers.FT11).rd
 
             riscv.MVOp(v16, rd=riscv.Registers.A0)
             riscv.AddiOp(zero, 93, rd=riscv.Registers.A7).rd
