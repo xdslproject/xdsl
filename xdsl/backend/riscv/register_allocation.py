@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 from dataclasses import dataclass, field
 from typing import overload
@@ -15,6 +17,8 @@ class RegisterQueue:
     """
 
     _idx: int = 0
+    """Next `j` register index."""
+
     reserved_registers: set[IntRegisterType | FloatRegisterType] = field(
         default_factory=lambda: {
             Registers.ZERO,
@@ -93,6 +97,14 @@ class RegisterQueue:
         """
         self.available_int_registers = self.available_int_registers[:limit]
         self.available_float_registers = self.available_float_registers[:limit]
+
+    def copy(self) -> RegisterQueue:
+        return RegisterQueue(
+            _idx=self._idx,
+            reserved_registers=self.reserved_registers.copy(),
+            available_int_registers=self.available_int_registers.copy(),
+            available_float_registers=self.available_float_registers.copy(),
+        )
 
 
 class RegisterAllocator(abc.ABC):
@@ -202,6 +214,8 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
         for region in func.regions:
             for block in region.blocks:
+                available_registers_copy = self.available_registers.copy()
+
                 for op in block.walk():
                     # Do not allocate registers on non-RISCV-ops
                     if not isinstance(op, RISCVOp):
@@ -213,6 +227,8 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                                 result.type = self.available_registers.pop(
                                     type(result.type)
                                 )
+
+                self.available_registers = available_registers_copy
 
 
 class RegisterAllocatorJRegs(RegisterAllocator):
