@@ -32,7 +32,6 @@ from .dialects import toy
 from .emulator.toy_accelerator_instructions import ToyAccelerator
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
-from .rewrites.arith_float_to_int import CastArithFloatToInt
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
@@ -118,7 +117,6 @@ def transform(
     LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
-    CastArithFloatToInt().apply(ctx, module_op)
     ConvertArithToRiscvPass().apply(ctx, module_op)
     ConvertScfToRiscvPass().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
