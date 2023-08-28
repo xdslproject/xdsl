@@ -65,6 +65,80 @@ class RegisterAllocator(abc.ABC):
             if isinstance(op, riscv_func.FuncOp):
                 self.allocate_func(op)
 
+    def process_for_op(self, op: riscv_scf.ForOp) -> None:
+        yield_op = op.body.block.last_op
+        assert (
+            yield_op is not None
+        ), "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
+        block_args = op.body.block.args
+
+        # Induction variable
+        assert isinstance(block_args[0].type, IntRegisterType)
+        if not block_args[0].type.is_allocated:
+            block_args[0].type = self.available_registers.pop(IntRegisterType)
+
+        # The loop-carried variables are trickier
+        # The for op operand, block arg, and yield operand must have the same type
+        for i, (block_arg, operand, yield_operand, op_result) in enumerate(
+            zip(block_args[1:], op.iter_args, yield_op.operands, op.results)
+        ):
+            assert isinstance(block_arg.type, IntRegisterType)
+            assert isinstance(operand.type, IntRegisterType)
+            assert isinstance(yield_operand.type, IntRegisterType)
+            assert isinstance(op_result.type, IntRegisterType)
+
+            shared_type: IntRegisterType | None = None
+            if block_arg.type.is_allocated:
+                shared_type = block_arg.type
+
+            if operand.type.is_allocated:
+                if shared_type is not None:
+                    if shared_type != operand.type:
+                        raise ValueError(
+                            "Operand iteration variable types must match: "
+                            f"operand {i} type: {operand.type}, block argument {i+1} "
+                            f"type: {block_arg.type}, yield operand {0} type: "
+                            f"{yield_operand.type}"
+                        )
+                else:
+                    shared_type = operand.type
+
+            if yield_operand.type.is_allocated:
+                if shared_type is not None:
+                    if shared_type != yield_operand.type:
+                        raise ValueError(
+                            "Operand iteration variable types must match: "
+                            f"operand {i} type: {operand.type}, block argument {i+1} "
+                            f"type: {block_arg.type}, yield operand {0} type: "
+                            f"{yield_operand.type}"
+                        )
+                else:
+                    shared_type = yield_operand.type
+
+            if op_result.type.is_allocated:
+                if shared_type is not None:
+                    if shared_type != op_result.type:
+                        raise ValueError(
+                            "Operand iteration variable types must match: "
+                            f"operand {i} type: {operand.type}, block argument {i+1} "
+                            f"type: {block_arg.type}, yield operand {0} type: "
+                            f"{yield_operand.type}"
+                        )
+                else:
+                    shared_type = op_result.type
+
+            if shared_type is None:
+                shared_type = self.available_registers.pop(IntRegisterType)
+
+            block_arg.type = shared_type
+            operand.type = shared_type
+            yield_operand.type = shared_type
+            op_result.type = shared_type
+
+        # Allocate loop body
+        for loop_op in op.body.block.ops_reverse:
+            self.process_operation(loop_op)
+
 
 class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     """
@@ -141,6 +215,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             self._allocate(result)
             self.to_free.append(result)
 
+    def process_for_op(self, op: riscv_scf.ForOp) -> None:
+        raise NotImplementedError("Cannot allocate for op with live ranges")
+
 
 class RegisterAllocatorBlockNaive(RegisterAllocator):
     idx: int
@@ -175,80 +252,7 @@ class RegisterAllocatorJRegs(RegisterAllocator):
 
     def process_operation(self, op: Operation) -> None:
         if isinstance(op, riscv_scf.ForOp):
-            yield_op = op.body.block.last_op
-            assert (
-                yield_op is not None
-            ), "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
-            block_args = op.body.block.args
-
-            # Induction variable
-            assert isinstance(block_args[0].type, IntRegisterType)
-            if not block_args[0].type.is_allocated:
-                block_args[0].type = self.available_registers.pop(IntRegisterType)
-
-            # The loop-carried variables are trickier
-            # The for op operand, block arg, and yield operand must have the same type
-            for i, (block_arg, operand, yield_operand, op_result) in enumerate(
-                zip(block_args[1:], op.iter_args, yield_op.operands, op.results)
-            ):
-                # TODO: instead of checking that they're all the same, check whether they are all None, or if all the not-None are the same reg.
-                # if some allocated then assign all to that type, otherwise get new j reg
-                assert isinstance(block_arg.type, IntRegisterType)
-                assert isinstance(operand.type, IntRegisterType)
-                assert isinstance(yield_operand.type, IntRegisterType)
-                assert isinstance(op_result.type, IntRegisterType)
-
-                shared_type: IntRegisterType | None = None
-                if block_arg.type.is_allocated:
-                    shared_type = block_arg.type
-
-                if operand.type.is_allocated:
-                    if shared_type is not None:
-                        if shared_type != operand.type:
-                            raise ValueError(
-                                "Operand iteration variable types must match: "
-                                f"operand {i} type: {operand.type}, block argument {i+1} "
-                                f"type: {block_arg.type}, yield operand {0} type: "
-                                f"{yield_operand.type}"
-                            )
-                    else:
-                        shared_type = operand.type
-
-                if yield_operand.type.is_allocated:
-                    if shared_type is not None:
-                        if shared_type != yield_operand.type:
-                            raise ValueError(
-                                "Operand iteration variable types must match: "
-                                f"operand {i} type: {operand.type}, block argument {i+1} "
-                                f"type: {block_arg.type}, yield operand {0} type: "
-                                f"{yield_operand.type}"
-                            )
-                    else:
-                        shared_type = yield_operand.type
-
-                if op_result.type.is_allocated:
-                    if shared_type is not None:
-                        if shared_type != op_result.type:
-                            raise ValueError(
-                                "Operand iteration variable types must match: "
-                                f"operand {i} type: {operand.type}, block argument {i+1} "
-                                f"type: {block_arg.type}, yield operand {0} type: "
-                                f"{yield_operand.type}"
-                            )
-                    else:
-                        shared_type = op_result.type
-
-                if shared_type is None:
-                    shared_type = self.available_registers.pop(IntRegisterType)
-
-                block_arg.type = shared_type
-                operand.type = shared_type
-                yield_operand.type = shared_type
-                op_result.type = shared_type
-
-            # Allocate loop body
-            for loop_op in op.body.block.ops_reverse:
-                self.process_operation(loop_op)
+            self.process_for_op(op)
             return
 
         # Do not allocate registers on non-RISCV-ops
