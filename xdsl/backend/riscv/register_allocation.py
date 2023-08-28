@@ -2,7 +2,12 @@ import abc
 
 from xdsl.dialects import riscv_func, riscv_scf
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, RISCVOp
+from xdsl.dialects.riscv import (
+    FloatRegisterType,
+    IntRegisterType,
+    RISCVOp,
+    RISCVRegisterType,
+)
 from xdsl.ir import SSAValue
 
 
@@ -218,12 +223,12 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                 ):
                     # TODO: instead of checking that they're all the same, check whether they are all None, or if all the not-None are the same reg.
                     # if some allocated then assign all to that type, otherwise get new j reg
-                    assert isinstance(block_arg.type, IntRegisterType)
-                    assert isinstance(operand.type, IntRegisterType)
-                    assert isinstance(yield_operand.type, IntRegisterType)
-                    assert isinstance(op_result.type, IntRegisterType)
+                    assert isinstance(block_arg.type, RISCVRegisterType)
+                    assert isinstance(operand.type, RISCVRegisterType)
+                    assert isinstance(yield_operand.type, RISCVRegisterType)
+                    assert isinstance(op_result.type, RISCVRegisterType)
 
-                    shared_type: IntRegisterType | None = None
+                    shared_type: RISCVRegisterType | None = None
                     if block_arg.type.is_allocated:
                         shared_type = block_arg.type
 
