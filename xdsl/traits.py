@@ -24,7 +24,11 @@ class OpTrait:
     Note that traits are the merge of traits and interfaces in MLIR.
     """
 
-    parameters: Any = field(default=None)
+    _parameters: Any = field(default=None)
+
+    @property
+    def parameters(self) -> Any:
+        return self._parameters
 
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
@@ -37,13 +41,15 @@ class LazyOpTrait(OpTrait):
     TODO: Add doc
     """
 
-    parameters: Callable[[], Any] | Any = field(default=None)
+    _parameters: Callable[[], Any] | Any = field(default=None)
     _unresolved: bool = field(default=True)
 
-    def resolve(self):
+    @property
+    def parameters(self) -> Any:
         if self._unresolved:
-            object.__setattr__(self, "parameters", self.parameters())
+            object.__setattr__(self, "_parameters", self._parameters())
             object.__setattr__(self, "_unresolved", False)
+        return self._parameters
 
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
@@ -61,14 +67,13 @@ class Pure(OpTrait):
 class HasParent(LazyOpTrait):
     """Constraint the operation to have a specific parent operation."""
 
-    parameters: tuple[type[Operation], ...]
+    _parameters: tuple[type[Operation], ...]
 
     def __init__(self, parameters: Callable[[], tuple[type[Operation], ...]]):
         super().__init__(parameters)
 
     def verify(self, op: Operation) -> None:
         parent = op.parent_op()
-        self.resolve()
         match self.parameters:
             case []:
                 raise ValueError("parameters should not be empty")
@@ -127,7 +132,7 @@ class SingleBlockImplicitTerminator(OpTrait):
     https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator
     """
 
-    parameters: type[Operation]
+    _parameters: type[Operation]
 
     def verify(self, op: Operation) -> None:
         for region in op.regions:

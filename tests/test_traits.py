@@ -76,7 +76,7 @@ class BitwidthSumLessThanTrait(OpTrait):
     operands and results is less than a given value.
     """
 
-    parameters: int
+    _parameters: int
 
     @property
     def max_sum(self):
