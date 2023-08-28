@@ -95,7 +95,7 @@ def move_to_unallocated_regs(
     return new_ops, new_values
 
 
-def cast_operands_to_int_regs(rewriter: PatternRewriter) -> list[SSAValue]:
+def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     """
     Add cast operations just before the targeted operation
     if the operands were not already int registers
@@ -105,34 +105,16 @@ def cast_operands_to_int_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     new_operands = list[SSAValue]()
 
     for operand in rewriter.current_operation.operands:
-        if not isinstance(operand.type, riscv.IntRegisterType):
+        if not isinstance(
+            operand.type, riscv.IntRegisterType | riscv.FloatRegisterType
+        ):
+            new_type = register_type_for_type(operand.type)
             cast_op = builtin.UnrealizedConversionCastOp.get(
-                (operand,), (riscv.IntRegisterType.unallocated(),)
+                (operand,), (new_type.unallocated(),)
             )
             new_ops.append(cast_op)
             operand = cast_op.results[0]
-        new_operands.append(operand)
 
-    rewriter.insert_op_before_matched_op(new_ops)
-    return new_operands
-
-
-def cast_operands_to_float_regs(rewriter: PatternRewriter) -> list[SSAValue]:
-    """
-    Add cast operations just before the targeted operation
-    if the operands were not already float registers
-    """
-
-    new_ops = list[Operation]()
-    new_operands = list[SSAValue]()
-
-    for operand in rewriter.current_operation.operands:
-        if not isinstance(operand.type, riscv.FloatRegisterType):
-            cast_op = builtin.UnrealizedConversionCastOp.get(
-                (operand,), (riscv.FloatRegisterType.unallocated(),)
-            )
-            new_ops.append(cast_op)
-            operand = cast_op.results[0]
         new_operands.append(operand)
 
     rewriter.insert_op_before_matched_op(new_ops)
@@ -182,13 +164,11 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
     rewriter.insert_op_at_start(new_ops, block)
 
 
-def cast_block_args_to_int_regs(block: Block, rewriter: PatternRewriter):
+def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
     """
-    Change the type of the block arguments to int registers and
-    add cast operations just after the block entry.
+    Change the type of the block arguments to registers and add cast operations just after
+    the block entry.
     """
-
-    unallocated_reg = riscv.IntRegisterType.unallocated()
 
     for arg in block.args:
         rewriter.insert_op_at_start(
@@ -198,6 +178,6 @@ def cast_block_args_to_int_regs(block: Block, rewriter: PatternRewriter):
             block,
         )
 
-        arg.type = unallocated_reg
+        arg.type = register_type_for_type(arg.type).unallocated()
         arg.replace_by(new_val.results[0])
         new_val.operands[new_val.results[0].index] = arg
