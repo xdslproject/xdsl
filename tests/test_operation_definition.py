@@ -210,7 +210,9 @@ class OperationWithoutProperty(IRDLOperation):
 # Check that an operation cannot accept properties that are not defined
 def test_unknown_property():
     op = OperationWithoutProperty.create(properties={"prop1": i32, "prop2": i32})
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        VerifyException, match="property 'prop2' is not defined by the operation"
+    ):
         op.verify()
 
 
