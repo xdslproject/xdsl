@@ -42,11 +42,11 @@ class LazyOpTrait(OpTrait):
     """
 
     _parameters: Callable[[], Any] | Any = field(default=None)
-    _unresolved: bool = field(default=True)
+    _is_unresolved: bool = field(default=True)
 
     @property
     def parameters(self) -> Any:
-        if self._unresolved:
+        if self._is_unresolved:
             object.__setattr__(self, "_parameters", self._parameters())
             object.__setattr__(self, "_unresolved", False)
         return self._parameters
