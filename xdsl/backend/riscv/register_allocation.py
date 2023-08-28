@@ -1,9 +1,98 @@
 import abc
+from dataclasses import dataclass, field
+from typing import overload
 
 from xdsl.dialects import riscv_func, riscv_scf
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, RISCVOp
+from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, Registers, RISCVOp
 from xdsl.ir import SSAValue
+
+
+@dataclass
+class RegisterQueue:
+    """
+    LIFO queue of registers available for allocation.
+    """
+
+    _idx: int = 0
+    reserved_registers: set[IntRegisterType | FloatRegisterType] = field(
+        default_factory=lambda: {
+            Registers.ZERO,
+            Registers.SP,
+            Registers.GP,
+            Registers.TP,
+            Registers.FP,
+            Registers.S0,
+            Registers.FS0,
+        }
+    )
+    "Registers unavailable to be used by the register allocator."
+
+    available_int_registers: list[IntRegisterType] = field(
+        default_factory=lambda: [
+            reg
+            for reg_class in (Registers.A, Registers.T, Registers.S[1:])
+            for reg in reg_class
+        ]
+    )
+    "Registers that integer values can be allocated to in the current context."
+
+    available_float_registers: list[FloatRegisterType] = field(
+        default_factory=lambda: [
+            reg
+            for reg_class in (Registers.FA, Registers.FT, Registers.FS[1:])
+            for reg in reg_class
+        ]
+    )
+    "Registers that floating-point values can be allocated to in the current context."
+
+    def push(self, reg: IntRegisterType | FloatRegisterType) -> None:
+        """
+        Return a register to be made available for allocation.
+        """
+        if reg in self.reserved_registers:
+            return
+        if reg.register_name.startswith("j"):
+            return
+        if not reg.is_allocated:
+            raise ValueError("Cannot push an unallocated register")
+        if isinstance(reg, IntRegisterType):
+            self.available_int_registers.append(reg)
+        else:
+            self.available_float_registers.append(reg)
+
+    @overload
+    def pop(self, reg_type: type[IntRegisterType]) -> IntRegisterType:
+        ...
+
+    @overload
+    def pop(self, reg_type: type[FloatRegisterType]) -> FloatRegisterType:
+        ...
+
+    def pop(
+        self, reg_type: type[IntRegisterType] | type[FloatRegisterType]
+    ) -> IntRegisterType | FloatRegisterType:
+        """
+        Get the next available register for allocation.
+        """
+        if issubclass(reg_type, IntRegisterType):
+            available_registers = self.available_int_registers
+        else:
+            available_registers = self.available_float_registers
+
+        if available_registers:
+            reg = available_registers.pop()
+        else:
+            reg = reg_type(f"j{self._idx}")
+            self._idx += 1
+        return reg
+
+    def limit_registers(self, limit: int) -> None:
+        """
+        Limits the number of currently available registers to the provided limit.
+        """
+        self.available_int_registers = self.available_int_registers[:limit]
+        self.available_float_registers = self.available_float_registers[:limit]
 
 
 class RegisterAllocator(abc.ABC):
@@ -186,12 +275,12 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
 
 class RegisterAllocatorJRegs(RegisterAllocator):
-    idx: int
+    available_registers: RegisterQueue
 
     def __init__(self, limit_registers: int = 0) -> None:
-        self.idx = 0
-        self._register_types = (IntRegisterType, FloatRegisterType)
-        _ = limit_registers
+        assert limit_registers == 0
+        self.available_registers = RegisterQueue()
+        self.available_registers.limit_registers(0)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         """
@@ -208,8 +297,7 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                 # Induction variable
                 assert isinstance(block_args[0].type, IntRegisterType)
                 if not block_args[0].type.is_allocated:
-                    block_args[0].type = IntRegisterType(f"j{self.idx}")
-                    self.idx += 1
+                    block_args[0].type = self.available_registers.pop(IntRegisterType)
 
                 # The loop-carried variables are trickier
                 # The for op operand, block arg, and yield operand must have the same type
@@ -264,8 +352,7 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                             shared_type = op_result.type
 
                     if shared_type is None:
-                        shared_type = IntRegisterType(f"j{self.idx}")
-                        self.idx += 1
+                        shared_type = self.available_registers.pop(IntRegisterType)
 
                     block_arg.type = shared_type
                     operand.type = shared_type
@@ -277,8 +364,6 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                 continue
 
             for result in op.results:
-                if isinstance(result.type, self._register_types):
+                if isinstance(result.type, IntRegisterType | FloatRegisterType):
                     if not result.type.is_allocated:
-                        reg_type = type(result.type)
-                        result.type = reg_type(f"j{self.idx}")
-                        self.idx += 1
+                        result.type = self.available_registers.pop(type(result.type))
