@@ -299,6 +299,16 @@ class Registers(ABC):
     FT10 = FloatRegisterType("ft10")
     FT11 = FloatRegisterType("ft11")
 
+    # register classes:
+
+    A = (A0, A1, A2, A3, A4, A5, A6, A7)
+    T = (T0, T1, T2, T3, T4, T5, T6)
+    S = (S0, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11)
+
+    FA = (FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7)
+    FT = (FT0, FT1, FT2, FT3, FT4, FT5, FT6, FT7, FT8, FT9, FT10, FT11)
+    FS = (FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7, FS8, FS9, FS10, FS11)
+
 
 _INT_A_REGISTERS = (
     Registers.A0,
