@@ -39,7 +39,7 @@ class OpTrait:
 class LazyOpTrait(OpTrait):
     """
     A lazy version of OpTrait which postpone the evaluation of parameters.
-    It can used to workaround the circular dependencies in code.
+    It can used to work around the circular dependencies in code.
     """
 
     _parameters: Callable[[], Any] | Any = field(default=None)
