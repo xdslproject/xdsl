@@ -35,7 +35,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.exceptions import ParseError
+from xdsl.utils.exceptions import DiagnosticException, ParseError
 
 
 def test_simple_forgotten_op():
@@ -295,10 +295,8 @@ def test_diagnostic():
 
     diag = Diagnostic()
     diag.add_message(module, "Test")
-    try:
+    with pytest.raises(DiagnosticException):
         diag.raise_exception("test message", module)
-    except Exception as e:
-        assert str(e)
 
 
 #  ____ ____    _    _   _

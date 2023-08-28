@@ -3,7 +3,7 @@
 "builtin.module"() ({
 // CHECK:      builtin.module {
 
-    %file = "riscv.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<s0>
+    %file = riscv.li 0 : () -> !riscv.reg<s0>
     %success = "riscv_func.syscall"(%file) {"syscall_num" = 64 : i32}: (!riscv.reg<s0>) -> !riscv.reg<s1>
 // CHECK-NEXT:     %file = riscv.li 0 : () -> !riscv.reg<s0>
 // CHECK-NEXT:     %{{.+}} = riscv.mv %{{.+}} : (!riscv.reg<s0>) -> !riscv.reg<a0>
@@ -22,7 +22,7 @@
         %1 = riscv_func.call @get_one() : () -> !riscv.reg<>
         %2 = riscv_func.call @add(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         riscv_func.call @my_print(%2) : (!riscv.reg<>) -> ()
-        "riscv_func.return"() : () -> ()
+        riscv_func.return
     }
 
 // CHECK-NEXT:     riscv.label "main" ({
@@ -44,7 +44,7 @@
 
 
     riscv_func.func @my_print() {
-        "riscv_func.return"() : () -> ()
+        riscv_func.return
     }
 
 // CHECK-NEXT:     riscv.label "my_print" ({
@@ -52,8 +52,8 @@
 // CHECK-NEXT:     }) : () -> ()
 
     riscv_func.func @get_one() {
-        %0 = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
-        "riscv_func.return"(%0) : (!riscv.reg<>) -> ()
+        %0 = riscv.li 1 : () -> !riscv.reg<>
+        riscv_func.return %0 : !riscv.reg<>
     }
 
 // CHECK-NEXT:     riscv.label "get_one" ({
@@ -63,7 +63,7 @@
 // CHECK-NEXT:     }) : () -> ()
 
     riscv_func.func @add(%0 : !riscv.reg<>, %1 : !riscv.reg<>) {
-        %2 = "riscv.add"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        %2 = riscv.add %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         riscv_func.return %2 : !riscv.reg<>
     }
 

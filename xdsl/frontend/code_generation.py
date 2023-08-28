@@ -446,19 +446,15 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             self.visit(stmt)
         if is_affine:
             self.inserter.insert_op(affine.Yield.get())
-            assert (
-                isinstance(start, int)
-                and isinstance(end, int)
-                and isinstance(step, int)
-            )
+            assert isinstance(start, int)
+            assert isinstance(end, int)
+            assert isinstance(step, int)
             op = affine.For.from_region([], [], start, end, body, step)
         else:
             self.inserter.insert_op(scf.Yield.get())
-            assert (
-                isinstance(start, SSAValue)
-                and isinstance(end, SSAValue)
-                and isinstance(step, SSAValue)
-            )
+            assert isinstance(start, SSAValue)
+            assert isinstance(end, SSAValue)
+            assert isinstance(step, SSAValue)
             op = scf.For.get(start, end, step, [], body)
 
         self.inserter.set_insertion_point_from_block(curr_block)

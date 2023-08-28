@@ -357,13 +357,15 @@ def test_single_block_implicit_terminator_verify():
     op1 = HasSingleBlockImplicitTerminatorOp(regions=[Region(), Region()])
     op1.verify()
     assert len(op1.region.blocks[0].ops) == 1
-    assert op1.opt_region is not None and len(op1.opt_region.blocks[0].ops) == 1
+    assert op1.opt_region is not None
+    assert len(op1.opt_region.blocks[0].ops) == 1
 
     # test non-empty multi-region op
     op2 = HasSingleBlockImplicitTerminatorOp(regions=[Region(Block()), Region()])
     op2.verify()
     assert len(op2.region.blocks[0].ops) == 1
-    assert op2.opt_region is not None and len(op2.opt_region.blocks[0].ops) == 1
+    assert op2.opt_region is not None
+    assert len(op2.opt_region.blocks[0].ops) == 1
 
     # test non-empty multi-region op with non-terminator operation
     op3 = HasSingleBlockImplicitTerminatorOp(
@@ -371,7 +373,8 @@ def test_single_block_implicit_terminator_verify():
     )
     op3.verify()
     assert len(op3.region.blocks[0].ops) == 2
-    assert op3.opt_region is not None and len(op3.opt_region.blocks[0].ops) == 1
+    assert op3.opt_region is not None
+    assert len(op3.opt_region.blocks[0].ops) == 1
 
     # test non-empty multi-region op with correct terminator already there
     op4 = HasSingleBlockImplicitTerminatorOp(
@@ -379,7 +382,8 @@ def test_single_block_implicit_terminator_verify():
     )
     op4.verify()
     assert len(op4.region.blocks[0].ops) == 1
-    assert op4.opt_region is not None and len(op4.opt_region.blocks[0].ops) == 1
+    assert op4.opt_region is not None
+    assert len(op4.opt_region.blocks[0].ops) == 1
 
 
 def test_single_block_implicit_terminator_with_correct_construction_fail():
