@@ -20,7 +20,7 @@ class RISCVRegisterAllocation(ModulePass):
 
     allocation_strategy: str = "GlobalJRegs"
 
-    limit_registers: int = 0
+    limit_registers: int | None = None
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         allocator_strategies = {
@@ -35,7 +35,7 @@ class RISCVRegisterAllocation(ModulePass):
                 f"Available allocation types: {allocator_strategies.keys()}"
             )
 
-        if self.limit_registers < 0:
+        if self.limit_registers is not None and self.limit_registers < 0:
             raise ValueError(
                 "The limit of available registers cannot be less than 0."
                 "When set to 0 it signifies all available registers are used."
