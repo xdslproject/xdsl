@@ -1508,7 +1508,7 @@ class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 @irdl_op_definition
 class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
     """
-    A pseudo instruction to copy contents of one register to another.
+    A pseudo instruction to copy contents of one int register to another.
 
     Equivalent to `addi rd, rs, 0`
     """
@@ -1516,6 +1516,31 @@ class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.mv"
 
     traits = frozenset((MVHasCanonicalizationPatternsTrait(),))
+
+
+class FMVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import RemoveRedundantFMv
+
+        return (RemoveRedundantFMv(),)
+
+
+@irdl_op_definition
+class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+    """
+    A pseudo instruction to copy contents of one float register to another.
+
+    Equivalent to `fsgnj.s rd, rs, rs`.
+
+    Both clang and gcc emit `fsw rs, 0(x); flw rd, 0(x)` to copy floats, possibly because
+    storing and loading bits from memory is a lower overhead in practice than reasoning
+    about floating-point values.
+    """
+
+    name = "riscv.fmv.s"
+
+    traits = frozenset((FMVHasCanonicalizationPatternsTrait(),))
 
 
 ## Integer Register-Register Operations
@@ -3313,6 +3338,7 @@ RISCV = Dialect(
         GetFloatRegisterOp,
         ScfgwOp,
         # Floating point
+        FMVOp,
         FMAddSOp,
         FMSubSOp,
         FNMSubSOp,

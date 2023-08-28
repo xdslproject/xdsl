@@ -11,7 +11,7 @@ builtin.module {
             %7 = riscv.add %5, %6 : (!riscv.reg<a4>, !riscv.reg<a3>) -> !riscv.reg<a3>
             "riscv_scf.yield"(%7) : (!riscv.reg<a3>) -> ()
         }) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>, !riscv.reg<a3>) -> !riscv.reg<a3>
-        %8 = "riscv.mv"(%4) : (!riscv.reg<a3>) -> !riscv.reg<a0>
+        %8 = riscv.mv %4 : (!riscv.reg<a3>) -> !riscv.reg<a0>
         "riscv_func.return"(%8) : (!riscv.reg<a0>) -> ()
     }
 }
@@ -54,7 +54,7 @@ builtin.module {
             "riscv_scf.yield"(%9) : (!riscv.freg<fa0>) -> ()
         }) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
         %10 = riscv.fcvt.w.s %5 : (!riscv.freg<fa0>) -> !riscv.reg<a0>
-        "riscv_func.return"(%10) : (!riscv.reg<a0>) -> ()
+        riscv_func.return %10 : !riscv.reg<a0>
     }
   }
 
