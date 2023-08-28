@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import overload
 
@@ -97,26 +98,36 @@ class RegisterQueue:
         self.available_int_registers = self.available_int_registers[:limit]
         self.available_float_registers = self.available_float_registers[:limit]
 
-    def copy(self) -> RegisterQueue:
-        return RegisterQueue(
-            _idx=self._idx,
-            reserved_registers=self.reserved_registers.copy(),
-            available_int_registers=self.available_int_registers.copy(),
-            available_float_registers=self.available_float_registers.copy(),
-        )
-
 
 class RegisterAllocator(abc.ABC):
     """
     Base class for register allocation strategies.
     """
 
-    available_registers: RegisterQueue
+    _available_registers: RegisterQueue | None
+    available_registers_factory: Callable[[], RegisterQueue]
 
     def __init__(self, limit_registers: int | None = None) -> None:
-        self.available_registers = RegisterQueue()
+        self._available_registers = None
         if limit_registers is not None:
-            self.available_registers.limit_registers(limit_registers)
+
+            def factory():
+                available_registers = RegisterQueue()
+                available_registers.limit_registers(limit_registers)
+                return available_registers
+
+            self.available_registers_factory = factory
+        else:
+            self.available_registers_factory = lambda: RegisterQueue()
+
+    @property
+    def available_registers(self) -> RegisterQueue:
+        if self._available_registers is None:
+            self._available_registers = self.available_registers_factory()
+        return self._available_registers
+
+    def reset_available_registers(self) -> None:
+        self._available_registers = None
 
     @abc.abstractmethod
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
@@ -213,7 +224,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
         for region in func.regions:
             for block in region.blocks:
-                available_registers_copy = self.available_registers.copy()
+                self.reset_available_registers()
 
                 for op in block.walk():
                     # Do not allocate registers on non-RISCV-ops
@@ -226,8 +237,6 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                                 result.type = self.available_registers.pop(
                                     type(result.type)
                                 )
-
-                self.available_registers = available_registers_copy
 
 
 class RegisterAllocatorJRegs(RegisterAllocator):
