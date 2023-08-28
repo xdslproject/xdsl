@@ -26,8 +26,7 @@ class RegisterQueue:
             Registers.GP,
             Registers.TP,
             Registers.FP,
-            Registers.S0,
-            Registers.FS0,
+            Registers.S0,  # Same register as FP
         }
     )
     "Registers unavailable to be used by the register allocator."
@@ -35,7 +34,7 @@ class RegisterQueue:
     available_int_registers: list[IntRegisterType] = field(
         default_factory=lambda: [
             reg
-            for reg_class in (Registers.A, Registers.T, Registers.S[1:])
+            for reg_class in (Registers.S[1:], Registers.A, Registers.T)
             for reg in reg_class
         ]
     )
@@ -44,7 +43,7 @@ class RegisterQueue:
     available_float_registers: list[FloatRegisterType] = field(
         default_factory=lambda: [
             reg
-            for reg_class in (Registers.FA, Registers.FT, Registers.FS[1:])
+            for reg_class in (Registers.FS, Registers.FA, Registers.FT)
             for reg in reg_class
         ]
     )

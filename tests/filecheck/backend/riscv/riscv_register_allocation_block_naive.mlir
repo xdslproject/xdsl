@@ -41,41 +41,41 @@ riscv_func.func @main() {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    riscv_func.func @main() {
-// CHECK-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<s11>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<t6>
 // CHECK-NEXT:      %{{\d+}} = riscv.li 5 : () -> !riscv.reg<s0>
-// CHECK-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<s11>, !riscv.reg<s0>) -> !riscv.reg<s10>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 29 : () -> !riscv.reg<s9>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 28 : () -> !riscv.reg<s8>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 27 : () -> !riscv.reg<s7>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 26 : () -> !riscv.reg<s6>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 25 : () -> !riscv.reg<s5>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 24 : () -> !riscv.reg<s4>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 23 : () -> !riscv.reg<s3>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 22 : () -> !riscv.reg<s2>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 21 : () -> !riscv.reg<s1>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 20 : () -> !riscv.reg<t6>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 19 : () -> !riscv.reg<t5>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 18 : () -> !riscv.reg<t4>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 17 : () -> !riscv.reg<t3>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 16 : () -> !riscv.reg<t2>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 15 : () -> !riscv.reg<t1>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 14 : () -> !riscv.reg<t0>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 13 : () -> !riscv.reg<a7>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 12 : () -> !riscv.reg<a6>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 11 : () -> !riscv.reg<a5>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 10 : () -> !riscv.reg<a4>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 9 : () -> !riscv.reg<a3>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 8 : () -> !riscv.reg<a2>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 7 : () -> !riscv.reg<a1>
-// CHECK-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<a0>
+// CHECK-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t6>, !riscv.reg<s0>) -> !riscv.reg<t5>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 29 : () -> !riscv.reg<t4>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 28 : () -> !riscv.reg<t3>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 27 : () -> !riscv.reg<t2>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 26 : () -> !riscv.reg<t1>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 25 : () -> !riscv.reg<t0>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 24 : () -> !riscv.reg<a7>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 23 : () -> !riscv.reg<a6>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 22 : () -> !riscv.reg<a5>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 21 : () -> !riscv.reg<a4>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 20 : () -> !riscv.reg<a3>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 19 : () -> !riscv.reg<a2>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 18 : () -> !riscv.reg<a1>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 17 : () -> !riscv.reg<a0>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 16 : () -> !riscv.reg<s11>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 15 : () -> !riscv.reg<s10>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 14 : () -> !riscv.reg<s9>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 13 : () -> !riscv.reg<s8>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 12 : () -> !riscv.reg<s7>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 11 : () -> !riscv.reg<s6>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 10 : () -> !riscv.reg<s5>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 9 : () -> !riscv.reg<s4>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 8 : () -> !riscv.reg<s3>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 7 : () -> !riscv.reg<s2>
+// CHECK-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<s1>
 // CHECK-NEXT:      %{{\d+}} = riscv.li 5 : () -> !riscv.reg<j0>
 // CHECK-NEXT:      %{{\d+}} = riscv.li 4 : () -> !riscv.reg<j1>
 // CHECK-NEXT:      %{{\d+}} = riscv.li 3 : () -> !riscv.reg<j2>
 // CHECK-NEXT:      %{{\d+}} = riscv.li 2 : () -> !riscv.reg<j3>
 // CHECK-NEXT:      %{{\d+}} = riscv.li 1 : () -> !riscv.reg<j4>
-// CHECK-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j3>) -> !riscv.freg<fs11>
-// CHECK-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j4>) -> !riscv.freg<fs10>
-// CHECK-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<fs11>, !riscv.freg<fs10>) -> !riscv.freg<fs9>
+// CHECK-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j3>) -> !riscv.freg<ft11>
+// CHECK-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j4>) -> !riscv.freg<ft10>
+// CHECK-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft11>, !riscv.freg<ft10>) -> !riscv.freg<ft9>
 // CHECK-NEXT:      riscv_func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
