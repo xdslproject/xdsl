@@ -35,6 +35,7 @@ from xdsl.irdl import (
     result_def,
 )
 from xdsl.traits import (
+    LazyOpTrait,
     OptionalSymbolOpInterface,
     SymbolOpInterface,
     SymbolTable,
@@ -411,3 +412,23 @@ def test_symbol_table():
 
     assert SymbolTable.lookup_symbol(op, "name") is None
     assert SymbolTable.lookup_symbol(op, SymbolRefAttr("nested", ["name"])) is symbol
+
+
+def test_lazy_trait():
+    @dataclass(frozen=True)
+    class NormalTrait(OpTrait):
+        pass
+
+    @dataclass(frozen=True)
+    class LazyTrait(LazyOpTrait):
+        pass
+
+    with pytest.raises(NameError):
+        NormalTrait(SomeOp)  # pyright: ignore [reportUnboundVariable]  # noqa: F821
+
+    lazy_trait = LazyTrait(lambda: SomeOp)
+
+    class SomeOp(Operation):
+        pass
+
+    assert lazy_trait.parameters == SomeOp
