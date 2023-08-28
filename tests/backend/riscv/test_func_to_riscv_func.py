@@ -5,24 +5,10 @@ from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
 )
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func
-from xdsl.dialects.builtin import ModuleOp, f32
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import TestType
 from xdsl.ir import MLContext
 from xdsl.utils.test_value import TestSSAValue
-
-
-def test_lower_func_float_arg_failure():
-    @ModuleOp
-    @Builder.implicit_region
-    def non_main():
-        with ImplicitBuilder(func.FuncOp("not_main", ((f32,), ())).body):
-            func.Return()
-
-    with pytest.raises(
-        NotImplementedError, match="Moving float value not yet implemented"
-    ):
-        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_main)
-
 
 NINE_TYPES = [TestType("misc")] * 9
 THREE_TYPES = [TestType("misc")] * 3
