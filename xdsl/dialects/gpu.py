@@ -354,10 +354,7 @@ class MemcpyOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent(ModuleOp), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([HasParent(lambda: (ModuleOp,)), IsTerminator()])
 
     def __init__(self):
         return super().__init__()
@@ -398,7 +395,9 @@ class FuncOp(IRDLOperation):
         DenseArrayBase, attr_name="gpu.known_grid_size"
     )
 
-    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface()])
+    traits = frozenset(
+        [IsolatedFromAbove(), HasParent(lambda: (ModuleOp,)), SymbolOpInterface()]
+    )
 
     def __init__(
         self,
@@ -661,7 +660,7 @@ class ReturnOp(IRDLOperation):
 
     args: VarOperand = var_operand_def()
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = frozenset([IsTerminator(), HasParent(lambda: (FuncOp,))])
 
     def __init__(self, operands: Sequence[SSAValue | Operation]):
         return super().__init__(operands=[operands])
@@ -698,7 +697,7 @@ class SubgroupSizeOp(IRDLOperation):
 class TerminatorOp(IRDLOperation):
     name = "gpu.terminator"
 
-    traits = frozenset([HasParent(LaunchOp), IsTerminator()])
+    traits = frozenset([HasParent(lambda: (LaunchOp,)), IsTerminator()])
 
     def __init__(self):
         return super().__init__()

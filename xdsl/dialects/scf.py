@@ -65,10 +65,9 @@ class Yield(IRDLOperation):
     name = "scf.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = frozenset(
+        [HasParent(lambda: (For, If, ParallelOp, While)), IsTerminator()]
+    )
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:
@@ -352,7 +351,7 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result: Operand = operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(ReduceOp), IsTerminator()])
+    traits = frozenset([HasParent(lambda: (ReduceOp,)), IsTerminator()])
 
     @staticmethod
     def get(
@@ -367,7 +366,7 @@ class Condition(IRDLOperation):
     cond: Operand = operand_def(IntegerType(1))
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(While), IsTerminator()])
+    traits = frozenset([HasParent(lambda: (While,)), IsTerminator()])
 
     @staticmethod
     def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:

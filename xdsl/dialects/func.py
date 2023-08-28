@@ -286,7 +286,7 @@ class Return(IRDLOperation):
     name = "func.return"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(FuncOp), IsTerminator()])
+    traits = frozenset([HasParent(lambda: (FuncOp,)), IsTerminator()])
 
     def __init__(self, *return_vals: SSAValue | Operation):
         super().__init__(operands=[return_vals])

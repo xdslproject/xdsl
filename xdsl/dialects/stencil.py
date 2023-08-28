@@ -509,7 +509,7 @@ class AccessOp(IRDLOperation):
     offset_mapping: ArrayAttr[IntAttr] | None = opt_attr_def(ArrayAttr[IntAttr])
     res: OpResult = result_def(Attribute)
 
-    traits = frozenset([HasParent(ApplyOp)])
+    traits = frozenset([HasParent(lambda: (ApplyOp,))])
 
     @staticmethod
     def get(
@@ -737,7 +737,7 @@ class ReturnOp(IRDLOperation):
     name = "stencil.return"
     arg: VarOperand = var_operand_def(ResultType | AnyFloat)
 
-    traits = frozenset([HasParent(ApplyOp), IsTerminator()])
+    traits = frozenset([HasParent(lambda: (ApplyOp,)), IsTerminator()])
 
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):

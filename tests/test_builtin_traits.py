@@ -55,7 +55,7 @@ class HasParentOp(IRDLOperation):
 
     name = "test.has_parent"
 
-    traits = frozenset([HasParent(ParentOp)])
+    traits = frozenset([HasParent(lambda: (ParentOp,))])
 
 
 @irdl_op_definition
@@ -66,7 +66,7 @@ class HasMultipleParentOp(IRDLOperation):
 
     name = "test.has_multiple_parent"
 
-    traits = frozenset([HasParent(ParentOp, Parent2Op)])
+    traits = frozenset([HasParent(lambda: (ParentOp, Parent2Op))])
 
 
 def test_has_parent_no_parent():
@@ -272,10 +272,9 @@ class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     name = "test.is_single_block_implicit_terminator"
 
-    # TODO fix circular reference
-    # traits = frozenset([HasParent(HasSingleBlockImplicitTerminatorOp), IsTerminator()])
-    # this is tracked by gh issue: https://github.com/xdslproject/xdsl/issues/1218
-    traits = frozenset([IsTerminator()])
+    traits = frozenset(
+        [HasParent(lambda: (HasSingleBlockImplicitTerminatorOp,)), IsTerminator()]
+    )
 
 
 @irdl_op_definition

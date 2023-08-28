@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -30,6 +31,25 @@ class OpTrait:
         pass
 
 
+@dataclass(frozen=True)
+class LazyOpTrait(OpTrait):
+    """
+    TODO: Add doc
+    """
+
+    parameters: Callable[[], Any] | Any = field(default=None)
+    _unresolved: bool = field(default=True)
+
+    def resolve(self):
+        if self._unresolved:
+            object.__setattr__(self, "parameters", self.parameters())
+            object.__setattr__(self, "_unresolved", False)
+
+    def verify(self, op: Operation) -> None:
+        """Check that the operation satisfies the trait requirements."""
+        pass
+
+
 OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 
 
@@ -38,26 +58,31 @@ class Pure(OpTrait):
 
 
 @dataclass(frozen=True)
-class HasParent(OpTrait):
+class HasParent(LazyOpTrait):
     """Constraint the operation to have a specific parent operation."""
 
     parameters: tuple[type[Operation], ...]
 
-    def __init__(self, *parameters: type[Operation]):
-        if not parameters:
-            raise ValueError("parameters must not be empty")
+    def __init__(self, parameters: Callable[[], tuple[type[Operation], ...]]):
         super().__init__(parameters)
 
     def verify(self, op: Operation) -> None:
         parent = op.parent_op()
-        if isinstance(parent, self.parameters):
-            return
-        if len(self.parameters) == 1:
-            raise VerifyException(
-                f"'{op.name}' expects parent op '{self.parameters[0].name}'"
-            )
-        names = ", ".join(f"'{p.name}'" for p in self.parameters)
-        raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
+        self.resolve()
+        match self.parameters:
+            case []:
+                raise ValueError("parameters should not be empty")
+            case [parameter]:
+                if not isinstance(parent, parameter):
+                    raise VerifyException(
+                        f"'{op.name}' expects parent op '{parameter.name}'"
+                    )
+            case parameters:
+                if not isinstance(parent, parameters):
+                    names = ", ".join(f"'{p.name}'" for p in self.parameters)
+                    raise VerifyException(
+                        f"'{op.name}' expects parent op to be one of {names}"
+                    )
 
 
 class IsTerminator(OpTrait):

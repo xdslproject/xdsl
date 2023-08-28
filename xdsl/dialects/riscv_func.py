@@ -199,7 +199,7 @@ class ReturnOp(IRDLOperation):
     values: VarOperand = var_operand_def(riscv.RISCVRegisterType)
     comment: StringAttr | None = opt_attr_def(StringAttr)
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = frozenset([IsTerminator(), HasParent(lambda: (FuncOp,))])
 
     def __init__(
         self,

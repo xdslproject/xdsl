@@ -711,7 +711,9 @@ class RewriteOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    traits = frozenset([HasParent(PatternOp), NoTerminator(), IsTerminator()])
+    traits = frozenset(
+        [HasParent(lambda: (PatternOp,)), NoTerminator(), IsTerminator()]
+    )
 
     def __init__(
         self,

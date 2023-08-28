@@ -32,10 +32,7 @@ class YieldOp(IRDLOperation):
 
     arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([HasParent(lambda: (ForOp, WhileOp)), IsTerminator()])
 
     def __init__(self, *operands: SSAValue | Operation):
         super().__init__(operands=[[SSAValue.get(operand) for operand in operands]])
@@ -172,7 +169,7 @@ class ConditionOp(IRDLOperation):
     cond: Operand = operand_def(IntRegisterType)
     arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
-    traits = frozenset([HasParent(WhileOp), IsTerminator()])
+    traits = frozenset([HasParent(lambda: (WhileOp,)), IsTerminator()])
 
     def __init__(self, cond: SSAValue | Operation, *output_ops: SSAValue | Operation):
         super().__init__(operands=[cond, output_ops])
