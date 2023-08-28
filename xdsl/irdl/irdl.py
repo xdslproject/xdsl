@@ -712,11 +712,11 @@ OptSingleBlockRegion: TypeAlias = Annotated[
 
 
 @dataclass(init=False)
-class AttributeDef:
-    """An IRDL attribute definition."""
+class AttrOrPropDef:
+    """An IRDL attribute or property definition."""
 
     constr: AttrConstraint
-    """The attribute constraint."""
+    """The attribute or property constraint"""
 
     def __init__(
         self,
@@ -725,40 +725,24 @@ class AttributeDef:
         self.constr = attr_constr_coercion(attr)
 
 
-@dataclass(init=False)
+@dataclass
+class AttributeDef(AttrOrPropDef):
+    """An IRDL attribute definition."""
+
+
+@dataclass
 class OptAttributeDef(AttributeDef, OptionalDef):
     """An IRDL attribute definition for an optional attribute."""
 
-    def __init__(
-        self,
-        attr: Attribute | type[Attribute] | AttrConstraint,
-    ):
-        super().__init__(attr)
 
-
-@dataclass(init=False)
-class PropertyDef:
+@dataclass
+class PropertyDef(AttrOrPropDef):
     """An IRDL property definition."""
-
-    constr: AttrConstraint
-    """The property constraint."""
-
-    def __init__(
-        self,
-        attr: Attribute | type[Attribute] | AttrConstraint,
-    ):
-        self.constr = attr_constr_coercion(attr)
 
 
 @dataclass(init=False)
 class OptPropertyDef(PropertyDef, OptionalDef):
     """An IRDL property definition for an optional property."""
-
-    def __init__(
-        self,
-        attr: Attribute | type[Attribute] | AttrConstraint,
-    ):
-        super().__init__(attr)
 
 
 class SuccessorDef:
@@ -812,32 +796,34 @@ class _ResultFieldDef(_ConstrainedOpDefField[ResultDef]):
     pass
 
 
-class _AttributeFieldDef(_ConstrainedOpDefField[AttributeDef]):
-    attr_name: str | None = None
-    """The name of the attribute, in case it is different from the field name."""
+AttrOrPropInvT = TypeVar("AttrOrPropInvT", bound=AttrOrPropDef)
+
+
+class _AttrOrPropFieldDef(
+    Generic[AttrOrPropInvT], _ConstrainedOpDefField[AttrOrPropInvT]
+):
+    ir_name: str | None = None
+    """
+    The name of the attribute or property in the IR,
+    in case it is different from the field name.
+    """
 
     def __init__(
         self,
-        cls: type[AttributeDef],
+        cls: type[AttrOrPropInvT],
         param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
-        attr_name: str | None = None,
+        ir_name: str | None = None,
     ):
         super().__init__(cls, param)
-        self.attr_name = attr_name
+        self.ir_name = ir_name
 
 
-class _PropertyFieldDef(_ConstrainedOpDefField[PropertyDef]):
-    property_name: str | None = None
-    """The name of the property, in case it is different from the field name."""
+class _AttributeFieldDef(_AttrOrPropFieldDef[AttributeDef]):
+    pass
 
-    def __init__(
-        self,
-        cls: type[PropertyDef],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
-        property_name: str | None = None,
-    ):
-        super().__init__(cls, param)
-        self.property_name = property_name
+
+class _PropertyFieldDef(_AttrOrPropFieldDef[PropertyDef]):
+    pass
 
 
 class _RegionFieldDef(_OpDefField[RegionDef]):
@@ -1215,22 +1201,16 @@ class OpDef:
                     case _AttributeFieldDef():
                         constraint = get_constraint(value.param)
                         attribute_def = value.cls(constraint)
-                        attr_name = (
-                            field_name if value.attr_name is None else value.attr_name
-                        )
-                        op_def.attributes[attr_name] = attribute_def
-                        op_def.accessor_names[field_name] = (attr_name, "attribute")
+                        ir_name = field_name if value.ir_name is None else value.ir_name
+                        op_def.attributes[ir_name] = attribute_def
+                        op_def.accessor_names[field_name] = (ir_name, "attribute")
                         continue
                     case _PropertyFieldDef():
                         constraint = get_constraint(value.param)
                         property_def = value.cls(constraint)
-                        property_name = (
-                            field_name
-                            if value.property_name is None
-                            else value.property_name
-                        )
-                        op_def.properties[property_name] = property_def
-                        op_def.accessor_names[field_name] = (property_name, "property")
+                        ir_name = field_name if value.ir_name is None else value.ir_name
+                        op_def.properties[ir_name] = property_def
+                        op_def.accessor_names[field_name] = (ir_name, "property")
                         continue
                     case _RegionFieldDef():
                         region_def = value.cls()
