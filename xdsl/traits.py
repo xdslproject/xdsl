@@ -38,7 +38,8 @@ class OpTrait:
 @dataclass(frozen=True)
 class LazyOpTrait(OpTrait):
     """
-    TODO: Add doc
+    A lazy version of OpTrait which postpone the evaluation of parameters.
+    It can used to workaround the circular dependencies in code.
     """
 
     _parameters: Callable[[], Any] | Any = field(default=None)
@@ -48,7 +49,7 @@ class LazyOpTrait(OpTrait):
     def parameters(self) -> Any:
         if self._is_unresolved:
             object.__setattr__(self, "_parameters", self._parameters())
-            object.__setattr__(self, "_unresolved", False)
+            object.__setattr__(self, "_is_unresolved", False)
         return self._parameters
 
     def verify(self, op: Operation) -> None:
