@@ -61,27 +61,30 @@ def insert_affine_map_ops(
     map: affine.AffineMapAttr | None,
     dims: list[SSAValue],
     symbols: list[SSAValue],
-    rewriter: PatternRewriter,
-) -> list[SSAValue]:
+) -> tuple[list[Operation], list[SSAValue]]:
     """
-    Inserts operations that evaluate the affine map when given input SSA values.
+    Returns operations that evaluate the affine map when given input SSA values and the
+    resulting indices.
     """
     if map is None:
+        ops = []
         indices = dims
     else:
+        ops: list[Operation] = []
         indices: list[SSAValue] = []
         for expr in map.data.results:
-            ops, val = affine_expr_ops(expr, dims, [])
-            rewriter.insert_op_before_matched_op(ops)
+            new_ops, val = affine_expr_ops(expr, dims, [])
+            ops.extend(new_ops)
             indices.append(val)
 
-    return indices
+    return ops, indices
 
 
 class LowerAffineStore(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.Store, rewriter: PatternRewriter):
-        indices = insert_affine_map_ops(op.map, op.indices, [], rewriter)
+        ops, indices = insert_affine_map_ops(op.map, op.indices, [])
+        rewriter.insert_op_before_matched_op(ops)
 
         # TODO: add nontemporal=false once that's added to memref
         # https://github.com/xdslproject/xdsl/issues/1482
@@ -91,7 +94,8 @@ class LowerAffineStore(RewritePattern):
 class LowerAffineLoad(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.Load, rewriter: PatternRewriter):
-        indices = insert_affine_map_ops(op.map, op.indices, [], rewriter)
+        ops, indices = insert_affine_map_ops(op.map, op.indices, [])
+        rewriter.insert_op_before_matched_op(ops)
 
         # TODO: add nontemporal=false once that's added to memref
         # https://github.com/xdslproject/xdsl/issues/1482
