@@ -66,11 +66,10 @@ def insert_affine_map_ops(
     Returns operations that evaluate the affine map when given input SSA values and the
     resulting indices.
     """
+    ops: list[Operation] = []
     if map is None:
-        ops = []
         indices = dims
     else:
-        ops: list[Operation] = []
         indices: list[SSAValue] = []
         for expr in map.data.results:
             new_ops, val = affine_expr_ops(expr, dims, [])
