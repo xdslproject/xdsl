@@ -76,7 +76,9 @@ def memref_shape_ops(
             ]
             offset_in_elements = offset.rd
         case _:
-            raise NotImplementedError(f"Unsupported memref shape {shape}")
+            raise DiagnosticException(
+                f"Unsupported memref shape {shape}, only support 1D and 2D memrefs."
+            )
 
     ops.extend(
         [

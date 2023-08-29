@@ -6,6 +6,7 @@ from xdsl.dialects import func, memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp, f32
 from xdsl.ir import MLContext
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.test_value import TestSSAValue
 
 from ..rewrites.lower_memref_riscv import LowerMemrefToRiscv
@@ -139,6 +140,6 @@ def test_insert_shape_ops_invalid_dim():
     dummy_op = list(input_2d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(DiagnosticException):
         ops, _ = memref_shape_ops(mem, indices, shape, MEMREF_TYPE_2XF32.element_type)
         rewriter.insert_op_before_matched_op(ops)
