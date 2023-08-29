@@ -1,13 +1,14 @@
 import pytest
 
+from xdsl.backend.riscv.lowering.convert_memref_to_riscv import insert_shape_ops
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func, memref, riscv
-from xdsl.dialects.builtin import IndexType, ModuleOp, UnrealizedConversionCastOp, f32
+from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp, f32
 from xdsl.ir import MLContext
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.test_value import TestSSAValue
 
-from ..rewrites.lower_memref_riscv import LowerMemrefToRiscv, insert_shape_ops
+from ..rewrites.lower_memref_riscv import LowerMemrefToRiscv
 
 MEMREF_TYPE_2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2]))
 MEMREF_TYPE_2X2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2, 2]))
@@ -133,62 +134,3 @@ def test_insert_shape_ops_invalid_dim():
 
     with pytest.raises(NotImplementedError):
         _ = insert_shape_ops(mem, indices, shape, rewriter)
-
-
-# insert_shape_ops has already been tested in the above tests
-# so we can reduce the code here a bit to only test a single dimension
-
-
-def test_memref_load():
-    @ModuleOp
-    @Builder.implicit_region
-    def simple_load():
-        with ImplicitBuilder(
-            func.FuncOp("impl", ((MEMREF_TYPE_2XF32, (IndexType())), ())).body
-        ) as (v, i):
-            memref.Load.get(v, [i])
-
-    @ModuleOp
-    @Builder.implicit_region
-    def expected():
-        with ImplicitBuilder(
-            func.FuncOp("impl", ((MEMREF_TYPE_2XF32, IndexType()), ())).body
-        ) as (v, i):
-            v1 = UnrealizedConversionCastOp.get([v], (INT_REGISTER_TYPE,))
-            v2 = UnrealizedConversionCastOp.get([i], (INT_REGISTER_TYPE,))
-            v4 = riscv.AddOp(v1.results[0], v2.results[0])
-            v5 = riscv.FLwOp(v4, 0, comment="load value from memref of shape (2,)")
-            _ = UnrealizedConversionCastOp.get([v5], (f32,))
-
-    LowerMemrefToRiscv().apply(MLContext(), simple_load)
-    assert f"{expected}" == f"{simple_load}"
-
-
-def test_memref_store():
-    @ModuleOp
-    @Builder.implicit_region
-    def simple_store():
-        with ImplicitBuilder(
-            func.FuncOp("impl", ((f32, MEMREF_TYPE_2XF32, IndexType()), ())).body
-        ) as (v, m, i):
-            memref.Store.get(v, m, [i])
-
-    @ModuleOp
-    @Builder.implicit_region
-    def expected():
-        with ImplicitBuilder(
-            func.FuncOp("impl", ((f32, MEMREF_TYPE_2XF32, IndexType()), ())).body
-        ) as (v, m, i):
-            v1 = UnrealizedConversionCastOp.get([v], (FLOAT_REGISTER_TYPE,))
-            v2 = UnrealizedConversionCastOp.get([m], (INT_REGISTER_TYPE,))
-            v3 = UnrealizedConversionCastOp.get([i], (INT_REGISTER_TYPE,))
-            v4 = riscv.AddOp(v2.results[0], v3.results[0])
-            riscv.FSwOp(
-                v4,
-                v1.results[0],
-                0,
-                comment="store float value to memref of shape (2,)",
-            )
-
-    LowerMemrefToRiscv().apply(MLContext(), simple_store)
-    assert f"{expected}" == f"{simple_store}"
