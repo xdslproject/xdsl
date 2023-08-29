@@ -119,6 +119,44 @@ class ShiftLeftImmediate(RewritePattern):
 
 class LoadWordWithKnownOffset(RewritePattern):
     @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.LwOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.AddiOp)
+            and isinstance(op.rs1.op.immediate, IntegerAttr)
+            and isinstance(op.immediate, IntegerAttr)
+        ):
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(
+                riscv.LwOp(
+                    op.rs1.op.rs1,
+                    op.rs1.op.immediate.value.data + op.immediate.value.data,
+                    rd=rd,
+                    comment=op.comment,
+                )
+            )
+
+
+class StoreWordWithKnownOffset(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.SwOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.AddiOp)
+            and isinstance(op.rs1.op.immediate, IntegerAttr)
+        ):
+            rewriter.replace_matched_op(
+                riscv.SwOp(
+                    op.rs1.op.rs1,
+                    op.rs2,
+                    op.rs1.op.immediate.value.data + op.immediate.value.data,
+                    comment=op.comment,
+                )
+            )
+
+
+class LoadFloatWordWithKnownOffset(RewritePattern):
+    @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FLwOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
@@ -137,7 +175,7 @@ class LoadWordWithKnownOffset(RewritePattern):
             )
 
 
-class StoreWordWithKnownOffset(RewritePattern):
+class StoreFloatWordWithKnownOffset(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FSwOp, rewriter: PatternRewriter) -> None:
         if (

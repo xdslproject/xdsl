@@ -1937,6 +1937,14 @@ class LhuOp(RdRsImmIntegerOperation):
     name = "riscv.lhu"
 
 
+class LwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import LoadWordWithKnownOffset
+
+        return (LoadWordWithKnownOffset(),)
+
+
 @irdl_op_definition
 class LwOp(RdRsImmIntegerOperation):
     """
@@ -1949,6 +1957,8 @@ class LwOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.lw"
+
+    traits = frozenset((LwOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -1987,6 +1997,14 @@ class ShOp(RsRsImmIntegerOperation):
     name = "riscv.sh"
 
 
+class SwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import StoreWordWithKnownOffset
+
+        return (StoreWordWithKnownOffset(),)
+
+
 @irdl_op_definition
 class SwOp(RsRsImmIntegerOperation):
     """
@@ -1998,6 +2016,8 @@ class SwOp(RsRsImmIntegerOperation):
     """
 
     name = "riscv.sw"
+
+    traits = frozenset((SwOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3234,9 +3254,11 @@ class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 class FLwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import LoadWordWithKnownOffset
+        from xdsl.backend.riscv.lowering.optimise_riscv import (
+            LoadFloatWordWithKnownOffset,
+        )
 
-        return (LoadWordWithKnownOffset(),)
+        return (LoadFloatWordWithKnownOffset(),)
 
 
 @irdl_op_definition
@@ -3266,9 +3288,11 @@ class FLwOp(RdRsImmFloatOperation):
 class FSwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import StoreWordWithKnownOffset
+        from xdsl.backend.riscv.lowering.optimise_riscv import (
+            StoreFloatWordWithKnownOffset,
+        )
 
-        return (StoreWordWithKnownOffset(),)
+        return (StoreFloatWordWithKnownOffset(),)
 
 
 @irdl_op_definition
