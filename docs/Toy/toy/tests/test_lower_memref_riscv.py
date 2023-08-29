@@ -84,7 +84,7 @@ def test_insert_shape_ops_1d():
     shape = [2]
     dummy_op = list(input_1d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
-    ops, _ = memref_shape_ops(mem, indices, shape, 4)
+    ops, _ = memref_shape_ops(mem, indices, shape, MEMREF_TYPE_2XF32.element_type)
     rewriter.insert_op_before_matched_op(ops)
 
     assert f"{expected_1d}" == f"{input_1d}"
@@ -115,7 +115,7 @@ def test_insert_shape_ops_2d():
     shape = [2, 2]
     dummy_op = list(input_2d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
-    ops, _ = memref_shape_ops(mem, indices, shape, 4)
+    ops, _ = memref_shape_ops(mem, indices, shape, MEMREF_TYPE_2XF32.element_type)
     rewriter.insert_op_before_matched_op(ops)
 
     assert f"{input_2d}" == f"{expected_2d}"
@@ -140,5 +140,5 @@ def test_insert_shape_ops_invalid_dim():
     rewriter = PatternRewriter(dummy_op)
 
     with pytest.raises(NotImplementedError):
-        ops, _ = memref_shape_ops(mem, indices, shape, 4)
+        ops, _ = memref_shape_ops(mem, indices, shape, MEMREF_TYPE_2XF32.element_type)
         rewriter.insert_op_before_matched_op(ops)
