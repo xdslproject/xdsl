@@ -1,15 +1,15 @@
 // RUN: xdsl-opt -p convert-memref-to-riscv  --split-input-file --verify-diagnostics %s | filecheck %s
 
 builtin.module {
-    %v_f32, %v_i32, %r, %c, %m_f32, %m_i32 = "test.op"() : () -> (f32, i32, index, index, memref<3x2xf32>, memref<3x2xi32>)
+    %v_f32, %v_i32, %r, %c, %m_f32, %m_i32 = "test.op"() : () -> (f32, i32, index, index, memref<3x2xf32>, memref<3xi32>)
     "memref.store"(%v_f32, %m_f32, %r, %c) {"nontemporal" = false} : (f32, memref<3x2xf32>, index, index) -> ()
     %x_f32 = "memref.load"(%m_f32, %r, %c) {"nontemporal" = false} : (memref<3x2xf32>, index, index) -> (f32)
-    "memref.store"(%v_i32, %m_i32, %r, %c) {"nontemporal" = false} : (i32, memref<3x2xi32>, index, index) -> ()
-    %x_i32 = "memref.load"(%m_i32, %r, %c) {"nontemporal" = false} : (memref<3x2xi32>, index, index) -> (i32)
+    "memref.store"(%v_i32, %m_i32, %c) {"nontemporal" = false} : (i32, memref<3xi32>, index) -> ()
+    %x_i32 = "memref.load"(%m_i32, %c) {"nontemporal" = false} : (memref<3xi32>, index) -> (i32)
 }
 
 // CHECK:      builtin.module {
-// CHECK-NEXT:   %v_f32, %v_i32, %r, %c, %m_f32, %m_i32 = "test.op"() : () -> (f32, i32, index, index, memref<3x2xf32>, memref<3x2xi32>)
+// CHECK-NEXT:   %v_f32, %v_i32, %r, %c, %m_f32, %m_i32 = "test.op"() : () -> (f32, i32, index, index, memref<3x2xf32>, memref<3xi32>)
 // CHECK-NEXT:   %0 = builtin.unrealized_conversion_cast %v_f32 : f32 to !riscv.freg<>
 // CHECK-NEXT:   %1 = builtin.unrealized_conversion_cast %m_f32 : memref<3x2xf32> to !riscv.reg<>
 // CHECK-NEXT:   %2 = builtin.unrealized_conversion_cast %r : index to !riscv.reg<>
@@ -18,7 +18,7 @@ builtin.module {
 // CHECK-NEXT:   %5 = riscv.mul %4, %2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:   %6 = riscv.add %5, %3 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:   %7 = riscv.li 4 : () -> !riscv.reg<>
-// CHECK-NEXT:   %8 = riscv.mul %6, %7  {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:   %8 = riscv.mul %6, %7 {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:   %9 = riscv.add %1, %8 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:   riscv.fsw %9, %0, 0 {"comment" = "store float value to memref of shape (3, 2)"} : (!riscv.reg<>, !riscv.freg<>) -> ()
 // CHECK-NEXT:   %10 = builtin.unrealized_conversion_cast %m_f32 : memref<3x2xf32> to !riscv.reg<>
@@ -33,26 +33,18 @@ builtin.module {
 // CHECK-NEXT:   %x_f32 = riscv.flw %18, 0 {"comment" = "load value from memref of shape (3, 2)"} : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-NEXT:   %x_f32_1 = builtin.unrealized_conversion_cast %x_f32 : !riscv.freg<> to f32
 // CHECK-NEXT:   %19 = builtin.unrealized_conversion_cast %v_i32 : i32 to !riscv.reg<>
-// CHECK-NEXT:   %20 = builtin.unrealized_conversion_cast %m_i32 : memref<3x2xi32> to !riscv.reg<>
-// CHECK-NEXT:   %21 = builtin.unrealized_conversion_cast %r : index to !riscv.reg<>
-// CHECK-NEXT:   %22 = builtin.unrealized_conversion_cast %c : index to !riscv.reg<>
-// CHECK-NEXT:   %23 = riscv.li 2 : () -> !riscv.reg<>
-// CHECK-NEXT:   %24 = riscv.mul %23, %21 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %25 = riscv.add %24, %22 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %26 = riscv.li 4 : () -> !riscv.reg<>
-// CHECK-NEXT:   %27 = riscv.mul %25, %26 {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %28 = riscv.add %20, %27 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   riscv.sw %28, %19, 0 {"comment" = "store int value to memref of shape (3, 2)"} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-NEXT:   %29 = builtin.unrealized_conversion_cast %m_i32 : memref<3x2xi32> to !riscv.reg<>
-// CHECK-NEXT:   %30 = builtin.unrealized_conversion_cast %r : index to !riscv.reg<>
-// CHECK-NEXT:   %31 = builtin.unrealized_conversion_cast %c : index to !riscv.reg<>
-// CHECK-NEXT:   %32 = riscv.li 2 : () -> !riscv.reg<>
-// CHECK-NEXT:   %33 = riscv.mul %32, %30 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %34 = riscv.add %33, %31 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %35 = riscv.li 4 : () -> !riscv.reg<>
-// CHECK-NEXT:   %36 = riscv.mul %34, %35 {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %37 = riscv.add %29, %36 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %x_i32 = riscv.lw %37, 0 {"comment" = "load value from memref of shape (3, 2)"} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:   %20 = builtin.unrealized_conversion_cast %m_i32 : memref<3xi32> to !riscv.reg<>
+// CHECK-NEXT:   %21 = builtin.unrealized_conversion_cast %c : index to !riscv.reg<>
+// CHECK-NEXT:   %22 = riscv.li 4 : () -> !riscv.reg<>
+// CHECK-NEXT:   %23 = riscv.mul %21, %22 {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:   %24 = riscv.add %20, %23 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:   riscv.sw %24, %19, 0 {"comment" = "store int value to memref of shape (3,)"} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:   %25 = builtin.unrealized_conversion_cast %m_i32 : memref<3xi32> to !riscv.reg<>
+// CHECK-NEXT:   %26 = builtin.unrealized_conversion_cast %c : index to !riscv.reg<>
+// CHECK-NEXT:   %27 = riscv.li 4 : () -> !riscv.reg<>
+// CHECK-NEXT:   %28 = riscv.mul %26, %27 {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:   %29 = riscv.add %25, %28 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:   %x_i32 = riscv.lw %29, 0 {"comment" = "load value from memref of shape (3,)"} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:   %x_i32_1 = builtin.unrealized_conversion_cast %x_i32 : !riscv.reg<> to i32
 // CHECK-NEXT: }
 
