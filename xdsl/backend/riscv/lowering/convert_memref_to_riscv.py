@@ -7,6 +7,8 @@ from xdsl.backend.riscv.lowering.utils import (
 )
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import (
+    Float32Type,
+    IntegerType,
     ModuleOp,
     UnrealizedConversionCastOp,
 )
@@ -38,16 +40,19 @@ def memref_shape_ops(
     mem: SSAValue,
     indices: Sequence[SSAValue],
     shape: Sequence[int],
+    bytes_per_element: int,
 ) -> tuple[list[Operation], SSAValue]:
     """
     Returns ssa value representing pointer into the memref at given indices.
+    The pointer is byte-indexed, and the indices are strided by element size, so the index
+    into the flat memory buffer needs to be multiplied by the size of the element.
     """
     assert len(shape) == len(indices)
 
     ops: list[Operation] = []
 
     match indices:
-        case [offset_in_words]:
+        case [offset_in_elements]:
             pass
         case [idx1, idx2]:
             ops = [
@@ -55,14 +60,17 @@ def memref_shape_ops(
                 row_offset := riscv.MulOp(cols, idx1),
                 offset := riscv.AddOp(row_offset, idx2),
             ]
-            offset_in_words = offset.rd
+            offset_in_elements = offset.rd
         case _:
             raise NotImplementedError(f"Unsupported memref shape {shape}")
 
     ops.extend(
         [
-            offset_bytes := riscv.SlliOp(
-                offset_in_words, 2, comment="mutiply by elm size"
+            bytes_per_element_op := riscv.LiOp(bytes_per_element),
+            offset_bytes := riscv.MulOp(
+                offset_in_elements,
+                bytes_per_element_op.rd,
+                comment="multiply by element size",
             ),
             ptr := riscv.AddOp(mem, offset_bytes),
         ]
@@ -71,16 +79,28 @@ def memref_shape_ops(
     return ops, ptr.rd
 
 
+def bytes_per_element(memref_type: memref.MemRefType[Any]) -> int:
+    match memref_type.element_type:
+        case IntegerType():
+            return memref_type.element_type.width.data // 8
+        case Float32Type():
+            return 4
+        case _:
+            raise DiagnosticException(
+                f"Unsupported memref element type for riscv lowering: {memref_type.element_type}"
+            )
+
+
 class ConvertMemrefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
         value, mem, *indices = cast_operands_to_regs(rewriter)
 
         assert isinstance(op.memref.type, memref.MemRefType)
-        memref_typ = cast(memref.MemRefType[Any], op.memref.type)
-        shape = memref_typ.get_shape()
+        memref_type = cast(memref.MemRefType[Any], op.memref.type)
+        shape = memref_type.get_shape()
 
-        ops, ptr = memref_shape_ops(mem, indices, shape)
+        ops, ptr = memref_shape_ops(mem, indices, shape, bytes_per_element(memref_type))
         rewriter.insert_op_before_matched_op(ops)
         if isinstance(value.type, riscv.IntRegisterType):
             new_op = riscv.SwOp(
@@ -99,9 +119,9 @@ class ConvertMemrefLoadOp(RewritePattern):
         mem, *indices = cast_operands_to_regs(rewriter)
 
         assert isinstance(op.memref.type, memref.MemRefType)
-        memref_typ = cast(memref.MemRefType[Any], op.memref.type)
-        shape = memref_typ.get_shape()
-        ops, ptr = memref_shape_ops(mem, indices, shape)
+        memref_type = cast(memref.MemRefType[Any], op.memref.type)
+        shape = memref_type.get_shape()
+        ops, ptr = memref_shape_ops(mem, indices, shape, bytes_per_element(memref_type))
         rewriter.insert_op_before_matched_op(ops)
 
         result_register_type = register_type_for_type(op.res.type)

@@ -74,8 +74,9 @@ def test_insert_shape_ops_1d():
     @Builder.implicit_region
     def expected_1d():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
-            offset_in_bytes = riscv.SlliOp(
-                indices[0], 2, comment="mutiply by elm size"
+            bytes_per_element = riscv.LiOp(4).rd
+            offset_in_bytes = riscv.MulOp(
+                indices[0], bytes_per_element, comment="multiply by element size"
             ).rd
             _ = riscv.AddOp(mem, offset_in_bytes)
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
@@ -83,7 +84,7 @@ def test_insert_shape_ops_1d():
     shape = [2]
     dummy_op = list(input_1d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
-    ops, _ = memref_shape_ops(mem, indices, shape)
+    ops, _ = memref_shape_ops(mem, indices, shape, 4)
     rewriter.insert_op_before_matched_op(ops)
 
     assert f"{expected_1d}" == f"{input_1d}"
@@ -106,14 +107,15 @@ def test_insert_shape_ops_2d():
             v1 = riscv.LiOp(2)
             v2 = riscv.MulOp(v1, indices[0])
             v3 = riscv.AddOp(v2, indices[1])
-            v4 = riscv.SlliOp(v3, 2, comment="mutiply by elm size")
-            _ = riscv.AddOp(mem, v4)
+            v4 = riscv.LiOp(4).rd
+            v5 = riscv.MulOp(v3, v4, comment="multiply by element size").rd
+            _ = riscv.AddOp(mem, v5)
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
 
     shape = [2, 2]
     dummy_op = list(input_2d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
-    ops, _ = memref_shape_ops(mem, indices, shape)
+    ops, _ = memref_shape_ops(mem, indices, shape, 4)
     rewriter.insert_op_before_matched_op(ops)
 
     assert f"{input_2d}" == f"{expected_2d}"
@@ -138,5 +140,5 @@ def test_insert_shape_ops_invalid_dim():
     rewriter = PatternRewriter(dummy_op)
 
     with pytest.raises(NotImplementedError):
-        ops, _ = memref_shape_ops(mem, indices, shape)
+        ops, _ = memref_shape_ops(mem, indices, shape, 4)
         rewriter.insert_op_before_matched_op(ops)
