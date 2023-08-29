@@ -7,10 +7,13 @@ from xdsl.backend.riscv.lowering.utils import (
 )
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import (
+    Float32Type,
+    IntegerType,
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import MLContext, SSAValue
+from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir.core import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -34,39 +37,62 @@ class ConvertMemrefDeallocOp(RewritePattern):
         raise DiagnosticException("Lowering memref.dealloc not implemented yet")
 
 
-def insert_shape_ops(
+def memref_shape_ops(
     mem: SSAValue,
     indices: Sequence[SSAValue],
     shape: Sequence[int],
-    rewriter: PatternRewriter,
-) -> SSAValue:
+    element_type: Attribute,
+) -> tuple[list[Operation], SSAValue]:
     """
     Returns ssa value representing pointer into the memref at given indices.
+    The pointer is byte-indexed, and the indices are strided by element size, so the index
+    into the flat memory buffer needs to be multiplied by the size of the element.
     """
+
     assert len(shape) == len(indices)
 
-    match indices:
-        case [idx1]:
-            rewriter.insert_op_before_matched_op(
-                [
-                    ptr := riscv.AddOp(mem, idx1),
-                ]
-            )
-        case [idx1, idx2]:
-            rewriter.insert_op_before_matched_op(
-                [
-                    cols := riscv.LiOp(shape[1]),
-                    row_offset := riscv.MulOp(cols, idx1),
-                    offset := riscv.AddOp(row_offset, idx2),
-                    offset_bytes := riscv.SlliOp(
-                        offset, 2, comment="mutiply by elm size"
-                    ),
-                    ptr := riscv.AddOp(mem, offset_bytes),
-                ]
-            )
+    # Only handle a small subset of elements
+    # Might be useful as a helper for other passes in the future
+    match element_type:
+        case IntegerType():
+            bytes_per_element = element_type.width.data // 8
+        case Float32Type():
+            bytes_per_element = 4
         case _:
-            raise NotImplementedError(f"Unsupported memref shape {shape}")
-    return ptr.rd
+            raise DiagnosticException(
+                f"Unsupported memref element type for riscv lowering: {element_type}"
+            )
+
+    ops: list[Operation] = []
+
+    match indices:
+        case [offset_in_elements]:
+            pass
+        case [idx1, idx2]:
+            ops = [
+                cols := riscv.LiOp(shape[1]),
+                row_offset := riscv.MulOp(cols, idx1),
+                offset := riscv.AddOp(row_offset, idx2),
+            ]
+            offset_in_elements = offset.rd
+        case _:
+            raise DiagnosticException(
+                f"Unsupported memref shape {shape}, only support 1D and 2D memrefs."
+            )
+
+    ops.extend(
+        [
+            bytes_per_element_op := riscv.LiOp(bytes_per_element),
+            offset_bytes := riscv.MulOp(
+                offset_in_elements,
+                bytes_per_element_op.rd,
+                comment="multiply by element size",
+            ),
+            ptr := riscv.AddOp(mem, offset_bytes),
+        ]
+    )
+
+    return ops, ptr.rd
 
 
 class ConvertMemrefStoreOp(RewritePattern):
@@ -75,10 +101,12 @@ class ConvertMemrefStoreOp(RewritePattern):
         value, mem, *indices = cast_operands_to_regs(rewriter)
 
         assert isinstance(op.memref.type, memref.MemRefType)
-        memref_typ = cast(memref.MemRefType[Any], op.memref.type)
-        shape = memref_typ.get_shape()
+        memref_type = cast(memref.MemRefType[Any], op.memref.type)
+        shape = memref_type.get_shape()
 
-        ptr = insert_shape_ops(mem, indices, shape, rewriter)
+        ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
+
+        rewriter.insert_op_before_matched_op(ops)
         if isinstance(value.type, riscv.IntRegisterType):
             new_op = riscv.SwOp(
                 ptr, value, 0, comment=f"store int value to memref of shape {shape}"
@@ -96,9 +124,10 @@ class ConvertMemrefLoadOp(RewritePattern):
         mem, *indices = cast_operands_to_regs(rewriter)
 
         assert isinstance(op.memref.type, memref.MemRefType)
-        memref_typ = cast(memref.MemRefType[Any], op.memref.type)
-        shape = memref_typ.get_shape()
-        ptr = insert_shape_ops(mem, indices, shape, rewriter)
+        memref_type = cast(memref.MemRefType[Any], op.memref.type)
+        shape = memref_type.get_shape()
+        ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
+        rewriter.insert_op_before_matched_op(ops)
 
         result_register_type = register_type_for_type(op.res.type)
 
