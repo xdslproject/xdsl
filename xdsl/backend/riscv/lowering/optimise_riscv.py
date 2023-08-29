@@ -43,9 +43,11 @@ class MultiplyImmediates(RewritePattern):
             and isinstance(op.rs2.op, riscv.LiOp)
             and isinstance(op.rs2.op.immediate, IntegerAttr)
         ):
+            rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(
                 riscv.LiOp(
-                    op.rs1.op.immediate.value.data * op.rs2.op.immediate.value.data
+                    op.rs1.op.immediate.value.data * op.rs2.op.immediate.value.data,
+                    rd=rd,
                 )
             )
 
@@ -107,8 +109,11 @@ class ShiftLeftImmediate(RewritePattern):
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
+            rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(
-                riscv.LiOp(op.rs1.op.immediate.value.data << op.immediate.value.data)
+                riscv.LiOp(
+                    op.rs1.op.immediate.value.data << op.immediate.value.data, rd=rd
+                )
             )
 
 
@@ -119,11 +124,15 @@ class LoadWordWithKnownOffset(RewritePattern):
             isinstance(op.rs1, OpResult)
             and isinstance(op.rs1.op, riscv.AddiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
+            and isinstance(op.immediate, IntegerAttr)
         ):
             rd = cast(riscv.FloatRegisterType, op.rd.type)
             rewriter.replace_matched_op(
                 riscv.FLwOp(
-                    op.rs1.op.rs1, op.rs1.op.immediate, rd=rd, comment=op.comment
+                    op.rs1.op.rs1,
+                    op.rs1.op.immediate.value.data + op.immediate.value.data,
+                    rd=rd,
+                    comment=op.comment,
                 )
             )
 
@@ -138,6 +147,9 @@ class StoreWordWithKnownOffset(RewritePattern):
         ):
             rewriter.replace_matched_op(
                 riscv.FSwOp(
-                    op.rs1.op.rs1, op.rs2, op.rs1.op.immediate, comment=op.comment
+                    op.rs1.op.rs1,
+                    op.rs2,
+                    op.rs1.op.immediate.value.data + op.immediate.value.data,
+                    comment=op.comment,
                 )
             )
