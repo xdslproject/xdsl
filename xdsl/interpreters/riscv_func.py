@@ -25,4 +25,4 @@ class RiscvFuncFunctions(InterpreterFunctions):
     def run_call(
         self, interpreter: Interpreter, op: riscv_func.CallOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        return interpreter.call_op(op.callee.data, args)
+        return interpreter.call_op(op.callee.string_value(), args)

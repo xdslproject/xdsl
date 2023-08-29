@@ -13,7 +13,8 @@ MEMREF_TYPE_2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2]))
 MEMREF_TYPE_2X2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2, 2]))
 MEMREF_TYPE_2X2X2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2, 2, 2]))
 
-REGISTER_TYPE = riscv.IntRegisterType.unallocated()
+INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
+FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
 
 
 def test_lower_memref_alloc():
@@ -28,7 +29,7 @@ def test_lower_memref_alloc():
     def expected():
         v1 = riscv.LiOp(2, comment="memref alloc size")
         v2 = riscv.CustomAssemblyInstructionOp(
-            "buffer.alloc", (v1.results[0],), (REGISTER_TYPE,)
+            "buffer.alloc", (v1.results[0],), (INT_REGISTER_TYPE,)
         )
         v3 = UnrealizedConversionCastOp.get((v2.results[0],), (MEMREF_TYPE_2XF32,))
         riscv.CustomAssemblyInstructionOp("do_stuff_with_alloc", (v3.results[0],), ())
@@ -60,7 +61,7 @@ def test_lower_memref_dealloc():
 
 def test_insert_shape_ops_1d():
     mem = TestSSAValue(MEMREF_TYPE_2XF32)
-    indices = [TestSSAValue(REGISTER_TYPE)]
+    indices = [TestSSAValue(INT_REGISTER_TYPE)]
 
     @ModuleOp
     @Builder.implicit_region
@@ -85,7 +86,7 @@ def test_insert_shape_ops_1d():
 
 def test_insert_shape_ops_2d():
     mem = TestSSAValue(MEMREF_TYPE_2X2XF32)
-    indices = [TestSSAValue(REGISTER_TYPE), TestSSAValue(REGISTER_TYPE)]
+    indices = [TestSSAValue(INT_REGISTER_TYPE), TestSSAValue(INT_REGISTER_TYPE)]
 
     @ModuleOp
     @Builder.implicit_region
@@ -115,9 +116,9 @@ def test_insert_shape_ops_2d():
 def test_insert_shape_ops_invalid_dim():
     mem = TestSSAValue(MEMREF_TYPE_2X2X2XF32)
     indices = [
-        TestSSAValue(REGISTER_TYPE),
-        TestSSAValue(REGISTER_TYPE),
-        TestSSAValue(REGISTER_TYPE),
+        TestSSAValue(INT_REGISTER_TYPE),
+        TestSSAValue(INT_REGISTER_TYPE),
+        TestSSAValue(INT_REGISTER_TYPE),
     ]
 
     @ModuleOp
@@ -153,10 +154,10 @@ def test_memref_load():
         with ImplicitBuilder(
             func.FuncOp("impl", ((MEMREF_TYPE_2XF32, IndexType()), ())).body
         ) as (v, i):
-            v1 = UnrealizedConversionCastOp.get([v], (REGISTER_TYPE,))
-            v2 = UnrealizedConversionCastOp.get([i], (REGISTER_TYPE,))
+            v1 = UnrealizedConversionCastOp.get([v], (INT_REGISTER_TYPE,))
+            v2 = UnrealizedConversionCastOp.get([i], (INT_REGISTER_TYPE,))
             v4 = riscv.AddOp(v1.results[0], v2.results[0])
-            v5 = riscv.LwOp(v4, 0, comment="load value from memref of shape (2,)")
+            v5 = riscv.FLwOp(v4, 0, comment="load value from memref of shape (2,)")
             _ = UnrealizedConversionCastOp.get([v5], (f32,))
 
     LowerMemrefToRiscv().apply(MLContext(), simple_load)
@@ -178,12 +179,15 @@ def test_memref_store():
         with ImplicitBuilder(
             func.FuncOp("impl", ((f32, MEMREF_TYPE_2XF32, IndexType()), ())).body
         ) as (v, m, i):
-            v1 = UnrealizedConversionCastOp.get([v], (REGISTER_TYPE,))
-            v2 = UnrealizedConversionCastOp.get([m], (REGISTER_TYPE,))
-            v3 = UnrealizedConversionCastOp.get([i], (REGISTER_TYPE,))
+            v1 = UnrealizedConversionCastOp.get([v], (FLOAT_REGISTER_TYPE,))
+            v2 = UnrealizedConversionCastOp.get([m], (INT_REGISTER_TYPE,))
+            v3 = UnrealizedConversionCastOp.get([i], (INT_REGISTER_TYPE,))
             v4 = riscv.AddOp(v2.results[0], v3.results[0])
-            riscv.SwOp(
-                v4, v1.results[0], 0, comment="store value to memref of shape (2,)"
+            riscv.FSwOp(
+                v4,
+                v1.results[0],
+                0,
+                comment="store float value to memref of shape (2,)",
             )
 
     LowerMemrefToRiscv().apply(MLContext(), simple_store)
