@@ -44,23 +44,29 @@ def memref_shape_ops(
     """
     assert len(shape) == len(indices)
 
-    ops: list[Operation]
+    ops: list[Operation] = []
 
     match indices:
-        case [idx1]:
-            ops = [
-                ptr := riscv.AddOp(mem, idx1),
-            ]
+        case [offset_in_words]:
+            pass
         case [idx1, idx2]:
             ops = [
                 cols := riscv.LiOp(shape[1]),
                 row_offset := riscv.MulOp(cols, idx1),
                 offset := riscv.AddOp(row_offset, idx2),
-                offset_bytes := riscv.SlliOp(offset, 2, comment="mutiply by elm size"),
-                ptr := riscv.AddOp(mem, offset_bytes),
             ]
+            offset_in_words = offset.rd
         case _:
             raise NotImplementedError(f"Unsupported memref shape {shape}")
+
+    ops.extend(
+        [
+            offset_bytes := riscv.SlliOp(
+                offset_in_words, 2, comment="mutiply by elm size"
+            ),
+            ptr := riscv.AddOp(mem, offset_bytes),
+        ]
+    )
 
     return ops, ptr.rd
 

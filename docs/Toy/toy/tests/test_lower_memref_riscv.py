@@ -74,7 +74,10 @@ def test_insert_shape_ops_1d():
     @Builder.implicit_region
     def expected_1d():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
-            _ = riscv.AddOp(mem, indices[0])
+            offset_in_bytes = riscv.SlliOp(
+                indices[0], 2, comment="mutiply by elm size"
+            ).rd
+            _ = riscv.AddOp(mem, offset_in_bytes)
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
 
     shape = [2]
