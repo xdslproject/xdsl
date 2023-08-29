@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.backend.riscv.lowering.convert_memref_to_riscv import insert_shape_ops
+from xdsl.backend.riscv.lowering.convert_memref_to_riscv import memref_shape_ops
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func, memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp, f32
@@ -80,7 +80,8 @@ def test_insert_shape_ops_1d():
     shape = [2]
     dummy_op = list(input_1d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
-    _ = insert_shape_ops(mem, indices, shape, rewriter)
+    ops, _ = memref_shape_ops(mem, indices, shape)
+    rewriter.insert_op_before_matched_op(ops)
 
     assert f"{expected_1d}" == f"{input_1d}"
 
@@ -109,7 +110,8 @@ def test_insert_shape_ops_2d():
     shape = [2, 2]
     dummy_op = list(input_2d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
-    _ = insert_shape_ops(mem, indices, shape, rewriter)
+    ops, _ = memref_shape_ops(mem, indices, shape)
+    rewriter.insert_op_before_matched_op(ops)
 
     assert f"{input_2d}" == f"{expected_2d}"
 
@@ -133,4 +135,5 @@ def test_insert_shape_ops_invalid_dim():
     rewriter = PatternRewriter(dummy_op)
 
     with pytest.raises(NotImplementedError):
-        _ = insert_shape_ops(mem, indices, shape, rewriter)
+        ops, _ = memref_shape_ops(mem, indices, shape)
+        rewriter.insert_op_before_matched_op(ops)
