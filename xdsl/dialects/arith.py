@@ -775,6 +775,25 @@ class ExtSIOp(IRDLOperation):
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
 
+    def verify_(self) -> None:
+        assert isinstance(self.input.type, IntegerType)
+        assert isinstance(self.result.type, IntegerType)
+        if not self.result.type.width.data > self.input.type.width.data:
+            raise VerifyException(
+                "Destination bit-width must be larger than the input bit-width"
+            )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        parser.parse_keyword("to")
+        result_type = parser.parse_type()
+        [input] = parser.resolve_operands([input], [input_type], parser.pos)
+        result_int_type = cast(IntegerType, result_type)
+        return cls(input, result_int_type)
+
 
 @irdl_op_definition
 class ExtUIOp(IRDLOperation):
@@ -793,6 +812,17 @@ class ExtUIOp(IRDLOperation):
             raise VerifyException(
                 "Destination bit-width must be larger than the input bit-width"
             )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        parser.parse_keyword("to")
+        result_type = parser.parse_type()
+        [input] = parser.resolve_operands([input], [input_type], parser.pos)
+        result_int_type = cast(IntegerType, result_type)
+        return cls(input, result_int_type)
 
 
 Arith = Dialect(
