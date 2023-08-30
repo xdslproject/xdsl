@@ -99,7 +99,7 @@ def test_riscv_interpreter():
 
     assert (
         interpreter.run_op(
-            riscv.FSwOp(TestSSAValue(register), TestSSAValue(fregister), 2),
+            riscv.FSwOp(TestSSAValue(register), TestSSAValue(fregister), 8),
             (buffer, 3.0),
         )
         == ()
@@ -108,7 +108,7 @@ def test_riscv_interpreter():
     assert buffer == Buffer([1, 2, 3.0, 0])
 
     assert interpreter.run_op(
-        riscv.FLwOp(TestSSAValue(register), 2),
+        riscv.FLwOp(TestSSAValue(register), 8),
         (buffer,),
     ) == (3.0,)
 
