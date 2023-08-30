@@ -775,6 +775,14 @@ class TruncIOp(IRDLOperation):
         result_int_type = cast(IntegerType, result_type)
         return cls(input, result_int_type)
 
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.input)
+        printer.print(" : ")
+        printer.print_attribute(self.input.type)
+        printer.print(" to ")
+        printer.print_attribute(self.result.type)
+
 
 @irdl_op_definition
 class ExtSIOp(IRDLOperation):
@@ -805,6 +813,14 @@ class ExtSIOp(IRDLOperation):
         result_int_type = cast(IntegerType, result_type)
         return cls(input, result_int_type)
 
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.input)
+        printer.print(" : ")
+        printer.print_attribute(self.input.type)
+        printer.print(" to ")
+        printer.print_attribute(self.result.type)
+
 
 @irdl_op_definition
 class ExtUIOp(IRDLOperation):
@@ -834,6 +850,14 @@ class ExtUIOp(IRDLOperation):
         [input] = parser.resolve_operands([input], [input_type], parser.pos)
         result_int_type = cast(IntegerType, result_type)
         return cls(input, result_int_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.input)
+        printer.print(" : ")
+        printer.print_attribute(self.input.type)
+        printer.print(" to ")
+        printer.print_attribute(self.result.type)
 
 
 Arith = Dialect(
