@@ -4,6 +4,7 @@ from xdsl.backend.riscv.lowering.convert_arith_to_riscv import ConvertArithToRis
 from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
     ConvertFuncToRiscvFuncPass,
 )
+from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemrefToRiscvPass
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
 from xdsl.backend.riscv.riscv_scf_to_asm import (
     LowerScfForToLabels,
@@ -116,6 +117,7 @@ def transform(
     ConvertFuncToRiscvFuncPass().apply(ctx, module_op)
     LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
+    ConvertMemrefToRiscvPass().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
     ConvertArithToRiscvPass().apply(ctx, module_op)
     ConvertScfToRiscvPass().apply(ctx, module_op)
