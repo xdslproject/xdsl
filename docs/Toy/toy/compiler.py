@@ -136,7 +136,7 @@ def transform(
     if target == "riscv-opt":
         return
 
-    RISCVRegisterAllocation().apply(ctx, module_op)
+    RISCVRegisterAllocation(allocation_strategy="BlockNaive").apply(ctx, module_op)
 
     module_op.verify()
 
