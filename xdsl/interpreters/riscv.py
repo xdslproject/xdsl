@@ -206,6 +206,8 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         offset = self.get_immediate_value(op, op.immediate)
+        if isinstance(offset, int):
+            offset //= 4
         return (args[0][offset],)
 
     @impl(riscv.LabelOp)
@@ -244,7 +246,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FSwOp,
         args: tuple[Any, ...],
     ):
-        args[0][op.immediate.value.data] = args[1]
+        args[0][op.immediate.value.data // 4] = args[1]
         return ()
 
     @impl(riscv.FLwOp)
@@ -255,6 +257,8 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         offset = self.get_immediate_value(op, op.immediate)
+        if isinstance(offset, int):
+            offset //= 4
         return (args[0][offset],)
 
     # endregion
