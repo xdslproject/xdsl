@@ -764,6 +764,17 @@ class TruncIOp(IRDLOperation):
                 "Destination bit-width must be smaller than the input bit-width"
             )
 
+    @classmethod
+    def parse(cls, parser: Parser):
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        parser.parse_keyword("to")
+        result_type = parser.parse_type()
+        [input] = parser.resolve_operands([input], [input_type], parser.pos)
+        result_int_type = cast(IntegerType, result_type)
+        return cls(input, result_int_type)
+
 
 @irdl_op_definition
 class ExtSIOp(IRDLOperation):
