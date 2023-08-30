@@ -81,7 +81,7 @@ class ABISpec:
     long_width: int
     pointer_width: int
 
-    #
+    # The ABIs flen is allowed to smaller than the machine flen
     abi_flen: Literal[0, 32, 64, 128]
     """
     ABI_FLEN refers to the width of a floating-point register in the ABI. The ABI_FLEN
