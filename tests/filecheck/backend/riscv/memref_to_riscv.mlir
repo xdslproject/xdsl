@@ -73,3 +73,39 @@ builtin.module {
 }
 
 // CHECK:      Unsupported memref shape (3, 2, 1), only support 1D and 2D memrefs.
+
+// -----
+
+builtin.module {
+    %v, %d0, %m = "test.op"() : () -> (i8, index, memref<1xi8>)
+    "memref.store"(%v, %m, %d0) {"nontemporal" = false} : (i8, memref<1xi8>, index) -> ()
+}
+
+// CHECK:      Unsupported memref element type for riscv lowering: i8
+
+// -----
+
+builtin.module {
+    %v, %d0, %m = "test.op"() : () -> (i16, index, memref<1xi16>)
+    "memref.store"(%v, %m, %d0) {"nontemporal" = false} : (i16, memref<1xi16>, index) -> ()
+}
+
+// CHECK:      Unsupported memref element type for riscv lowering: i16
+
+// -----
+
+builtin.module {
+    %v, %d0, %m = "test.op"() : () -> (i64, index, memref<1xi64>)
+    "memref.store"(%v, %m, %d0) {"nontemporal" = false} : (i64, memref<1xi64>, index) -> ()
+}
+
+// CHECK:      Unsupported memref element type for riscv lowering: i64
+
+// -----
+
+builtin.module {
+    %v, %d0, %m = "test.op"() : () -> (f64, index, memref<1xf64>)
+    "memref.store"(%v, %m, %d0) {"nontemporal" = false} : (f64, memref<1xf64>, index) -> ()
+}
+
+// CHECK:      Unsupported memref element type for riscv lowering: f64

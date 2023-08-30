@@ -55,6 +55,11 @@ def memref_shape_ops(
     # Might be useful as a helper for other passes in the future
     match element_type:
         case IntegerType():
+            bitwidth = element_type.width.data
+            if bitwidth != 32:
+                raise DiagnosticException(
+                    f"Unsupported memref element type for riscv lowering: {element_type}"
+                )
             bytes_per_element = element_type.width.data // 8
         case Float32Type():
             bytes_per_element = 4
