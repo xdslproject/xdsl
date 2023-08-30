@@ -124,11 +124,16 @@ def transform(
     DeadCodeElimination().apply(ctx, module_op)
     ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 
-    DeadCodeElimination().apply(ctx, module_op)
-
     module_op.verify()
 
     if target == "riscv":
+        return
+
+    CanonicalizePass().apply(ctx, module_op)
+
+    module_op.verify()
+
+    if target == "riscv-opt":
         return
 
     RISCVRegisterAllocation().apply(ctx, module_op)
@@ -136,6 +141,13 @@ def transform(
     module_op.verify()
 
     if target == "riscv-regalloc":
+        return
+
+    CanonicalizePass().apply(ctx, module_op)
+
+    module_op.verify()
+
+    if target == "riscv-regalloc-opt":
         return
 
     LowerRISCVFunc(insert_exit_syscall=True).apply(ctx, module_op)
