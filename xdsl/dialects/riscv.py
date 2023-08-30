@@ -2301,6 +2301,16 @@ class RemuOp(RdRsRsIntegerOperation):
 # https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
 
 
+class LiOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import (
+            LoadZero,
+        )
+
+        return (LoadZero(),)
+
+
 @irdl_op_definition
 class LiOp(RdImmIntegerOperation):
     """
@@ -2313,7 +2323,7 @@ class LiOp(RdImmIntegerOperation):
 
     name = "riscv.li"
 
-    traits = frozenset((Pure(),))
+    traits = frozenset((Pure(), LiOpHasCanonicalizationPatternTrait()))
 
     def __init__(
         self,
@@ -2691,6 +2701,26 @@ class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
 @irdl_op_definition
 class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
     name = "riscv.get_float_register"
+
+
+@irdl_op_definition
+class GetZeroRegisterOperation(IRDLOperation, RISCVOp):
+    """
+    This instruction allows us to create an SSAValue with for a given register name. This
+    is useful for bridging the RISC-V convention that stores the result of function calls
+    in `a0` and `a1` into SSA form.
+    """
+
+    name = "riscv.get_zero_register"
+
+    res: OpResult = result_def(Registers.ZERO)
+
+    def __init__(self):
+        super().__init__(result_types=[Registers.ZERO])
+
+    def assembly_line(self) -> str | None:
+        # Don't print assembly for creating a SSA value representing register
+        return None
 
 
 # endregion
@@ -3429,6 +3459,7 @@ RISCV = Dialect(
         CommentOp,
         GetRegisterOp,
         GetFloatRegisterOp,
+        GetZeroRegisterOperation,
         ScfgwOp,
         # Floating point
         FMVOp,

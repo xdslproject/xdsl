@@ -32,6 +32,13 @@ class RemoveRedundantFMv(RewritePattern):
             rewriter.replace_matched_op([], [op.rs])
 
 
+class LoadZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.LiOp, rewriter: PatternRewriter) -> None:
+        if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
+            rewriter.replace_matched_op(riscv.GetZeroRegisterOperation())
+
+
 class MultiplyImmediates(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:

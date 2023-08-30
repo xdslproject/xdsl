@@ -50,11 +50,11 @@ builtin.module {
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<fa1>) -> !riscv.freg<fa2>
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
 
-// CHECK-NEXT:   %0 = riscv.li 0 : () -> !riscv.reg<>
+// CHECK-NEXT:   %0 = riscv.get_zero_register : () -> !riscv.reg<zero>
 // CHECK-NEXT:   %1 = riscv.li 1 : () -> !riscv.reg<>
 // CHECK-NEXT:   %2 = riscv.li 2 : () -> !riscv.reg<>
 // CHECK-NEXT:   %3 = riscv.li 3 : () -> !riscv.reg<>
-// CHECK-NEXT:   "test.op"(%0, %1, %2, %3) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:   "test.op"(%0, %1, %2, %3) : (!riscv.reg<zero>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 
 // CHECK-NEXT:   %multiply_immediates = riscv.li 6 : () -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
