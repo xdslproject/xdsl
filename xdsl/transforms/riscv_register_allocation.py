@@ -5,6 +5,7 @@ from xdsl.backend.riscv.register_allocation import (
     RegisterAllocatorJRegs,
     RegisterAllocatorLivenessBlockNaive,
 )
+from xdsl.dialects import riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
@@ -41,7 +42,9 @@ class RISCVRegisterAllocation(ModulePass):
                 "When set to 0 it signifies all available registers are used."
             )
 
-        allocator = allocator_strategies[self.allocation_strategy](
-            limit_registers=self.limit_registers
-        )
-        allocator.allocate_registers(op)
+        for inner_op in op.walk():
+            if isinstance(inner_op, riscv_func.FuncOp):
+                allocator = allocator_strategies[self.allocation_strategy](
+                    limit_registers=self.limit_registers
+                )
+                allocator.allocate_func(inner_op)
