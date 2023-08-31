@@ -498,7 +498,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
         printer.print_string("}")
 
     @staticmethod
-    def generic_constraint_coercion(args: tuple[Any, ...]) -> AttrConstraint:
+    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
         raise Exception(f"Unsupported operation on {DictionaryAttr.name}")
 
     def verify(self) -> None:

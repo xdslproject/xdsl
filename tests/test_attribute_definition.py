@@ -462,7 +462,7 @@ class ListData(GenericData[list[A]]):
         printer.print_string("]")
 
     @staticmethod
-    def generic_constraint_coercion(args: tuple[Any, ...]) -> AttrConstraint:
+    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
         assert len(args) == 1
         return DataListAttr(irdl_to_attr_constraint(args[0]))
 
