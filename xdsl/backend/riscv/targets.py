@@ -108,6 +108,25 @@ class ABISpec:
     arguments are stored at correspondingly higher addresses.
 
     (cited from section 2.1 [1] p. 9)
+
+    A supporting illustration:
+
+    +--------------------------+ <--- stack "end", higher address
+    |       In-use stack       |
+    | (from calling functions) |
+    +--------------------------+
+    |    Padding if needed     |
+    +--------------------------+
+    |     stack argument n     |
+    |     stack argument n-1   |
+    |            ...           |
+    |     stack argument 0     |
+    +--------------------------+ <--- Stack pointer, aligned to 128 bits
+    |           empty          |
+    |                          |
+    +--------------------------+ <--- stack "start", lower address
+
+    This means `0(sp)` is stack argument 0, and `4*n(sp)` is stack argument n.
     """
 
 
