@@ -129,6 +129,8 @@ def transform(
     if target == "riscv":
         return
 
+    # Perform optimizations that don't depend on register allocation
+    # e.g. constant folding
     CanonicalizePass().apply(ctx, module_op)
 
     module_op.verify()
@@ -143,6 +145,8 @@ def transform(
     if target == "riscv-regalloc":
         return
 
+    # Perform optimizations that depend on register allocation
+    # e.g. redundant moves
     CanonicalizePass().apply(ctx, module_op)
 
     module_op.verify()
