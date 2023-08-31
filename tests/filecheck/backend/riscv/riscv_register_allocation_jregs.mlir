@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-allocate-registers{allocation_strategy=GlobalJRegs} %s | filecheck %s
+// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=BlockNaive limit_registers=0}" %s | filecheck %s
 
 riscv_func.func @main() {
   %0 = riscv.li 6 : () -> !riscv.reg<>
