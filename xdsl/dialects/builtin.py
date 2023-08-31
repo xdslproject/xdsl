@@ -130,12 +130,12 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         super().__init__(tuple(param))
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT]:
+    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
         data = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_attribute
         )
         # the type system can't ensure that the elements are of type _ArrayAttrT
-        result = cast(tuple[AttributeCovT], tuple(data))
+        result = cast(tuple[AttributeCovT, ...], tuple(data))
         return result
 
     def print_parameter(self, printer: Printer) -> None:
@@ -144,7 +144,7 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         printer.print_string("]")
 
     @staticmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+    def generic_constraint_coercion(args: tuple[Any, ...]) -> AttrConstraint:
         if len(args) == 1:
             return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
         if len(args) == 0:
@@ -498,7 +498,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
         printer.print_string("}")
 
     @staticmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+    def generic_constraint_coercion(args: tuple[Any, ...]) -> AttrConstraint:
         raise Exception(f"Unsupported operation on {DictionaryAttr.name}")
 
     def verify(self) -> None:
@@ -767,7 +767,7 @@ class DenseIntOrFPElementsAttr(
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
-    def get_shape(self) -> tuple[int] | None:
+    def get_shape(self) -> tuple[int, ...] | None:
         if isinstance(self.type, UnrankedTensorType):
             return None
         return self.type.get_shape()

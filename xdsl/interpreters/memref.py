@@ -3,7 +3,13 @@ from math import prod
 from typing import Any, cast
 
 from xdsl.dialects import builtin, memref
-from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
+from xdsl.interpreter import (
+    Interpreter,
+    InterpreterFunctions,
+    PythonValues,
+    impl,
+    register_impls,
+)
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir.core import Attribute
 from xdsl.traits import SymbolTable
@@ -18,7 +24,9 @@ class MemrefValue(Enum):
 @register_impls
 class MemrefFunctions(InterpreterFunctions):
     @impl(memref.Alloc)
-    def run_alloc(self, interpreter: Interpreter, op: memref.Alloc, args: tuple[()]):
+    def run_alloc(
+        self, interpreter: Interpreter, op: memref.Alloc, args: PythonValues
+    ) -> PythonValues:
         memref_type = cast(memref.MemRefType[Attribute], op.memref.type)
 
         shape = memref_type.get_shape()
@@ -30,8 +38,8 @@ class MemrefFunctions(InterpreterFunctions):
 
     @impl(memref.Dealloc)
     def run_dealloc(
-        self, interpreter: Interpreter, op: memref.Dealloc, args: tuple[Any, ...]
-    ):
+        self, interpreter: Interpreter, op: memref.Dealloc, args: PythonValues
+    ) -> PythonValues:
         (shaped_array,) = args
         for i in range(len(shaped_array.data)):
             shaped_array.data[i] = MemrefValue.Deallocated
@@ -39,8 +47,8 @@ class MemrefFunctions(InterpreterFunctions):
 
     @impl(memref.Store)
     def run_store(
-        self, interpreter: Interpreter, op: memref.Store, args: tuple[Any, ...]
-    ):
+        self, interpreter: Interpreter, op: memref.Store, args: PythonValues
+    ) -> PythonValues:
         value, memref, *indices = args
 
         memref = cast(ShapedArray[Any], memref)
@@ -71,8 +79,8 @@ class MemrefFunctions(InterpreterFunctions):
 
     @impl(memref.GetGlobal)
     def run_get_global(
-        self, interpreter: Interpreter, op: memref.GetGlobal, args: tuple[Any, ...]
-    ):
+        self, interpreter: Interpreter, op: memref.GetGlobal, args: PythonValues
+    ) -> PythonValues:
         mem = SymbolTable.lookup_symbol(op, op.name_)
         assert isinstance(mem, memref.Global)
         initial_value = mem.initial_value

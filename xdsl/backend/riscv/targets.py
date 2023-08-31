@@ -33,7 +33,7 @@ def _isa_sort_key(ext: str) -> int:
     return 200
 
 
-def _expand_isa_letters(extensions_: Sequence[str]) -> tuple[str]:
+def _expand_isa_letters(extensions_: Sequence[str]) -> tuple[str, ...]:
     """
     Normalizes (expands) ISA extensions as per RISC-V ISA Manual version 20191213
 
@@ -109,7 +109,7 @@ class MachineArchSpec:
     Floating point register width (32/64/128)
     """
 
-    extensions: tuple[str]
+    extensions: tuple[str, ...]
     """
     A list of extensions, fully expanded.
 

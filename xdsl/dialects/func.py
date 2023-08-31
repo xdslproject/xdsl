@@ -195,7 +195,7 @@ class FuncOp(IRDLOperation):
             not self.is_declaration
         ), "update_function_type does not work with function declarations!"
         return_op = self.get_return_op()
-        return_type: tuple[Attribute] = self.function_type.outputs.data
+        return_type: tuple[Attribute, ...] = self.function_type.outputs.data
 
         if return_op is not None:
             return_type = tuple(arg.type for arg in return_op.operands)

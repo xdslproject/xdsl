@@ -1872,7 +1872,7 @@ class GenericData(Data[_DataElement], ABC):
 
     @staticmethod
     @abstractmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+    def generic_constraint_coercion(args: tuple[Any, ...]) -> AttrConstraint:
         """
         Given the generic parameters passed to the generic attribute type,
         return the corresponding attribute constraint.
