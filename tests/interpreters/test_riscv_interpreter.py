@@ -1,3 +1,5 @@
+import pytest
+
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
@@ -5,6 +7,7 @@ from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import Buffer, RiscvFunctions
 from xdsl.ir.core import Block, Region
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
+from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -113,6 +116,15 @@ def test_riscv_interpreter():
     ) == (3.0,)
 
     assert buffer == Buffer([1, 2, 3.0, 0])
+
+    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
+
+    get_non_zero = riscv.GetRegisterOp(riscv.IntRegisterType.unallocated())
+    with pytest.raises(
+        InterpretationError,
+        match="Cannot interpret riscv.get_register op with non-ZERO type",
+    ):
+        interpreter.run_op(get_non_zero, ())
 
 
 def test_get_data():
