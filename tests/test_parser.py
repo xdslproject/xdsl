@@ -25,6 +25,7 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Token
 
+
 # pyright: reportPrivateUsage=false
 
 
