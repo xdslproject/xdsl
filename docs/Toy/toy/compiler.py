@@ -124,11 +124,18 @@ def transform(
     DeadCodeElimination().apply(ctx, module_op)
     ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 
-    DeadCodeElimination().apply(ctx, module_op)
-
     module_op.verify()
 
     if target == "riscv":
+        return
+
+    # Perform optimizations that don't depend on register allocation
+    # e.g. constant folding
+    CanonicalizePass().apply(ctx, module_op)
+
+    module_op.verify()
+
+    if target == "riscv-opt":
         return
 
     RISCVRegisterAllocation().apply(ctx, module_op)
@@ -136,6 +143,15 @@ def transform(
     module_op.verify()
 
     if target == "riscv-regalloc":
+        return
+
+    # Perform optimizations that depend on register allocation
+    # e.g. redundant moves
+    CanonicalizePass().apply(ctx, module_op)
+
+    module_op.verify()
+
+    if target == "riscv-regalloc-opt":
         return
 
     LowerRISCVFunc(insert_exit_syscall=True).apply(ctx, module_op)
