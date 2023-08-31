@@ -6,6 +6,9 @@ from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
 )
 from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemrefToRiscvPass
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
+from xdsl.backend.riscv.lowering.reduce_register_pressure import (
+    RiscvReduceRegisterPressurePass,
+)
 from xdsl.backend.riscv.riscv_scf_to_asm import (
     LowerScfForToLabels,
 )
@@ -130,6 +133,7 @@ def transform(
         return
 
     CanonicalizePass().apply(ctx, module_op)
+    RiscvReduceRegisterPressurePass().apply(ctx, module_op)
 
     module_op.verify()
 

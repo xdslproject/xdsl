@@ -10,6 +10,7 @@ from xdsl.backend.riscv.lowering import (
     convert_func_to_riscv_func,
     convert_memref_to_riscv,
     convert_scf_to_riscv_scf,
+    reduce_register_pressure,
 )
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
@@ -115,6 +116,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
         printf_to_putchar.PrintfToPutcharPass,
+        reduce_register_pressure.RiscvReduceRegisterPressurePass,
         riscv_register_allocation.RISCVRegisterAllocation,
         convert_arith_to_riscv.ConvertArithToRiscvPass,
         convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
