@@ -16,7 +16,7 @@ class DomainDecompositionStrategy(ABC):
 
     @abstractmethod
     def halo_exchange_defs(
-        self, dims: dmp.ShapeInformationAttr
+        self, dims: dmp.ShapeAttr
     ) -> Iterable[dmp.ExchangeDeclarationAttr]:
         raise NotImplementedError("SlicingStrategy must implement halo_exchange_defs!")
 
@@ -51,7 +51,7 @@ class GridSlice2d(DomainDecompositionStrategy):
         )
 
     def halo_exchange_defs(
-        self, dims: dmp.ShapeInformationAttr
+        self, dims: dmp.ShapeAttr
     ) -> Iterable[dmp.ExchangeDeclarationAttr]:
         # calculate values for the dimensions that were not decomposed
         residual_offsets = [0 for _ in range(2, dims.dims)]

@@ -620,7 +620,7 @@ class DmpSwapShapeInference:
         op.swaps = builtin.ArrayAttr(
             exchange
             for exchange in self.strategy.halo_exchange_defs(
-                dmp.ShapeInformationAttr.from_index_attrs(
+                dmp.ShapeAttr.from_index_attrs(
                     buff_lb=buff_lb,
                     core_lb=core_lb,
                     buff_ub=buff_ub,

@@ -182,7 +182,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class ShapeInformationAttr(ParametrizedAttribute):
+class ShapeAttr(ParametrizedAttribute):
     """
     This represents shape information that is attached to halo operations.
 
@@ -268,7 +268,7 @@ class ShapeInformationAttr(ParametrizedAttribute):
         buff_ub: stencil.IndexAttr,
     ):
         data_type = builtin.i64
-        return ShapeInformationAttr(
+        return ShapeAttr(
             [
                 builtin.DenseArrayBase.from_list(data_type, tuple(data))
                 for data in (buff_lb, buff_ub, core_lb, core_ub)
@@ -431,7 +431,7 @@ DMP = Dialect(
     ],
     [
         ExchangeDeclarationAttr,
-        ShapeInformationAttr,
+        ShapeAttr,
         NodeGridAttr,
     ],
 )
