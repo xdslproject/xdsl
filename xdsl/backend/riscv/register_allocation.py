@@ -1,9 +1,5 @@
-from __future__ import annotations
-
 import abc
-from collections.abc import Callable
 
-from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv_func, riscv_scf
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import (
@@ -20,30 +16,8 @@ class RegisterAllocator(abc.ABC):
     Base class for register allocation strategies.
     """
 
-    _available_registers: RegisterQueue | None
-    available_registers_factory: Callable[[], RegisterQueue]
-
-    def __init__(self, limit_registers: int | None = None) -> None:
-        self._available_registers = None
-        if limit_registers is not None:
-
-            def factory():
-                available_registers = RegisterQueue()
-                available_registers.limit_registers(limit_registers)
-                return available_registers
-
-            self.available_registers_factory = factory
-        else:
-            self.available_registers_factory = lambda: RegisterQueue()
-
-    @property
-    def available_registers(self) -> RegisterQueue:
-        if self._available_registers is None:
-            self._available_registers = self.available_registers_factory()
-        return self._available_registers
-
-    def reset_available_registers(self) -> None:
-        self._available_registers = None
+    def __init__(self) -> None:
+        pass
 
     @abc.abstractmethod
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
@@ -86,19 +60,54 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     ```
     """
 
-    def _allocate(self, reg: SSAValue):
-        if (
-            isinstance(reg.type, IntRegisterType | FloatRegisterType)
-            and not reg.type.is_allocated
-        ):
-            reg.type = self.available_registers.pop(type(reg.type))
+    idx: int
+
+    def __init__(self, limit_registers: int = 0) -> None:
+        self.idx = 0
+        self._register_types = (IntRegisterType, FloatRegisterType)
+
+        """
+        Assume that all the registers are available except the ones explicitly reserved
+        by the default RISCV ABI
+        """
+        self.reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
+
+        self.register_sets = {
+            IntRegisterType: [
+                reg
+                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
+                if reg not in self.reserved_registers
+            ],
+            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
+        }
+
+        for reg_type, reg_set in self.register_sets.items():
+            if limit_registers:
+                self.register_sets[reg_type] = reg_set[:limit_registers]
+
+    def _allocate(self, reg: SSAValue) -> bool:
+        if isinstance(reg.type, self._register_types) and not reg.type.is_allocated:
+            # If we run out of real registers, allocate a j register
+            reg_type = type(reg.type)
+            available_regs = self.register_sets.get(reg_type, [])
+
+            if not available_regs:
+                reg.type = reg_type(f"j{self.idx}")
+                self.idx += 1
+            else:
+                reg.type = reg_type(available_regs.pop())
+
+            return True
+
+        return False
 
     def _free(self, reg: SSAValue) -> None:
-        if (
-            isinstance(reg.type, IntRegisterType | FloatRegisterType)
-            and reg.type.is_allocated
-        ):
-            self.available_registers.push(reg.type)
+        if isinstance(reg.type, self._register_types) and reg.type.is_allocated:
+            available_regs = self.register_sets.get(type(reg.type), [])
+            reg_name = reg.type.register_name
+
+            if not reg_name.startswith("j") and reg_name not in self.reserved_registers:
+                available_regs.append(reg_name)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         for region in func.regions:
@@ -132,6 +141,26 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 class RegisterAllocatorBlockNaive(RegisterAllocator):
     idx: int
 
+    def __init__(self, limit_registers: int = 0) -> None:
+        self.idx = 0
+        self._register_types = (IntRegisterType, FloatRegisterType)
+        _ = limit_registers
+
+        """
+        Assume that all the registers are available except the ones explicitly reserved
+        by the default RISCV ABI
+        """
+        reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
+
+        self.register_sets = {
+            IntRegisterType: [
+                reg
+                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
+                if reg not in reserved_registers
+            ],
+            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
+        }
+
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         """
         Sets unallocated registers per block to a finite set of real available registers.
@@ -140,7 +169,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
         for region in func.regions:
             for block in region.blocks:
-                self.reset_available_registers()
+                register_sets = self.register_sets.copy()
 
                 for op in block.walk():
                     # Do not allocate registers on non-RISCV-ops
@@ -148,17 +177,26 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                         continue
 
                     for result in op.results:
-                        if isinstance(result.type, IntRegisterType | FloatRegisterType):
+                        if isinstance(result.type, self._register_types):
                             if not result.type.is_allocated:
-                                result.type = self.available_registers.pop(
-                                    type(result.type)
-                                )
+                                reg_type = type(result.type)
+                                available_regs = register_sets.get(reg_type, [])
+
+                                # If we run out of real registers, allocate a j register
+                                if not available_regs:
+                                    result.type = reg_type(f"j{self.idx}")
+                                    self.idx += 1
+                                else:
+                                    result.type = reg_type(available_regs.pop())
 
 
 class RegisterAllocatorJRegs(RegisterAllocator):
-    def __init__(self, limit_registers: int | None = None) -> None:
-        assert limit_registers is None
-        super().__init__(0)
+    idx: int
+
+    def __init__(self, limit_registers: int = 0) -> None:
+        self.idx = 0
+        self._register_types = (IntRegisterType, FloatRegisterType)
+        _ = limit_registers
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         """
@@ -175,7 +213,8 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                 # Induction variable
                 assert isinstance(block_args[0].type, IntRegisterType)
                 if not block_args[0].type.is_allocated:
-                    block_args[0].type = self.available_registers.pop(IntRegisterType)
+                    block_args[0].type = IntRegisterType(f"j{self.idx}")
+                    self.idx += 1
 
                 # The loop-carried variables are trickier
                 # The for op operand, block arg, and yield operand must have the same type
@@ -230,7 +269,8 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                             shared_type = op_result.type
 
                     if shared_type is None:
-                        shared_type = self.available_registers.pop(IntRegisterType)
+                        shared_type = IntRegisterType(f"j{self.idx}")
+                        self.idx += 1
 
                     block_arg.type = shared_type
                     operand.type = shared_type
@@ -242,6 +282,8 @@ class RegisterAllocatorJRegs(RegisterAllocator):
                 continue
 
             for result in op.results:
-                if isinstance(result.type, IntRegisterType | FloatRegisterType):
+                if isinstance(result.type, self._register_types):
                     if not result.type.is_allocated:
-                        result.type = self.available_registers.pop(type(result.type))
+                        reg_type = type(result.type)
+                        result.type = reg_type(f"j{self.idx}")
+                        self.idx += 1
