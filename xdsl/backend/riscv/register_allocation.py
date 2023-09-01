@@ -21,7 +21,33 @@ class RegisterAllocator(abc.ABC):
         raise NotImplementedError()
 
 
-class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
+class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
+    available_registers: RegisterQueue
+
+    def __init__(self) -> None:
+        self.available_registers = RegisterQueue(
+            available_int_registers=[
+                IntRegisterType(reg)
+                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
+                if IntRegisterType(reg) not in RegisterQueue.DEFAULT_RESERVED_REGISTERS
+            ],
+            available_float_registers=[
+                FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
+            ],
+        )
+
+    def allocate(self, reg: SSAValue) -> bool:
+        if (
+            isinstance(reg.type, IntRegisterType | FloatRegisterType)
+            and not reg.type.is_allocated
+        ):
+            reg.type = self.available_registers.pop(type(reg.type))
+            return True
+
+        return False
+
+
+class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
     """
     It traverses the use-def SSA chain backwards (i.e., from uses to defs) and:
       1. allocates registers for operands
@@ -49,30 +75,6 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     ```
     """
 
-    available_registers: RegisterQueue
-
-    def __init__(self) -> None:
-        self.available_registers = RegisterQueue(
-            available_int_registers=[
-                IntRegisterType(reg)
-                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
-                if IntRegisterType(reg) not in RegisterQueue.DEFAULT_RESERVED_REGISTERS
-            ],
-            available_float_registers=[
-                FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
-            ],
-        )
-
-    def _allocate(self, reg: SSAValue) -> bool:
-        if (
-            isinstance(reg.type, IntRegisterType | FloatRegisterType)
-            and not reg.type.is_allocated
-        ):
-            reg.type = self.available_registers.pop(type(reg.type))
-            return True
-
-        return False
-
     def _free(self, reg: SSAValue) -> None:
         if (
             isinstance(reg.type, IntRegisterType | FloatRegisterType)
@@ -90,41 +92,17 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
                     for result in op.results:
                         # Allocate registers to result if not already allocated
-                        self._allocate(result)
+                        self.allocate(result)
                         # Free the register since the SSA value is created here
                         self._free(result)
 
                     # Allocate registers to operands since they are defined further up
                     # in the use-def SSA chain
                     for operand in op.operands:
-                        self._allocate(operand)
+                        self.allocate(operand)
 
 
-class RegisterAllocatorBlockNaive(RegisterAllocator):
-    available_registers: RegisterQueue
-
-    def __init__(self) -> None:
-        self.available_registers = RegisterQueue(
-            available_int_registers=[
-                IntRegisterType(reg)
-                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
-                if IntRegisterType(reg) not in RegisterQueue.DEFAULT_RESERVED_REGISTERS
-            ],
-            available_float_registers=[
-                FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
-            ],
-        )
-
-    def _allocate(self, reg: SSAValue) -> bool:
-        if (
-            isinstance(reg.type, IntRegisterType | FloatRegisterType)
-            and not reg.type.is_allocated
-        ):
-            reg.type = self.available_registers.pop(type(reg.type))
-            return True
-
-        return False
-
+class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
         yield_op = loop.body.block.last_op
         assert (
@@ -134,7 +112,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
         # Induction variable
         assert isinstance(block_args[0].type, IntRegisterType)
-        self._allocate(block_args[0])
+        self.allocate(block_args[0])
 
         # The loop-carried variables are trickier
         # The for op operand, block arg, and yield operand must have the same type
@@ -150,7 +128,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
             if not operand.type.is_allocated:
                 # We only need to check one of the four since they're constrained to be
                 # the same
-                self._allocate(operand)
+                self.allocate(operand)
 
             shared_type = operand.type
             block_arg.type = shared_type
@@ -174,4 +152,4 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                         continue
 
                     for result in op.results:
-                        self._allocate(result)
+                        self.allocate(result)
