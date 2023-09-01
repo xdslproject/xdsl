@@ -9,6 +9,7 @@ from xdsl.dialects.riscv import (
     RISCVRegisterType,
 )
 from xdsl.ir import Operation, SSAValue
+from xdsl.ir.core import Block
 
 
 class RegisterAllocator(abc.ABC):
@@ -24,6 +25,8 @@ class RegisterAllocator(abc.ABC):
 class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
     available_registers: RegisterQueue
 
+    live_ins_per_block: dict[Block, set[SSAValue]]
+
     def __init__(self) -> None:
         self.available_registers = RegisterQueue(
             available_int_registers=[
@@ -35,6 +38,7 @@ class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
                 FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
             ],
         )
+        self.live_ins_per_block = {}
 
     def allocate(self, reg: SSAValue) -> bool:
         """
@@ -75,16 +79,61 @@ class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."
             )
 
-        for op in func.body.block.ops_reverse:
+        block = func.body.block
+
+        self.live_ins_per_block = live_ins_per_block(block)
+        assert not self.live_ins_per_block[block]
+        for op in block.ops_reverse:
             self.process_operation(op)
 
-    @abc.abstractmethod
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
         """
         Allocate registers for riscv_scf for loop, recursively calling process_operation
         for operations in the loop.
         """
-        raise NotImplementedError()
+        yield_op = loop.body.block.last_op
+        assert (
+            yield_op is not None
+        ), "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
+        block_args = loop.body.block.args
+
+        # The loop-carried variables are trickier
+        # The for op operand, block arg, and yield operand must have the same type
+        for block_arg, operand, yield_operand, op_result in zip(
+            block_args[1:], loop.iter_args, yield_op.operands, loop.results
+        ):
+            # If some allocated then assign all to that type, otherwise get new reg
+            assert isinstance(block_arg.type, RISCVRegisterType)
+            assert isinstance(operand.type, RISCVRegisterType)
+            assert isinstance(yield_operand.type, RISCVRegisterType)
+            assert isinstance(op_result.type, RISCVRegisterType)
+
+            if not op_result.type.is_allocated:
+                # We only need to check one of the four since they're constrained to be
+                # the same
+                self.allocate(op_result)
+
+            shared_type = op_result.type
+            block_arg.type = shared_type
+            yield_operand.type = shared_type
+            operand.type = shared_type
+
+        # Allocate values used inside the body but defined outside.
+        # Their scope lasts for the whole body execution scope
+        live_ins = self.live_ins_per_block[loop.body.block]
+        for live_in in live_ins:
+            self.allocate(live_in)
+
+        # Induction variable
+        assert isinstance(block_args[0].type, IntRegisterType)
+        self.allocate(block_args[0])
+
+        # Operands
+        for operand in loop.operands:
+            self.allocate(operand)
+
+        for op in loop.body.block.ops_reverse:
+            self.process_operation(op)
 
 
 class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
@@ -134,11 +183,6 @@ class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
         for operand in op.operands:
             self.allocate(operand)
 
-    def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
-        raise NotImplementedError(
-            "Register allocation with liveness not implemented for riscv_scf.for"
-        )
-
 
 class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
     """
@@ -150,37 +194,36 @@ class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
         for result in op.results:
             self.allocate(result)
 
-    def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
-        yield_op = loop.body.block.last_op
-        assert (
-            yield_op is not None
-        ), "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
-        block_args = loop.body.block.args
 
-        # The loop-carried variables are trickier
-        # The for op operand, block arg, and yield operand must have the same type
-        for block_arg, operand, yield_operand, op_result in zip(
-            block_args[1:], loop.iter_args, yield_op.operands, loop.results
-        ):
-            # If some allocated then assign all to that type, otherwise get new reg
-            assert isinstance(block_arg.type, RISCVRegisterType)
-            assert isinstance(operand.type, RISCVRegisterType)
-            assert isinstance(yield_operand.type, RISCVRegisterType)
-            assert isinstance(op_result.type, RISCVRegisterType)
+def _live_ins_per_block(block: Block, acc: dict[Block, set[SSAValue]]) -> set[SSAValue]:
+    res = set[SSAValue]()
 
-            if not operand.type.is_allocated:
-                # We only need to check one of the four since they're constrained to be
-                # the same
-                self.allocate(operand)
+    for op in block.ops_reverse:
+        # Remove values defined in the block
+        # We are traversing backwards, so cannot use the value removed here again
+        res.difference_update(op.results)
+        # Add values used in the block
+        res.update(op.operands)
 
-            shared_type = operand.type
-            block_arg.type = shared_type
-            yield_operand.type = shared_type
-            op_result.type = shared_type
+        # Process inner blocks
+        for region in op.regions:
+            for inner in region.blocks:
+                # Add the values used in the inner block
+                res.update(_live_ins_per_block(inner, acc))
 
-        # Induction variable
-        assert isinstance(block_args[0].type, IntRegisterType)
-        self.allocate(block_args[0])
+    # Remove the block arguments
+    res.difference_update(block.args)
 
-        for op in loop.body.block.ops_reverse:
-            self.process_operation(op)
+    acc[block] = res
+
+    return res
+
+
+def live_ins_per_block(block: Block) -> dict[Block, set[SSAValue]]:
+    """
+    Returns a mapping from a block to the set of values used in it but defined outside of
+    it.
+    """
+    res: dict[Block, set[SSAValue]] = {}
+    _ = _live_ins_per_block(block, res)
+    return res
