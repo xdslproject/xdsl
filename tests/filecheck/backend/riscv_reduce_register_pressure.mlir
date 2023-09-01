@@ -9,6 +9,7 @@ builtin.module {
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %{{.*}} = riscv.get_register : () -> !riscv.reg<zero>
+// CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<zero>) -> !riscv.reg<>
 // CHECK-NEXT:   %{{.*}} = riscv.get_register : () -> !riscv.reg<zero>
 // CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<zero>) -> !riscv.reg<a0>
 // CHECK-NEXT:   %{{.*}} = riscv.li 1 : () -> !riscv.reg<>

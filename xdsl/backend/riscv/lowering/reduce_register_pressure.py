@@ -22,15 +22,12 @@ class LoadZeroImmediatePattern(RewritePattern):
 
         assert isinstance(op.rd.type, riscv.IntRegisterType)
 
-        if op.rd.type.is_allocated:
-            rewriter.replace_matched_op(
-                (
-                    zero_op := riscv.GetRegisterOp(riscv.Registers.ZERO),
-                    riscv.MVOp(zero_op.res, rd=op.rd.type),
-                )
+        rewriter.replace_matched_op(
+            (
+                zero_op := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                riscv.MVOp(zero_op.res, rd=op.rd.type),
             )
-        else:
-            rewriter.replace_matched_op(riscv.GetRegisterOp(riscv.Registers.ZERO))
+        )
 
 
 class RiscvReduceRegisterPressurePass(ModulePass):
