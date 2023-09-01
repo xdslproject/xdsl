@@ -35,21 +35,42 @@ class RemoveRedundantFMv(RewritePattern):
 class MultiplyImmediates(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
+        lhs: int | None = None
+        rhs: int | None = None
         if (
             isinstance(op.rs1, OpResult)
             and isinstance(op.rs1.op, riscv.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.rs2, OpResult)
+        ):
+            lhs = op.rs1.op.immediate.value.data
+
+        if (
+            isinstance(op.rs2, OpResult)
             and isinstance(op.rs2.op, riscv.LiOp)
             and isinstance(op.rs2.op.immediate, IntegerAttr)
         ):
-            rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(
-                riscv.LiOp(
-                    op.rs1.op.immediate.value.data * op.rs2.op.immediate.value.data,
-                    rd=rd,
+            rhs = op.rs2.op.immediate.value.data
+
+        rd = cast(riscv.IntRegisterType, op.rd.type)
+
+        match (lhs, rhs):
+            case int(), None:
+                rewriter.replace_matched_op(
+                    riscv.MulOp(
+                        op.rs2,
+                        op.rs1,
+                        rd=rd,
+                        comment=op.comment,
+                    )
                 )
-            )
+            case None, int():
+                pass
+            case int(), int():
+                rewriter.replace_matched_op(
+                    riscv.LiOp(lhs * rhs, rd=rd, comment=op.comment)
+                )
+            case _:
+                pass
 
 
 class AddImmediates(RewritePattern):

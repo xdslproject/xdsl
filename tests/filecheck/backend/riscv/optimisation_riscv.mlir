@@ -19,9 +19,17 @@ builtin.module {
   // Don't optimise out unused immediates
   "test.op"(%0, %1, %2, %3) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 
+  // Multiplication by immediate should move it to rs2 or fold constants
+  %mul_lhs_immediate = riscv.mul %2, %i2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
+  "test.op"(%mul_lhs_immediate) : (!riscv.reg<a0>) -> ()
+
+  %mul_rhs_immediate = riscv.mul %i2, %2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
+  "test.op"(%mul_rhs_immediate) : (!riscv.reg<a0>) -> ()
+
   %multiply_immediates = riscv.mul %2, %3 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
 
+  // Addition with immediate should rewrite to addi or fold constants
   %add_lhs_immediate = riscv.add %2, %i2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%add_lhs_immediate) : (!riscv.reg<a0>) -> ()
 
@@ -31,6 +39,7 @@ builtin.module {
   %add_immediates = riscv.add %2, %3 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%add_immediates) : (!riscv.reg<a0>) -> ()
 
+  // Fold shift of constant
   %shift_left_immediate = riscv.slli %2, 4 : (!riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()
 
@@ -55,6 +64,12 @@ builtin.module {
 // CHECK-NEXT:   %2 = riscv.li 2 : () -> !riscv.reg<>
 // CHECK-NEXT:   %3 = riscv.li 3 : () -> !riscv.reg<>
 // CHECK-NEXT:   "test.op"(%0, %1, %2, %3) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+
+// CHECK-NEXT:   %mul_lhs_immediate = riscv.mul %i2, %2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%mul_lhs_immediate) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %mul_rhs_immediate = riscv.mul %i2, %2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%mul_rhs_immediate) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %multiply_immediates = riscv.li 6 : () -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
