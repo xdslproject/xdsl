@@ -10,18 +10,20 @@ class RegisterQueue:
     LIFO queue of registers available for allocation.
     """
 
+    DEFAULT_RESERVED_REGISTERS = {
+        Registers.ZERO,
+        Registers.SP,
+        Registers.GP,
+        Registers.TP,
+        Registers.FP,
+        Registers.S0,  # Same register as FP
+    }
+
     _idx: int = 0
     """Next `j` register index."""
 
     reserved_registers: set[IntRegisterType | FloatRegisterType] = field(
-        default_factory=lambda: {
-            Registers.ZERO,
-            Registers.SP,
-            Registers.GP,
-            Registers.TP,
-            Registers.FP,
-            Registers.S0,  # Same register as FP
-        }
+        default_factory=lambda: set(RegisterQueue.DEFAULT_RESERVED_REGISTERS)
     )
     "Registers unavailable to be used by the register allocator."
 

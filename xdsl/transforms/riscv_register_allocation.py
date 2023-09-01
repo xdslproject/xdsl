@@ -44,8 +44,8 @@ class RISCVRegisterAllocation(ModulePass):
 
         for inner_op in op.walk():
             if isinstance(inner_op, riscv_func.FuncOp):
-                allocator = allocator_strategies[self.allocation_strategy](
-                    limit_registers=self.limit_registers,
-                    exclude_preallocated=self.exclude_preallocated,
-                )
+                allocator = allocator_strategies[self.allocation_strategy]()
+                if self.limit_registers is not None:
+                    allocator.available_registers.limit_registers(self.limit_registers)
+                allocator.exclude_preallocated = self.exclude_preallocated
                 allocator.allocate_func(inner_op)
