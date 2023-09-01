@@ -1,6 +1,6 @@
 import ast
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Sequence
 
 from xdsl.frontend.block import is_block
 from xdsl.frontend.const import is_constant, is_constant_stmt
@@ -380,7 +380,7 @@ class CheckAndInlineConstants:
                         file,
                         stmt.lineno,
                         stmt.col_offset,
-                        f"All constant expressions have to be assigned to "
+                        "All constant expressions have to be assigned to "
                         "'ast.Name' nodes.",
                     )
 

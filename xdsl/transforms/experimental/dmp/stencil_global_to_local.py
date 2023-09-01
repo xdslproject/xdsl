@@ -1,6 +1,7 @@
 from abc import ABC
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Callable, ClassVar, Iterable, TypeVar, cast
+from typing import ClassVar, TypeVar, cast
 
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
 from xdsl.dialects.experimental import dmp
@@ -132,7 +133,7 @@ def _generate_single_axis_calc_and_check(
                 0 if is_decrement else axis_size, _rank_dtype
             ),
             # comparison == true <=> we have a valid dest positon
-            cond_val := arith.Cmpi.get(dest, bound, comparison),
+            cond_val := arith.Cmpi(dest, bound, comparison),
         ],
         dest.result,
         cond_val.result,
@@ -502,13 +503,11 @@ class MpiLoopInvariantCodeMotion:
         def match(op: Operation):
             if isinstance(
                 op,
-                (
-                    memref.Alloc,
-                    mpi.CommRank,
-                    mpi.AllocateTypeOp,
-                    mpi.UnwrapMemrefOp,
-                    mpi.Init,
-                ),
+                memref.Alloc
+                | mpi.CommRank
+                | mpi.AllocateTypeOp
+                | mpi.UnwrapMemrefOp
+                | mpi.Init,
             ):
                 worklist.append(op)
 

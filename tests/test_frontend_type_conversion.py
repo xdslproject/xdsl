@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import ast
-from sys import _getframe  # type: ignore
-from typing import Any, Callable, Generic, Literal, Tuple, TypeAlias, TypeVar
+from collections.abc import Callable
+from sys import _getframe  # pyright: ignore[reportPrivateUsage]
+from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
 import pytest
 
-from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
+from xdsl.frontend.dialects.builtin import (
+    _FrontendType,  # pyright: ignore[reportPrivateUsage]
+)
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.ir import ParametrizedAttribute
@@ -49,9 +52,9 @@ class _D(Generic[T], _FrontendType):
 a: TypeAlias = _A
 b: TypeAlias = _B
 c2: TypeAlias = _C[Literal[2]]
-d12: TypeAlias = _D[Tuple[Literal[1], Literal[2]]]
+d12: TypeAlias = _D[tuple[Literal[1], Literal[2]]]
 
-globals = _getframe(0).f_globals
+globals: dict[str, Any] = _getframe(0).f_globals
 
 
 def test_raises_exception_on_unknown_type():

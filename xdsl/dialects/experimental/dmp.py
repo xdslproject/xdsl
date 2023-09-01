@@ -9,8 +9,8 @@ makes them run on node clusters.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from math import prod
-from typing import Sequence
 
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.ir import (
@@ -156,7 +156,32 @@ class HaloExchangeDecl(ParametrizedAttribute):
         printer.print_list(self.source_offset, lambda x: printer.print_string(str(x)))
         printer.print_string(f"] to {list(self.neighbor)}>")
 
-    # TODO: def parse_parameters()
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_characters("<")
+        parser.parse_characters("at")
+        offset = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        parser.parse_characters("size")
+        size = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        parser.parse_characters("source")
+        parser.parse_characters("offset")
+        source_offset = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        parser.parse_characters("to")
+        to = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        parser.parse_characters(">")
+
+        return [
+            builtin.DenseArrayBase.from_list(builtin.i64, x)
+            for x in (offset, size, source_offset, to)
+        ]
 
 
 @irdl_attr_definition
@@ -362,13 +387,15 @@ class NodeGrid(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<")
+        shape: list[int] = [
+            parser.parse_integer(allow_negative=False, allow_boolean=False)
+        ]
 
-        shape: list[int] = [parser.parse_integer(allow_negative=False)]
-
-        while parser.parse_optional_characters("x") is not None:
-            shape.append(parser.parse_integer(allow_negative=False))
-
-        parser.parse_characters(">")
+        while parser.parse_optional_punctuation(">") is None:
+            parser.parse_shape_delimiter()
+            shape.append(
+                parser.parse_integer(allow_negative=False, allow_boolean=False)
+            )
 
         return [builtin.DenseArrayBase.from_list(builtin.i64, shape)]
 

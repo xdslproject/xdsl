@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
@@ -30,6 +30,19 @@ class While(IRDLOperation):
     before_region: Region = region_def()
     after_region: Region = region_def()
 
+    def __init__(
+        self,
+        arguments: Sequence[SSAValue | Operation],
+        result_types: Sequence[Attribute],
+        before_region: Region | Sequence[Operation] | Sequence[Block],
+        after_region: Region | Sequence[Operation] | Sequence[Block],
+    ):
+        super().__init__(
+            operands=[arguments],
+            result_types=[result_types],
+            regions=[before_region, after_region],
+        )
+
     # TODO verify dependencies between scf.condition, scf.yield and the regions
     def verify_(self):
         for idx, arg in enumerate(self.arguments):
@@ -45,17 +58,6 @@ class While(IRDLOperation):
                     f"Block arguments with wrong type, expected {res.type}, "
                     f"got {self.after_region.block.args[idx].type}"
                 )
-
-    @staticmethod
-    def get(
-        operands: Sequence[SSAValue | Operation],
-        result_types: Sequence[Attribute],
-        before: Region | Sequence[Operation] | Sequence[Block],
-        after: Region | Sequence[Operation] | Sequence[Block],
-    ) -> While:
-        return While.build(
-            operands=operands, result_types=result_types, regions=[before, after]
-        )
 
 
 @irdl_op_definition

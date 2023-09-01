@@ -1,7 +1,6 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 from .location import Location
 
@@ -59,7 +58,7 @@ SPECIAL_CHARS = set("<>}{(),;=[]")
 
 
 def tokenize(file: Path, program: str | None = None):
-    tokens: List[Token] = []
+    tokens: list[Token] = []
 
     if program is None:
         with open(file) as f:

@@ -83,12 +83,12 @@ def test_ops_accessor_II():
 
 
 def test_ops_accessor_III():
-    # Create constants `from_attr` and add them, add them in blocks, blocks in
+    # Create constants and add them, add them in blocks, blocks in
     # a region and create a function
-    a = Constant.from_attr(IntegerAttr.from_int_and_width(1, 32), i32)
-    b = Constant.from_attr(IntegerAttr.from_int_and_width(2, 32), i32)
-    c = Constant.from_attr(IntegerAttr.from_int_and_width(3, 32), i32)
-    d = Constant.from_attr(IntegerAttr.from_int_and_width(4, 32), i32)
+    a = Constant(IntegerAttr.from_int_and_width(1, 32), i32)
+    b = Constant(IntegerAttr.from_int_and_width(2, 32), i32)
+    c = Constant(IntegerAttr.from_int_and_width(3, 32), i32)
+    d = Constant(IntegerAttr.from_int_and_width(4, 32), i32)
 
     # Operation to add these constants
     e = Addi(a, b)
@@ -714,3 +714,11 @@ def test_op_walk():
 
     assert list(op_multi_region.walk()) == [op_multi_region, a, b]
     assert list(op_multi_region.walk_reverse()) == [b, a, op_multi_region]
+
+
+def test_region_clone():
+    a = Constant.from_int_and_width(1, 32)
+    block_a = Block([a])
+    region = Region(block_a)
+    region2 = region.clone()
+    assert region.is_structurally_equivalent(region2)

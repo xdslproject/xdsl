@@ -10,9 +10,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from xdsl.ir import Attribute
-from xdsl.irdl import IRDLOperation, IRDLOperationInvT, OpDef
-from xdsl.parser import Parser
+from xdsl.irdl import IRDLOperation, IRDLOperationInvT, OpDef, VariadicDef
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.hints import isa
+from xdsl.utils.lexer import Token
 
 
 @dataclass
@@ -23,20 +25,24 @@ class ParsingState:
     It contains the elements that have already been parsed.
     """
 
+    operands: list[UnresolvedOperand | None]
+    operand_types: list[Attribute | None]
     attributes: dict[str, Attribute]
 
     def __init__(self, op_def: OpDef):
-        if (
-            op_def.operands
-            or op_def.results
-            or op_def.attributes
-            or op_def.regions
-            or op_def.successors
-        ):
+        if op_def.results or op_def.attributes or op_def.regions or op_def.successors:
             raise NotImplementedError(
-                "Operation definitions with operands, results, attributes, regions, "
+                "Operation definitions with results, attributes, regions, "
                 "or successors are not yet supported"
             )
+        for _, operand in (*op_def.operands, *op_def.results):
+            if isinstance(operand, VariadicDef):
+                raise NotImplementedError(
+                    "Operation definition with variadic operand or "
+                    "result definitions are not supported."
+                )
+        self.operands = [None] * len(op_def.operands)
+        self.operand_types = [None] * len(op_def.operands)
         self.attributes = {}
 
 
@@ -92,7 +98,17 @@ class FormatProgram:
         for stmt in self.stmts:
             stmt.parse(parser, state)
 
-        return op_type.build(attributes=state.attributes)
+        # Ensure that all operands and operand types are parsed
+        unresolved_operands = state.operands
+        assert isa(unresolved_operands, list[UnresolvedOperand])
+        operand_types = state.operand_types
+        assert isa(operand_types, list[Attribute])
+
+        # Resolve all operands
+        operands = parser.resolve_operands(
+            unresolved_operands, operand_types, parser.pos
+        )
+        return op_type.build(operands=operands, attributes=state.attributes)
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """
@@ -149,3 +165,112 @@ class AttrDictDirective(FormatDirective):
             printer.print_op_attributes(op.attributes)
         state.last_was_punctuation = False
         state.should_emit_space = False
+
+
+@dataclass(frozen=True)
+class OperandVariable(FormatDirective):
+    """
+    An operand variable, with the following format:
+      operand-directive ::= percent-ident
+    The directive will request a space to be printed after.
+    """
+
+    name: str
+    """The operand name. This is only used for error message reporting."""
+    index: int
+    """Index of the operand definition."""
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        operand = parser.parse_unresolved_operand()
+        state.operands[self.index] = operand
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_ssa_value(op.operands[self.index])
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+@dataclass(frozen=True)
+class OperandTypeDirective(FormatDirective):
+    """
+    An operand variable type directive, with the following format:
+      operand-directive ::= type
+    The directive will request a space to be printed right after.
+    """
+
+    name: str
+    """The operand name. This is only used for error message reporting."""
+    index: int
+    """Index of the operand definition."""
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        type = parser.parse_type()
+        state.operand_types[self.index] = type
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_attribute(op.operands[self.index].type)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+@dataclass(frozen=True)
+class PunctuationDirective(FormatDirective):
+    """
+    A punctuation directive, with the following format:
+      punctuation-directive ::= punctuation
+    The directive will request a space to be printed right after, unless the punctuation
+    is `<`, `(`, `{`, or `[`.
+    It will also print a space before if a space is requested, and that the punctuation
+    is neither `>`, `)`, `}`, `]`, or `,` if the last element was a punctuation, and
+    additionally neither `<`, `(`, `}`, `]`, if the last element was not a punctuation.
+    """
+
+    punctuation: Token.PunctuationSpelling
+    """The punctuation that should be printed/parsed."""
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        parser.parse_punctuation(self.punctuation)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        emit_space = False
+        if state.should_emit_space:
+            if state.last_was_punctuation:
+                if self.punctuation not in (">", ")", "}", "]", ","):
+                    emit_space = True
+            elif self.punctuation not in ("<", ">", "(", ")", "{", "}", "[", "]", ","):
+                emit_space = True
+
+            if emit_space:
+                printer.print(" ")
+
+        printer.print(self.punctuation)
+
+        state.should_emit_space = self.punctuation not in ("<", "(", "{", "[")
+        state.last_was_punctuation = True
+
+
+@dataclass(frozen=True)
+class KeywordDirective(FormatDirective):
+    """
+    A keyword directive, with the following format:
+      keyword-directive ::= bare-ident
+    The directive expects a specific identifier, and will request a space to be printed
+    after.
+    """
+
+    keyword: str
+    """The identifier that should be printed."""
+
+    def parse(self, parser: Parser, state: ParsingState):
+        parser.parse_keyword(self.keyword)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space:
+            printer.print(" ")
+        printer.print(self.keyword)
+        state.should_emit_space = True
+        state.last_was_punctuation = False

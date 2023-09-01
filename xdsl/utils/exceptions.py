@@ -54,7 +54,7 @@ class BuilderNotFoundException(Exception):
     """
 
     attribute: type[Attribute]
-    args: tuple[Any]
+    args: tuple[Any, ...]
 
     def __str__(self) -> str:
         return (
@@ -69,6 +69,9 @@ class ParseError(Exception):
     msg: str
 
     def __repr__(self) -> str:
+        return self.span.print_with_context(self.msg)
+
+    def with_context(self) -> str:
         return self.span.print_with_context(self.msg)
 
 

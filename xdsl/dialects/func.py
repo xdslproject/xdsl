@@ -1,8 +1,16 @@
 from __future__ import annotations
 
-from typing import Sequence, cast
+from collections.abc import Sequence
 
 from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolRefAttr
+from xdsl.dialects.utils import (
+    parse_call_op_like,
+    parse_func_op_like,
+    parse_return_op_like,
+    print_call_op_like,
+    print_func_op_like,
+    print_return_op_like,
+)
 from xdsl.ir import (
     Attribute,
     Block,
@@ -33,9 +41,7 @@ from xdsl.traits import (
     IsTerminator,
     SymbolOpInterface,
 )
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -105,56 +111,18 @@ class FuncOp(IRDLOperation):
         else:
             visibility = None
 
-        # Parse function name
-        name = parser.parse_symbol_name().data
-
-        def parse_fun_input():
-            ret = parser.parse_optional_argument()
-            if ret is None:
-                ret = parser.parse_optional_type()
-            if ret is None:
-                parser.raise_error("Expected argument or type")
-            return ret
-
-        # Parse function arguments
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN,
-            parse_fun_input,
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+        ) = parse_func_op_like(
+            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
-
-        # Check consistency (They should be either all named or none)
-        if isa(args, list[parser.Argument]):
-            entry_args = args
-            input_types = cast(list[Attribute], [a.type for a in args])
-        elif isa(args, list[Attribute]):
-            entry_args = None
-            input_types = args
-        else:
-            parser.raise_error(
-                "Expected all arguments to be named or all arguments to be unnamed."
-            )
-
-        # Parse return type
-        if parser.parse_optional_punctuation("->"):
-            return_types = parser.parse_optional_comma_separated_list(
-                parser.Delimiter.PAREN, parser.parse_type
-            )
-            if return_types is None:
-                return_types = [parser.parse_type()]
-        else:
-            return_types = []
-
-        attr_dict = parser.parse_optional_attr_dict_with_keyword(
-            ("sym_name", "function_type", "sym_visibility")
-        )
-
-        # Parse body
-        region = parser.parse_optional_region(entry_args)
-        if region is None:
-            region = Region()
         func = FuncOp.from_region(name, input_types, return_types, region, visibility)
-        if attr_dict is not None:
-            func.attributes |= attr_dict.data
+        if extra_attrs is not None:
+            func.attributes |= extra_attrs.data
         return func
 
     def print(self, printer: Printer):
@@ -162,35 +130,14 @@ class FuncOp(IRDLOperation):
             visibility = self.sym_visibility.data
             printer.print(f" {visibility}")
 
-        printer.print(f" @{self.sym_name.data}")
-        if len(self.body.blocks) > 0:
-            printer.print("(")
-            printer.print_list(self.body.blocks[0].args, printer.print_block_argument)
-            printer.print(") ")
-            if self.function_type.outputs:
-                printer.print("-> ")
-                if len(self.function_type.outputs) > 1:
-                    printer.print("(")
-                printer.print_list(self.function_type.outputs, printer.print_attribute)
-                if len(self.function_type.outputs) > 1:
-                    printer.print(")")
-                printer.print(" ")
-        else:
-            printer.print_attribute(self.function_type)
-        attr_dict = {
-            k: v
-            for k, v in self.attributes.items()
-            if k not in ("sym_name", "function_type", "sym_visibility")
-        }
-        if len(attr_dict) > 0:
-            printer.print(" attributes {")
-            printer.print_list(
-                attr_dict.items(), lambda i: printer.print(f'"{i[0]}" = {i[1]}')
-            )
-            printer.print("}")
-
-        if len(self.body.blocks) > 0:
-            printer.print_region(self.body, False, False)
+        print_func_op_like(
+            printer,
+            self.sym_name,
+            self.function_type,
+            self.body,
+            self.attributes,
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+        )
 
     @staticmethod
     def external(
@@ -229,9 +176,7 @@ class FuncOp(IRDLOperation):
                 arg = self.body.blocks[0].args[arg]
             except IndexError:
                 raise IndexError(
-                    "Block {} does not have argument #{}".format(
-                        self.body.blocks[0], arg
-                    )
+                    f"Block {self.body.blocks[0]} does not have argument #{arg}"
                 )
 
         if arg not in self.args:
@@ -250,7 +195,7 @@ class FuncOp(IRDLOperation):
             not self.is_declaration
         ), "update_function_type does not work with function declarations!"
         return_op = self.get_return_op()
-        return_type: tuple[Attribute] = self.function_type.outputs.data
+        return_type: tuple[Attribute, ...] = self.function_type.outputs.data
 
         if return_op is not None:
             return_type = tuple(arg.type for arg in return_op.operands)
@@ -299,21 +244,41 @@ class Call(IRDLOperation):
 
     # Note: naming this results triggers an ArgumentError
     res: VarOpResult = var_result_def(AnyAttr())
-    # TODO how do we verify that the types are correct?
 
-    @staticmethod
-    def get(
+    # TODO how do we verify that the types are correct?
+    def __init__(
+        self,
         callee: str | SymbolRefAttr,
         arguments: Sequence[SSAValue | Operation],
         return_types: Sequence[Attribute],
-    ) -> Call:
+    ):
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
-        return Call.build(
+        super().__init__(
             operands=[arguments],
             result_types=[return_types],
             attributes={"callee": callee},
         )
+
+    def print(self, printer: Printer):
+        print_call_op_like(
+            printer,
+            self,
+            self.callee,
+            self.arguments,
+            self.attributes,
+            reserved_attr_names=("callee",),
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Call:
+        callee, arguments, results, extra_attributes = parse_call_op_like(
+            parser, reserved_attr_names=("callee",)
+        )
+        call = Call(callee, arguments, results)
+        if extra_attributes is not None:
+            call.attributes |= extra_attributes.data
+        return call
 
 
 @irdl_op_definition
@@ -337,48 +302,12 @@ class Return(IRDLOperation):
                 "Expected arguments to have the same types as the function output types"
             )
 
-    @staticmethod
-    @deprecated("Use func.Return(...) instead!")
-    def get(*ops: Operation | SSAValue) -> Return:
-        return Return.build(operands=[list(ops)])
-
     def print(self, printer: Printer):
-        if self.attributes:
-            printer.print(" ")
-            printer.print_op_attributes(self.attributes)
-
-        if self.arguments:
-            printer.print(" ")
-            printer.print_list(self.arguments, printer.print_ssa_value)
-            printer.print(" : ")
-            printer.print_list(
-                (x.type for x in self.arguments), printer.print_attribute
-            )
+        print_return_op_like(printer, self.attributes, self.arguments)
 
     @classmethod
-    def parse(cls: type[Return], parser: Parser) -> Return:
-        attrs = parser.parse_optional_attr_dict()
-
-        args: list[SSAValue] = []
-        arg0 = parser.parse_optional_operand()
-        if arg0 is not None:
-            args.append(arg0)
-            while parser.parse_optional_punctuation(",") is not None:
-                args.append(parser.parse_operand())
-
-            parser.parse_punctuation(":")
-
-            types = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parser.parse_type, "Expected return value type"
-            )
-            if len(args) != len(types):
-                parser.raise_error("Expected the same number of types and arguments!")
-            for arg, arg_type in zip(args, types):
-                # can we do this?
-                if arg.type != arg_type:
-                    assert False
-                    # TODO: what error to raise here?
-
+    def parse(cls, parser: Parser) -> Return:
+        attrs, args = parse_return_op_like(parser)
         op = Return(*args)
         op.attributes.update(attrs)
         return op

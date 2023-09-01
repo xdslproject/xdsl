@@ -5,8 +5,9 @@ from io import StringIO
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.test import Test
 from xdsl.ir import MLContext, Operation
-from xdsl.irdl import IRDLOperation, irdl_op_definition
+from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLOpDefinitionError
@@ -102,7 +103,7 @@ def test_expected_attr_dict():
     with pytest.raises(PyRDLOpDefinitionError, match="'attr-dict' directive not found"):
 
         @irdl_op_definition
-        class NoAttrDictOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoAttrDictOp0(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_attr_dict"
 
             assembly_format = ""
@@ -116,7 +117,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoAttrDictOp1(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict attr-dict"
@@ -126,7 +127,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoAttrDictOp2(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict attr-dict-with-keyword"
@@ -136,7 +137,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoAttrDictOp3(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict-with-keyword attr-dict"
@@ -146,7 +147,7 @@ def test_two_attr_dicts():
     ):
 
         @irdl_op_definition
-        class NoAttrDictOp(IRDLOperation):  # type: ignore[reportUnusedImport]
+        class NoAttrDictOp4(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.no_attr_dict"
 
             assembly_format = "attr-dict-with-keyword attr-dict-with-keyword"
@@ -189,3 +190,186 @@ def test_attr_dict(program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+################################################################################
+# Punctuations and keywords                                                    #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "format, program",
+    [
+        ("`)` attr-dict", "test.punctuation)"),
+        ("`(` attr-dict", "test.punctuation("),
+        ("`->` attr-dict", "test.punctuation ->"),
+        (
+            "`->` `->` attr-dict",
+            "test.punctuation -> ->",
+        ),
+        (
+            "`(` `)` attr-dict",
+            "test.punctuation()",
+        ),
+        (
+            "`keyword` attr-dict",
+            "test.punctuation keyword",
+        ),
+        (
+            "`keyword` `,` `keyword` attr-dict",
+            "test.punctuation keyword, keyword",
+        ),
+    ],
+)
+def test_punctuations_and_keywords(format: str, program: str):
+    """Test the punctuation and keyword directives."""
+
+    @irdl_op_definition
+    class PunctuationOp(IRDLOperation):
+        name = "test.punctuation"
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.register_op(PunctuationOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, '"test.punctuation"() : () -> ()', ctx)
+
+
+################################################################################
+# Variables                                                                    #
+################################################################################
+
+
+def test_unknown_variable():
+    """Test that variables should refer to an element in the operation."""
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="expected variable to refer to an operand, attribute, region, result, or successor",
+    ):
+
+        @irdl_op_definition
+        class UnknownVarOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.unknown_var_op"
+
+            assembly_format = "$var attr-dict"
+
+
+################################################################################
+# Operands                                                                     #
+################################################################################
+
+
+def test_missing_operand():
+    """Test that operands should have their type parsed."""
+    with pytest.raises(PyRDLOpDefinitionError, match="operand 'operand' not found"):
+
+        @irdl_op_definition
+        class NoOperandTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.no_operand_type_op"
+            operand = operand_def()
+
+            assembly_format = "attr-dict"
+
+
+def test_operands_missing_type():
+    """Test that operands should have their type parsed"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="type of operand 'operand' not found"
+    ):
+
+        @irdl_op_definition
+        class NoOperandTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.no_operand_type_op"
+            operand = operand_def()
+
+            assembly_format = "$operand attr-dict"
+
+
+def test_operands_duplicated_type():
+    """Test that operands should not have their type parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="'type' of 'operand' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedOperandTypeOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_operand_type_op"
+            operand = operand_def()
+
+            assembly_format = "$operand type($operand) type($operand) attr-dict"
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "$lhs $rhs type($lhs) type($rhs) attr-dict",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            "test.two_operands %0 %1 i32 i64",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            '"test.two_operands"(%0, %1) : (i32, i64) -> ()',
+        ),
+        (
+            "$rhs $lhs type($rhs) type($lhs) attr-dict",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            "test.two_operands %1 %0 i64 i32",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            '"test.two_operands"(%0, %1) : (i32, i64) -> ()',
+        ),
+        (
+            "$lhs `,` $rhs `:` type($lhs) `,` type($rhs) attr-dict",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            "test.two_operands %0, %1 : i32, i64",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            '"test.two_operands"(%0, %1) : (i32, i64) -> ()',
+        ),
+    ],
+)
+def test_operands(format: str, program: str, generic_program: str):
+    """Test the parsing of operands"""
+
+    @irdl_op_definition
+    class TwoOperandsOp(IRDLOperation):
+        name = "test.two_operands"
+        lhs = operand_def()
+        rhs = operand_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.register_op(TwoOperandsOp)
+    ctx.register_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, program",
+    [
+        (
+            "$lhs `,` $rhs `:` type($lhs) `,` type($rhs) attr-dict",
+            "test.two_operands %0, %1 : i32, i64\n"
+            '%0, %1 = "test.op"() : () -> (i32, i64)',
+        ),
+    ],
+)
+def test_operands_graph_region(format: str, program: str):
+    """Test the parsing of operands in a graph region"""
+
+    @irdl_op_definition
+    class TwoOperandsOp(IRDLOperation):
+        name = "test.two_operands"
+        lhs = operand_def()
+        rhs = operand_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.register_op(TwoOperandsOp)
+    ctx.register_dialect(Test)
+
+    check_roundtrip(program, ctx)

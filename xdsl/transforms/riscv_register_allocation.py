@@ -1,11 +1,10 @@
 from dataclasses import dataclass
-from warnings import warn
 
 from xdsl.backend.riscv.register_allocation import (
     RegisterAllocatorBlockNaive,
-    RegisterAllocatorJRegs,
     RegisterAllocatorLivenessBlockNaive,
 )
+from xdsl.dialects import riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
@@ -19,15 +18,14 @@ class RISCVRegisterAllocation(ModulePass):
 
     name = "riscv-allocate-registers"
 
-    allocation_strategy: str = "GlobalJRegs"
+    allocation_strategy: str = "BlockNaive"
 
-    limit_registers: int = 0
+    limit_registers: int | None = None
 
     exclude_preallocated: bool = False
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         allocator_strategies = {
-            "GlobalJRegs": RegisterAllocatorJRegs,
             "BlockNaive": RegisterAllocatorBlockNaive,
             "LivenessBlockNaive": RegisterAllocatorLivenessBlockNaive,
         }
@@ -38,20 +36,16 @@ class RISCVRegisterAllocation(ModulePass):
                 f"Available allocation types: {allocator_strategies.keys()}"
             )
 
-        if self.limit_registers < 0:
+        if self.limit_registers is not None and self.limit_registers < 0:
             raise ValueError(
                 "The limit of available registers cannot be less than 0."
                 "When set to 0 it signifies all available registers are used."
             )
 
-        if self.allocation_strategy == "GlobalJRegs" and self.exclude_preallocated:
-            warn(
-                "Excluding preallocated registers (option: 'exclude_preallocated') has "
-                f"no effect when using {self.allocation_strategy}."
-            )
-
-        allocator = allocator_strategies[self.allocation_strategy](
-            limit_registers=self.limit_registers,
-            exclude_preallocated=self.exclude_preallocated,
-        )
-        allocator.allocate_registers(op)
+        for inner_op in op.walk():
+            if isinstance(inner_op, riscv_func.FuncOp):
+                allocator = allocator_strategies[self.allocation_strategy](
+                    limit_registers=self.limit_registers,
+                    exclude_preallocated=self.exclude_preallocated,
+                )
+                allocator.allocate_func(inner_op)

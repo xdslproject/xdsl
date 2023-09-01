@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, NoReturn, cast
+from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser.affine_parser as affine_parser
 from xdsl.dialects.builtin import (
@@ -242,9 +243,7 @@ class AttrParser(BaseParser):
                 closing = parentheses[token.kind]
                 if symbols_stack[-1] != closing:
                     self.raise_error(
-                        "Mismatched {} in attribute body!".format(
-                            parentheses_names[token.kind]
-                        ),
+                        f"Mismatched {parentheses_names[token.kind]} in attribute body!",
                         self._current_token.span,
                     )
                 symbols_stack.pop()
@@ -626,7 +625,7 @@ class AttrParser(BaseParser):
                 f"shape from the type, but got {shape} shape."
             )
         if any(dim == -1 for dim in type_shape):
-            self.raise_error(f"Dense literal attribute should have a static shape.")
+            self.raise_error("Dense literal attribute should have a static shape.")
 
         element_type = type.element_type
         # Convert list of elements to a list of values.

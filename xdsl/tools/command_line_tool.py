@@ -1,9 +1,17 @@
 import argparse
 import os
 import sys
-from typing import IO, Callable
+from collections.abc import Callable
+from typing import IO
 
-from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
+from xdsl.backend.riscv import riscv_scf_to_asm
+from xdsl.backend.riscv.lowering import (
+    convert_arith_to_riscv,
+    convert_func_to_riscv_func,
+    convert_memref_to_riscv,
+    convert_scf_to_riscv_scf,
+    reduce_register_pressure,
+)
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin, ModuleOp
@@ -23,6 +31,7 @@ from xdsl.dialects.pdl import PDL
 from xdsl.dialects.printf import Printf
 from xdsl.dialects.riscv import RISCV
 from xdsl.dialects.riscv_func import RISCV_Func
+from xdsl.dialects.riscv_scf import RISCV_Scf
 from xdsl.dialects.scf import Scf
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
@@ -35,6 +44,8 @@ from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.transforms import (
+    canonicalize,
+    canonicalize_dmp,
     dead_code_elimination,
     lower_mpi,
     lower_riscv_func,
@@ -42,6 +53,7 @@ from xdsl.transforms import (
     lower_snitch_runtime,
     mlir_opt,
     printf_to_llvm,
+    printf_to_putchar,
     reconcile_unrealized_casts,
     riscv_register_allocation,
 )
@@ -76,6 +88,7 @@ def get_all_dialects() -> list[Dialect]:
         Printf,
         RISCV,
         RISCV_Func,
+        RISCV_Scf,
         Scf,
         Snitch,
         SnitchRuntime,
@@ -89,6 +102,8 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
+        canonicalize.CanonicalizePass,
+        canonicalize_dmp.CanonicalizeDmpPass,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
@@ -100,8 +115,14 @@ def get_all_passes() -> list[type[ModulePass]]:
         lower_snitch_runtime.LowerSnitchRuntimePass,
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
+        printf_to_putchar.PrintfToPutcharPass,
+        reduce_register_pressure.RiscvReduceRegisterPressurePass,
         riscv_register_allocation.RISCVRegisterAllocation,
-        RISCVLowerArith,
+        convert_arith_to_riscv.ConvertArithToRiscvPass,
+        convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+        convert_memref_to_riscv.ConvertMemrefToRiscvPass,
+        convert_scf_to_riscv_scf.ConvertScfToRiscvPass,
+        riscv_scf_to_asm.LowerScfForToLabels,
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
@@ -205,9 +226,9 @@ class CommandLineTool:
         try:
             return self.available_frontends[file_extension](chunk)
         except ParseError as e:
-            if self.args.parsing_diagnostics:
-                print(e)
+            if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
+                print(e.with_context())
             else:
-                raise e
+                raise Exception("Failed to parse:\n" + e.with_context()) from e
         finally:
             chunk.close()

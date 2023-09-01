@@ -1,5 +1,5 @@
 import operator
-from typing import Callable
+from collections.abc import Callable
 
 import pytest
 
@@ -123,7 +123,7 @@ def test_cmpi(
     lhs_value: int, rhs_value: int, pred: tuple[str, Callable[[int, int], int]]
 ):
     arg, fn = pred
-    cmpi = Cmpi.get(lhs_op, rhs_op, arg)
+    cmpi = Cmpi(lhs_op, rhs_op, arg)
 
     ret = interpreter.run_op(cmpi, (lhs_value, rhs_value))
 

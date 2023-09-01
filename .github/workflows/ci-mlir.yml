@@ -25,6 +25,12 @@ jobs:
     - uses: actions/checkout@v3
       with:
         path: xdsl
+        
+    - name: Install native dependencies
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: mesa-vulkan-drivers
+        version: 1.0
 
     - name: Python Setup
       uses: actions/setup-python@v4
@@ -83,7 +89,7 @@ jobs:
       if: steps.cache-binary.outputs.cache-hit != 'true'
       run: |
         cd llvm-project/build
-        cmake --build . --target mlir-opt
+        cmake --build . --target mlir-opt mlir-cpu-runner
 
     - name: Test with pytest and generate code coverage
       run: |
@@ -96,6 +102,7 @@ jobs:
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         lit -v tests/filecheck/ -DCOVERAGE
+        lit -v docs/Toy/examples/ -DCOVERAGE
 
     - name: Test MLIR dependent examples/tutorials
       run: |
