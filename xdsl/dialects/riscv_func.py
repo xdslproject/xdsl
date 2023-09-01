@@ -145,6 +145,7 @@ class FuncOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def()
     function_type: FunctionType = attr_def(FunctionType)
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = frozenset([SymbolOpInterface(), FuncOpCallableInterface()])
 
@@ -153,19 +154,32 @@ class FuncOp(IRDLOperation):
         name: str,
         region: Region,
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
+        visibility: StringAttr | str | None = None,
     ):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
-        attributes: dict[str, Attribute] = {
+        if isinstance(visibility, str):
+            visibility = StringAttr(visibility)
+        attributes: dict[str, Attribute | None] = {
             "sym_name": StringAttr(name),
             "function_type": function_type,
+            "sym_visibility": visibility,
         }
 
         super().__init__(attributes=attributes, regions=[region])
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
+        # Parse visibility keyword if present
+        if parser.parse_optional_keyword("public"):
+            visibility = "public"
+        elif parser.parse_optional_keyword("nested"):
+            visibility = "nested"
+        elif parser.parse_optional_keyword("private"):
+            visibility = "private"
+        else:
+            visibility = None
         (
             name,
             input_types,
@@ -173,21 +187,25 @@ class FuncOp(IRDLOperation):
             region,
             extra_attrs,
         ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type")
+            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
-        func = FuncOp(name, region, (input_types, return_types))
+        func = FuncOp(name, region, (input_types, return_types), visibility)
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
         return func
 
     def print(self, printer: Printer):
+        if self.sym_visibility:
+            visibility = self.sym_visibility.data
+            printer.print(f" {visibility}")
+
         print_func_op_like(
             printer,
             self.sym_name,
             self.function_type,
             self.body,
             self.attributes,
-            reserved_attr_names=("sym_name", "function_type"),
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
 
 
