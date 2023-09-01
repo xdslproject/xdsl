@@ -16,7 +16,7 @@ class RegisterAllocator(abc.ABC):
     Base class for register allocation strategies.
     """
 
-    def __init__(self, limit_registers: int | None = None) -> None:
+    def __init__(self) -> None:
         pass
 
     @abc.abstractmethod
@@ -54,7 +54,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
     available_registers: RegisterQueue
 
-    def __init__(self, limit_registers: int | None = None) -> None:
+    def __init__(self) -> None:
         self.available_registers = RegisterQueue(
             available_int_registers=[
                 IntRegisterType(reg)
@@ -65,9 +65,6 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
             ],
         )
-
-        if limit_registers is not None:
-            self.available_registers.limit_registers(limit_registers)
 
     def _allocate(self, reg: SSAValue) -> bool:
         if (
@@ -109,7 +106,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 class RegisterAllocatorBlockNaive(RegisterAllocator):
     available_registers: RegisterQueue
 
-    def __init__(self, limit_registers: int | None = None) -> None:
+    def __init__(self) -> None:
         self.available_registers = RegisterQueue(
             available_int_registers=[
                 IntRegisterType(reg)
@@ -120,9 +117,6 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                 FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
             ],
         )
-
-        if limit_registers is not None:
-            self.available_registers.limit_registers(limit_registers)
 
     def _allocate(self, reg: SSAValue) -> bool:
         if (
