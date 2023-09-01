@@ -23,6 +23,12 @@ class RISCVRegisterAllocation(ModulePass):
     limit_registers: int | None = None
 
     exclude_preallocated: bool = False
+    """
+    Enables tracking of already allocated registers and excludes them from the
+    available set.
+    This does not keep track of any liveness information and the preallocated registers
+    are excluded completely from any further allocation decisions.
+    """
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         allocator_strategies = {
