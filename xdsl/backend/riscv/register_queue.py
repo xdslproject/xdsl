@@ -51,6 +51,8 @@ class RegisterQueue:
         """
         if reg in self.reserved_registers:
             return
+        if reg.register_name.startswith("j"):
+            return
         if not reg.is_allocated:
             raise ValueError("Cannot push an unallocated register")
         if isinstance(reg, IntRegisterType):
