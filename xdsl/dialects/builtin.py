@@ -144,7 +144,7 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         printer.print_string("]")
 
     @staticmethod
-    def generic_constraint_coercion(args: tuple[Any, ...]) -> AttrConstraint:
+    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
         if len(args) == 1:
             return ArrayOfConstraint(irdl_to_attr_constraint(args[0]))
         if len(args) == 0:
