@@ -16,9 +16,6 @@ class RegisterAllocator(abc.ABC):
     Base class for register allocation strategies.
     """
 
-    def __init__(self) -> None:
-        pass
-
     @abc.abstractmethod
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         raise NotImplementedError()
