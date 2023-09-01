@@ -1,7 +1,6 @@
 import abc
 
 from xdsl.dialects import riscv_func, riscv_scf
-from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
@@ -22,14 +21,6 @@ class RegisterAllocator(abc.ABC):
     @abc.abstractmethod
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         raise NotImplementedError()
-
-    def allocate_registers(self, module: ModuleOp) -> None:
-        """
-        Allocates unallocated registers in the module.
-        """
-        for op in module.walk():
-            if isinstance(op, riscv_func.FuncOp):
-                self.allocate_func(op)
 
 
 class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
