@@ -54,7 +54,7 @@ class BuilderNotFoundException(Exception):
     """
 
     attribute: type[Attribute]
-    args: tuple[Any]
+    args: tuple[Any, ...]
 
     def __str__(self) -> str:
         return (

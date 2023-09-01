@@ -130,12 +130,12 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         super().__init__(tuple(param))
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT]:
+    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
         data = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_attribute
         )
         # the type system can't ensure that the elements are of type _ArrayAttrT
-        result = cast(tuple[AttributeCovT], tuple(data))
+        result = cast(tuple[AttributeCovT, ...], tuple(data))
         return result
 
     def print_parameter(self, printer: Printer) -> None:
@@ -767,7 +767,7 @@ class DenseIntOrFPElementsAttr(
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
-    def get_shape(self) -> tuple[int] | None:
+    def get_shape(self) -> tuple[int, ...] | None:
         if isinstance(self.type, UnrankedTensorType):
             return None
         return self.type.get_shape()

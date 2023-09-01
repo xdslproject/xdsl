@@ -365,9 +365,11 @@ def irdl_to_attr_constraint(
 
     # GenericData case
     if isclass(origin) and issubclass(origin, GenericData):
-        return AllOf(
-            [BaseAttr(origin), origin.generic_constraint_coercion(get_args(irdl))]
-        )
+        args = get_args(irdl)
+        if len(args) != 1:
+            raise Exception(f"GenericData args must have length 1, got {args}")
+        args = cast(tuple[Any], args)
+        return AllOf([BaseAttr(origin), origin.generic_constraint_coercion(args)])
 
     # Generic ParametrizedAttributes case
     # We translate it to constraints over the attribute parameters.
