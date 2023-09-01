@@ -8,7 +8,7 @@ from xdsl.dialects.riscv import (
     RISCVOp,
     RISCVRegisterType,
 )
-from xdsl.ir import SSAValue
+from xdsl.ir import Operation, SSAValue
 
 
 class RegisterAllocator(abc.ABC):
@@ -49,6 +49,32 @@ class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
 
         return False
 
+    def process_operation(self, op: Operation) -> None:
+        match op:
+            case riscv_scf.ForOp():
+                self.allocate_for_loop(op)
+            case RISCVOp():
+                self.process_riscv_op(op)
+            case _:
+                return
+
+    @abc.abstractmethod
+    def process_riscv_op(self, op: RISCVOp) -> None:
+        raise NotImplementedError()
+
+    def allocate_func(self, func: riscv_func.FuncOp) -> None:
+        if len(func.body.blocks) != 1:
+            raise NotImplementedError(
+                f"Cannot register allocate func with {len(func.body.blocks)} blocks."
+            )
+
+        for op in func.body.block.ops_reverse:
+            self.process_operation(op)
+
+    @abc.abstractmethod
+    def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
+        raise NotImplementedError()
+
 
 class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
     """
@@ -78,6 +104,8 @@ class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
     ```
     """
 
+    to_free: list[SSAValue] = []
+
     def _free(self, reg: SSAValue) -> None:
         if (
             isinstance(reg.type, IntRegisterType | FloatRegisterType)
@@ -85,46 +113,47 @@ class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
         ):
             self.available_registers.push(reg.type)
 
-    def allocate_func(self, func: riscv_func.FuncOp) -> None:
-        for region in func.regions:
-            for block in region.blocks:
-                to_free: list[SSAValue] = []
+    def process_riscv_op(self, op: RISCVOp) -> None:
+        for reg in self.to_free:
+            self._free(reg)
+        self.to_free.clear()
 
-                for op in block.walk_reverse():
-                    for reg in to_free:
-                        self._free(reg)
-                    to_free.clear()
+        # Allocate registers to operands since they are defined further up
+        # in the use-def SSA chain
+        for operand in op.operands:
+            self.allocate(operand)
 
-                    # Do not allocate registers on non-RISCV-ops
-                    if not isinstance(op, RISCVOp):
-                        continue
+        # Allocate registers to results if not already allocated,
+        # otherwise free that register since the SSA value is created here
+        for result in op.results:
+            # Unallocated results still need a register,
+            # so allocate and keep track of them to be freed
+            # before processing the next instruction
+            self.allocate(result)
+            self.to_free.append(result)
 
-                    # Allocate registers to operands since they are defined further up
-                    # in the use-def SSA chain
-                    for operand in op.operands:
-                        self.allocate(operand)
-
-                    # Allocate registers to results if not already allocated,
-                    # otherwise free that register since the SSA value is created here
-                    for result in op.results:
-                        # Unallocated results still need a register,
-                        # so allocate and keep track of them to be freed
-                        # before processing the next instruction
-                        self.allocate(result)
-                        to_free.append(result)
+    def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
+        raise NotImplementedError(
+            "Register allocation with liveness not implemented for riscv_scf.for"
+        )
 
 
 class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
+    """
+    Sets unallocated registers per block to a finite set of real available registers.
+    When it runs out of real registers for a block, it allocates j registers.
+    """
+
+    def process_riscv_op(self, op: RISCVOp) -> None:
+        for result in op.results:
+            self.allocate(result)
+
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
         yield_op = loop.body.block.last_op
         assert (
             yield_op is not None
         ), "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
         block_args = loop.body.block.args
-
-        # Induction variable
-        assert isinstance(block_args[0].type, IntRegisterType)
-        self.allocate(block_args[0])
 
         # The loop-carried variables are trickier
         # The for op operand, block arg, and yield operand must have the same type
@@ -188,21 +217,9 @@ class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
             yield_operand.type = shared_type
             op_result.type = shared_type
 
-    def allocate_func(self, func: riscv_func.FuncOp) -> None:
-        """
-        Sets unallocated registers per block to a finite set of real available registers.
-        When it runs out of real registers for a block, it allocates j registers.
-        """
+        # Induction variable
+        assert isinstance(block_args[0].type, IntRegisterType)
+        self.allocate(block_args[0])
 
-        for region in func.regions:
-            for block in region.blocks:
-                for op in block.walk_reverse():
-                    if isinstance(op, riscv_scf.ForOp):
-                        self.allocate_for_loop(op)
-
-                    # Do not allocate registers on non-RISCV-ops
-                    if not isinstance(op, RISCVOp):
-                        continue
-
-                    for result in op.results:
-                        self.allocate(result)
+        for op in loop.body.block.ops_reverse:
+            self.process_operation(op)
