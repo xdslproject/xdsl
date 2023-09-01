@@ -37,6 +37,9 @@ class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
         )
 
     def allocate(self, reg: SSAValue) -> bool:
+        """
+        Allocate a register if not already allocated.
+        """
         if (
             isinstance(reg.type, IntRegisterType | FloatRegisterType)
             and not reg.type.is_allocated
@@ -47,20 +50,31 @@ class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
         return False
 
     def process_operation(self, op: Operation) -> None:
+        """
+        Allocate registers for one operation.
+        """
         match op:
             case riscv_scf.ForOp():
                 self.allocate_for_loop(op)
             case RISCVOp():
                 self.process_riscv_op(op)
             case _:
+                # Ignore non-riscv operations
                 return
 
     @abc.abstractmethod
     def process_riscv_op(self, op: RISCVOp) -> None:
+        """
+        Allocate registers for RISC-V Instruction.
+        """
         raise NotImplementedError()
 
     @abc.abstractmethod
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
+        """
+        Allocate registers for riscv_scf for loop, recursively calling process_operation
+        for operations in the loop.
+        """
         raise NotImplementedError()
 
 
