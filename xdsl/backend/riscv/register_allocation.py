@@ -15,7 +15,7 @@ class RegisterAllocator(abc.ABC):
     Base class for register allocation strategies.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, limit_registers: int | None = None) -> None:
         pass
 
     @abc.abstractmethod
@@ -53,7 +53,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
     idx: int
 
-    def __init__(self, limit_registers: int = 0) -> None:
+    def __init__(self, limit_registers: int | None = None) -> None:
         self.idx = 0
         self._register_types = (IntRegisterType, FloatRegisterType)
 
@@ -73,7 +73,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         }
 
         for reg_type, reg_set in self.register_sets.items():
-            if limit_registers:
+            if limit_registers is not None:
                 self.register_sets[reg_type] = reg_set[:limit_registers]
 
     def _allocate(self, reg: SSAValue) -> bool:
@@ -132,10 +132,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 class RegisterAllocatorBlockNaive(RegisterAllocator):
     idx: int
 
-    def __init__(self, limit_registers: int = 0) -> None:
+    def __init__(self, limit_registers: int | None = None) -> None:
         self.idx = 0
         self._register_types = (IntRegisterType, FloatRegisterType)
-        _ = limit_registers
 
         """
         Assume that all the registers are available except the ones explicitly reserved
@@ -151,6 +150,10 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
             ],
             FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
         }
+
+        for reg_type, reg_set in self.register_sets.items():
+            if limit_registers is not None:
+                self.register_sets[reg_type] = reg_set[:limit_registers]
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         """
@@ -184,7 +187,7 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 class RegisterAllocatorJRegs(RegisterAllocator):
     idx: int
 
-    def __init__(self, limit_registers: int = 0) -> None:
+    def __init__(self, limit_registers: int | None = None) -> None:
         self.idx = 0
         self._register_types = (IntRegisterType, FloatRegisterType)
         _ = limit_registers
