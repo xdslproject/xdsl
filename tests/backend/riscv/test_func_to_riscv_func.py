@@ -10,59 +10,72 @@ from xdsl.dialects.test import TestType
 from xdsl.ir import MLContext
 from xdsl.utils.test_value import TestSSAValue
 
-
-def test_lower_non_main_failure():
-    @ModuleOp
-    @Builder.implicit_region
-    def non_main():
-        with ImplicitBuilder(func.FuncOp("not_main", ((), ())).body):
-            func.Return()
-
-    with pytest.raises(
-        NotImplementedError, match="Only support lowering main function for now"
-    ):
-        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_main)
+NINE_TYPES = [TestType("misc")] * 9
+THREE_TYPES = [TestType("misc")] * 3
 
 
-def test_lower_with_args_failure():
-    @ModuleOp
-    @Builder.implicit_region
-    def multiple_args():
-        with ImplicitBuilder(
-            func.FuncOp("main", ((TestType("misc"),), (TestType("misc"),))).body
-        ):
-            func.Return()
-
-    with pytest.raises(
-        NotImplementedError, match="Only support functions with no arguments for now"
-    ):
-        ConvertFuncToRiscvFuncPass().apply(MLContext(), multiple_args)
-
-
-def test_lower_with_non_empty_return_failure():
+def test_func_too_many_inputs_failure():
     @ModuleOp
     @Builder.implicit_region
     def non_empty_return():
-        with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            test_ssa = TestSSAValue(TestType("misc"))
-            func.Return(test_ssa)
+        with ImplicitBuilder(func.FuncOp("main", (NINE_TYPES, ())).body):
+            func.Return()
 
     with pytest.raises(
-        NotImplementedError, match="Only support return with no arguments for now"
+        ValueError, match="Cannot lower func.func with more than 8 inputs"
     ):
         ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
 
 
-def test_lower_function_call_failure():
+def test_func_too_many_outputs_failure():
     @ModuleOp
     @Builder.implicit_region
-    def function_call():
-        with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            test_ssa = TestSSAValue(TestType("misc"))
-            func.Call("bar", (test_ssa,), ())
+    def non_empty_return():
+        with ImplicitBuilder(func.FuncOp("main", ((), THREE_TYPES)).body):
             func.Return()
 
     with pytest.raises(
-        NotImplementedError, match="Function call lowering not implemented yet"
+        ValueError, match="Cannot lower func.func with more than 2 outputs"
     ):
-        ConvertFuncToRiscvFuncPass().apply(MLContext(), function_call)
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
+
+
+def test_return_too_many_values_failure():
+    @ModuleOp
+    @Builder.implicit_region
+    def non_empty_return():
+        with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
+            func.Return(*(TestSSAValue(t) for t in THREE_TYPES))
+
+    with pytest.raises(
+        ValueError, match="Cannot lower func.return with more than 2 arguments"
+    ):
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
+
+
+def test_call_too_many_operands_failure():
+    @ModuleOp
+    @Builder.implicit_region
+    def non_empty_return():
+        with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
+            func.Call("foo", [TestSSAValue(t) for t in NINE_TYPES], ())
+            func.Return()
+
+    with pytest.raises(
+        ValueError, match="Cannot lower func.call with more than 8 operands"
+    ):
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)
+
+
+def test_call_too_many_results_failure():
+    @ModuleOp
+    @Builder.implicit_region
+    def non_empty_return():
+        with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
+            func.Call("foo", [], THREE_TYPES)
+            func.Return()
+
+    with pytest.raises(
+        ValueError, match="Cannot lower func.call with more than 2 results"
+    ):
+        ConvertFuncToRiscvFuncPass().apply(MLContext(), non_empty_return)

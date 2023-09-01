@@ -2,8 +2,7 @@ from typing import overload
 
 from xdsl.backend.riscv.lowering.utils import (
     cast_matched_op_results,
-    cast_operands_to_float_regs,
-    cast_operands_to_int_regs,
+    cast_operands_to_regs,
 )
 from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
@@ -57,7 +56,9 @@ class LowerArithConstant(RewritePattern):
                             convert_f32_to_u32(op.value.value.data),
                             rd=_INT_REGISTER_TYPE,
                         ),
-                        fld := riscv.FCvtSWOp(lui.rd),
+                        fld := riscv.FCvtSWOp(
+                            lui.rd, rd=riscv.FloatRegisterType.unallocated()
+                        ),
                         UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
                     ],
                 )
@@ -214,7 +215,7 @@ class LowerArithCmpi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpi, rewriter: PatternRewriter) -> None:
         # based on https://github.com/llvm/llvm-project/blob/main/llvm/test/CodeGen/RISCV/i32-icmp.ll
-        lhs, rhs = cast_operands_to_int_regs(rewriter)
+        lhs, rhs = cast_operands_to_regs(rewriter)
         cast_matched_op_results(rewriter)
 
         match op.predicate.value.data:
@@ -307,7 +308,7 @@ class LowerArithCmpf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpf, rewriter: PatternRewriter) -> None:
         # https://llvm.org/docs/LangRef.html#id309
-        lhs, rhs = cast_operands_to_float_regs(rewriter)
+        lhs, rhs = cast_operands_to_regs(rewriter)
         cast_matched_op_results(rewriter)
 
         match op.predicate.value.data:
@@ -386,7 +387,9 @@ class LowerArithSIToFPOp(RewritePattern):
                 cast_input := UnrealizedConversionCastOp.get(
                     (op.input,), (_INT_REGISTER_TYPE,)
                 ),
-                new_op := riscv.FCvtSWOp(cast_input.results[0]),
+                new_op := riscv.FCvtSWOp(
+                    cast_input.results[0], rd=riscv.FloatRegisterType.unallocated()
+                ),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
             )
         )
@@ -400,7 +403,9 @@ class LowerArithFPToSIOp(RewritePattern):
                 cast_input := UnrealizedConversionCastOp.get(
                     (op.input,), (_FLOAT_REGISTER_TYPE,)
                 ),
-                new_op := riscv.FCvtWSOp(cast_input.results[0]),
+                new_op := riscv.FCvtWSOp(
+                    cast_input.results[0], rd=riscv.IntRegisterType.unallocated()
+                ),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
             )
         )

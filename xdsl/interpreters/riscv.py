@@ -206,6 +206,8 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         offset = self.get_immediate_value(op, op.immediate)
+        if isinstance(offset, int):
+            offset //= 4
         return (args[0][offset],)
 
     @impl(riscv.LabelOp)
@@ -244,7 +246,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FSwOp,
         args: tuple[Any, ...],
     ):
-        args[0][op.immediate.value.data] = args[1]
+        args[0][op.immediate.value.data // 4] = args[1]
         return ()
 
     @impl(riscv.FLwOp)
@@ -255,9 +257,22 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         offset = self.get_immediate_value(op, op.immediate)
+        if isinstance(offset, int):
+            offset //= 4
         return (args[0][offset],)
 
     # endregion
+
+    @impl(riscv.GetRegisterOp)
+    def run_get_register(
+        self, interpreter: Interpreter, op: riscv.GetRegisterOp, args: PythonValues
+    ) -> PythonValues:
+        if not op.res.type == riscv.Registers.ZERO:
+            raise InterpretationError(
+                f"Cannot interpret riscv.get_register op with non-ZERO type {op.res.type}"
+            )
+
+        return (0,)
 
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(

@@ -4,7 +4,11 @@ from xdsl.backend.riscv.lowering.convert_arith_to_riscv import ConvertArithToRis
 from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
     ConvertFuncToRiscvFuncPass,
 )
+from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemrefToRiscvPass
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
+from xdsl.backend.riscv.lowering.reduce_register_pressure import (
+    RiscvReduceRegisterPressurePass,
+)
 from xdsl.backend.riscv.riscv_scf_to_asm import (
     LowerScfForToLabels,
 )
@@ -32,7 +36,6 @@ from .dialects import toy
 from .emulator.toy_accelerator_instructions import ToyAccelerator
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
-from .rewrites.arith_float_to_int import CastArithFloatToInt
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
@@ -117,18 +120,26 @@ def transform(
     ConvertFuncToRiscvFuncPass().apply(ctx, module_op)
     LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
+    ConvertMemrefToRiscvPass().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
-    CastArithFloatToInt().apply(ctx, module_op)
     ConvertArithToRiscvPass().apply(ctx, module_op)
     ConvertScfToRiscvPass().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
     ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 
-    DeadCodeElimination().apply(ctx, module_op)
-
     module_op.verify()
 
     if target == "riscv":
+        return
+
+    # Perform optimizations that don't depend on register allocation
+    # e.g. constant folding
+    CanonicalizePass().apply(ctx, module_op)
+    RiscvReduceRegisterPressurePass().apply(ctx, module_op)
+
+    module_op.verify()
+
+    if target == "riscv-opt":
         return
 
     RISCVRegisterAllocation().apply(ctx, module_op)
@@ -136,6 +147,15 @@ def transform(
     module_op.verify()
 
     if target == "riscv-regalloc":
+        return
+
+    # Perform optimizations that depend on register allocation
+    # e.g. redundant moves
+    CanonicalizePass().apply(ctx, module_op)
+
+    module_op.verify()
+
+    if target == "riscv-regalloc-opt":
         return
 
     LowerRISCVFunc(insert_exit_syscall=True).apply(ctx, module_op)

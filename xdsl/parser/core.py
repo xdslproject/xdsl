@@ -83,7 +83,7 @@ class Parser(AttrParser):
     must_ type parsers are preferred because they are explicit about their failure modes.
     """
 
-    ssa_values: dict[str, tuple[SSAValue]]
+    ssa_values: dict[str, tuple[SSAValue, ...]]
     blocks: dict[str, tuple[Block, Span | None]]
     forward_block_references: dict[str, list[Span]]
     """
