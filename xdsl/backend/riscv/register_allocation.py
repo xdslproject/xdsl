@@ -22,10 +22,13 @@ class RegisterAllocator(abc.ABC):
         raise NotImplementedError()
 
 
-class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
-    available_registers: RegisterQueue
+class RegisterAllocatorBlockNaive(RegisterAllocator):
+    """
+    Sets unallocated registers per block to a finite set of real available registers.
+    When it runs out of real registers for a block, it allocates j registers.
+    """
 
-    live_ins_per_block: dict[Block, set[SSAValue]]
+    available_registers: RegisterQueue
 
     def __init__(self) -> None:
         self.available_registers = RegisterQueue(
@@ -66,12 +69,12 @@ class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
                 # Ignore non-riscv operations
                 return
 
-    @abc.abstractmethod
     def process_riscv_op(self, op: RISCVOp) -> None:
         """
         Allocate registers for RISC-V Instruction.
         """
-        raise NotImplementedError()
+        for result in op.results:
+            self.allocate(result)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         if len(func.body.blocks) != 1:
@@ -118,12 +121,6 @@ class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
             yield_operand.type = shared_type
             operand.type = shared_type
 
-        # Allocate values used inside the body but defined outside.
-        # Their scope lasts for the whole body execution scope
-        live_ins = self.live_ins_per_block[loop.body.block]
-        for live_in in live_ins:
-            self.allocate(live_in)
-
         # Induction variable
         assert isinstance(block_args[0].type, IntRegisterType)
         self.allocate(block_args[0])
@@ -136,7 +133,7 @@ class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
             self.process_operation(op)
 
 
-class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
+class RegisterAllocatorLivenessBlockNaive(RegisterAllocatorBlockNaive):
     """
     It traverses the use-def SSA chain backwards (i.e., from uses to defs) and:
       1. allocates registers for operands
@@ -164,6 +161,8 @@ class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
     ```
     """
 
+    live_ins_per_block: dict[Block, set[SSAValue]]
+
     def _free(self, reg: SSAValue) -> None:
         if (
             isinstance(reg.type, IntRegisterType | FloatRegisterType)
@@ -178,21 +177,29 @@ class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
             # Free the register since the SSA value is created here
             self._free(result)
 
-        # Allocate registers to operands since they are defined further up
-        # in the use-def SSA chain
-        for operand in op.operands:
-            self.allocate(operand)
+        super().process_riscv_op(op)
 
+    def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
+        # Allocate values used inside the body but defined outside.
+        # Their scope lasts for the whole body execution scope
+        live_ins = self.live_ins_per_block[loop.body.block]
+        for live_in in live_ins:
+            self.allocate(live_in)
 
-class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
-    """
-    Sets unallocated registers per block to a finite set of real available registers.
-    When it runs out of real registers for a block, it allocates j registers.
-    """
+        super().allocate_for_loop(loop)
 
-    def process_riscv_op(self, op: RISCVOp) -> None:
-        for result in op.results:
-            self.allocate(result)
+    def allocate_func(self, func: riscv_func.FuncOp) -> None:
+        if len(func.body.blocks) != 1:
+            raise NotImplementedError(
+                f"Cannot register allocate func with {len(func.body.blocks)} blocks."
+            )
+
+        block = func.body.block
+
+        self.live_ins_per_block = live_ins_per_block(block)
+        assert not self.live_ins_per_block[block]
+
+        super().allocate_func(func)
 
 
 def _live_ins_per_block(block: Block, acc: dict[Block, set[SSAValue]]) -> set[SSAValue]:
