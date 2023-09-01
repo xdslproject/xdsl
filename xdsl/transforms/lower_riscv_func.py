@@ -2,8 +2,9 @@ from dataclasses import dataclass, field
 from typing import cast
 
 from xdsl.dialects import riscv, riscv_func
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.ir import MLContext, Operation, OpResult
+from xdsl.ir.core import Region, Block
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -78,9 +79,23 @@ class LowerRISCVFuncOp(RewritePattern):
             first_op = get_reg_op
             rewriter.erase_block_argument(last_arg)
 
-        label_body = rewriter.move_region_contents_to_new_regions(op.body)
+        result = [
+            # FIXME we should ask the target for alignment, this works for rv32
+            riscv.DirectiveOp(".p2align", "2"),
+            riscv.LabelOp(
+                op.sym_name.data,
+                region=rewriter.move_region_contents_to_new_regions(op.body),
+            ),
+        ]
 
-        rewriter.replace_matched_op(riscv.LabelOp(op.sym_name.data, region=label_body))
+        if op.sym_visibility != StringAttr("private"):  # C-like: default is public
+            result = [riscv.DirectiveOp(".globl", op.sym_name.data)] + result
+
+        # Each function has its own .text: this will tell the assembler to emit
+        # a .text section (if not present) and make it the current one
+        section = riscv.AssemblySectionOp(".text", Region(Block(result)))
+
+        rewriter.replace_matched_op(section)
 
 
 class InsertExitSyscallOp(RewritePattern):
