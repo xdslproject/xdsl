@@ -142,7 +142,7 @@ def transform(
     if target == "riscv-opt":
         return
 
-    RISCVRegisterAllocation("LivenessBlockNaive").apply(ctx, module_op)
+    RISCVRegisterAllocation().apply(ctx, module_op)
 
     module_op.verify()
 
@@ -168,4 +168,4 @@ def transform(
 
 
 def emulate_riscv(program: str):
-    run_riscv(program, extensions=[ToyAccelerator], unlimited_regs=True, verbosity=10)
+    run_riscv(program, extensions=[ToyAccelerator], unlimited_regs=True, verbosity=0)
