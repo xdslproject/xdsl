@@ -104,8 +104,6 @@ class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
     ```
     """
 
-    to_free: list[SSAValue] = []
-
     def _free(self, reg: SSAValue) -> None:
         if (
             isinstance(reg.type, IntRegisterType | FloatRegisterType)
@@ -114,23 +112,16 @@ class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
             self.available_registers.push(reg.type)
 
     def process_riscv_op(self, op: RISCVOp) -> None:
-        for reg in self.to_free:
-            self._free(reg)
-        self.to_free.clear()
+        for result in op.results:
+            # Allocate registers to result if not already allocated
+            self.allocate(result)
+            # Free the register since the SSA value is created here
+            self._free(result)
 
         # Allocate registers to operands since they are defined further up
         # in the use-def SSA chain
         for operand in op.operands:
             self.allocate(operand)
-
-        # Allocate registers to results if not already allocated,
-        # otherwise free that register since the SSA value is created here
-        for result in op.results:
-            # Unallocated results still need a register,
-            # so allocate and keep track of them to be freed
-            # before processing the next instruction
-            self.allocate(result)
-            self.to_free.append(result)
 
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
         raise NotImplementedError(

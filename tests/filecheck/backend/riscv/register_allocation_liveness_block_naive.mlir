@@ -45,7 +45,7 @@ builtin.module {
 // CHECK-NEXT:  riscv_func.func @main() {
 // CHECK-NEXT:    %{{\d+}} = riscv.li 6 : () -> !riscv.reg<t5>
 // CHECK-NEXT:    %{{\d+}} = riscv.li 5 : () -> !riscv.reg<s0>
-// CHECK-NEXT:    %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t5>, !riscv.reg<s0>) -> !riscv.reg<t6>
+// CHECK-NEXT:    %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t5>, !riscv.reg<s0>) -> !riscv.reg<t5>
 // CHECK-NEXT:    %{{\d+}} = riscv.li 29 : () -> !riscv.reg<t5>
 // CHECK-NEXT:    %{{\d+}} = riscv.li 28 : () -> !riscv.reg<t5>
 // CHECK-NEXT:    %{{\d+}} = riscv.li 27 : () -> !riscv.reg<t5>
@@ -77,7 +77,7 @@ builtin.module {
 // CHECK-NEXT:    %{{\d+}} = riscv.li 1 : () -> !riscv.reg<t6>
 // CHECK-NEXT:    %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<t5>) -> !riscv.freg<ft11>
 // CHECK-NEXT:    %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<t6>) -> !riscv.freg<ft10>
-// CHECK-NEXT:    %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft11>, !riscv.freg<ft10>) -> !riscv.freg<ft9>
+// CHECK-NEXT:    %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft11>, !riscv.freg<ft10>) -> !riscv.freg<ft11>
 // CHECK-NEXT:    riscv_func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
