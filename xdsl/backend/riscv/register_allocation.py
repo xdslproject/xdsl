@@ -103,30 +103,21 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         for region in func.regions:
             for block in region.blocks:
-                to_free: list[SSAValue] = []
-
                 for op in block.walk_reverse():
-                    for reg in to_free:
-                        self._free(reg)
-                    to_free.clear()
-
                     # Do not allocate registers on non-RISCV-ops
                     if not isinstance(op, RISCVOp):
                         continue
+
+                    for result in op.results:
+                        # Allocate registers to result if not already allocated
+                        self._allocate(result)
+                        # Free the register since the SSA value is created here
+                        self._free(result)
 
                     # Allocate registers to operands since they are defined further up
                     # in the use-def SSA chain
                     for operand in op.operands:
                         self._allocate(operand)
-
-                    # Allocate registers to results if not already allocated,
-                    # otherwise free that register since the SSA value is created here
-                    for result in op.results:
-                        # Unallocated results still need a register,
-                        # so allocate and keep track of them to be freed
-                        # before processing the next instruction
-                        self._allocate(result)
-                        to_free.append(result)
 
 
 class RegisterAllocatorBlockNaive(RegisterAllocator):
