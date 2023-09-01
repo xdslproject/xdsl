@@ -157,10 +157,6 @@ class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
         ), "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
         block_args = loop.body.block.args
 
-        # Induction variable
-        assert isinstance(block_args[0].type, IntRegisterType)
-        self.allocate(block_args[0])
-
         # The loop-carried variables are trickier
         # The for op operand, block arg, and yield operand must have the same type
         for block_arg, operand, yield_operand, op_result in zip(
@@ -182,7 +178,11 @@ class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
             yield_operand.type = shared_type
             op_result.type = shared_type
 
-        for op in loop.body.ops:
+        # Induction variable
+        assert isinstance(block_args[0].type, IntRegisterType)
+        self.allocate(block_args[0])
+
+        for op in loop.body.block.ops_reverse:
             self.process_operation(op)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
@@ -193,5 +193,5 @@ class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
 
         for region in func.regions:
             for block in region.blocks:
-                for op in block.ops:
+                for op in block.ops_reverse:
                     self.process_operation(op)
