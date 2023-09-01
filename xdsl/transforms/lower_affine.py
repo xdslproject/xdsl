@@ -54,7 +54,7 @@ def affine_expr_ops(
 
         return [*lhs_ops, *rhs_ops, op], op.result
 
-    raise ValueError("Unreachable")
+    assert False, "Unreachable"
 
 
 def insert_affine_map_ops(
