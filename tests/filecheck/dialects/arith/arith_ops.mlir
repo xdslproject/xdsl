@@ -139,7 +139,7 @@
 
   %extui = "arith.extui"(%lhsi32) : (i32) -> i64
 
-  // CHECK-NEXT: %extui = "arith.extui"(%lhsi32) : (i32) -> i64
+  // CHECK-NEXT: %extui = arith.extui %lhsi32 : i32 to i64
 
   %truncf = "arith.truncf"(%lhsf64) : (f64) -> f32
 
@@ -147,7 +147,7 @@
 
   %trunci = "arith.trunci"(%lhsi64) : (i64) -> i32
 
-  // CHECK-NEXT: %trunci = "arith.trunci"(%lhsi64) : (i64) -> i32
+  // CHECK-NEXT: %trunci = arith.trunci %lhsi64 : i64 to i32
 
   %cmpf = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 2 : i64} : (f32, f32) -> i1
 
