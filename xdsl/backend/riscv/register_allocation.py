@@ -196,7 +196,7 @@ class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
 
         for region in func.regions:
             for block in region.blocks:
-                for op in block.walk():
+                for op in block.walk_reverse():
                     if isinstance(op, riscv_scf.ForOp):
                         self.allocate_for_loop(op)
 
