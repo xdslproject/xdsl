@@ -1,5 +1,6 @@
 import abc
 
+from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv_func, riscv_scf
 from xdsl.dialects.riscv import (
     FloatRegisterType,
@@ -14,9 +15,6 @@ class RegisterAllocator(abc.ABC):
     """
     Base class for register allocation strategies.
     """
-
-    def __init__(self, limit_registers: int | None = None) -> None:
-        pass
 
     @abc.abstractmethod
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
@@ -51,54 +49,36 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     ```
     """
 
-    idx: int
+    available_registers: RegisterQueue
 
-    def __init__(self, limit_registers: int | None = None) -> None:
-        self.idx = 0
-        self._register_types = (IntRegisterType, FloatRegisterType)
-
-        """
-        Assume that all the registers are available except the ones explicitly reserved
-        by the default RISCV ABI
-        """
-        self.reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
-
-        self.register_sets = {
-            IntRegisterType: [
-                reg
+    def __init__(self) -> None:
+        self.available_registers = RegisterQueue(
+            available_int_registers=[
+                IntRegisterType(reg)
                 for reg in IntRegisterType.RV32I_INDEX_BY_NAME
-                if reg not in self.reserved_registers
+                if IntRegisterType(reg) not in RegisterQueue.DEFAULT_RESERVED_REGISTERS
             ],
-            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
-        }
-
-        for reg_type, reg_set in self.register_sets.items():
-            if limit_registers is not None:
-                self.register_sets[reg_type] = reg_set[:limit_registers]
+            available_float_registers=[
+                FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
+            ],
+        )
 
     def _allocate(self, reg: SSAValue) -> bool:
-        if isinstance(reg.type, self._register_types) and not reg.type.is_allocated:
-            # If we run out of real registers, allocate a j register
-            reg_type = type(reg.type)
-            available_regs = self.register_sets.get(reg_type, [])
-
-            if not available_regs:
-                reg.type = reg_type(f"j{self.idx}")
-                self.idx += 1
-            else:
-                reg.type = reg_type(available_regs.pop())
-
+        if (
+            isinstance(reg.type, IntRegisterType | FloatRegisterType)
+            and not reg.type.is_allocated
+        ):
+            reg.type = self.available_registers.pop(type(reg.type))
             return True
 
         return False
 
     def _free(self, reg: SSAValue) -> None:
-        if isinstance(reg.type, self._register_types) and reg.type.is_allocated:
-            available_regs = self.register_sets.get(type(reg.type), [])
-            reg_name = reg.type.register_name
-
-            if not reg_name.startswith("j") and reg_name not in self.reserved_registers:
-                available_regs.append(reg_name)
+        if (
+            isinstance(reg.type, IntRegisterType | FloatRegisterType)
+            and reg.type.is_allocated
+        ):
+            self.available_registers.push(reg.type)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         for region in func.regions:
@@ -121,43 +101,26 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
 
 class RegisterAllocatorBlockNaive(RegisterAllocator):
-    idx: int
+    available_registers: RegisterQueue
 
-    def __init__(self, limit_registers: int | None = None) -> None:
-        self.idx = 0
-        self._register_types = (IntRegisterType, FloatRegisterType)
-
-        """
-        Assume that all the registers are available except the ones explicitly reserved
-        by the default RISCV ABI
-        """
-        reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
-
-        self.register_sets = {
-            IntRegisterType: [
-                reg
+    def __init__(self) -> None:
+        self.available_registers = RegisterQueue(
+            available_int_registers=[
+                IntRegisterType(reg)
                 for reg in IntRegisterType.RV32I_INDEX_BY_NAME
-                if reg not in reserved_registers
+                if IntRegisterType(reg) not in RegisterQueue.DEFAULT_RESERVED_REGISTERS
             ],
-            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
-        }
-
-        for reg_type, reg_set in self.register_sets.items():
-            if limit_registers is not None:
-                self.register_sets[reg_type] = reg_set[:limit_registers]
+            available_float_registers=[
+                FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
+            ],
+        )
 
     def _allocate(self, reg: SSAValue) -> bool:
-        if isinstance(reg.type, self._register_types) and not reg.type.is_allocated:
-            # If we run out of real registers, allocate a j register
-            reg_type = type(reg.type)
-            available_regs = self.register_sets.get(reg_type, [])
-
-            if not available_regs:
-                reg.type = reg_type(f"j{self.idx}")
-                self.idx += 1
-            else:
-                reg.type = reg_type(available_regs.pop())
-
+        if (
+            isinstance(reg.type, IntRegisterType | FloatRegisterType)
+            and not reg.type.is_allocated
+        ):
+            reg.type = self.available_registers.pop(type(reg.type))
             return True
 
         return False
