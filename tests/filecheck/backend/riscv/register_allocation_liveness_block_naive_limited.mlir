@@ -22,10 +22,10 @@ riscv_func.func @main() {
 // CHECK-NEXT:    riscv_func.func @main() {
 // CHECK-NEXT:      %0 = riscv.li 6 : () -> !riscv.reg<ra>
 // CHECK-NEXT:      %1 = riscv.li 5 : () -> !riscv.reg<s0>
-// CHECK-NEXT:      %2 = riscv.add %0, %1 : (!riscv.reg<ra>, !riscv.reg<s0>) -> !riscv.reg<t0>
+// CHECK-NEXT:      %2 = riscv.add %0, %1 : (!riscv.reg<ra>, !riscv.reg<s0>) -> !riscv.reg<ra>
 // CHECK-NEXT:      %3 = riscv.li 29 : () -> !riscv.reg<ra>
 // CHECK-NEXT:      %4 = riscv.li 28 : () -> !riscv.reg<t0>
-// CHECK-NEXT:      %5 = riscv.add %3, %4 : (!riscv.reg<ra>, !riscv.reg<t0>) -> !riscv.reg<j1>
+// CHECK-NEXT:      %5 = riscv.add %3, %4 : (!riscv.reg<ra>, !riscv.reg<t0>) -> !riscv.reg<ra>
 // CHECK-NEXT:      %6 = riscv.li 26 : () -> !riscv.reg<ra>
 // CHECK-NEXT:      %7 = riscv.li 25 : () -> !riscv.reg<ra>
 // CHECK-NEXT:      %8 = riscv.li 24 : () -> !riscv.reg<ra>
@@ -34,7 +34,7 @@ riscv_func.func @main() {
 // CHECK-NEXT:      %11 = riscv.li 1 : () -> !riscv.reg<t0>
 // CHECK-NEXT:      %12 = riscv.fcvt.s.w %10 : (!riscv.reg<ra>) -> !riscv.freg<ft1>
 // CHECK-NEXT:      %13 = riscv.fcvt.s.w %11 : (!riscv.reg<t0>) -> !riscv.freg<ft0>
-// CHECK-NEXT:      %14 = riscv.fadd.s %12, %13 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<j0>
+// CHECK-NEXT:      %14 = riscv.fadd.s %12, %13 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
 // CHECK-NEXT:      riscv_func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
