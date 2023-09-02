@@ -137,6 +137,7 @@ def transform(
     # e.g. constant folding
     CanonicalizePass().apply(ctx, module_op)
     RISCVOptimize().apply(ctx, module_op)
+    CanonicalizePass().apply(ctx, module_op)
 
     # Prepare the riscv code for register allocation
     RiscvReduceRegisterPressurePass().apply(ctx, module_op)
