@@ -8,6 +8,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms import canonicalize
 
 
 class HoistIndexTimesConstant(RewritePattern):
@@ -32,7 +33,6 @@ class HoistIndexTimesConstant(RewritePattern):
                 if not isinstance(li_op := mul_op.rs1.owner, riscv.LiOp):
                     # One of the uses is not a multiplication by constant, bail
                     return
-
             if not isinstance(imm := li_op.immediate, builtin.IntegerAttr):
                 # One of the constants is not an integer, bail
                 return
@@ -126,6 +126,16 @@ class RISCVOptimize(ModulePass):
     name = "riscv-optimize"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    HoistIndexTimesConstant(),
+                    HoistIndexPlusValue(),
+                ]
+            )
+        ).rewrite_module(op)
+        print("again")
+        canonicalize.CanonicalizePass().apply(ctx, op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
