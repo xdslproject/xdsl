@@ -1357,6 +1357,16 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
 ## Integer Register-Immediate Instructions
 
 
+class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.canonicalization_patterns import (
+            AddImmediateZero,
+        )
+
+        return (AddImmediateZero(),)
+
+
 @irdl_op_definition
 class AddiOp(RdRsImmIntegerOperation):
     """
@@ -1370,7 +1380,7 @@ class AddiOp(RdRsImmIntegerOperation):
 
     name = "riscv.addi"
 
-    traits = frozenset((Pure(),))
+    traits = frozenset((Pure(), AddiOpHasCanonicalizationPatternsTrait()))
 
 
 @irdl_op_definition
@@ -1701,9 +1711,12 @@ class SrlOp(RdRsRsIntegerOperation):
 class SubOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.canonicalization_patterns import SubImmediates
+        from xdsl.backend.riscv.lowering.canonicalization_patterns import (
+            SubAddi,
+            SubImmediates,
+        )
 
-        return (SubImmediates(),)
+        return (SubImmediates(), SubAddi())
 
 
 @irdl_op_definition

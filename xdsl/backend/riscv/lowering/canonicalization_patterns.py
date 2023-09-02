@@ -121,6 +121,13 @@ class AddImmediates(RewritePattern):
                 pass
 
 
+class AddImmediateZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AddiOp, rewriter: PatternRewriter) -> None:
+        if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
+            rewriter.replace_matched_op((), (op.rs1,))
+
+
 class SubImmediates(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
@@ -161,6 +168,17 @@ class SubImmediates(RewritePattern):
                 )
             case _:
                 pass
+
+
+class SubAddi(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.AddiOp)
+            and op.rs2 == op.rs1.op.rs1
+        ):
+            rewriter.replace_matched_op(riscv.LiOp(op.rs1.op.immediate))
 
 
 class ShiftLeftImmediate(RewritePattern):
