@@ -165,6 +165,25 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         return (args[0] + args[1],)
 
+    @impl(riscv.AddiOp)
+    def run_addi(
+        self,
+        interpreter: Interpreter,
+        op: riscv.AddiOp,
+        args: tuple[Any, ...],
+    ):
+        imm = self.get_immediate_value(op, op.immediate)
+        return (args[0] + imm,)
+
+    @impl(riscv.SubOp)
+    def run_sub(
+        self,
+        interpreter: Interpreter,
+        op: riscv.SubOp,
+        args: tuple[Any, ...],
+    ):
+        return (args[0] - args[1],)
+
     @impl(riscv.SlliOp)
     def run_shift_left(
         self,

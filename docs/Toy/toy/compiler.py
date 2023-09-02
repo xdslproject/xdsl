@@ -9,6 +9,7 @@ from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRis
 from xdsl.backend.riscv.lowering.reduce_register_pressure import (
     RiscvReduceRegisterPressurePass,
 )
+from xdsl.backend.riscv.riscv_optimize import RISCVOptimize
 from xdsl.backend.riscv.riscv_scf_to_asm import (
     LowerScfForToLabels,
 )
@@ -135,6 +136,9 @@ def transform(
     # Perform optimizations that don't depend on register allocation
     # e.g. constant folding
     CanonicalizePass().apply(ctx, module_op)
+    RISCVOptimize().apply(ctx, module_op)
+
+    # Prepare the riscv code for register allocation
     RiscvReduceRegisterPressurePass().apply(ctx, module_op)
 
     module_op.verify()

@@ -1698,6 +1698,14 @@ class SrlOp(RdRsRsIntegerOperation):
     name = "riscv.srl"
 
 
+class SubOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.canonicalization_patterns import SubImmediates
+
+        return (SubImmediates(),)
+
+
 @irdl_op_definition
 class SubOp(RdRsRsIntegerOperation):
     """
@@ -1710,6 +1718,8 @@ class SubOp(RdRsRsIntegerOperation):
     """
 
     name = "riscv.sub"
+
+    traits = frozenset((SubOpHasCanonicalizationPatternsTrait(),))
 
 
 @irdl_op_definition
