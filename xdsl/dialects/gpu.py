@@ -47,6 +47,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.irdl.irdl import traits_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -356,10 +357,7 @@ class MemcpyOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent(ModuleOp), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(lambda: frozenset([IsTerminator()]))
 
     def __init__(self):
         return super().__init__()
