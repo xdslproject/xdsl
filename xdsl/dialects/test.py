@@ -80,6 +80,22 @@ class TestTermOp(IRDLOperation):
 
     traits = frozenset([IsTerminator()])
 
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] = (),
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            successors=(successors,),
+            regions=(regions,),
+        )
+
 
 @irdl_attr_definition
 class TestType(Data[str], TypeAttribute):

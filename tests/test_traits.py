@@ -374,9 +374,7 @@ def test_symbol_table():
     ):
         op.verify()
 
-    terminator = test.TestTermOp(
-        operands=[[]], result_types=[[]], regions=[[]], successors=[[]]
-    )
+    terminator = test.TestTermOp()
 
     # Check that symbol uniqueness is verified
     symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
