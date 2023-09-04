@@ -8,8 +8,7 @@ from xdsl.dialects.riscv import (
     RISCVOp,
     RISCVRegisterType,
 )
-from xdsl.ir import Operation, SSAValue
-from xdsl.ir.core import Block
+from xdsl.ir import Block, Operation, SSAValue
 
 
 class RegisterAllocator(abc.ABC):
@@ -22,13 +21,36 @@ class RegisterAllocator(abc.ABC):
         raise NotImplementedError()
 
 
-class RegisterAllocatorBlockNaive(RegisterAllocator):
+class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     """
-    Sets unallocated registers per block to a finite set of real available registers.
-    When it runs out of real registers for a block, it allocates j registers.
+    It traverses the use-def SSA chain backwards (i.e., from uses to defs) and:
+      1. allocates registers for operands
+      2. frees registers for results (since that will be the last time they appear when
+      going backwards)
+    It currently operates on blocks.
+
+    This is a simplified version of the standard bottom-up local register allocation
+    algorithm.
+
+    A relevant reference in "Engineering a Compiler, Edition 3" ISBN: 9780128154120.
+
+    ```
+    for op in block.walk_reverse():
+    for operand in op.operands:
+        if operand is not allocated:
+            allocate(operand)
+
+    for result in op.results:
+    if result is not allocated:
+        allocate(result)
+        free_before_next_instruction.append(result)
+    else:
+        free(result)
+    ```
     """
 
     available_registers: RegisterQueue
+    live_ins_per_block: dict[Block, set[SSAValue]]
 
     def __init__(self) -> None:
         self.available_registers = RegisterQueue(
@@ -56,6 +78,13 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
         return False
 
+    def _free(self, reg: SSAValue) -> None:
+        if (
+            isinstance(reg.type, IntRegisterType | FloatRegisterType)
+            and reg.type.is_allocated
+        ):
+            self.available_registers.push(reg.type)
+
     def process_operation(self, op: Operation) -> None:
         """
         Allocate registers for one operation.
@@ -75,25 +104,25 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
         """
         for result in op.results:
             self.allocate(result)
+            # Free the register since the SSA value is created here
+            self._free(result)
 
-    def allocate_func(self, func: riscv_func.FuncOp) -> None:
-        if len(func.body.blocks) != 1:
-            raise NotImplementedError(
-                f"Cannot register allocate func with {len(func.body.blocks)} blocks."
-            )
-
-        block = func.body.block
-
-        self.live_ins_per_block = live_ins_per_block(block)
-        assert not self.live_ins_per_block[block]
-        for op in block.ops_reverse:
-            self.process_operation(op)
+        # Allocate registers to operands since they are defined further up
+        # in the use-def SSA chain
+        for operand in op.operands:
+            self.allocate(operand)
 
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
         """
         Allocate registers for riscv_scf for loop, recursively calling process_operation
         for operations in the loop.
         """
+        # Allocate values used inside the body but defined outside.
+        # Their scope lasts for the whole body execution scope
+        live_ins = self.live_ins_per_block[loop.body.block]
+        for live_in in live_ins:
+            self.allocate(live_in)
+
         yield_op = loop.body.block.last_op
         assert (
             yield_op is not None
@@ -132,65 +161,6 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
         for op in loop.body.block.ops_reverse:
             self.process_operation(op)
 
-
-class RegisterAllocatorLivenessBlockNaive(RegisterAllocatorBlockNaive):
-    """
-    It traverses the use-def SSA chain backwards (i.e., from uses to defs) and:
-      1. allocates registers for operands
-      2. frees registers for results (since that will be the last time they appear when
-      going backwards)
-    It currently operates on blocks.
-
-    This is a simplified version of the standard bottom-up local register allocation
-    algorithm.
-
-    A relevant reference in "Engineering a Compiler, Edition 3" ISBN: 9780128154120.
-
-    ```
-    for op in block.walk_reverse():
-    for operand in op.operands:
-        if operand is not allocated:
-            allocate(operand)
-
-    for result in op.results:
-    if result is not allocated:
-        allocate(result)
-        free_before_next_instruction.append(result)
-    else:
-        free(result)
-    ```
-    """
-
-    live_ins_per_block: dict[Block, set[SSAValue]]
-
-    def _free(self, reg: SSAValue) -> None:
-        if (
-            isinstance(reg.type, IntRegisterType | FloatRegisterType)
-            and reg.type.is_allocated
-        ):
-            self.available_registers.push(reg.type)
-
-    def process_riscv_op(self, op: RISCVOp) -> None:
-        super().process_riscv_op(op)
-
-        for result in op.results:
-            # Free the register since the SSA value is created here
-            self._free(result)
-
-        # Allocate registers to operands since they are defined further up
-        # in the use-def SSA chain
-        for operand in op.operands:
-            self.allocate(operand)
-
-    def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
-        # Allocate values used inside the body but defined outside.
-        # Their scope lasts for the whole body execution scope
-        live_ins = self.live_ins_per_block[loop.body.block]
-        for live_in in live_ins:
-            self.allocate(live_in)
-
-        super().allocate_for_loop(loop)
-
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         if len(func.body.blocks) != 1:
             raise NotImplementedError(
@@ -201,8 +171,8 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocatorBlockNaive):
 
         self.live_ins_per_block = live_ins_per_block(block)
         assert not self.live_ins_per_block[block]
-
-        super().allocate_func(func)
+        for op in block.ops_reverse:
+            self.process_operation(op)
 
 
 def _live_ins_per_block(block: Block, acc: dict[Block, set[SSAValue]]) -> set[SSAValue]:

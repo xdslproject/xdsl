@@ -59,4 +59,20 @@ builtin.module {
   // CHECK-NEXT:   riscv_func.return %a, %a : !riscv.reg<>, !riscv.reg<>
   // CHECK-NEXT: }
 
+  riscv_func.func private @visibility_private() {
+    riscv_func.return
+  }
+
+  // CHECK: riscv_func.func private @visibility_private() {
+  // CHECK-NEXT:   riscv_func.return
+  // CHECK-NEXT: }
+
+  riscv_func.func public @visibility_public() {
+    riscv_func.return
+  }
+
+  // CHECK: riscv_func.func public @visibility_public() {
+  // CHECK-NEXT:   riscv_func.return
+  // CHECK-NEXT: }
+
 }
