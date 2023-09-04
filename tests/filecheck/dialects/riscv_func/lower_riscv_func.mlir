@@ -24,7 +24,9 @@
         riscv_func.call @my_print(%2) : (!riscv.reg<>) -> ()
         riscv_func.return
     }
-
+// CHECK-NEXT:   riscv.assembly_section ".text" {
+// CHECK-NEXT:     riscv.directive ".globl" "main" : () -> ()
+// CHECK-NEXT:     riscv.directive ".p2align" "2" : () -> ()
 // CHECK-NEXT:     riscv.label "main" ({
 // CHECK-NEXT:         riscv.jal "get_one" : () -> ()
 // CHECK-NEXT:         %{{.*}} = riscv.get_register : () -> !riscv.reg<a0>
@@ -41,32 +43,44 @@
 // CHECK-NEXT:         riscv.jal "my_print" : () -> ()
 // CHECK-NEXT:         riscv.ret : () -> ()
 // CHECK-NEXT:     }) : () -> ()
+// CHECK-NEXT:   }
 
 
     riscv_func.func @my_print() {
         riscv_func.return
     }
 
+// CHECK-NEXT:   riscv.assembly_section ".text" {
+// CHECK-NEXT:     riscv.directive ".globl" "my_print" : () -> ()
+// CHECK-NEXT:     riscv.directive ".p2align" "2" : () -> ()
 // CHECK-NEXT:     riscv.label "my_print" ({
 // CHECK-NEXT:         riscv.ret : () -> ()
 // CHECK-NEXT:     }) : () -> ()
+// CHECK-NEXT:   }
 
     riscv_func.func @get_one() {
         %0 = riscv.li 1 : () -> !riscv.reg<>
         riscv_func.return %0 : !riscv.reg<>
     }
 
+// CHECK-NEXT:   riscv.assembly_section ".text" {
+// CHECK-NEXT:     riscv.directive ".globl" "get_one" : () -> ()
+// CHECK-NEXT:     riscv.directive ".p2align" "2" : () -> ()
 // CHECK-NEXT:     riscv.label "get_one" ({
 // CHECK-NEXT:         %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
 // CHECK-NEXT:         %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:         riscv.ret : () -> ()
 // CHECK-NEXT:     }) : () -> ()
+// CHECK-NEXT:   }
 
     riscv_func.func @add(%0 : !riscv.reg<>, %1 : !riscv.reg<>) {
         %2 = riscv.add %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         riscv_func.return %2 : !riscv.reg<>
     }
 
+// CHECK-NEXT:   riscv.assembly_section ".text" {
+// CHECK-NEXT:     riscv.directive ".globl" "add" : () -> ()
+// CHECK-NEXT:     riscv.directive ".p2align" "2" : () -> ()
 // CHECK-NEXT:     riscv.label "add" ({
 // CHECK-NEXT:         %{{.*}} = riscv.get_register : () -> !riscv.reg<a0>
 // CHECK-NEXT:         %{{.*}} = riscv.get_register : () -> !riscv.reg<a1>
@@ -74,6 +88,30 @@
 // CHECK-NEXT:         %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:         riscv.ret : () -> ()
 // CHECK-NEXT:     }) : () -> ()
+// CHECK-NEXT:   }
+
+    riscv_func.func private @visibility_private() {
+        riscv_func.return
+    }
+
+// CHECK-NEXT:   riscv.assembly_section ".text" {
+// CHECK-NEXT:     riscv.directive ".p2align" "2" : () -> ()
+// CHECK-NEXT:     riscv.label "visibility_private" ({
+// CHECK-NEXT:         riscv.ret : () -> ()
+// CHECK-NEXT:     }) : () -> ()
+// CHECK-NEXT:   }
+
+    riscv_func.func public @visibility_public() {
+        riscv_func.return
+    }
+
+// CHECK-NEXT:   riscv.assembly_section ".text" {
+// CHECK-NEXT:     riscv.directive ".globl" "visibility_public" : () -> ()
+// CHECK-NEXT:     riscv.directive ".p2align" "2" : () -> ()
+// CHECK-NEXT:     riscv.label "visibility_public" ({
+// CHECK-NEXT:         riscv.ret : () -> ()
+// CHECK-NEXT:     }) : () -> ()
+// CHECK-NEXT:   }
 
 }) : () -> ()
 
