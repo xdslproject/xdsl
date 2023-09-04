@@ -8,7 +8,6 @@ from xdsl.dialects.riscv import (
     RISCVOp,
     RISCVRegisterType,
 )
-
 from xdsl.ir import Operation, SSAValue
 from xdsl.utils.exceptions import DiagnosticException
 
