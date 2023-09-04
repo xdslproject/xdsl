@@ -345,7 +345,7 @@ class _InterpreterFunctionImpls:
         return impl(ft, input_type, output_type, value)
 
     def call_external(
-        self, sym_name: str, op: Operation, args: PythonValues
+        self, interpreter: Interpreter, sym_name: str, op: Operation, args: PythonValues
     ) -> PythonValues:
         if sym_name not in self._external_funcs_dict:
             raise InterpretationError(
@@ -354,7 +354,7 @@ class _InterpreterFunctionImpls:
 
         ft, ext_func = self._external_funcs_dict[sym_name]
 
-        return ext_func(ft, op, args)
+        return ext_func(ft, interpreter, op, args)
 
 
 @dataclass
@@ -645,7 +645,7 @@ _CastImplDict: TypeAlias = dict[
 ]
 
 ExtFuncImpl: TypeAlias = Callable[
-    [_FT, Operation, PythonValues],
+    [_FT, Interpreter, Operation, PythonValues],
     PythonValues,
 ]
 
