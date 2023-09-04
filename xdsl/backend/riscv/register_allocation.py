@@ -9,6 +9,7 @@ from xdsl.dialects.riscv import (
     RISCVRegisterType,
 )
 from xdsl.ir import Operation, SSAValue
+from xdsl.utils.exceptions import DiagnosticException
 
 
 class RegisterAllocator(abc.ABC):
@@ -135,8 +136,8 @@ class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
             self.allocate(operand)
 
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
-        raise NotImplementedError(
-            "Register allocation with liveness not implemented for riscv_scf.for"
+        raise DiagnosticException(
+            "Cannot allocate registers for code containing riscv_scf.for ops"
         )
 
 
