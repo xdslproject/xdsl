@@ -17,8 +17,14 @@ from xdsl.utils.exceptions import InterpretationError
 
 
 class MemrefValue(Enum):
-    Allocated = 1
+    Uninitialized = 1
+    """
+    A value marking areas of a memref that are uninitialized.
+    """
     Deallocated = 2
+    """
+    Marks a memref as deallocated (freed).
+    """
 
 
 @register_impls
@@ -31,7 +37,7 @@ class MemrefFunctions(InterpreterFunctions):
 
         shape = memref_type.get_shape()
         size = prod(shape)
-        data = [MemrefValue.Allocated] * size
+        data = [MemrefValue.Uninitialized] * size
 
         shaped_array = ShapedArray(data, list(shape))
         return (shaped_array,)
@@ -70,7 +76,9 @@ class MemrefFunctions(InterpreterFunctions):
         value = shaped_array.load(indices)
 
         if isinstance(value, MemrefValue):
-            state = "uninitialized" if value == MemrefValue.Allocated else "deallocated"
+            state = (
+                "uninitialized" if value == MemrefValue.Uninitialized else "deallocated"
+            )
             raise InterpretationError(
                 f"Cannot load {state} value from memref {shaped_array}"
             )
