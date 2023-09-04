@@ -1,9 +1,6 @@
 from math import ceil
 from typing import Any
 
-from interpreters.memref import MemrefValue
-from interpreters.riscv import Buffer
-
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -11,11 +8,13 @@ from xdsl.interpreter import (
     impl_external,
     register_impls,
 )
+from xdsl.interpreters.memref import MemrefValue
+from xdsl.interpreters.riscv import Buffer
 from xdsl.ir import Operation
 
 
 @register_impls
-class RiscvLibc(InterpreterFunctions):
+class RiscvLibcFunctions(InterpreterFunctions):
     @impl_external("malloc")
     def malloc(
         self, interpreter: Interpreter, op: Operation, args: PythonValues
@@ -69,4 +68,4 @@ class RiscvLibc(InterpreterFunctions):
             print(chr(char), end="")
         else:
             print(char, end="")
-        return tuple()
+        return (char,)
