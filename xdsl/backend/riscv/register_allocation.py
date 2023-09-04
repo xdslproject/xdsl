@@ -103,6 +103,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         Allocate registers for RISC-V Instruction.
         """
         for result in op.results:
+            # Allocate registers to result if not already allocated
             self.allocate(result)
             # Free the register since the SSA value is created here
             self._free(result)
