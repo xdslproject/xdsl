@@ -1,5 +1,6 @@
 import abc
 
+from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv_func, riscv_scf
 from xdsl.dialects.riscv import (
     FloatRegisterType,
@@ -15,15 +16,38 @@ class RegisterAllocator(abc.ABC):
     Base class for register allocation strategies.
     """
 
-    def __init__(self, limit_registers: int | None = None) -> None:
-        pass
-
     @abc.abstractmethod
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         raise NotImplementedError()
 
 
-class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
+class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
+    available_registers: RegisterQueue
+
+    def __init__(self) -> None:
+        self.available_registers = RegisterQueue(
+            available_int_registers=[
+                IntRegisterType(reg)
+                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
+                if IntRegisterType(reg) not in RegisterQueue.DEFAULT_RESERVED_REGISTERS
+            ],
+            available_float_registers=[
+                FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
+            ],
+        )
+
+    def allocate(self, reg: SSAValue) -> bool:
+        if (
+            isinstance(reg.type, IntRegisterType | FloatRegisterType)
+            and not reg.type.is_allocated
+        ):
+            reg.type = self.available_registers.pop(type(reg.type))
+            return True
+
+        return False
+
+
+class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
     """
     It traverses the use-def SSA chain backwards (i.e., from uses to defs) and:
       1. allocates registers for operands
@@ -51,126 +75,34 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     ```
     """
 
-    idx: int
-
-    def __init__(self, limit_registers: int | None = None) -> None:
-        self.idx = 0
-        self._register_types = (IntRegisterType, FloatRegisterType)
-
-        """
-        Assume that all the registers are available except the ones explicitly reserved
-        by the default RISCV ABI
-        """
-        self.reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
-
-        self.register_sets = {
-            IntRegisterType: [
-                reg
-                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
-                if reg not in self.reserved_registers
-            ],
-            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
-        }
-
-        for reg_type, reg_set in self.register_sets.items():
-            if limit_registers is not None:
-                self.register_sets[reg_type] = reg_set[:limit_registers]
-
-    def _allocate(self, reg: SSAValue) -> bool:
-        if isinstance(reg.type, self._register_types) and not reg.type.is_allocated:
-            # If we run out of real registers, allocate a j register
-            reg_type = type(reg.type)
-            available_regs = self.register_sets.get(reg_type, [])
-
-            if not available_regs:
-                reg.type = reg_type(f"j{self.idx}")
-                self.idx += 1
-            else:
-                reg.type = reg_type(available_regs.pop())
-
-            return True
-
-        return False
-
     def _free(self, reg: SSAValue) -> None:
-        if isinstance(reg.type, self._register_types) and reg.type.is_allocated:
-            available_regs = self.register_sets.get(type(reg.type), [])
-            reg_name = reg.type.register_name
-
-            if not reg_name.startswith("j") and reg_name not in self.reserved_registers:
-                available_regs.append(reg_name)
+        if (
+            isinstance(reg.type, IntRegisterType | FloatRegisterType)
+            and reg.type.is_allocated
+        ):
+            self.available_registers.push(reg.type)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         for region in func.regions:
             for block in region.blocks:
-                to_free: list[SSAValue] = []
-
                 for op in block.walk_reverse():
-                    for reg in to_free:
-                        self._free(reg)
-                    to_free.clear()
-
                     # Do not allocate registers on non-RISCV-ops
                     if not isinstance(op, RISCVOp):
                         continue
 
+                    for result in op.results:
+                        # Allocate registers to result if not already allocated
+                        self.allocate(result)
+                        # Free the register since the SSA value is created here
+                        self._free(result)
+
                     # Allocate registers to operands since they are defined further up
                     # in the use-def SSA chain
                     for operand in op.operands:
-                        self._allocate(operand)
-
-                    # Allocate registers to results if not already allocated,
-                    # otherwise free that register since the SSA value is created here
-                    for result in op.results:
-                        # Unallocated results still need a register,
-                        # so allocate and keep track of them to be freed
-                        # before processing the next instruction
-                        self._allocate(result)
-                        to_free.append(result)
+                        self.allocate(operand)
 
 
-class RegisterAllocatorBlockNaive(RegisterAllocator):
-    idx: int
-
-    def __init__(self, limit_registers: int | None = None) -> None:
-        self.idx = 0
-        self._register_types = (IntRegisterType, FloatRegisterType)
-
-        """
-        Assume that all the registers are available except the ones explicitly reserved
-        by the default RISCV ABI
-        """
-        reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
-
-        self.register_sets = {
-            IntRegisterType: [
-                reg
-                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
-                if reg not in reserved_registers
-            ],
-            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
-        }
-
-        for reg_type, reg_set in self.register_sets.items():
-            if limit_registers is not None:
-                self.register_sets[reg_type] = reg_set[:limit_registers]
-
-    def _allocate(self, reg: SSAValue) -> bool:
-        if isinstance(reg.type, self._register_types) and not reg.type.is_allocated:
-            # If we run out of real registers, allocate a j register
-            reg_type = type(reg.type)
-            available_regs = self.register_sets.get(reg_type, [])
-
-            if not available_regs:
-                reg.type = reg_type(f"j{self.idx}")
-                self.idx += 1
-            else:
-                reg.type = reg_type(available_regs.pop())
-
-            return True
-
-        return False
-
+class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
         yield_op = loop.body.block.last_op
         assert (
@@ -180,14 +112,12 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
 
         # Induction variable
         assert isinstance(block_args[0].type, IntRegisterType)
-        if not block_args[0].type.is_allocated:
-            block_args[0].type = IntRegisterType(f"j{self.idx}")
-            self.idx += 1
+        self.allocate(block_args[0])
 
         # The loop-carried variables are trickier
         # The for op operand, block arg, and yield operand must have the same type
-        for i, (block_arg, operand, yield_operand, op_result) in enumerate(
-            zip(block_args[1:], loop.iter_args, yield_op.operands, loop.results)
+        for block_arg, operand, yield_operand, op_result in zip(
+            block_args[1:], loop.iter_args, yield_op.operands, loop.results
         ):
             # If some allocated then assign all to that type, otherwise get new reg
             assert isinstance(block_arg.type, RISCVRegisterType)
@@ -195,54 +125,13 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
             assert isinstance(yield_operand.type, RISCVRegisterType)
             assert isinstance(op_result.type, RISCVRegisterType)
 
-            shared_type: RISCVRegisterType | None = None
-            if block_arg.type.is_allocated:
-                shared_type = block_arg.type
+            if not operand.type.is_allocated:
+                # We only need to check one of the four since they're constrained to be
+                # the same
+                self.allocate(operand)
 
-            if operand.type.is_allocated:
-                if shared_type is not None:
-                    if shared_type != operand.type:
-                        raise ValueError(
-                            "Operand iteration variable types must match: "
-                            f"operand {i} type: {operand.type}, block argument {i+1} "
-                            f"type: {block_arg.type}, yield operand {0} type: "
-                            f"{yield_operand.type}"
-                        )
-                else:
-                    shared_type = operand.type
-
-            if yield_operand.type.is_allocated:
-                if shared_type is not None:
-                    if shared_type != yield_operand.type:
-                        raise ValueError(
-                            "Operand iteration variable types must match: "
-                            f"operand {i} type: {operand.type}, block argument {i+1} "
-                            f"type: {block_arg.type}, yield operand {0} type: "
-                            f"{yield_operand.type}"
-                        )
-                else:
-                    shared_type = yield_operand.type
-
-            if op_result.type.is_allocated:
-                if shared_type is not None:
-                    if shared_type != op_result.type:
-                        raise ValueError(
-                            "Operand iteration variable types must match: "
-                            f"operand {i} type: {operand.type}, block argument {i+1} "
-                            f"type: {block_arg.type}, yield operand {0} type: "
-                            f"{yield_operand.type}"
-                        )
-                else:
-                    shared_type = op_result.type
-
-            if shared_type is None:
-                # arbitrarily pick one of the values to allocate first
-                self._allocate(block_arg)
-                shared_type = block_arg.type
-            else:
-                block_arg.type = shared_type
-
-            operand.type = shared_type
+            shared_type = operand.type
+            block_arg.type = shared_type
             yield_operand.type = shared_type
             op_result.type = shared_type
 
@@ -263,4 +152,4 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
                         continue
 
                     for result in op.results:
-                        self._allocate(result)
+                        self.allocate(result)
