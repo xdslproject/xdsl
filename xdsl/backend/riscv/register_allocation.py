@@ -9,6 +9,7 @@ from xdsl.dialects.riscv import (
     RISCVRegisterType,
 )
 from xdsl.ir import SSAValue
+from xdsl.utils.exceptions import DiagnosticException
 
 
 class RegisterAllocator(abc.ABC):
@@ -86,6 +87,11 @@ class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
         for region in func.regions:
             for block in region.blocks:
                 for op in block.walk_reverse():
+                    if isinstance(op, riscv_scf.ForOp):
+                        raise DiagnosticException(
+                            "Cannot allocate registers for code containing riscv_scf.for "
+                            "ops"
+                        )
                     # Do not allocate registers on non-RISCV-ops
                     if not isinstance(op, RISCVOp):
                         continue
