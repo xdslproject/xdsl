@@ -1,6 +1,17 @@
 from __future__ import annotations
 
-from xdsl.ir import Data, Dialect, TypeAttribute
+from collections.abc import Mapping, Sequence
+
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Data,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     IRDLOperation,
     VarOperand,
@@ -33,6 +44,20 @@ class TestOp(IRDLOperation):
     res: VarOpResult = var_result_def()
     ops: VarOperand = var_operand_def()
     regs: VarRegion = var_region_def()
+
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            regions=(regions,),
+        )
 
 
 @irdl_op_definition
