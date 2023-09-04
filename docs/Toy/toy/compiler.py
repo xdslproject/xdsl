@@ -39,7 +39,6 @@ from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
-from .rewrites.lower_toy_accelerator_to_riscv import LowerToyAccelerator
 from .rewrites.lower_toy_affine import LowerToAffinePass
 from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
@@ -104,7 +103,6 @@ def transform(
 
     SetupRiscvPass().apply(ctx, module_op)
     ConvertFuncToRiscvFuncPass().apply(ctx, module_op)
-    LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
     ConvertMemrefToRiscvPass().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
