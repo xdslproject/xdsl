@@ -26,42 +26,42 @@ riscv_func.func @main() {
 
 // CHECK-BLOCK-NAIVE:       builtin.module {
 // CHECK-BLOCK-NAIVE-NEXT:    riscv_func.func @main() {
-// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<t6>
+// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<t3>
 // CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 5 : () -> !riscv.reg<s0>
-// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<t6>) -> !riscv.freg<ft11>
+// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<t3>) -> !riscv.freg<ft9>
 // CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<ft10>
-// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft11>, !riscv.freg<ft10>) -> !riscv.freg<ft9>
-// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t6>, !riscv.reg<s0>) -> !riscv.reg<t5>
+// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft9>, !riscv.freg<ft10>) -> !riscv.freg<ft11>
+// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t3>, !riscv.reg<s0>) -> !riscv.reg<t6>
 // CHECK-BLOCK-NAIVE-NEXT:      "riscv_scf.for"(%{{\d+}}, %{{\d+}}, %{{\d+}}) ({
 // CHECK-BLOCK-NAIVE-NEXT:      ^0(%{{\d+}} : !riscv.reg<t4>):
 // CHECK-BLOCK-NAIVE-NEXT:        "riscv_scf.yield"() : () -> ()
-// CHECK-BLOCK-NAIVE-NEXT:      }) : (!riscv.reg<t6>, !riscv.reg<s0>, !riscv.reg<t5>) -> ()
+// CHECK-BLOCK-NAIVE-NEXT:      }) : (!riscv.reg<t3>, !riscv.reg<s0>, !riscv.reg<t6>) -> ()
 // CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = "riscv_scf.for"(%{{\d+}}, %{{\d+}}, %{{\d+}}, %{{\d+}}) ({
-// CHECK-BLOCK-NAIVE-NEXT:      ^1(%{{\d+}} : !riscv.reg<t3>, %{{\d+}} : !riscv.reg<t5>):
-// CHECK-BLOCK-NAIVE-NEXT:        %{{\d+}} = riscv.mv %9 : (!riscv.reg<t5>) -> !riscv.reg<t5>
-// CHECK-BLOCK-NAIVE-NEXT:        "riscv_scf.yield"(%{{\d+}}) : (!riscv.reg<t5>) -> ()
-// CHECK-BLOCK-NAIVE-NEXT:      }) : (!riscv.reg<t6>, !riscv.reg<s0>, !riscv.reg<t5>, !riscv.reg<t5>) -> !riscv.reg<t5>
+// CHECK-BLOCK-NAIVE-NEXT:      ^1(%{{\d+}} : !riscv.reg<t5>, %{{\d+}} : !riscv.reg<t6>):
+// CHECK-BLOCK-NAIVE-NEXT:        %{{\d+}} = riscv.mv %9 : (!riscv.reg<t6>) -> !riscv.reg<t6>
+// CHECK-BLOCK-NAIVE-NEXT:        "riscv_scf.yield"(%{{\d+}}) : (!riscv.reg<t6>) -> ()
+// CHECK-BLOCK-NAIVE-NEXT:      }) : (!riscv.reg<t3>, !riscv.reg<s0>, !riscv.reg<t6>, !riscv.reg<t6>) -> !riscv.reg<t6>
 // CHECK-BLOCK-NAIVE-NEXT:      riscv_func.return
 // CHECK-BLOCK-NAIVE-NEXT:    }
 // CHECK-BLOCK-NAIVE-NEXT:  }
 
 // CHECK-BLOCK-NAIVE-J:       builtin.module {
 // CHECK-BLOCK-NAIVE-J-NEXT:    riscv_func.func @main() {
-// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<j0>
+// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<j6>
 // CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 5 : () -> !riscv.reg<s0>
-// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j0>) -> !riscv.freg<j1>
-// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<j2>
-// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<j1>, !riscv.freg<j2>) -> !riscv.freg<j3>
-// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<j0>, !riscv.reg<s0>) -> !riscv.reg<j4>
+// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j6>) -> !riscv.freg<j5>
+// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<j4>
+// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<j5>, !riscv.freg<j4>) -> !riscv.freg<j3>
+// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<j6>, !riscv.reg<s0>) -> !riscv.reg<j0>
 // CHECK-BLOCK-NAIVE-J-NEXT:      "riscv_scf.for"(%{{\d+}}, %{{\d+}}, %{{\d+}}) ({
-// CHECK-BLOCK-NAIVE-J-NEXT:      ^0(%{{\d+}} : !riscv.reg<j5>):
+// CHECK-BLOCK-NAIVE-J-NEXT:      ^0(%{{\d+}} : !riscv.reg<j2>):
 // CHECK-BLOCK-NAIVE-J-NEXT:        "riscv_scf.yield"() : () -> ()
-// CHECK-BLOCK-NAIVE-J-NEXT:      }) : (!riscv.reg<j0>, !riscv.reg<s0>, !riscv.reg<j4>) -> ()
+// CHECK-BLOCK-NAIVE-J-NEXT:      }) : (!riscv.reg<j6>, !riscv.reg<s0>, !riscv.reg<j0>) -> ()
 // CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = "riscv_scf.for"(%{{\d+}}, %{{\d+}}, %{{\d+}}, %{{\d+}}) ({
-// CHECK-BLOCK-NAIVE-J-NEXT:      ^1(%{{\d+}} : !riscv.reg<j6>, %{{\d+}} : !riscv.reg<j4>):
-// CHECK-BLOCK-NAIVE-J-NEXT:        %{{\d+}} = riscv.mv %9 : (!riscv.reg<j4>) -> !riscv.reg<j4>
-// CHECK-BLOCK-NAIVE-J-NEXT:        "riscv_scf.yield"(%{{\d+}}) : (!riscv.reg<j4>) -> ()
-// CHECK-BLOCK-NAIVE-J-NEXT:      }) : (!riscv.reg<j0>, !riscv.reg<s0>, !riscv.reg<j4>, !riscv.reg<j4>) -> !riscv.reg<j4>
+// CHECK-BLOCK-NAIVE-J-NEXT:      ^1(%{{\d+}} : !riscv.reg<j1>, %{{\d+}} : !riscv.reg<j0>):
+// CHECK-BLOCK-NAIVE-J-NEXT:        %{{\d+}} = riscv.mv %9 : (!riscv.reg<j0>) -> !riscv.reg<j0>
+// CHECK-BLOCK-NAIVE-J-NEXT:        "riscv_scf.yield"(%{{\d+}}) : (!riscv.reg<j0>) -> ()
+// CHECK-BLOCK-NAIVE-J-NEXT:      }) : (!riscv.reg<j6>, !riscv.reg<s0>, !riscv.reg<j0>, !riscv.reg<j0>) -> !riscv.reg<j0>
 // CHECK-BLOCK-NAIVE-J-NEXT:      riscv_func.return
 // CHECK-BLOCK-NAIVE-J-NEXT:    }
 // CHECK-BLOCK-NAIVE-J-NEXT:  }
@@ -84,24 +84,24 @@ riscv_func.func @main() {
 
 // CHECK-BLOCK-NAIVE:       builtin.module {
 // CHECK-BLOCK-NAIVE-NEXT:    riscv_func.func @main() {
-// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<t6>
+// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<t5>
 // CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 5 : () -> !riscv.reg<s0>
-// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<t6>) -> !riscv.freg<ft11>
+// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<t5>) -> !riscv.freg<ft9>
 // CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<ft10>
-// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft11>, !riscv.freg<ft10>) -> !riscv.freg<ft9>
-// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t6>, !riscv.reg<s0>) -> !riscv.reg<t5>
+// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft9>, !riscv.freg<ft10>) -> !riscv.freg<ft11>
+// CHECK-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t5>, !riscv.reg<s0>) -> !riscv.reg<t6>
 // CHECK-BLOCK-NAIVE-NEXT:      riscv_func.return
 // CHECK-BLOCK-NAIVE-NEXT:    }
 // CHECK-BLOCK-NAIVE-NEXT:  }
 
 // CHECK-BLOCK-NAIVE-J:       builtin.module {
 // CHECK-BLOCK-NAIVE-J-NEXT:    riscv_func.func @main() {
-// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<j0>
+// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<j4>
 // CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 5 : () -> !riscv.reg<s0>
-// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j0>) -> !riscv.freg<j1>
+// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j4>) -> !riscv.freg<j3>
 // CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<j2>
-// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<j1>, !riscv.freg<j2>) -> !riscv.freg<j3>
-// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<j0>, !riscv.reg<s0>) -> !riscv.reg<j4>
+// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<j3>, !riscv.freg<j2>) -> !riscv.freg<j1>
+// CHECK-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<j4>, !riscv.reg<s0>) -> !riscv.reg<j0>
 // CHECK-BLOCK-NAIVE-J-NEXT:      riscv_func.return
 // CHECK-BLOCK-NAIVE-J-NEXT:    }
 // CHECK-BLOCK-NAIVE-J-NEXT:  }
