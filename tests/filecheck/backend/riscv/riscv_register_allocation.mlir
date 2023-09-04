@@ -121,12 +121,12 @@ riscv_func.func @main() {
 
 // CHECK-LIVENESS-BLOCK-NAIVE-J:       builtin.module {
 // CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:    riscv_func.func @main() {
-// CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<j1>
+// CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<j0>
 // CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 5 : () -> !riscv.reg<s0>
-// CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j1>) -> !riscv.freg<j3>
-// CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<j4>
-// CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<j3>, !riscv.freg<j4>) -> !riscv.freg<j2>
-// CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<j1>, !riscv.reg<s0>) -> !riscv.reg<j0>
+// CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<j0>) -> !riscv.freg<j1>
+// CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<j2>
+// CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<j1>, !riscv.freg<j2>) -> !riscv.freg<j1>
+// CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<j0>, !riscv.reg<s0>) -> !riscv.reg<j0>
 // CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      riscv_func.return
 // CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:    }
 // CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:  }
