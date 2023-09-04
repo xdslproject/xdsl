@@ -99,13 +99,25 @@ class InterpreterFunctions:
         except AttributeError as e:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
 
+    @classmethod
+    def _ext_impls(
+        cls,
+    ) -> Iterable[tuple[_ExternalFuncInfo, ExtFuncImpl,]]:
+        try:
+            impl_dict = getattr(cls, _EXT_FUNC_DICT)
+            return impl_dict.items()
+        except AttributeError as e:
+            raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
+
 
 _FT = TypeVar("_FT", bound=InterpreterFunctions)
 
 _IMPL_OP_TYPE = "__impl_op_type"
 _CAST_IMPL_TYPES = "__cast_impl_types"
+_EXT_FUNC_INFO = "__external_func_info"
 _IMPL_DICT = "__impl_dict"
 _CAST_IMPL_DICT = "__cast_impl_dict"
+_EXT_FUNC_DICT = "__external_func_dict"
 
 P = ParamSpec("P")
 
@@ -197,6 +209,24 @@ def impl_cast(
     return annot
 
 
+def impl_external(
+    sym_name: str,
+    input_types: tuple[type[_AttributeInvT0], ...],
+    result_type: type[_AttributeInvT1],
+) -> Callable[[ExtFuncImpl], ExtFuncImpl,]:
+    """
+    Marks the Python implementation of an external function.
+    """
+
+    def annot(func: ExtFuncImpl) -> ExtFuncImpl:
+        setattr(
+            func, _EXT_FUNC_INFO, _ExternalFuncInfo(sym_name, input_types, result_type)
+        )
+        return func
+
+    return annot
+
+
 def register_impls(ft: type[_FT]) -> type[_FT]:
     """
     Enumerates the methods on a given class, and registers the ones marked with
@@ -208,6 +238,7 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
 
     impl_dict: _ImplDict = {}
     cast_impl_dict: _CastImplDict = {}
+    external_func_dict: _ExtFuncImplDict = {}
 
     for cls in ft.mro():
         # Iterate from subclass through superclasses
@@ -225,9 +256,17 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
                 if types not in cast_impl_dict:
                     # subclass overrides superclass definition
                     cast_impl_dict[types] = val
+            elif _EXT_FUNC_INFO in val.__dir__():
+                # This is an annotated external function
+                info = getattr(val, _EXT_FUNC_INFO)
+                assert isinstance(info, _ExternalFuncInfo)
+                if info.sym_name not in external_func_dict:
+                    # subclass overrides superclass definition
+                    external_func_dict[info.sym_name] = val
 
     setattr(ft, _IMPL_DICT, impl_dict)
     setattr(ft, _CAST_IMPL_DICT, cast_impl_dict)
+    setattr(ft, _EXT_FUNC_DICT, external_func_dict)
 
     return ft
 
@@ -250,6 +289,9 @@ class _InterpreterFunctionImpls:
             InterpreterFunctions, CastImpl[InterpreterFunctions, Attribute, Attribute]
         ],
     ] = field(default_factory=dict)
+    _external_funcs_dict: dict[str, tuple[_ExternalFuncInfo, ExtFuncImpl]] = field(
+        default_factory=dict
+    )
 
     def register_from(self, ft: InterpreterFunctions, /, override: bool):
         impls = ft._impls()  # pyright: ignore[reportPrivateUsage]
@@ -263,14 +305,24 @@ class _InterpreterFunctionImpls:
             self._impl_dict[op_type] = (ft, impl)
 
         cast_impls = ft._cast_impls()  # pyright: ignore[reportPrivateUsage]
-        for types, impl in cast_impls:
+        for types, cast_impl in cast_impls:
             if types in self._cast_impl_dict and not override:
                 raise ValueError(
                     "Attempting to register implementation for cast with types "
                     f"{types}, but types already registered"
                 )
 
-            self._cast_impl_dict[types] = (ft, impl)
+            self._cast_impl_dict[types] = (ft, cast_impl)
+
+        ext_impls = ft._ext_impls()  # pyright: ignore[reportPrivateUsage]
+        for info, ext_impl in ext_impls:
+            if info.sym_name in self._external_funcs_dict and not override:
+                raise ValueError(
+                    "Attempting to register external function with name "
+                    f"{info.sym_name}, but it's already registered"
+                )
+
+            self._external_funcs_dict[info.sym_name] = (info, ext_impl)
 
     def run(
         self, interpreter: Interpreter, op: Operation, args: tuple[Any, ...]
@@ -295,6 +347,17 @@ class _InterpreterFunctionImpls:
             )
         ft, impl = self._cast_impl_dict[types]
         return impl(ft, input_type, output_type, value)
+
+    def call_external(self, sym_name: str, args: tuple[Any, ...]) -> Any:
+        if sym_name not in self._external_funcs_dict:
+            raise InterpretationError(
+                f"Could not find external function implementation named {sym_name}"
+            )
+
+        _, ext_func = self._external_funcs_dict[sym_name]
+
+        # TODO: assert info.input_types matches args
+        return ext_func(sym_name, args)
 
 
 @dataclass
@@ -447,6 +510,11 @@ class Interpreter:
 
         body = interface.get_callable_region(op)
 
+        # TODO: make this an interface that exposes `is_external_decl` or similar
+        if not body.blocks or not body.blocks[0].ops:
+            res = self._impls.call_external(name, inputs)
+            return (res,)
+
         results = self.run_ssacfg_region(body, inputs, name)
         assert results is not None
         return results
@@ -579,3 +647,17 @@ _CastImplDict: TypeAlias = dict[
     tuple[type[Attribute], type[Attribute]],
     CastImpl[InterpreterFunctions, Attribute, Attribute],
 ]
+
+ExtFuncImpl: TypeAlias = Callable[
+    [str, tuple[Any, ...]],
+    Any,
+]
+
+_ExtFuncImplDict: TypeAlias = dict[str, ExtFuncImpl]
+
+
+@dataclass(frozen=True)
+class _ExternalFuncInfo:
+    sym_name: str
+    input_types: tuple[type[Attribute], ...]
+    result_type: type[Attribute]
