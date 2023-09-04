@@ -509,7 +509,7 @@ class Interpreter:
 
         # TODO: make this an interface that exposes `is_external_decl` or similar
         if not body.blocks or not body.blocks[0].ops:
-            results = self._impls.call_external(name, op, inputs)
+            results = self._impls.call_external(self, name, op, inputs)
         else:
             results = self.run_ssacfg_region(body, inputs, name)
         assert results is not None
