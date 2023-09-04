@@ -58,7 +58,7 @@ def test_print_op_location():
     ctx = MLContext()
     ctx.register_dialect(Test)
 
-    add = TestOp(operands=[[]], result_types=[[i32]], regions=[[]])
+    add = TestOp(result_types=[i32])
 
     add.verify()
 
@@ -373,7 +373,7 @@ def test_print_block_argument_location():
 def test_print_block():
     """Print a block."""
     block = Block(arg_types=[i32, i32])
-    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+    block.add_op(TestOp(operands=(block.args[1],)))
 
     # Print block arguments inside the block
     io = StringIO()
@@ -387,7 +387,7 @@ def test_print_block():
 def test_print_block_without_arguments():
     """Print a block and its arguments separately."""
     block = Block(arg_types=[i32, i32])
-    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+    block.add_op(TestOp(operands=(block.args[1],)))
 
     # Print block arguments separately from the block
     io = StringIO()
@@ -402,7 +402,7 @@ def test_print_block_without_arguments():
 def test_print_region():
     """Print a region."""
     block = Block(arg_types=[i32, i32])
-    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+    block.add_op(TestOp(operands=(block.args[1],)))
     region = Region(block)
 
     io = StringIO()
@@ -417,7 +417,7 @@ def test_print_region():
 def test_print_region_without_arguments():
     """Print a region and its arguments separately."""
     block = Block(arg_types=[i32, i32])
-    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+    block.add_op(TestOp(operands=(block.args[1],)))
     region = Region(block)
 
     io = StringIO()
