@@ -70,6 +70,15 @@ class BaseBlockNaiveRegisterAllocator(RegisterAllocator, abc.ABC):
         """
         raise NotImplementedError()
 
+    def allocate_func(self, func: riscv_func.FuncOp) -> None:
+        if len(func.body.blocks) != 1:
+            raise NotImplementedError(
+                f"Cannot register allocate func with {len(func.body.blocks)} blocks."
+            )
+
+        for op in func.body.block.ops_reverse:
+            self.process_operation(op)
+
     @abc.abstractmethod
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
         """
@@ -131,15 +140,6 @@ class RegisterAllocatorLivenessBlockNaive(BaseBlockNaiveRegisterAllocator):
             "Cannot allocate registers for code containing riscv_scf.for ops"
         )
 
-    def allocate_func(self, func: riscv_func.FuncOp) -> None:
-        if len(func.body.blocks) != 1:
-            raise NotImplementedError(
-                f"Cannot register allocate func with {len(func.body.blocks)} blocks."
-            )
-
-        for op in func.body.block.ops_reverse:
-            self.process_operation(op)
-
 
 class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
     """
@@ -185,14 +185,3 @@ class RegisterAllocatorBlockNaive(BaseBlockNaiveRegisterAllocator):
 
         for op in loop.body.block.ops_reverse:
             self.process_operation(op)
-
-    def allocate_func(self, func: riscv_func.FuncOp) -> None:
-        """
-        Sets unallocated registers per block to a finite set of real available registers.
-        When it runs out of real registers for a block, it allocates j registers.
-        """
-
-        for region in func.regions:
-            for block in region.blocks:
-                for op in block.ops_reverse:
-                    self.process_operation(op)
