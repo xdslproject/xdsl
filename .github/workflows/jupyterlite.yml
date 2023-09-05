@@ -24,7 +24,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install jupyterlite-core==0.1.0 jupyterlite-pyodide-kernel==0.0.8 libarchive-c build pyodide-build==0.23.4
+          python -m pip install jupyterlite-core==0.1.2 jupyterlite-pyodide-kernel==0.1.0 libarchive-c build pyodide-build==0.23.4
 
       - name: Build xDSL source distribution
         run: |
@@ -69,7 +69,7 @@ jobs:
 
           rm -rf pyodide/pyodide
           mkdir pyodide/pyodide
-          cp pyodide/dist pyodide/pyodide/pyodide
+          cp pyodide/dist pyodide/pyodide/pyodide -r
 
           python -m jupyter lite build --contents content --pyodide pyodide/pyodide
 
