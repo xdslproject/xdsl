@@ -35,12 +35,12 @@ builtin.module {
 // CHECK-NEXT:     "scf.for"(%5, %9, %11) ({
 // CHECK-NEXT:     ^1(%14 : index):
 // CHECK-NEXT:       %15 = arith.addi %13, %10 : index
-// CHECK-NEXT:       %16 = "arith.cmpi"(%15, %8) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:       %16 = arith.cmpi ult, %15, %8 : index
 // CHECK-NEXT:       %17 = "arith.select"(%16, %15, %8) : (i1, index, index) -> index
 // CHECK-NEXT:       "scf.for"(%13, %17, %7) ({
 // CHECK-NEXT:       ^2(%18 : index):
 // CHECK-NEXT:         %19 = arith.addi %14, %11 : index
-// CHECK-NEXT:         %20 = "arith.cmpi"(%19, %9) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:         %20 = arith.cmpi ult, %19, %9 : index
 // CHECK-NEXT:         %21 = "arith.select"(%20, %19, %9) : (i1, index, index) -> index
 // CHECK-NEXT:         "scf.for"(%14, %21, %7) ({
 // CHECK-NEXT:         ^3(%22 : index):
@@ -100,12 +100,12 @@ builtin.module {
 // CHECK-NEXT:       "scf.for"(%27, %32, %31) ({
 // CHECK-NEXT:       ^7(%34 : index):
 // CHECK-NEXT:         %35 = arith.addi %33, %30 : index
-// CHECK-NEXT:         %36 = "arith.cmpi"(%35, %29) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:         %36 = arith.cmpi ult, %35, %29 : index
 // CHECK-NEXT:         %37 = "arith.select"(%36, %35, %29) : (i1, index, index) -> index
 // CHECK-NEXT:         "scf.for"(%33, %37, %28) ({
 // CHECK-NEXT:         ^8(%38 : index):
 // CHECK-NEXT:           %39 = arith.addi %34, %31 : index
-// CHECK-NEXT:           %40 = "arith.cmpi"(%39, %32) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:           %40 = arith.cmpi ult, %39, %32 : index
 // CHECK-NEXT:           %41 = "arith.select"(%40, %39, %32) : (i1, index, index) -> index
 // CHECK-NEXT:           "scf.for"(%34, %41, %28) ({
 // CHECK-NEXT:           ^9(%42 : index):
@@ -149,7 +149,7 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%46, %49, %48) ({
 // CHECK-NEXT:   ^10(%50 : index):
 // CHECK-NEXT:     %51 = arith.addi %50, %48 : index
-// CHECK-NEXT:     %52 = "arith.cmpi"(%51, %49) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:     %52 = arith.cmpi ult, %51, %49 : index
 // CHECK-NEXT:     %53 = "arith.select"(%52, %51, %49) : (i1, index, index) -> index
 // CHECK-NEXT:     "scf.for"(%50, %53, %47) ({
 // CHECK-NEXT:     ^11(%54 : index):
@@ -190,12 +190,12 @@ builtin.module {
   // CHECK-NEXT:     "scf.for"(%62, %67, %66) ({
   // CHECK-NEXT:     ^13(%69 : index):
   // CHECK-NEXT:       %70 = arith.addi %68, %65 : index
-  // CHECK-NEXT:       %71 = "arith.cmpi"(%70, %64) {"predicate" = 6 : i64} : (index, index) -> i1
+  // CHECK-NEXT:       %71 = arith.cmpi ult, %70, %64 : index
   // CHECK-NEXT:       %72 = "arith.select"(%71, %70, %64) : (i1, index, index) -> index
   // CHECK-NEXT:       "scf.for"(%68, %72, %63) ({
   // CHECK-NEXT:       ^14(%73 : index):
   // CHECK-NEXT:         %74 = arith.addi %69, %66 : index
-  // CHECK-NEXT:         %75 = "arith.cmpi"(%74, %67) {"predicate" = 6 : i64} : (index, index) -> i1
+  // CHECK-NEXT:         %75 = arith.cmpi ult, %74, %67 : index
   // CHECK-NEXT:         %76 = "arith.select"(%75, %74, %67) : (i1, index, index) -> index
   // CHECK-NEXT:         "scf.for"(%69, %76, %63) ({
   // CHECK-NEXT:         ^15(%77 : index):
@@ -242,12 +242,12 @@ builtin.module {
 // CHECK-NEXT:     "scf.for"(%85, %89, %91) ({
 // CHECK-NEXT:     ^17(%94 : index):
 // CHECK-NEXT:       %95 = arith.addi %93, %90 : index
-// CHECK-NEXT:       %96 = "arith.cmpi"(%95, %88) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:       %96 = arith.cmpi ult, %95, %88 : index
 // CHECK-NEXT:       %97 = "arith.select"(%96, %95, %88) : (i1, index, index) -> index
 // CHECK-NEXT:       "scf.for"(%93, %97, %87) ({
 // CHECK-NEXT:       ^18(%98 : index):
 // CHECK-NEXT:         %99 = arith.addi %94, %91 : index
-// CHECK-NEXT:         %100 = "arith.cmpi"(%99, %89) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:         %100 = arith.cmpi ult, %99, %89 : index
 // CHECK-NEXT:         %101 = "arith.select"(%100, %99, %89) : (i1, index, index) -> index
 // CHECK-NEXT:         "scf.for"(%94, %101, %87) ({
 // CHECK-NEXT:         ^19(%102 : index):
@@ -329,12 +329,12 @@ builtin.module {
 // CHECK-NEXT:     "scf.for"(%120, %124, %126) ({
 // CHECK-NEXT:     ^22(%129 : index):
 // CHECK-NEXT:       %130 = arith.addi %128, %125 : index
-// CHECK-NEXT:       %131 = "arith.cmpi"(%130, %123) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:       %131 = arith.cmpi ult, %130, %123 : index
 // CHECK-NEXT:       %132 = "arith.select"(%131, %130, %123) : (i1, index, index) -> index
 // CHECK-NEXT:       "scf.for"(%128, %132, %122) ({
 // CHECK-NEXT:       ^23(%133 : index):
 // CHECK-NEXT:         %134 = arith.addi %129, %126 : index
-// CHECK-NEXT:         %135 = "arith.cmpi"(%134, %124) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:         %135 = arith.cmpi ult, %134, %124 : index
 // CHECK-NEXT:         %136 = "arith.select"(%135, %134, %124) : (i1, index, index) -> index
 // CHECK-NEXT:         "scf.for"(%129, %136, %122) ({
 // CHECK-NEXT:         ^24(%137 : index):
@@ -408,7 +408,7 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%157, %160, %159) ({
 // CHECK-NEXT:   ^26(%161 : index):
 // CHECK-NEXT:     %162 = arith.addi %161, %159 : index
-// CHECK-NEXT:     %163 = "arith.cmpi"(%162, %160) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:     %163 = arith.cmpi ult, %162, %160 : index
 // CHECK-NEXT:     %164 = "arith.select"(%163, %162, %160) : (i1, index, index) -> index
 // CHECK-NEXT:     "scf.for"(%161, %164, %158) ({
 // CHECK-NEXT:     ^27(%165 : index):
@@ -450,7 +450,7 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%172, %175, %174) ({
 // CHECK-NEXT:   ^28(%176 : index):
 // CHECK-NEXT:     %177 = arith.addi %176, %174 : index
-// CHECK-NEXT:     %178 = "arith.cmpi"(%177, %175) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:     %178 = arith.cmpi ult, %177, %175 : index
 // CHECK-NEXT:     %179 = "arith.select"(%178, %177, %175) : (i1, index, index) -> index
 // CHECK-NEXT:     "scf.for"(%176, %179, %173) ({
 // CHECK-NEXT:     ^29(%180 : index):
@@ -469,7 +469,7 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%184, %187, %186) ({
 // CHECK-NEXT:   ^30(%188 : index):
 // CHECK-NEXT:     %189 = arith.addi %188, %186 : index
-// CHECK-NEXT:     %190 = "arith.cmpi"(%189, %187) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:     %190 = arith.cmpi ult, %189, %187 : index
 // CHECK-NEXT:     %191 = "arith.select"(%190, %189, %187) : (i1, index, index) -> index
 // CHECK-NEXT:     "scf.for"(%188, %191, %185) ({
 // CHECK-NEXT:     ^31(%192 : index):
@@ -513,7 +513,7 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%202, %205, %204) ({
 // CHECK-NEXT:   ^32(%206 : index):
 // CHECK-NEXT:     %207 = arith.addi %206, %204 : index
-// CHECK-NEXT:     %208 = "arith.cmpi"(%207, %205) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:     %208 = arith.cmpi ult, %207, %205 : index
 // CHECK-NEXT:     %209 = "arith.select"(%208, %207, %205) : (i1, index, index) -> index
 // CHECK-NEXT:     "scf.for"(%206, %209, %203) ({
 // CHECK-NEXT:     ^33(%210 : index):
@@ -532,7 +532,7 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%214, %217, %216) ({
 // CHECK-NEXT:   ^34(%218 : index):
 // CHECK-NEXT:     %219 = arith.addi %218, %216 : index
-// CHECK-NEXT:     %220 = "arith.cmpi"(%219, %217) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:     %220 = arith.cmpi ult, %219, %217 : index
 // CHECK-NEXT:     %221 = "arith.select"(%220, %219, %217) : (i1, index, index) -> index
 // CHECK-NEXT:     "scf.for"(%218, %221, %215) ({
 // CHECK-NEXT:     ^35(%222 : index):
@@ -601,12 +601,12 @@ builtin.module {
 // CHECK-NEXT:       "scf.for"(%235, %240, %239) ({
 // CHECK-NEXT:       ^38(%242 : index):
 // CHECK-NEXT:         %243 = arith.addi %241, %238 : index
-// CHECK-NEXT:         %244 = "arith.cmpi"(%243, %237) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:         %244 = arith.cmpi ult, %243, %237 : index
 // CHECK-NEXT:         %245 = "arith.select"(%244, %243, %237) : (i1, index, index) -> index
 // CHECK-NEXT:         "scf.for"(%241, %245, %236) ({
 // CHECK-NEXT:         ^39(%246 : index):
 // CHECK-NEXT:           %247 = arith.addi %242, %239 : index
-// CHECK-NEXT:           %248 = "arith.cmpi"(%247, %240) {"predicate" = 6 : i64} : (index, index) -> i1
+// CHECK-NEXT:           %248 = arith.cmpi ult, %247, %240 : index
 // CHECK-NEXT:           %249 = "arith.select"(%248, %247, %240) : (i1, index, index) -> index
 // CHECK-NEXT:           "scf.for"(%242, %249, %236) ({
 // CHECK-NEXT:           ^40(%250 : index):
