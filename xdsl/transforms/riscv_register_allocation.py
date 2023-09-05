@@ -1,9 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.backend.riscv.register_allocation import (
-    RegisterAllocatorBlockNaive,
-    RegisterAllocatorLivenessBlockNaive,
-)
+from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
 from xdsl.dialects import riscv_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
@@ -18,7 +15,7 @@ class RISCVRegisterAllocation(ModulePass):
 
     name = "riscv-allocate-registers"
 
-    allocation_strategy: str = "BlockNaive"
+    allocation_strategy: str = "LivenessBlockNaive"
 
     limit_registers: int | None = None
 
@@ -32,7 +29,6 @@ class RISCVRegisterAllocation(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         allocator_strategies = {
-            "BlockNaive": RegisterAllocatorBlockNaive,
             "LivenessBlockNaive": RegisterAllocatorLivenessBlockNaive,
         }
 
