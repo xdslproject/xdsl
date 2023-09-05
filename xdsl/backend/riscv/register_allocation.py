@@ -141,6 +141,8 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             assert isinstance(yield_operand.type, RISCVRegisterType)
             assert isinstance(op_result.type, RISCVRegisterType)
 
+            # Because we are walking backwards, the result of the operation may have been
+            # allocated already. If it isn't it's because it's not used below.
             if not op_result.type.is_allocated:
                 # We only need to check one of the four since they're constrained to be
                 # the same
