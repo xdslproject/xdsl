@@ -33,9 +33,8 @@ jobs:
       - name: Install the package locally
         run: pip install -e ".[extras]"
       - name: retrieve pyright version
-        run: |
-          python3 .github/parse_pyright_version.py
-          VER=$(cat .github/pyright-version.txt)
+        run: | # get pyright version from requirements optional file:
+          VER=$(sed -n 's/^.*pyright==\s*\(\S*\).*$/\1/p' requirements-optional.txt)
           echo "PYRIGHT_VERSION=$VER" >> $GITHUB_ENV
       - name: Pyright
         uses: jakebailey/pyright-action@v1

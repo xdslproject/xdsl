@@ -8,11 +8,18 @@ import pytest
 
 from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
-from xdsl.dialects.builtin import IndexType, ModuleOp, Region, i32, i64
-from xdsl.dialects.cf import Block
-from xdsl.dialects.scf import For, If, ParallelOp, ReduceOp, ReduceReturnOp, Yield
+from xdsl.dialects.builtin import IndexType, ModuleOp, i32, i64
+from xdsl.dialects.scf import (
+    For,
+    If,
+    ParallelOp,
+    ReduceOp,
+    ReduceReturnOp,
+    While,
+    Yield,
+)
 from xdsl.dialects.test import TestTermOp
-from xdsl.ir.core import BlockArgument
+from xdsl.ir.core import Block, BlockArgument, Region
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
@@ -272,33 +279,6 @@ def test_parallel_verify_reduction_and_block_type_fails():
         p.verify()
 
 
-def test_parallel_verify_yield_last_op():
-    lbi = Constant.from_int_and_width(0, IndexType())
-    ubi = Constant.from_int_and_width(10, IndexType())
-    si = Constant.from_int_and_width(1, IndexType())
-
-    b = Block(arg_types=[IndexType()])
-    b.add_op(Yield.get())
-
-    body = Region(b)
-    p = ParallelOp.get([lbi], [ubi], [si], body)
-    # This should verify
-    p.verify()
-
-    # TODO this should be removed once SingleBlockImplicitTerminator is
-    # implemented
-    # gh issue: https://github.com/xdslproject/xdsl/issues/1148
-    b2 = Block(arg_types=[IndexType()])
-    b2.add_op(Constant.from_int_and_width(1, IndexType()))
-    b2.add_op(TestTermOp.create())
-    p2 = ParallelOp.get([lbi], [ubi], [si], Region(b2))
-    with pytest.raises(
-        VerifyException,
-        match="scf.parallel region must terminate with an scf.yield",
-    ):
-        p2.verify()
-
-
 def test_parallel_verify_yield_zero_ops():
     lbi = Constant.from_int_and_width(0, IndexType())
     ubi = Constant.from_int_and_width(10, IndexType())
@@ -310,7 +290,11 @@ def test_parallel_verify_yield_zero_ops():
     b.add_op(Yield.get(val))
     body = Region(b)
     p = ParallelOp.get([lbi], [ubi], [si], body)
-    with pytest.raises(VerifyException):
+    with pytest.raises(
+        VerifyException,
+        match="Single-block region terminator scf.yield has 1 operands "
+        "but 0 expected inside an scf.parallel",
+    ):
         p.verify()
 
     b2 = Block(arg_types=[IndexType()])
@@ -478,3 +462,18 @@ def test_empty_else():
     )
 
     assert len(cast(If, list(m.ops)[1]).false_region.blocks) == 0
+
+
+def test_while():
+    before_block = Block(arg_types=(i32, i32))
+    after_block = Block(arg_types=(i32, i32))
+    a = Constant.from_int_and_width(0, i32)
+    b = Constant.from_int_and_width(0, i32)
+    while_loop = While(
+        arguments=[a, b],
+        result_types=[i32, i32],
+        before_region=[before_block],
+        after_region=[after_block],
+    )
+    assert (len(while_loop.results)) == 2
+    assert (len(while_loop.operands)) == 2

@@ -1,9 +1,9 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, Literal, TypeVar, cast
+from typing import Literal, TypeVar
 from warnings import warn
 
 from xdsl.dialects import arith, builtin, gpu, memref, scf
-from xdsl.dialects.builtin import FunctionType
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.stencil import (
@@ -23,6 +23,7 @@ from xdsl.dialects.stencil import (
     TempType,
 )
 from xdsl.ir import (
+    Attribute,
     Block,
     BlockArgument,
     MLContext,
@@ -31,13 +32,14 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.irdl import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
+    TypeConversionPattern,
+    attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -145,10 +147,15 @@ class ReturnOpToMemref(RewritePattern):
 def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
     assert isinstance(field.bounds, StencilBoundsAttr)
     assert isinstance(temp.bounds, StencilBoundsAttr)
-    if temp.bounds.lb < field.bounds.lb or temp.bounds.ub > field.bounds.ub:
+    if temp.bounds.lb < field.bounds.lb:
         raise VerifyException(
             "The stencil computation requires a field with lower bound at least "
             f"{temp.bounds.lb}, got {field.bounds.lb}, min: {min(field.bounds.lb, temp.bounds.lb)}"
+        )
+    if temp.bounds.ub > field.bounds.ub:
+        raise VerifyException(
+            "The stencil computation requires a field with upper bound at least "
+            f"{temp.bounds.ub}, got {field.bounds.ub}, max: {max(field.bounds.ub, temp.bounds.ub)}"
         )
 
 
@@ -226,7 +233,9 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
 class ApplyOpToParallel(RewritePattern):
     return_targets: dict[ReturnOp, list[SSAValue | None]]
 
-    target: Literal["cpu", "gpu"] = "cpu"
+    target: Literal["cpu", "gpu"]
+
+    tile_sizes: list[int] | None
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
@@ -245,17 +254,17 @@ class ApplyOpToParallel(RewritePattern):
         # Then create the corresponding scf.parallel
         boilerplate_ops = [
             *(
-                lowerBounds := [
+                lowerBounds := list[arith.Constant | BlockArgument | None](
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in res_type.bounds.lb
-                ]
+                )
             ),
             one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
             *(
-                upperBounds := [
+                upperBounds := list[arith.Constant | arith.Select](
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in res_type.bounds.ub
-                ]
+                )
             ),
         ]
 
@@ -264,31 +273,73 @@ class ApplyOpToParallel(RewritePattern):
         # kernel itself is not slowed down by the OpenMP runtime.
         match self.target:
             case "cpu":
-                current_region = body
-                for i in range(1, dim):
-                    for_op = scf.For.get(
-                        lb=lowerBounds[-i],
-                        ub=upperBounds[-i],
-                        step=one,
-                        iter_args=[],
-                        body=current_region,
-                    )
-                    block = Block(
-                        ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()]
-                    )
-                    current_region = Region(block)
+                steps = [one] * dim
+                total_upper_bounds = upperBounds.copy()
+                cst_tile_sizes: list[arith.Constant] = []
+                if self.tile_sizes:
+                    tiled_dim = min(dim, len(self.tile_sizes))
+                    for i in range(tiled_dim):
+                        cst_tile_size = arith.Constant.from_int_and_width(
+                            self.tile_sizes[i], builtin.IndexType()
+                        )
+                        steps.insert(i, cst_tile_size)
+                        boilerplate_ops.insert(-1, cst_tile_size)
+                        lowerBounds.insert(tiled_dim + i, None)
+                        upperBounds.insert(tiled_dim + i, cst_tile_size)
+                        cst_tile_sizes.append(cst_tile_size)
+                    dim += tiled_dim
 
+                assert lowerBounds[0] is not None
                 p = scf.ParallelOp.get(
                     lowerBounds=[lowerBounds[0]],
                     upperBounds=[upperBounds[0]],
-                    steps=[one],
-                    body=current_region,
+                    steps=[steps[0]],
+                    body=Region(
+                        Block([scf.Yield.get()], arg_types=[builtin.IndexType()])
+                    ),
                 )
+                loops: list[scf.ParallelOp | scf.For] = [p]
+                current_loop = p
+                tiled_index = 0
+
+                for i in range(1, dim):
+                    block = current_loop.body.block
+                    last = block.last_op
+                    assert last is not None
+                    if lowerBounds[i] is None:
+                        lb = loops[tiled_index].body.block.args[0]
+                        lowerBounds[i] = lb
+                        add = arith.Addi(lb, cst_tile_sizes[tiled_index])
+                        cmpi = arith.Cmpi(add, total_upper_bounds[tiled_index], "ult")
+                        minop = arith.Select(cmpi, add, total_upper_bounds[tiled_index])
+                        upperBounds[i] = minop
+
+                        block.insert_ops_before([add, cmpi, minop], last)
+                        tiled_index += 1
+                    assert (lb := lowerBounds[i]) is not None
+                    loop = scf.For.get(
+                        lb=lb,
+                        ub=upperBounds[i],
+                        step=steps[i],
+                        iter_args=[],
+                        body=Region(
+                            Block([scf.Yield.get()], arg_types=[builtin.IndexType()])
+                        ),
+                    )
+                    block.insert_op_before(loop, last)
+                    current_loop = loop
+                    loops.append(loop)
+
+                current_loop.body.detach_block(current_loop.body.block)
+
+                current_loop.body.insert_block(body.detach_block(0), 0)
+
             case "gpu":
                 stencil_rank = len(upperBounds)
                 boilerplate_ops.insert(
                     1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
                 )
+                assert isa(lowerBounds, list[arith.Constant])
                 p = scf.ParallelOp.get(
                     lowerBounds=list(reversed(lowerBounds))
                     + [zero] * (3 - stencil_rank),
@@ -350,6 +401,7 @@ class ApplyOpToParallel(RewritePattern):
         new_results: list[SSAValue | None] = []
         new_results = self.return_targets[return_op]
         # Replace with the loop and necessary constants.
+        assert isa(boilerplate_ops, list[Operation])
         rewriter.insert_op_before_matched_op([*boilerplate_ops, p])
         rewriter.insert_op_after_matched_op([*deallocs])
         rewriter.replace_matched_op([], new_results)
@@ -408,38 +460,6 @@ class AccessOpToMemref(RewritePattern):
         load = memref.Load.get(op.temp, memref_load_args)
 
         rewriter.replace_matched_op([*off_const_ops, load], [load.res])
-
-
-class StencilTypeConversionFuncOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        inputs: list[Attribute] = [
-            StencilToMemRefType(inp) if isa(inp, FieldType[Attribute]) else inp
-            for inp in op.function_type.inputs
-        ]
-        outputs: list[Attribute] = [
-            StencilToMemRefType(out) if isa(out, FieldType[Attribute]) else out
-            for out in op.function_type.outputs
-        ]
-        op.attributes["function_type"] = FunctionType.from_lists(inputs, outputs)
-        if op.body.blocks:
-            for inp, arg in zip(inputs, op.body.blocks[0].args):
-                if inp != arg.type:
-                    rewriter.modify_block_argument_type(arg, inp)
-
-
-class UpdateLoopCarriedVarTypes(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter, /):
-        for i in range(len(op.iter_args)):
-            block_arg = op.body.block.args[i + 1]
-            iter_type = op.iter_args[i].type
-            if block_arg.type != iter_type:
-                rewriter.modify_block_argument_type(block_arg, iter_type)
-            y = cast(scf.Yield, op.body.ops.last)
-            y.arguments[i].type = iter_type
-            if op.res[i].type != iter_type:
-                op.res[i].type = iter_type
 
 
 @dataclass
@@ -537,11 +557,18 @@ def return_target_analysis(module: builtin.ModuleOp):
     return return_targets
 
 
+class StencilTypeConversion(TypeConversionPattern):
+    @attr_type_rewrite_pattern
+    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
+        return StencilToMemRefType(typ)
+
+
 @dataclass
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
     target: Literal["cpu", "gpu"] = "cpu"
+    tile_sizes: list[int] | None = None
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         return_targets: dict[ReturnOp, list[SSAValue | None]] = return_target_analysis(
@@ -551,7 +578,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ApplyOpToParallel(return_targets, self.target),
+                    ApplyOpToParallel(return_targets, self.target, self.tile_sizes),
                     StencilStoreToSubview(return_targets),
                     CastOpToMemref(self.target),
                     LoadOpToMemref(),
@@ -569,8 +596,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         type_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    UpdateLoopCarriedVarTypes(),
-                    StencilTypeConversionFuncOp(),
+                    StencilTypeConversion(recursive=True),
                     BufferOpCleanUp(),
                 ]
             )

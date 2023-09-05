@@ -1,5 +1,6 @@
 import pytest
 
+from xdsl.builder import Builder
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
@@ -35,7 +36,7 @@ from xdsl.dialects.stencil import (
     StoreResultOp,
     TempType,
 )
-from xdsl.ir import Attribute, Block
+from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
@@ -317,7 +318,7 @@ def test_index_attr_max(indices1: list[int], indices2: list[int]):
     "indices",
     (((1,)), ((1, 2)), ((1, 2, 3))),
 )
-def test_index_attr_iter(indices: tuple[int]):
+def test_index_attr_iter(indices: tuple[int, ...]):
     stencil_index_attr = IndexAttr.get(*indices)
 
     assert tuple(stencil_index_attr) == indices
@@ -631,3 +632,31 @@ def test_buffer():
     assert isinstance(buffer, BufferOp)
     assert buffer.temp == temp
     assert buffer.res.type == res_type
+
+
+def test_access_patterns():
+    typ = TempType((5), f32)
+    temp = TestSSAValue(typ)
+
+    @Builder.implicit_region((typ, typ))
+    def apply_op_region(args: tuple[SSAValue, ...]):
+        t0, t1 = args
+        for x in (-1, 1):
+            AccessOp.get(t0, (x, 0), (1, 0))
+        for y in (-1, 1):
+            AccessOp.get(t0, (0, y), (1, 0))
+
+        AccessOp.get(t1, (1, 1), (1, 0))
+        AccessOp.get(t1, (-1, -1), (1, 0))
+
+    apply = ApplyOp.get((temp, temp), apply_op_region.detach_block(0), [typ])
+
+    t0_acc, t1_acc = tuple(apply.get_accesses())
+
+    assert t0_acc.visual_pattern() == " X \nXOX\n X "
+    assert t1_acc.visual_pattern() == "X  \n O \n  X"
+
+    assert not t0_acc.is_diagonal
+    assert t1_acc.is_diagonal
+
+    assert len(tuple(t1_acc.get_diagonals())) == 2

@@ -7,11 +7,13 @@ pytest<8.0
 nbval<0.11
 filecheck<0.0.24
 lit<17.0.0
-pre-commit==3.3.3
-riscemu==2.1.0
-asv<0.6
+pre-commit==3.4.0
+ruff==0.0.287
+riscemu==2.1.1
+asv<0.7
 isort==5.12.0
-# pyright has to be the last line and fixed with `==`. The CI parses this file
-# in `.github/parse_pyright_version.py` and installs the according version for
-# typechecking.
-pyright==1.1.317
+nbconvert>=7.7.2,<8.0.0
+# pyright version has to be fixed with `==`. The CI parses this file
+# and installs the according version for typechecking.
+pyright==1.1.325
+wgpu==0.9.4

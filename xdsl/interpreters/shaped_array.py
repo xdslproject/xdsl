@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import operator
+from collections.abc import Iterable
+from dataclasses import dataclass
 from itertools import accumulate, product
 from math import prod
-from typing import Generic, Iterable, TypeAlias, TypeVar
+from typing import Generic, TypeAlias, TypeVar
 
-from attr import dataclass
+from typing_extensions import Self
 
 _T = TypeVar("_T")
 
@@ -64,7 +66,7 @@ class ShapedArray(Generic[_T]):
         """
         yield from product(*(range(dim) for dim in self.shape))
 
-    def transposed(self, dim0: int, dim1: int) -> ShapedArray[_T]:
+    def transposed(self, dim0: int, dim1: int) -> Self:
         """
         Returns a new ShapedArray, with the dimensions `dim0` and `dim1` transposed.
         """

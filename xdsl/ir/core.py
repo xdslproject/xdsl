@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -10,19 +11,15 @@ from typing import (
     Any,
     ClassVar,
     Generic,
-    Iterable,
-    Iterator,
-    Mapping,
     NoReturn,
     Protocol,
-    Sequence,
     TypeVar,
-    cast,
     overload,
 )
 
+from typing_extensions import Self
+
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
 # Used for cyclic dependencies in type hints
@@ -64,6 +61,12 @@ class MLContext:
     _registeredAttrs: dict[str, type[Attribute]] = field(
         init=False, default_factory=dict
     )
+
+    def registered_ops(self) -> Iterable[type[Operation]]:
+        """
+        Returns all the registered operations. Not valid across mutations of this object.
+        """
+        return self._registeredOps.values()
 
     def register_dialect(self, dialect: Dialect):
         """Register a dialect. Operation and Attribute names should be unique"""
@@ -193,11 +196,6 @@ class SSAValue(ABC):
         pass
 
     @property
-    @deprecated("Please use SSAValue.name_hint")
-    def name(self) -> str | None:
-        return self.name_hint
-
-    @property
     def name_hint(self) -> str | None:
         return self._name
 
@@ -276,19 +274,12 @@ class OpResult(SSAValue):
         return self.op
 
     def __repr__(self) -> str:
-        return "<{}[{}] index: {}, operation: {}, uses: {}>".format(
-            self.__class__.__name__,
-            self.type,
-            self.index,
-            self.op.name,
-            len(self.uses),
-        )
+        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, operation: {self.op.name}, uses: {len(self.uses)}>"
 
     def __eq__(self, other: object) -> bool:
         return self is other
 
-    # This might be problematic, as the superclass is not hashable ...
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         return id(self)
 
 
@@ -307,17 +298,12 @@ class BlockArgument(SSAValue):
         return self.block
 
     def __repr__(self) -> str:
-        return "<{}[{}] index: {}, uses: {}>".format(
-            self.__class__.__name__,
-            self.type,
-            self.index,
-            len(self.uses),
-        )
+        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, uses: {len(self.uses)}>"
 
     def __eq__(self, other: object) -> bool:
         return self is other
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         return id(self)
 
 
@@ -334,7 +320,7 @@ class ErasedSSAValue(SSAValue):
     def owner(self) -> Operation | Block:
         return self.old_value.owner
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         return hash(id(self))
 
 
@@ -391,8 +377,6 @@ class Attribute(ABC):
 
 DataElement = TypeVar("DataElement", covariant=True)
 
-_D = TypeVar("_D", bound="Data[Any]")
-
 AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
 AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
 
@@ -404,7 +388,7 @@ class Data(Generic[DataElement], Attribute, ABC):
     data: DataElement
 
     @classmethod
-    def new(cls: type[_D], params: Any) -> _D:
+    def new(cls: type[Self], params: Any) -> Self:
         """
         Create a new `Data` given its parameter.
 
@@ -420,20 +404,17 @@ class Data(Generic[DataElement], Attribute, ABC):
         attr = cls.__new__(cls)
 
         # Call the __init__ of Data, which will set the parameters field.
-        Data[Any].__init__(attr, params)
+        Data.__init__(attr, params)  # pyright: ignore[reportUnknownMemberType]
         return attr
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def parse_parameter(parser: AttrParser) -> DataElement:
+    def parse_parameter(cls, parser: AttrParser) -> DataElement:
         """Parse the attribute parameter."""
 
     @abstractmethod
     def print_parameter(self, printer: Printer) -> None:
         """Print the attribute parameter."""
-
-
-_PA = TypeVar("_PA", bound="ParametrizedAttribute")
 
 
 @dataclass(frozen=True)
@@ -443,7 +424,7 @@ class ParametrizedAttribute(Attribute):
     parameters: list[Attribute] = field(default_factory=list)
 
     @classmethod
-    def new(cls: type[_PA], params: list[Attribute]) -> _PA:
+    def new(cls: type[Self], params: Sequence[Attribute]) -> Self:
         """
         Create a new `ParametrizedAttribute` given its parameters.
 
@@ -457,11 +438,11 @@ class ParametrizedAttribute(Attribute):
 
         # Call the __init__ of ParametrizedAttribute, which will set the
         # parameters field.
-        ParametrizedAttribute.__init__(attr, params)
+        ParametrizedAttribute.__init__(attr, list(params))
         return attr
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 
@@ -482,7 +463,7 @@ class ParametrizedAttribute(Attribute):
         ...
 
 
-@dataclass
+@dataclass(init=False)
 class IRNode(ABC):
     parent: IRNode | None = field(default=None, init=False, repr=False)
 
@@ -552,7 +533,7 @@ class OpOperands(Sequence[SSAValue]):
         return len(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
 
-@dataclass(init=False)
+@dataclass
 class Operation(IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
@@ -562,19 +543,26 @@ class Operation(IRNode):
     _operands: tuple[SSAValue, ...] = field(default=())
     """The operation operands."""
 
-    results: list[OpResult]
+    results: list[OpResult] = field(default_factory=list)
     """The results created by the operation."""
 
-    successors: list[Block]
+    successors: list[Block] = field(default_factory=list)
     """
     The basic blocks that the operation may give control to.
     This list should be empty for non-terminator operations.
     """
 
-    attributes: dict[str, Attribute]
+    properties: dict[str, Attribute] = field(default_factory=dict)
+    """
+    The properties attached to the operation.
+    Properties are inherent to the definition of an operation's semantics, and
+    thus cannot be discarded by transformations.
+    """
+
+    attributes: dict[str, Attribute] = field(default_factory=dict)
     """The attributes attached to the operation."""
 
-    regions: list[Region]
+    regions: list[Region] = field(default_factory=list)
     """Regions arguments of the operation."""
 
     parent: Block | None = field(default=None, repr=False)
@@ -671,8 +659,10 @@ class Operation(IRNode):
 
     def __init__(
         self,
+        *,
         operands: Sequence[SSAValue] = (),
         result_types: Sequence[Attribute] = (),
+        properties: Mapping[str, Attribute] = {},
         attributes: Mapping[str, Attribute] = {},
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
@@ -686,6 +676,7 @@ class Operation(IRNode):
             OpResult(result_type, self, idx)
             for (idx, result_type) in enumerate(result_types)
         ]
+        self.properties = dict(properties)
         self.attributes = dict(attributes)
         self.successors = list(successors)
         self.regions = []
@@ -696,32 +687,26 @@ class Operation(IRNode):
 
     @classmethod
     def create(
-        cls: type[OpT],
+        cls: type[Self],
+        *,
         operands: Sequence[SSAValue] = (),
         result_types: Sequence[Attribute] = (),
+        properties: Mapping[str, Attribute] = {},
         attributes: Mapping[str, Attribute] = {},
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
-    ) -> OpT:
+    ) -> Self:
         op = cls.__new__(cls)
-        Operation.__init__(op, operands, result_types, attributes, successors, regions)
+        Operation.__init__(
+            op,
+            operands=operands,
+            result_types=result_types,
+            properties=properties,
+            attributes=attributes,
+            successors=successors,
+            regions=regions,
+        )
         return op
-
-    @deprecated("Use op.operands.__setindex__ instead")
-    def replace_operand(self, operand: int | SSAValue, new_operand: SSAValue) -> None:
-        """
-        Replace an operand with another operand.
-        Raises ValueError if the specified operand is not an operand of this op
-        """
-        if isinstance(operand, SSAValue):
-            try:
-                operand_idx = self._operands.index(operand)
-            except ValueError as err:
-                raise ValueError(f"{operand} is not an operand of {self}.") from err
-        else:
-            operand_idx = operand
-
-        self.operands[operand_idx] = new_operand
 
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
@@ -1199,38 +1184,9 @@ class Block(IRNode):
         """Returns the block arguments."""
         return self._args
 
-    @deprecated("Please use Block(arg_types=arg_types)")
-    @staticmethod
-    def from_arg_types(arg_types: Sequence[Attribute]) -> Block:
-        b = Block()
-        b._args = tuple(
-            BlockArgument(arg_type, b, index)
-            for index, arg_type in enumerate(arg_types)
-        )
-        return b
-
-    @deprecated("Please use Block(ops, arg_types=arg_types)")
-    @staticmethod
-    def from_ops(ops: list[Operation], arg_types: list[Attribute] | None = None):
-        b = Block()
-        if arg_types:
-            b._args = tuple(
-                BlockArgument(arg_type, b, index)
-                for index, arg_type in enumerate(arg_types)
-            )
-        b.add_ops(ops)
-        return b
-
     class BlockCallback(Protocol):
         def __call__(self, *args: BlockArgument) -> list[Operation]:
             ...
-
-    @deprecated("Please use Builder instead")
-    @staticmethod
-    def from_callable(block_arg_types: Iterable[Attribute], f: BlockCallback):
-        b = Block(arg_types=block_arg_types)
-        b.add_ops(f(*b.args))
-        return b
 
     def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
         """
@@ -1536,33 +1492,6 @@ class Region(IRNode):
     def __repr__(self) -> str:
         return f"Region(num_blocks={len(self.blocks)})"
 
-    @staticmethod
-    @deprecated("Please use Region([Block(ops)])")
-    def from_operation_list(ops: list[Operation]) -> Region:
-        return Region([Block(ops)])
-
-    @deprecated("Please use Region(blocks, parent=None)")
-    @staticmethod
-    def from_block_list(blocks: list[Block]) -> Region:
-        return Region(blocks)
-
-    @deprecated("Please use Region(blocks) or Region(Block(ops))")
-    @staticmethod
-    def get(arg: Region | Sequence[Block] | Sequence[Operation]) -> Region:
-        if isinstance(arg, Region):
-            return arg
-
-        if len(arg) == 0:
-            return Region([Block()])
-
-        match arg[0]:
-            case Block():
-                return Region(cast(list[Block], arg))
-            case Operation():
-                return Region([Block(cast(list[Operation], arg))])
-
-        raise TypeError(f"Can't build a region with argument {arg}")
-
     @property
     def ops(self) -> BlockOps:
         """
@@ -1668,6 +1597,14 @@ class Region(IRNode):
         block = self.detach_block(block)
         block.erase(safe_erase=safe_erase)
 
+    def clone(self) -> Region:
+        """
+        Clone the entire region into a new one.
+        """
+        new_region = Region()
+        self.clone_into(new_region)
+        return new_region
+
     def clone_into(
         self,
         dest: Region,
@@ -1678,7 +1615,7 @@ class Region(IRNode):
         """
         Clone all block of this region into `dest` to position `insert_index`
         """
-        assert dest and dest != self
+        assert dest != self
         if insert_index is None:
             insert_index = len(dest.blocks)
         if value_mapper is None:

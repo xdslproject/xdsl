@@ -1,5 +1,5 @@
 import operator
-from typing import Callable
+from collections.abc import Callable
 
 import pytest
 
@@ -12,8 +12,8 @@ from xdsl.interpreters.arith import ArithFunctions
 interpreter = Interpreter(ModuleOp([]))
 interpreter.register_implementations(ArithFunctions())
 
-lhs_op = test.TestOp(operands=[[]], result_types=[IndexType()], regions=[[]])
-rhs_op = test.TestOp(operands=[[]], result_types=[IndexType()], regions=[[]])
+lhs_op = test.TestOp(result_types=[IndexType()])
+rhs_op = test.TestOp(result_types=[IndexType()])
 
 
 @pytest.mark.parametrize("value", [1, 0, -1, 127])
@@ -123,7 +123,7 @@ def test_cmpi(
     lhs_value: int, rhs_value: int, pred: tuple[str, Callable[[int, int], int]]
 ):
     arg, fn = pred
-    cmpi = Cmpi.get(lhs_op, rhs_op, arg)
+    cmpi = Cmpi(lhs_op, rhs_op, arg)
 
     ret = interpreter.run_op(cmpi, (lhs_value, rhs_value))
 

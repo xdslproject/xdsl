@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 
 builtin.module {
   // CHECK: irdl.dialect @testd {

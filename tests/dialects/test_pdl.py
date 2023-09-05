@@ -80,7 +80,7 @@ def test_build_operation_replace():
     replace.verify()
 
     assert replace.op_value == op_val
-    assert replace.repl_operation == None
+    assert replace.repl_operation is None
     assert replace.repl_values == (val_val,)
 
     with pytest.raises(VerifyException):

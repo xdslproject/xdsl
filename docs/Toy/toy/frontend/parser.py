@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, NoReturn, TypeVar, cast, overload
+from typing import NoReturn, TypeVar, cast, overload
 
 from .lexer import (
     EOFToken,
@@ -61,7 +61,7 @@ TokenT = TypeVar("TokenT", bound=Token)
 class Parser:
     file: Path
     program: str
-    tokens: List[Token]
+    tokens: list[Token]
     pos: int
 
     def __init__(self, file: Path, program: str):
@@ -147,7 +147,7 @@ class Parser:
         """
         Parse a full Module. A module is a list of function definitions.
         """
-        functions: List[FunctionAST] = []
+        functions: list[FunctionAST] = []
 
         while not self.check(EOFToken):
             functions.append(self.parseDefinition())
@@ -191,9 +191,9 @@ class Parser:
         openBracket = self.pop_pattern("[")
 
         # Hold the list of values at this nesting level.
-        values: List[LiteralExprAST | NumberExprAST] = []
+        values: list[LiteralExprAST | NumberExprAST] = []
         # Hold the dimensions for all the nesting inside this level.
-        dims: List[int] = []
+        dims: list[int] = []
 
         while True:
             # We can have either another nested array or a number literal.
@@ -225,7 +225,7 @@ class Parser:
                     "uniform well-nested dimensions", "inside literal expression"
                 )
 
-            tensor_values = cast(List[LiteralExprAST], values)
+            tensor_values = cast(list[LiteralExprAST], values)
             first = tensor_values[0].dims
             allEqual = all(val.dims == first for val in tensor_values)
             if not allEqual:
@@ -257,7 +257,7 @@ class Parser:
 
         # This is a function call.
         self.pop_pattern("(")
-        args: List[ExprAST] = []
+        args: list[ExprAST] = []
         while True:
             args.append(self.parseExpression())
             if self.check(")"):
@@ -363,7 +363,7 @@ class Parser:
         shape_list ::= num | num , shape_list
         """
         self.pop_pattern("<")
-        shape: List[int] = []
+        shape: list[int] = []
 
         while token := self.pop_token(NumberToken):
             shape.append(int(token.value))
@@ -405,7 +405,7 @@ class Parser:
         block_expr ::= decl | "return" | expr
         """
         self.pop_pattern("{")
-        exprList: List[ExprAST] = []
+        exprList: list[ExprAST] = []
 
         # Ignore empty expressions: swallow sequences of semicolons.
         while self.check(";"):
@@ -442,7 +442,7 @@ class Parser:
         fnName = self.pop_token(IdentifierToken).text
         self.pop_pattern("(")
 
-        args: List[VariableExprAST] = []
+        args: list[VariableExprAST] = []
         if not self.check(")"):
             while True:
                 arg = self.pop_token(IdentifierToken)

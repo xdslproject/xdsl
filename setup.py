@@ -1,6 +1,7 @@
 import re
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping, cast
+from typing import cast
 
 from setuptools import Command, find_packages, setup
 
@@ -67,6 +68,7 @@ setup(
         "console_scripts": [
             "xdsl-opt = xdsl.tools.xdsl_opt:main",
             "irdl-to-pyrdl = xdsl.tools.irdl_to_pyrdl:main",
+            "xdsl-run = xdsl.tools.xdsl_run:main",
         ]
     },
     project_urls={

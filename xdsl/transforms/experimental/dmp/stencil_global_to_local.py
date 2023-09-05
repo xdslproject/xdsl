@@ -1,10 +1,11 @@
+from abc import ABC
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Callable, ClassVar, Iterable, TypeVar, cast
+from typing import ClassVar, TypeVar, cast
 
-from xdsl.dialects import arith, builtin, func, memref, mpi, scf, stencil
+from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
 from xdsl.dialects.experimental import dmp
-from xdsl.ir import Block, MLContext, Operation, OpResult, Region, SSAValue
-from xdsl.irdl import Attribute
+from xdsl.ir import Attribute, Block, MLContext, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -63,6 +64,7 @@ class AddHaloExchangeOps(RewritePattern):
 @dataclass
 class LowerHaloExchangeToMpi(RewritePattern):
     init: bool
+    debug_prints: bool = False
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.HaloSwapOp, rewriter: PatternRewriter, /):
@@ -80,6 +82,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
                     op.input_stencil.type.element_type,
                     op.nodes,
                     emit_init=self.init,
+                    emit_debug=self.debug_prints,
                 )
             ),
             [],
@@ -130,7 +133,7 @@ def _generate_single_axis_calc_and_check(
                 0 if is_decrement else axis_size, _rank_dtype
             ),
             # comparison == true <=> we have a valid dest positon
-            cond_val := arith.Cmpi.get(dest, bound, comparison),
+            cond_val := arith.Cmpi(dest, bound, comparison),
         ],
         dest.result,
         cond_val.result,
@@ -243,6 +246,7 @@ def generate_mpi_calls_for(
     dtype: Attribute,
     grid: dmp.NodeGrid,
     emit_init: bool = True,
+    emit_debug: bool = False,
 ) -> Iterable[Operation]:
     # call mpi init (this will be hoisted to function level)
     if emit_init:
@@ -295,6 +299,11 @@ def generate_mpi_calls_for(
             unwrap_out = mpi.UnwrapMemrefOp.get(alloc_outbound)
             unwrap_out.ptr.name_hint = f"send_buff_ex{i}_ptr"
             yield unwrap_out
+
+            if emit_debug:
+                yield printf.PrintFormatOp(
+                    f"Rank {{}}: sending {ex.source_area()} -> {{}}", rank, dest_rank
+                )
 
             # isend call
             yield mpi.Isend.get(
@@ -354,6 +363,13 @@ def generate_mpi_calls_for(
                                 receive=True,
                             )
                         )
+                        + [
+                            printf.PrintFormatOp(
+                                f"Rank {{}} receiving from {ex.neighbor}",
+                                rank,
+                            )
+                        ]
+                        * (1 if emit_debug else 0)
                         + [scf.Yield.get()]
                     )
                 ]
@@ -487,13 +503,11 @@ class MpiLoopInvariantCodeMotion:
         def match(op: Operation):
             if isinstance(
                 op,
-                (
-                    memref.Alloc,
-                    mpi.CommRank,
-                    mpi.AllocateTypeOp,
-                    mpi.UnwrapMemrefOp,
-                    mpi.Init,
-                ),
+                memref.Alloc
+                | mpi.CommRank
+                | mpi.AllocateTypeOp
+                | mpi.UnwrapMemrefOp
+                | mpi.Init,
             ):
                 worklist.append(op)
 
@@ -617,7 +631,7 @@ class DmpSwapShapeInference:
 
 
 @dataclass
-class DmpDecompositionPass(ModulePass):
+class DmpDecompositionPass(ModulePass, ABC):
     """
     Represents a pass that takes a strategy as input
     """
@@ -626,8 +640,6 @@ class DmpDecompositionPass(ModulePass):
         "2d-horizontal": HorizontalSlices2D,
         "2d-grid": GridSlice2d,
     }
-
-    name = "dmp-decompose-2d"
 
     strategy: str
 
@@ -651,16 +663,22 @@ class GlobalStencilToLocalStencil2DHorizontal(DmpDecompositionPass):
     pass pipeline!
     """
 
+    name = "dmp-decompose-2d"
+
+    restrict_domain: bool = True
+
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         strategy = self.get_strategy()
 
+        rewrites: list[RewritePattern] = [
+            AddHaloExchangeOps(strategy),
+        ]
+
+        if self.restrict_domain:
+            rewrites.append(ChangeStoreOpSizes(strategy))
+
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    ChangeStoreOpSizes(strategy),
-                    AddHaloExchangeOps(strategy),
-                ]
-            ),
+            GreedyRewritePatternApplier(rewrites),
             apply_recursively=False,
         ).rewrite_module(op)
 
@@ -676,12 +694,15 @@ class LowerHaloToMPI(ModulePass):
 
     mpi_init: bool = True
 
+    generate_debug_prints: bool = False
+
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
                     LowerHaloExchangeToMpi(
                         self.mpi_init,
+                        self.generate_debug_prints,
                     ),
                 ]
             )

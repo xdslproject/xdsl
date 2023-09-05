@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Sequence, TypeAlias, TypeVar, cast
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -32,9 +33,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
-    Attribute,
     AttrSizedOperandSegments,
-    Generic,
     IRDLOperation,
     Operand,
     ParameterDef,
@@ -47,6 +46,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.traits import SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -115,8 +115,8 @@ class MemRefType(
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([shape, referenced_type, layout, memory_space])
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in memref attribute")
         shape = parser.parse_attribute()
         parser.parse_punctuation(",", " between shape and element type parameters")
@@ -333,6 +333,8 @@ class Global(IRDLOperation):
     type: Attribute = attr_def(Attribute)
     initial_value: Attribute = attr_def(Attribute)
 
+    traits = frozenset([SymbolOpInterface()])
+
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):
             raise Exception("Global expects a MemRefType")
@@ -543,23 +545,17 @@ class DmaStartOp(IRDLOperation):
 
         if len(self.src.type.shape) != len(self.src_indices):
             raise VerifyException(
-                "Expected {} source indices (because of shape of src memref)".format(
-                    len(self.src.type.shape)
-                )
+                f"Expected {len(self.src.type.shape)} source indices (because of shape of src memref)"
             )
 
         if len(self.dest.type.shape) != len(self.dest_indices):
             raise VerifyException(
-                "Expected {} dest indices (because of shape of dest memref)".format(
-                    len(self.dest.type.shape)
-                )
+                f"Expected {len(self.dest.type.shape)} dest indices (because of shape of dest memref)"
             )
 
         if len(self.tag.type.shape) != len(self.tag_indices):
             raise VerifyException(
-                "Expected {} tag indices (because of shape of tag memref)".format(
-                    len(self.tag.type.shape)
-                )
+                f"Expected {len(self.tag.type.shape)} tag indices (because of shape of tag memref)"
             )
 
         if self.tag.type.element_type != i32:
@@ -611,18 +607,18 @@ class CopyOp(IRDLOperation):
     destination: Operand = operand_def(MemRefType)
 
     def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
-        super().__init__([source, destination])
+        super().__init__(operands=[source, destination])
 
     def verify_(self) -> None:
         source = cast(MemRefType[Attribute], self.source.type)
         destination = cast(MemRefType[Attribute], self.destination.type)
         if source.get_shape() != destination.get_shape():
             raise VerifyException(
-                f"Expected source and destination to have the same shape."
+                "Expected source and destination to have the same shape."
             )
         if source.get_element_type() != destination.get_element_type():
             raise VerifyException(
-                f"Expected source and destination to have the same element type."
+                "Expected source and destination to have the same element type."
             )
 
 

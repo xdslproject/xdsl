@@ -1,6 +1,6 @@
 import hashlib
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from xdsl.dialects import arith, builtin, llvm, printf
 from xdsl.ir import Attribute, MLContext, Operation, SSAValue
@@ -97,7 +97,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
 
         t_type = builtin.TensorType.from_type_and_list(i8, [len(data)])
 
-        return llvm.GlobalOp.get(
+        return llvm.GlobalOp(
             llvm.LLVMArrayType.from_size_and_type(len(data), i8),
             _key_from_str(val),
             constant=True,
@@ -117,12 +117,12 @@ class PrintlnOpToPrintfCall(RewritePattern):
                 format_str += part
             elif isinstance(part.type, builtin.IndexType):
                 # index must be cast to fixed bitwidth before printing
-                casts.append(new_val := arith.IndexCastOp.get(part, builtin.i64))
+                casts.append(new_val := arith.IndexCastOp(part, builtin.i64))
                 args.append(new_val.result)
                 format_str += "%li"
             elif part.type == builtin.f32:
                 # f32 must be promoted to f64 before printing
-                casts.append(new_val := arith.ExtFOp.get(part, builtin.f64))
+                casts.append(new_val := arith.ExtFOp(part, builtin.f64))
                 args.append(new_val.result)
                 format_str += "%f"
             else:
@@ -135,9 +135,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
         rewriter.replace_matched_op(
             casts
             + [
-                ptr := llvm.AddressOfOp.get(
-                    globl.sym_name, llvm.LLVMPointerType.opaque()
-                ),
+                ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType.opaque()),
                 llvm.CallOp("printf", ptr.result, *args),
             ]
         )

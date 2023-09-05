@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing import Generic, Sequence, TypeVar
+from collections.abc import Sequence
+from typing import Generic, TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DenseArrayBase,
     FunctionType,
     IndexType,
+    IntegerAttr,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
@@ -43,7 +47,14 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, NoTerminator
+from xdsl.traits import (
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+    SymbolOpInterface,
+    SymbolTable,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -81,8 +92,8 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
 
     value: ParameterDef[T]
 
-    @staticmethod
-    def parse_parameters(parser: AttrParser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters(
             "<",
             ": gpu attributes currently have the #gpu<name value> syntax.",
@@ -104,10 +115,10 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
                     "and, max, min, mul, or, or xor ",
                 )
         else:
-            parser.raise_error(f"'dim' or 'all_reduce_op' expected")
+            parser.raise_error("'dim' or 'all_reduce_op' expected")
         parser.parse_characters(
             ">",
-            f". gpu attributes currently have the #gpu<name value> syntax.",
+            ". gpu attributes currently have the #gpu<name value> syntax.",
         )
         return [attrtype([StringAttr(vtok)])]
 
@@ -234,12 +245,12 @@ class AllReduceOp(IRDLOperation):
         if non_empty_body == op_attr:
             if op_attr:
                 raise VerifyException(
-                    f"gpu.all_reduce can't have both a non-empty region and an op "
+                    "gpu.all_reduce can't have both a non-empty region and an op "
                     "attribute."
                 )
             else:
                 raise VerifyException(
-                    f"gpu.all_reduce need either a non empty body or an op attribute."
+                    "gpu.all_reduce need either a non empty body or an op attribute."
                 )
         if non_empty_body:
             region_args = self.body.blocks[0].args
@@ -312,8 +323,8 @@ class MemcpyOp(IRDLOperation):
     name = "gpu.memcpy"
 
     asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
-    src: Operand = operand_def(memref.MemRefType)
     dst: Operand = operand_def(memref.MemRefType)
+    src: Operand = operand_def(memref.MemRefType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -327,16 +338,29 @@ class MemcpyOp(IRDLOperation):
         is_async: bool = False,
     ):
         return super().__init__(
-            operands=[async_dependencies, source, destination],
+            operands=[async_dependencies, destination, source],
             result_types=[[AsyncTokenType()] if is_async else []],
         )
 
     def verify_(self) -> None:
         if self.src.type != self.dst.type:
             raise VerifyException(
-                f"Expected {self.src.type}, got {self.dst.type}. gpu.memcpy source and "
+                f"Expected {self.dst.type}, got {self.src.type}. gpu.memcpy source and "
                 "destination types must match."
             )
+
+
+@irdl_op_definition
+class ModuleEndOp(IRDLOperation):
+    name = "gpu.module_end"
+
+    # TODO circular dependency disallows this set of traits
+    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
+    # traits = frozenset([HasParent(ModuleOp), IsTerminator()])
+    traits = frozenset([IsTerminator()])
+
+    def __init__(self):
+        return super().__init__()
 
 
 @irdl_op_definition
@@ -346,12 +370,17 @@ class ModuleOp(IRDLOperation):
     body: Region = region_def("single_block")
     sym_name: StringAttr = attr_def(StringAttr)
 
-    # TODO this requires the SingleBlockImplicitTerminator trait instead of
-    # NoTerminator
-    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
+    traits = frozenset(
+        [
+            IsolatedFromAbove(),
+            SingleBlockImplicitTerminator(ModuleEndOp),
+            SymbolOpInterface(),
+            SymbolTable(),
+        ]
+    )
 
     def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
-        return super().__init__(attributes={"sym_name": name}, regions=[ops])
+        super().__init__(attributes={"sym_name": name}, regions=[ops])
 
 
 @irdl_op_definition
@@ -362,8 +391,44 @@ class FuncOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
     function_type: FunctionType = attr_def(FunctionType)
     kernel: UnitAttr | None = opt_attr_def(UnitAttr)
+    known_block_size: DenseArrayBase | None = opt_attr_def(
+        DenseArrayBase, attr_name="gpu.known_block_size"
+    )
+    known_grid_size: DenseArrayBase | None = opt_attr_def(
+        DenseArrayBase, attr_name="gpu.known_grid_size"
+    )
 
-    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp)])
+    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface()])
+
+    def __init__(
+        self,
+        name: str,
+        function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        kernel: bool | None = None,
+        knwown_block_size: Sequence[int] | None = None,
+        knwown_grid_size: Sequence[int] | None = None,
+    ):
+        if isinstance(function_type, tuple):
+            inputs, outputs = function_type
+            function_type = FunctionType.from_lists(inputs, outputs)
+        if not isinstance(region, Region):
+            region = Region(Block(arg_types=function_type.inputs))
+        attributes: dict[str, Attribute | None] = {
+            "sym_name": StringAttr(name),
+            "function_type": function_type,
+        }
+        if knwown_block_size is not None:
+            attributes["gpu.known_block_size"] = ArrayAttr(
+                IntegerAttr(i, i32) for i in knwown_block_size
+            )
+        if knwown_grid_size is not None:
+            attributes["gpu.known_grid_size"] = ArrayAttr(
+                IntegerAttr(i, i32) for i in knwown_grid_size
+            )
+        if kernel:
+            attributes["kernel"] = UnitAttr()
+        super().__init__(attributes=attributes, regions=[region])
 
     def verify_(self):
         entry_block: Block = self.body.blocks[0]
@@ -375,7 +440,7 @@ class FuncOp(IRDLOperation):
                 "function input types"
             )
         if (self.kernel is not None) and (len(self.function_type.outputs) != 0):
-            raise VerifyException(f"Expected void return type for kernel function")
+            raise VerifyException("Expected void return type for kernel function")
 
 
 @irdl_op_definition
@@ -582,16 +647,6 @@ class LaunchFuncOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ModuleEndOp(IRDLOperation):
-    name = "gpu.module_end"
-
-    traits = frozenset([HasParent(ModuleOp), IsTerminator()])
-
-    def __init__(self):
-        return super().__init__()
-
-
-@irdl_op_definition
 class NumSubgroupsOp(IRDLOperation):
     name = "gpu.num_subgroups"
     result: OpResult = result_def(IndexType)
@@ -609,7 +664,7 @@ class ReturnOp(IRDLOperation):
     traits = frozenset([IsTerminator(), HasParent(FuncOp)])
 
     def __init__(self, operands: Sequence[SSAValue | Operation]):
-        return super().__init__([operands])
+        return super().__init__(operands=[operands])
 
 
 @irdl_op_definition
@@ -667,7 +722,7 @@ class YieldOp(IRDLOperation):
     values: VarOperand = var_operand_def(Attribute)
 
     def __init__(self, operands: Sequence[SSAValue | Operation]):
-        return super().__init__([operands])
+        return super().__init__(operands=[operands])
 
     traits = frozenset([IsTerminator()])
 

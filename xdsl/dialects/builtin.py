@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -8,15 +9,13 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
-    Iterable,
-    Iterator,
-    Mapping,
-    Sequence,
     TypeAlias,
     TypeVar,
     cast,
     overload,
 )
+
+from typing_extensions import Self
 
 from xdsl.ir import (
     Attribute,
@@ -37,24 +36,26 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AttrConstraint,
-    Generic,
     GenericData,
     IRDLOperation,
     ParameterDef,
     VarOperand,
     VarOpResult,
-    VarRegion,
     attr_constr_coercion,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
+    opt_attr_def,
     region_def,
     var_operand_def,
-    var_region_def,
     var_result_def,
 )
-from xdsl.traits import IsolatedFromAbove, NoTerminator
+from xdsl.traits import (
+    IsolatedFromAbove,
+    NoTerminator,
+    OptionalSymbolOpInterface,
+    SymbolTable,
+)
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
@@ -112,8 +113,8 @@ class ArrayOfConstraint(AttrConstraint):
         self.elem_constr = attr_constr_coercion(constr)
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
-        if not isinstance(attr, Data):
-            raise Exception(f"expected data ArrayData but got {attr}")
+        if not isinstance(attr, ArrayAttr):
+            raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         for e in cast(ArrayAttr[Attribute], attr).data:
             self.elem_constr.verify(e, constraint_vars)
 
@@ -125,13 +126,13 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
         super().__init__(tuple(param))
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> tuple[AttributeCovT]:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
         data = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_attribute
         )
         # the type system can't ensure that the elements are of type _ArrayAttrT
-        result = cast(tuple[AttributeCovT], tuple(data))
+        result = cast(tuple[AttributeCovT, ...], tuple(data))
         return result
 
     def print_parameter(self, printer: Printer) -> None:
@@ -146,7 +147,7 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         if len(args) == 0:
             return ArrayOfConstraint(AnyAttr())
         raise TypeError(
-            f"Attribute ArrayAttr expects at most type"
+            f"Attribute ArrayAttr expects at most 1 type"
             f" parameter, but {len(args)} were given"
         )
 
@@ -172,8 +173,8 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 class StringAttr(Data[str]):
     name = "string"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> str:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> str:
         return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -200,11 +201,11 @@ class SymbolRefAttr(ParametrizedAttribute):
     def __init__(
         self,
         root: str | StringAttr,
-        nested: list[str] | list[StringAttr] | ArrayAttr[StringAttr] = [],
+        nested: Sequence[str] | Sequence[StringAttr] | ArrayAttr[StringAttr] = [],
     ) -> None:
         if isinstance(root, str):
             root = StringAttr(root)
-        if isinstance(nested, list):
+        if not isinstance(nested, ArrayAttr):
             nested = ArrayAttr(
                 [StringAttr(x) if isinstance(x, str) else x for x in nested]
             )
@@ -221,8 +222,8 @@ class SymbolRefAttr(ParametrizedAttribute):
 class IntAttr(Data[int]):
     name = "int"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> int:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> int:
         data = parser.parse_integer()
         return data
 
@@ -244,8 +245,8 @@ class Signedness(Enum):
 class SignednessAttr(Data[Signedness]):
     name = "signedness"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> Signedness:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> Signedness:
         if parser.parse_optional_keyword("signless") is not None:
             return Signedness.SIGNLESS
         if parser.parse_optional_keyword("signed") is not None:
@@ -417,8 +418,8 @@ AnyFloat: TypeAlias = (
 class FloatData(Data[float]):
     name = "float_data"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> float:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> float:
         return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
@@ -482,8 +483,8 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 class DictionaryAttr(GenericData[dict[str, Attribute]]):
     name = "dictionary"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> dict[str, Attribute]:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> dict[str, Attribute]:
         return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -674,7 +675,8 @@ class ContainerOf(AttrConstraint):
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if isinstance(attr, VectorType) or isinstance(attr, TensorType):
-            self.elem_constr.verify(attr.element_type, constraint_vars)  # type: ignore
+            attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
+            self.elem_constr.verify(attr.element_type, constraint_vars)
         else:
             self.elem_constr.verify(attr, constraint_vars)
 
@@ -720,9 +722,10 @@ class VectorBaseTypeConstraint(AttrConstraint):
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
-        if attr.element_type != self.expected_type:  # type: ignore
+        attr = cast(VectorType[Attribute], attr)
+        if attr.element_type != self.expected_type:
             raise VerifyException(
-                f"Expected vector type to be {self.expected_type}, got {attr.element_type}."  # type: ignore
+                f"Expected vector type to be {self.expected_type}, got {attr.element_type}."
             )
 
 
@@ -761,7 +764,7 @@ class DenseIntOrFPElementsAttr(
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
-    def get_shape(self) -> tuple[int] | None:
+    def get_shape(self) -> tuple[int, ...] | None:
         if isinstance(self.type, UnrankedTensorType):
             return None
         return self.type.get_shape()
@@ -1075,8 +1078,8 @@ class AffineMapAttr(Data[AffineMap]):
 
     name = "affine_map"
 
-    @staticmethod
-    def parse_parameter(parser: AttrParser) -> AffineMap:
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> AffineMap:
         data = parser.parse_affine_map()
         return data
 
@@ -1102,6 +1105,44 @@ class UnrealizedConversionCastOp(IRDLOperation):
             result_types=[result_type],
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        if parser.parse_optional_characters("to") is None:
+            args = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE,
+                parser.parse_unresolved_operand,
+            )
+            parser.parse_punctuation(":")
+            input_types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE,
+                parser.parse_type,
+            )
+            parser.parse_characters("to")
+            inputs = parser.resolve_operands(args, input_types, parser.pos)
+        else:
+            inputs = list[SSAValue]()
+        output_types = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE,
+            parser.parse_type,
+        )
+        attributes = parser.parse_optional_attr_dict()
+        return UnrealizedConversionCastOp(
+            operands=[inputs], result_types=[output_types], attributes=attributes
+        )
+
+    def print(self, printer: Printer):
+        def print_fn(operand: SSAValue) -> None:
+            return printer.print_attribute(operand.type)
+
+        if self.inputs:
+            printer.print(" ")
+            printer.print_list(self.inputs, printer.print_operand)
+            printer.print_string(" : ")
+            printer.print_list(self.inputs, print_fn)
+        printer.print_string(" to ")
+        printer.print_list(self.outputs, print_fn)
+        printer.print_op_attributes(self.attributes)
+
 
 class UnregisteredOp(IRDLOperation, ABC):
     """
@@ -1112,11 +1153,18 @@ class UnregisteredOp(IRDLOperation, ABC):
     """
 
     name = "builtin.unregistered"
+    traits = frozenset()
 
-    op_name: StringAttr = attr_def(StringAttr, attr_name="op_name__")
-    args: VarOperand = var_operand_def()
-    res: VarOpResult = var_result_def()
-    regs: VarRegion = var_region_def()
+    @property
+    def op_name(self) -> StringAttr:
+        if "op_name__" not in self.attributes:
+            raise ValueError("missing 'op_name__' attribute")
+        op_name = self.attributes["op_name__"]
+        if not isinstance(op_name, StringAttr):
+            raise ValueError(
+                f"'op_name__' is expected to have 'StringAttr' type, got {op_name}"
+            )
+        return op_name
 
     @classmethod
     def with_name(cls, name: str) -> type[Operation]:
@@ -1130,19 +1178,26 @@ class UnregisteredOp(IRDLOperation, ABC):
             @classmethod
             def create(
                 cls,
+                *,
                 operands: Sequence[SSAValue] = (),
                 result_types: Sequence[Attribute] = (),
+                properties: Mapping[str, Attribute] = {},
                 attributes: Mapping[str, Attribute] = {},
                 successors: Sequence[Block] = (),
                 regions: Sequence[Region] = (),
             ):
                 op = super().create(
-                    operands, result_types, attributes, successors, regions
+                    operands=operands,
+                    result_types=result_types,
+                    properties=properties,
+                    attributes=attributes,
+                    successors=successors,
+                    regions=regions,
                 )
                 op.attributes["op_name__"] = StringAttr(name)
                 return op
 
-        return irdl_op_definition(UnregisteredOpWithName)
+        return UnregisteredOpWithName
 
 
 @irdl_attr_definition
@@ -1216,9 +1271,18 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 class ModuleOp(IRDLOperation):
     name = "builtin.module"
 
+    sym_name = opt_attr_def(StringAttr)
+
     body: Region = region_def("single_block")
 
-    traits = frozenset([IsolatedFromAbove(), NoTerminator()])
+    traits = frozenset(
+        [
+            IsolatedFromAbove(),
+            NoTerminator(),
+            OptionalSymbolOpInterface(),
+            SymbolTable(),
+        ]
+    )
 
     def __init__(
         self,

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 "builtin.module"() ({
   %addr = "test.op"() : () -> !riscv.reg<>
   %stream = "test.op"() : () -> !riscv.reg<>

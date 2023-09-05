@@ -10,6 +10,7 @@ from xdsl.dialects.gpu import (
     BlockIdOp,
     DeallocOp,
     DimensionAttr,
+    FuncOp,
     GlobalIdOp,
     GridDimOp,
     HostRegisterOp,
@@ -21,6 +22,7 @@ from xdsl.dialects.gpu import (
     ModuleEndOp,
     ModuleOp,
     NumSubgroupsOp,
+    ReturnOp,
     SetDefaultDeviceOp,
     SubgroupIdOp,
     SubgroupSizeOp,
@@ -220,6 +222,31 @@ def test_lane_id():
     lane_id = LaneIdOp()
 
     assert isinstance(lane_id, LaneIdOp)
+
+
+def test_func():
+    kernel = "mygpufunc"
+    inputs = [builtin.IndexType()]
+    known_block_size = [32, 8, 4]
+    known_grid_size = [4, 16, 32]
+
+    body = Region(Block([ReturnOp([])]))
+
+    func = FuncOp(kernel, (inputs, []), body, True, known_block_size, known_grid_size)
+
+    assert isinstance(func, FuncOp)
+    assert func.kernel == builtin.UnitAttr()
+    assert func.sym_name == builtin.StringAttr(kernel)
+    assert func.known_block_size is not None
+    assert func.known_block_size.data == tuple(
+        builtin.IntegerAttr(i, builtin.i32) for i in known_block_size
+    )
+    assert func.known_grid_size is not None
+    assert func.known_grid_size.data == tuple(
+        builtin.IntegerAttr(i, builtin.i32) for i in known_grid_size
+    )
+    assert func.function_type == builtin.FunctionType.from_lists(inputs, [])
+    assert func.body is body
 
 
 def test_launch():

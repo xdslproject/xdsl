@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.dialects.builtin import StringAttr
+    from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
     from xdsl.ir import Operation, Region
+    from xdsl.pattern_rewriter import RewritePattern
 
 
 @dataclass(frozen=True)
@@ -42,22 +43,20 @@ class HasParent(OpTrait):
 
     parameters: tuple[type[Operation], ...]
 
-    def __init__(self, parameters: type[Operation] | tuple[type[Operation], ...]):
-        if not isinstance(parameters, tuple):
-            parameters = (parameters,)
-        if len(parameters) == 0:
+    def __init__(self, *parameters: type[Operation]):
+        if not parameters:
             raise ValueError("parameters must not be empty")
         super().__init__(parameters)
 
     def verify(self, op: Operation) -> None:
         parent = op.parent_op()
-        if isinstance(parent, tuple(self.parameters)):
+        if isinstance(parent, self.parameters):
             return
         if len(self.parameters) == 1:
             raise VerifyException(
                 f"'{op.name}' expects parent op '{self.parameters[0].name}'"
             )
-        names = ", ".join([f"'{p.name}'" for p in self.parameters])
+        names = ", ".join(f"'{p.name}'" for p in self.parameters)
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
 
 
@@ -197,36 +196,95 @@ class IsolatedFromAbove(OpTrait):
                         regions += child_op.regions
 
 
+class SymbolTable(OpTrait):
+    """
+    SymbolTable operations are containers for Symbol operations. They offer lookup
+    functionality for Symbols, and enforce unique symbols amongst its children.
+
+    A SymbolTable operation is constrained to have a single single-block region.
+    """
+
+    def verify(self, op: Operation):
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr
+
+        if len(op.regions) != 1:
+            raise VerifyException(
+                "Operations with a 'SymbolTable' must have exactly one region"
+            )
+        if len(op.regions[0].blocks) != 1:
+            raise VerifyException(
+                "Operations with a 'SymbolTable' must have exactly one block"
+            )
+        block = op.regions[0].blocks[0]
+        met_names: set[StringAttr] = set()
+        for o in block.ops:
+            if "sym_name" not in o.attributes:
+                continue
+            sym_name = o.attributes["sym_name"]
+            if not isinstance(sym_name, StringAttr):
+                continue
+            if sym_name in met_names:
+                raise VerifyException(f'Redefinition of symbol "{sym_name.data}"')
+            met_names.add(sym_name)
+
+    @staticmethod
+    def lookup_symbol(
+        op: Operation, name: str | StringAttr | SymbolRefAttr
+    ) -> Operation | None:
+        """
+        Lookup a symbol by reference, starting from a specific operation's closest
+        SymbolTable parent.
+        """
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
+
+        anchor: Operation | None = op
+        while anchor is not None and not anchor.has_trait(SymbolTable):
+            anchor = anchor.parent_op()
+        if anchor is None:
+            raise ValueError(f"Operation {op} has no SymbolTable ancestor")
+        if isinstance(name, str | StringAttr):
+            name = SymbolRefAttr(name)
+        for o in anchor.regions[0].block.ops:
+            if (
+                sym_interface := o.get_trait(SymbolOpInterface)
+            ) is not None and sym_interface.get_sym_attr_name(o) == name.root_reference:
+                if not name.nested_references:
+                    return o
+                nested_root, *nested_references = name.nested_references.data
+                nested_name = SymbolRefAttr(nested_root, nested_references)
+                return SymbolTable.lookup_symbol(o, nested_name)
+        return None
+
+
 class SymbolOpInterface(OpTrait):
     """
     A `Symbol` is a named operation that resides immediately within a region that defines
     a `SymbolTable` (TODO). A Symbol operation should use the SymbolOpInterface interface to
     provide the necessary verification and accessors.
 
-    Currently the only requirement is a "sym_name" attribute of type StringAttr.
+    A Symbol operation may be optional or not. If - the default - it is not optional,
+    a `sym_name` attribute of type StringAttr is required. If it is optional,
+    the attribute is optional too.
 
-    Please see MLIR documentation for Symbol and SymbolTable for the requirements that are
-    upcoming in xDSL.
+    xDSL offers OptionalSymbolOpInterface as an always-optional SymbolOpInterface helper.
+
+    More requirements are defined in MLIR; Please see MLIR documentation for Symbol and
+    SymbolTable for the requirements that are upcoming in xDSL.
 
     https://mlir.llvm.org/docs/SymbolsAndSymbolTables/#symbol
     """
 
-    @staticmethod
-    def get_sym_attr_name(op: Operation) -> StringAttr:
+    def get_sym_attr_name(self, op: Operation) -> StringAttr | None:
         """
-        Returns the symbol of the operation
+        Returns the symbol of the operation, if any
         """
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
 
-        attr = op.attributes["sym_name"]
-        assert isinstance(attr, StringAttr)
-        return attr
-
-    def verify(self, op: Operation) -> None:
-        # import builtin here to avoid circular import
-        from xdsl.dialects.builtin import StringAttr
-
+        if "sym_name" not in op.attributes and self.is_optional_symbol(op):
+            return None
         if "sym_name" not in op.attributes or not isinstance(
             op.attributes["sym_name"], StringAttr
         ):
@@ -234,6 +292,39 @@ class SymbolOpInterface(OpTrait):
                 f'Operation {op.name} must have a "sym_name" attribute of type '
                 f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
             )
+        attr = op.attributes["sym_name"]
+        return attr
+
+    def is_optional_symbol(self, op: Operation) -> bool:
+        """
+        Returns true if this operation optionally defines a symbol based on the
+        presence of the symbol name.
+        """
+        return False
+
+    def verify(self, op: Operation) -> None:
+        # import builtin here to avoid circular import
+        from xdsl.dialects.builtin import StringAttr
+
+        # If this is an optional symbol, bail out early if possible.
+        if self.is_optional_symbol(op) and "sym_name" not in op.attributes:
+            return
+        if "sym_name" not in op.attributes or not isinstance(
+            op.attributes["sym_name"], StringAttr
+        ):
+            raise VerifyException(
+                f'Operation {op.name} must have a "sym_name" attribute of type '
+                f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
+            )
+
+
+class OptionalSymbolOpInterface(SymbolOpInterface):
+    """
+    Helper interface specialization for an optional SymbolOpInterface.
+    """
+
+    def is_optional_symbol(self, op: Operation) -> bool:
+        return True
 
 
 class CallableOpInterface(OpTrait, abc.ABC):
@@ -252,3 +343,20 @@ class CallableOpInterface(OpTrait, abc.ABC):
         Returns the body of the operation
         """
         raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class HasCanonicalisationPatternsTrait(OpTrait):
+    """
+    Provides the rewrite passes to canonicalize an operation.
+
+    Each rewrite pattern must have the trait's op as root.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    @abc.abstractmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        raise NotImplementedError()
