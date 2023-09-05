@@ -166,6 +166,6 @@
   %selecti = "arith.select"(%lhsi1, %lhsi32, %rhsi32) : (i1, i32, i32) -> i32
   %selectf = "arith.select"(%lhsi1, %lhsf32, %rhsf32) : (i1, f32, f32) -> f32
 
-  // CHECK-NEXT: %selecti = "arith.select"(%lhsi1, %lhsi32, %rhsi32) : (i1, i32, i32) -> i32
-  // CHECK-NEXT: %selectf = "arith.select"(%lhsi1, %lhsf32, %rhsf32) : (i1, f32, f32) -> f32
+  // CHECK-NEXT: %selecti = arith.select %lhsi1, %lhsi32, %rhsi32 : i32
+  // CHECK-NEXT: %selectf = arith.select %lhsi1, %lhsf32, %rhsf32 : f32
 }) : () -> ()
