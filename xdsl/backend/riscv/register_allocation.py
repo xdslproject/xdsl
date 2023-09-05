@@ -1,4 +1,5 @@
 import abc
+from itertools import chain
 
 from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv_func, riscv_scf
@@ -9,6 +10,23 @@ from xdsl.dialects.riscv import (
     RISCVRegisterType,
 )
 from xdsl.ir import Block, Operation, SSAValue
+
+
+def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
+    """Utility method to gather already allocated registers"""
+
+    allocated: set[RISCVRegisterType] = set()
+
+    for op in func.walk():
+        if not isinstance(op, RISCVOp):
+            continue
+
+        for param in chain(op.operands, op.results):
+            if isinstance(param.type, RISCVRegisterType) and param.type.is_allocated:
+                if not param.type.register_name.startswith("j"):
+                    allocated.add(param.type)
+
+    return allocated
 
 
 class RegisterAllocator(abc.ABC):
@@ -51,6 +69,8 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
     available_registers: RegisterQueue
     live_ins_per_block: dict[Block, set[SSAValue]]
+
+    exclude_preallocated: bool = False
 
     def __init__(self) -> None:
         self.available_registers = RegisterQueue(
@@ -102,6 +122,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         """
         Allocate registers for RISC-V Instruction.
         """
+
         for result in op.results:
             # Allocate registers to result if not already allocated
             self.allocate(result)
@@ -169,6 +190,18 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             raise NotImplementedError(
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."
             )
+
+        if self.exclude_preallocated:
+            preallocated = gather_allocated(func)
+
+            for pa_reg in preallocated:
+                if isinstance(pa_reg, IntRegisterType | FloatRegisterType):
+                    self.available_registers.reserved_registers.add(pa_reg)
+
+                if pa_reg in self.available_registers.available_int_registers:
+                    self.available_registers.available_int_registers.remove(pa_reg)
+                if pa_reg in self.available_registers.available_float_registers:
+                    self.available_registers.available_float_registers.remove(pa_reg)
 
         block = func.body.block
 

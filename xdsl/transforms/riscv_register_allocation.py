@@ -19,6 +19,14 @@ class RISCVRegisterAllocation(ModulePass):
 
     limit_registers: int | None = None
 
+    exclude_preallocated: bool = False
+    """
+    Enables tracking of already allocated registers and excludes them from the
+    available set.
+    This does not keep track of any liveness information and the preallocated registers
+    are excluded completely from any further allocation decisions.
+    """
+
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         allocator_strategies = {
             "LivenessBlockNaive": RegisterAllocatorLivenessBlockNaive,
@@ -41,4 +49,5 @@ class RISCVRegisterAllocation(ModulePass):
                 allocator = allocator_strategies[self.allocation_strategy]()
                 if self.limit_registers is not None:
                     allocator.available_registers.limit_registers(self.limit_registers)
+                allocator.exclude_preallocated = self.exclude_preallocated
                 allocator.allocate_func(inner_op)
