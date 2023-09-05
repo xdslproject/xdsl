@@ -41,16 +41,13 @@ from xdsl.irdl import (
     ParameterDef,
     VarOperand,
     VarOpResult,
-    VarRegion,
     attr_constr_coercion,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_attr_def,
     region_def,
     var_operand_def,
-    var_region_def,
     var_result_def,
 )
 from xdsl.traits import (
@@ -130,12 +127,12 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         super().__init__(tuple(param))
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT]:
+    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
         data = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_attribute
         )
         # the type system can't ensure that the elements are of type _ArrayAttrT
-        result = cast(tuple[AttributeCovT], tuple(data))
+        result = cast(tuple[AttributeCovT, ...], tuple(data))
         return result
 
     def print_parameter(self, printer: Printer) -> None:
@@ -767,7 +764,7 @@ class DenseIntOrFPElementsAttr(
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
-    def get_shape(self) -> tuple[int] | None:
+    def get_shape(self) -> tuple[int, ...] | None:
         if isinstance(self.type, UnrankedTensorType):
             return None
         return self.type.get_shape()
@@ -1129,7 +1126,9 @@ class UnrealizedConversionCastOp(IRDLOperation):
             parser.parse_type,
         )
         attributes = parser.parse_optional_attr_dict()
-        return UnrealizedConversionCastOp([inputs], [output_types], attributes)
+        return UnrealizedConversionCastOp(
+            operands=[inputs], result_types=[output_types], attributes=attributes
+        )
 
     def print(self, printer: Printer):
         def print_fn(operand: SSAValue) -> None:
@@ -1154,11 +1153,18 @@ class UnregisteredOp(IRDLOperation, ABC):
     """
 
     name = "builtin.unregistered"
+    traits = frozenset()
 
-    op_name: StringAttr = attr_def(StringAttr, attr_name="op_name__")
-    args: VarOperand = var_operand_def()
-    res: VarOpResult = var_result_def()
-    regs: VarRegion = var_region_def()
+    @property
+    def op_name(self) -> StringAttr:
+        if "op_name__" not in self.attributes:
+            raise ValueError("missing 'op_name__' attribute")
+        op_name = self.attributes["op_name__"]
+        if not isinstance(op_name, StringAttr):
+            raise ValueError(
+                f"'op_name__' is expected to have 'StringAttr' type, got {op_name}"
+            )
+        return op_name
 
     @classmethod
     def with_name(cls, name: str) -> type[Operation]:
@@ -1172,19 +1178,26 @@ class UnregisteredOp(IRDLOperation, ABC):
             @classmethod
             def create(
                 cls,
+                *,
                 operands: Sequence[SSAValue] = (),
                 result_types: Sequence[Attribute] = (),
+                properties: Mapping[str, Attribute] = {},
                 attributes: Mapping[str, Attribute] = {},
                 successors: Sequence[Block] = (),
                 regions: Sequence[Region] = (),
             ):
                 op = super().create(
-                    operands, result_types, attributes, successors, regions
+                    operands=operands,
+                    result_types=result_types,
+                    properties=properties,
+                    attributes=attributes,
+                    successors=successors,
+                    regions=regions,
                 )
                 op.attributes["op_name__"] = StringAttr(name)
                 return op
 
-        return irdl_op_definition(UnregisteredOpWithName)
+        return UnregisteredOpWithName
 
 
 @irdl_attr_definition

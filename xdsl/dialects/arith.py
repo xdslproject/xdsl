@@ -418,38 +418,6 @@ class Cmpi(IRDLOperation, ComparisonOperation):
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
         )
 
-    @staticmethod
-    @deprecated("please use init instead of .get")
-    def get(
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
-        arg: int | str,
-    ) -> Cmpi:
-        operand1 = SSAValue.get(operand1)
-        operand2 = SSAValue.get(operand2)
-        Cmpi._validate_operand_types(operand1, operand2)
-
-        if isinstance(arg, str):
-            cmpi_comparison_operations = {
-                "eq": 0,
-                "ne": 1,
-                "slt": 2,
-                "sle": 3,
-                "sgt": 4,
-                "sge": 5,
-                "ult": 6,
-                "ule": 7,
-                "ugt": 8,
-                "uge": 9,
-            }
-            arg = Cmpi._get_comparison_predicate(arg, cmpi_comparison_operations)
-
-        return Cmpi.build(
-            operands=[operand1, operand2],
-            result_types=[IntegerType(1)],
-            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
-        )
-
 
 @irdl_op_definition
 class Cmpf(IRDLOperation, ComparisonOperation):
@@ -521,43 +489,6 @@ class Cmpf(IRDLOperation, ComparisonOperation):
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
         )
 
-    @staticmethod
-    @deprecated("please use init instead of .get")
-    def get(
-        operand1: SSAValue | Operation, operand2: SSAValue | Operation, arg: int | str
-    ) -> Cmpf:
-        operand1 = SSAValue.get(operand1)
-        operand2 = SSAValue.get(operand2)
-
-        Cmpf._validate_operand_types(operand1, operand2)
-
-        if isinstance(arg, str):
-            cmpf_comparison_operations = {
-                "false": 0,
-                "oeq": 1,
-                "ogt": 2,
-                "oge": 3,
-                "olt": 4,
-                "ole": 5,
-                "one": 6,
-                "ord": 7,
-                "ueq": 8,
-                "ugt": 9,
-                "uge": 10,
-                "ult": 11,
-                "ule": 12,
-                "une": 13,
-                "uno": 14,
-                "true": 15,
-            }
-            arg = Cmpf._get_comparison_predicate(arg, cmpf_comparison_operations)
-
-        return Cmpf.build(
-            operands=[operand1, operand2],
-            result_types=[IntegerType(1)],
-            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
-        )
-
 
 @irdl_op_definition
 class Select(IRDLOperation):
@@ -589,18 +520,6 @@ class Select(IRDLOperation):
     ):
         operand2 = SSAValue.get(operand2)
         return super().__init__(
-            operands=[operand1, operand2, operand3], result_types=[operand2.type]
-        )
-
-    @staticmethod
-    @deprecated("please use init instead of .get")
-    def get(
-        operand1: Operation | SSAValue,
-        operand2: Operation | SSAValue,
-        operand3: Operation | SSAValue,
-    ) -> Select:
-        operand2 = SSAValue.get(operand2)
-        return Select.build(
             operands=[operand1, operand2, operand3], result_types=[operand2.type]
         )
 
@@ -642,18 +561,6 @@ class Negf(IRDLOperation):
             result_types=[operand.type],
         )
 
-    @staticmethod
-    @deprecated("please use init instead of .get")
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> Negf:
-        operand = SSAValue.get(operand)
-        return Negf.build(
-            attributes={"fastmath": fastmath},
-            operands=[operand],
-            result_types=[operand.type],
-        )
-
 
 @irdl_op_definition
 class Maxf(FloatingPointLikeBinaryOp):
@@ -676,11 +583,6 @@ class IndexCastOp(IRDLOperation):
     def __init__(self, input_arg: SSAValue | Operation, target_type: Attribute):
         return super().__init__(operands=[input_arg], result_types=[target_type])
 
-    @staticmethod
-    @deprecated("please use init instead of .get")
-    def get(input_arg: SSAValue | Operation, target_type: Attribute):
-        return IndexCastOp.build(operands=[input_arg], result_types=[target_type])
-
 
 @irdl_op_definition
 class FPToSIOp(IRDLOperation):
@@ -691,11 +593,6 @@ class FPToSIOp(IRDLOperation):
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
-
-    @staticmethod
-    @deprecated("please use init instead of .get")
-    def get(op: SSAValue | Operation, target_type: IntegerType):
-        return FPToSIOp.build(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -708,11 +605,6 @@ class SIToFPOp(IRDLOperation):
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
 
-    @staticmethod
-    @deprecated("please use init instead of .get")
-    def get(op: SSAValue | Operation, target_type: AnyFloat):
-        return SIToFPOp.build(operands=[op], result_types=[target_type])
-
 
 @irdl_op_definition
 class ExtFOp(IRDLOperation):
@@ -724,11 +616,6 @@ class ExtFOp(IRDLOperation):
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
 
-    @staticmethod
-    @deprecated("please use init instead of .get")
-    def get(op: SSAValue | Operation, target_type: AnyFloat):
-        return ExtFOp.build(operands=[op], result_types=[target_type])
-
 
 @irdl_op_definition
 class TruncFOp(IRDLOperation):
@@ -739,11 +626,6 @@ class TruncFOp(IRDLOperation):
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
-
-    @staticmethod
-    @deprecated("please use init instead of .get")
-    def get(op: SSAValue | Operation, target_type: AnyFloat):
-        return TruncFOp.build(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition

@@ -35,7 +35,7 @@ def test_functions():
     dealloc_op = memref.Dealloc.get(alloc_op)
 
     (shaped_array,) = interpreter.run_op(alloc_op, ())
-    v = MemrefValue.Allocated
+    v = MemrefValue.Uninitialized
     assert shaped_array == ShapedArray([v, v, v, v, v, v], [2, 3])
     (zero,) = interpreter.run_op(zero_op, ())
     (one,) = interpreter.run_op(one_op, ())

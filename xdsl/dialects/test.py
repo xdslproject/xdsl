@@ -1,6 +1,17 @@
 from __future__ import annotations
 
-from xdsl.ir import Data, Dialect, TypeAttribute
+from collections.abc import Mapping, Sequence
+
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Data,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     IRDLOperation,
     VarOperand,
@@ -34,6 +45,20 @@ class TestOp(IRDLOperation):
     ops: VarOperand = var_operand_def()
     regs: VarRegion = var_region_def()
 
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            regions=(regions,),
+        )
+
 
 @irdl_op_definition
 class TestTermOp(IRDLOperation):
@@ -54,6 +79,22 @@ class TestTermOp(IRDLOperation):
     successor: VarSuccessor = var_successor_def()
 
     traits = frozenset([IsTerminator()])
+
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] = (),
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            successors=(successors,),
+            regions=(regions,),
+        )
 
 
 @irdl_attr_definition

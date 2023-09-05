@@ -607,7 +607,7 @@ class CopyOp(IRDLOperation):
     destination: Operand = operand_def(MemRefType)
 
     def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
-        super().__init__([source, destination])
+        super().__init__(operands=[source, destination])
 
     def verify_(self) -> None:
         source = cast(MemRefType[Attribute], self.source.type)

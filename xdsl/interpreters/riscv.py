@@ -15,6 +15,7 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.comparisons import to_signed, to_unsigned
 from xdsl.ir.core import Operation
+from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.exceptions import InterpretationError
 
 _T = TypeVar("_T")
@@ -205,6 +206,8 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         offset = self.get_immediate_value(op, op.immediate)
+        if isinstance(offset, int):
+            offset //= 4
         return (args[0][offset],)
 
     @impl(riscv.LabelOp)
@@ -215,6 +218,61 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         return ()
+
+    # region F extension
+
+    @impl(riscv.FMulSOp)
+    def run_fmul(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMulSOp,
+        args: tuple[Any, ...],
+    ):
+        return (args[0] * args[1],)
+
+    @impl(riscv.FCvtSWOp)
+    def run_fcvt_s_w(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FCvtSWOp,
+        args: tuple[Any, ...],
+    ):
+        return (convert_u32_to_f32(args[0]),)
+
+    @impl(riscv.FSwOp)
+    def run_fsw(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FSwOp,
+        args: tuple[Any, ...],
+    ):
+        args[0][op.immediate.value.data // 4] = args[1]
+        return ()
+
+    @impl(riscv.FLwOp)
+    def run_flw(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FLwOp,
+        args: tuple[Any, ...],
+    ):
+        offset = self.get_immediate_value(op, op.immediate)
+        if isinstance(offset, int):
+            offset //= 4
+        return (args[0][offset],)
+
+    # endregion
+
+    @impl(riscv.GetRegisterOp)
+    def run_get_register(
+        self, interpreter: Interpreter, op: riscv.GetRegisterOp, args: PythonValues
+    ) -> PythonValues:
+        if not op.res.type == riscv.Registers.ZERO:
+            raise InterpretationError(
+                f"Cannot interpret riscv.get_register op with non-ZERO type {op.res.type}"
+            )
+
+        return (0,)
 
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(
