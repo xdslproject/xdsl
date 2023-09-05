@@ -12,7 +12,7 @@ from xdsl.dialects.riscv import (
 from xdsl.ir import Block, Operation, SSAValue
 
 
-def _gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
+def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
     """Utility method to gather already allocated registers"""
 
     allocated: set[RISCVRegisterType] = set()
@@ -192,7 +192,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             )
 
         if self.exclude_preallocated:
-            preallocated = _gather_allocated(func)
+            preallocated = gather_allocated(func)
 
             for pa_reg in preallocated:
                 if isinstance(pa_reg, IntRegisterType | FloatRegisterType):
