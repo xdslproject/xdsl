@@ -42,6 +42,38 @@ floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
 _FloatTypeT = TypeVar("_FloatTypeT", bound=AnyFloat)
 
+_CMPI_COMPARISON_OPERATIONS = [
+    "eq",
+    "ne",
+    "slt",
+    "sle",
+    "sgt",
+    "sge",
+    "ult",
+    "ule",
+    "ugt",
+    "uge",
+]
+
+_CMPF_COMPARISON_OPERATIONS = [
+    "false",
+    "oeq",
+    "ogt",
+    "oge",
+    "olt",
+    "ole",
+    "one",
+    "ord",
+    "ueq",
+    "ugt",
+    "uge",
+    "ult",
+    "ule",
+    "une",
+    "uno",
+    "true",
+]
+
 
 class FastMathFlagsAttr(LLVMFastMathAttr):
     """
@@ -435,19 +467,8 @@ class Cmpi(IRDLOperation, ComparisonOperation):
 
     def print(self, printer: Printer):
         printer.print(" ")
-        cmpi_comparison_operations = [
-            "eq",
-            "ne",
-            "slt",
-            "sle",
-            "sgt",
-            "sge",
-            "ult",
-            "ule",
-            "ugt",
-            "uge",
-        ]
-        printer.print_string(cmpi_comparison_operations[self.predicate.value.data])
+
+        printer.print_string(_CMPI_COMPARISON_OPERATIONS[self.predicate.value.data])
         printer.print(", ")
         printer.print_operand(self.lhs)
         printer.print(", ")
@@ -543,25 +564,7 @@ class Cmpf(IRDLOperation, ComparisonOperation):
 
     def print(self, printer: Printer):
         printer.print(" ")
-        cmpi_comparison_operations = [
-            "false",
-            "oeq",
-            "ogt",
-            "oge",
-            "olt",
-            "ole",
-            "one",
-            "ord",
-            "ueq",
-            "ugt",
-            "uge",
-            "ult",
-            "ule",
-            "une",
-            "uno",
-            "true",
-        ]
-        printer.print_string(cmpi_comparison_operations[self.predicate.value.data])
+        printer.print_string(_CMPF_COMPARISON_OPERATIONS[self.predicate.value.data])
         printer.print(", ")
         printer.print_operand(self.lhs)
         printer.print(", ")
