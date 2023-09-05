@@ -603,6 +603,33 @@ class Select(IRDLOperation):
             operands=[operand1, operand2, operand3], result_types=[operand2.type]
         )
 
+    @classmethod
+    def parse(cls, parser: Parser):
+        cond = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        operand1 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        operand2 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        (cond, operand1, operand2) = parser.resolve_operands(
+            [cond, operand1, operand2],
+            [IntegerType(1), result_type, result_type],
+            parser.pos,
+        )
+
+        return cls(cond, operand1, operand2)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.cond)
+        printer.print(", ")
+        printer.print_operand(self.lhs)
+        printer.print(", ")
+        printer.print_operand(self.rhs)
+        printer.print(" : ")
+        printer.print_attribute(self.result.type)
+
 
 @irdl_op_definition
 class Addf(FloatingPointLikeBinaryOp):
