@@ -418,6 +418,43 @@ class Cmpi(IRDLOperation, ComparisonOperation):
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
         )
 
+    @classmethod
+    def parse(cls, parser: Parser):
+        arg = parser.parse_identifier()
+        parser.parse_punctuation(",")
+        operand1 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        operand2 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        (operand1, operand2) = parser.resolve_operands(
+            [operand1, operand2], 2 * [input_type], parser.pos
+        )
+
+        return cls(operand1, operand2, arg)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        cmpi_comparison_operations = [
+            "eq",
+            "ne",
+            "slt",
+            "sle",
+            "sgt",
+            "sge",
+            "ult",
+            "ule",
+            "ugt",
+            "uge",
+        ]
+        printer.print_string(cmpi_comparison_operations[self.predicate.value.data])
+        printer.print(", ")
+        printer.print_operand(self.lhs)
+        printer.print(", ")
+        printer.print_operand(self.rhs)
+        printer.print(" : ")
+        printer.print_attribute(self.lhs.type)
+
 
 @irdl_op_definition
 class Cmpf(IRDLOperation, ComparisonOperation):
@@ -488,6 +525,49 @@ class Cmpf(IRDLOperation, ComparisonOperation):
             result_types=[IntegerType(1)],
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
         )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        arg = parser.parse_identifier()
+        parser.parse_punctuation(",")
+        operand1 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        operand2 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        (operand1, operand2) = parser.resolve_operands(
+            [operand1, operand2], 2 * [input_type], parser.pos
+        )
+
+        return cls(operand1, operand2, arg)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        cmpi_comparison_operations = [
+            "false",
+            "oeq",
+            "ogt",
+            "oge",
+            "olt",
+            "ole",
+            "one",
+            "ord",
+            "ueq",
+            "ugt",
+            "uge",
+            "ult",
+            "ule",
+            "une",
+            "uno",
+            "true",
+        ]
+        printer.print_string(cmpi_comparison_operations[self.predicate.value.data])
+        printer.print(", ")
+        printer.print_operand(self.lhs)
+        printer.print(", ")
+        printer.print_operand(self.rhs)
+        printer.print(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 @irdl_op_definition
