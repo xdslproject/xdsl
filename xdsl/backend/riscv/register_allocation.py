@@ -104,6 +104,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             preallocated = _gather_allocated(func)
 
             for pa_reg in preallocated:
+                if isinstance(pa_reg, IntRegisterType | FloatRegisterType):
+                    self.available_registers.reserved_registers.add(pa_reg)
+
                 if pa_reg in self.available_registers.available_int_registers:
                     self.available_registers.available_int_registers.remove(pa_reg)
                 if pa_reg in self.available_registers.available_float_registers:
@@ -196,6 +199,9 @@ class RegisterAllocatorBlockNaive(RegisterAllocator):
             preallocated = _gather_allocated(func)
 
             for pa_reg in preallocated:
+                if isinstance(pa_reg, IntRegisterType | FloatRegisterType):
+                    self.available_registers.reserved_registers.add(pa_reg)
+
                 if pa_reg in self.available_registers.available_int_registers:
                     self.available_registers.available_int_registers.remove(pa_reg)
                 if pa_reg in self.available_registers.available_float_registers:
