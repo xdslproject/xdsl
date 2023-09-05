@@ -1,4 +1,4 @@
-// RUN: xdsl-run %s
+// RUN: xdsl-run %s | filecheck %s
 
 riscv_func.func @malloc(!riscv.reg<>) -> !riscv.reg<>
 
@@ -22,3 +22,5 @@ riscv_func.func @main() -> () {
     riscv_func.return
 }
 
+// CHECK: !
+// CHECK: result: ()
