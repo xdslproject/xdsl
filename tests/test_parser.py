@@ -204,13 +204,13 @@ def test_parse_argument(
     # parse_argument
     parser = Parser(ctx, text)
     if expected is not None:
-        res = parser.parse_argument(expect_type)
+        res = parser.parse_argument(expect_type=expect_type)
         assert res is not None
         assert res.name.text[1:] == expected[0]
         assert res.type == expected[1]
     else:
         with pytest.raises(ParseError):
-            parser.parse_argument(expect_type)
+            parser.parse_argument(expect_type=expect_type)
 
 
 @pytest.mark.parametrize(
@@ -234,7 +234,7 @@ def test_parse_argument_fail(text: str, expect_type: bool):
     # parse_argument
     parser = Parser(ctx, text)
     with pytest.raises(ParseError):
-        parser.parse_argument(expect_type)
+        parser.parse_argument(expect_type=expect_type)
 
 
 @pytest.mark.parametrize(

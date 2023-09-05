@@ -515,7 +515,7 @@ class Parser(AttrParser):
             type = self.parse_type()
         return self.Argument(name_token.span, type)
 
-    def parse_argument(self, expect_type: bool = True) -> Argument:
+    def parse_argument(self, *, expect_type: bool = True) -> Argument:
         """
         Parse a block argument with format:
           arg ::= percent-id `:` type
