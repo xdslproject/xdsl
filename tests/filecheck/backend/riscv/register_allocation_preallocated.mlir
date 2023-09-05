@@ -13,12 +13,12 @@ riscv_func.func @main() {
 
 // BNAIVE:       builtin.module {
 // BNAIVE-NEXT:    riscv_func.func @main() {
-// BNAIVE-NEXT:      %0 = riscv.li 6 : () -> !riscv.reg<t5>
+// BNAIVE-NEXT:      %0 = riscv.li 6 : () -> !riscv.reg<t4>
 // BNAIVE-NEXT:      %1 = riscv.li 5 : () -> !riscv.reg<t6>
-// BNAIVE-NEXT:      %2 = riscv.fcvt.s.w %0 : (!riscv.reg<t5>) -> !riscv.freg<ft11>
+// BNAIVE-NEXT:      %2 = riscv.fcvt.s.w %0 : (!riscv.reg<t4>) -> !riscv.freg<ft9>
 // BNAIVE-NEXT:      %3 = riscv.fcvt.s.w %1 : (!riscv.reg<t6>) -> !riscv.freg<ft10>
-// BNAIVE-NEXT:      %4 = riscv.fadd.s %2, %3 : (!riscv.freg<ft11>, !riscv.freg<ft10>) -> !riscv.freg<ft9>
-// BNAIVE-NEXT:      %5 = riscv.add %0, %1 : (!riscv.reg<t5>, !riscv.reg<t6>) -> !riscv.reg<t4>
+// BNAIVE-NEXT:      %4 = riscv.fadd.s %2, %3 : (!riscv.freg<ft9>, !riscv.freg<ft10>) -> !riscv.freg<ft11>
+// BNAIVE-NEXT:      %5 = riscv.add %0, %1 : (!riscv.reg<t4>, !riscv.reg<t6>) -> !riscv.reg<t5>
 // BNAIVE-NEXT:      riscv_func.return
 // BNAIVE-NEXT:    }
 // BNAIVE-NEXT:  }
