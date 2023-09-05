@@ -69,7 +69,7 @@ jobs:
 
           rm -rf pyodide/pyodide
           mkdir pyodide/pyodide
-          mv pyodide/dist pyodide/pyodide/pyodide
+          cp pyodide/dist pyodide/pyodide/pyodide
 
           python -m jupyter lite build --contents content --pyodide pyodide/pyodide
 
