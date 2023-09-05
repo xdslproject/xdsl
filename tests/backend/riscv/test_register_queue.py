@@ -21,13 +21,11 @@ def test_default_reserved_registers():
 def test_push_j_register():
     register_queue = RegisterQueue()
 
-    available_before = register_queue.available_int_registers.copy()
     register_queue.push(riscv.IntRegisterType("j0"))
-    assert available_before == register_queue.available_int_registers
+    assert riscv.IntRegisterType("j0") == register_queue.available_int_registers[-1]
 
-    available_before = register_queue.available_int_registers.copy()
     register_queue.push(riscv.FloatRegisterType("j0"))
-    assert available_before == register_queue.available_int_registers
+    assert riscv.FloatRegisterType("j0") == register_queue.available_float_registers[-1]
 
 
 def test_push_register():
