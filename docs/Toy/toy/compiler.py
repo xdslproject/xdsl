@@ -27,8 +27,8 @@ from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
+from xdsl.transforms.lower_affine import LowerAffinePass
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
-from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
@@ -39,8 +39,6 @@ from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
-from .rewrites.lower_to_toy_accelerator import LowerToToyAccelerator
-from .rewrites.lower_toy_accelerator_to_riscv import LowerToyAccelerator
 from .rewrites.lower_toy_affine import LowerToAffinePass
 from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
@@ -73,7 +71,6 @@ def transform(
     module_op: ModuleOp,
     *,
     target: str = "riscv-assembly",
-    accelerate: bool,
 ):
     if target == "toy":
         return
@@ -96,29 +93,16 @@ def transform(
     LowerToAffinePass().apply(ctx, module_op)
     module_op.verify()
 
-    if accelerate:
-        LowerToToyAccelerator().apply(ctx, module_op)
-        module_op.verify()
-
     if target == "affine":
         return
 
-    MLIROptPass(
-        [
-            "--allow-unregistered-dialect",
-            "--canonicalize",
-            "--cse",
-            "--lower-affine",
-            "--mlir-print-op-generic",
-        ]
-    ).apply(ctx, module_op)
+    LowerAffinePass().apply(ctx, module_op)
 
     if target == "scf":
         return
 
     SetupRiscvPass().apply(ctx, module_op)
     ConvertFuncToRiscvFuncPass().apply(ctx, module_op)
-    LowerToyAccelerator().apply(ctx, module_op)
     LowerMemrefToRiscv().apply(ctx, module_op)
     ConvertMemrefToRiscvPass().apply(ctx, module_op)
     LowerPrintfRiscvPass().apply(ctx, module_op)
