@@ -1,3 +1,5 @@
+from ordered_set import OrderedSet
+
 from xdsl.backend.riscv.register_allocation import live_ins_per_block
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects.builtin import i32
@@ -44,16 +46,18 @@ def test_live_ins():
     }
 
     # To make test failures easier to read
-    def rename(mapping: dict[Block, set[SSAValue]]) -> dict[str, set[str]]:
+    def rename(
+        mapping: dict[Block, OrderedSet[SSAValue]]
+    ) -> dict[str, OrderedSet[str]]:
         return {
-            name_per_block[block]: set(name_per_value[value] for value in values)
+            name_per_block[block]: OrderedSet(name_per_value[value] for value in values)
             for block, values in mapping.items()
         }
 
-    reference_live_ins: dict[Block, set[SSAValue]] = {
-        outer_region.block: set(),
-        middle_region.block: {a, b, c, d},
-        inner_region.block: {b, c, d, g},
+    reference_live_ins: dict[Block, OrderedSet[SSAValue]] = {
+        outer_region.block: OrderedSet([]),
+        middle_region.block: OrderedSet({a, b, c, d}),
+        inner_region.block: OrderedSet({b, c, d, g}),
     }
 
     assert rename(live_ins_per_block(inner_region.block)) == rename(

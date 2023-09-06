@@ -216,7 +216,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 def _live_ins_per_block(
     block: Block, acc: dict[Block, OrderedSet[SSAValue]]
 ) -> OrderedSet[SSAValue]:
-    res = OrderedSet[SSAValue]()
+    res = OrderedSet[SSAValue]([])
 
     for op in block.ops_reverse:
         # Remove values defined in the block
