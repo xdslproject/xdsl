@@ -56,8 +56,8 @@ def test_live_ins():
 
     reference_live_ins: dict[Block, OrderedSet[SSAValue]] = {
         outer_region.block: OrderedSet([]),
-        middle_region.block: OrderedSet({a, b, c, d}),
-        inner_region.block: OrderedSet({b, c, d, g}),
+        middle_region.block: OrderedSet([b, c, d, a]),
+        inner_region.block: OrderedSet([b, c, d, g]),
     }
 
     assert rename(live_ins_per_block(inner_region.block)) == rename(
