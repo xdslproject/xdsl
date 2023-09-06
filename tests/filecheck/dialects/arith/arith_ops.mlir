@@ -131,11 +131,11 @@
 
   %negf = "arith.negf"(%lhsf32) : (f32) -> f32
 
-  // CHECK-NEXT: %negf = "arith.negf"(%lhsf32) : (f32) -> f32
+  // CHECK-NEXT: %negf = arith.negf %lhsf32 : f32
 
   %extf = "arith.extf"(%lhsf32) : (f32) -> f64
 
-  // CHECK-NEXT: %extf = "arith.extf"(%lhsf32) : (f32) -> f64
+  // CHECK-NEXT: %extf = arith.extf %lhsf32 : f32 to f64
 
   %extui = "arith.extui"(%lhsi32) : (i32) -> i64
 
@@ -143,7 +143,7 @@
 
   %truncf = "arith.truncf"(%lhsf64) : (f64) -> f32
 
-  // CHECK-NEXT: %truncf = "arith.truncf"(%lhsf64) : (f64) -> f32
+  // CHECK-NEXT: %truncf = arith.truncf %lhsf64 : f64 to f32
 
   %trunci = "arith.trunci"(%lhsi64) : (i64) -> i32
 
