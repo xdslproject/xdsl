@@ -671,6 +671,20 @@ class Negf(IRDLOperation):
             result_types=[operand.type],
         )
 
+    @classmethod
+    def parse(cls, parser: Parser):
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_attribute()
+        input = parser.resolve_operand(input, result_type)
+        return cls(input)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.operand)
+        printer.print(" : ")
+        printer.print_attribute(self.result.type)
+
 
 @irdl_op_definition
 class Maxf(FloatingPointLikeBinaryOp):
@@ -726,6 +740,25 @@ class ExtFOp(IRDLOperation):
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
 
+    @classmethod
+    def parse(cls, parser: Parser):
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        parser.parse_keyword("to")
+        result_type = parser.parse_type()
+        [input] = parser.resolve_operands([input], [input_type], parser.pos)
+        result_float_type = cast(AnyFloat, result_type)
+        return cls(input, result_float_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.input)
+        printer.print(" : ")
+        printer.print_attribute(self.input.type)
+        printer.print(" to ")
+        printer.print_attribute(self.result.type)
+
 
 @irdl_op_definition
 class TruncFOp(IRDLOperation):
@@ -736,6 +769,25 @@ class TruncFOp(IRDLOperation):
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        parser.parse_keyword("to")
+        result_type = parser.parse_type()
+        [input] = parser.resolve_operands([input], [input_type], parser.pos)
+        result_float_type = cast(AnyFloat, result_type)
+        return cls(input, result_float_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.input)
+        printer.print(" : ")
+        printer.print_attribute(self.input.type)
+        printer.print(" to ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
