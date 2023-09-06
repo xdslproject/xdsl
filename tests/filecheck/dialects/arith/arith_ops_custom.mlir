@@ -87,8 +87,8 @@
 
   // CHECK-NEXT: %shrsi = arith.shrsi %lhsi32, %rhsi32 : i32
 
-  %cmpi = "arith.cmpi"(%lhsi32, %rhsi32) {"predicate" = 2 : i64} : (i32, i32) -> i1
-  %cmpi_index = "arith.cmpi"(%lhsindex, %rhsindex) {"predicate" = 2 : i64} : (index, index) -> i1
+  %cmpi = arith.cmpi slt, %lhsi32, %rhsi32 : i32
+  %cmpi_index = arith.cmpi slt, %lhsindex, %rhsindex : index
 
   // CHECK-NEXT: %cmpi = arith.cmpi slt, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %cmpi_index = arith.cmpi slt, %lhsindex, %rhsindex : index
@@ -137,7 +137,7 @@
 
   // CHECK-NEXT: %extf = "arith.extf"(%lhsf32) : (f32) -> f64
 
-  %extui = "arith.extui"(%lhsi32) : (i32) -> i64
+  %extui = arith.extui %lhsi32 : i32 to i64
 
   // CHECK-NEXT: %extui = arith.extui %lhsi32 : i32 to i64
 
@@ -145,16 +145,16 @@
 
   // CHECK-NEXT: %truncf = "arith.truncf"(%lhsf64) : (f64) -> f32
 
-  %trunci = "arith.trunci"(%lhsi64) : (i64) -> i32
+  %trunci = %trunci = arith.trunci %lhsi64 : i64 to i32
 
   // CHECK-NEXT: %trunci = arith.trunci %lhsi64 : i64 to i32
 
-  %cmpf = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 2 : i64} : (f32, f32) -> i1
+  %cmpf = arith.cmpf ogt, %lhsf32, %rhsf32 : f32
 
   // CHECK-NEXT: %cmpf = arith.cmpf ogt, %lhsf32, %rhsf32 : f32
 
-  %selecti = "arith.select"(%lhsi1, %lhsi32, %rhsi32) : (i1, i32, i32) -> i32
-  %selectf = "arith.select"(%lhsi1, %lhsf32, %rhsf32) : (i1, f32, f32) -> f32
+  %selecti = %selecti = arith.select %lhsi1, %lhsi32, %rhsi32 : i32
+  %selectf = %selectf = arith.select %lhsi1, %lhsf32, %rhsf32 : f32
 
   // CHECK-NEXT: %selecti = arith.select %lhsi1, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %selectf = arith.select %lhsi1, %lhsf32, %rhsf32 : f32
