@@ -42,7 +42,7 @@ floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
 _FloatTypeT = TypeVar("_FloatTypeT", bound=AnyFloat)
 
-_CMPI_COMPARISON_OPERATIONS = [
+CMPI_COMPARISON_OPERATIONS = [
     "eq",
     "ne",
     "slt",
@@ -55,7 +55,7 @@ _CMPI_COMPARISON_OPERATIONS = [
     "uge",
 ]
 
-_CMPF_COMPARISON_OPERATIONS = [
+CMPF_COMPARISON_OPERATIONS = [
     "false",
     "oeq",
     "ogt",
