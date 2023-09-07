@@ -7,9 +7,8 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
 )
-from xdsl.ir import Attribute, Operation, SSAValue
-from xdsl.ir.core import Region
-from xdsl.parser import Parser
+from xdsl.ir import Attribute, BlockArgument, Operation, Region, SSAValue
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
@@ -182,3 +181,16 @@ def parse_func_op_like(
         region = Region()
 
     return name, input_types, return_types, region, extra_attributes
+
+
+def print_assignment(printer: Printer, arg: BlockArgument, val: SSAValue):
+    printer.print_block_argument(arg, print_type=False)
+    printer.print_string(" = ")
+    printer.print_ssa_value(val)
+
+
+def parse_assignment(parser: Parser) -> tuple[Parser.Argument, UnresolvedOperand]:
+    arg = parser.parse_argument(expect_type=False)
+    parser.parse_characters("=")
+    val = parser.parse_unresolved_operand()
+    return arg, val

@@ -1,6 +1,8 @@
 import abc
 from itertools import chain
 
+from ordered_set import OrderedSet
+
 from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv_func, riscv_scf
 from xdsl.dialects.riscv import (
@@ -68,9 +70,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     """
 
     available_registers: RegisterQueue
-    live_ins_per_block: dict[Block, set[SSAValue]]
+    live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
 
-    exclude_preallocated: bool = False
+    exclude_preallocated: bool = True
 
     def __init__(self) -> None:
         self.available_registers = RegisterQueue(
@@ -186,6 +188,10 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             self.process_operation(op)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
+        if not func.body.blocks:
+            # External function declaration
+            return
+
         if len(func.body.blocks) != 1:
             raise NotImplementedError(
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."
@@ -211,8 +217,10 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             self.process_operation(op)
 
 
-def _live_ins_per_block(block: Block, acc: dict[Block, set[SSAValue]]) -> set[SSAValue]:
-    res = set[SSAValue]()
+def _live_ins_per_block(
+    block: Block, acc: dict[Block, OrderedSet[SSAValue]]
+) -> OrderedSet[SSAValue]:
+    res = OrderedSet[SSAValue]([])
 
     for op in block.ops_reverse:
         # Remove values defined in the block
@@ -235,11 +243,11 @@ def _live_ins_per_block(block: Block, acc: dict[Block, set[SSAValue]]) -> set[SS
     return res
 
 
-def live_ins_per_block(block: Block) -> dict[Block, set[SSAValue]]:
+def live_ins_per_block(block: Block) -> dict[Block, OrderedSet[SSAValue]]:
     """
     Returns a mapping from a block to the set of values used in it but defined outside of
     it.
     """
-    res: dict[Block, set[SSAValue]] = {}
+    res: dict[Block, OrderedSet[SSAValue]] = {}
     _ = _live_ins_per_block(block, res)
     return res
