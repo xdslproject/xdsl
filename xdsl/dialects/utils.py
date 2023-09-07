@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
 )
 from xdsl.ir import Attribute, BlockArgument, Operation, Region, SSAValue
-from xdsl.parser import Parser
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
@@ -189,9 +189,8 @@ def print_assignment(printer: Printer, arg: BlockArgument, val: SSAValue):
     printer.print_ssa_value(val)
 
 
-def parse_assignment(parser: Parser) -> tuple[Parser.Argument, SSAValue]:
+def parse_assignment(parser: Parser) -> tuple[Parser.Argument, UnresolvedOperand]:
     arg = parser.parse_argument(expect_type=False)
     parser.parse_characters("=")
-    val = parser.parse_operand("expected block argument")
-    arg.type = val.type
+    val = parser.parse_unresolved_operand()
     return arg, val
