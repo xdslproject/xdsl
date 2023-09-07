@@ -243,11 +243,11 @@ def test_float_register():
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
     with pytest.raises(VerifyException, match="Operation does not verify"):
-        riscv.FAddSOp(a1, a2).verify()
+        riscv.FAddSOp(a1, a2, rd=riscv.FloatRegisterType.unallocated()).verify()
 
     f1 = TestSSAValue(riscv.Registers.FT0)
     f2 = TestSSAValue(riscv.Registers.FT1)
-    riscv.FAddSOp(f1, f2).verify()
+    riscv.FAddSOp(f1, f2, rd=riscv.FloatRegisterType.unallocated()).verify()
 
 
 def test_riscv_parse_immediate_value():
