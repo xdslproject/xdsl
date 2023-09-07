@@ -1,5 +1,7 @@
-// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}" --split-input-file --verify-diagnostics %s | filecheck %s --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE
-// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive limit_registers=0}" --split-input-file --verify-diagnostics %s | filecheck %s --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE-J
+// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}" %s | filecheck %s --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE
+// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive limit_registers=0}" %s | filecheck %s --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE-J
+
+riscv_func.func @external() -> ()
 
 riscv_func.func @main() {
   %0 = riscv.li 6 : () -> !riscv.reg<>
@@ -21,6 +23,7 @@ riscv_func.func @main() {
 }
 
 //   CHECK-LIVENESS-BLOCK-NAIVE:       builtin.module {
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:    riscv_func.func @external() -> ()
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:    riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<t4>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 5 : () -> !riscv.reg<s0>
@@ -40,6 +43,7 @@ riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:  }
 
 //   CHECK-LIVENESS-BLOCK-NAIVE-J:       builtin.module {
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:    riscv_func.func @external() -> ()
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:    riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<j2>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.li 5 : () -> !riscv.reg<s0>

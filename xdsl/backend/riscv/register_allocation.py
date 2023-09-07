@@ -72,7 +72,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     available_registers: RegisterQueue
     live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
 
-    exclude_preallocated: bool = False
+    exclude_preallocated: bool = True
 
     def __init__(self) -> None:
         self.available_registers = RegisterQueue(
@@ -188,6 +188,10 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             self.process_operation(op)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
+        if not func.body.blocks:
+            # External function declaration
+            return
+
         if len(func.body.blocks) != 1:
             raise NotImplementedError(
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."

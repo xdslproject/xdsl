@@ -44,7 +44,7 @@ builtin.module {
 // CHECK-NEXT:           scf.for %23 = %6 to %12 step %7 {
 // CHECK-NEXT:             %24 = arith.constant 1.000000e+00 : f64
 // CHECK-NEXT:             %25 = arith.addf %0, %24 : f64
-// CHECK-NEXT:             "memref.store"(%25, %3, %18, %22, %23) : (f64, memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>, index, index, index) -> ()
+// CHECK-NEXT:             memref.store %25, %3[%18, %22, %23] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
 // CHECK-NEXT:             scf.yield
 // CHECK-NEXT:           }
 // CHECK-NEXT:           scf.yield
@@ -101,8 +101,8 @@ builtin.module {
 // CHECK-NEXT:           %40 = "arith.cmpi"(%39, %32) {"predicate" = 6 : i64} : (index, index) -> i1
 // CHECK-NEXT:           %41 = "arith.select"(%40, %39, %32) : (i1, index, index) -> index
 // CHECK-NEXT:           scf.for %42 = %34 to %41 step %28 {
-// CHECK-NEXT:             %i = "memref.load"(%fim1_loadview, %38, %42) : (memref<2000x2000xf32, strided<[2004, 1], offset: 4010>>, index, index) -> f32
-// CHECK-NEXT:             "memref.store"(%i, %fi_storeview, %38, %42) : (f32, memref<2000x2000xf32, strided<[2004, 1], offset: 4010>>, index, index) -> ()
+// CHECK-NEXT:             %i = memref.load %fim1_loadview[%38, %42] : memref<2000x2000xf32, strided<[2004, 1], offset: 4010>>
+// CHECK-NEXT:             memref.store %i, %fi_storeview[%38, %42] : memref<2000x2000xf32, strided<[2004, 1], offset: 4010>>
 // CHECK-NEXT:             scf.yield
 // CHECK-NEXT:           }
 // CHECK-NEXT:           scf.yield
@@ -146,8 +146,8 @@ builtin.module {
 // CHECK-NEXT:     scf.for %54 = %50 to %53 step %47 {
 // CHECK-NEXT:       %55 = arith.constant -1 : index
 // CHECK-NEXT:       %56 = arith.addi %54, %55 : index
-// CHECK-NEXT:       %57 = "memref.load"(%45, %56) : (memref<69xf64, strided<[1], offset: 4>>, index) -> f64
-// CHECK-NEXT:       "memref.store"(%57, %outc_storeview, %54) : (f64, memref<68xf64, strided<[1]>>, index) -> ()
+// CHECK-NEXT:       %57 = memref.load %45[%56] : memref<69xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:       memref.store %57, %outc_storeview[%54] : memref<68xf64, strided<[1]>>
 // CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }
 // CHECK-NEXT:     scf.yield
@@ -189,7 +189,7 @@ builtin.module {
   // CHECK-NEXT:         scf.for %77 = %69 to %76 step %63 {
   // CHECK-NEXT:           %78 = arith.constant -1 : index
   // CHECK-NEXT:           %79 = arith.addi %73, %78 : index
-  // CHECK-NEXT:           %80 = "memref.load"(%60, %79, %77) : (memref<65x68xf64, strided<[72, 1], offset: 292>>, index, index) -> f64
+  // CHECK-NEXT:           %80 = memref.load %60[%79, %77] : memref<65x68xf64, strided<[72, 1], offset: 292>>
   // CHECK-NEXT:           scf.yield
   // CHECK-NEXT:         }
   // CHECK-NEXT:         scf.yield
@@ -241,7 +241,7 @@ builtin.module {
 // CHECK-NEXT:             %105 = arith.addi %98, %104 : index
 // CHECK-NEXT:             %106 = arith.constant 1 : index
 // CHECK-NEXT:             %107 = arith.addi %103, %106 : index
-// CHECK-NEXT:             %108 = "memref.load"(%83, %105, %102, %107) : (memref<65x64x69xf64, strided<[5624, 76, 1], offset: 22804>>, index, index, index) -> f64
+// CHECK-NEXT:             %108 = memref.load %83[%105, %102, %107] : memref<65x64x69xf64, strided<[5624, 76, 1], offset: 22804>>
 // CHECK-NEXT:             scf.yield
 // CHECK-NEXT:           }
 // CHECK-NEXT:           scf.yield
@@ -322,24 +322,24 @@ builtin.module {
 // CHECK-NEXT:           scf.for %138 = %121 to %127 step %122 {
 // CHECK-NEXT:             %139 = arith.constant -1 : index
 // CHECK-NEXT:             %140 = arith.addi %133, %139 : index
-// CHECK-NEXT:             %141 = "memref.load"(%118, %140, %137, %138) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:             %141 = memref.load %118[%140, %137, %138] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:             %142 = arith.constant 1 : index
 // CHECK-NEXT:             %143 = arith.addi %133, %142 : index
-// CHECK-NEXT:             %144 = "memref.load"(%118, %143, %137, %138) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:             %144 = memref.load %118[%143, %137, %138] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:             %145 = arith.constant 1 : index
 // CHECK-NEXT:             %146 = arith.addi %137, %145 : index
-// CHECK-NEXT:             %147 = "memref.load"(%118, %133, %146, %138) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:             %147 = memref.load %118[%133, %146, %138] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:             %148 = arith.constant -1 : index
 // CHECK-NEXT:             %149 = arith.addi %137, %148 : index
-// CHECK-NEXT:             %150 = "memref.load"(%118, %133, %149, %138) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
-// CHECK-NEXT:             %151 = "memref.load"(%118, %133, %137, %138) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:             %150 = memref.load %118[%133, %149, %138] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:             %151 = memref.load %118[%133, %137, %138] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:             %152 = arith.addf %141, %144 : f64
 // CHECK-NEXT:             %153 = arith.addf %147, %150 : f64
 // CHECK-NEXT:             %154 = arith.addf %152, %153 : f64
 // CHECK-NEXT:             %cst = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:             %155 = arith.mulf %151, %cst : f64
 // CHECK-NEXT:             %156 = arith.addf %155, %154 : f64
-// CHECK-NEXT:             "memref.store"(%156, %116, %133, %137, %138) : (f64, memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> ()
+// CHECK-NEXT:             memref.store %156, %116[%133, %137, %138] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:             scf.yield
 // CHECK-NEXT:           }
 // CHECK-NEXT:           scf.yield
@@ -391,8 +391,8 @@ builtin.module {
 // CHECK-NEXT:     %163 = "arith.cmpi"(%162, %160) {"predicate" = 6 : i64} : (index, index) -> i1
 // CHECK-NEXT:     %164 = "arith.select"(%163, %162, %160) : (i1, index, index) -> index
 // CHECK-NEXT:     scf.for %165 = %161 to %164 step %158 {
-// CHECK-NEXT:       %val = "memref.load"(%in_loadview, %165) : (memref<32xf64, strided<[1], offset: 32>>, index) -> f64
-// CHECK-NEXT:       "memref.store"(%val, %out_storeview, %165) : (f64, memref<32xf64, strided<[1], offset: 32>>, index) -> ()
+// CHECK-NEXT:       %val = memref.load %in_loadview[%165] : memref<32xf64, strided<[1], offset: 32>>
+// CHECK-NEXT:       memref.store %val, %out_storeview[%165] : memref<32xf64, strided<[1], offset: 32>>
 // CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }
 // CHECK-NEXT:     scf.yield
@@ -434,8 +434,8 @@ builtin.module {
 // CHECK-NEXT:     scf.for %180 = %176 to %179 step %173 {
 // CHECK-NEXT:       %181 = arith.constant -1 : index
 // CHECK-NEXT:       %182 = arith.addi %180, %181 : index
-// CHECK-NEXT:       %183 = "memref.load"(%169, %182) : (memref<64xf64, strided<[1], offset: 4>>, index) -> f64
-// CHECK-NEXT:       "memref.store"(%183, %171, %180) : (f64, memref<64xf64, strided<[1], offset: -1>>, index) -> ()
+// CHECK-NEXT:       %183 = memref.load %169[%182] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:       memref.store %183, %171[%180] : memref<64xf64, strided<[1], offset: -1>>
 // CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }
 // CHECK-NEXT:     scf.yield
@@ -452,8 +452,8 @@ builtin.module {
 // CHECK-NEXT:     scf.for %192 = %188 to %191 step %185 {
 // CHECK-NEXT:       %193 = arith.constant 1 : index
 // CHECK-NEXT:       %194 = arith.addi %192, %193 : index
-// CHECK-NEXT:       %195 = "memref.load"(%171, %194) : (memref<64xf64, strided<[1], offset: -1>>, index) -> f64
-// CHECK-NEXT:       "memref.store"(%195, %168, %192) : (f64, memref<64xf64, strided<[1], offset: 4>>, index) -> ()
+// CHECK-NEXT:       %195 = memref.load %171[%194] : memref<64xf64, strided<[1], offset: -1>>
+// CHECK-NEXT:       memref.store %195, %168[%192] : memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }
 // CHECK-NEXT:     scf.yield
@@ -495,8 +495,8 @@ builtin.module {
 // CHECK-NEXT:     scf.for %210 = %206 to %209 step %203 {
 // CHECK-NEXT:       %211 = arith.constant -1 : index
 // CHECK-NEXT:       %212 = arith.addi %210, %211 : index
-// CHECK-NEXT:       %213 = "memref.load"(%201, %212) : (memref<64xf64, strided<[1], offset: 4>>, index) -> f64
-// CHECK-NEXT:       "memref.store"(%213, %200, %210) : (f64, memref<64xf64, strided<[1], offset: 4>>, index) -> ()
+// CHECK-NEXT:       %213 = memref.load %201[%212] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:       memref.store %213, %200[%210] : memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }
 // CHECK-NEXT:     scf.yield
@@ -513,8 +513,8 @@ builtin.module {
 // CHECK-NEXT:     scf.for %222 = %218 to %221 step %215 {
 // CHECK-NEXT:       %223 = arith.constant 1 : index
 // CHECK-NEXT:       %224 = arith.addi %222, %223 : index
-// CHECK-NEXT:       %225 = "memref.load"(%200, %224) : (memref<64xf64, strided<[1], offset: 4>>, index) -> f64
-// CHECK-NEXT:       "memref.store"(%225, %199, %222) : (f64, memref<64xf64, strided<[1], offset: 4>>, index) -> ()
+// CHECK-NEXT:       %225 = memref.load %200[%224] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:       memref.store %225, %199[%222] : memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }
 // CHECK-NEXT:     scf.yield
@@ -581,8 +581,8 @@ builtin.module {
 // CHECK-NEXT:           %248 = "arith.cmpi"(%247, %240) {"predicate" = 6 : i64} : (index, index) -> i1
 // CHECK-NEXT:           %249 = "arith.select"(%248, %247, %240) : (i1, index, index) -> index
 // CHECK-NEXT:           scf.for %250 = %242 to %249 step %236 {
-// CHECK-NEXT:             %251 = "memref.load"(%t0_loadview, %246, %250) : (memref<11x11xf32, strided<[15, 1], offset: 32>>, index, index) -> f32
-// CHECK-NEXT:             "memref.store"(%251, %t1_storeview, %246, %250) : (f32, memref<11x11xf32, strided<[15, 1], offset: 32>>, index, index) -> ()
+// CHECK-NEXT:             %251 = memref.load %t0_loadview[%246, %250] : memref<11x11xf32, strided<[15, 1], offset: 32>>
+// CHECK-NEXT:             memref.store %251, %t1_storeview[%246, %250] : memref<11x11xf32, strided<[15, 1], offset: 32>>
 // CHECK-NEXT:             scf.yield
 // CHECK-NEXT:           }
 // CHECK-NEXT:           scf.yield
