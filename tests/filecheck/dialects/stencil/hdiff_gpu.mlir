@@ -66,7 +66,7 @@
 // CHECK-NEXT:       %35 = arith.mulf %31, %cst : f64
 // CHECK-NEXT:       %36 = arith.addf %35, %34 : f64
 // CHECK-NEXT:       "memref.store"(%36, %6, %18, %17, %16) : (f64, memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> ()
-// CHECK-NEXT:       "scf.yield"() : () -> ()
+// CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
