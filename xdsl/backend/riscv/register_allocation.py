@@ -72,7 +72,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     available_registers: RegisterQueue
     live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
 
-    exclude_preallocated: bool = False
+    exclude_preallocated: bool = True
 
     def __init__(self) -> None:
         self.available_registers = RegisterQueue(
