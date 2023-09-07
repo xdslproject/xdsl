@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
@@ -51,8 +53,9 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
-    from xdsl.parser import AttrParser
+    from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
+
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -197,6 +200,25 @@ class Load(IRDLOperation):
             operands=[ref, indices], result_types=[ssa_value_type.element_type]
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        unresolved_ref = parser.parse_unresolved_operand()
+        indices = parser.parse_comma_separated_list(
+            type(parser).Delimiter.SQUARE, parser.parse_operand
+        )
+        parser.parse_punctuation(":")
+        ref_type = parser.parse_attribute()
+        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
+        return cls.get(resolved_ref, indices)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.memref)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_operand)
+        printer.print_string("] : ")
+        printer.print_attribute(self.memref.type)
+
 
 @irdl_op_definition
 class Store(IRDLOperation):
@@ -224,6 +246,29 @@ class Store(IRDLOperation):
         indices: Sequence[Operation | SSAValue],
     ) -> Store:
         return Store.build(operands=[value, ref, indices])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        value = parser.parse_operand()
+        parser.parse_punctuation(",")
+        unresolved_ref = parser.parse_unresolved_operand()
+        indices = parser.parse_comma_separated_list(
+            type(parser).Delimiter.SQUARE, parser.parse_operand
+        )
+        parser.parse_punctuation(":")
+        ref_type = parser.parse_attribute()
+        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
+        return cls.get(value, resolved_ref, indices)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.value)
+        printer.print_string(", ")
+        printer.print(self.memref)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_operand)
+        printer.print_string("] : ")
+        printer.print_attribute(self.memref.type)
 
 
 @irdl_op_definition
