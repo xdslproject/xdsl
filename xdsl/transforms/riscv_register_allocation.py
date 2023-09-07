@@ -19,7 +19,7 @@ class RISCVRegisterAllocation(ModulePass):
 
     limit_registers: int | None = None
 
-    exclude_preallocated: bool = False
+    exclude_preallocated: bool = True
     """
     Enables tracking of already allocated registers and excludes them from the
     available set.
