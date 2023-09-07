@@ -14,7 +14,7 @@ from xdsl.dialects.utils import (
     print_assignment,
     print_return_op_like,
 )
-from xdsl.ir import Dialect
+from xdsl.ir import Attribute, Dialect
 from xdsl.irdl import (
     Block,
     IRDLOperation,
@@ -30,7 +30,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -137,6 +137,8 @@ class ForOp(IRDLOperation):
         index, *iter_args = block.args
         printer.print_string(" ")
         printer.print_ssa_value(index)
+        printer.print(" : ")
+        printer.print_attribute(index.type)
         printer.print_string(" = ")
         printer.print_ssa_value(self.lb)
         printer.print_string(" to ")
@@ -159,26 +161,43 @@ class ForOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        index, lb = parse_assignment(parser)
+        # Parse bounds
+        index = parser.parse_argument(expect_type=False)
+        parser.parse_characters(":")
+        index_arg_type = parser.parse_type()
+        parser.parse_characters("=")
+        lb = parser.parse_operand()
         parser.parse_characters("to")
         ub = parser.parse_operand()
         parser.parse_characters("step")
         step = parser.parse_operand()
+
+        # Parse iteration arguments
+        pos = parser.pos
         iter_args: list[Parser.Argument] = []
-        iter_arg_operands: list[SSAValue] = []
+        iter_arg_unresolved_operands: list[UnresolvedOperand] = []
+        iter_arg_types: list[Attribute] = []
         if parser.parse_optional_characters("iter_args"):
             for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
                 Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
             ):
                 iter_args.append(iter_arg)
-                iter_arg_operands.append(iter_arg_operand)
+                iter_arg_unresolved_operands.append(iter_arg_operand)
             parser.parse_characters("->")
             iter_arg_types = parser.parse_comma_separated_list(
                 Parser.Delimiter.PAREN, parser.parse_attribute
             )
-            # PR: am I doing this right? Seems like duplicated information
-            assert iter_arg_types == [arg.type for arg in iter_args]
 
+        iter_arg_operands = parser.resolve_operands(
+            iter_arg_unresolved_operands, iter_arg_types, pos
+        )
+
+        # Set block argument types
+        index.type = index_arg_type
+        for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
+            iter_arg.type = iter_arg_type
+
+        # Parse body
         body = parser.parse_region((index, *iter_args))
         if not body.block.ops:
             assert not iter_args, "Cannot create implicit yield with arguments"

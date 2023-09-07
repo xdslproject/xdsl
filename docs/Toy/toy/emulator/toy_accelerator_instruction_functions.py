@@ -21,11 +21,8 @@ class ToyAcceleratorInstructionFunctions(RiscvFunctions):
             custom_instructions={
                 "tensor.print1d": accelerator_tensor_print1d,
                 "tensor.print2d": accelerator_tensor_print2d,
-                "tensor.transpose2d": accelerator_tensor_transpose2d,
                 "buffer.alloc": accelerator_buffer_alloc,
                 "buffer.copy": accelerator_buffer_copy,
-                "buffer.add": accelerator_buffer_add,
-                "buffer.mul": accelerator_buffer_mul,
                 "print": print_,
             },
         )

@@ -15,7 +15,6 @@ from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
 from .compiler import context, emulate_riscv, transform
-from .emulator.toy_accelerator_functions import ToyAcceleratorFunctions
 from .emulator.toy_accelerator_instruction_functions import (
     ToyAcceleratorInstructionFunctions,
 )
@@ -48,10 +47,9 @@ parser.add_argument(
 )
 parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
-parser.add_argument("--accelerate", dest="accelerate", action="store_true")
 
 
-def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool):
+def main(path: Path, emit: str, ir: bool, print_generic: bool):
     ctx = context()
 
     path = args.source
@@ -79,7 +77,7 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
     if asm:
         emit = "riscv-lowered"
 
-    transform(ctx, module_op, target=emit, accelerate=accelerate)
+    transform(ctx, module_op, target=emit)
 
     if asm:
         code = riscv_code(module_op)
@@ -107,8 +105,6 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
         interpreter.register_implementations(ToyFunctions())
     if emit in ("affine"):
         interpreter.register_implementations(AffineFunctions())
-    if accelerate and emit in ("affine", "scf"):
-        interpreter.register_implementations(ToyAcceleratorFunctions())
     if emit in ("affine", "scf"):
         interpreter.register_implementations(ArithFunctions())
         interpreter.register_implementations(MemrefFunctions())
@@ -130,4 +126,4 @@ def main(path: Path, emit: str, ir: bool, accelerate: bool, print_generic: bool)
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.source, args.emit, args.ir, args.accelerate, args.print_generic)
+    main(args.source, args.emit, args.ir, args.print_generic)

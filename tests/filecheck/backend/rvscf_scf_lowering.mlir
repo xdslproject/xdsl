@@ -22,7 +22,7 @@ builtin.module {
 // CHECK-NEXT:   %6 = builtin.unrealized_conversion_cast %2 : index to !riscv.reg<>
 // CHECK-NEXT:   %7 = builtin.unrealized_conversion_cast %3 : index to !riscv.reg<>
 // CHECK-NEXT:   %8 = riscv.mv %7 : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %9 = riscv_scf.for %10 = %4 to %5 step %6 iter_args(%11 = %8) -> (!riscv.reg<>) {
+// CHECK-NEXT:   %9 = riscv_scf.for %10 : !riscv.reg<> = %4 to %5 step %6 iter_args(%11 = %8) -> (!riscv.reg<>) {
 // CHECK-NEXT:     %12 = builtin.unrealized_conversion_cast %11 : !riscv.reg<> to index
 // CHECK-NEXT:     %13 = builtin.unrealized_conversion_cast %10 : !riscv.reg<> to index
 // CHECK-NEXT:     %14 = arith.addi %13, %12 : index
