@@ -57,6 +57,25 @@ def move_ops_for_value(
         raise NotImplementedError(f"Unsupported register type for move op: {rd}")
 
 
+def get_reg_op_for_value(
+    value: SSAValue,
+) -> riscv.GetRegisterOp | riscv.GetFloatRegisterOp:
+    """
+    Returns the operation that moves the value from the input to a new register.
+    """
+
+    if isinstance(value.type, riscv.IntRegisterType):
+        get_reg_op = riscv.GetRegisterOp(value.type)
+        return get_reg_op
+    elif isinstance(value.type, riscv.FloatRegisterType):
+        get_reg_op = riscv.GetFloatRegisterOp(value.type)
+        return get_reg_op
+    else:
+        raise NotImplementedError(
+            f"Unsupported register type for op type: {value.type}"
+        )
+
+
 def move_to_a_regs(
     values: Iterable[SSAValue],
 ) -> tuple[list[Operation], list[SSAValue]]:

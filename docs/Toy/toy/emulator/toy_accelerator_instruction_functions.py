@@ -12,8 +12,6 @@ class ToyAcceleratorInstructionFunctions(RiscvFunctions):
             custom_instructions={
                 "tensor.print1d": accelerator_tensor_print1d,
                 "tensor.print2d": accelerator_tensor_print2d,
-                "buffer.alloc": accelerator_buffer_alloc,
-                "buffer.copy": accelerator_buffer_copy,
                 "print": print_,
             },
         )
@@ -48,21 +46,3 @@ def accelerator_tensor_print2d(
     shaped_array = ShapedArray(ptr.float32.get_list(rows * cols), [rows, cols])
     interpreter.print(f"{shaped_array}")
     return ()
-
-
-def accelerator_buffer_copy(
-    interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
-) -> PythonValues:
-    size, dest_buffer, source_buffer = args
-
-    for i in range(size):
-        dest_buffer[i] = source_buffer[i]
-
-    return ()
-
-
-def accelerator_buffer_alloc(
-    interpreter: Interpreter, op: riscv.CustomAssemblyInstructionOp, args: PythonValues
-) -> PythonValues:
-    (size,) = args
-    return (RawPtr.zeros(size * 4),)

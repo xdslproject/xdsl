@@ -48,10 +48,10 @@ class LowerFuncOp(RewritePattern):
             # C-like: default is public
             new_ops.append(riscv.DirectiveOp(".globl", op.sym_name.data))
 
-        new_ops.append(
-            # FIXME we should ask the target for alignment, this works for rv32
-            riscv.DirectiveOp(".p2align", "2"),
-        )
+        # new_ops.append(
+        #     # FIXME we should ask the target for alignment, this works for rv32
+        #     riscv.DirectiveOp(".p2align", "2"),
+        # )
 
         new_ops.append(new_func)
 

@@ -175,6 +175,17 @@ class FuncOp(IRDLOperation, riscv.RISCVOp):
 
         super().__init__(attributes=attributes, regions=[region])
 
+    @staticmethod
+    def external(
+        name: str, input_types: Sequence[Attribute], return_types: Sequence[Attribute]
+    ) -> FuncOp:
+        return FuncOp(
+            name=name,
+            region=Region(),
+            function_type=(input_types, return_types),
+            visibility="private",
+        )
+
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         # Parse visibility keyword if present

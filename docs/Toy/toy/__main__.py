@@ -9,6 +9,7 @@ from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
+from xdsl.interpreters.riscv_libc import RiscvLibcFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.interpreters.scf import ScfFunctions
 from xdsl.parser import Parser as IRParser
@@ -118,6 +119,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         interpreter.register_implementations(
             ToyAcceleratorInstructionFunctions(module_op)
         )
+        interpreter.register_implementations(RiscvLibcFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
         interpreter.register_implementations(RiscvScfFunctions())
 
