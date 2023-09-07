@@ -468,7 +468,7 @@ class Cmpi(IRDLOperation, ComparisonOperation):
     def print(self, printer: Printer):
         printer.print(" ")
 
-        printer.print_string(_CMPI_COMPARISON_OPERATIONS[self.predicate.value.data])
+        printer.print_string(CMPI_COMPARISON_OPERATIONS[self.predicate.value.data])
         printer.print(", ")
         printer.print_operand(self.lhs)
         printer.print(", ")
@@ -564,7 +564,7 @@ class Cmpf(IRDLOperation, ComparisonOperation):
 
     def print(self, printer: Printer):
         printer.print(" ")
-        printer.print_string(_CMPF_COMPARISON_OPERATIONS[self.predicate.value.data])
+        printer.print_string(CMPF_COMPARISON_OPERATIONS[self.predicate.value.data])
         printer.print(", ")
         printer.print_operand(self.lhs)
         printer.print(", ")
