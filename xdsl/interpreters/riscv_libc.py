@@ -61,11 +61,11 @@ class RiscvLibcFunctions(InterpreterFunctions):
         return tuple()
 
     @impl_external("putchar")
-    def putchar(self, interp: Interpreter, op: Operation, args: PythonValues):
+    def putchar(self, iterpreter: Interpreter, op: Operation, args: PythonValues):
         assert len(args) == 1
         char = args[0]
         if isinstance(char, int):
-            print(chr(char), end="")
+            iterpreter.print(chr(char), end="")
         else:
-            print(char, end="")
+            iterpreter.print(char, end="")
         return (char,)
