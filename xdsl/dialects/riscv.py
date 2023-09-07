@@ -3279,6 +3279,41 @@ class FSwOp(RsRsImmFloatOperation):
 
 # endregion
 
+# region 17 "V" Standard Extension for Vector Operations
+
+# https://riscv.org/wp-content/uploads/2018/05/15.20-15.55-18.05.06.VEXT-bcn-v1.pdf
+
+
+@irdl_op_definition
+class VFAddSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Perform a pointwise single-precision floating-point addition over vectors.
+
+    On Snitch (and maybe other processors?) when the registers are floating point
+    registers on a 64-bit machine it treats them as registers containing a 2xf32 vector.
+    """
+
+    name = "riscv.vfadd.s"
+
+
+@irdl_op_definition
+class VFMulSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Perform a pointwise single-precision floating-point multiplication over vectors.
+
+    On Snitch (and maybe other processors?) when the registers are floating point
+    registers on a 64-bit machine it treats them as registers containing a 2xf32 vector.
+    """
+
+    name = "riscv.vfmul.s"
+
+
+# endregion
+
 
 def _parse_optional_immediate_value(
     parser: Parser, integer_type: IntegerType | IndexType
@@ -3406,6 +3441,8 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        VFAddSOp,
+        VFMulSOp,
     ],
     [
         IntRegisterType,
