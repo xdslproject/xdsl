@@ -2,8 +2,9 @@ from dataclasses import dataclass, field
 from typing import cast
 
 from xdsl.dialects import riscv, riscv_func
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.ir import MLContext, Operation, OpResult
+from xdsl.ir.core import Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -37,7 +38,7 @@ class LowerSyscallOp(RewritePattern):
             ops.append(
                 riscv.MVOp(
                     arg,
-                    rd=f"a{i}",
+                    rd=riscv.IntRegisterType.a_register(i),
                 )
             )
 
@@ -64,7 +65,7 @@ class LowerSyscallOp(RewritePattern):
 class LowerRISCVFuncOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
-        first_block = op.func_body.blocks[0]
+        first_block = op.body.blocks[0]
         first_op = first_block.first_op
         assert first_op is not None
         while len(first_block.args):
@@ -78,9 +79,23 @@ class LowerRISCVFuncOp(RewritePattern):
             first_op = get_reg_op
             rewriter.erase_block_argument(last_arg)
 
-        label_body = rewriter.move_region_contents_to_new_regions(op.func_body)
+        result = [
+            # FIXME we should ask the target for alignment, this works for rv32
+            riscv.DirectiveOp(".p2align", "2"),
+            riscv.LabelOp(
+                op.sym_name.data,
+                region=rewriter.move_region_contents_to_new_regions(op.body),
+            ),
+        ]
 
-        rewriter.replace_matched_op(riscv.LabelOp(op.sym_name.data, region=label_body))
+        if op.sym_visibility != StringAttr("private"):  # C-like: default is public
+            result = [riscv.DirectiveOp(".globl", op.sym_name.data)] + result
+
+        # Each function has its own .text: this will tell the assembler to emit
+        # a .text section (if not present) and make it the current one
+        section = riscv.AssemblySectionOp(".text", Region(Block(result)))
+
+        rewriter.replace_matched_op(section)
 
 
 class InsertExitSyscallOp(RewritePattern):
@@ -101,7 +116,9 @@ class LowerRISCVFuncReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.ReturnOp, rewriter: PatternRewriter):
         for i, value in enumerate(op.values):
-            rewriter.insert_op_before_matched_op(riscv.MVOp(value, rd=f"a{i}"))
+            rewriter.insert_op_before_matched_op(
+                riscv.MVOp(value, rd=riscv.IntRegisterType.a_register(i))
+            )
         rewriter.replace_matched_op(riscv.ReturnOp())
 
 
@@ -110,16 +127,18 @@ class LowerRISCVCallOp(RewritePattern):
     def match_and_rewrite(self, op: riscv_func.CallOp, rewriter: PatternRewriter):
         for i, arg in enumerate(op.operands):
             # Load arguments into a0...
-            rewriter.insert_op_before_matched_op(riscv.MVOp(arg, rd=f"a{i}"))
+            rewriter.insert_op_before_matched_op(
+                riscv.MVOp(arg, rd=riscv.IntRegisterType.a_register(i))
+            )
 
         ops: list[Operation] = [
-            riscv.JalOp(op.callee.data),
+            riscv.JalOp(op.callee.string_value()),
         ]
         new_results: list[OpResult] = []
 
         for i in range(len(op.results)):
-            get_reg = riscv.GetRegisterOp(f"a{i}")
-            move_res = riscv.MVOp(get_reg)
+            get_reg = riscv.GetRegisterOp(riscv.IntRegisterType(f"a{i}"))
+            move_res = riscv.MVOp(get_reg, rd=riscv.IntRegisterType.unallocated())
             ops.extend((get_reg, move_res))
             new_results.append(move_res.rd)
 

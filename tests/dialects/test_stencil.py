@@ -318,7 +318,7 @@ def test_index_attr_max(indices1: list[int], indices2: list[int]):
     "indices",
     (((1,)), ((1, 2)), ((1, 2, 3))),
 )
-def test_index_attr_iter(indices: tuple[int]):
+def test_index_attr_iter(indices: tuple[int, ...]):
     stencil_index_attr = IndexAttr.get(*indices)
 
     assert tuple(stencil_index_attr) == indices

@@ -1,6 +1,6 @@
 import ast
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 import xdsl.dialects.affine as affine
 import xdsl.dialects.arith as arith
@@ -41,7 +41,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     type_converter: TypeConverter
     """Used for type conversion during code generation."""
 
-    globals: Dict[str, Any]
+    globals: dict[str, Any]
     """
     Imports and other global information from the module, useful for looking
     up classes, etc.
@@ -50,7 +50,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     inserter: OpInserter
     """Used for inserting newly generated operations to the right block."""
 
-    symbol_table: Dict[str, Attribute] | None = field(default=None)
+    symbol_table: dict[str, Attribute] | None = field(default=None)
     """
     Maps local variable names to their xDSL types. A single dictionary is sufficient
     because inner functions and global variables are not allowed (yet).
@@ -446,19 +446,15 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             self.visit(stmt)
         if is_affine:
             self.inserter.insert_op(affine.Yield.get())
-            assert (
-                isinstance(start, int)
-                and isinstance(end, int)
-                and isinstance(step, int)
-            )
+            assert isinstance(start, int)
+            assert isinstance(end, int)
+            assert isinstance(step, int)
             op = affine.For.from_region([], [], start, end, body, step)
         else:
             self.inserter.insert_op(scf.Yield.get())
-            assert (
-                isinstance(start, SSAValue)
-                and isinstance(end, SSAValue)
-                and isinstance(step, SSAValue)
-            )
+            assert isinstance(start, SSAValue)
+            assert isinstance(end, SSAValue)
+            assert isinstance(step, SSAValue)
             op = scf.For.get(start, end, step, [], body)
 
         self.inserter.set_insertion_point_from_block(curr_block)
@@ -470,14 +466,14 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.symbol_table = dict()
 
         # Then, convert types in the function signature.
-        argument_types: List[Attribute] = []
+        argument_types: list[Attribute] = []
         for i, arg in enumerate(node.args.args):
             if arg.annotation is None:
                 raise CodeGenerationException(self.file, arg.lineno, arg.col_offset, "")
             xdsl_type = self.type_converter.convert_type_hint(arg.annotation)
             argument_types.append(xdsl_type)
 
-        return_types: List[Attribute] = []
+        return_types: list[Attribute] = []
         if node.returns is not None:
             xdsl_type = self.type_converter.convert_type_hint(node.returns)
             return_types.append(xdsl_type)

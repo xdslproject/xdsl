@@ -25,8 +25,15 @@ typeCheckingMode = "strict"
 profile = "black"
 
 [tool.ruff]
-select = ["E", "F", "W", "I"]
-ignore = ["E741"]
+select = ["E", "F", "W", "I", "UP", "PT"]
+ignore = [
+    "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
+    "PT006", # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
+    "PT007", # https://beta.ruff.rs/docs/rules/pytest-parametrize-values-wrong-type/
+    "PT011", # https://beta.ruff.rs/docs/rules/pytest-raises-too-broad/
+    "PT012", # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
+    "PT015", # https://beta.ruff.rs/docs/rules/pytest-assert-always-false/
+]
 line-length = 300
 target-version = "py310"
 
@@ -35,6 +42,8 @@ target-version = "py310"
 "tests/filecheck/frontend/programs/invalid.py" = ["F811", "F841"]
 "tests/filecheck/frontend/dialects/invalid.py" = ["F811"]
 "tests/test_declarative_assembly_format.py" = ["F811"]
+"versioneer.py" = ["ALL"]
+"_version.py" = ["ALL"]
 
 [tool.ruff.mccabe]
 max-complexity = 10

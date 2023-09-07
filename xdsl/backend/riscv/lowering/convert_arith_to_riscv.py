@@ -1,10 +1,8 @@
-import ctypes
 from typing import overload
 
 from xdsl.backend.riscv.lowering.utils import (
     cast_matched_op_results,
-    cast_operands_to_float_regs,
-    cast_operands_to_int_regs,
+    cast_operands_to_regs,
 )
 from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
@@ -26,18 +24,10 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.dead_code_elimination import dce
+from xdsl.utils.bitwise_casts import convert_f32_to_u32
 
 _INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 _FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
-
-
-def convert_float_to_int(value: float) -> int:
-    """
-    Convert an IEEE 754 float to a raw integer representation, useful for loading constants.
-    """
-    raw_float = ctypes.c_float(value)
-    raw_int = ctypes.c_int.from_address(ctypes.addressof(raw_float)).value
-    return raw_int
 
 
 class LowerArithConstant(RewritePattern):
@@ -63,10 +53,12 @@ class LowerArithConstant(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         lui := riscv.LiOp(
-                            convert_float_to_int(op.value.value.data),
+                            convert_f32_to_u32(op.value.value.data),
                             rd=_INT_REGISTER_TYPE,
                         ),
-                        fld := riscv.FCvtSWOp(lui.rd),
+                        fld := riscv.FCvtSWOp(
+                            lui.rd, rd=riscv.FloatRegisterType.unallocated()
+                        ),
                         UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
                     ],
                 )
@@ -223,7 +215,7 @@ class LowerArithCmpi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpi, rewriter: PatternRewriter) -> None:
         # based on https://github.com/llvm/llvm-project/blob/main/llvm/test/CodeGen/RISCV/i32-icmp.ll
-        lhs, rhs = cast_operands_to_int_regs(rewriter)
+        lhs, rhs = cast_operands_to_regs(rewriter)
         cast_matched_op_results(rewriter)
 
         match op.predicate.value.data:
@@ -316,7 +308,7 @@ class LowerArithCmpf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Cmpf, rewriter: PatternRewriter) -> None:
         # https://llvm.org/docs/LangRef.html#id309
-        lhs, rhs = cast_operands_to_float_regs(rewriter)
+        lhs, rhs = cast_operands_to_regs(rewriter)
         cast_matched_op_results(rewriter)
 
         match op.predicate.value.data:
@@ -395,7 +387,9 @@ class LowerArithSIToFPOp(RewritePattern):
                 cast_input := UnrealizedConversionCastOp.get(
                     (op.input,), (_INT_REGISTER_TYPE,)
                 ),
-                new_op := riscv.FCvtSWOp(cast_input.results[0]),
+                new_op := riscv.FCvtSWOp(
+                    cast_input.results[0], rd=riscv.FloatRegisterType.unallocated()
+                ),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
             )
         )
@@ -409,7 +403,9 @@ class LowerArithFPToSIOp(RewritePattern):
                 cast_input := UnrealizedConversionCastOp.get(
                     (op.input,), (_FLOAT_REGISTER_TYPE,)
                 ),
-                new_op := riscv.FCvtWSOp(cast_input.results[0]),
+                new_op := riscv.FCvtWSOp(
+                    cast_input.results[0], rd=riscv.IntRegisterType.unallocated()
+                ),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
             )
         )
@@ -427,8 +423,8 @@ class LowerArithTruncFOp(RewritePattern):
         raise NotImplementedError("TruncF is not supported")
 
 
-class RISCVLowerArith(ModulePass):
-    name = "lower-arith-to-riscv"
+class ConvertArithToRiscvPass(ModulePass):
+    name = "convert-arith-to-riscv"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(

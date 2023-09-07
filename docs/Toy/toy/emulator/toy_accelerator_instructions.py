@@ -12,6 +12,7 @@ from riscemu.types.instruction import Instruction
 from riscemu.types.int32 import Int32
 
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.utils.bitwise_casts import convert_u32_to_f32
 
 
 # Define a RISC-V ISA extension by subclassing InstructionSet
@@ -58,7 +59,9 @@ class ToyAccelerator(InstructionSet):
 
         data = self.buffer_read(b_ptr, b_els)
 
-        shaped_array = ShapedArray([float(value) for value in data], [b_els])
+        shaped_array = ShapedArray(
+            [convert_u32_to_f32(value) for value in data], [b_els]
+        )
 
         print(f"{shaped_array}", file=type(self).stream)
 
@@ -74,79 +77,11 @@ class ToyAccelerator(InstructionSet):
 
         data = self.buffer_read(b_ptr, size)
 
-        shaped_array = ShapedArray([float(value) for value in data], [b_rows, b_cols])
+        shaped_array = ShapedArray(
+            [convert_u32_to_f32(value) for value in data], [b_rows, b_cols]
+        )
 
         print(f"{shaped_array}", file=type(self).stream)
-
-    def instruction_tensor_transpose2d(self, ins: Instruction):
-        """
-        This instruction transposes a 2d tensor, swapping its row and column indices:
-        [[1, 2, 3], [4, 5, 6]] -> [[1, 4], [2, 5], [3, 6]]
-        """
-
-        dest_ptr, source_ptr, b_rows, b_cols = (
-            self.get_reg(ins.get_reg(i)) for i in range(4)
-        )
-
-        size = b_rows * b_cols
-
-        data = self.buffer_read(source_ptr, size)
-
-        shaped_array = ShapedArray(data, [b_rows, b_cols])
-        result_shaped_array = shaped_array.transposed(0, 1)
-
-        self.buffer_write(dest_ptr, data=result_shaped_array.data)
-
-    def instruction_buffer_copy(self, ins: Instruction):
-        """
-        Copies the elements of one buffer to another.
-        """
-        c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
-
-        count = self.get_reg(c_reg)
-
-        s_ptr = self.get_reg(s_reg)
-        d_ptr = self.get_reg(d_reg)
-
-        s_data = self.buffer_read(s_ptr, count)
-
-        self.buffer_write(d_ptr, data=s_data)
-
-    def instruction_buffer_add(self, ins: Instruction):
-        """
-        Pointwise addition of two buffers.
-        """
-        c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
-
-        count = self.get_reg(c_reg)
-
-        s_ptr = self.get_reg(s_reg)
-        d_ptr = self.get_reg(d_reg)
-
-        s_data = self.buffer_read(s_ptr, count)
-        d_data = self.buffer_read(d_ptr, count)
-
-        self.buffer_write(
-            d_ptr, data=[l_el + r_el for l_el, r_el in zip(s_data, d_data)]
-        )
-
-    def instruction_buffer_mul(self, ins: Instruction):
-        """
-        Pointwise multiplication of two buffers.
-        """
-        c_reg, d_reg, s_reg = [ins.get_reg(i) for i in range(3)]
-
-        count = self.get_reg(c_reg)
-
-        s_ptr = self.get_reg(s_reg)
-        d_ptr = self.get_reg(d_reg)
-
-        s_data = self.buffer_read(s_ptr, count)
-        d_data = self.buffer_read(d_ptr, count)
-
-        self.buffer_write(
-            d_ptr, data=[l_el * r_el for l_el, r_el in zip(s_data, d_data)]
-        )
 
     def instruction_buffer_alloc(self, ins: Instruction):
         """

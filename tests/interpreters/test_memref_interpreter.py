@@ -1,7 +1,15 @@
 import pytest
 
-from xdsl.dialects import arith, memref
-from xdsl.dialects.builtin import IndexType, ModuleOp, i32
+from xdsl.builder import ImplicitBuilder
+from xdsl.dialects import arith, func, memref
+from xdsl.dialects.builtin import (
+    DenseIntOrFPElementsAttr,
+    IndexType,
+    ModuleOp,
+    StringAttr,
+    TensorType,
+    i32,
+)
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.memref import MemrefFunctions, MemrefValue
@@ -27,7 +35,7 @@ def test_functions():
     dealloc_op = memref.Dealloc.get(alloc_op)
 
     (shaped_array,) = interpreter.run_op(alloc_op, ())
-    v = MemrefValue.Allocated
+    v = MemrefValue.Uninitialized
     assert shaped_array == ShapedArray([v, v, v, v, v, v], [2, 3])
     (zero,) = interpreter.run_op(zero_op, ())
     (one,) = interpreter.run_op(one_op, ())
@@ -48,3 +56,24 @@ def test_functions():
     with pytest.raises(InterpretationError) as e:
         interpreter.run_op(load_undef_op, (shaped_array, zero, one))
         e.match("deallocated")
+
+
+def test_memref_get_global():
+    memref_type = memref.MemRefType.from_element_type_and_shape(i32, (2, 2))
+    tensor_type = TensorType.from_type_and_list(i32, (2, 2))
+    module = ModuleOp([])
+    with ImplicitBuilder(module.body):
+        memref.Global.get(
+            StringAttr("my_global"),
+            memref_type,
+            DenseIntOrFPElementsAttr.from_list(tensor_type, [1, 2, 3, 4]),
+            sym_visibility=StringAttr("public"),
+        )
+        with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
+            fetch = memref.GetGlobal.get("my_global", memref_type)
+
+    interpreter = Interpreter(module)
+    interpreter.register_implementations(MemrefFunctions())
+
+    (result,) = interpreter.run_op(fetch, ())
+    assert result == ShapedArray([1, 2, 3, 4], [2, 2])

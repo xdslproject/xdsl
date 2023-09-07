@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
 

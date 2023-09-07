@@ -1,24 +1,43 @@
-from abc import ABC
+import abc
+from itertools import chain
 
-from xdsl.dialects import riscv_scf
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import FloatRegisterType, IntRegisterType, RISCVOp
-from xdsl.ir import SSAValue
+from ordered_set import OrderedSet
+
+from xdsl.backend.riscv.register_queue import RegisterQueue
+from xdsl.dialects import riscv_func, riscv_scf
+from xdsl.dialects.riscv import (
+    FloatRegisterType,
+    IntRegisterType,
+    RISCVOp,
+    RISCVRegisterType,
+)
+from xdsl.ir import Block, Operation, SSAValue
 
 
-class RegisterAllocator(ABC):
+def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
+    """Utility method to gather already allocated registers"""
+
+    allocated: set[RISCVRegisterType] = set()
+
+    for op in func.walk():
+        if not isinstance(op, RISCVOp):
+            continue
+
+        for param in chain(op.operands, op.results):
+            if isinstance(param.type, RISCVRegisterType) and param.type.is_allocated:
+                if not param.type.register_name.startswith("j"):
+                    allocated.add(param.type)
+
+    return allocated
+
+
+class RegisterAllocator(abc.ABC):
     """
     Base class for register allocation strategies.
     """
 
-    def __init__(self) -> None:
-        pass
-
-    def allocate_registers(self, module: ModuleOp) -> None:
-        """
-        Allocates unallocated registers in the module.
-        """
-
+    @abc.abstractmethod
+    def allocate_func(self, func: riscv_func.FuncOp) -> None:
         raise NotImplementedError()
 
 
@@ -50,163 +69,181 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     ```
     """
 
-    idx: int
+    available_registers: RegisterQueue
+    live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
 
-    def __init__(self, limit_registers: int = 0) -> None:
-        self.idx = 0
-        self._register_types = (IntRegisterType, FloatRegisterType)
+    exclude_preallocated: bool = False
 
-        """
-        Assume that all the registers are available except the ones explicitly reserved
-        by the default RISCV ABI
-        """
-        self.reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
-
-        self.register_sets = {
-            IntRegisterType: [
-                reg
+    def __init__(self) -> None:
+        self.available_registers = RegisterQueue(
+            available_int_registers=[
+                IntRegisterType(reg)
                 for reg in IntRegisterType.RV32I_INDEX_BY_NAME
-                if reg not in self.reserved_registers
+                if IntRegisterType(reg) not in RegisterQueue.DEFAULT_RESERVED_REGISTERS
             ],
-            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
-        }
+            available_float_registers=[
+                FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
+            ],
+        )
+        self.live_ins_per_block = {}
 
-        for reg_type, reg_set in self.register_sets.items():
-            if limit_registers:
-                self.register_sets[reg_type] = reg_set[:limit_registers]
-
-    def _allocate(self, reg: SSAValue) -> bool:
-        if isinstance(reg.type, self._register_types) and not reg.type.is_allocated:
-            # If we run out of real registers, allocate a j register
-            reg_type = type(reg.type)
-            available_regs = self.register_sets.get(reg_type, [])
-
-            if not available_regs:
-                reg.type = reg_type(f"j{self.idx}")
-                self.idx += 1
-            else:
-                reg.type = reg_type(available_regs.pop())
-
+    def allocate(self, reg: SSAValue) -> bool:
+        """
+        Allocate a register if not already allocated.
+        """
+        if (
+            isinstance(reg.type, IntRegisterType | FloatRegisterType)
+            and not reg.type.is_allocated
+        ):
+            reg.type = self.available_registers.pop(type(reg.type))
             return True
 
         return False
 
     def _free(self, reg: SSAValue) -> None:
-        if isinstance(reg.type, self._register_types) and reg.type.is_allocated:
-            available_regs = self.register_sets.get(type(reg.type), [])
-            reg_name = reg.type.register_name
+        if (
+            isinstance(reg.type, IntRegisterType | FloatRegisterType)
+            and reg.type.is_allocated
+        ):
+            self.available_registers.push(reg.type)
 
-            if not reg_name.startswith("j") and reg_name not in self.reserved_registers:
-                available_regs.append(reg_name)
-
-    def allocate_registers(self, module: ModuleOp) -> None:
-        for region in module.regions:
-            for block in region.blocks:
-                to_free: list[SSAValue] = []
-
-                for op in block.walk_reverse():
-                    for reg in to_free:
-                        self._free(reg)
-                    to_free.clear()
-
-                    # Do not allocate registers on non-RISCV-ops
-                    if not isinstance(op, RISCVOp):
-                        continue
-
-                    # Allocate registers to operands since they are defined further up
-                    # in the use-def SSA chain
-                    for operand in op.operands:
-                        self._allocate(operand)
-
-                    # Allocate registers to results if not already allocated,
-                    # otherwise free that register since the SSA value is created here
-                    for result in op.results:
-                        # Unallocated results still need a register,
-                        # so allocate and keep track of them to be freed
-                        # before processing the next instruction
-                        self._allocate(result)
-                        to_free.append(result)
-
-
-class RegisterAllocatorBlockNaive(RegisterAllocator):
-    idx: int
-
-    def __init__(self, limit_registers: int = 0) -> None:
-        self.idx = 0
-        self._register_types = (IntRegisterType, FloatRegisterType)
-        _ = limit_registers
-
+    def process_operation(self, op: Operation) -> None:
         """
-        Assume that all the registers are available except the ones explicitly reserved
-        by the default RISCV ABI
+        Allocate registers for one operation.
         """
-        reserved_registers = {"zero", "sp", "gp", "tp", "fp", "s0"}
+        match op:
+            case riscv_scf.ForOp():
+                self.allocate_for_loop(op)
+            case RISCVOp():
+                self.process_riscv_op(op)
+            case _:
+                # Ignore non-riscv operations
+                return
 
-        self.register_sets = {
-            IntRegisterType: [
-                reg
-                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
-                if reg not in reserved_registers
-            ],
-            FloatRegisterType: list(FloatRegisterType.RV32F_INDEX_BY_NAME.keys()),
-        }
-
-    def allocate_registers(self, module: ModuleOp) -> None:
+    def process_riscv_op(self, op: RISCVOp) -> None:
         """
-        Sets unallocated registers per block to a finite set of real available registers.
-        When it runs out of real registers for a block, it allocates j registers.
+        Allocate registers for RISC-V Instruction.
         """
 
-        for region in module.regions:
-            for block in region.blocks:
-                register_sets = self.register_sets.copy()
+        for result in op.results:
+            # Allocate registers to result if not already allocated
+            self.allocate(result)
+            # Free the register since the SSA value is created here
+            self._free(result)
 
-                for op in block.walk():
-                    # Do not allocate registers on non-RISCV-ops
-                    if not isinstance(op, RISCVOp):
-                        continue
+        # Allocate registers to operands since they are defined further up
+        # in the use-def SSA chain
+        for operand in op.operands:
+            self.allocate(operand)
 
-                    for result in op.results:
-                        if isinstance(result.type, self._register_types):
-                            if not result.type.is_allocated:
-                                reg_type = type(result.type)
-                                available_regs = register_sets.get(reg_type, [])
-
-                                # If we run out of real registers, allocate a j register
-                                if not available_regs:
-                                    result.type = reg_type(f"j{self.idx}")
-                                    self.idx += 1
-                                else:
-                                    result.type = reg_type(available_regs.pop())
-
-
-class RegisterAllocatorJRegs(RegisterAllocator):
-    idx: int
-
-    def __init__(self, limit_registers: int = 0) -> None:
-        self.idx = 0
-        self._register_types = (IntRegisterType, FloatRegisterType)
-        _ = limit_registers
-
-    def allocate_registers(self, module: ModuleOp) -> None:
+    def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
         """
-        Sets unallocated registers to an infinite set of `j` registers
+        Allocate registers for riscv_scf for loop, recursively calling process_operation
+        for operations in the loop.
         """
-        for op in module.walk():
-            if isinstance(op, riscv_scf.ForOp):
-                for arg in op.body.block.args:
-                    assert isinstance(arg.type, IntRegisterType)
-                    if not arg.type.is_allocated:
-                        arg.type = IntRegisterType(f"j{self.idx}")
-                        self.idx += 1
+        # Allocate values used inside the body but defined outside.
+        # Their scope lasts for the whole body execution scope
+        live_ins = self.live_ins_per_block[loop.body.block]
+        for live_in in live_ins:
+            self.allocate(live_in)
 
-            # Do not allocate registers on non-RISCV-ops
-            if not isinstance(op, RISCVOp):
-                continue
+        yield_op = loop.body.block.last_op
+        assert (
+            yield_op is not None
+        ), "last op of riscv_scf.ForOp is guaranteed to be riscv_scf.Yield"
+        block_args = loop.body.block.args
 
-            for result in op.results:
-                if isinstance(result.type, self._register_types):
-                    if not result.type.is_allocated:
-                        reg_type = type(result.type)
-                        result.type = reg_type(f"j{self.idx}")
-                        self.idx += 1
+        # The loop-carried variables are trickier
+        # The for op operand, block arg, and yield operand must have the same type
+        for block_arg, operand, yield_operand, op_result in zip(
+            block_args[1:], loop.iter_args, yield_op.operands, loop.results
+        ):
+            # If some allocated then assign all to that type, otherwise get new reg
+            assert isinstance(block_arg.type, RISCVRegisterType)
+            assert isinstance(operand.type, RISCVRegisterType)
+            assert isinstance(yield_operand.type, RISCVRegisterType)
+            assert isinstance(op_result.type, RISCVRegisterType)
+
+            # Because we are walking backwards, the result of the operation may have been
+            # allocated already. If it isn't it's because it's not used below.
+            if not op_result.type.is_allocated:
+                # We only need to check one of the four since they're constrained to be
+                # the same
+                self.allocate(op_result)
+
+            shared_type = op_result.type
+            block_arg.type = shared_type
+            yield_operand.type = shared_type
+            operand.type = shared_type
+
+        # Induction variable
+        assert isinstance(block_args[0].type, IntRegisterType)
+        self.allocate(block_args[0])
+
+        # Operands
+        for operand in loop.operands:
+            self.allocate(operand)
+
+        for op in loop.body.block.ops_reverse:
+            self.process_operation(op)
+
+    def allocate_func(self, func: riscv_func.FuncOp) -> None:
+        if len(func.body.blocks) != 1:
+            raise NotImplementedError(
+                f"Cannot register allocate func with {len(func.body.blocks)} blocks."
+            )
+
+        if self.exclude_preallocated:
+            preallocated = gather_allocated(func)
+
+            for pa_reg in preallocated:
+                if isinstance(pa_reg, IntRegisterType | FloatRegisterType):
+                    self.available_registers.reserved_registers.add(pa_reg)
+
+                if pa_reg in self.available_registers.available_int_registers:
+                    self.available_registers.available_int_registers.remove(pa_reg)
+                if pa_reg in self.available_registers.available_float_registers:
+                    self.available_registers.available_float_registers.remove(pa_reg)
+
+        block = func.body.block
+
+        self.live_ins_per_block = live_ins_per_block(block)
+        assert not self.live_ins_per_block[block]
+        for op in block.ops_reverse:
+            self.process_operation(op)
+
+
+def _live_ins_per_block(
+    block: Block, acc: dict[Block, OrderedSet[SSAValue]]
+) -> OrderedSet[SSAValue]:
+    res = OrderedSet[SSAValue]([])
+
+    for op in block.ops_reverse:
+        # Remove values defined in the block
+        # We are traversing backwards, so cannot use the value removed here again
+        res.difference_update(op.results)
+        # Add values used in the block
+        res.update(op.operands)
+
+        # Process inner blocks
+        for region in op.regions:
+            for inner in region.blocks:
+                # Add the values used in the inner block
+                res.update(_live_ins_per_block(inner, acc))
+
+    # Remove the block arguments
+    res.difference_update(block.args)
+
+    acc[block] = res
+
+    return res
+
+
+def live_ins_per_block(block: Block) -> dict[Block, OrderedSet[SSAValue]]:
+    """
+    Returns a mapping from a block to the set of values used in it but defined outside of
+    it.
+    """
+    res: dict[Block, OrderedSet[SSAValue]] = {}
+    _ = _live_ins_per_block(block, res)
+    return res

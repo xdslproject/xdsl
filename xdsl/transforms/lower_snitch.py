@@ -3,7 +3,6 @@ Rewrite patterns for lowering snitch → riscv.
 """
 
 from dataclasses import dataclass
-from typing import Tuple
 
 from xdsl.dialects import builtin, riscv, snitch
 from xdsl.dialects.builtin import IntegerAttr, i32
@@ -64,7 +63,7 @@ class SnitchStreamerMemoryMap:
     # Offset of the streamer repetition configuration.
     repeat: int = 0x01
 
-    dimension: Tuple[SnitchStreamerDimension, ...] = (
+    dimension: tuple[SnitchStreamerDimension, ...] = (
         # Dimension 0
         SnitchStreamerDimension(
             0x02,  # Bound

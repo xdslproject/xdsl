@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence, TypeGuard, cast
+from typing import Any, TypeGuard, cast
 
 from immutabledict import immutabledict
 

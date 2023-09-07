@@ -11,10 +11,9 @@ with CodeContext(p):
     # CHECK:        %{{.*}} = arith.constant 0 : index
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
     # CHECK-NEXT:   %{{.*}} = arith.constant 1 : index
-    # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-    # CHECK-NEXT:   ^0(%{{.*}} : index):
-    # CHECK-NEXT:     "scf.yield"() : () -> ()
-    # CHECK-NEXT:   }) : (index, index, index) -> ()
+    # CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+    # CHECK-NEXT:     scf.yield
+    # CHECK-NEXT:   }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
 
@@ -29,10 +28,9 @@ with CodeContext(p):
     # CHECK:        %{{.*}} = "symref.fetch"() {"symbol" = @start} : () -> index
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
     # CHECK-NEXT:   %{{.*}} = arith.constant 1 : index
-    # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-    # CHECK-NEXT:   ^1(%{{.*}} : index):
-    # CHECK-NEXT:     "scf.yield"() : () -> ()
-    # CHECK-NEXT:   }) : (index, index, index) -> ()
+    # CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+    # CHECK-NEXT:     scf.yield
+    # CHECK-NEXT:   }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
     def test_for_II(start: index, end: index):
@@ -47,10 +45,9 @@ with CodeContext(p):
     # CHECK:        %{{.*}} = "symref.fetch"() {"symbol" = @start} : () -> index
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @step} : () -> index
-    # CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-    # CHECK-NEXT:   ^2(%{{.*}} : index):
-    # CHECK-NEXT:     "scf.yield"() : () -> ()
-    # CHECK-NEXT:   }) : (index, index, index) -> ()
+    # CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+    # CHECK-NEXT:     scf.yield
+    # CHECK-NEXT:   }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
     def test_for_III(start: index, end: index, step: index):
@@ -66,24 +63,21 @@ with CodeContext(p):
     # CHECK:          %{{.*}} = arith.constant 0 : index
     # CHECK-NEXT:     %{{.*}} = "symref.fetch"() {"symbol" = @a} : () -> index
     # CHECK-NEXT:     %{{.*}} = arith.constant 1 : index
-    # CHECK-NEXT:     "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-    # CHECK-NEXT:     ^{{.*}}(%{{.*}} : index):
+    # CHECK-NEXT:     scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
     # CHECK-NEXT:       %{{.*}} = arith.constant 0 : index
     # CHECK-NEXT:       %{{.*}} = "symref.fetch"() {"symbol" = @b} : () -> index
     # CHECK-NEXT:       %{{.*}} = arith.constant 1 : index
-    # CHECK-NEXT:       "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-    # CHECK-NEXT:       ^{{.*}}(%{{.*}} : index):
+    # CHECK-NEXT:       scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
     # CHECK-NEXT:         %{{.*}} = arith.constant 0 : index
     # CHECK-NEXT:         %{{.*}} = "symref.fetch"() {"symbol" = @c} : () -> index
     # CHECK-NEXT:         %{{.*}} = arith.constant 1 : index
-    # CHECK-NEXT:         "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-    # CHECK-NEXT:         ^{{.*}}(%{{.*}} : index):
-    # CHECK-NEXT:           "scf.yield"() : () -> ()
-    # CHECK-NEXT:         }) : (index, index, index) -> ()
-    # CHECK-NEXT:         "scf.yield"() : () -> ()
-    # CHECK-NEXT:       }) : (index, index, index) -> ()
-    # CHECK-NEXT:       "scf.yield"() : () -> ()
-    # CHECK-NEXT:     }) : (index, index, index) -> ()
+    # CHECK-NEXT:         scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+    # CHECK-NEXT:           scf.yield
+    # CHECK-NEXT:         }
+    # CHECK-NEXT:         scf.yield
+    # CHECK-NEXT:       }
+    # CHECK-NEXT:       scf.yield
+    # CHECK-NEXT:     }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT:   }
     def test_for_IV(a: index, b: index, c: index):
@@ -147,18 +141,18 @@ p = FrontendProgram()
 with CodeContext(p):
     # CHECK:      %{{.*}} = "scf.if"(%{{.*}}) ({
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @x} : () -> i32
-    # CHECK-NEXT:   "scf.yield"(%{{.*}}) : (i32) -> ()
+    # CHECK-NEXT:   scf.yield %{{.*}} : i32
     # CHECK-NEXT: }, {
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @y} : () -> i32
-    # CHECK-NEXT:   "scf.yield"(%{{.*}}) : (i32) -> ()
+    # CHECK-NEXT:   scf.yield %{{.*}} : i32
     # CHECK-NEXT: }) : (i1) -> i32
     def test_if_expr(cond: i1, x: i32, y: i32) -> i32:
         return x if cond else y
 
     # CHECK:      "scf.if"(%{{.*}}) ({
-    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT:   scf.yield
     # CHECK-NEXT: }, {
-    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT:   scf.yield
     # CHECK-NEXT: }) : (i1) -> ()
     def test_if_I(cond: i1):
         if cond:
@@ -169,21 +163,21 @@ with CodeContext(p):
 
     # CHECK:      %{{.*}} = "symref.fetch"() {"symbol" = @a} : () -> i1
     # CHECK-NEXT: "scf.if"(%{{.*}}) ({
-    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT:   scf.yield
     # CHECK-NEXT: }, {
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @b} : () -> i1
     # CHECK-NEXT:   "scf.if"(%{{.*}}) ({
-    # CHECK-NEXT:     "scf.yield"() : () -> ()
+    # CHECK-NEXT:     scf.yield
     # CHECK-NEXT:   }, {
     # CHECK-NEXT:     %{{.*}} = "symref.fetch"() {"symbol" = @c} : () -> i1
     # CHECK-NEXT:     "scf.if"(%{{.*}}) ({
-    # CHECK-NEXT:       "scf.yield"() : () -> ()
+    # CHECK-NEXT:       scf.yield
     # CHECK-NEXT:     }, {
-    # CHECK-NEXT:       "scf.yield"() : () -> ()
+    # CHECK-NEXT:       scf.yield
     # CHECK-NEXT:     }) : (i1) -> ()
-    # CHECK-NEXT:     "scf.yield"() : () -> ()
+    # CHECK-NEXT:     scf.yield
     # CHECK-NEXT:   }) : (i1) -> ()
-    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT:   scf.yield
     # CHECK-NEXT: }) : (i1) -> ()
     def test_if_II(a: i1, b: i1, c: i1):
         if a:
@@ -196,9 +190,9 @@ with CodeContext(p):
 
     # CHECK:      %{{.*}} = "symref.fetch"() {"symbol" = @cond} : () -> i1
     # CHECK-NEXT: "scf.if"(%{{.*}}) ({
-    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT:   scf.yield
     # CHECK-NEXT: }, {
-    # CHECK-NEXT:   "scf.yield"() : () -> ()
+    # CHECK-NEXT:   scf.yield
     # CHECK-NEXT: }) : (i1) -> ()
     def test_if_III(cond: i1):
         if cond:

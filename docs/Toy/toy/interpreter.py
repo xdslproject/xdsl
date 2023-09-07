@@ -45,7 +45,7 @@ class ToyFunctions(InterpreterFunctions):
         assert isinstance(arg, ShapedArray)
         arg = cast(ShapedArray[float], arg)
         result_type = op.results[0].type
-        assert isinstance(result_type, (VectorType, TensorType))
+        assert isinstance(result_type, VectorType | TensorType)
         new_shape = list(result_type.get_shape())
 
         return (ShapedArray(arg.data, new_shape),)

@@ -43,7 +43,7 @@ from xdsl.dialects.arith import (
     TruncIOp,
     XOrI,
 )
-from xdsl.dialects.builtin import IndexType, IntegerType, f32, f64, i32, i64
+from xdsl.dialects.builtin import FloatAttr, IndexType, IntegerType, f32, f64, i32, i64
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 
@@ -104,8 +104,8 @@ class Test_integer_arith_construction:
 
 
 class Test_float_arith_construction:
-    a = Constant.from_float_and_width(1.1, f32)
-    b = Constant.from_float_and_width(2.2, f32)
+    a = Constant(FloatAttr(1.1, f32))
+    b = Constant(FloatAttr(2.2, f32))
 
     @pytest.mark.parametrize(
         "func",
@@ -151,10 +151,10 @@ def test_cast_fp_and_si_ops():
 
 
 def test_negf_op():
-    a = Constant.from_float_and_width(1.0, f32)
+    a = Constant(FloatAttr(1.0, f32))
     neg_a = Negf(a)
 
-    b = Constant.from_float_and_width(1.0, f64)
+    b = Constant(FloatAttr(1.0, f64))
     neg_b = Negf(b)
 
     assert neg_a.result.type == f32
@@ -162,8 +162,8 @@ def test_negf_op():
 
 
 def test_extend_truncate_fpops():
-    a = Constant.from_float_and_width(1.0, f32)
-    b = Constant.from_float_and_width(2.0, f64)
+    a = Constant(FloatAttr(1.0, f32))
+    b = Constant(FloatAttr(2.0, f64))
     ext_op = ExtFOp(a, f64)
     trunc_op = TruncFOp(b, f32)
 
@@ -174,8 +174,8 @@ def test_extend_truncate_fpops():
 
 
 def test_cmpf_from_mnemonic():
-    a = Constant.from_float_and_width(1.0, f64)
-    b = Constant.from_float_and_width(2.0, f64)
+    a = Constant(FloatAttr(1.0, f64))
+    b = Constant(FloatAttr(2.0, f64))
     operations = [
         "false",
         "oeq",
@@ -203,8 +203,8 @@ def test_cmpf_from_mnemonic():
 
 
 def test_cmpf_get():
-    a = Constant.from_float_and_width(1.0, f32)
-    b = Constant.from_float_and_width(2.0, f32)
+    a = Constant(FloatAttr(1.0, f32))
+    b = Constant(FloatAttr(2.0, f32))
 
     cmpf_op = Cmpf(a, b, 1)
 
@@ -214,8 +214,8 @@ def test_cmpf_get():
 
 
 def test_cmpf_missmatch_type():
-    a = Constant.from_float_and_width(1.0, f32)
-    b = Constant.from_float_and_width(2.0, f64)
+    a = Constant(FloatAttr(1.0, f32))
+    b = Constant(FloatAttr(2.0, f64))
 
     with pytest.raises(TypeError) as e:
         _cmpf_op = Cmpf(a, b, 1)
@@ -238,8 +238,8 @@ def test_cmpi_mismatch_type():
 
 
 def test_cmpf_incorrect_comparison():
-    a = Constant.from_float_and_width(1.0, f32)
-    b = Constant.from_float_and_width(2.0, f32)
+    a = Constant(FloatAttr(1.0, f32))
+    b = Constant(FloatAttr(2.0, f32))
 
     with pytest.raises(VerifyException) as e:
         # 'eq' is a comparison op for cmpi but not cmpf
@@ -260,7 +260,6 @@ def test_cmpi_incorrect_comparison():
 def test_cmpi_index_type():
     a = Constant.from_int_and_width(1, IndexType())
     b = Constant.from_int_and_width(2, IndexType())
-
     Cmpi(a, b, "eq").verify()
 
 
@@ -280,3 +279,17 @@ def test_extend_truncate_iops():
     assert extu_op.result.type == i64
     assert trunc_op.input == b.result
     assert trunc_op.result.type == i32
+
+
+def test_trunci_incorrect_bitwidth():
+    a = Constant.from_int_and_width(1, 16)
+    # bitwidth of b has to be smaller than the one of a
+    with pytest.raises(VerifyException):
+        _trunci_op = TruncIOp(a, i32).verify()
+
+
+def test_extui_incorrect_bitwidth():
+    a = Constant.from_int_and_width(1, 64)
+    # bitwidth of b has to be larger than the one of a
+    with pytest.raises(VerifyException):
+        _extui_op = ExtUIOp(a, i32).verify()

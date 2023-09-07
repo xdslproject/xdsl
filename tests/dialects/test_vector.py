@@ -1,5 +1,3 @@
-from typing import List
-
 import pytest
 
 from xdsl.dialects.builtin import (
@@ -29,14 +27,14 @@ from xdsl.utils.test_value import TestSSAValue
 
 
 def get_MemRef_SSAVal_from_element_type_and_shape(
-    referenced_type: Attribute, shape: List[int | AnyIntegerAttr]
+    referenced_type: Attribute, shape: list[int | AnyIntegerAttr]
 ) -> TestSSAValue:
     memref_type = MemRefType.from_element_type_and_shape(referenced_type, shape)
     return TestSSAValue(memref_type)
 
 
 def get_Vector_SSAVal_from_element_type_and_shape(
-    referenced_type: Attribute, shape: List[int | IntegerAttr[IndexType]]
+    referenced_type: Attribute, shape: list[int | IntegerAttr[IndexType]]
 ) -> TestSSAValue:
     vector_type = VectorType.from_element_type_and_shape(referenced_type, shape)
     return TestSSAValue(vector_type)

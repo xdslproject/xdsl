@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Sequence, cast
+from collections.abc import Sequence
+from typing import Annotated, Any, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,

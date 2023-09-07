@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Set
+from collections.abc import Mapping, Sequence, Set
 from io import StringIO
-from typing import IO, ClassVar, Sequence, TypeAlias
+from typing import IO, ClassVar, Generic, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
@@ -45,8 +45,14 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.irdl import OptRegion, VarOperandDef, opt_region_def, region_def
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, NoTerminator
+from xdsl.traits import (
+    HasCanonicalisationPatternsTrait,
+    IsTerminator,
+    NoTerminator,
+    Pure,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -105,6 +111,11 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
     def abi_index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
 
+    @classmethod
+    @abstractmethod
+    def a_register(cls, index: int) -> Self:
+        raise NotImplementedError()
+
 
 @irdl_attr_definition
 class IntRegisterType(RISCVRegisterType):
@@ -121,6 +132,10 @@ class IntRegisterType(RISCVRegisterType):
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
         return IntRegisterType.RV32I_INDEX_BY_NAME
+
+    @classmethod
+    def a_register(cls, index: int) -> Self:
+        return _INT_A_REGISTERS[index]
 
     RV32I_INDEX_BY_NAME = {
         "zero": 0,
@@ -175,6 +190,10 @@ class FloatRegisterType(RISCVRegisterType):
     def abi_index_by_name(cls) -> dict[str, int]:
         return FloatRegisterType.RV32F_INDEX_BY_NAME
 
+    @classmethod
+    def a_register(cls, index: int) -> Self:
+        return _FLOAT_A_REGISTERS[index]
+
     RV32F_INDEX_BY_NAME = {
         "ft0": 0,
         "ft1": 1,
@@ -209,6 +228,10 @@ class FloatRegisterType(RISCVRegisterType):
         "ft10": 30,
         "ft11": 31,
     }
+
+
+RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
+RSInvT = TypeVar("RSInvT", bound=RISCVRegisterType)
 
 
 class Registers(ABC):
@@ -280,6 +303,38 @@ class Registers(ABC):
     FT9 = FloatRegisterType("ft9")
     FT10 = FloatRegisterType("ft10")
     FT11 = FloatRegisterType("ft11")
+
+    # register classes:
+
+    A = (A0, A1, A2, A3, A4, A5, A6, A7)
+    T = (T0, T1, T2, T3, T4, T5, T6)
+    S = (S0, S1, S2, S3, S4, S5, S6, S7, S8, S9, S10, S11)
+
+    FA = (FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7)
+    FT = (FT0, FT1, FT2, FT3, FT4, FT5, FT6, FT7, FT8, FT9, FT10, FT11)
+    FS = (FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7, FS8, FS9, FS10, FS11)
+
+
+_INT_A_REGISTERS = (
+    Registers.A0,
+    Registers.A1,
+    Registers.A2,
+    Registers.A3,
+    Registers.A4,
+    Registers.A5,
+    Registers.A6,
+    Registers.A7,
+)
+_FLOAT_A_REGISTERS = (
+    Registers.FA0,
+    Registers.FA1,
+    Registers.FA2,
+    Registers.FA3,
+    Registers.FA4,
+    Registers.FA5,
+    Registers.FA6,
+    Registers.FA7,
+)
 
 
 @irdl_attr_definition
@@ -845,26 +900,22 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         return {"immediate", "rd"}
 
 
-class RdRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+class RdRsOperation(Generic[RDInvT, RSInvT], IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V pseudo-instructions that have one destination register and one
     source register.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs: Operand = operand_def(IntRegisterType)
+    rd: OpResult = result_def(RDInvT)
+    rs: Operand = operand_def(RSInvT)
 
     def __init__(
         self,
         rs: Operation | SSAValue,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: RDInvT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -1336,6 +1387,8 @@ class AddiOp(RdRsImmIntegerOperation):
 
     name = "riscv.addi"
 
+    traits = frozenset((Pure(),))
+
 
 @irdl_op_definition
 class SltiOp(RdRsImmIntegerOperation):
@@ -1407,6 +1460,14 @@ class XoriOp(RdRsImmIntegerOperation):
     name = "riscv.xori"
 
 
+class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import ShiftLeftImmediate
+
+        return (ShiftLeftImmediate(),)
+
+
 @irdl_op_definition
 class SlliOp(RdRsImmShiftOperation):
     """
@@ -1419,6 +1480,8 @@ class SlliOp(RdRsImmShiftOperation):
     """
 
     name = "riscv.slli"
+
+    traits = frozenset((SlliOpHasCanonicalizationPatternsTrait(),))
 
 
 @irdl_op_definition
@@ -1478,18 +1541,61 @@ class AuipcOp(RdImmIntegerOperation):
     name = "riscv.auipc"
 
 
+class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import RemoveRedundantMv
+
+        return (RemoveRedundantMv(),)
+
+
 @irdl_op_definition
-class MVOp(RdRsIntegerOperation):
+class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
     """
-    A pseudo instruction to copy contents of one register to another.
+    A pseudo instruction to copy contents of one int register to another.
 
     Equivalent to `addi rd, rs, 0`
     """
 
     name = "riscv.mv"
 
+    traits = frozenset((MVHasCanonicalizationPatternsTrait(),))
+
+
+class FMVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import RemoveRedundantFMv
+
+        return (RemoveRedundantFMv(),)
+
+
+@irdl_op_definition
+class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+    """
+    A pseudo instruction to copy contents of one float register to another.
+
+    Equivalent to `fsgnj.s rd, rs, rs`.
+
+    Both clang and gcc emit `fsw rs, 0(x); flw rd, 0(x)` to copy floats, possibly because
+    storing and loading bits from memory is a lower overhead in practice than reasoning
+    about floating-point values.
+    """
+
+    name = "riscv.fmv.s"
+
+    traits = frozenset((FMVHasCanonicalizationPatternsTrait(),))
+
 
 ## Integer Register-Register Operations
+
+
+class AddOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import AddImmediates
+
+        return (AddImmediates(),)
 
 
 @irdl_op_definition
@@ -1504,6 +1610,8 @@ class AddOp(RdRsRsIntegerOperation):
     """
 
     name = "riscv.add"
+
+    traits = frozenset((AddOpHasCanonicalizationPatternsTrait(),))
 
 
 @irdl_op_definition
@@ -1856,6 +1964,14 @@ class LhuOp(RdRsImmIntegerOperation):
     name = "riscv.lhu"
 
 
+class LwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import LoadWordWithKnownOffset
+
+        return (LoadWordWithKnownOffset(),)
+
+
 @irdl_op_definition
 class LwOp(RdRsImmIntegerOperation):
     """
@@ -1868,6 +1984,8 @@ class LwOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.lw"
+
+    traits = frozenset((LwOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -1906,6 +2024,14 @@ class ShOp(RsRsImmIntegerOperation):
     name = "riscv.sh"
 
 
+class SwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import StoreWordWithKnownOffset
+
+        return (StoreWordWithKnownOffset(),)
+
+
 @irdl_op_definition
 class SwOp(RsRsImmIntegerOperation):
     """
@@ -1917,6 +2043,8 @@ class SwOp(RsRsImmIntegerOperation):
     """
 
     name = "riscv.sw"
+
+    traits = frozenset((SwOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2071,6 +2199,14 @@ class CsrrciOp(CsrBitwiseImmOperation):
 ## Multiplication Operations
 
 
+class MulOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import MultiplyImmediates
+
+        return (MultiplyImmediates(),)
+
+
 @irdl_op_definition
 class MulOp(RdRsRsIntegerOperation):
     """
@@ -2082,6 +2218,8 @@ class MulOp(RdRsRsIntegerOperation):
     """
 
     name = "riscv.mul"
+
+    traits = frozenset((MulOpHasCanonicalizationPatternsTrait(),))
 
 
 @irdl_op_definition
@@ -2191,6 +2329,8 @@ class LiOp(RdImmIntegerOperation):
     """
 
     name = "riscv.li"
+
+    traits = frozenset((Pure(),))
 
     def __init__(
         self,
@@ -2397,7 +2537,7 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
     @classmethod
     def parse(cls, parser: Parser) -> AssemblySectionOp:
         directive = parser.parse_str_literal()
-        attr_dict = parser.parse_optional_attr_dict_with_keyword(("directive"))
+        attr_dict = parser.parse_optional_attr_dict_with_keyword(("directive",))
         region = parser.parse_optional_region()
 
         if region is None:
@@ -2411,7 +2551,9 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         printer.print_string_literal(self.directive.data)
-        printer.print_op_attributes_with_keyword(self.attributes, ("directive"))
+        printer.print_op_attributes(
+            self.attributes, reserved_attr_names=("directive",), print_keyword=True
+        )
         printer.print_string(" ")
         if self.data.block.ops:
             printer.print_region(self.data)
@@ -2534,10 +2676,9 @@ class WfiOp(NullaryOperation):
 # region RISC-V SSA Helpers
 
 
-@irdl_op_definition
-class GetRegisterOp(IRDLOperation, RISCVOp):
+class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
     """
-    This instruction allows us to create an SSAValue with for a given integer register name. This
+    This instruction allows us to create an SSAValue with for a given register name. This
     is useful for bridging the RISC-V convention that stores the result of function calls
     in `a0` and `a1` into SSA form.
 
@@ -2557,15 +2698,12 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
     ```
     """
 
-    name = "riscv.get_register"
-    res: OpResult = result_def(IntRegisterType)
+    res: OpResult = result_def(RDInvT)
 
     def __init__(
         self,
-        register_type: IntRegisterType | str,
+        register_type: RDInvT,
     ):
-        if isinstance(register_type, str):
-            register_type = IntRegisterType(register_type)
         super().__init__(result_types=[register_type])
 
     def assembly_line(self) -> str | None:
@@ -2574,27 +2712,13 @@ class GetRegisterOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class GetFloatRegisterOp(IRDLOperation, RISCVOp):
-    """
-    This instruction allows us to create an SSAValue with for a given floating register name. This
-    is useful for bridging the RISC-V convention that stores the result of function calls
-    in `a0` and `a1` into SSA form.
-    """
+class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
+    name = "riscv.get_register"
 
+
+@irdl_op_definition
+class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
     name = "riscv.get_float_register"
-    res: OpResult = result_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        register_type: FloatRegisterType | str,
-    ):
-        if isinstance(register_type, str):
-            register_type = FloatRegisterType(register_type)
-        super().__init__(result_types=[register_type])
-
-    def assembly_line(self) -> str | None:
-        # Don't print assembly for creating a SSA value representing register
-        return None
 
 
 # endregion
@@ -2731,102 +2855,6 @@ class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
-
-
-class RdRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
-    """
-    A base class for RV32F operations that take a floating-point
-    input register and a floating destination register.
-    """
-
-    rd: OpResult = result_def(FloatRegisterType)
-    rs: Operand = operand_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        rs: Operation | SSAValue,
-        *,
-        rd: FloatRegisterType | str | None = None,
-        comment: str | StringAttr | None = None,
-    ):
-        if rd is None:
-            rd = FloatRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-        super().__init__(
-            operands=[rs],
-            result_types=[rd],
-            attributes={"comment": comment},
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.rs
-
-
-class RdRsFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
-    """
-    A base class for RV32F operations that take a floating-point
-    input register and an integer destination register.
-    """
-
-    rd: OpResult = result_def(IntRegisterType)
-    rs: Operand = operand_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        rs: Operation | SSAValue,
-        *,
-        rd: IntRegisterType | str | None = None,
-        comment: str | StringAttr | None = None,
-    ):
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-        super().__init__(
-            operands=[rs],
-            result_types=[rd],
-            attributes={"comment": comment},
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.rs
-
-
-class RdRsIntegerFloatOperation(IRDLOperation, RISCVInstruction, ABC):
-    """
-    A base class for RV32F operations that take an integer
-    input register and a floating-point destination register.
-    """
-
-    rd: OpResult = result_def(FloatRegisterType)
-    rs: Operand = operand_def(IntRegisterType)
-
-    def __init__(
-        self,
-        rs: Operation | SSAValue,
-        *,
-        rd: FloatRegisterType | str | None = None,
-        comment: str | StringAttr | None = None,
-    ):
-        if rd is None:
-            rd = FloatRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-        super().__init__(
-            operands=[rs],
-            result_types=[rd],
-            attributes={"comment": comment},
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.rs
 
 
 class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -3040,7 +3068,7 @@ class FDivSOp(RdRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FSqrtSOp(RdRsFloatOperation):
+class FSqrtSOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
     """
     Perform single-precision floating-point square root.
 
@@ -3122,7 +3150,7 @@ class FMaxSOp(RdRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FCvtWSOp(RdRsFloatIntegerOperation):
+class FCvtWSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     """
     Convert a floating-point number in floating-point register rs1 to a signed 32-bit in integer register rd.
 
@@ -3135,7 +3163,7 @@ class FCvtWSOp(RdRsFloatIntegerOperation):
 
 
 @irdl_op_definition
-class FCvtWuSOp(RdRsFloatIntegerOperation):
+class FCvtWuSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     """
     Convert a floating-point number in floating-point register rs1 to a signed 32-bit in unsigned integer register rd.
 
@@ -3148,7 +3176,7 @@ class FCvtWuSOp(RdRsFloatIntegerOperation):
 
 
 @irdl_op_definition
-class FMvXWOp(RdRsFloatIntegerOperation):
+class FMvXWOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     """
     Move the single-precision value in floating-point register rs1 represented in IEEE 754-2008 encoding to the lower 32 bits of integer register rd.
 
@@ -3206,7 +3234,7 @@ class FleSOP(RdRsRsFloatFloatIntegerOperation):
 
 
 @irdl_op_definition
-class FClassSOp(RdRsFloatIntegerOperation):
+class FClassSOp(RdRsOperation[IntRegisterType, FloatRegisterType]):
     """
     Examines the value in floating-point register rs1 and writes to integer register rd a 10-bit mask that indicates the class of the floating-point number.
     The format of the mask is described in [classify table]_.
@@ -3222,7 +3250,7 @@ class FClassSOp(RdRsFloatIntegerOperation):
 
 
 @irdl_op_definition
-class FCvtSWOp(RdRsIntegerFloatOperation):
+class FCvtSWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
     Converts a 32-bit signed integer, in integer register rs1 into a floating-point number in floating-point register rd.
 
@@ -3235,7 +3263,7 @@ class FCvtSWOp(RdRsIntegerFloatOperation):
 
 
 @irdl_op_definition
-class FCvtSWuOp(RdRsIntegerFloatOperation):
+class FCvtSWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
     Converts a 32-bit unsigned integer, in integer register rs1 into a floating-point number in floating-point register rd.
 
@@ -3248,7 +3276,7 @@ class FCvtSWuOp(RdRsIntegerFloatOperation):
 
 
 @irdl_op_definition
-class FMvWXOp(RdRsIntegerFloatOperation):
+class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     """
     Move the single-precision value encoded in IEEE 754-2008 standard encoding from the lower 32 bits of integer register rs1 to the floating-point register rd.
 
@@ -3259,6 +3287,16 @@ class FMvWXOp(RdRsIntegerFloatOperation):
     """
 
     name = "riscv.fmv.w.x"
+
+
+class FLwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import (
+            LoadFloatWordWithKnownOffset,
+        )
+
+        return (LoadFloatWordWithKnownOffset(),)
 
 
 @irdl_op_definition
@@ -3273,6 +3311,8 @@ class FLwOp(RdRsImmFloatOperation):
 
     name = "riscv.flw"
 
+    traits = frozenset((FLwOpHasCanonicalizationPatternTrait(),))
+
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
         value = _assembly_arg_str(self.rd)
@@ -3281,6 +3321,16 @@ class FLwOp(RdRsImmFloatOperation):
         return _assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
+
+
+class FSwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.backend.riscv.lowering.optimise_riscv import (
+            StoreFloatWordWithKnownOffset,
+        )
+
+        return (StoreFloatWordWithKnownOffset(),)
 
 
 @irdl_op_definition
@@ -3294,6 +3344,8 @@ class FSwOp(RsRsImmFloatOperation):
     """
 
     name = "riscv.fsw"
+
+    traits = frozenset((FSwOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3407,6 +3459,7 @@ RISCV = Dialect(
         GetFloatRegisterOp,
         ScfgwOp,
         # Floating point
+        FMVOp,
         FMAddSOp,
         FMSubSOp,
         FNMSubSOp,

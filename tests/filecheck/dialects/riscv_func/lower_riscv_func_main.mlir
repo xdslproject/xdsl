@@ -3,10 +3,13 @@
 "builtin.module"() ({
 // CHECK:      builtin.module {
 
-    "riscv_func.func"() ({
+    riscv_func.func @main() {
         "riscv_func.return"() : () -> ()
-    }) {"sym_name" = "main"} : () -> ()
+    }
 
+// CHECK-NEXT:   riscv.assembly_section ".text" {
+// CHECK-NEXT:     riscv.directive ".globl" "main"
+// CHECK-NEXT:     riscv.directive ".p2align" "2"
 // CHECK-NEXT:     riscv.label "main" ({
 // CHECK-NEXT:         %{{.*}} = riscv.li 93 : () -> !riscv.reg<a7>
 // CHECK-NEXT:         riscv.ecall
