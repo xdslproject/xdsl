@@ -9,16 +9,14 @@ riscv_func.func @main() {
   %4 = riscv.fadd.s %2, %3 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
   %5 = riscv.add %0, %1 : (!riscv.reg<>, !riscv.reg<s0>) -> !riscv.reg<>
 
-  "riscv_scf.for"(%0, %1, %5) ({
-  ^0(%6 : !riscv.reg<>):
-    "riscv_scf.yield"() : () -> ()
-  }) : (!riscv.reg<>, !riscv.reg<s0>, !riscv.reg<>) -> ()
+  riscv_scf.for %6 : !riscv.reg<> = %0 to %1 step %5 {
+    riscv_scf.yield
+  }
 
-  %7 = "riscv_scf.for"(%0, %1, %5, %5) ({
-  ^0(%8 : !riscv.reg<>, %9 : !riscv.reg<>):
+  %7 = riscv_scf.for %8 : !riscv.reg<> = %0 to  %1 step %5 iter_args(%9 = %5) -> (!riscv.reg<>) {
     %10 = riscv.mv %9 : (!riscv.reg<>) -> !riscv.reg<>
-    "riscv_scf.yield"(%10) : (!riscv.reg<>) -> ()
-  }) : (!riscv.reg<>, !riscv.reg<s0>, !riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>)
+    riscv_scf.yield %10 : !riscv.reg<>
+  }
   riscv_func.return
 }
 
@@ -30,10 +28,10 @@ riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<ft10>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft11>, !riscv.freg<ft10>) -> !riscv.freg<ft11>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t4>, !riscv.reg<s0>) -> !riscv.reg<t6>
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      riscv_scf.for %{{\d+}} = %{{\d+}} to %{{\d+}} step %{{\d+}} {
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      riscv_scf.for %{{\d+}} : !riscv.reg<t6> = %{{\d+}} to %{{\d+}} step %{{\d+}} {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        riscv_scf.yield
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      }
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv_scf.for %{{\d+}} = %{{\d+}} to %{{\d+}} step %{{\d+}} iter_args(%{{\d+}} = %{{\d+}}) -> (!riscv.reg<t6>) {
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv_scf.for %{{\d+}} : !riscv.reg<t5> = %{{\d+}} to %{{\d+}} step %{{\d+}} iter_args(%{{\d+}} = %{{\d+}}) -> (!riscv.reg<t6>) {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        %{{\d+}} = riscv.mv %9 : (!riscv.reg<t6>) -> !riscv.reg<t6>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        riscv_scf.yield %{{\d+}} : !riscv.reg<t6>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      }
@@ -49,10 +47,10 @@ riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<j4>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<j3>, !riscv.freg<j4>) -> !riscv.freg<j3>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<j2>, !riscv.reg<s0>) -> !riscv.reg<j0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      riscv_scf.for %{{\d+}} = %{{\d+}} to %{{\d+}} step %{{\d+}} {
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      riscv_scf.for %{{\d+}} : !riscv.reg<j0> = %{{\d+}} to %{{\d+}} step %{{\d+}} {
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        riscv_scf.yield
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      }
-//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv_scf.for %{{\d+}} = %{{\d+}} to %{{\d+}} step %{{\d+}} iter_args(%{{\d+}} = %{{\d+}}) -> (!riscv.reg<j0>) {
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %{{\d+}} = riscv_scf.for %{{\d+}} : !riscv.reg<j1> = %{{\d+}} to %{{\d+}} step %{{\d+}} iter_args(%{{\d+}} = %{{\d+}}) -> (!riscv.reg<j0>) {
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        %{{\d+}} = riscv.mv %9 : (!riscv.reg<j0>) -> !riscv.reg<j0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        riscv_scf.yield %{{\d+}} : !riscv.reg<j0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      }
