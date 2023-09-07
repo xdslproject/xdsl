@@ -203,13 +203,16 @@ class Load(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         unresolved_ref = parser.parse_unresolved_operand()
-        indices = parser.parse_comma_separated_list(
-            type(parser).Delimiter.SQUARE, parser.parse_operand
+        unresolved_indices = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
         )
         parser.parse_punctuation(":")
         ref_type = parser.parse_attribute()
         resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
-        return cls.get(resolved_ref, indices)
+        resolved_indices = [
+            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
+        ]
+        return cls.get(resolved_ref, resolved_indices)
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -252,13 +255,16 @@ class Store(IRDLOperation):
         value = parser.parse_operand()
         parser.parse_punctuation(",")
         unresolved_ref = parser.parse_unresolved_operand()
-        indices = parser.parse_comma_separated_list(
-            type(parser).Delimiter.SQUARE, parser.parse_operand
+        unresolved_indices = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
         )
         parser.parse_punctuation(":")
         ref_type = parser.parse_attribute()
         resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
-        return cls.get(value, resolved_ref, indices)
+        resolved_indices = [
+            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
+        ]
+        return cls.get(value, resolved_ref, resolved_indices)
 
     def print(self, printer: Printer):
         printer.print_string(" ")
