@@ -1446,7 +1446,7 @@ class XoriOp(RdRsImmIntegerOperation):
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import ShiftLeftImmediate
+        from xdsl.transforms.canonicalization_patterns.riscv import ShiftLeftImmediate
 
         return (ShiftLeftImmediate(),)
 
@@ -1527,7 +1527,7 @@ class AuipcOp(RdImmIntegerOperation):
 class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import RemoveRedundantMv
+        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantMv
 
         return (RemoveRedundantMv(),)
 
@@ -1548,7 +1548,7 @@ class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
 class FMVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import RemoveRedundantFMv
+        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMv
 
         return (RemoveRedundantFMv(),)
 
@@ -1576,7 +1576,7 @@ class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 class AddOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import AddImmediates
+        from xdsl.transforms.canonicalization_patterns.riscv import AddImmediates
 
         return (AddImmediates(),)
 
@@ -1950,7 +1950,9 @@ class LhuOp(RdRsImmIntegerOperation):
 class LwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import LoadWordWithKnownOffset
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadWordWithKnownOffset,
+        )
 
         return (LoadWordWithKnownOffset(),)
 
@@ -2010,7 +2012,9 @@ class ShOp(RsRsImmIntegerOperation):
 class SwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import StoreWordWithKnownOffset
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            StoreWordWithKnownOffset,
+        )
 
         return (StoreWordWithKnownOffset(),)
 
@@ -2185,7 +2189,7 @@ class CsrrciOp(CsrBitwiseImmOperation):
 class MulOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import MultiplyImmediates
+        from xdsl.transforms.canonicalization_patterns.riscv import MultiplyImmediates
 
         return (MultiplyImmediates(),)
 
@@ -3264,7 +3268,7 @@ class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 class FLwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import (
+        from xdsl.transforms.canonicalization_patterns.riscv import (
             LoadFloatWordWithKnownOffset,
         )
 
@@ -3298,7 +3302,7 @@ class FLwOp(RdRsImmFloatOperation):
 class FSwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import (
+        from xdsl.transforms.canonicalization_patterns.riscv import (
             StoreFloatWordWithKnownOffset,
         )
 
