@@ -31,19 +31,22 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
+    OptRegion,
     OptSingleBlockRegion,
     VarOperand,
+    VarOperandDef,
     VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_region_def,
+    region_def,
     result_def,
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import OptRegion, VarOperandDef, opt_region_def, region_def
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
@@ -417,12 +420,14 @@ class RISCVOp(Operation, ABC):
         Currently does not support VarOperandDef.
         Notice that this method will consume trailing comma.
         """
-        assert issubclass(cls, IRDLOperation), cls
+        assert issubclass(
+            cls, IRDLOperation
+        ), f"{cls} is not a subclass of {IRDLOperation}"
         if any(
             isinstance(operand, VarOperandDef)
             for _, operand in cls.irdl_definition.operands
         ):
-            raise NotImplementedError("VarOperand is not supported")
+            raise NotImplementedError(f"{VarOperandDef} is not supported")
         match cls.irdl_definition.operands:
             case []:
                 parser.parse_optional_punctuation(",")

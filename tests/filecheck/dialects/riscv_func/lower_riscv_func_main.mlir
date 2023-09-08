@@ -15,6 +15,7 @@
 // CHECK-NEXT:         riscv.ecall
 // CHECK-NEXT:         riscv.ret
 // CHECK-NEXT:     })
+// CHECK-NEXT:   }
 
 }) : () -> ()
 
