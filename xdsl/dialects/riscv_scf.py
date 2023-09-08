@@ -22,7 +22,13 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.pattern_rewriter import RewritePattern
+from xdsl.traits import (
+    HasCanonicalisationPatternsTrait,
+    HasParent,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -41,6 +47,16 @@ class YieldOp(IRDLOperation):
         super().__init__(operands=[[SSAValue.get(operand) for operand in operands]])
 
 
+class ForOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv_scf import (
+            HoistIndexTimesConstant,
+        )
+
+        return (HoistIndexTimesConstant(),)
+
+
 @irdl_op_definition
 class ForOp(IRDLOperation):
     name = "riscv_scf.for"
@@ -55,7 +71,12 @@ class ForOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([SingleBlockImplicitTerminator(YieldOp)])
+    traits = frozenset(
+        [
+            SingleBlockImplicitTerminator(YieldOp),
+            ForOpHasCanonicalizationPatternsTrait(),
+        ]
+    )
 
     def __init__(
         self,
