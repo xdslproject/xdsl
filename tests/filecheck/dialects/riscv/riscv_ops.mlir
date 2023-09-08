@@ -3,8 +3,8 @@
 
 "builtin.module"() ({
   riscv.label "main" ({
-    %0 = riscv.get_register : () -> !riscv.reg<>
-    %1 = riscv.get_register : () -> !riscv.reg<>
+    %0 = riscv.get_register : !riscv.reg<>
+    %1 = riscv.get_register : !riscv.reg<>
     // RV32I/RV64I: 2.4 Integer Computational Instructions
 
     // Integer Register-Immediate Instructions
@@ -26,10 +26,10 @@
     // CHECK-NEXT: %{{.*}} = riscv.srli %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     %srai = riscv.srai %0, 1: (!riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.srai %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
-    %lui = riscv.lui 1 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.lui 1 : () -> !riscv.reg<>
-    %auipc = riscv.auipc 1 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.auipc 1 : () -> !riscv.reg<>
+    %lui = riscv.lui 1 : !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.lui 1 : !riscv.reg<>
+    %auipc = riscv.auipc 1 : !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.auipc 1 : !riscv.reg<>
     %mv = riscv.mv %0 : (!riscv.reg<>) -> !riscv.reg<>
     // CHECK: %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<>
 
@@ -72,12 +72,12 @@
     riscv.j "label"
     // CHECK-NEXT: riscv.j "label"
 
-    riscv.jalr %0, 1: (!riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.jalr %0, 1 : (!riscv.reg<>) -> ()
-    riscv.jalr %0, 1, !riscv.reg<> : (!riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.jalr %0, 1, !riscv.reg<> : (!riscv.reg<>) -> ()
-    riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
+    riscv.jalr %0, 1: !riscv.reg<>
+    // CHECK-NEXT: riscv.jalr %0, 1 : !riscv.reg<>
+    riscv.jalr %0, 1, !riscv.reg<> : !riscv.reg<>
+    // CHECK-NEXT: riscv.jalr %0, 1, !riscv.reg<> : !riscv.reg<>
+    riscv.jalr %0, "label" : !riscv.reg<>
+    // CHECK-NEXT: riscv.jalr %0, "label" : !riscv.reg<>
 
     riscv.ret
     // CHECK-NEXT: riscv.ret
@@ -85,18 +85,18 @@
   // CHECK-NEXT: ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
 
     // Conditional Branch Instructions
-    riscv.beq %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.beq %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bne %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.bne %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.blt %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.blt %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bge %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.bge %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bltu %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.bltu %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.bgeu %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.bgeu %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.beq %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
+    // CHECK-NEXT: riscv.beq %{{.*}}, %{{.*}}, 1 : !riscv.reg<>, !riscv.reg<>
+    riscv.bne %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
+    // CHECK-NEXT: riscv.bne %{{.*}}, %{{.*}}, 1 : !riscv.reg<>, !riscv.reg<>
+    riscv.blt %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
+    // CHECK-NEXT: riscv.blt %{{.*}}, %{{.*}}, 1 : !riscv.reg<>, !riscv.reg<>
+    riscv.bge %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
+    // CHECK-NEXT: riscv.bge %{{.*}}, %{{.*}}, 1 : !riscv.reg<>, !riscv.reg<>
+    riscv.bltu %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
+    // CHECK-NEXT: riscv.bltu %{{.*}}, %{{.*}}, 1 : !riscv.reg<>, !riscv.reg<>
+    riscv.bgeu %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
+    // CHECK-NEXT: riscv.bgeu %{{.*}}, %{{.*}}, 1 : !riscv.reg<>, !riscv.reg<>
 
     // RV32I/RV64I: 2.6 Load and Store Instructions
 
@@ -110,12 +110,12 @@
     // CHECK-NEXT: %{{.*}} = riscv.lhu %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     %lw = riscv.lw %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.lw %0, 1 : (!riscv.reg<>) -> !riscv.reg<>
-    riscv.sb %0, %1, 1: (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.sb %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.sh %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.sh %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.sw %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.sw %0, %1, 1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.sb %0, %1, 1: !riscv.reg<>, !riscv.reg<>
+    // CHECK-NEXT: riscv.sb %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
+    riscv.sh %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
+    // CHECK-NEXT: riscv.sh %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
+    riscv.sw %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
+    // CHECK-NEXT: riscv.sw %0, %1, 1 : !riscv.reg<>, !riscv.reg<>
 
     // RV32I/RV64I: 2.8 Control and Status Register Instructions
 
@@ -131,18 +131,18 @@
     // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024 : (!riscv.reg<>) -> !riscv.reg<>
     %csrrc_r = riscv.csrrc %0, 1024, "r" : (!riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.csrrc %0, 1024, "r" : (!riscv.reg<>) -> !riscv.reg<>
-    %csrrsi_rw = riscv.csrrsi 1024, 8 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrsi 1024, 8 : () -> !riscv.reg<>
-    %csrrsi_r = riscv.csrrsi 1024, 0 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrsi 1024, 0 : () -> !riscv.reg<>
-    %csrrci_rw = riscv.csrrci 1024, 8 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 8 : () -> !riscv.reg<>
-    %csrrci_r = riscv.csrrci 1024, 0 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 0 : () -> !riscv.reg<>
-    %csrrwi_rw = riscv.csrrwi 1024, 1 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1 : () -> !riscv.reg<>
-    %csrrwi_w = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg<>
+    %csrrsi_rw = riscv.csrrsi 1024, 8 : !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrsi 1024, 8 : !riscv.reg<>
+    %csrrsi_r = riscv.csrrsi 1024, 0 : !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrsi 1024, 0 : !riscv.reg<>
+    %csrrci_rw = riscv.csrrci 1024, 8 : !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 8 : !riscv.reg<>
+    %csrrci_r = riscv.csrrci 1024, 0 : !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrci 1024, 0 : !riscv.reg<>
+    %csrrwi_rw = riscv.csrrwi 1024, 1 : !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1 : !riscv.reg<>
+    %csrrwi_w = riscv.csrrwi 1024, 1, "w" : !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1, "w" : !riscv.reg<>
 
     // Machine Mode Privileged Instructions
     riscv.wfi
@@ -173,8 +173,8 @@
 
     // Assembler pseudo-instructions
 
-    %li = riscv.li 1 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
+    %li = riscv.li 1 : !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.li 1 : !riscv.reg<>
     // Environment Call and Breakpoints
     riscv.ecall
     // CHECK-NEXT: riscv.ecall
@@ -185,17 +185,17 @@
     riscv.directive ".align" "2"
     // CHECK-NEXT: riscv.directive ".align" "2"
     riscv.assembly_section ".text" attributes {"foo" = i32} {
-      %nested_li = riscv.li 1 : () -> !riscv.reg<>
+      %nested_li = riscv.li 1 : !riscv.reg<>
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" attributes {"foo" = i32} {
-    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
+    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg<>
     // CHECK-NEXT:  }
 
     riscv.assembly_section ".text" {
-      %nested_li = riscv.li 1 : () -> !riscv.reg<>
+      %nested_li = riscv.li 1 : !riscv.reg<>
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" {
-    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
+    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg<>
     // CHECK-NEXT:  }
 
     // Custom instruction
@@ -204,16 +204,16 @@
 
 
     // RISC-V extensions
-    riscv.scfgw %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.scfgw %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    riscv.scfgw %0, %1 : !riscv.reg<>, !riscv.reg<>
+    // CHECK-NEXT: riscv.scfgw %0, %1 : !riscv.reg<>, !riscv.reg<>
 
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
-    %f0 = riscv.get_float_register : () -> !riscv.freg<>
-    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : () -> !riscv.freg<>
-    %f1 = riscv.get_float_register : () -> !riscv.freg<>
-    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : () -> !riscv.freg<>
-    %f2 = riscv.get_float_register : () -> !riscv.freg<>
-    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : () -> !riscv.freg<>
+    %f0 = riscv.get_float_register : !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : !riscv.freg<>
+    %f1 = riscv.get_float_register : !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : !riscv.freg<>
+    %f2 = riscv.get_float_register : !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.get_float_register : !riscv.freg<>
 
     %fmv = riscv.fmv.s %f0 : (!riscv.freg<>) -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
@@ -274,8 +274,8 @@
 
     %flw = riscv.flw %0, 1 : (!riscv.reg<>) -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.flw %{{.*}}, 1 : (!riscv.reg<>) -> !riscv.freg<>
-    riscv.fsw %0, %f0, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
-    // CHECK-NEXT: riscv.fsw %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
+    riscv.fsw %0, %f0, 1 : !riscv.reg<>, !riscv.freg<>
+    // CHECK-NEXT: riscv.fsw %{{.*}}, %{{.*}}, 1 : !riscv.reg<>, !riscv.freg<>
 
     // Terminate block
     riscv.ret

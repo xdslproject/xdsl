@@ -2,9 +2,9 @@
 
 "builtin.module"() ({
   riscv.label "main" ({
-    %0 = riscv.li 6 : () -> !riscv.reg<zero>
+    %0 = riscv.li 6 : !riscv.reg<zero>
     // CHECK:      li zero, 6
-    %1 = riscv.li 5 : () -> !riscv.reg<j1>
+    %1 = riscv.li 5 : !riscv.reg<j1>
     // CHECK-NEXT: li j1, 5
     %2 = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
     // CHECK-NEXT: add j2, zero, j1
@@ -31,9 +31,9 @@
     // CHECK-NEXT: srli j1, j1, 1
     %srai = riscv.srai %1, 1 : (!riscv.reg<j1>) -> !riscv.reg<j1>
     // CHECK-NEXT: srai j1, j1, 1
-    %lui = riscv.lui 1: () -> !riscv.reg<j0>
+    %lui = riscv.lui 1 : !riscv.reg<j0>
     // CHECK-NEXT: lui j0, 1
-    %auipc = riscv.auipc 1: () -> !riscv.reg<j0>
+    %auipc = riscv.auipc 1 : !riscv.reg<j0>
     // CHECK-NEXT: auipc j0, 1
 
     // Integer Register-Register Operations
@@ -57,48 +57,48 @@
     // CHECK-NEXT: sub j2, j2, j1
     %sra = riscv.sra %2, %1 : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
     // CHECK-NEXT: sra j2, j2, j1
-    riscv.nop : () -> ()
+    riscv.nop
     // CHECK-NEXT: nop
 
     // RV32I/RV64I: 2.5 Control Transfer Instructions
 
     // Unconditional Branch Instructions
-    riscv.jal 1 : () -> ()
+    riscv.jal 1
     // CHECK-NEXT: jal 1
-    riscv.jal 1, !riscv.reg<s0> : () -> ()
+    riscv.jal 1, !riscv.reg<s0>
     // CHECK-NEXT: jal s0, 1
-    riscv.jal "label" : () -> ()
+    riscv.jal "label"
     // CHECK-NEXT: jal label
 
-    riscv.j 1, !riscv.reg<zero> : () -> ()
+    riscv.j 1, !riscv.reg<zero>
     // CHECK-NEXT: j 1
-    riscv.j "label", !riscv.reg<zero> : () -> ()
+    riscv.j "label", !riscv.reg<zero>
     // CHECK-NEXT: j label
 
-    riscv.jalr %0, 1 : (!riscv.reg<zero>) -> ()
+    riscv.jalr %0, 1 : !riscv.reg<zero>
     // CHECK-NEXT: jalr zero, 1
-    riscv.jalr %0 1, !riscv.reg<j0> : (!riscv.reg<zero>) -> ()
+    riscv.jalr %0 1, !riscv.reg<j0> : !riscv.reg<zero>
     // CHECK-NEXT: jalr j0, zero, 1
-    riscv.jalr %0 "label" : (!riscv.reg<zero>) -> ()
+    riscv.jalr %0 "label" : !riscv.reg<zero>
     // CHECK-NEXT: jalr zero, label
 
-    riscv.ret : () -> ()
+    riscv.ret
     // CHECK-NEXT: ret
   ^0(%b00 : !riscv.reg<>, %b01 : !riscv.reg<>):
 
 
     // Conditional Branch Instructions
-    riscv.beq %2, %1, 1: (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
+    riscv.beq %2, %1, 1 : !riscv.reg<j2>, !riscv.reg<j1>
     // CHECK-NEXT: beq j2, j1, 1
-    riscv.bne %2, %1, 1: (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
+    riscv.bne %2, %1, 1 : !riscv.reg<j2>, !riscv.reg<j1>
     // CHECK-NEXT: bne j2, j1, 1
-    riscv.blt %2, %1, 1: (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
+    riscv.blt %2, %1, 1 : !riscv.reg<j2>, !riscv.reg<j1>
     // CHECK-NEXT: blt j2, j1, 1
-    riscv.bge %2, %1, 1: (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
+    riscv.bge %2, %1, 1 : !riscv.reg<j2>, !riscv.reg<j1>
     // CHECK-NEXT: bge j2, j1, 1
-    riscv.bltu %2, %1, 1: (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
+    riscv.bltu %2, %1, 1 : !riscv.reg<j2>, !riscv.reg<j1>
     // CHECK-NEXT: bltu j2, j1, 1
-    riscv.bgeu %2, %1, 1: (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
+    riscv.bgeu %2, %1, 1 : !riscv.reg<j2>, !riscv.reg<j1>
     // CHECK-NEXT: bgeu j2, j1, 1
 
     // RV32I/RV64I: Load and Store Instructions (Section 2.6)
@@ -113,11 +113,11 @@
     %lw = riscv.lw %1, 1 : (!riscv.reg<j1>) -> !riscv.reg<j2>
     // CHECK-NEXT: lw j2, 1(j1)
 
-    riscv.sb %2, %1, 1 : (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
+    riscv.sb %2, %1, 1 : !riscv.reg<j2>, !riscv.reg<j1>
     // CHECK-NEXT: sb j2, j1, 1
-    riscv.sh %2, %1, 1 : (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
+    riscv.sh %2, %1, 1 : !riscv.reg<j2>, !riscv.reg<j1>
     // CHECK-NEXT: sh j2, j1, 1
-    riscv.sw %2, %1, 1 : (!riscv.reg<j2>, !riscv.reg<j1>) -> ()
+    riscv.sw %2, %1, 1 : !riscv.reg<j2>, !riscv.reg<j1>
     // CHECK-NEXT: sw j1, 1(j2)
 
     // RV32I/RV64I: Control and Status Register Instructions (Section 2.8)
@@ -133,44 +133,44 @@
     // CHECK-NEXT: csrrc j0, 1024, j2
     %csrrc_r = riscv.csrrc %0, 1024, "r": (!riscv.reg<zero>) -> !riscv.reg<j0>
     // CHECK-NEXT: csrrc j0, 1024, zero
-    %csrrsi_rw = riscv.csrrsi 1024, 8 : () -> !riscv.reg<j1>
+    %csrrsi_rw = riscv.csrrsi 1024, 8 : !riscv.reg<j1>
     // CHECK-NEXT: csrrsi j1, 1024, 8
-    %csrrsi_r = riscv.csrrsi 1024, 0 : () -> !riscv.reg<j0>
+    %csrrsi_r = riscv.csrrsi 1024, 0 : !riscv.reg<j0>
     // CHECK-NEXT: csrrsi j0, 1024, 0
-    %csrrci_rw = riscv.csrrci 1024, 8 : () -> !riscv.reg<j0>
+    %csrrci_rw = riscv.csrrci 1024, 8 : !riscv.reg<j0>
     // CHECK-NEXT: csrrci j0, 1024, 8
-    %csrrci_r = riscv.csrrci 1024, 0 : () -> !riscv.reg<j1>
+    %csrrci_r = riscv.csrrci 1024, 0 : !riscv.reg<j1>
     // CHECK-NEXT: csrrci j1, 1024, 0
-    %csrrwi_rw = riscv.csrrwi 1024, 8 : () -> !riscv.reg<j0>
+    %csrrwi_rw = riscv.csrrwi 1024, 8 : !riscv.reg<j0>
     // CHECK-NEXT: csrrwi j0, 1024, 8
-    %csrrwi_w = riscv.csrrwi 1024, 8, "w" : () -> !riscv.reg<zero>
+    %csrrwi_w = riscv.csrrwi 1024, 8, "w" : !riscv.reg<zero>
     // CHECK-NEXT: csrrwi zero, 1024, 8
 
     // Assembler pseudo-instructions
-    %li = riscv.li 1: () -> !riscv.reg<j0>
+    %li = riscv.li 1 : !riscv.reg<j0>
     // CHECK-NEXT: li j0, 1
     // Environment Call and Breakpoints
-    riscv.ecall : () -> ()
+    riscv.ecall
     // CHECK-NEXT: ecall
-    riscv.ebreak : () -> ()
+    riscv.ebreak
     // CHECK-NEXT: ebreak
-    riscv.ret : () -> ()
+    riscv.ret
     // CHECK-NEXT: ret
   ^1(%b10 : !riscv.reg<>, %b11 : !riscv.reg<>):
 
-    riscv.directive ".align" "2" : () -> ()
+    riscv.directive ".align" "2"
     // CHECK-NEXT: .align 2
     riscv.assembly_section ".text" {
       %nested_addi = riscv.addi %1, 1 : (!riscv.reg<j1>) -> !riscv.reg<j1>
     }
     // CHECK-NEXT:  .text
     // CHECK-NEXT:  addi j1, j1, 1
-    riscv.label "label0" : () -> ()
+    riscv.label "label0"
     // CHECK-NEXT: label0:
     riscv.label "label1" ({
       %nested_addi = riscv.addi %1, 1 : (!riscv.reg<j1>) -> !riscv.reg<j1>
-      riscv.ret : () -> ()
-    }) : () -> ()
+      riscv.ret
+    })
     // CHECK-NEXT: label1:
     // CHECK-NEXT: addi j1, j1, 1
     // CHECK-NEXT: ret
@@ -239,11 +239,11 @@
     // CHECK-NEXT: fmv.w.x j8, zero
     %flw = riscv.flw %0, 1 : (!riscv.reg<zero>) -> !riscv.freg<j8>
     // CHECK-NEXT: flw j8, 1(zero)
-    riscv.fsw %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
+    riscv.fsw %0, %f0, 1  : !riscv.reg<zero>, !riscv.freg<j5>
     // CHECK-NEXT: fsw j5, 1(zero)
 
     // Terminate block
-    riscv.ret : () -> ()
+    riscv.ret
     // CHECK-NEXT: ret
-  }) : () -> ()
+  })
 }) : () -> ()

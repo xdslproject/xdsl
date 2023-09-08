@@ -22,10 +22,10 @@
 }) : () -> ()
 
 // CHECK:      builtin.module {
-// CHECK-NEXT:   %lb = riscv.li 0 : () -> !riscv.reg<>
-// CHECK-NEXT:   %ub = riscv.li 100 : () -> !riscv.reg<>
-// CHECK-NEXT:   %step = riscv.li 1 : () -> !riscv.reg<>
-// CHECK-NEXT:   %acc = riscv.li 0 : () -> !riscv.reg<t0>
+// CHECK-NEXT:   %lb = riscv.li 0 : !riscv.reg<>
+// CHECK-NEXT:   %ub = riscv.li 100 : !riscv.reg<>
+// CHECK-NEXT:   %step = riscv.li 1 : !riscv.reg<>
+// CHECK-NEXT:   %acc = riscv.li 0 : !riscv.reg<t0>
 // CHECK-NEXT:   "riscv_scf.for"(%lb, %ub, %step) ({
 // CHECK-NEXT:   ^0(%i : !riscv.reg<>):
 // CHECK-NEXT:     %0 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>

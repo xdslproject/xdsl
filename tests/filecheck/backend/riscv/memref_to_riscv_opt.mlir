@@ -8,8 +8,8 @@ builtin.module {
     %vi = builtin.unrealized_conversion_cast %vi_reg : !riscv.reg<> to i32
     %mf = builtin.unrealized_conversion_cast %mf_reg : !riscv.reg<> to memref<3x2xf32>
     %mi = builtin.unrealized_conversion_cast %mi_reg : !riscv.reg<> to memref<3x2xi32>
-    %r_reg = riscv.li 1 : () -> !riscv.reg<>
-    %c_reg = riscv.li 1 : () -> !riscv.reg<>
+    %r_reg = riscv.li 1 : !riscv.reg<>
+    %c_reg = riscv.li 1 : !riscv.reg<>
     %r = builtin.unrealized_conversion_cast %r_reg : !riscv.reg<> to index
     %c = builtin.unrealized_conversion_cast %c_reg : !riscv.reg<> to index
     "memref.store"(%vf, %mf, %r, %c) {"nontemporal" = false} : (f32, memref<3x2xf32>, index, index) -> ()
@@ -24,9 +24,9 @@ builtin.module {
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %vf_reg, %vi_reg, %mf_reg, %mi_reg = "test.op"() : () -> (!riscv.freg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
-// CHECK-NEXT:   riscv.fsw %mf_reg, %vf_reg, 12 {"comment" = "store float value to memref of shape (3, 2)"} : (!riscv.reg<>, !riscv.freg<>) -> ()
+// CHECK-NEXT:   riscv.fsw %mf_reg, %vf_reg, 12 {"comment" = "store float value to memref of shape (3, 2)"} : !riscv.reg<>, !riscv.freg<>
 // CHECK-NEXT:   %xf = riscv.flw %mf_reg, 12 {"comment" = "load value from memref of shape (3, 2)"} : (!riscv.reg<>) -> !riscv.freg<>
-// CHECK-NEXT:   riscv.sw %mi_reg, %vi_reg, 12 {"comment" = "store int value to memref of shape (3, 2)"} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:   riscv.sw %mi_reg, %vi_reg, 12 {"comment" = "store int value to memref of shape (3, 2)"} : !riscv.reg<>, !riscv.reg<>
 // CHECK-NEXT:   %xi = riscv.lw %mi_reg, 12 {"comment" = "load value from memref of shape (3, 2)"} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:   "test.op"(%xf) : (!riscv.freg<>) -> ()
 // CHECK-NEXT:   "test.op"(%xi) : (!riscv.reg<>) -> ()

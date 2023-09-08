@@ -1,18 +1,18 @@
 // RUN: xdsl-opt -p convert-arith-to-riscv,reconcile-unrealized-casts %s | filecheck %s
 builtin.module {
     %lhsi32 = "arith.constant"() {value = 1 : i32} : () -> i32
-    // CHECK: %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
+    // CHECK: %{{.*}} = riscv.li 1 : !riscv.reg<>
     %rhsi32 = "arith.constant"() {value = 2 : i32} : () -> i32
-    // CHECK-NEXT: %{{.*}} = riscv.li 2 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.li 2 : !riscv.reg<>
     %lhsindex = "arith.constant"() {value = 1 : index} : () -> index
-    // CHECK-NEXT: %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.li 1 : !riscv.reg<>
     %rhsindex = "arith.constant"() {value = 2 : index} : () -> index
-    // CHECK-NEXT: %{{.*}} = riscv.li 2 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.li 2 : !riscv.reg<>
     %lhsf32 = "arith.constant"() {value = 1.000000e+00 : f32} : () -> f32
-    // CHECK-NEXT: %{{.*}} = riscv.li 1065353216 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.li 1065353216 : !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %lhsf32 : (!riscv.reg<>) -> !riscv.freg<>
     %rhsf32 = "arith.constant"() {value = 2.000000e+00 : f32} : () -> f32
-    // CHECK-NEXT: %{{.*}} = riscv.li 1073741824 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.li 1073741824 : !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %rhsf32 : (!riscv.reg<>) -> !riscv.freg<>
 
     %addi32 = "arith.addi"(%lhsi32, %rhsi32) : (i32, i32) -> i32
@@ -58,7 +58,7 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.xor %lhsi32, %rhsi32 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.sltiu %cmpi0, 1 : (!riscv.reg<>) -> !riscv.reg<>
     %cmpi1 = "arith.cmpi"(%lhsi32, %rhsi32) {"predicate" = 1 : i32} : (i32, i32) -> i1
-    // CHECK-NEXT: %{{.*}} = riscv.get_register : () -> !riscv.reg<zero>
+    // CHECK-NEXT: %{{.*}} = riscv.get_register : !riscv.reg<zero>
     // CHECK-NEXT: %{{.*}}= riscv.xor %lhsi32, %rhsi32 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.sltu %cmpi1, %cmpi1_1 : (!riscv.reg<zero>, !riscv.reg<>) -> !riscv.reg<>
     %cmpi2 = "arith.cmpi"(%lhsi32, %rhsi32) {"predicate" = 2 : i32} : (i32, i32) -> i1
@@ -94,7 +94,7 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.w.s %lhsf32_1 : (!riscv.freg<>) -> !riscv.reg<>
 
     %cmpf0 = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 0 : i32} : (f32, f32) -> i1
-    // CHECK-NEXT: %{{.*}} = riscv.li 0 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.li 0 : !riscv.reg<>
     %cmpf1 = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 1 : i32} : (f32, f32) -> i1
     // CHECK-NEXT: %{{.*}} = riscv.feq.s %lhsf32_1, %rhsf32_1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.reg<>
     %cmpf2 = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 2 : i32} : (f32, f32) -> i1
@@ -139,7 +139,7 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.and %cmpf14_1, %cmpf14 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.xori %cmpf14_2, 1 : (!riscv.reg<>) -> !riscv.reg<>
     %cmpf15 = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 15 : i32} : (f32, f32) -> i1
-    // CHECK-NEXT: %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
+    // CHECK-NEXT: %{{.*}} = riscv.li 1 : !riscv.reg<>
     %index_cast = "arith.index_cast"(%lhsindex) : (index) -> i32
     // CHECK-NEXT: }
 }

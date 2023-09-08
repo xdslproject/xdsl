@@ -9,6 +9,7 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    FunctionType,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -36,6 +37,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOperandDef,
     VarOpResult,
+    VarResultDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -399,12 +401,7 @@ class RISCVOp(Operation, ABC):
         # TODO ensure distinct keys for attributes
         attributes = custom_attributes | remaining_attributes
         regions = parser.parse_region_list()
-        if parser.parse_optional_punctuation(":") is None:
-            return cls.create(
-                attributes=attributes,
-                regions=regions,
-            )
-        func_type = parser.parse_function_type()
+        func_type = cls.parse_function_type(parser)
         operands = parser.resolve_operands(args, func_type.inputs.data, parser.pos)
         return cls.create(
             operands=operands,
@@ -450,6 +447,59 @@ class RISCVOp(Operation, ABC):
         """
         return parser.parse_optional_attr_dict()
 
+    @classmethod
+    def parse_function_type(cls, parser: Parser) -> FunctionType:
+        assert issubclass(
+            cls, IRDLOperation
+        ), f"{cls} is not a subclass of {IRDLOperation}"
+        if any(
+            isinstance(operand, VarOperandDef)
+            for _, operand in cls.irdl_definition.operands
+        ) or any(
+            isinstance(results, VarResultDef)
+            for _, results in cls.irdl_definition.results
+        ):
+            parser.parse_punctuation(":")
+            return parser.parse_function_type()
+        match cls.irdl_definition.operands, cls.irdl_definition.results:
+            case ([], []):
+                return FunctionType.from_lists([], [])
+            case ([_, *remain], []):
+                parser.parse_punctuation(":")
+                types = [parser.parse_type()]
+                for _ in remain:
+                    parser.parse_punctuation(",")
+                    types.append(parser.parse_type())
+                return FunctionType.from_lists(types, [])
+            case ([], [_, *remain]):
+                parser.parse_punctuation(":")
+                types = [parser.parse_type()]
+                for _ in remain:
+                    parser.parse_punctuation(",")
+                    types.append(parser.parse_type())
+                return FunctionType.from_lists([], types)
+            case ([_, *remain_input], [_, *remain_output]):
+                parser.parse_punctuation(":")
+                parser.parse_punctuation("(")
+                inputs = [parser.parse_type()]
+                for _ in remain_input:
+                    parser.parse_punctuation(",")
+                    inputs.append(parser.parse_type())
+                parser.parse_punctuation(")")
+                parser.parse_punctuation("->")
+                if remain_output:
+                    parser.parse_punctuation("(")
+                outputs = [parser.parse_type()]
+                for _ in remain_output:
+                    parser.parse_punctuation(",")
+                    outputs.append(parser.parse_type())
+                if remain_output:
+                    parser.parse_punctuation(")")
+                return FunctionType.from_lists(inputs, outputs)
+            case _:
+                # TODO use assert_never
+                raise RuntimeError("Unexpected error.")
+
     def print(self, printer: Printer) -> None:
         if self.operands:
             printer.print(" ")
@@ -462,9 +512,7 @@ class RISCVOp(Operation, ABC):
         }
         printer.print_op_attributes(unprinted_attributes)
         printer.print_regions(self.regions)
-        if self.operands or self.results:
-            printer.print(" : ")
-            printer.print_operation_type(self)
+        self.print_function_type(printer)
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         """
@@ -472,6 +520,28 @@ class RISCVOp(Operation, ABC):
         """
         printer.print_op_attributes(self.attributes)
         return self.attributes.keys()
+
+    def print_function_type(self, printer: Printer):
+        assert isinstance(
+            self, IRDLOperation
+        ), f"{self} is not a subclass of {IRDLOperation}"
+        match (self.operands, self.results):
+            case ([], []):
+                pass
+            case ([*ops], []) | ([], [*ops]) if not any(
+                isinstance(operand, VarOperandDef)
+                for _, operand in self.irdl_definition.operands
+            ) and not any(
+                isinstance(results, VarResultDef)
+                for _, results in self.irdl_definition.results
+            ):
+                printer.print(" : ")
+                printer.print_list(
+                    ops, lambda operand: printer.print_attribute(operand.type)
+                )
+            case _:
+                printer.print(" : ")
+                printer.print_operation_type(self)
 
 
 AssemblyInstructionArg: TypeAlias = (
