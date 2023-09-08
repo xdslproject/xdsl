@@ -77,9 +77,14 @@ def test_insert_shape_ops_1d():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
             bytes_per_element = riscv.LiOp(4).rd
             offset_in_bytes = riscv.MulOp(
-                indices[0], bytes_per_element, comment="multiply by element size"
+                indices[0],
+                bytes_per_element,
+                rd=riscv.IntRegisterType.unallocated(),
+                comment="multiply by element size",
             ).rd
-            _ = riscv.AddOp(mem, offset_in_bytes)
+            _ = riscv.AddOp(
+                mem, offset_in_bytes, rd=riscv.IntRegisterType.unallocated()
+            )
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
 
     shape = [2]
@@ -106,11 +111,16 @@ def test_insert_shape_ops_2d():
     def expected_2d():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
             v1 = riscv.LiOp(2)
-            v2 = riscv.MulOp(v1, indices[0])
-            v3 = riscv.AddOp(v2, indices[1])
+            v2 = riscv.MulOp(v1, indices[0], rd=riscv.IntRegisterType.unallocated())
+            v3 = riscv.AddOp(v2, indices[1], rd=riscv.IntRegisterType.unallocated())
             v4 = riscv.LiOp(4).rd
-            v5 = riscv.MulOp(v3, v4, comment="multiply by element size").rd
-            _ = riscv.AddOp(mem, v5)
+            v5 = riscv.MulOp(
+                v3,
+                v4,
+                rd=riscv.IntRegisterType.unallocated(),
+                comment="multiply by element size",
+            ).rd
+            _ = riscv.AddOp(mem, v5, rd=riscv.IntRegisterType.unallocated())
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
 
     shape = [2, 2]
