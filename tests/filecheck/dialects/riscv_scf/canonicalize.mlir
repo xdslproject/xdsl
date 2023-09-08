@@ -37,6 +37,9 @@
 // CHECK:           builtin.module {
 // CHECK-NEXT:        %0, %1, %2, %3 = "test.op"() : () -> (!riscv.freg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
 // CHECK-NEXT:        %{{.*}} = riscv.li 0 : () -> !riscv.reg<>
+// CHECK-NEXT:        %c64 = riscv.li 64 : () -> !riscv.reg<>
+// CHECK-NEXT:        %c1 = riscv.li 1 : () -> !riscv.reg<>
+// CHECK-NEXT:        %{{.*}} = riscv.li 0 : () -> !riscv.reg<>
 // CHECK-NEXT:        %{{.*}} = riscv.li 256 : () -> !riscv.reg<>
 // CHECK-NEXT:        %{{.*}} = riscv.li 4 : () -> !riscv.reg<>
 // CHECK-NEXT:        "riscv_scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
@@ -52,11 +55,11 @@
 // CHECK-NEXT:          "riscv_scf.yield"() : () -> ()
 // CHECK-NEXT:        }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-NEXT:        "riscv_scf.for"(%c0, %c64, %c1) ({
-// CHECK-NEXT:        ^0(%arg4 : !riscv.reg<>):
-// CHECK-NEXT:            %4 = riscv.li 4 : () -> !riscv.reg<>
-// CHECK-NEXT:            %5 = riscv.mul %arg4, %4 {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:            %6 = riscv.li 5 : () -> !riscv.reg<>
-// CHECK-NEXT:            %7 = riscv.mul %arg4, %6 {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:        ^1(%{{.*}} : !riscv.reg<>):
+// CHECK-NEXT:            %{{.*}} = riscv.li 4 : () -> !riscv.reg<>
+// CHECK-NEXT:            %{{.*}} = riscv.mul %{{.*}}, %{{.*}} {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:            %{{.*}} = riscv.li 5 : () -> !riscv.reg<>
+// CHECK-NEXT:            %{{.*}} = riscv.mul %{{.*}}, %{{.*}} {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:            "riscv_scf.yield"() : () -> ()
 // CHECK-NEXT:        }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-NEXT:      }
