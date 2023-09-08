@@ -2,7 +2,12 @@ from abc import ABC
 from dataclasses import dataclass
 
 from xdsl.dialects import linalg, riscv, snitch
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
+from xdsl.dialects.builtin import (
+    Float32Type,
+    IntegerAttr,
+    ModuleOp,
+    i32,
+)
 from xdsl.ir import MLContext  # noqa: E999
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -26,7 +31,16 @@ class AddSnitchStreamLoopBoundAndStrideConfig(RewritePattern, ABC):
             bound = riscv.LiOp(364)
             dim = IntegerAttr(loop_idx, i32)
             ssr_bound_op = snitch.SsrSetDimensionBoundOp(stream, bound, dim)
-            rewriter.insert_op_before_matched_op([stream, bound, ssr_bound_op])
+
+            stride = riscv.LiOp(4)
+            if isinstance(op.body.block.args[0].type, Float32Type):
+                stride = riscv.LiOp(32 // 8)
+
+            ssr_stride_op = snitch.SsrSetDimensionStrideOp(stream, stride, dim)
+
+            rewriter.insert_op_before_matched_op(
+                [stream, bound, stride, ssr_bound_op, ssr_stride_op]
+            )
 
 
 class AddSnitchStreamEnableDisable(RewritePattern, ABC):
