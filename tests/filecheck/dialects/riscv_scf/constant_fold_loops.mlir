@@ -18,7 +18,10 @@ builtin.module {
 }
 
 
-// CHECK:         builtin.module {
+// CHECK:       builtin.module {
+// CHECK-NEXT:    riscv.assembly_section ".text" {
+// CHECK-NEXT:      riscv.directive ".globl" "ssum" : () -> ()
+// CHECK-NEXT:      riscv.directive ".p2align" "2" : () -> ()
 // CHECK-NEXT:      riscv_func.func @ssum(%arg0 : !riscv.freg<fa0>, %arg1 : !riscv.reg<a1>, %arg2 : !riscv.reg<a2>, %arg3 : !riscv.reg<a3>) {
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.s %arg0 : (!riscv.freg<fa0>) -> !riscv.freg<>
 // CHECK-NEXT:        %{{.*}} = riscv.mv %arg1 : (!riscv.reg<a1>) -> !riscv.reg<>
@@ -42,3 +45,4 @@ builtin.module {
 // CHECK-NEXT:        riscv_func.return
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
+// CHECK-NEXT:  }
