@@ -25,7 +25,9 @@ def test_simple():
         def body():
             six = riscv.LiOp(6).rd
             seven = riscv.LiOp(7).rd
-            forty_two = riscv.MulOp(six, seven).rd
+            forty_two = riscv.MulOp(
+                six, seven, rd=riscv.IntRegisterType.unallocated()
+            ).rd
             riscv.CustomAssemblyInstructionOp(
                 "print", inputs=[forty_two], result_types=[]
             )
