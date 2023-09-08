@@ -73,7 +73,7 @@ class SyscallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CallOp(IRDLOperation):
+class CallOp(IRDLOperation, riscv.RISCVInstruction):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
@@ -129,6 +129,12 @@ class CallOp(IRDLOperation):
             call.attributes |= extra_attributes.data
         return call
 
+    def assembly_instruction_name(self) -> str:
+        return "jal"
+
+    def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
+        return (self.callee.string_value(),)
+
 
 class FuncOpCallableInterface(CallableOpInterface):
     @classmethod
@@ -138,7 +144,7 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(IRDLOperation):
+class FuncOp(IRDLOperation, riscv.RISCVOp):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
@@ -208,9 +214,12 @@ class FuncOp(IRDLOperation):
             reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
 
+    def assembly_line(self) -> str:
+        return f"{self.sym_name.data}:"
+
 
 @irdl_op_definition
-class ReturnOp(IRDLOperation):
+class ReturnOp(IRDLOperation, riscv.RISCVInstruction):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
@@ -221,8 +230,7 @@ class ReturnOp(IRDLOperation):
 
     def __init__(
         self,
-        values: Sequence[Operation | SSAValue],
-        *,
+        *values: Operation | SSAValue,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -246,9 +254,15 @@ class ReturnOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> ReturnOp:
         attrs, args = parse_return_op_like(parser)
-        op = ReturnOp(args)
+        op = ReturnOp(*args)
         op.attributes.update(attrs)
         return op
+
+    def assembly_instruction_name(self) -> str:
+        return "ret"
+
+    def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
+        return ()
 
 
 RISCV_Func = Dialect(

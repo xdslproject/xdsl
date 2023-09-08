@@ -10,7 +10,7 @@ def test_gather_allocated():
         reg2 = riscv.IntRegisterType.unallocated()
         v1 = riscv.GetRegisterOp(reg1).res
         v2 = riscv.GetRegisterOp(reg2).res
-        _ = riscv.AddOp(v1, v2).rd
+        _ = riscv.AddOp(v1, v2, rd=riscv.IntRegisterType.unallocated()).rd
 
     pa_regs = gather_allocated(riscv_func.FuncOp("foo", no_preallocated_body, ((), ())))
 
@@ -21,7 +21,7 @@ def test_gather_allocated():
         reg1 = riscv.IntRegisterType.unallocated()
         v1 = riscv.GetRegisterOp(reg1).res
         v2 = riscv.GetRegisterOp(riscv.Registers.A7).res
-        _ = riscv.AddOp(v1, v2).rd
+        _ = riscv.AddOp(v1, v2, rd=riscv.IntRegisterType.unallocated()).rd
 
     pa_regs = gather_allocated(
         riscv_func.FuncOp("foo", one_preallocated_body, ((), ()))
@@ -34,7 +34,7 @@ def test_gather_allocated():
         reg1 = riscv.IntRegisterType.unallocated()
         v1 = riscv.GetRegisterOp(reg1).res
         v2 = riscv.GetRegisterOp(riscv.Registers.A7).res
-        sum1 = riscv.AddOp(v1, v2).rd
+        sum1 = riscv.AddOp(v1, v2, rd=riscv.IntRegisterType.unallocated()).rd
         _ = riscv.AddiOp(sum1, 1, rd=riscv.Registers.A7).rd
 
     pa_regs = gather_allocated(
@@ -48,7 +48,7 @@ def test_gather_allocated():
         reg1 = riscv.IntRegisterType.unallocated()
         v1 = riscv.GetRegisterOp(reg1).res
         v2 = riscv.GetRegisterOp(riscv.Registers.A7).res
-        sum1 = riscv.AddOp(v1, v2).rd
+        sum1 = riscv.AddOp(v1, v2, rd=riscv.IntRegisterType.unallocated()).rd
         _ = riscv.AddiOp(sum1, 1, rd=riscv.Registers.A6).rd
 
     pa_regs = gather_allocated(

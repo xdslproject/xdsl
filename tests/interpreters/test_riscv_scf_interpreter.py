@@ -36,7 +36,7 @@ def sum_to_for_op():
         @Builder.implicit_region((register, register))
         def for_loop_region(args: tuple[BlockArgument, ...]):
             (i, acc) = args
-            res = riscv.AddOp(i, acc)
+            res = riscv.AddOp(i, acc, rd=riscv.IntRegisterType.unallocated())
             riscv_scf.YieldOp(res)
 
         result = riscv_scf.ForOp(lb, ub, step, (initial,), for_loop_region)
