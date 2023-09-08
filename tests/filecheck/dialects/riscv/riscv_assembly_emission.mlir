@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -t riscv-asm %s | filecheck %s
 
 "builtin.module"() ({
-  riscv.label "main" ({
+  riscv_func.func @main() {
     %0 = riscv.li 6 : () -> !riscv.reg<zero>
     // CHECK:      li zero, 6
     %1 = riscv.li 5 : () -> !riscv.reg<j1>
@@ -167,13 +167,6 @@
     // CHECK-NEXT:  addi j1, j1, 1
     riscv.label "label0" : () -> ()
     // CHECK-NEXT: label0:
-    riscv.label "label1" ({
-      %nested_addi = riscv.addi %1, 1 : (!riscv.reg<j1>) -> !riscv.reg<j1>
-      riscv.ret : () -> ()
-    }) : () -> ()
-    // CHECK-NEXT: label1:
-    // CHECK-NEXT: addi j1, j1, 1
-    // CHECK-NEXT: ret
 
 
     // Custom instruction
@@ -243,7 +236,7 @@
     // CHECK-NEXT: fsw j5, 1(zero)
 
     // Terminate block
-    riscv.ret : () -> ()
+    riscv_func.return
     // CHECK-NEXT: ret
-  }) : () -> ()
+  }
 }) : () -> ()

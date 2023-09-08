@@ -1,6 +1,5 @@
 import pytest
 
-from xdsl.builder import Builder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
 from xdsl.ir import MLContext
@@ -107,22 +106,6 @@ def test_label_op_with_comment():
 
     code = riscv.riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:                                         # my label\n"
-
-
-def test_label_op_with_region():
-    @Builder.implicit_region
-    def label_region():
-        a1_reg = TestSSAValue(riscv.Registers.A1)
-        a2_reg = TestSSAValue(riscv.Registers.A2)
-        riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
-
-    label_str = "mylabel"
-    label_op = riscv.LabelOp(f"{label_str}", region=label_region)
-
-    assert label_op.label.data == label_str
-
-    code = riscv.riscv_code(ModuleOp([label_op]))
-    assert code == f"{label_str}:\n    add a0, a1, a2\n"
 
 
 def test_return_op():

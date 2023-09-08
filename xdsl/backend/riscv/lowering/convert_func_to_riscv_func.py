@@ -5,9 +5,10 @@ from xdsl.backend.riscv.lowering.utils import (
     move_to_unallocated_regs,
     register_type_for_type,
 )
-from xdsl.dialects import func, riscv_func
+from xdsl.dialects import func, riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
 from xdsl.ir import MLContext
+from xdsl.ir.core import Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -41,7 +42,26 @@ class LowerFuncOp(RewritePattern):
             (input_types, result_types),
         )
 
-        rewriter.replace_matched_op(new_func)
+        new_ops: list[Operation] = []
+
+        if (visibility := op.sym_visibility) is None or visibility.data == "public":
+            # C-like: default is public
+            new_ops.append(riscv.DirectiveOp(".globl", op.sym_name.data))
+
+        new_ops.append(
+            # FIXME we should ask the target for alignment, this works for rv32
+            riscv.DirectiveOp(".p2align", "2"),
+        )
+
+        new_ops.append(new_func)
+
+        # Each function has its own .text: this will tell the assembler to emit
+        # a .text section (if not present) and make it the current one
+        # section = riscv.AssemblySectionOp(".text", Region(Block(result)))
+
+        text_section = riscv.AssemblySectionOp(".text", Region(Block(new_ops)))
+
+        rewriter.replace_matched_op(text_section)
 
 
 class LowerFuncCallOp(RewritePattern):
@@ -92,7 +112,7 @@ class LowerReturnOp(RewritePattern):
         rewriter.insert_op_before_matched_op(cast_ops)
         rewriter.insert_op_before_matched_op(move_ops)
 
-        rewriter.replace_matched_op(riscv_func.ReturnOp(moved_values))
+        rewriter.replace_matched_op(riscv_func.ReturnOp(*moved_values))
 
 
 class ConvertFuncToRiscvFuncPass(ModulePass):

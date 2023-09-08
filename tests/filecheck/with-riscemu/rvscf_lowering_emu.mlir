@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -p lower-riscv-scf-to-labels -t riscemu %s
 
 builtin.module {
-  riscv.label "main" ({
+  riscv_func.func @main() {
     %0 = riscv.li 0 : () -> !riscv.reg<a0>
     %1 = riscv.li 10 : () -> !riscv.reg<a1>
     %2 = riscv.li 1 : () -> !riscv.reg<a2>
@@ -15,8 +15,8 @@ builtin.module {
     riscv.custom_assembly_instruction %4 {"instruction_name" = "print"} : (!riscv.reg<a3>) -> ()
     riscv.li 93 : () -> !riscv.reg<a7>
     riscv.ecall : () -> ()
-    riscv.ret : () -> ()
-  }) : () -> ()
+    riscv_func.return
+  }
 }
 
 // CHECK: 45
