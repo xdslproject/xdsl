@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable, Sequence, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -641,39 +642,47 @@ class Printer:
             self.print(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
-    def print_op_attributes(self, attributes: dict[str, Attribute]) -> None:
-        if len(attributes) == 0:
+    def _print_op_properties(self, properties: dict[str, Attribute]) -> None:
+        if not properties:
             return
+
+        self.print(" <{")
+        self.print_list(properties.items(), self._print_attr_string)
+        self.print("}>")
+
+    def print_op_attributes(
+        self,
+        attributes: dict[str, Attribute],
+        *,
+        reserved_attr_names: Iterable[str] = (),
+        print_keyword: bool = False,
+    ) -> None:
+        if not attributes:
+            return
+
+        if reserved_attr_names:
+            attributes = {
+                name: attr
+                for name, attr in attributes.items()
+                if name not in reserved_attr_names
+            }
+
+        if not attributes:
+            return
+
+        if print_keyword:
+            self.print(" attributes")
 
         self.print(" {")
 
-        attribute_list = list(attributes.items())
-        self.print_list(attribute_list, self._print_attr_string)
-
-        self.print("}")
-
-    def print_op_attributes_with_keyword(
-        self, attributes: dict[str, Attribute], reserved_attr_names: Iterable[str] = ()
-    ) -> None:
-        if reserved_attr_names:
-            attribute_list = [
-                i for i in attributes.items() if i[0] not in reserved_attr_names
-            ]
-        else:
-            attribute_list = attributes.items()
-
-        if not attribute_list:
-            return
-        self.print(" attributes {")
-
-        self.print_list(attribute_list, self._print_attr_string)
+        self.print_list(attributes.items(), self._print_attr_string)
 
         self.print("}")
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)
         self.print_successors(op.successors)
-
+        self._print_op_properties(op.properties)
         self.print_regions(op.regions)
         self.print_op_attributes(op.attributes)
         self.print(" : ")

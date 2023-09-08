@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 import pytest
 
@@ -36,9 +36,9 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     value2 = check1.data.data[1].value.data
 
     # Ensure type conversion happened properly during attribute construction.
-    assert type(value1) == float
+    assert isinstance(value1, float)
     assert value1 == 4.0
-    assert type(value2) == float
+    assert isinstance(value2, float)
     assert value2 == 5.0
 
     t1 = FloatAttr(4.0, f32)
@@ -50,9 +50,9 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     value4 = check2.data.data[1].value.data
 
     # Ensure type conversion happened properly during attribute construction.
-    assert type(value3) == float
+    assert isinstance(value3, float)
     assert value3 == 4.0
-    assert type(value4) == float
+    assert isinstance(value4, float)
     assert value4 == 5.0
 
 
@@ -225,7 +225,7 @@ memref<1x2xi32> should be of type VectorType."""
 
 def test_unrealized_conversion_cast():
     i64_constant = Constant.from_int_and_width(1, 64)
-    f32_constant = Constant.from_float_and_width(10.1, f32)
+    f32_constant = Constant(FloatAttr(10.1, f32))
 
     conv_op1 = UnrealizedConversionCastOp.get([i64_constant.results[0]], [f32])
     conv_op2 = UnrealizedConversionCastOp.get([f32_constant.results[0]], [i32])

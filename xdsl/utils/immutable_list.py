@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, SupportsIndex, TypeVar, cast, overload
+from collections.abc import Iterable
+from typing import Any, SupportsIndex, TypeVar, cast, overload
 
 _T = TypeVar("_T")
 _S = TypeVar("_S")

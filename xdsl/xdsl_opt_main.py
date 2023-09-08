@@ -1,7 +1,8 @@
 import argparse
 import sys
+from collections.abc import Callable, Sequence
 from io import StringIO
-from typing import IO, Callable, Dict, List, Sequence, Type
+from typing import IO
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import print_assembly, riscv_code
@@ -14,18 +15,18 @@ from xdsl.utils.parse_pipeline import parse_pipeline
 
 
 class xDSLOptMain(CommandLineTool):
-    available_passes: Dict[str, Type[ModulePass]]
+    available_passes: dict[str, type[ModulePass]]
     """
     A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
 
-    available_targets: Dict[str, Callable[[ModuleOp, IO[str]], None]]
+    available_targets: dict[str, Callable[[ModuleOp, IO[str]], None]]
     """
     A mapping from target names to functions that serialize a ModuleOp into a
     stream.
     """
 
-    pipeline: List[ModulePass]
+    pipeline: list[ModulePass]
     """ The pass-pipeline to be applied. """
 
     def __init__(
@@ -152,7 +153,7 @@ class xDSLOptMain(CommandLineTool):
             help="Print operations with debug info annotation, such as location.",
         )
 
-    def register_pass(self, opPass: Type[ModulePass]):
+    def register_pass(self, opPass: type[ModulePass]):
         self.available_passes[opPass.name] = opPass
 
     def register_all_passes(self):
@@ -215,7 +216,7 @@ class xDSLOptMain(CommandLineTool):
             self.available_passes[p.name].from_pass_spec(p) for p in pipeline
         ]
 
-    def prepare_input(self) -> tuple[List[IO[str]], str]:
+    def prepare_input(self) -> tuple[list[IO[str]], str]:
         """
         Prepare input by eventually splitting it in chunks. If not set, the parser
         registered for this file extension is used.
@@ -224,7 +225,7 @@ class xDSLOptMain(CommandLineTool):
         # when using the split input flag, program is split into multiple chunks
         # it's used for split input file
 
-        chunks: List[IO[str]] = []
+        chunks: list[IO[str]] = []
         f, file_extension = self.get_input_stream()
         chunks = [f]
         if self.args.split_input_file:

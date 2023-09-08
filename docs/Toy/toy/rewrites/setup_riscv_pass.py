@@ -26,11 +26,8 @@ class AddSections(RewritePattern):
             ),
         )
         data_section = riscv.AssemblySectionOp(".data", Region(Block()))
-        text_section = riscv.AssemblySectionOp(
-            ".text", rewriter.move_region_contents_to_new_regions(op.regions[0])
-        )
 
-        op.body.add_block(Block([heap_section, data_section, text_section]))
+        rewriter.insert_op_at_start((heap_section, data_section), op.body.block)
 
 
 class SetupRiscvPass(ModulePass):

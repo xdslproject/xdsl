@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import contextlib
 import threading
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Callable, ClassVar, Sequence, TypeAlias, overload
+from typing import ClassVar, TypeAlias, overload
 
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region

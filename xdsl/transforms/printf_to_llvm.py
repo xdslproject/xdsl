@@ -1,6 +1,6 @@
 import hashlib
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from xdsl.dialects import arith, builtin, llvm, printf
 from xdsl.ir import Attribute, MLContext, Operation, SSAValue
@@ -135,9 +135,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
         rewriter.replace_matched_op(
             casts
             + [
-                ptr := llvm.AddressOfOp.get(
-                    globl.sym_name, llvm.LLVMPointerType.opaque()
-                ),
+                ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType.opaque()),
                 llvm.CallOp("printf", ptr.result, *args),
             ]
         )

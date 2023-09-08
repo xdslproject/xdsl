@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, Iterable, Sequence, TypeAlias, TypeVar, cast
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -50,8 +53,9 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
-    from xdsl.parser import AttrParser
+    from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
+
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -196,6 +200,28 @@ class Load(IRDLOperation):
             operands=[ref, indices], result_types=[ssa_value_type.element_type]
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        unresolved_ref = parser.parse_unresolved_operand()
+        unresolved_indices = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        ref_type = parser.parse_attribute()
+        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
+        resolved_indices = [
+            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
+        ]
+        return cls.get(resolved_ref, resolved_indices)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.memref)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_operand)
+        printer.print_string("] : ")
+        printer.print_attribute(self.memref.type)
+
 
 @irdl_op_definition
 class Store(IRDLOperation):
@@ -223,6 +249,32 @@ class Store(IRDLOperation):
         indices: Sequence[Operation | SSAValue],
     ) -> Store:
         return Store.build(operands=[value, ref, indices])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        value = parser.parse_operand()
+        parser.parse_punctuation(",")
+        unresolved_ref = parser.parse_unresolved_operand()
+        unresolved_indices = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        ref_type = parser.parse_attribute()
+        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
+        resolved_indices = [
+            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
+        ]
+        return cls.get(value, resolved_ref, resolved_indices)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.value)
+        printer.print_string(", ")
+        printer.print(self.memref)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_operand)
+        printer.print_string("] : ")
+        printer.print_attribute(self.memref.type)
 
 
 @irdl_op_definition
@@ -544,23 +596,17 @@ class DmaStartOp(IRDLOperation):
 
         if len(self.src.type.shape) != len(self.src_indices):
             raise VerifyException(
-                "Expected {} source indices (because of shape of src memref)".format(
-                    len(self.src.type.shape)
-                )
+                f"Expected {len(self.src.type.shape)} source indices (because of shape of src memref)"
             )
 
         if len(self.dest.type.shape) != len(self.dest_indices):
             raise VerifyException(
-                "Expected {} dest indices (because of shape of dest memref)".format(
-                    len(self.dest.type.shape)
-                )
+                f"Expected {len(self.dest.type.shape)} dest indices (because of shape of dest memref)"
             )
 
         if len(self.tag.type.shape) != len(self.tag_indices):
             raise VerifyException(
-                "Expected {} tag indices (because of shape of tag memref)".format(
-                    len(self.tag.type.shape)
-                )
+                f"Expected {len(self.tag.type.shape)} tag indices (because of shape of tag memref)"
             )
 
         if self.tag.type.element_type != i32:
@@ -612,7 +658,7 @@ class CopyOp(IRDLOperation):
     destination: Operand = operand_def(MemRefType)
 
     def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
-        super().__init__([source, destination])
+        super().__init__(operands=[source, destination])
 
     def verify_(self) -> None:
         source = cast(MemRefType[Attribute], self.source.type)

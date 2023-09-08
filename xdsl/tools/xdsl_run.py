@@ -2,8 +2,9 @@
 
 import argparse
 import sys
-from typing import Sequence
+from collections.abc import Sequence
 
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import (
     affine,
@@ -13,7 +14,9 @@ from xdsl.interpreters import (
     func,
     memref,
     printf,
+    riscv,
     riscv_func,
+    riscv_libc,
     scf,
 )
 from xdsl.interpreters.experimental import pdl
@@ -50,10 +53,12 @@ class xDSLRunMain(CommandLineTool):
         )
         return super().register_all_arguments(arg_parser)
 
-    def register_implementations(self, interpreter: Interpreter):
+    def register_implementations(self, interpreter: Interpreter, module: ModuleOp):
         interpreter.register_implementations(func.FuncFunctions())
         interpreter.register_implementations(cf.CfFunctions())
+        interpreter.register_implementations(riscv.RiscvFunctions(module))
         interpreter.register_implementations(riscv_func.RiscvFuncFunctions())
+        interpreter.register_implementations(riscv_libc.RiscvLibcFunctions())
         interpreter.register_implementations(pdl.PDLRewriteFunctions(self.ctx))
         interpreter.register_implementations(affine.AffineFunctions())
         interpreter.register_implementations(memref.MemrefFunctions())
@@ -73,7 +78,7 @@ class xDSLRunMain(CommandLineTool):
             if module is not None:
                 module.verify()
                 interpreter = Interpreter(module)
-                self.register_implementations(interpreter)
+                self.register_implementations(interpreter, module)
                 result = interpreter.call_op("main", ())
                 print(f"result: {result}")
         finally:

@@ -48,25 +48,25 @@
 // CHECK-NEXT:     ^0(%16 : index, %17 : index, %18 : index):
 // CHECK-NEXT:       %19 = arith.constant -1 : index
 // CHECK-NEXT:       %20 = arith.addi %18, %19 : index
-// CHECK-NEXT:       %21 = "memref.load"(%7, %20, %17, %16) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:       %21 = memref.load %7[%20, %17, %16] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:       %22 = arith.constant 1 : index
 // CHECK-NEXT:       %23 = arith.addi %18, %22 : index
-// CHECK-NEXT:       %24 = "memref.load"(%7, %23, %17, %16) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:       %24 = memref.load %7[%23, %17, %16] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:       %25 = arith.constant 1 : index
 // CHECK-NEXT:       %26 = arith.addi %17, %25 : index
-// CHECK-NEXT:       %27 = "memref.load"(%7, %18, %26, %16) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:       %27 = memref.load %7[%18, %26, %16] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:       %28 = arith.constant -1 : index
 // CHECK-NEXT:       %29 = arith.addi %17, %28 : index
-// CHECK-NEXT:       %30 = "memref.load"(%7, %18, %29, %16) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
-// CHECK-NEXT:       %31 = "memref.load"(%7, %18, %17, %16) : (memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> f64
+// CHECK-NEXT:       %30 = memref.load %7[%18, %29, %16] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:       %31 = memref.load %7[%18, %17, %16] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:       %32 = arith.addf %21, %24 : f64
 // CHECK-NEXT:       %33 = arith.addf %27, %30 : f64
 // CHECK-NEXT:       %34 = arith.addf %32, %33 : f64
 // CHECK-NEXT:       %cst = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:       %35 = arith.mulf %31, %cst : f64
 // CHECK-NEXT:       %36 = arith.addf %35, %34 : f64
-// CHECK-NEXT:       "memref.store"(%36, %6, %18, %17, %16) : (f64, memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>, index, index, index) -> ()
-// CHECK-NEXT:       "scf.yield"() : () -> ()
+// CHECK-NEXT:       memref.store %36, %6[%18, %17, %16] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }

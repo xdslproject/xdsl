@@ -35,8 +35,10 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import (
     CallableOpInterface,
+    HasCanonicalisationPatternsTrait,
     IsTerminator,
     OpTrait,
     Pure,
@@ -369,6 +371,17 @@ class ReturnOp(IRDLOperation):
         return super().__init__(operands=[input])
 
 
+class ReshapeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from ..rewrites.optimise_toy import (
+            FoldConstantReshapeOpPattern,
+            ReshapeReshapeOpPattern,
+        )
+
+        return (ReshapeReshapeOpPattern(), FoldConstantReshapeOpPattern())
+
+
 @irdl_op_definition
 class ReshapeOp(IRDLOperation):
     """
@@ -385,7 +398,7 @@ class ReshapeOp(IRDLOperation):
     # We expect that the reshape operation returns a statically shaped tensor.
     res: OpResult = result_def(TensorTypeF64)
 
-    traits = frozenset((Pure(),))
+    traits = frozenset((Pure(), ReshapeOpHasCanonicalisationPatternsTrait()))
 
     def __init__(self, arg: SSAValue, shape: list[int]):
         if not isa(arg.type, AnyTensorTypeF64):
@@ -431,13 +444,27 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
             op.res.type = TensorType.from_type_and_list(f64, res_shape)
 
 
+class TransposeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from ..rewrites.optimise_toy import SimplifyRedundantTranspose
+
+        return (SimplifyRedundantTranspose(),)
+
+
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
     name = "toy.transpose"
     arg: Operand = operand_def(AnyTensorTypeF64)
     res: OpResult = result_def(AnyTensorTypeF64)
 
-    traits = frozenset((Pure(), InferTransposeOpShapeTrait()))
+    traits = frozenset(
+        (
+            Pure(),
+            InferTransposeOpShapeTrait(),
+            TransposeOpHasCanonicalisationPatternsTrait(),
+        )
+    )
 
     def __init__(self, arg: SSAValue):
         output_type: TensorTypeF64 | UnrankedTensorTypeF64

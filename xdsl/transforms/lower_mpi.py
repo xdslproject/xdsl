@@ -279,9 +279,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                 if width == 64:
                     return self.info.MPI_LONG_LONG_INT
             raise ValueError(
-                "MPI Datatype Conversion: Unsupported integer bitwidth: {}".format(
-                    width
-                )
+                f"MPI Datatype Conversion: Unsupported integer bitwidth: {width}"
             )
         raise ValueError(f"MPI Datatype Conversion: Unsupported type {mpi_type}")
 
@@ -291,9 +289,7 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         """
         if op.name not in self.MPI_SYMBOL_NAMES:
             raise RuntimeError(
-                "Lowering of MPI Operations failed, missing lowering for {}!".format(
-                    op.name
-                )
+                f"Lowering of MPI Operations failed, missing lowering for {op.name}!"
             )
         return self.MPI_SYMBOL_NAMES[op.name]
 

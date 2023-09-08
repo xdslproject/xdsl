@@ -9,6 +9,7 @@ from xdsl.utils.exceptions import VerifyException
 if TYPE_CHECKING:
     from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
     from xdsl.ir import Operation, Region
+    from xdsl.pattern_rewriter import RewritePattern
 
 
 @dataclass(frozen=True)
@@ -42,22 +43,20 @@ class HasParent(OpTrait):
 
     parameters: tuple[type[Operation], ...]
 
-    def __init__(self, parameters: type[Operation] | tuple[type[Operation], ...]):
-        if not isinstance(parameters, tuple):
-            parameters = (parameters,)
-        if len(parameters) == 0:
+    def __init__(self, *parameters: type[Operation]):
+        if not parameters:
             raise ValueError("parameters must not be empty")
         super().__init__(parameters)
 
     def verify(self, op: Operation) -> None:
         parent = op.parent_op()
-        if isinstance(parent, tuple(self.parameters)):
+        if isinstance(parent, self.parameters):
             return
         if len(self.parameters) == 1:
             raise VerifyException(
                 f"'{op.name}' expects parent op '{self.parameters[0].name}'"
             )
-        names = ", ".join([f"'{p.name}'" for p in self.parameters])
+        names = ", ".join(f"'{p.name}'" for p in self.parameters)
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
 
 
@@ -344,3 +343,20 @@ class CallableOpInterface(OpTrait, abc.ABC):
         Returns the body of the operation
         """
         raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class HasCanonicalisationPatternsTrait(OpTrait):
+    """
+    Provides the rewrite passes to canonicalize an operation.
+
+    Each rewrite pattern must have the trait's op as root.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    @abc.abstractmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        raise NotImplementedError()

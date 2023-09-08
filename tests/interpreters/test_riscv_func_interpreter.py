@@ -13,11 +13,13 @@ index = IndexType()
 @ModuleOp
 @Builder.implicit_region
 def my_module():
-    @Builder.implicit_region((riscv.IntRegisterType.unallocated(),))
-    def body(args: tuple[BlockArgument, ...]) -> None:
-        riscv_func.ReturnOp(args)
+    register = riscv.IntRegisterType.unallocated()
 
-    riscv_func.FuncOp("id", body)
+    @Builder.implicit_region((register,))
+    def body(args: tuple[BlockArgument, ...]) -> None:
+        riscv_func.ReturnOp(*args)
+
+    riscv_func.FuncOp("id", body, ((register,), (register,)))
 
 
 def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:

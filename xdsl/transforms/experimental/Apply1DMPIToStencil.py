@@ -1,5 +1,3 @@
-from typing import List
-
 from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
 from xdsl.ir import MLContext, Operation, TypeAttribute
 from xdsl.irdl import Operand
@@ -24,7 +22,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         memref_type: memref.MemRefType[AnyNumericType] = op.field.type
         if len(memref_type.shape) <= 1:
             return
-        mpi_operations: List[Operation] = []
+        mpi_operations: list[Operation] = []
 
         # Rank and size
         comm_size_op = mpi.CommSize.get()
@@ -48,7 +46,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         int_attr: builtin.IntegerAttr[builtin.IndexType] = builtin.IntegerAttr(
             0, builtin.IndexType()
         )
-        dim_zero_const = arith.Constant.from_attr(int_attr, builtin.IndexType())
+        dim_zero_const = arith.Constant(int_attr, builtin.IndexType())
         dim_zero_size_op = memref.Dim.from_source_and_index(op.field, dim_zero_const)
         dim_zero_i32_op = arith.IndexCastOp(dim_zero_size_op, builtin.i32)
         dim_zero_i64_op = arith.IndexCastOp(dim_zero_size_op, builtin.i64)
@@ -95,7 +93,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
 
         add_offset = arith.Muli(dim_zero_i64_op, eight_i64)
         added_ptr = arith.Addi(index_memref_i64, add_offset)
-        send_ptr = llvm.IntToPtrOp.get(added_ptr)
+        send_ptr = llvm.IntToPtrOp(added_ptr)
 
         mpi_send_top_op = mpi.Isend.get(
             send_ptr,
@@ -106,7 +104,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
             alloc_lookup_op_zero,
         )
 
-        recv_ptr = llvm.IntToPtrOp.get(index_memref_i64)
+        recv_ptr = llvm.IntToPtrOp(index_memref_i64)
         mpi_recv_top_op = mpi.Irecv.get(
             recv_ptr,
             dim_zero_i32_op,
@@ -120,11 +118,11 @@ class ApplyMPIToExternalLoad(RewritePattern):
         zero_conv = builtin.UnrealizedConversionCastOp.get(
             [alloc_lookup_op_zero], [llvm.LLVMPointerType.typed(builtin.i32)]
         )
-        null_req_zero = llvm.StoreOp.get(mpi_request_null, zero_conv)
+        null_req_zero = llvm.StoreOp(mpi_request_null, zero_conv)
         one_conv = builtin.UnrealizedConversionCastOp.get(
             [alloc_lookup_op_one], [llvm.LLVMPointerType.typed(builtin.i32)]
         )
-        null_req_one = llvm.StoreOp.get(mpi_request_null, one_conv)
+        null_req_one = llvm.StoreOp(mpi_request_null, one_conv)
 
         top_halo_exhange = scf.If.get(
             compare_top_op,
@@ -151,7 +149,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         element_b_send = arith.Muli(col_row_b_send, dim_zero_i64_op)
         add_offset_b_send = arith.Muli(element_b_send, eight_i64)
         added_ptr_b_send = arith.Addi(index_memref_i64, add_offset_b_send)
-        ptr_b_send = llvm.IntToPtrOp.get(added_ptr_b_send)
+        ptr_b_send = llvm.IntToPtrOp(added_ptr_b_send)
 
         mpi_send_bottom_op = mpi.Isend.get(
             ptr_b_send,
@@ -168,7 +166,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         element_b_recv = arith.Muli(col_row_b_recv, dim_zero_i64_op)
         add_offset_b_recv = arith.Muli(element_b_recv, eight_i64)
         added_ptr_b_recv = arith.Addi(index_memref_i64, add_offset_b_recv)
-        ptr_b_recv = llvm.IntToPtrOp.get(added_ptr_b_recv)
+        ptr_b_recv = llvm.IntToPtrOp(added_ptr_b_recv)
 
         mpi_recv_bottom_op = mpi.Irecv.get(
             ptr_b_recv,
@@ -183,11 +181,11 @@ class ApplyMPIToExternalLoad(RewritePattern):
         two_conv = builtin.UnrealizedConversionCastOp.get(
             [alloc_lookup_op_two], [llvm.LLVMPointerType.typed(builtin.i32)]
         )
-        null_req_two = llvm.StoreOp.get(mpi_request_null, two_conv)
+        null_req_two = llvm.StoreOp(mpi_request_null, two_conv)
         three_conv = builtin.UnrealizedConversionCastOp.get(
             [alloc_lookup_op_three], [llvm.LLVMPointerType.typed(builtin.i32)]
         )
-        null_req_three = llvm.StoreOp.get(mpi_request_null, three_conv)
+        null_req_three = llvm.StoreOp(mpi_request_null, three_conv)
 
         bottom_halo_exhange = scf.If.get(
             compare_bottom_op,

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 
 builtin.module {
   func.func @stencil_copy(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {
@@ -63,17 +63,16 @@ builtin.module {
 // CHECK-NEXT:     %time_m = arith.constant 0 : index
 // CHECK-NEXT:     %time_M = arith.constant 1000 : index
 // CHECK-NEXT:     %step = arith.constant 1 : index
-// CHECK-NEXT:     %fnp1, %fn = "scf.for"(%time_m, %time_M, %step, %f0, %f1) ({
-// CHECK-NEXT:     ^0(%time : index, %fi : !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, %fip1 : !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>):
+// CHECK-NEXT:     %fnp1, %fn = scf.for %time = %time_m to %time_M step %step iter_args(%fi = %f0, %fip1 = %f1) -> (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) {
 // CHECK-NEXT:       %ti = "stencil.load"(%fi) : (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> !stencil.temp<?x?x?xf32>
 // CHECK-NEXT:       %tip1 = "stencil.apply"(%ti) ({
-// CHECK-NEXT:       ^1(%ti_ : !stencil.temp<?x?x?xf32>):
+// CHECK-NEXT:       ^0(%ti_ : !stencil.temp<?x?x?xf32>):
 // CHECK-NEXT:         %v = "stencil.access"(%ti_) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<?x?x?xf32>) -> f32
 // CHECK-NEXT:         "stencil.return"(%v) : (f32) -> ()
 // CHECK-NEXT:       }) : (!stencil.temp<?x?x?xf32>) -> !stencil.temp<?x?x?xf32>
 // CHECK-NEXT:       "stencil.store"(%tip1, %fip1) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<50, 80, 40>} : (!stencil.temp<?x?x?xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> ()
-// CHECK-NEXT:       "scf.yield"(%fip1, %fi) : (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> ()
-// CHECK-NEXT:     }) : (index, index, index, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>) -> (!stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>)
+// CHECK-NEXT:       scf.yield %fip1, %fi : !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>, !stencil.field<[-4,54]x[-4,84]x[-4,44]xf32>
+// CHECK-NEXT:     }
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

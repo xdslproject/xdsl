@@ -1,12 +1,17 @@
 import argparse
 import os
 import sys
-from typing import IO, Callable
+from collections.abc import Callable
+from typing import IO
 
-from xdsl.backend.riscv.lowering import scf_to_riscv_scf
-from xdsl.backend.riscv.lowering.lower_func_riscv_func import LowerFuncToRiscvFunc
-from xdsl.backend.riscv.lowering.optimisation_riscv import OptimiseRiscvPass
-from xdsl.backend.riscv.lowering.riscv_arith_lowering import RISCVLowerArith
+from xdsl.backend.riscv import riscv_scf_to_asm
+from xdsl.backend.riscv.lowering import (
+    convert_arith_to_riscv,
+    convert_func_to_riscv_func,
+    convert_memref_to_riscv,
+    convert_scf_to_riscv_scf,
+    reduce_register_pressure,
+)
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin, ModuleOp
@@ -40,14 +45,17 @@ from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.transforms import (
+    canonicalize,
     canonicalize_dmp,
     dead_code_elimination,
+    lower_affine,
     lower_mpi,
     lower_riscv_func,
     lower_snitch,
     lower_snitch_runtime,
     mlir_opt,
     printf_to_llvm,
+    printf_to_putchar,
     reconcile_unrealized_casts,
     riscv_register_allocation,
 )
@@ -100,23 +108,28 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
+        canonicalize.CanonicalizePass,
         canonicalize_dmp.CanonicalizeDmpPass,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
         stencil_global_to_local.GlobalStencilToLocalStencil2DHorizontal,
         stencil_global_to_local.LowerHaloToMPI,
+        lower_affine.LowerAffinePass,
         lower_mpi.LowerMPIPass,
         lower_riscv_func.LowerRISCVFunc,
         lower_snitch.LowerSnitchPass,
         lower_snitch_runtime.LowerSnitchRuntimePass,
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
+        printf_to_putchar.PrintfToPutcharPass,
+        reduce_register_pressure.RiscvReduceRegisterPressurePass,
         riscv_register_allocation.RISCVRegisterAllocation,
-        RISCVLowerArith,
-        LowerFuncToRiscvFunc,
-        OptimiseRiscvPass,
-        scf_to_riscv_scf.ScfToRiscvPass,
+        convert_arith_to_riscv.ConvertArithToRiscvPass,
+        convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+        convert_memref_to_riscv.ConvertMemrefToRiscvPass,
+        convert_scf_to_riscv_scf.ConvertScfToRiscvPass,
+        riscv_scf_to_asm.LowerScfForToLabels,
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,

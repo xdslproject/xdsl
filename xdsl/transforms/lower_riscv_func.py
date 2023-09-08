@@ -3,7 +3,7 @@ from typing import cast
 
 from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext, Operation, OpResult
+from xdsl.ir import MLContext, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -37,7 +37,7 @@ class LowerSyscallOp(RewritePattern):
             ops.append(
                 riscv.MVOp(
                     arg,
-                    rd=f"a{i}",
+                    rd=riscv.IntRegisterType.a_register(i),
                 )
             )
 
@@ -61,28 +61,6 @@ class LowerSyscallOp(RewritePattern):
         rewriter.replace_matched_op(ops, new_results=new_results)
 
 
-class LowerRISCVFuncOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv_func.FuncOp, rewriter: PatternRewriter):
-        first_block = op.func_body.blocks[0]
-        first_op = first_block.first_op
-        assert first_op is not None
-        while len(first_block.args):
-            # arguments are passed to riscv functions via a0, a1, ...
-            # replace arguments with `GetRegisterOp`s
-            index = len(first_block.args) - 1
-            last_arg = first_block.args[-1]
-            get_reg_op = riscv.GetRegisterOp(riscv.IntRegisterType(f"a{index}"))
-            last_arg.replace_by(get_reg_op.res)
-            rewriter.insert_op_before(get_reg_op, first_op)
-            first_op = get_reg_op
-            rewriter.erase_block_argument(last_arg)
-
-        label_body = rewriter.move_region_contents_to_new_regions(op.func_body)
-
-        rewriter.replace_matched_op(riscv.LabelOp(op.sym_name.data, region=label_body))
-
-
 class InsertExitSyscallOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_func.ReturnOp, rewriter: PatternRewriter):
@@ -95,35 +73,6 @@ class InsertExitSyscallOp(RewritePattern):
 
         EXIT = 93
         rewriter.insert_op_before(riscv_func.SyscallOp(EXIT), op)
-
-
-class LowerRISCVFuncReturnOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv_func.ReturnOp, rewriter: PatternRewriter):
-        for i, value in enumerate(op.values):
-            rewriter.insert_op_before_matched_op(riscv.MVOp(value, rd=f"a{i}"))
-        rewriter.replace_matched_op(riscv.ReturnOp())
-
-
-class LowerRISCVCallOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv_func.CallOp, rewriter: PatternRewriter):
-        for i, arg in enumerate(op.operands):
-            # Load arguments into a0...
-            rewriter.insert_op_before_matched_op(riscv.MVOp(arg, rd=f"a{i}"))
-
-        ops: list[Operation] = [
-            riscv.JalOp(op.callee.data),
-        ]
-        new_results: list[OpResult] = []
-
-        for i in range(len(op.results)):
-            get_reg = riscv.GetRegisterOp(f"a{i}")
-            move_res = riscv.MVOp(get_reg)
-            ops.extend((get_reg, move_res))
-            new_results.append(move_res.rd)
-
-        rewriter.replace_matched_op(ops, new_results=new_results)
 
 
 @dataclass
@@ -140,9 +89,6 @@ class LowerRISCVFunc(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    LowerRISCVFuncReturnOp(),
-                    LowerRISCVFuncOp(),
-                    LowerRISCVCallOp(),
                     LowerSyscallOp(),
                 ]
             )
