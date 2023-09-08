@@ -43,7 +43,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import OptRegion, opt_region_def, region_def
+from xdsl.irdl.irdl import region_def
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
@@ -232,6 +232,8 @@ class FloatRegisterType(RISCVRegisterType):
 
 RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
 RSInvT = TypeVar("RSInvT", bound=RISCVRegisterType)
+RS1InvT = TypeVar("RS1InvT", bound=RISCVRegisterType)
+RS2InvT = TypeVar("RS2InvT", bound=RISCVRegisterType)
 
 
 class Registers(ABC):
@@ -568,7 +570,9 @@ def riscv_code(module: ModuleOp) -> str:
 # region Base Operation classes
 
 
-class RdRsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
+class RdRsRsOperation(
+    Generic[RDInvT, RS1InvT, RS2InvT], IRDLOperation, RISCVInstruction, ABC
+):
     """
     A base class for RISC-V operations that have one destination register, and two source
     registers.
@@ -576,22 +580,18 @@ class RdRsRsIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called R-Type in the RISC-V specification.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs1: Operand = operand_def(IntRegisterType)
-    rs2: Operand = operand_def(IntRegisterType)
+    rd: OpResult = result_def(RDInvT)
+    rs1: Operand = operand_def(RS1InvT)
+    rs2: Operand = operand_def(RS2InvT)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
         *,
-        rd: IntRegisterType | str | None = None,
+        rd: RDInvT,
         comment: str | StringAttr | None = None,
     ):
-        if rd is None:
-            rd = IntRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = IntRegisterType(rd)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1592,7 +1592,7 @@ class AddOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class AddOp(RdRsRsIntegerOperation):
+class AddOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Adds the registers rs1 and rs2 and stores the result in rd.
     Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
@@ -1608,7 +1608,7 @@ class AddOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class SltOp(RdRsRsIntegerOperation):
+class SltOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Place the value 1 in register rd if register rs1 is less than register rs2 when both
     are treated as signed numbers, else 0 is written to rd.
@@ -1622,7 +1622,7 @@ class SltOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class SltuOp(RdRsRsIntegerOperation):
+class SltuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Place the value 1 in register rd if register rs1 is less than register rs2 when both
     are treated as unsigned numbers, else 0 is written to rd.
@@ -1636,7 +1636,7 @@ class SltuOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class AndOp(RdRsRsIntegerOperation):
+class AndOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Performs bitwise AND on registers rs1 and rs2 and place the result in rd.
 
@@ -1649,7 +1649,7 @@ class AndOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class OrOp(RdRsRsIntegerOperation):
+class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Performs bitwise OR on registers rs1 and rs2 and place the result in rd.
 
@@ -1662,7 +1662,7 @@ class OrOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class XorOp(RdRsRsIntegerOperation):
+class XorOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
 
@@ -1675,7 +1675,7 @@ class XorOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class SllOp(RdRsRsIntegerOperation):
+class SllOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of register rs2.
@@ -1689,7 +1689,7 @@ class SllOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class SrlOp(RdRsRsIntegerOperation):
+class SrlOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Logical right shift on the value in register rs1 by the shift amount held
     in the lower 5 bits of register rs2.
@@ -1714,7 +1714,7 @@ class SubOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class SubOp(RdRsRsIntegerOperation):
+class SubOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Subtracts the registers rs1 and rs2 and stores the result in rd.
     Arithmetic overflow is ignored and the result is simply the low XLEN bits of the result.
@@ -1730,7 +1730,7 @@ class SubOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class SraOp(RdRsRsIntegerOperation):
+class SraOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount held
     in the lower 5 bits of register rs2.
@@ -2218,7 +2218,7 @@ class MulOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class MulOp(RdRsRsIntegerOperation):
+class MulOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
     and places the lower XLEN bits in the destination register.
@@ -2233,7 +2233,7 @@ class MulOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class MulhOp(RdRsRsIntegerOperation):
+class MulhOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
     and places the upper XLEN bits in the destination register.
@@ -2246,7 +2246,7 @@ class MulhOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class MulhsuOp(RdRsRsIntegerOperation):
+class MulhsuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by unsigned rs2
     and places the upper XLEN bits in the destination register.
@@ -2259,7 +2259,7 @@ class MulhsuOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class MulhuOp(RdRsRsIntegerOperation):
+class MulhuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of unsigned rs1 by unsigned rs2
     and places the upper XLEN bits in the destination register.
@@ -2273,7 +2273,7 @@ class MulhuOp(RdRsRsIntegerOperation):
 
 ## Division Operations
 @irdl_op_definition
-class DivOp(RdRsRsIntegerOperation):
+class DivOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits signed integer division of rs1 by rs2,
     rounding towards zero.
@@ -2286,7 +2286,7 @@ class DivOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class DivuOp(RdRsRsIntegerOperation):
+class DivuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits unsigned integer division of rs1 by rs2,
     rounding towards zero.
@@ -2299,7 +2299,7 @@ class DivuOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class RemOp(RdRsRsIntegerOperation):
+class RemOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits signed integer reminder of rs1 by rs2.
     x[rd] = x[rs1] %s x[rs2]
@@ -2311,7 +2311,7 @@ class RemOp(RdRsRsIntegerOperation):
 
 
 @irdl_op_definition
-class RemuOp(RdRsRsIntegerOperation):
+class RemuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits unsigned integer reminder of rs1 by rs2.
     x[rd] = x[rs1] %u x[rs2]
@@ -2385,38 +2385,15 @@ class LabelOp(IRDLOperation, RISCVOp):
     as branch, unconditional jump targets and symbol offsets.
 
     https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels
-
-    Optionally, a label can be associated with a single-block region, since
-    that is a common target for jump instructions.
-
-    For example, to generate this assembly:
-    ```
-    label1:
-        add a0, a1, a2
-    ```
-
-    One needs to do the following:
-
-    ``` python
-    @Builder.implicit_region
-    def my_add():
-        a1_reg = TestSSAValue(riscv.Registers.A1)
-        a2_reg = TestSSAValue(riscv.Registers.A2)
-        riscv.AddOp(a1_reg, a2_reg, rd=riscv.Registers.A0)
-
-    label_op = riscv.LabelOp("label1", my_add)
-    ```
     """
 
     name = "riscv.label"
     label: LabelAttr = attr_def(LabelAttr)
     comment: StringAttr | None = opt_attr_def(StringAttr)
-    data: OptRegion = opt_region_def()
 
     def __init__(
         self,
         label: str | LabelAttr,
-        region: OptRegion = None,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -2424,15 +2401,12 @@ class LabelOp(IRDLOperation, RISCVOp):
             label = LabelAttr(label)
         if isinstance(comment, str):
             comment = StringAttr(comment)
-        if region is None:
-            region = Region()
 
         super().__init__(
             attributes={
                 "label": label,
                 "comment": comment,
             },
-            regions=[region],
         )
 
     def assembly_line(self) -> str | None:
@@ -2782,43 +2756,6 @@ class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.rs2, self.rs3
 
 
-class RdRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
-    """
-    A base class for RV32F operations that
-    take two floating-point input registers and a destination.
-    """
-
-    rd: OpResult = result_def(FloatRegisterType)
-    rs1: Operand = operand_def(FloatRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
-
-    def __init__(
-        self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
-        *,
-        rd: FloatRegisterType | str | None = None,
-        comment: str | StringAttr | None = None,
-    ):
-        if rd is None:
-            rd = FloatRegisterType.unallocated()
-        elif isinstance(rd, str):
-            rd = FloatRegisterType(rd)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[rs1, rs2],
-            attributes={
-                "comment": comment,
-            },
-            result_types=[rd],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.rs1, self.rs2
-
-
 class RdRsRsFloatFloatIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RV32F operations that take
@@ -3015,7 +2952,7 @@ class FNMAddSOp(RdRsRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FAddSOp(RdRsRsFloatOperation):
+class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
     Perform single-precision floating-point addition.
 
@@ -3028,7 +2965,7 @@ class FAddSOp(RdRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FSubSOp(RdRsRsFloatOperation):
+class FSubSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
     Perform single-precision floating-point substraction.
 
@@ -3041,7 +2978,7 @@ class FSubSOp(RdRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FMulSOp(RdRsRsFloatOperation):
+class FMulSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
     Perform single-precision floating-point multiplication.
 
@@ -3054,7 +2991,7 @@ class FMulSOp(RdRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FDivSOp(RdRsRsFloatOperation):
+class FDivSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
     Perform single-precision floating-point division.
 
@@ -3080,7 +3017,9 @@ class FSqrtSOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
 
 @irdl_op_definition
-class FSgnJSOp(RdRsRsFloatOperation):
+class FSgnJSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
     """
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is rs2’s sign bit.
@@ -3094,7 +3033,9 @@ class FSgnJSOp(RdRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FSgnJNSOp(RdRsRsFloatOperation):
+class FSgnJNSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
     """
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is opposite of rs2’s sign bit.
@@ -3109,7 +3050,9 @@ class FSgnJNSOp(RdRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FSgnJXSOp(RdRsRsFloatOperation):
+class FSgnJXSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
     """
     Produce a result that takes all bits except the sign bit from rs1.
     The result’s sign bit is XOR of sign bit of rs1 and rs2.
@@ -3123,7 +3066,7 @@ class FSgnJXSOp(RdRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FMinSOp(RdRsRsFloatOperation):
+class FMinSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
     Write the smaller of single precision data in rs1 and rs2 to rd.
 
@@ -3136,7 +3079,7 @@ class FMinSOp(RdRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FMaxSOp(RdRsRsFloatOperation):
+class FMaxSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
     Write the larger of single precision data in rs1 and rs2 to rd.
 

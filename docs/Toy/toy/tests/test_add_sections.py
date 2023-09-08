@@ -15,9 +15,7 @@ with ImplicitBuilder((output_module := ModuleOp([])).body):
         LabelOp("heap")
         DirectiveOp(".space", f"{1024}")
     data = AssemblySectionOp(".data", Region(Block()))
-    text = AssemblySectionOp(".text", Region(Block()))
-    with ImplicitBuilder(text.data):
-        FuncOp("main", ((), ()))
+    FuncOp("main", ((), ()))
 
 
 def test_add_sections():

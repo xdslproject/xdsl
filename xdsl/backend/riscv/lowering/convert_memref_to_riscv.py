@@ -76,8 +76,12 @@ def memref_shape_ops(
         case [idx1, idx2]:
             ops = [
                 cols := riscv.LiOp(shape[1]),
-                row_offset := riscv.MulOp(cols, idx1),
-                offset := riscv.AddOp(row_offset, idx2),
+                row_offset := riscv.MulOp(
+                    cols, idx1, rd=riscv.IntRegisterType.unallocated()
+                ),
+                offset := riscv.AddOp(
+                    row_offset, idx2, rd=riscv.IntRegisterType.unallocated()
+                ),
             ]
             offset_in_elements = offset.rd
         case _:
@@ -91,9 +95,12 @@ def memref_shape_ops(
             offset_bytes := riscv.MulOp(
                 offset_in_elements,
                 bytes_per_element_op.rd,
+                rd=riscv.IntRegisterType.unallocated(),
                 comment="multiply by element size",
             ),
-            ptr := riscv.AddOp(mem, offset_bytes),
+            ptr := riscv.AddOp(
+                mem, offset_bytes, rd=riscv.IntRegisterType.unallocated()
+            ),
         ]
     )
 
