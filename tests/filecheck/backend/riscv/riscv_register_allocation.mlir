@@ -27,21 +27,21 @@ riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE:       builtin.module {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:    riscv_func.func @external() -> ()
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:    riscv_func.func @main() {
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<t4>
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 6 : () -> !riscv.reg<t2>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.li 5 : () -> !riscv.reg<s0>
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<t4>) -> !riscv.freg<ft11>
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<ft10>
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft11>, !riscv.freg<ft10>) -> !riscv.freg<ft11>
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t4>, !riscv.reg<s0>) -> !riscv.reg<t6>
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<t2>) -> !riscv.freg<ft0>
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fcvt.s.w %{{\d+}} : (!riscv.reg<s0>) -> !riscv.freg<ft1>
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.fadd.s %{{\d+}}, %{{\d+}} : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft0>
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = riscv.add %{{\d+}}, %{{\d+}} : (!riscv.reg<t2>, !riscv.reg<s0>) -> !riscv.reg<t0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      "riscv_scf.for"(%{{\d+}}, %{{\d+}}, %{{\d+}}) ({
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      ^0(%{{\d+}} : !riscv.reg<t6>):
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      ^0(%{{\d+}} : !riscv.reg<t0>):
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        "riscv_scf.yield"() : () -> ()
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      }) : (!riscv.reg<t4>, !riscv.reg<s0>, !riscv.reg<t6>) -> ()
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      }) : (!riscv.reg<t2>, !riscv.reg<s0>, !riscv.reg<t0>) -> ()
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %{{\d+}} = "riscv_scf.for"(%{{\d+}}, %{{\d+}}, %{{\d+}}, %{{\d+}}) ({
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      ^1(%{{\d+}} : !riscv.reg<t5>, %{{\d+}} : !riscv.reg<t6>):
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        %{{\d+}} = riscv.mv %9 : (!riscv.reg<t6>) -> !riscv.reg<t6>
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        "riscv_scf.yield"(%{{\d+}}) : (!riscv.reg<t6>) -> ()
-//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      }) : (!riscv.reg<t4>, !riscv.reg<s0>, !riscv.reg<t6>, !riscv.reg<t6>) -> !riscv.reg<t6>
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      ^1(%{{\d+}} : !riscv.reg<t1>, %{{\d+}} : !riscv.reg<t0>):
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        %{{\d+}} = riscv.mv %9 : (!riscv.reg<t0>) -> !riscv.reg<t0>
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        "riscv_scf.yield"(%{{\d+}}) : (!riscv.reg<t0>) -> ()
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      }) : (!riscv.reg<t2>, !riscv.reg<s0>, !riscv.reg<t0>, !riscv.reg<t0>) -> !riscv.reg<t0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      riscv_func.return
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:    }
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:  }
