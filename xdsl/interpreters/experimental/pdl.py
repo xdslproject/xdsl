@@ -288,7 +288,6 @@ class PDLRewriteFunctions(InterpreterFunctions):
     def run_attribute(
         self, interpreter: Interpreter, op: pdl.AttributeOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        op.verify()
         assert isinstance(op.value, Attribute)
         return (op.value,)
 
