@@ -245,3 +245,80 @@ def test_interpreter_functions():
     assert interpreter.run_op(
         pdl.ResultOp(0, TestSSAValue(pdl.OperationType())), (add,)
     ) == (add_res,)
+
+
+def cmpi_slt():
+    @ModuleOp
+    @Builder.implicit_region
+    def ir_module():
+        with ImplicitBuilder(func.FuncOp("cmpi_slt", ((), ())).body):
+            a = arith.Constant.from_int_and_width(4, 32)
+            b = arith.Constant.from_int_and_width(3, 32)
+            x = arith.Cmpi(a, b, "slt")
+            func.Return(x)
+
+    return ir_module
+
+
+def change_cmpi_predicate_pdl():
+    # The rewrite below changes the predicate of a cmpi operation
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(2, None).body):
+            # Type i32
+            pdl_i32 = pdl.TypeOp().result
+
+            # LHS: i32
+            lhs = pdl.OperandOp().results[0]
+            # rHS: i32
+            rhs = pdl.OperandOp().results[0]
+
+            # Constant 0: i32
+            slt = pdl.AttributeOp(value=IntegerAttr(2, 64)).results[0]
+            cmpi = pdl.OperationOp(
+                op_name=StringAttr("arith.cmpi"),
+                operand_values=[lhs, rhs],
+                attribute_value_names=ArrayAttr([StringAttr("predicate")]),
+                attribute_values=[slt],
+                type_values=[pdl_i32],
+            ).op
+
+            with ImplicitBuilder(pdl.RewriteOp(cmpi).body):
+                sge = pdl.AttributeOp(value=IntegerAttr(5, 64)).results[0]
+                cmpi_new = pdl.OperationOp(
+                    op_name=StringAttr("arith.cmpi"),
+                    operand_values=[rhs, lhs],
+                    attribute_value_names=ArrayAttr([StringAttr("predicate")]),
+                    attribute_values=[sge],
+                    type_values=[pdl_i32],
+                ).op
+                pdl.ReplaceOp(cmpi, repl_operation=cmpi_new)
+
+    return pdl_module
+
+
+def test_intrepretor_attribute_rewrite():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLRewriteFunctions(MLContext()))
+
+    input_module = cmpi_slt()
+    output_module = cmpi_slt()
+    rewrite_module = change_cmpi_predicate_pdl()
+    rewrite_module.verify()
+
+    pdl_rewrite_op = next(
+        op for op in rewrite_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    stream = StringIO()
+
+    ctx = MLContext()
+    ctx.register_dialect(arith.Arith)
+
+    PatternRewriteWalker(
+        PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
+        apply_recursively=False,
+    ).rewrite_module(input_module)
+
+    assert not input_module.is_structurally_equivalent(output_module)
