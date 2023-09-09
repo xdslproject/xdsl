@@ -274,7 +274,7 @@ def change_cmpi_predicate_pdl():
             # rHS: i32
             rhs = pdl.OperandOp().results[0]
 
-            # Constant 0: i32
+            # cmpi slt
             slt = pdl.AttributeOp(value=IntegerAttr(2, 64)).results[0]
             cmpi = pdl.OperationOp(
                 op_name=StringAttr("arith.cmpi"),
@@ -285,6 +285,7 @@ def change_cmpi_predicate_pdl():
             ).op
 
             with ImplicitBuilder(pdl.RewriteOp(cmpi).body):
+                # swapping inputs and changing to cmpi sge
                 sge = pdl.AttributeOp(value=IntegerAttr(5, 64)).results[0]
                 cmpi_new = pdl.OperationOp(
                     op_name=StringAttr("arith.cmpi"),
