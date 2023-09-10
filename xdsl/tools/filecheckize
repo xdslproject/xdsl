@@ -6,15 +6,43 @@ from io import TextIOWrapper
 from typing import cast
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "file", type=argparse.FileType("r"), default=sys.stdin, nargs="?"
+    parser = argparse.ArgumentParser(
+        description="A nicety tool to generate FileCheck lines to check for what this tools read."
     )
-    parser.add_argument("--mlir-anonymize", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--check-empty-lines", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--strip-comments", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--comments-prefix", type=str, default="//")
-    parser.add_argument("--check-prefix", type=str, default="CHECK")
+    parser.add_argument(
+        "file",
+        type=argparse.FileType("r"),
+        default=sys.stdin,
+        nargs="?",
+        help="Input file to read. Defaults to standard input.",
+    )
+    parser.add_argument(
+        "--mlir-anonymize",
+        action=argparse.BooleanOptionalAction,
+        help="Anonymize MLIR SSA value names and basic block names.",
+    )
+    parser.add_argument(
+        "--check-empty-lines",
+        action=argparse.BooleanOptionalAction,
+        help="Check strictly for empty lines. Default behavior is to just skip them.",
+    )
+    parser.add_argument(
+        "--strip-comments",
+        action=argparse.BooleanOptionalAction,
+        help="Strip comments from input rather than checking for them.",
+    )
+    parser.add_argument(
+        "--comments-prefix",
+        type=str,
+        default="//",
+        help="Set the prefix of a comment line. Defaults to '//' as in MLIR.",
+    )
+    parser.add_argument(
+        "--check-prefix",
+        type=str,
+        default="CHECK",
+        help="Set the Filecheck prefix to generate. defaults to 'CHECK' as Filecheck's default.",
+    )
 
     args = parser.parse_args(sys.argv[1:])
 
