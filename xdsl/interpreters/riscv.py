@@ -108,8 +108,16 @@ class RawPtr:
         return TypedPtr(self, ">f")
 
     @staticmethod
-    def new_float32(els: Sequence[int]) -> RawPtr:
+    def new_float32(els: Sequence[float]) -> RawPtr:
         return RawPtr.new(">f", [(el,) for el in els])
+
+    @property
+    def float64(self) -> TypedPtr[float]:
+        return TypedPtr(self, ">d")
+
+    @staticmethod
+    def new_float64(els: Sequence[float]) -> RawPtr:
+        return RawPtr.new(">d", [(el,) for el in els])
 
 
 @dataclass
@@ -332,6 +340,26 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         offset = self.get_immediate_value(op, op.immediate)
         return ((args[0] + offset).float32[0],)
+
+    @impl(riscv.FSdOp)
+    def run_fsd(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FSdOp,
+        args: tuple[Any, ...],
+    ):
+        (args[0] + op.immediate.value.data).float64[0] = args[1]
+        return ()
+
+    @impl(riscv.FLdOp)
+    def run_fld(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FLdOp,
+        args: tuple[Any, ...],
+    ):
+        offset = self.get_immediate_value(op, op.immediate)
+        return ((args[0] + offset).float64[0],)
 
     # endregion
 

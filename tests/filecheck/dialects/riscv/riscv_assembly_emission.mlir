@@ -234,6 +234,10 @@
     // CHECK-NEXT: flw j8, 1(zero)
     riscv.fsw %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
     // CHECK-NEXT: fsw j5, 1(zero)
+    %fld = riscv.fld %0, 1 : (!riscv.reg<zero>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fld j8, 1(zero)
+    riscv.fsd %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
+    // CHECK-NEXT: fsd j5, 1(zero)
 
     // Terminate block
     riscv_func.return

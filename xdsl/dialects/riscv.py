@@ -3272,6 +3272,50 @@ class FSwOp(RsRsImmFloatOperation):
         )
 
 
+@irdl_op_definition
+class FLdOp(RdRsImmFloatOperation):
+    """
+    Load a double-precision value from memory into floating-point register rd.
+
+    f[rd] = M[x[rs1] + sext(offset)][63:0]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fld
+    """
+
+    name = "riscv.fld"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rd)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
+
+
+@irdl_op_definition
+class FSdOp(RsRsImmFloatOperation):
+    """
+    Store a double-precision value from floating-point register rs2 to memory.
+
+    M[x[rs1] + offset] = f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw
+    """
+
+    name = "riscv.fsd"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rs2)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
+
+
 # endregion
 
 
@@ -3401,6 +3445,8 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FLdOp,
+        FSdOp,
     ],
     [
         IntRegisterType,

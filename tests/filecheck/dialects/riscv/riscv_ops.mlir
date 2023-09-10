@@ -277,6 +277,11 @@
     riscv.fsw %0, %f0, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
     // CHECK-NEXT: riscv.fsw %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
 
+    %fld = riscv.fld %0, 1 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, 1 : (!riscv.reg<>) -> !riscv.freg<>
+    riscv.fsd %0, %f0, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
+    // CHECK-NEXT: riscv.fsd %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
+
     // Terminate block
     riscv_func.return
   }
@@ -397,6 +402,8 @@
 // CHECK-GENERIC-NEXT:     %fmv_w_x = "riscv.fmv.w.x"(%0) : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %flw = "riscv.flw"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     "riscv.fsw"(%0, %f0) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.freg<>) -> ()
+// CHECK-GENERIC-NEXT:     %fld = "riscv.fld"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     "riscv.fsd"(%0, %f0) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.freg<>) -> ()
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
