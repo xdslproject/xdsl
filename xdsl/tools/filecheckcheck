@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+import argparse
+import re
+import sys
+from collections.abc import Iterable
+from contextlib import redirect_stdout
+from io import StringIO, TextIOWrapper
+from textwrap import dedent
+from typing import cast
+
+from xdsl.ir.core import Operation
+from xdsl.tools.command_line_tool import get_all_dialects
+from xdsl.xdsl_opt_main import xDSLOptMain
+
+comment_line = re.compile(r"^\s*\/\/.*")
+ssa_value_name = re.compile(r"%([\d]+|[\w$._-][\w\d$._-]*)")
+basic_block_name = re.compile(r"\^([\d]+|[\w$._-][\w\d$._-]*)")
+
+op = re.compile(
+    rf"^(\s*{ssa_value_name.pattern}(:[\d]*)?(\s*,\s*{ssa_value_name.pattern}(:[\d]*)?)*\s*=)?\s*\"(.*)\".*$"
+)
+
+
+def strip_mlir_source(input: Iterable[str]):
+    for src_ln, line in enumerate(input):
+        line = line.rstrip()
+
+        # Ignore whitespace-only lines
+        # xDSL doesn't print spacing blank lines between ops or regions
+        if not line:
+            continue
+
+        # Keep filesplit markers.
+        if line == "// -----":
+            yield src_ln, line
+            continue
+
+        # Ignore remaining comment lines
+        if re.match(comment_line, line):
+            continue
+
+        # Yield the line
+        yield src_ln, line
+
+
+def fileheckize(input: Iterable[str]):
+    for line in input:
+        line = line.rstrip()
+
+        # Ignore whitespace-only lines
+        # xDSL doesn't print spacing blank lines between ops or regions
+        if not line:
+            continue
+
+        # Keep filesplit markers and prepend newlines
+        # This is the only place where xDSL prints blank lines.
+        if line == "// -----":
+            yield "//CHECK-EMPTY:"
+            yield "//CHECK-NEXT: // -----"
+            continue
+
+        # Ignore remaining comment lines
+        if re.match(comment_line, line):
+            continue
+
+        # Anonymize SSA value names
+        line = re.sub(ssa_value_name, r"%{{.*}}", line)
+
+        # Anonymize basic blocks names
+        line = re.sub(basic_block_name, r"^{{.*}}", line)
+
+        # Print the modified line
+        yield f"//CHECK-NEXT: {line}"
+
+
+def get_xdsl_output(file: str):
+    xdsl_opt = xDSLOptMain(
+        args=["--split-input-file", "--allow-unregistered-dialect", file]
+    )
+    xdsl_output = StringIO()
+    try:
+        with redirect_stdout(xdsl_output):
+            xdsl_opt.run()
+    except Exception:
+        return None
+
+    return xdsl_output.getvalue().splitlines()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "file", type=argparse.FileType("r"), default=sys.stdin, nargs="?"
+    )
+    modegroup = parser.add_mutually_exclusive_group()
+    modegroup.add_argument("--get-generic", action=argparse.BooleanOptionalAction)
+    modegroup.add_argument("--get-checks", action=argparse.BooleanOptionalAction)
+    args = parser.parse_args(sys.argv[1:])
+
+    args.file = cast(TextIOWrapper, args.file)
+
+    custom_syntax_ops = {
+        o.name
+        for d in get_all_dialects()
+        for o in d.operations
+        if o.print is not Operation.print and o.parse is not Operation.parse
+    }
+
+    xdsl_output = get_xdsl_output(args.file.name)
+
+    if args.get_generic:
+        if xdsl_output is None:
+            print(f"xDSL errored out while treating {args.file.name}.")
+            return 2
+        print("\n".join(xdsl_output))
+    elif args.get_checks:
+        if xdsl_output is None:
+            print(f"xDSL errored out while treating {args.file.name}.")
+            return 2
+        print("\n".join(fileheckize(xdsl_output)))
+    else:
+        args.file.seek(0)
+
+        stripped_input = strip_mlir_source(args.file)
+
+        for stripped_no, (source_no, source) in enumerate(stripped_input):
+            if match := re.match(op, source):
+                op_name = match.group(7)
+                if op_name in custom_syntax_ops:
+                    print(
+                        dedent(
+                            f"""\
+
+                    ⚠️ This is a quality of life tool, not giving any guarantee. Try to use it consciously!
+
+                    Specifically:
+
+                    - The detection itself is experimental
+                    - The given expected is best-effort.
+                    - The output in --get-generic or --get-checks mode is based on xDSL's
+                      output. This will get rid of some valid custom syntax that are not
+                      the exact printed one if ou just copy paste it. You've been warned!
+
+                    The following line is using generic syntax for an operation
+                    implementing custom stntax:
+                    {args.file.name}:{source_no} :
+
+                    {source}
+                    """
+                        )
+                    )
+                    if xdsl_output:
+                        xdsl_output = list(filter(lambda l: l != "", xdsl_output))
+                        if stripped_no < len(xdsl_output):
+                            print(
+                                dedent(
+                                    f"""\
+                            Probably expected:
+                            {xdsl_output[stripped_no]}
+                            """
+                                )
+                            )
+
+                    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
