@@ -302,7 +302,6 @@ def test_interpreter_attribute_rewrite():
     interpreter.register_implementations(PDLRewriteFunctions(MLContext()))
 
     input_module = constant_zero()
-    output_module = constant_zero()
     expected_module = constant_one()
     rewrite_module = change_constant_value_pdl()
     rewrite_module.verify()
@@ -321,8 +320,4 @@ def test_interpreter_attribute_rewrite():
         apply_recursively=False,
     ).rewrite_module(input_module)
 
-    assert (
-        not output_module.body.ops.first.attributes["value"]
-        == input_module.body.ops.first.attributes["value"]
-    )
     assert expected_module.is_structurally_equivalent(input_module)
