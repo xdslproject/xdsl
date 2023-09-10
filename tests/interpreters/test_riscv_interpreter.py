@@ -25,13 +25,13 @@ def test_riscv_interpreter():
 
     riscv_functions = RiscvFunctions(
         module_op,
-        data={"label0": [42]},
+        data={"label0": RawPtr.new_int32([42])},
         custom_instructions={"my_custom_instruction": my_custom_instruction},
     )
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(riscv_functions)
 
-    assert interpreter.run_op(riscv.LiOp("label0"), ()) == (RawPtr.new_int32(42),)
+    assert interpreter.run_op(riscv.LiOp("label0"), ()) == (RawPtr.new_int32((42,)),)
     assert interpreter.run_op(
         riscv.MVOp(TestSSAValue(register), rd=riscv.IntRegisterType.unallocated()),
         (42,),
@@ -157,4 +157,7 @@ def test_get_data():
             riscv.LabelOp("two_three")
             riscv.DirectiveOp(".word", "2, 3")
 
-    assert RiscvFunctions.get_data(module) == {"one": [1], "two_three": [2, 3]}
+    assert RiscvFunctions.get_data(module) == {
+        "one": RawPtr.new_int32([1]),
+        "two_three": RawPtr.new_int32([2, 3]),
+    }

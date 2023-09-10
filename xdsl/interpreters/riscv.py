@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 import struct
-from collections.abc import Callable, Iterator, MutableSequence
+from collections.abc import Callable, Iterator, MutableSequence, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeAlias, TypeVar
 
@@ -53,14 +53,15 @@ class RawPtr:
         return RawPtr(bytearray(count))
 
     @staticmethod
-    def new(el_format: str, *args: Any) -> RawPtr:
+    def new(el_format: str, els: Sequence[tuple[Any, ...]]) -> RawPtr:
         """
         Returns a new Ptr. The first parameter is a format string as specified in the
         `struct` module, and elements to set.
         """
         el_size = struct.calcsize(el_format)
-        res = RawPtr.zeros(len(args) * el_size)
-        struct.pack_into(el_format, res.memory, 0, *args)
+        res = RawPtr.zeros(len(els) * el_size)
+        for i, el in enumerate(els):
+            struct.pack_into(el_format, res.memory, i * el_size, *el)
         return res
 
     def get_iter(self, format: str) -> Iterator[Any]:
@@ -99,16 +100,16 @@ class RawPtr:
         return TypedPtr(self, ">i")
 
     @staticmethod
-    def new_int32(*args: int) -> RawPtr:
-        return RawPtr.new(">i", *args)
+    def new_int32(els: Sequence[int]) -> RawPtr:
+        return RawPtr.new(">i", [(el,) for el in els])
 
     @property
     def float32(self) -> TypedPtr[float]:
         return TypedPtr(self, ">f")
 
     @staticmethod
-    def new_float32(*args: int) -> RawPtr:
-        return RawPtr.new(">f", *args)
+    def new_float32(els: Sequence[int]) -> RawPtr:
+        return RawPtr.new(">f", [(el,) for el in els])
 
 
 @dataclass
@@ -133,7 +134,7 @@ class TypedPtr(Generic[_T]):
 @register_impls
 class RiscvFunctions(InterpreterFunctions):
     module_op: ModuleOp
-    _data: dict[str, Any] | None
+    _data: dict[str, RawPtr] | None
     custom_instructions: dict[str, CustomInstructionFn] = {}
     bitwidth: int
 
@@ -142,7 +143,7 @@ class RiscvFunctions(InterpreterFunctions):
         module_op: ModuleOp,
         *,
         bitwidth: int = 32,
-        data: dict[str, Any] | None = None,
+        data: dict[str, RawPtr] | None = None,
         custom_instructions: dict[str, CustomInstructionFn] | None = None,
     ):
         super().__init__()
@@ -160,11 +161,11 @@ class RiscvFunctions(InterpreterFunctions):
         return self._data
 
     @staticmethod
-    def get_data(module_op: ModuleOp) -> dict[str, Any]:
+    def get_data(module_op: ModuleOp) -> dict[str, RawPtr]:
         for op in module_op.ops:
             if isinstance(op, riscv.AssemblySectionOp):
                 if op.directive.data == ".data":
-                    data: dict[str, Any] = {}
+                    data: dict[str, RawPtr] = {}
 
                     assert op.data is not None
                     ops = list(op.data.block.ops)
@@ -176,7 +177,7 @@ class RiscvFunctions(InterpreterFunctions):
                             case ".word":
                                 hexs = data_op.value.data.split(",")
                                 ints = [int(hex.strip(), 16) for hex in hexs]
-                                data[label.label.data] = ints
+                                data[label.label.data] = RawPtr.new_int32(ints)
                             case _:
                                 assert (
                                     False
@@ -196,7 +197,7 @@ class RiscvFunctions(InterpreterFunctions):
                 return imm.value.data
             case riscv.LabelAttr():
                 data = self.get_value(op, imm.data)
-                return RawPtr.new_int32(*data)
+                return data
 
     @impl(riscv.LiOp)
     def run_li(
