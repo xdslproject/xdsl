@@ -256,6 +256,15 @@ def constant_zero():
     return ir_module
 
 
+def constant_one():
+    @ModuleOp
+    @Builder.implicit_region
+    def ir_module():
+        arith.Constant.from_int_and_width(1, 32)
+
+    return ir_module
+
+
 def change_constant_value_pdl():
     # The rewrite below changes the predicate of a cmpi operation
     @ModuleOp
@@ -294,6 +303,7 @@ def test_interpreter_attribute_rewrite():
 
     input_module = constant_zero()
     output_module = constant_zero()
+    expected_module = constant_one()
     rewrite_module = change_constant_value_pdl()
     rewrite_module.verify()
 
@@ -311,7 +321,8 @@ def test_interpreter_attribute_rewrite():
         apply_recursively=False,
     ).rewrite_module(input_module)
 
-    print(
+    assert (
         not output_module.body.ops.first.attributes["value"]
         == input_module.body.ops.first.attributes["value"]
     )
+    assert expected_module.is_structurally_equivalent(input_module)
