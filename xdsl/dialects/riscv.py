@@ -135,7 +135,7 @@ class IntRegisterType(RISCVRegisterType):
 
     @classmethod
     def a_register(cls, index: int) -> Self:
-        return _INT_A_REGISTERS[index]
+        return Registers.A[index]
 
     RV32I_INDEX_BY_NAME = {
         "zero": 0,
@@ -192,7 +192,7 @@ class FloatRegisterType(RISCVRegisterType):
 
     @classmethod
     def a_register(cls, index: int) -> Self:
-        return _FLOAT_A_REGISTERS[index]
+        return Registers.FA[index]
 
     RV32F_INDEX_BY_NAME = {
         "ft0": 0,
@@ -315,28 +315,6 @@ class Registers(ABC):
     FA = (FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7)
     FT = (FT0, FT1, FT2, FT3, FT4, FT5, FT6, FT7, FT8, FT9, FT10, FT11)
     FS = (FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7, FS8, FS9, FS10, FS11)
-
-
-_INT_A_REGISTERS = (
-    Registers.A0,
-    Registers.A1,
-    Registers.A2,
-    Registers.A3,
-    Registers.A4,
-    Registers.A5,
-    Registers.A6,
-    Registers.A7,
-)
-_FLOAT_A_REGISTERS = (
-    Registers.FA0,
-    Registers.FA1,
-    Registers.FA2,
-    Registers.FA3,
-    Registers.FA4,
-    Registers.FA5,
-    Registers.FA6,
-    Registers.FA7,
-)
 
 
 @irdl_attr_definition
