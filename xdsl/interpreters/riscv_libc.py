@@ -1,5 +1,4 @@
 from math import ceil
-from typing import Any
 
 from xdsl.interpreter import (
     Interpreter,
@@ -8,8 +7,7 @@ from xdsl.interpreter import (
     impl_external,
     register_impls,
 )
-from xdsl.interpreters.memref import MemrefValue
-from xdsl.interpreters.riscv import Buffer
+from xdsl.interpreters.riscv import RawPtr
 from xdsl.ir import Operation
 
 
@@ -27,7 +25,7 @@ class RiscvLibcFunctions(InterpreterFunctions):
             size = ceil(size / 4) * 4
 
         # set values to 1 to signify uninitialized memory
-        return (Buffer([MemrefValue.Uninitialized] * (size // 4)),)
+        return (RawPtr.zeros(size),)
 
     @impl_external("calloc")
     def calloc(
@@ -45,20 +43,17 @@ class RiscvLibcFunctions(InterpreterFunctions):
             # malloc a bit too much if not word-aligned
             num_bytes = ceil(num_bytes / 4) * 4
 
-        return (Buffer([0] * (num_bytes // 4)),)
+        return (RawPtr.zeros(size),)
 
     @impl_external("free")
     def free(
         self, interpreter: Interpreter, op: Operation, args: PythonValues
     ) -> PythonValues:
         assert len(args) == 1
-        assert isinstance(args[0], Buffer)
-
-        buff: Buffer[Any] = args[0]
-        for i in range(len(buff.data)):
-            buff[i] = MemrefValue.Deallocated
-
-        return tuple()
+        assert isinstance(args[0], RawPtr)
+        buff: RawPtr = args[0]
+        buff.deallocate()
+        return ()
 
     @impl_external("putchar")
     def putchar(self, iterpreter: Interpreter, op: Operation, args: PythonValues):
