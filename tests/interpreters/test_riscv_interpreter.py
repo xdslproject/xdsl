@@ -1,3 +1,5 @@
+import struct
+
 import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
@@ -134,6 +136,29 @@ def test_riscv_interpreter():
         (buffer,),
     ) == (3.0,)
 
+    assert buffer == test_buffer
+
+    # Store a second float for us to read
+    buffer.float32[3] = 4.0
+    test_buffer.float32[3] = 4.0
+
+    assert interpreter.run_op(
+        riscv.FLdOp(TestSSAValue(register), 8),
+        (buffer,),
+    ) == (struct.unpack(">d", struct.pack(">ff", 3.0, 4.0))[0],)
+
+    assert buffer == test_buffer
+
+    assert (
+        interpreter.run_op(
+            riscv.FSdOp(TestSSAValue(register), TestSSAValue(fregister), 8),
+            (buffer, struct.unpack(">d", struct.pack(">ff", 5.0, 6.0))[0]),
+        )
+        == ()
+    )
+
+    test_buffer.float32[2] = 5.0
+    test_buffer.float32[3] = 6.0
     assert buffer == test_buffer
 
     assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
