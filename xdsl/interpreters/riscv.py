@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+import itertools
+import struct
+from collections.abc import Callable, Iterator, MutableSequence, Sequence
+from dataclasses import dataclass, field
 from typing import Any, Generic, TypeAlias, TypeVar
 
 from xdsl.dialects import riscv
@@ -34,32 +36,105 @@ CustomInstructionFn: TypeAlias = Callable[
 
 
 @dataclass
-class Buffer(Generic[_T]):
+class RawPtr:
     """
-    Data structure to help simulate pointer offsets into buffers of data in memory.
+    Data structure to help simulate pointers into memory.
     """
 
-    data: list[_T]
-    offset: int = 0
+    memory: bytearray
+    offset: int = field(default=0)
+    deallocated: bool = field(default=False)
 
-    def __add__(self, offset: int) -> Buffer[_T]:
+    @staticmethod
+    def zeros(count: int) -> RawPtr:
         """
-        Aliases the data list, so storing into the offset stores for all other references
+        Returns a new Ptr of size `count` with offset 0.
+        """
+        return RawPtr(bytearray(count))
+
+    @staticmethod
+    def new(el_format: str, els: Sequence[tuple[Any, ...]]) -> RawPtr:
+        """
+        Returns a new Ptr. The first parameter is a format string as specified in the
+        `struct` module, and elements to set.
+        """
+        el_size = struct.calcsize(el_format)
+        res = RawPtr.zeros(len(els) * el_size)
+        for i, el in enumerate(els):
+            struct.pack_into(el_format, res.memory, i * el_size, *el)
+        return res
+
+    def get_iter(self, format: str) -> Iterator[Any]:
+        if self.deallocated:
+            raise ValueError("Cannot get item of deallocated ptr")
+        return (
+            values[0]
+            for values in struct.iter_unpack(
+                format, memoryview(self.memory)[self.offset :]
+            )
+        )
+
+    def get(self, format: str) -> Any:
+        return next(self.get_iter(format))
+
+    def set(self, format: str, *item: Any):
+        if self.deallocated:
+            raise ValueError("Cannot set item of deallocated ptr")
+        struct.pack_into(format, self.memory, self.offset, *item)
+
+    def get_list(self, format: str, count: int):
+        return list(itertools.islice(self.get_iter(format), count))
+
+    def deallocate(self) -> None:
+        self.deallocated = True
+
+    def __add__(self, offset: int) -> RawPtr:
+        """
+        Aliases the data, so storing into the offset stores for all other references
         to the list.
         """
-        return Buffer(self.data, self.offset + offset // 4)
+        return RawPtr(self.memory, self.offset + offset)
 
-    def __getitem__(self, key: int) -> _T:
-        return self.data[self.offset + key]
+    @property
+    def int32(self) -> TypedPtr[int]:
+        return TypedPtr(self, ">i")
 
-    def __setitem__(self, key: int, value: _T):
-        self.data[self.offset + key] = value
+    @staticmethod
+    def new_int32(els: Sequence[int]) -> RawPtr:
+        return RawPtr.new(">i", [(el,) for el in els])
+
+    @property
+    def float32(self) -> TypedPtr[float]:
+        return TypedPtr(self, ">f")
+
+    @staticmethod
+    def new_float32(els: Sequence[int]) -> RawPtr:
+        return RawPtr.new(">f", [(el,) for el in els])
+
+
+@dataclass
+class TypedPtr(Generic[_T]):
+    raw: RawPtr
+    format: str
+
+    @property
+    def size(self) -> int:
+        return struct.calcsize(self.format)
+
+    def get_list(self, count: int) -> list[_T]:
+        return self.raw.get_list(self.format, count)
+
+    def __getitem__(self, index: int) -> _T | MutableSequence[_T]:
+        return (self.raw + index * self.size).get(self.format)
+
+    def __setitem__(self, index: int, value: _T):
+        (self.raw + index * self.size).set(self.format, value)
 
 
 @register_impls
 class RiscvFunctions(InterpreterFunctions):
     module_op: ModuleOp
-    _data: dict[str, Any] | None
+    _data: dict[str, RawPtr] | None
     custom_instructions: dict[str, CustomInstructionFn] = {}
     bitwidth: int
 
@@ -68,7 +143,7 @@ class RiscvFunctions(InterpreterFunctions):
         module_op: ModuleOp,
         *,
         bitwidth: int = 32,
-        data: dict[str, Any] | None = None,
+        data: dict[str, RawPtr] | None = None,
         custom_instructions: dict[str, CustomInstructionFn] | None = None,
     ):
         super().__init__()
@@ -86,11 +161,11 @@ class RiscvFunctions(InterpreterFunctions):
         return self._data
 
     @staticmethod
-    def get_data(module_op: ModuleOp) -> dict[str, Any]:
+    def get_data(module_op: ModuleOp) -> dict[str, RawPtr]:
         for op in module_op.ops:
             if isinstance(op, riscv.AssemblySectionOp):
                 if op.directive.data == ".data":
-                    data: dict[str, Any] = {}
+                    data: dict[str, RawPtr] = {}
 
                     assert op.data is not None
                     ops = list(op.data.block.ops)
@@ -102,7 +177,7 @@ class RiscvFunctions(InterpreterFunctions):
                             case ".word":
                                 hexs = data_op.value.data.split(",")
                                 ints = [int(hex.strip(), 16) for hex in hexs]
-                                data[label.label.data] = ints
+                                data[label.label.data] = RawPtr.new_int32(ints)
                             case _:
                                 assert (
                                     False
@@ -116,13 +191,13 @@ class RiscvFunctions(InterpreterFunctions):
 
     def get_immediate_value(
         self, op: Operation, imm: AnyIntegerAttr | riscv.LabelAttr
-    ) -> int | Buffer[int]:
+    ) -> int | RawPtr:
         match imm:
             case IntegerAttr():
                 return imm.value.data
             case riscv.LabelAttr():
                 data = self.get_value(op, imm.data)
-                return Buffer(data)
+                return data
 
     @impl(riscv.LiOp)
     def run_li(
@@ -151,8 +226,8 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         unsigned_lhs = to_unsigned(args[0], self.bitwidth)
         imm = self.get_immediate_value(op, op.immediate)
-        if isinstance(imm, Buffer):
-            raise NotImplementedError("Cannot compare buffer pointer in interpreter")
+        if isinstance(imm, RawPtr):
+            raise NotImplementedError("Cannot compare pointer in interpreter")
         unsigned_imm = to_unsigned(imm, self.bitwidth)
         return (int(unsigned_lhs < unsigned_imm),)
 
@@ -195,7 +270,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.SwOp,
         args: tuple[Any, ...],
     ):
-        args[0][op.immediate.value.data] = args[1]
+        (args[0] + op.immediate.value.data).int32[0] = args[1]
         return ()
 
     @impl(riscv.LwOp)
@@ -206,9 +281,8 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         offset = self.get_immediate_value(op, op.immediate)
-        if isinstance(offset, int):
-            offset //= 4
-        return (args[0][offset],)
+        assert isinstance(offset, int)
+        return ((args[0] + offset).int32[0],)
 
     @impl(riscv.LabelOp)
     def run_label(
@@ -246,7 +320,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FSwOp,
         args: tuple[Any, ...],
     ):
-        args[0][op.immediate.value.data // 4] = args[1]
+        (args[0] + op.immediate.value.data).float32[0] = args[1]
         return ()
 
     @impl(riscv.FLwOp)
@@ -257,9 +331,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         offset = self.get_immediate_value(op, op.immediate)
-        if isinstance(offset, int):
-            offset //= 4
-        return (args[0][offset],)
+        return ((args[0] + offset).float32[0],)
 
     # endregion
 
