@@ -266,13 +266,12 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(
                 [
-
                     li_op := riscv.LiOp(2),
                     riscv.MulOp(
                         op.rs1,
                         li_op,
                         rd=rd,
                         comment=op.comment,
-                    )
+                    ),
                 ]
             )
