@@ -2190,7 +2190,10 @@ class CsrrciOp(CsrBitwiseImmOperation):
 class MulOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import MultiplyImmediates, MultiplyImmediateZero
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            MultiplyImmediates,
+            MultiplyImmediateZero,
+        )
 
         return (MultiplyImmediates(), MultiplyImmediateZero())
 
