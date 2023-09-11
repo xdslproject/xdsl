@@ -100,6 +100,72 @@ class AddImmediates(RewritePattern):
                 pass
 
 
+class AddImmediateZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AddiOp, rewriter: PatternRewriter) -> None:
+        if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+
+
+class SubImmediates(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
+        lhs: int | None = None
+        rhs: int | None = None
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op.immediate, IntegerAttr)
+        ):
+            lhs = op.rs1.op.immediate.value.data
+
+        if (
+            isinstance(op.rs2, OpResult)
+            and isinstance(op.rs2.op, riscv.LiOp)
+            and isinstance(op.rs2.op.immediate, IntegerAttr)
+        ):
+            rhs = op.rs2.op.immediate.value.data
+
+        rd = cast(riscv.IntRegisterType, op.rd.type)
+
+        match (lhs, rhs):
+            case int(), None:
+                # TODO: anything to do here?
+                return
+            case None, int():
+                rewriter.replace_matched_op(
+                    riscv.AddiOp(
+                        op.rs1,
+                        -rhs,
+                        rd=rd,
+                        comment=op.comment,
+                    )
+                )
+            case int(), int():
+                rewriter.replace_matched_op(
+                    riscv.LiOp(lhs - rhs, rd=rd, comment=op.comment)
+                )
+            case _:
+                pass
+
+
+class SubAddi(RewritePattern):
+    """
+    (a + 4) - a -> 4
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.AddiOp)
+            and op.rs2 == op.rs1.op.rs1
+        ):
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.LiOp(op.rs1.op.immediate, rd=rd))
+
+
 class ShiftLeftImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.SlliOp, rewriter: PatternRewriter) -> None:
