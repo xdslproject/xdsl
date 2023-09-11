@@ -48,11 +48,21 @@ def test_riscv_interpreter():
     assert interpreter.run_op(riscv.SltiuOp(TestSSAValue(register), -10), (5,)) == (1,)
 
     assert interpreter.run_op(
-        riscv.AddOp(TestSSAValue(register), TestSSAValue(register)), (1, 2)
+        riscv.AddOp(
+            TestSSAValue(register),
+            TestSSAValue(register),
+            rd=riscv.IntRegisterType.unallocated(),
+        ),
+        (1, 2),
     ) == (3,)
 
     assert interpreter.run_op(
-        riscv.MulOp(TestSSAValue(register), TestSSAValue(register)), (2, 3)
+        riscv.MulOp(
+            TestSSAValue(register),
+            TestSSAValue(register),
+            rd=riscv.IntRegisterType.unallocated(),
+        ),
+        (2, 3),
     ) == (6,)
 
     buffer = Buffer([0, 0, 0, 0])
@@ -87,7 +97,12 @@ def test_riscv_interpreter():
     assert interpreter.run_op(custom_instruction_op, (1, 2)) == (1, 2)
 
     assert interpreter.run_op(
-        riscv.FMulSOp(TestSSAValue(fregister), TestSSAValue(fregister)), (3.0, 4.0)
+        riscv.FMulSOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0),
     ) == (12.0,)
 
     # same behaviour as riscemu currently, but incorrect

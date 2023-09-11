@@ -2,7 +2,7 @@
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
 "builtin.module"() ({
-  riscv.label "main" ({
+  riscv_func.func @main() {
     %0 = riscv.get_register : () -> !riscv.reg<>
     %1 = riscv.get_register : () -> !riscv.reg<>
     // RV32I/RV64I: 2.4 Integer Computational Instructions
@@ -278,12 +278,12 @@
     // CHECK-NEXT: riscv.fsw %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
 
     // Terminate block
-    riscv.ret : () -> ()
-  }) : () -> ()
+    riscv_func.return
+  }
 }) : () -> ()
 
 // CHECK-GENERIC: "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   "riscv.label"() ({
+// CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
 // CHECK-GENERIC-NEXT:     %0 = "riscv.get_register"() : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %1 = "riscv.get_register"() : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %addi = "riscv.addi"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
@@ -397,6 +397,6 @@
 // CHECK-GENERIC-NEXT:     %fmv_w_x = "riscv.fmv.w.x"(%0) : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %flw = "riscv.flw"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     "riscv.fsw"(%0, %f0) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.freg<>) -> ()
-// CHECK-GENERIC-NEXT:     "riscv.ret"() : () -> ()
-// CHECK-GENERIC-NEXT:   }) {"label" = #riscv.label<"main">} : () -> ()
+// CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
+// CHECK-GENERIC-NEXT:   }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
