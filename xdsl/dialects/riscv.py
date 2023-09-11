@@ -3285,6 +3285,47 @@ class FSwOp(RsRsImmFloatOperation):
 
 # endregion
 
+# region 17 "V" Standard Extension for Vector Operations
+
+# https://riscv.org/wp-content/uploads/2018/05/15.20-15.55-18.05.06.VEXT-bcn-v1.pdf
+
+# Vector operations that use standard RISC-V registers are using a non-standard Xfvec
+# extension.
+# All Xfvec instructions performing vectorial single precision operations require 64bit
+# floating point registers (a.k.a.: FLEN==64).
+# https://iis-git.ee.ethz.ch/smach/smallFloat-spec/-/raw/master/smallFloat_isa.pdf
+
+
+@irdl_op_definition
+class VFAddSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Perform a pointwise single-precision floating-point addition over vectors.
+
+    If the registers used are FloatRegisterType, they must be 64-bit wide, and contain two
+    32-bit single-precision floating point values.
+    """
+
+    name = "riscv.vfadd.s"
+
+
+@irdl_op_definition
+class VFMulSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Perform a pointwise single-precision floating-point multiplication over vectors.
+
+    If the registers used are FloatRegisterType, they must be 64-bit wide, and contain two
+    32-bit single-precision floating point values.
+    """
+
+    name = "riscv.vfmul.s"
+
+
+# endregion
+
 
 def _parse_optional_immediate_value(
     parser: Parser, integer_type: IntegerType | IndexType
@@ -3412,6 +3453,8 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        VFAddSOp,
+        VFMulSOp,
     ],
     [
         IntRegisterType,
