@@ -65,6 +65,9 @@ builtin.module {
 
   %store_float_ptr = riscv.addi %i2, 8 : (!riscv.reg<>) -> !riscv.reg<>
   riscv.fsw %store_float_ptr, %f2, 4 : (!riscv.reg<>, !riscv.freg<>) -> ()
+
+  %add_lhs_rhs = riscv.add %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
+  "test.op"(%add_lhs_rhs) : (!riscv.reg<a0>) -> ()
 }
 
 // CHECK: builtin.module {
@@ -125,5 +128,10 @@ builtin.module {
 // CHECK-NEXT:   "test.op"(%load_float_known_offset) : (!riscv.freg<fa0>) -> ()
 
 // CHECK-NEXT:   riscv.fsw %i2, %f2, 12 : (!riscv.reg<>, !riscv.freg<>) -> ()
+
+// CHECK-NEXT:   %add_lhs_rhs = riscv.li 2 : () -> !riscv.reg<>
+// CHECK-NEXT:   %add_lhs_rhs_1 = riscv.mul %i1, %add_lhs_rhs : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%add_lhs_rhs_1) : (!riscv.reg<a0>) -> ()
+
 
 // CHECK-NEXT: }
