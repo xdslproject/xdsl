@@ -257,3 +257,22 @@ class StoreFloatWordWithKnownOffset(RewritePattern):
                     comment=op.comment,
                 )
             )
+
+
+class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AddOp, rewriter: PatternRewriter) -> None:
+        if op.rs1 == op.rs2:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(
+                [
+
+                    li_op := riscv.LiOp(2),
+                    riscv.MulOp(
+                        op.rs1,
+                        li_op,
+                        rd=rd,
+                        comment=op.comment,
+                    )
+                ]
+            )

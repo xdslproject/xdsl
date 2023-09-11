@@ -1564,9 +1564,9 @@ class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 class AddOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import AddImmediates
+        from xdsl.transforms.canonicalization_patterns.riscv import AddImmediates, AdditionOfSameVariablesToMultiplyByTwo
 
-        return (AddImmediates(),)
+        return (AddImmediates(), AdditionOfSameVariablesToMultiplyByTwo())
 
 
 @irdl_op_definition
