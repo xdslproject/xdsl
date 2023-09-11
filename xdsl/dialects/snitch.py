@@ -27,6 +27,9 @@ class SnitchResources:
     # Number of dimensions supported by each data mover.
     dimensions: int = 4
 
+    streams: int = 31
+    """ Number of supported streams. """
+
 
 class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     """

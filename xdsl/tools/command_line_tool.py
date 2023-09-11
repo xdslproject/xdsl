@@ -35,6 +35,7 @@ from xdsl.dialects.riscv_scf import RISCV_Scf
 from xdsl.dialects.scf import Scf
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
+from xdsl.dialects.snitch_stream import SnitchStream
 from xdsl.dialects.stencil import Stencil
 from xdsl.dialects.test import Test
 from xdsl.dialects.vector import Vector
@@ -48,6 +49,7 @@ from xdsl.transforms import (
     canonicalize_dmp,
     dead_code_elimination,
     linalg_to_snitch,
+    linalg_to_snitch_stream,
     lower_affine,
     lower_mpi,
     lower_riscv_func,
@@ -93,6 +95,7 @@ def get_all_dialects() -> list[Dialect]:
         RISCV_Scf,
         Scf,
         Snitch,
+        SnitchStream,
         SnitchRuntime,
         Stencil,
         Symref,
@@ -116,6 +119,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         lower_riscv_func.LowerRISCVFunc,
         lower_snitch.LowerSnitchPass,
         linalg_to_snitch.LowerLinalgToSnitchPass,
+        linalg_to_snitch_stream.LowerLinalgToSnitchStreamPass,
         lower_snitch_runtime.LowerSnitchRuntimePass,
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
