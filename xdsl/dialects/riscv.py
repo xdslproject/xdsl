@@ -3283,6 +3283,11 @@ class FSwOp(RsRsImmFloatOperation):
         )
 
 
+# endregion
+
+# region RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
+
+
 @irdl_op_definition
 class FLdOp(RdRsImmFloatOperation):
     """
