@@ -22,6 +22,12 @@ builtin.module {
   %multiply_immediates = riscv.mul %2, %3 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
 
+  %multiply_immediate_r0 = riscv.mul %0, %i1 : (!riscv.reg<>, !riscv.reg<a1>) -> !riscv.reg<a0>
+  "test.op"(%multiply_immediate_r0) : (!riscv.reg<a0>) -> ()
+
+  %multiply_immediate_l0 = riscv.mul %i1, %0 : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<a0>
+  "test.op"(%multiply_immediate_l0) : (!riscv.reg<a0>) -> ()
+
   %add_lhs_immediate = riscv.add %2, %i2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%add_lhs_immediate) : (!riscv.reg<a0>) -> ()
 
@@ -83,6 +89,12 @@ builtin.module {
 
 // CHECK-NEXT:   %multiply_immediates = riscv.li 6 : () -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %multiply_immediate_r0 = riscv.mv %0 : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%multiply_immediate_r0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %multiply_immediate_l0 = riscv.mv %0 : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%multiply_immediate_l0) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %add_lhs_immediate = riscv.addi %i2, 2 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_lhs_immediate) : (!riscv.reg<a0>) -> ()
