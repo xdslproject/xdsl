@@ -3283,6 +3283,12 @@ class FSwOp(RsRsImmFloatOperation):
 
 # https://riscv.org/wp-content/uploads/2018/05/15.20-15.55-18.05.06.VEXT-bcn-v1.pdf
 
+# Vector operations that use standard RISC-V registers are using a non-standard Xfvec
+# extension.
+# All Xfvec instructions performing vectorial single precision operations require 64bit
+# floating point registers (a.k.a.: FLEN==64).
+# https://iis-git.ee.ethz.ch/smach/smallFloat-spec/-/raw/master/smallFloat_isa.pdf
+
 
 @irdl_op_definition
 class VFAddSOp(
@@ -3291,8 +3297,8 @@ class VFAddSOp(
     """
     Perform a pointwise single-precision floating-point addition over vectors.
 
-    On Snitch (and maybe other processors?) when the registers are floating point
-    registers on a 64-bit machine it treats them as registers containing a 2xf32 vector.
+    If the registers used are FloatRegisterType, they must be 64-bit wide, and contain two
+    32-bit single-precision floating point values.
     """
 
     name = "riscv.vfadd.s"
@@ -3305,8 +3311,8 @@ class VFMulSOp(
     """
     Perform a pointwise single-precision floating-point multiplication over vectors.
 
-    On Snitch (and maybe other processors?) when the registers are floating point
-    registers on a 64-bit machine it treats them as registers containing a 2xf32 vector.
+    If the registers used are FloatRegisterType, they must be 64-bit wide, and contain two
+    32-bit single-precision floating point values.
     """
 
     name = "riscv.vfmul.s"
