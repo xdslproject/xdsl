@@ -60,6 +60,7 @@ from xdsl.transforms import (
     printf_to_putchar,
     reconcile_unrealized_casts,
     riscv_register_allocation,
+    snitchstream_to_snitch,
 )
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
@@ -120,6 +121,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         lower_snitch.LowerSnitchPass,
         linalg_to_snitch.LowerLinalgToSnitchPass,
         linalg_to_snitch_stream.LowerLinalgToSnitchStreamPass,
+        snitchstream_to_snitch.LowerSnitchStreamToSnitchPass,
         lower_snitch_runtime.LowerSnitchRuntimePass,
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
