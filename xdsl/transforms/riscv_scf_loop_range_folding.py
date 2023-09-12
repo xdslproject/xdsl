@@ -1,6 +1,9 @@
 from xdsl.dialects import builtin, riscv, riscv_scf
+from xdsl.ir.core import MLContext
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
@@ -75,3 +78,18 @@ class HoistIndexTimesConstant(RewritePattern):
 
         for mul_op in uses:
             rewriter.replace_op(mul_op, [], [index])
+
+
+class RiscvScfLoopRangeFoldingPass(ModulePass):
+    """
+    Similar to scf-loop-range-folding in MLIR, folds multiplication operations into the
+    loop range computation when possible.
+    """
+
+    name = "riscv-scf-loop-range-folding"
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        PatternRewriteWalker(
+            HoistIndexTimesConstant(),
+            apply_recursively=False,
+        ).rewrite_module(op)
