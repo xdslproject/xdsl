@@ -64,6 +64,7 @@ def main():
         if not line:
             if args.check_empty_lines:
                 print(f"// {prefix}-EMPTY:")
+                next = True
             else:
                 next = False
             continue
@@ -82,12 +83,8 @@ def main():
 
         # Print the modified line
         if next:
-            print(f"// {prefix}-NEXT: ", end="")
+            print(f"// {prefix}-NEXT:  ", end="")
         else:
-            print(f"// {prefix}:      ", end="")
+            print(f"// {prefix}:       ", end="")
             next = True
         print(line)
-
-
-if __name__ == "__main__":
-    main()
