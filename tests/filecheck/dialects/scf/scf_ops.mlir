@@ -59,7 +59,7 @@ builtin.module {
   // CHECK-NEXT:   %{{.*}} = "scf.while"(%{{.*}}) ({
   // CHECK-NEXT:   ^{{.*}}(%{{.*}} : i32):
   // CHECK-NEXT:     %{{.*}} = arith.constant 0 : i32
-  // CHECK-NEXT:     %{{.*}} = "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 1 : i64} : (i32, i32) -> i1
+  // CHECK-NEXT:     %{{.*}} = arith.cmpi ne, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:     "scf.condition"(%{{.*}}, %{{.*}}) : (i1, i32) -> ()
   // CHECK-NEXT:   }, {
   // CHECK-NEXT:   ^{{.*}}(%{{.*}} : i32):
@@ -92,7 +92,7 @@ builtin.module {
   // CHECK-NEXT:    %6, %7 = "scf.while"(%{{.*}}, %{{.*}}) ({
   // CHECK-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : f32):
   // CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
-  // CHECK-NEXT:      %{{.*}} = "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 0 : i64} : (i32, i32) -> i1
+  // CHECK-NEXT:      %{{.*}} = arith.cmpi eq, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:      "scf.condition"(%{{.*}}, %{{.*}}, %{{.*}}) : (i1, i32, f32) -> ()
   // CHECK-NEXT:    }, {
   // CHECK-NEXT:    ^3(%{{.*}} : i32, %{{.*}} : f32):

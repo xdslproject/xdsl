@@ -17,7 +17,7 @@ def my_module():
 
     @Builder.implicit_region((register,))
     def body(args: tuple[BlockArgument, ...]) -> None:
-        riscv_func.ReturnOp(args)
+        riscv_func.ReturnOp(*args)
 
     riscv_func.FuncOp("id", body, ((register,), (register,)))
 

@@ -18,7 +18,10 @@ builtin.module {
 }
 
 
-// CHECK:         builtin.module {
+// CHECK:       builtin.module {
+// CHECK-NEXT:    riscv.assembly_section ".text" {
+// CHECK-NEXT:      riscv.directive ".globl" "ssum" : () -> ()
+// CHECK-NEXT:      riscv.directive ".p2align" "2" : () -> ()
 // CHECK-NEXT:      riscv_func.func @ssum(%arg0 : !riscv.freg<fa0>, %arg1 : !riscv.reg<a1>, %arg2 : !riscv.reg<a2>, %arg3 : !riscv.reg<a3>) {
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.s %arg0 : (!riscv.freg<fa0>) -> !riscv.freg<>
 // CHECK-NEXT:        %{{.*}} = riscv.mv %arg1 : (!riscv.reg<a1>) -> !riscv.reg<>
@@ -27,8 +30,7 @@ builtin.module {
 // CHECK-NEXT:        %{{.*}} = riscv.li 0 : () -> !riscv.reg<>
 // CHECK-NEXT:        %{{.*}} = riscv.li 256 : () -> !riscv.reg<>
 // CHECK-NEXT:        %{{.*}} = riscv.li 4 : () -> !riscv.reg<>
-// CHECK-NEXT:        "riscv_scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-// CHECK-NEXT:        ^0(%arg4 : !riscv.reg<>):
+// CHECK-NEXT:        riscv_scf.for %arg4 : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
 // CHECK-NEXT:          %{{.*}} = riscv.add %{{.*}}, %arg4 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:          %{{.*}} = riscv.flw %{{.*}}, 0 {"comment" = "load value from memref of shape (64,)"} : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-NEXT:          %{{.*}} = riscv.add %{{.*}}, %arg4 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
@@ -37,8 +39,9 @@ builtin.module {
 // CHECK-NEXT:          %{{.*}} = riscv.fadd.s %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-NEXT:          %{{.*}} = riscv.add %{{.*}}, %arg4 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:          riscv.fsw %{{.*}}, %{{.*}}, 0 {"comment" = "store float value to memref of shape (64,)"} : (!riscv.reg<>, !riscv.freg<>) -> ()
-// CHECK-NEXT:          "riscv_scf.yield"() : () -> ()
-// CHECK-NEXT:        }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:          riscv_scf.yield
+// CHECK-NEXT:        }
 // CHECK-NEXT:        riscv_func.return
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
+// CHECK-NEXT:  }
