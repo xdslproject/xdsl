@@ -8,6 +8,8 @@ from xdsl.dialects.builtin import (
     Builtin,
     DictionaryAttr,
     IntAttr,
+    IntegerAttr,
+    IntegerType,
     StringAttr,
     SymbolRefAttr,
     i32,
@@ -18,11 +20,12 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    prop_def,
     region_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.lexer import Token
 
 # pyright: reportPrivateUsage=false
@@ -796,3 +799,42 @@ def test_parse_number_error(text: str):
     parser = Parser(MLContext(), text)
     with pytest.raises(ParseError):
         parser.parse_number()
+
+
+@irdl_op_definition
+class PropertyOp(IRDLOperation):
+    name = "test.prop_op"
+
+    first = prop_def(StringAttr)
+    second = prop_def(IntegerAttr[IntegerType])
+
+
+def test_properties_retrocompatibility():
+    # Straightforward case
+    ctx = MLContext()
+    ctx.register_op(PropertyOp)
+    parser = Parser(ctx, '"test.prop_op"() <{first = "str", second = 42}> : () -> ()')
+
+    op = parser.parse_op()
+    assert isinstance(op, PropertyOp)
+    op.verify()
+
+    # Retrocompatibility case, only target
+    parser = Parser(ctx, '"test.prop_op"() {first = "str", second = 42} : () -> ()')
+    retro_op = parser.parse_op()
+    assert isinstance(retro_op, PropertyOp)
+    retro_op.verify()
+
+    assert op.attributes == retro_op.attributes
+    assert op.properties == retro_op.properties
+
+    # We ***do not*** try to be smarter than this. If properties are present, we parse
+    # and verify as-is.
+    parser = Parser(ctx, '"test.prop_op"() <{first = "str"}> {second = 42} : () -> ()')
+    wrong_op = parser.parse_op()
+    assert list(wrong_op.properties.keys()) == ["first"]
+    assert list(wrong_op.attributes.keys()) == ["second"]
+    with pytest.raises(
+        VerifyException, match="Operation does not verify: property second expected"
+    ):
+        wrong_op.verify()
