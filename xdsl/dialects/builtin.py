@@ -1144,7 +1144,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
         printer.print_op_attributes(self.attributes)
 
 
-class UnregisteredOp(IRDLOperation, ABC):
+class UnregisteredOp(Operation, ABC):
     """
     An unregistered operation.
 
