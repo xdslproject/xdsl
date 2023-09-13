@@ -431,16 +431,14 @@ class LowerHLSExtractStencilValue(RewritePattern):
         indices = [attr.data for attr in op.position.data]
         assert isa(indices, list[int])
 
-        assert isinstance(op.container, OpResult) and isinstance(
-            op.container.op, llvm.LoadOp
-        )
+        assert isinstance(op.container, OpResult)
+        assert isinstance(op.container.op, llvm.LoadOp)
         stencil = op.container.op.ptr
         # result_hls_read = op.container
         # p_stencil = op.container.
 
-        assert isinstance(stencil.type, llvm.LLVMPointerType) and isinstance(
-            stencil.type.type, llvm.LLVMStructType
-        )
+        assert isinstance(stencil.type, llvm.LLVMPointerType)
+        assert isinstance(stencil.type.type, llvm.LLVMStructType)
         struct_types = stencil.type.type.types
         assert isinstance(struct_types.data[0], llvm.LLVMArrayType)
         array_type = struct_types.data[0]
