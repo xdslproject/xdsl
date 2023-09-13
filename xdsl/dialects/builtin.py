@@ -13,6 +13,7 @@ from typing import (
     TypeVar,
     cast,
     overload,
+    Annotated,
 )
 
 from typing_extensions import Self
@@ -50,6 +51,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.irdl import ParamAttrConstraint
 from xdsl.traits import (
     IsolatedFromAbove,
     NoTerminator,
@@ -216,6 +218,22 @@ class SymbolRefAttr(ParametrizedAttribute):
         for ref in self.nested_references.data:
             root += "." + ref.data
         return root
+
+
+class EmptyArrayAttrConstraint(AttrConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, ArrayAttr):
+            raise VerifyException(f"expected ArrayData attribute, but got {attr}")
+        attr = cast(ArrayAttr[Attribute], attr)
+        if attr.data:
+            raise VerifyException(f"expected empty array, but got {attr}")
+
+
+FlatSymbolRefAttrConstraint = ParamAttrConstraint(
+    SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]
+)
+
+FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
 
 
 @irdl_attr_definition
