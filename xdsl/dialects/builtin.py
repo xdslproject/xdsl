@@ -7,13 +7,13 @@ from enum import Enum
 from math import prod
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     Generic,
     TypeAlias,
     TypeVar,
     cast,
     overload,
-    Annotated,
 )
 
 from typing_extensions import Self

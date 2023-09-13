@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects.builtin import (
+    FlatSymbolRefAttr,
     FunctionType,
     StringAttr,
     SymbolRefAttr,
-    FlatSymbolRefAttr,
 )
 from xdsl.dialects.utils import (
     parse_call_op_like,
