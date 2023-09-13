@@ -221,6 +221,10 @@ class SymbolRefAttr(ParametrizedAttribute):
 
 
 class EmptyArrayAttrConstraint(AttrConstraint):
+    """
+    Constrain attribute to be empty ArrayData
+    """
+
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
@@ -232,8 +236,10 @@ class EmptyArrayAttrConstraint(AttrConstraint):
 FlatSymbolRefAttrConstraint = ParamAttrConstraint(
     SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]
 )
+"""Constrain SymbolRef to be FlatSymbolRef"""
 
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
+"""SymbolRef constrained to Flat"""
 
 
 @irdl_attr_definition
