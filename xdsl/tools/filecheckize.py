@@ -9,7 +9,7 @@ from typing import cast
 
 def main():
     parser = argparse.ArgumentParser(
-        description="A nicety tool to generate FileCheck lines to check for what this tools read."
+        description="Generate the FileCheck lines that expects the given input."
     )
     parser.add_argument(
         "file",
