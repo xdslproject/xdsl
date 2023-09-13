@@ -39,6 +39,27 @@ riscv_func.func @pres_2(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
     riscv_func.return
 }
 
+riscv_func.func @pres_3(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
+    %zero = "riscv.get_register"() : () -> !riscv.reg<zero>
+    %n = riscv.addi %zero 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
+    %zero_1 = riscv.scfgwi %n, 95 : (!riscv.reg<a3>) -> (!riscv.reg<zero>)
+    %ub = riscv.addi %zero 8 : (!riscv.reg<zero>) -> !riscv.reg<a3>
+    %zero_2 = riscv.scfgwi %n, 223 : (!riscv.reg<a3>) -> !riscv.reg<zero>
+    %zero_3 = riscv.scfgwi %X, 768 : (!riscv.reg<a0>) -> !riscv.reg<zero>
+    %zero_4 = riscv.scfgwi %Y, 769 : (!riscv.reg<a1>) -> !riscv.reg<zero>
+    %zero_5 = riscv.scfgwi %Z, 898 : (!riscv.reg<a2>) -> !riscv.reg<zero>
+    %zero_6 = riscv.csrrsi 1984, 1 : () -> !riscv.reg<zero>
+    %i = riscv.addi %zero, 64 : (!riscv.reg<zero>) -> !riscv.reg<a0>
+    riscv.label ".loop_body" : () -> ()
+    %x = riscv.get_float_register() : () -> !riscv.freg<ft0>
+    %y = riscv.get_float_register() : () -> !riscv.freg<ft1>
+    %z = riscv.vfadd.s %x, %y : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+    %i_next = riscv.addi %i, -1 : (!riscv.reg<a0>) -> !riscv.reg<a0>
+    riscv.bne %i_next, %zero, ".loop_body" : (!riscv.reg<a0>, !riscv.reg<zero>) -> ()
+    %zero_7 = riscv.csrrci 1984, 1 : () -> !riscv.reg<zero>
+    riscv_func.return
+}
+
 
 // CHECK:
 // CHECK-NEXT:   pres_1:
@@ -70,3 +91,20 @@ riscv_func.func @pres_2(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
 // CHECK-NEXT:       fsd  ft0, 0(a5)
 // CHECK-NEXT:       bne  a3, a4, .loop_body
 // CHECK-NEXT:       ret
+
+// CHECK-NEXT:   pres_3:
+// CHECK-NEXT:     addi  a3, zero, 63
+// CHECK-NEXT:     scfgwi  a3, 95
+// CHECK-NEXT:     addi  a3, zero, 8
+// CHECK-NEXT:     scfgwi  a3, 223
+// CHECK-NEXT:     scfgwi  a0, 768
+// CHECK-NEXT:     scfgwi  a1, 769
+// CHECK-NEXT:     scfgwi  a2, 898
+// CHECK-NEXT:     csrrsi  zero, 1984, 1
+// CHECK-NEXT:     addi  a0, zero, 64
+// CHECK-NEXT:   .loop_body:
+// CHECK-NEXT:     vfadd.s  ft2, ft0, ft1
+// CHECK-NEXT:     addi  a0, a0, -1
+// CHECK-NEXT:     bne  a0, zero, .loop_body
+// CHECK-NEXT:     csrrci  zero, 1984, 1
+// CHECK-NEXT:     ret
