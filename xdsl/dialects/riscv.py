@@ -2695,6 +2695,22 @@ class ScfgwOp(RsRsIntegerOperation):
     name = "riscv.scfgw"
 
 
+@irdl_op_definition
+class ScfgwiOp(RdRsImmIntegerOperation):
+    """
+    Write the immediate value to the Snitch stream configuration location pointed by rs
+    in the memory-mapped address space.
+
+    This is an extension of the RISC-V ISA.
+    """
+
+    name = "riscv.scfgwi"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        # rd is always zero, so we omit it when printing assembly
+        return self.rs1, self.immediate
+
+
 # endregion
 
 # region RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
@@ -3474,6 +3490,7 @@ RISCV = Dialect(
         GetRegisterOp,
         GetFloatRegisterOp,
         ScfgwOp,
+        ScfgwiOp,
         # Floating point
         FMVOp,
         FMAddSOp,
