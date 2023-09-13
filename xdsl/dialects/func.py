@@ -2,12 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from xdsl.dialects.builtin import (
-    FlatSymbolRefAttr,
-    FunctionType,
-    StringAttr,
-    SymbolRefAttr,
-)
+from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolRefAttr
 from xdsl.dialects.utils import (
     parse_call_op_like,
     parse_func_op_like,
@@ -245,7 +240,7 @@ class FuncOp(IRDLOperation):
 class Call(IRDLOperation):
     name = "func.call"
     arguments: VarOperand = var_operand_def(AnyAttr())
-    callee: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr)
+    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
     res: VarOpResult = var_result_def(AnyAttr())
