@@ -42,6 +42,38 @@ floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
 _FloatTypeT = TypeVar("_FloatTypeT", bound=AnyFloat)
 
+CMPI_COMPARISON_OPERATIONS = [
+    "eq",
+    "ne",
+    "slt",
+    "sle",
+    "sgt",
+    "sge",
+    "ult",
+    "ule",
+    "ugt",
+    "uge",
+]
+
+CMPF_COMPARISON_OPERATIONS = [
+    "false",
+    "oeq",
+    "ogt",
+    "oge",
+    "olt",
+    "ole",
+    "one",
+    "ord",
+    "ueq",
+    "ugt",
+    "uge",
+    "ult",
+    "ule",
+    "une",
+    "uno",
+    "true",
+]
+
 
 class FastMathFlagsAttr(LLVMFastMathAttr):
     """
@@ -418,6 +450,32 @@ class Cmpi(IRDLOperation, ComparisonOperation):
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
         )
 
+    @classmethod
+    def parse(cls, parser: Parser):
+        arg = parser.parse_identifier()
+        parser.parse_punctuation(",")
+        operand1 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        operand2 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        (operand1, operand2) = parser.resolve_operands(
+            [operand1, operand2], 2 * [input_type], parser.pos
+        )
+
+        return cls(operand1, operand2, arg)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+
+        printer.print_string(CMPI_COMPARISON_OPERATIONS[self.predicate.value.data])
+        printer.print(", ")
+        printer.print_operand(self.lhs)
+        printer.print(", ")
+        printer.print_operand(self.rhs)
+        printer.print(" : ")
+        printer.print_attribute(self.lhs.type)
+
 
 @irdl_op_definition
 class Cmpf(IRDLOperation, ComparisonOperation):
@@ -489,6 +547,31 @@ class Cmpf(IRDLOperation, ComparisonOperation):
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
         )
 
+    @classmethod
+    def parse(cls, parser: Parser):
+        arg = parser.parse_identifier()
+        parser.parse_punctuation(",")
+        operand1 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        operand2 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        (operand1, operand2) = parser.resolve_operands(
+            [operand1, operand2], 2 * [input_type], parser.pos
+        )
+
+        return cls(operand1, operand2, arg)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_string(CMPF_COMPARISON_OPERATIONS[self.predicate.value.data])
+        printer.print(", ")
+        printer.print_operand(self.lhs)
+        printer.print(", ")
+        printer.print_operand(self.rhs)
+        printer.print(" : ")
+        printer.print_attribute(self.lhs.type)
+
 
 @irdl_op_definition
 class Select(IRDLOperation):
@@ -522,6 +605,33 @@ class Select(IRDLOperation):
         return super().__init__(
             operands=[operand1, operand2, operand3], result_types=[operand2.type]
         )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        cond = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        operand1 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        operand2 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        (cond, operand1, operand2) = parser.resolve_operands(
+            [cond, operand1, operand2],
+            [IntegerType(1), result_type, result_type],
+            parser.pos,
+        )
+
+        return cls(cond, operand1, operand2)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.cond)
+        printer.print(", ")
+        printer.print_operand(self.lhs)
+        printer.print(", ")
+        printer.print_operand(self.rhs)
+        printer.print(" : ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
@@ -560,6 +670,20 @@ class Negf(IRDLOperation):
             operands=[operand],
             result_types=[operand.type],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_attribute()
+        input = parser.resolve_operand(input, result_type)
+        return cls(input)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.operand)
+        printer.print(" : ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
@@ -616,6 +740,25 @@ class ExtFOp(IRDLOperation):
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
 
+    @classmethod
+    def parse(cls, parser: Parser):
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        parser.parse_keyword("to")
+        result_type = parser.parse_type()
+        [input] = parser.resolve_operands([input], [input_type], parser.pos)
+        result_float_type = cast(AnyFloat, result_type)
+        return cls(input, result_float_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.input)
+        printer.print(" : ")
+        printer.print_attribute(self.input.type)
+        printer.print(" to ")
+        printer.print_attribute(self.result.type)
+
 
 @irdl_op_definition
 class TruncFOp(IRDLOperation):
@@ -626,6 +769,25 @@ class TruncFOp(IRDLOperation):
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        parser.parse_keyword("to")
+        result_type = parser.parse_type()
+        [input] = parser.resolve_operands([input], [input_type], parser.pos)
+        result_float_type = cast(AnyFloat, result_type)
+        return cls(input, result_float_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.input)
+        printer.print(" : ")
+        printer.print_attribute(self.input.type)
+        printer.print(" to ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition

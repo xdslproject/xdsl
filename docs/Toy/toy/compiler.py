@@ -1,3 +1,4 @@
+from io import StringIO
 from pathlib import Path
 
 from xdsl.backend.riscv.lowering.convert_arith_to_riscv import ConvertArithToRiscvPass
@@ -149,6 +150,18 @@ def transform(
         return
 
     raise ValueError(f"Unknown target option {target}")
+
+
+def compile(program: str) -> str:
+    ctx = context()
+
+    op = parse_toy(program)
+    transform(ctx, op, target="riscv-lowered")
+
+    io = StringIO()
+    riscv.print_assembly(op, io)
+
+    return io.getvalue()
 
 
 def emulate_riscv(program: str):
