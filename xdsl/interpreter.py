@@ -543,7 +543,7 @@ class Interpreter:
                 result = self._impls.run(self, op, inputs)
                 self.interpreter_assert(
                     len(op.results) == len(result.values),
-                    f"Incorrect number of results for op {op.name}",
+                    f"Incorrect number of results for op {op.name}, expected {len(op.results)} but got {len(result.values)}",
                 )
                 self.set_values(zip(op.results, result.values))
 
