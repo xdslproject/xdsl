@@ -11,12 +11,12 @@ from xdsl.irdl import (
     Operand,
     Successor,
     VarOperand,
-    attr_def,
     irdl_op_definition,
     operand_def,
     successor_def,
     var_operand_def,
 )
+from xdsl.irdl.irdl import prop_def
 from xdsl.traits import IsTerminator
 
 
@@ -24,13 +24,13 @@ from xdsl.traits import IsTerminator
 class Assert(IRDLOperation):
     name = "cf.assert"
     arg: Operand = operand_def(IntegerType(1))
-    msg: StringAttr = attr_def(StringAttr)
+    msg: StringAttr = prop_def(StringAttr)
 
     @staticmethod
     def get(arg: Operation | SSAValue, msg: str | StringAttr) -> Assert:
         if isinstance(msg, str):
             msg = StringAttr(msg)
-        return Assert.build(operands=[arg], attributes={"msg": msg})
+        return Assert.build(operands=[arg], properties={"msg": msg})
 
 
 @irdl_op_definition
@@ -55,7 +55,7 @@ class ConditionalBranch(IRDLOperation):
     then_arguments: VarOperand = var_operand_def(AnyAttr())
     else_arguments: VarOperand = var_operand_def(AnyAttr())
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     then_block: Successor = successor_def()
     else_block: Successor = successor_def()

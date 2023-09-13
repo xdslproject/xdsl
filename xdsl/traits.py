@@ -291,17 +291,15 @@ class SymbolOpInterface(OpTrait):
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
 
-        if "sym_name" not in op.attributes and self.is_optional_symbol(op):
+        sym_name = op.get_attr_or_prop("sym_name")
+        if sym_name is None and self.is_optional_symbol(op):
             return None
-        if "sym_name" not in op.attributes or not isinstance(
-            op.attributes["sym_name"], StringAttr
-        ):
+        if not isinstance(sym_name, StringAttr):
             raise VerifyException(
                 f'Operation {op.name} must have a "sym_name" attribute of type '
                 f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
             )
-        attr = op.attributes["sym_name"]
-        return attr
+        return sym_name
 
     def is_optional_symbol(self, op: Operation) -> bool:
         """
@@ -311,19 +309,8 @@ class SymbolOpInterface(OpTrait):
         return False
 
     def verify(self, op: Operation) -> None:
-        # import builtin here to avoid circular import
-        from xdsl.dialects.builtin import StringAttr
-
         # If this is an optional symbol, bail out early if possible.
-        if self.is_optional_symbol(op) and "sym_name" not in op.attributes:
-            return
-        if "sym_name" not in op.attributes or not isinstance(
-            op.attributes["sym_name"], StringAttr
-        ):
-            raise VerifyException(
-                f'Operation {op.name} must have a "sym_name" attribute of type '
-                f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
-            )
+        self.get_sym_attr_name(op)
 
 
 class OptionalSymbolOpInterface(SymbolOpInterface):

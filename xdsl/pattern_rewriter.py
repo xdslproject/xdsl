@@ -538,10 +538,10 @@ class TypeConversionPattern(RewritePattern):
             new_attributes[name] = converted or attribute
             if converted is not None and converted != attribute:
                 changed = True
-        for name, attribute in op.properties.items():
-            converted = self._convert_type_rec(attribute)
-            new_properties[name] = converted or attribute
-            if converted is not None and converted != attribute:
+        for name, property in op.properties.items():
+            converted = self._convert_type_rec(property)
+            new_properties[name] = converted or property
+            if converted is not None and converted != property:
                 changed = True
         for region in op.regions:
             for block in region.blocks:

@@ -178,7 +178,9 @@ def test_rewrite_add_zero_pdl():
         PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
         apply_recursively=False,
     ).rewrite_module(input_module)
-
+    inp = str(input_module)
+    out = str(output_module)
+    assert inp == out
     assert input_module.is_structurally_equivalent(output_module)
 
 

@@ -87,7 +87,7 @@ def test_get_definition():
         results=[("result", ResultDef(AnyAttr()))],
         attributes={
             "attr": AttributeDef(AnyAttr()),
-            "operand_segment_sizes": AttributeDef(BaseAttr(DenseArrayBase)),
+            "operandSegmentSizes": AttributeDef(BaseAttr(DenseArrayBase)),
         },
         properties={"prop": PropertyDef(AnyAttr())},
         regions=[("region", RegionDef())],

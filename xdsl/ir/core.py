@@ -872,6 +872,7 @@ class Operation(IRNode):
         cloned_op = self.create(
             operands=operands,
             result_types=result_types,
+            properties=properties,
             attributes=attributes,
             properties=properties,
             successors=successors,

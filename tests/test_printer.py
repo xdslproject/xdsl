@@ -119,7 +119,7 @@ def test_op_message():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message
   ---------------------
@@ -152,7 +152,7 @@ def test_two_different_op_messages():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
   ---------------------
@@ -187,7 +187,7 @@ def test_two_same_op_messages():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
   ---------------------
@@ -226,7 +226,7 @@ def test_op_message_with_region():
 ^^^^^^^^^^^^^^^^
 | Test
 ----------------
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -259,7 +259,7 @@ def test_op_message_with_region_and_overflow():
 ^^^^^^^^^^^^^^^^---
 | Test long message
 -------------------
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -320,7 +320,7 @@ def test_print_custom_name():
 
     expected = """\
 "builtin.module"() ({
-  %i = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %i = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %0 = "arith.addi"(%i, %i) : (i32, i32) -> i32
 }) : () -> ()
 """
@@ -521,7 +521,7 @@ def test_custom_format():
     """
     prog = """\
 builtin.module {
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = test.add %0 + %0 : i32
 }
 """
@@ -557,7 +557,7 @@ def test_custom_format_II():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = "test.add"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()
 """
@@ -658,7 +658,7 @@ def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() {"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : i64}} : () -> ()
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : i64}} : () -> ()
     """
 
     ctx = MLContext()

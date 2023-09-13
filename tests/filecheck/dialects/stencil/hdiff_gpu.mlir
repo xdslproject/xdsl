@@ -34,8 +34,8 @@
 // CHECK-NEXT:     %4 = "memref.cast"(%1) : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
 // CHECK-NEXT:     %5 = "memref.cast"(%4) : (memref<72x72x72xf64>) -> memref<*xf64>
 // CHECK-NEXT:     "gpu.host_register"(%5) : (memref<*xf64>) -> ()
-// CHECK-NEXT:     %6 = "memref.subview"(%4) {"static_offsets" = array<i64: 4, 4, 4>, "static_sizes" = array<i64: 64, 64, 64>, "static_strides" = array<i64: 1, 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<72x72x72xf64>) -> memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:     %7 = "memref.subview"(%2) {"static_offsets" = array<i64: 4, 4, 4>, "static_sizes" = array<i64: 66, 66, 64>, "static_strides" = array<i64: 1, 1, 1>, "operand_segment_sizes" = array<i32: 1, 0, 0, 0>} : (memref<72x72x72xf64>) -> memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:     %6 = "memref.subview"(%4) <{"static_offsets" = array<i64: 4, 4, 4>, "static_sizes" = array<i64: 64, 64, 64>, "static_strides" = array<i64: 1, 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72x72x72xf64>) -> memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:     %7 = "memref.subview"(%2) <{"static_offsets" = array<i64: 4, 4, 4>, "static_sizes" = array<i64: 66, 66, 64>, "static_strides" = array<i64: 1, 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72x72x72xf64>) -> memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:     %8 = arith.constant 0 : index
 // CHECK-NEXT:     %9 = arith.constant 0 : index
 // CHECK-NEXT:     %10 = arith.constant 0 : index
@@ -44,7 +44,7 @@
 // CHECK-NEXT:     %13 = arith.constant 64 : index
 // CHECK-NEXT:     %14 = arith.constant 64 : index
 // CHECK-NEXT:     %15 = arith.constant 64 : index
-// CHECK-NEXT:     "scf.parallel"(%11, %10, %8, %15, %14, %13, %12, %12, %12) ({
+// CHECK-NEXT:     "scf.parallel"(%11, %10, %8, %15, %14, %13, %12, %12, %12) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
 // CHECK-NEXT:     ^0(%16 : index, %17 : index, %18 : index):
 // CHECK-NEXT:       %19 = arith.constant -1 : index
 // CHECK-NEXT:       %20 = arith.addi %18, %19 : index
@@ -67,7 +67,7 @@
 // CHECK-NEXT:       %36 = arith.addf %35, %34 : f64
 // CHECK-NEXT:       memref.store %36, %6[%18, %17, %16] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:       scf.yield
-// CHECK-NEXT:     }) {"operand_segment_sizes" = array<i32: 3, 3, 3, 0>} : (index, index, index, index, index, index, index, index, index) -> ()
+// CHECK-NEXT:     }) : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

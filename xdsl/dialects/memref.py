@@ -40,14 +40,13 @@ from xdsl.irdl import (
     Operand,
     ParameterDef,
     VarOperand,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     result_def,
     var_operand_def,
 )
+from xdsl.irdl.irdl import opt_prop_def, prop_def
 from xdsl.traits import SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -287,9 +286,9 @@ class Alloc(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     def get(
@@ -320,9 +319,9 @@ class Alloca(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     def get(
@@ -343,7 +342,7 @@ class Alloca(IRDLOperation):
         return Alloca.build(
             operands=[dynamic_sizes, []],
             result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
-            attributes={
+            properties={
                 "alignment": alignment,
             },
         )
@@ -363,12 +362,12 @@ class Dealloc(IRDLOperation):
 class GetGlobal(IRDLOperation):
     name = "memref.get_global"
     memref: OpResult = result_def(MemRefType[Attribute])
-    name_: SymbolRefAttr = attr_def(SymbolRefAttr, attr_name="name")
+    name_: SymbolRefAttr = prop_def(SymbolRefAttr, prop_name="name")
 
     @staticmethod
     def get(name: str, return_type: Attribute) -> GetGlobal:
         return GetGlobal.build(
-            result_types=[return_type], attributes={"name": SymbolRefAttr(name)}
+            result_types=[return_type], properties={"name": SymbolRefAttr(name)}
         )
 
     # TODO how to verify the types, as the global might be defined in another
@@ -379,10 +378,10 @@ class GetGlobal(IRDLOperation):
 class Global(IRDLOperation):
     name = "memref.global"
 
-    sym_name: StringAttr = attr_def(StringAttr)
-    sym_visibility: StringAttr = attr_def(StringAttr)
-    type: Attribute = attr_def(Attribute)
-    initial_value: Attribute = attr_def(Attribute)
+    sym_name: StringAttr = prop_def(StringAttr)
+    sym_visibility: StringAttr = prop_def(StringAttr)
+    type: Attribute = prop_def(Attribute)
+    initial_value: Attribute = prop_def(Attribute)
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -404,7 +403,7 @@ class Global(IRDLOperation):
         sym_visibility: StringAttr = StringAttr("private"),
     ) -> Global:
         return Global.build(
-            attributes={
+            properties={
                 "sym_name": sym_name,
                 "type": sym_type,
                 "initial_value": initial_value,
@@ -465,12 +464,12 @@ class Subview(IRDLOperation):
     offsets: VarOperand = var_operand_def(IndexType)
     sizes: VarOperand = var_operand_def(IndexType)
     strides: VarOperand = var_operand_def(IndexType)
-    static_offsets: DenseArrayBase = attr_def(DenseArrayBase)
-    static_sizes: DenseArrayBase = attr_def(DenseArrayBase)
-    static_strides: DenseArrayBase = attr_def(DenseArrayBase)
+    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
+    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
+    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
     result: OpResult = result_def(MemRefType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     def from_static_parameters(
@@ -527,7 +526,7 @@ class Subview(IRDLOperation):
         return Subview.build(
             operands=[source, [], [], []],
             result_types=[return_type],
-            attributes={
+            properties={
                 "static_offsets": DenseArrayBase.from_list(i64, offsets),
                 "static_sizes": DenseArrayBase.from_list(i64, sizes),
                 "static_strides": DenseArrayBase.from_list(i64, strides),

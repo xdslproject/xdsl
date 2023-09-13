@@ -18,7 +18,6 @@ from xdsl.irdl import (
     IRDLOperation,
     VarOperand,
     VarOpResult,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     opt_attr_def,
@@ -26,6 +25,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.irdl import prop_def
 from xdsl.parser.attribute_parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
@@ -76,12 +76,12 @@ class Generic(IRDLOperation):
     body: Region = region_def("single_block")
 
     # Trait attributes
-    indexing_maps: ArrayAttr[AffineMapAttr] = attr_def(ArrayAttr[AffineMapAttr])
-    iterator_types: ArrayAttr[IteratorTypeAttr] = attr_def(ArrayAttr[IteratorTypeAttr])
+    indexing_maps: ArrayAttr[AffineMapAttr] = prop_def(ArrayAttr[AffineMapAttr])
+    iterator_types: ArrayAttr[IteratorTypeAttr] = prop_def(ArrayAttr[IteratorTypeAttr])
     doc: StringAttr | None = opt_attr_def(StringAttr)
     library_call: StringAttr | None = opt_attr_def(StringAttr)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
@@ -96,9 +96,11 @@ class Generic(IRDLOperation):
         super().__init__(
             operands=[inputs, outputs],
             result_types=[[]],
-            attributes={
+            properties={
                 "indexing_maps": ArrayAttr(indexing_maps),
                 "iterator_types": ArrayAttr(iterator_types),
+            },
+            attributes={
                 "doc": doc,
                 "library_call": library_call,
             },
