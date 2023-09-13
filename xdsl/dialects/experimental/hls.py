@@ -127,7 +127,7 @@ class HLSStreamWrite(IRDLOperation):
     element: Operand = operand_def(AnyAttr())
     stream: Operand = operand_def(HLSStreamType)
 
-    def __init__(self, element: Operation, stream: HLSStreamType):
+    def __init__(self, element: SSAValue | Operation, stream: SSAValue | Operation):
         super().__init__(operands=[element, stream])
 
 
