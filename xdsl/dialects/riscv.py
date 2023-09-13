@@ -135,7 +135,7 @@ class IntRegisterType(RISCVRegisterType):
 
     @classmethod
     def a_register(cls, index: int) -> Self:
-        return _INT_A_REGISTERS[index]
+        return Registers.A[index]
 
     RV32I_INDEX_BY_NAME = {
         "zero": 0,
@@ -192,7 +192,7 @@ class FloatRegisterType(RISCVRegisterType):
 
     @classmethod
     def a_register(cls, index: int) -> Self:
-        return _FLOAT_A_REGISTERS[index]
+        return Registers.FA[index]
 
     RV32F_INDEX_BY_NAME = {
         "ft0": 0,
@@ -315,28 +315,6 @@ class Registers(ABC):
     FA = (FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7)
     FT = (FT0, FT1, FT2, FT3, FT4, FT5, FT6, FT7, FT8, FT9, FT10, FT11)
     FS = (FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7, FS8, FS9, FS10, FS11)
-
-
-_INT_A_REGISTERS = (
-    Registers.A0,
-    Registers.A1,
-    Registers.A2,
-    Registers.A3,
-    Registers.A4,
-    Registers.A5,
-    Registers.A6,
-    Registers.A7,
-)
-_FLOAT_A_REGISTERS = (
-    Registers.FA0,
-    Registers.FA1,
-    Registers.FA2,
-    Registers.FA3,
-    Registers.FA4,
-    Registers.FA5,
-    Registers.FA6,
-    Registers.FA7,
-)
 
 
 @irdl_attr_definition
@@ -1357,6 +1335,16 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
 ## Integer Register-Immediate Instructions
 
 
+class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            AddImmediateZero,
+        )
+
+        return (AddImmediateZero(),)
+
+
 @irdl_op_definition
 class AddiOp(RdRsImmIntegerOperation):
     """
@@ -1370,7 +1358,7 @@ class AddiOp(RdRsImmIntegerOperation):
 
     name = "riscv.addi"
 
-    traits = frozenset((Pure(),))
+    traits = frozenset((Pure(), AddiOpHasCanonicalizationPatternsTrait()))
 
 
 @irdl_op_definition
@@ -1446,7 +1434,7 @@ class XoriOp(RdRsImmIntegerOperation):
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import ShiftLeftImmediate
+        from xdsl.transforms.canonicalization_patterns.riscv import ShiftLeftImmediate
 
         return (ShiftLeftImmediate(),)
 
@@ -1527,7 +1515,7 @@ class AuipcOp(RdImmIntegerOperation):
 class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import RemoveRedundantMv
+        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantMv
 
         return (RemoveRedundantMv(),)
 
@@ -1548,7 +1536,7 @@ class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
 class FMVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import RemoveRedundantFMv
+        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMv
 
         return (RemoveRedundantFMv(),)
 
@@ -1576,9 +1564,12 @@ class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 class AddOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import AddImmediates
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            AddImmediates,
+            AdditionOfSameVariablesToMultiplyByTwo,
+        )
 
-        return (AddImmediates(),)
+        return (AddImmediates(), AdditionOfSameVariablesToMultiplyByTwo())
 
 
 @irdl_op_definition
@@ -1692,6 +1683,17 @@ class SrlOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     name = "riscv.srl"
 
 
+class SubOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            SubAddi,
+            SubImmediates,
+        )
+
+        return (SubImmediates(), SubAddi())
+
+
 @irdl_op_definition
 class SubOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
@@ -1704,6 +1706,8 @@ class SubOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.sub"
+
+    traits = frozenset((SubOpHasCanonicalizationPatternsTrait(),))
 
 
 @irdl_op_definition
@@ -1950,7 +1954,9 @@ class LhuOp(RdRsImmIntegerOperation):
 class LwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import LoadWordWithKnownOffset
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadWordWithKnownOffset,
+        )
 
         return (LoadWordWithKnownOffset(),)
 
@@ -2010,7 +2016,9 @@ class ShOp(RsRsImmIntegerOperation):
 class SwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import StoreWordWithKnownOffset
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            StoreWordWithKnownOffset,
+        )
 
         return (StoreWordWithKnownOffset(),)
 
@@ -2185,9 +2193,12 @@ class CsrrciOp(CsrBitwiseImmOperation):
 class MulOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import MultiplyImmediates
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            MultiplyImmediates,
+            MultiplyImmediateZero,
+        )
 
-        return (MultiplyImmediates(),)
+        return (MultiplyImmediates(), MultiplyImmediateZero())
 
 
 @irdl_op_definition
@@ -3207,7 +3218,7 @@ class FMvWXOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 class FLwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import (
+        from xdsl.transforms.canonicalization_patterns.riscv import (
             LoadFloatWordWithKnownOffset,
         )
 
@@ -3241,7 +3252,7 @@ class FLwOp(RdRsImmFloatOperation):
 class FSwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.backend.riscv.lowering.optimise_riscv import (
+        from xdsl.transforms.canonicalization_patterns.riscv import (
             StoreFloatWordWithKnownOffset,
         )
 
@@ -3270,6 +3281,96 @@ class FSwOp(RsRsImmFloatOperation):
         return _assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
+
+
+# endregion
+
+# region RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
+
+
+@irdl_op_definition
+class FLdOp(RdRsImmFloatOperation):
+    """
+    Load a double-precision value from memory into floating-point register rd.
+
+    f[rd] = M[x[rs1] + sext(offset)][63:0]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fld
+    """
+
+    name = "riscv.fld"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rd)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
+
+
+@irdl_op_definition
+class FSdOp(RsRsImmFloatOperation):
+    """
+    Store a double-precision value from floating-point register rs2 to memory.
+
+    M[x[rs1] + offset] = f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw
+    """
+
+    name = "riscv.fsd"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rs2)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
+
+
+# endregion
+
+# region 17 "V" Standard Extension for Vector Operations
+
+# https://riscv.org/wp-content/uploads/2018/05/15.20-15.55-18.05.06.VEXT-bcn-v1.pdf
+
+# Vector operations that use standard RISC-V registers are using a non-standard Xfvec
+# extension.
+# All Xfvec instructions performing vectorial single precision operations require 64bit
+# floating point registers (a.k.a.: FLEN==64).
+# https://iis-git.ee.ethz.ch/smach/smallFloat-spec/-/raw/master/smallFloat_isa.pdf
+
+
+@irdl_op_definition
+class VFAddSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Perform a pointwise single-precision floating-point addition over vectors.
+
+    If the registers used are FloatRegisterType, they must be 64-bit wide, and contain two
+    32-bit single-precision floating point values.
+    """
+
+    name = "riscv.vfadd.s"
+
+
+@irdl_op_definition
+class VFMulSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Perform a pointwise single-precision floating-point multiplication over vectors.
+
+    If the registers used are FloatRegisterType, they must be 64-bit wide, and contain two
+    32-bit single-precision floating point values.
+    """
+
+    name = "riscv.vfmul.s"
 
 
 # endregion
@@ -3401,6 +3502,10 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FLdOp,
+        FSdOp,
+        VFAddSOp,
+        VFMulSOp,
     ],
     [
         IntRegisterType,

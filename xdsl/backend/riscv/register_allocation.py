@@ -75,16 +75,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     exclude_preallocated: bool = True
 
     def __init__(self) -> None:
-        self.available_registers = RegisterQueue(
-            available_int_registers=[
-                IntRegisterType(reg)
-                for reg in IntRegisterType.RV32I_INDEX_BY_NAME
-                if IntRegisterType(reg) not in RegisterQueue.DEFAULT_RESERVED_REGISTERS
-            ],
-            available_float_registers=[
-                FloatRegisterType(reg) for reg in FloatRegisterType.RV32F_INDEX_BY_NAME
-            ],
-        )
+        self.available_registers = RegisterQueue()
         self.live_ins_per_block = {}
 
     def allocate(self, reg: SSAValue) -> bool:
