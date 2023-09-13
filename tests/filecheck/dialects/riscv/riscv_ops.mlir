@@ -206,8 +206,8 @@
     // RISC-V extensions
     riscv.scfgw %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> ()
     // CHECK-NEXT: riscv.scfgw %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    riscv.scfgwi %0, 42 : (!riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.scfgwi %0, 42 : (!riscv.reg<>) -> ()
+    %scfgwi_zero = riscv.scfgwi %0, 42 : (!riscv.reg<>) -> !riscv.reg<zero>
+    // CHECK-NEXT: %scfgwi_zero = riscv.scfgwi %0, 42 : (!riscv.reg<>) -> !riscv.reg<zero>
 
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
     %f0 = riscv.get_float_register : () -> !riscv.freg<>
@@ -380,7 +380,7 @@
 // CHECK-GENERIC-NEXT:     }) {"directive" = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:     %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
 // CHECK-GENERIC-NEXT:     "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     "riscv.scfgwi"(%0) {"immediate" = 4 : si32} : (!riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     %scfgwi_zero = "riscv.scfgwi"(%0) {"immediate" = 42 : si12} : (!riscv.reg<>) -> !riscv.reg<zero>
 // CHECK-GENERIC-NEXT:     %f0 = "riscv.get_float_register"() : () -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %f1 = "riscv.get_float_register"() : () -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %f2 = "riscv.get_float_register"() : () -> !riscv.freg<>
