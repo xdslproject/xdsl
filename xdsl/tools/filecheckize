@@ -1,4 +1,0 @@
-from xdsl.tools.filecheckize import main
-
-if __name__ == "__main__":
-    main()
