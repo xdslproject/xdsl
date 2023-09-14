@@ -2701,7 +2701,7 @@ class ScfgwiOp(RdRsImmIntegerOperation):
     Write the immediate value to the Snitch stream configuration location pointed by rs
     in the memory-mapped address space.
 
-    This is an extension of the RISC-V ISA.
+    This is part of the `Xssr' extension (https://pulp-platform.github.io/snitch/rm/custom_instructions/), an extension of the RISC-V ISA.
     """
 
     name = "riscv.scfgwi"
