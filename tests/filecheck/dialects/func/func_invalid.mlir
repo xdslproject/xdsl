@@ -31,3 +31,9 @@ builtin.module {
 }
 
 // CHECK: Expected all arguments to be named or all arguments to be unnamed.
+
+// -----
+
+"func.call"() { "callee" = @call::@invalid } : () -> ()
+
+// CHECK:  Operation does not verify: expected empty array, but got ["invalid"]
