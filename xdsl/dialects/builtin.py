@@ -222,16 +222,14 @@ class SymbolRefAttr(ParametrizedAttribute):
 
 @dataclass
 class CustomErrorMessageAttrConstraint(AttrConstraint):
-    """
-    Wrap a constraint message in another message.
-    """
+    """Emit a different error message if a verification exception was caught."""
 
-    inner_constraint: AttrConstraint
+    constraint: AttrConstraint
     new_message: str | Callable[[Attribute], str]
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         try:
-            self.inner_constraint.verify(attr, constraint_vars)
+            self.constraint.verify(attr, constraint_vars)
         except VerifyException as e:
             new_message = (
                 self.new_message
