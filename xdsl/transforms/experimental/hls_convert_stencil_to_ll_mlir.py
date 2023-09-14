@@ -81,7 +81,6 @@ OUT = 1
 def gen_duplicate_loop(
     input_stream: HLSStream, duplicate_stream_lst: list[HLSStream], n: arith.IndexCastOp
 ):
-    print("N: ", type(n))
     ii = Constant.from_int_and_width(1, i32)
 
     @Builder.region([IndexType()])
@@ -191,7 +190,6 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
                         return_op = op_in_apply
                         n_components = len(return_op.arg)
 
-        print("N COMPONENTS: ", n_components)
         copy_stencil_stream = HLSStream.get(stencil_type)
 
         one_int = Constant.from_int_and_width(1, i32)
@@ -345,7 +343,6 @@ def add_read_write_ops(
     stencil_idx = 0
     for arg_index_write in indices_stream_to_write:
         stream_to_write: BlockArgument = op.region.block.args[arg_index_write]
-        print("STREAM TO WRITE: ", type(stream_to_write.type))
         write_op = HLSStreamWrite(stencil_return_vals[stencil_idx], stream_to_write)
 
         rewriter.insert_op_at_end(write_op, op.region.block)
@@ -653,7 +650,6 @@ class ApplyOpToHLS(RewritePattern):
         self.module.body.block.add_op(get_number_chunks)
         self.module.body.block.add_op(get_chunk_size)
 
-        print("RES[0]", type(op.res[0]))
         ndims: int = typing.cast(TempType[Attribute], op.res[0].type).get_num_dims()
 
         rewriter.erase_op(return_op)
@@ -686,7 +682,6 @@ def collectComponentOperations(
     parent_op = op.owner
 
     for operand in parent_op.operands:
-        print(type(operand))
         if not isinstance(operand, BlockArgument):
             assert isinstance(operand, OpResult)
             block_index = typing.cast(

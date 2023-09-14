@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import TypeVar
-
 from xdsl.dialects.builtin import (
     Attribute,
     DenseArrayBase,
@@ -27,8 +25,6 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.traits import IsTerminator
-
-_StreamTypeElement = TypeVar("_StreamTypeElement", bound=Attribute, covariant=True)
 
 
 @irdl_op_definition
@@ -137,7 +133,9 @@ class HLSStreamRead(IRDLOperation):
     stream: Operand = operand_def(HLSStreamType)
     res: OpResult = result_def(AnyAttr())
 
-    def __init__(self, stream: SSAValue | Operation):
+    def __init__(self, stream: SSAValue):
+        assert isinstance(stream.type, HLSStreamType)
+        print("TYPE STREAM: ", type(stream.type))
         super().__init__(operands=[stream], result_types=[stream.type.element_type])
 
 
