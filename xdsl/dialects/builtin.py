@@ -7,6 +7,7 @@ from enum import Enum
 from math import prod
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     Generic,
     TypeAlias,
@@ -50,6 +51,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.irdl import ParamAttrConstraint
 from xdsl.traits import (
     IsolatedFromAbove,
     NoTerminator,
@@ -216,6 +218,28 @@ class SymbolRefAttr(ParametrizedAttribute):
         for ref in self.nested_references.data:
             root += "." + ref.data
         return root
+
+
+class EmptyArrayAttrConstraint(AttrConstraint):
+    """
+    Constrain attribute to be empty ArrayData
+    """
+
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, ArrayAttr):
+            raise VerifyException(f"expected ArrayData attribute, but got {attr}")
+        attr = cast(ArrayAttr[Attribute], attr)
+        if attr.data:
+            raise VerifyException(f"expected empty array, but got {attr}")
+
+
+FlatSymbolRefAttrConstraint = ParamAttrConstraint(
+    SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]
+)
+"""Constrain SymbolRef to be FlatSymbolRef"""
+
+FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
+"""SymbolRef constrained to Flat"""
 
 
 @irdl_attr_definition
