@@ -88,7 +88,7 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
         if name is None:
             return ""
         if not name.startswith("j"):
-            assert name in cls.abi_index_by_name()
+            assert name in cls.abi_index_by_name(), f"{name}"
         return name
 
     def print_parameter(self, printer: Printer) -> None:
@@ -433,7 +433,7 @@ class RISCVOp(Operation, ABC):
 
 
 AssemblyInstructionArg: TypeAlias = (
-    AnyIntegerAttr | LabelAttr | SSAValue | IntRegisterType | str
+    AnyIntegerAttr | LabelAttr | SSAValue | IntRegisterType | str | int
 )
 
 
@@ -3374,6 +3374,8 @@ class VFAddSOp(
 
     name = "riscv.vfadd.s"
 
+    traits = frozenset((Pure(),))
+
 
 @irdl_op_definition
 class VFMulSOp(
@@ -3387,6 +3389,8 @@ class VFMulSOp(
     """
 
     name = "riscv.vfmul.s"
+
+    traits = frozenset((Pure(),))
 
 
 # endregion
