@@ -1,17 +1,18 @@
 from typing import Annotated
+
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, UnitAttr, i32
 from xdsl.ir import Dialect, OpResult
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    Operand,
+    VarOperand,
     attr_def,
+    irdl_op_definition,
+    operand_def,
     opt_attr_def,
     result_def,
     var_operand_def,
-    operand_def,
-    Operand,
-    VarOperand,
-    irdl_op_definition,
 )
 
 
