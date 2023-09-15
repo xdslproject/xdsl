@@ -178,7 +178,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: arith.Constant, out_stream: IO[str]):
-        value = int(str(op.attributes.get("value")).split()[0])
+        value = int(str(op.value).split()[0])
         cons_type = op.result.type
         if isinstance(op.result.type, builtin.IndexType):
             cons_type = "u32"
