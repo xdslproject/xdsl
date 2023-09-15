@@ -40,6 +40,7 @@ from xdsl.dialects.test import Test
 from xdsl.dialects.vector import Vector
 from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.frontend.symref import Symref
+from xdsl.dialects.comb import Comb
 from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
@@ -74,6 +75,7 @@ def get_all_dialects() -> list[Dialect]:
         Arith,
         Builtin,
         Cf,
+        Comb,
         CMath,
         DMP,
         FIR,
