@@ -526,6 +526,7 @@ class TypeConversionPattern(RewritePattern):
             return
         new_result_types: list[Attribute] = []
         new_attributes: dict[str, Attribute] = {}
+        new_properties: dict[str, Attribute] = {}
         changed: bool = False
         for result in op.results:
             converted = self._convert_type_rec(result.type)
@@ -536,6 +537,11 @@ class TypeConversionPattern(RewritePattern):
             converted = self._convert_type_rec(attribute)
             new_attributes[name] = converted or attribute
             if converted is not None and converted != attribute:
+                changed = True
+        for name, property in op.properties.items():
+            converted = self._convert_type_rec(property)
+            new_properties[name] = converted or property
+            if converted is not None and converted != property:
                 changed = True
         for region in op.regions:
             for block in region.blocks:
@@ -548,6 +554,7 @@ class TypeConversionPattern(RewritePattern):
             new_op = type(op).create(
                 operands=op.operands,
                 result_types=new_result_types,
+                properties=new_properties,
                 attributes=new_attributes,
                 successors=op.successors,
                 regions=regions,
