@@ -155,7 +155,7 @@ def get_mlir_itoa():
             position = arith.Subi(size_minus_one, index_var_int)
             # digit = (num // (10**pos)) % 10
             ten = arith.Constant.from_int_and_width(10, i32)
-            i_0 = math.IPowIOp(operands=(ten, position), result_types=(i32,))
+            i_0 = math.IPowIOp(ten, position)
             i_1 = arith.DivUI(absolute_value, i_0)
             digit = arith.RemUI(i_1, ten)
             ascii_offset = arith.Constant.from_int_and_width(ord("0"), i32)

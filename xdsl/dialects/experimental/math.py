@@ -424,7 +424,7 @@ class Exp2Op(IRDLOperation):
     result: OpResult = result_def(AnyFloat)
 
     def __init__(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
         attributes = {"fastmath": fastmath}
 
