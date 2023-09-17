@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from xdsl.dialects.arith import signlessIntegerLike
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import IndexType, IntegerType
@@ -143,9 +144,9 @@ class If(IRDLOperation):
 class For(IRDLOperation):
     name = "scf.for"
 
-    lb: Operand = operand_def(IndexType)
-    ub: Operand = operand_def(IndexType)
-    step: Operand = operand_def(IndexType)
+    lb: Operand = operand_def(signlessIntegerLike)
+    ub: Operand = operand_def(signlessIntegerLike)
+    step: Operand = operand_def(signlessIntegerLike)
 
     iter_args: VarOperand = var_operand_def(AnyAttr())
 
@@ -191,10 +192,25 @@ class For(IRDLOperation):
                 f"variable and loop-carried variables as arguments."
             )
         if self.body.block.args and (iter_var := self.body.block.args[0]):
-            if not isinstance(iter_var.type, IndexType):
+            if not isinstance(iter_var.type, IndexType | IntegerType):
                 raise VerifyException(
-                    f"The first block argument of the body is of type {iter_var.type}"
-                    " instead of index"
+                    f"The induction variable is of type {iter_var.type}"
+                    " instead of index or signless integer"
+                )
+            if not isinstance(iter_var.type, type(self.lb.type)):
+                raise VerifyException(
+                    f"The induction variable is of type {iter_var.type}"
+                    f" and does not match lower bound of type {self.lb.type}."
+                )
+            if not isinstance(iter_var.type, type(self.ub.type)):
+                raise VerifyException(
+                    f"The induction variable is of type {iter_var.type}"
+                    f" and does not match upper bound of type {self.ub.type}."
+                )
+            if not isinstance(iter_var.type, type(self.step.type)):
+                raise VerifyException(
+                    f"The induction variable is of type {iter_var.type}"
+                    f" and does not match step of type {self.ub.type}."
                 )
         for idx, arg in enumerate(self.iter_args):
             if self.body.block.args[idx + 1].type != arg.type:
@@ -238,6 +254,10 @@ class For(IRDLOperation):
             printer.print_string(") -> (")
             printer.print_list((a.type for a in iter_args), printer.print_attribute)
             printer.print_string(") ")
+        if not isinstance(index.type, IndexType):
+            printer.print_string(": ")
+            printer.print_attribute(index.type)
+            printer.print_string(" ")
         printer.print_region(
             self.body, print_entry_block_args=False, print_empty_block=False
         )
@@ -273,8 +293,12 @@ class For(IRDLOperation):
             iter_arg_unresolved_operands, iter_arg_types, pos
         )
 
-        # Set block argument types
+        # Set induction variable type
         index.type = lb.type
+        if parser.parse_optional_characters(":"):
+            index.type = parser.parse_type()
+
+        # Set block argument types
         for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
             iter_arg.type = iter_arg_type
 
