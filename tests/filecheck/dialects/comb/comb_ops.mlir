@@ -65,5 +65,4 @@
 
   %icmp = "comb.icmp"(%lhsi1, %rhsi1) {"predicate" = 2 : index, "two_state"} : (i1, i1) -> i1
   // CHECK-NEXT: %icmp = "comb.icmp"(%lhsi1, %rhsi1) {"predicate" = 2 : index, "two_state"} : (i1, i1) -> i1
-
   }) : () -> ()

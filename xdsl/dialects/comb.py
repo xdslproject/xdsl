@@ -1,7 +1,9 @@
+from collections.abc import Sequence
 from typing import Annotated
 
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, UnitAttr, i32
-from xdsl.ir import Dialect, OpResult
+from xdsl.ir import Dialect, Operation, OpResult, SSAValue
+from xdsl.ir.core import Attribute
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
@@ -14,6 +16,8 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 
 
 class BinCombOp(IRDLOperation):
@@ -30,6 +34,37 @@ class BinCombOp(IRDLOperation):
 
     two_state: UnitAttr | None = opt_attr_def(UnitAttr)
 
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        super().__init__(operands=[operand1, operand2], result_types=[result_type])
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        rhs = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
+        return cls(lhs, rhs, result_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print(", ")
+        printer.print_ssa_value(self.rhs)
+        printer.print(" : ")
+        printer.print_attribute(self.result.type)
+
+    def __hash__(self) -> int:
+        return id(self)
+
 
 class VariadicCombOp(IRDLOperation):
     """
@@ -43,6 +78,36 @@ class VariadicCombOp(IRDLOperation):
     result: OpResult = result_def(T)
 
     two_state: UnitAttr | None = opt_attr_def(UnitAttr)
+
+    def __init__(
+        self,
+        input_list: Sequence[Operation | SSAValue],
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(input_list[0]).type
+        super().__init__(operands=input_list, result_types=[result_type])
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        inputs = parser.parse_op_args_list()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        inputs = parser.resolve_operands(
+            inputs, len(inputs) * [result_type], parser.pos
+        )
+        return cls(inputs, result_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        for item in self.inputs:
+            printer.print_ssa_value(item)
+            printer.print(", ")
+        printer.print(" : ")
+        printer.print_attribute(self.result.type)
+
+    def __hash__(self) -> int:
+        return id(self)
 
 
 @irdl_op_definition
