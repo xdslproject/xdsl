@@ -1566,10 +1566,9 @@ class AddOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             AddImmediates,
-            AdditionOfSameVariablesToMultiplyByTwo,
         )
 
-        return (AddImmediates(), AdditionOfSameVariablesToMultiplyByTwo())
+        return (AddImmediates(),)
 
 
 @irdl_op_definition
