@@ -676,13 +676,6 @@ AnyTensorType: TypeAlias = TensorType[Attribute]
 class InstanceType(ParametrizedAttribute, TypeAttribute):
     name = "fsm.instance"
 
-    sym_name = ParameterDef[StringAttr]
-    machine = ParameterDef[FlatSymbolRefAttr]
-
-    inputs = ParameterDef[ArrayAttr[Attribute]] | None
-    clock = ParameterDef[Attribute] | None
-    reset = ParameterDef[Attribute] | None
-
 
 @irdl_attr_definition
 class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):

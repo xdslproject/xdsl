@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import (
     # ParametrizedAttribute,
     FunctionType,
     IndexType,
-    # InstanceType,
+    InstanceType,
     IntegerType,
     StringAttr,
 )
@@ -26,6 +26,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_region_def,
     region_def,
+    result_def,
     var_operand_def,
     var_result_def,
 )
@@ -78,22 +79,20 @@ class HWInstance(IRDLOperation):
         )
 
     def verify_(self):
-        found = False
-        t1 = type(self.inputs)
-        for d in getattr(SymbolTable.lookup_symbol(self, self.machine), "arg_names"):
-            if t1 == type(d):
-                found = True
-                break
-        if not found:
-            raise VerifyException("Input is not consistent with machine inputs")
-        t1 = type(self.outputs)
-        found = False
-        for d in getattr(SymbolTable.lookup_symbol(self, self.machine), "res_names"):
-            if t1 == type(d):
-                found = True
-                break
-        if not found:
-            raise VerifyException("Output is not consistent with machine outputs")
+        assert isinstance(SymbolTable.lookup_symbol(self, self.machine), Machine)
+        if SymbolTable.lookup_symbol(self, self.machine) is None:
+            raise VerifyException("The machine does not exist")
+        if getattr(SymbolOpInterface(self.machine), "arg_names") is not None:
+            if isinstance(
+                self.inputs, type(getattr(SymbolOpInterface(self.machine), "arg_names"))
+            ):
+                raise VerifyException("Input is not consistent with machine inputs")
+        if getattr(SymbolOpInterface(self.machine), "res_names") is not None:
+            if isinstance(
+                self.outputs,
+                type(getattr(SymbolOpInterface(self.machine), "res_names")),
+            ):
+                raise VerifyException("Output is not consistent with machine outputs")
 
 
 @irdl_op_definition
@@ -106,8 +105,10 @@ class Instance(IRDLOperation):
     sym_name = attr_def(StringAttr)
     machine = attr_def(FlatSymbolRefAttr)
 
+    res = result_def(InstanceType)
+
     def __init__(
-        self, sym_name: str, machine: FlatSymbolRefAttr, instance: Sequence[Attribute]
+        self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType
     ):
         if isinstance(machine, str):
             machine = FlatSymbolRefAttr(machine)
@@ -120,10 +121,10 @@ class Instance(IRDLOperation):
     # also verifying that machines are consistent in instance and operator
 
     def verify_(self):
+        assert isinstance(self.res.type, InstanceType)
         assert isinstance(SymbolTable.lookup_symbol(self, self.machine), Machine)
         if SymbolTable.lookup_symbol(self, self.machine) is None:
             raise VerifyException("The machine does not exist")
-        SymbolTable.lookup_symbol(self, self.machine)
 
 
 @irdl_op_definition
@@ -179,6 +180,22 @@ class Machine(IRDLOperation):
 
         super().__init__(attributes=attributes)
 
+    def verify_(self):
+        if self.arg_attrs is not None and self.arg_names is None:
+            raise VerifyException("arg_attrs must be consistent with arg_names")
+        if self.res_attrs is not None and self.res_names is None:
+            raise VerifyException("res_attrs must be consistent with res_names")
+        if self.arg_attrs is not None and self.arg_names is not None:
+            if len(self.arg_attrs) != len(self.arg_names):
+                raise VerifyException(
+                    "The number of arg_attrs and arg_names should be the same"
+                )
+        if self.res_attrs is not None and self.res_names is not None:
+            if len(self.res_attrs) != len(self.res_names):
+                raise VerifyException(
+                    "The number of res_attrs and res_names should be the same"
+                )
+
 
 @irdl_op_definition
 class Output(IRDLOperation):
@@ -200,24 +217,24 @@ class Output(IRDLOperation):
 
     def verify_(self):
         parent = self.parent_op()
-        # res_type_machine = type(None)
+        res_type_machine = type(None)
         while HasParent(Machine):
-            # if isinstance(parent, Machine):
-            #     res_type_machine = type(parent.arg_attrs)
+            if isinstance(parent, Machine):
+                res_type_machine = type(parent.arg_attrs)
             if parent is not None:
                 parent = parent.parent_op()
             else:
                 raise VerifyException("Output must be in a machine")
-            # if res_type_machine is not type(None):
-            #     if not res_type_machine == type(self.operands):
-            #         raise VerifyException(
-            #             "Output type must be consistent with the machine"
-            #         )
+            if res_type_machine is not type(None):
+                if not isinstance(res_type_machine, type(self.operands)):
+                    raise VerifyException(
+                        "Output type must be consistent with the machine"
+                    )
 
 
 @irdl_op_definition
 class Return(IRDLOperation):
-    """arks the end of a region of `fsm.transition` and return
+    """marks the end of a region of `fsm.transition` and return
     values if the parent region is a `$guard` region"""
 
     name = "fsm.return"
@@ -341,14 +358,14 @@ class Trigger(IRDLOperation):
 
     inputs = var_operand_def(AnyAttr())
 
-    instance = operand_def()
+    instance = operand_def(InstanceType)
 
     outputs = var_result_def(AnyAttr())
 
     def __init__(
         self,
         inputs: Sequence[SSAValue | Operation],
-        instance: SSAValue | Operation,
+        instance: None,
         outputs: Sequence[Attribute],
     ):
         super().__init__(
@@ -356,21 +373,20 @@ class Trigger(IRDLOperation):
             result_types=[outputs],
         )
 
-    # def verify_(self):
-    #     if not (
-    #         type(getattr(SymbolOpInterface(self.instance), "arg_names"))
-    #         == type(self.inputs)
-    #     ):
-    #         raise VerifyException("Input is not consistent with machine inputs")
-    #     if not (
-    #         type(getattr(SymbolOpInterface(self.instance), "res_names"))
-    #         == type(self.outputs)
-    #     ):
-    #         raise VerifyException("Output is not consistent with machine outputs")
-    # assert isinstance(SymbolTable.lookup_symbol(self, self.instance), Instance)
-    # assert isinstance(SymbolTable.lookup_symbol(self, self.instance), InstanceType)
-    # if SymbolTable.lookup_symbol(self, self.instance) is None:
-    #     raise VerifyException("The instance does not exist")
+    def verify_(self):
+        if not (SymbolOpInterface(self.instance) == Instance):
+            raise VerifyException("The instance operand must be Instance")
+        if not isinstance(
+            getattr(SymbolOpInterface(self.instance), "arg_names"), type(self.inputs)
+        ):
+            raise VerifyException("Input is not consistent with machine inputs")
+        if not isinstance(
+            getattr(SymbolOpInterface(self.instance), "res_names"), type(self.outputs)
+        ):
+            raise VerifyException("Output is not consistent with machine outputs")
+        # assert isinstance(SymbolTable.lookup_symbol(self, self.instance), Instance)
+        # if SymbolTable.lookup_symbol(self, self.instance) is None:
+        #     raise VerifyException("The instance does not exist")
 
 
 @irdl_op_definition
