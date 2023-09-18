@@ -357,7 +357,6 @@ class IOperation:
         op_type: type[Operation],
         properties: immutabledict[str, Attribute],
         attributes: immutabledict[str, Attribute],
-        properties: immutabledict[str, Attribute],
         operands: Sequence[ISSAValue],
         result_types: Sequence[Attribute],
         successors: Sequence[IBlock],
@@ -397,7 +396,6 @@ class IOperation:
         result_types: Sequence[Attribute],
         properties: immutabledict[str, Attribute],
         attributes: immutabledict[str, Attribute],
-        properties: immutabledict[str, Attribute],
         successors: Sequence[IBlock],
         regions: Sequence[IRegion],
     ) -> IOperation:
@@ -497,7 +495,6 @@ class IOperation:
             result_types=[result.type for result in self.results],
             properties=dict(self.properties),
             attributes=dict(self.attributes),
-            properties=dict(self.properties),
             successors=mutable_successors,
             regions=mutable_regions,
         )
