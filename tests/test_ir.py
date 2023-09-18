@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Subi
-from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, i32, i64
+from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
 from xdsl.ir import (
@@ -740,3 +740,14 @@ def test_region_clone():
     region = Region(block_a)
     region2 = region.clone()
     assert region.is_structurally_equivalent(region2)
+
+
+def test_get_attr_or_prop():
+    a = test.TestOp.create(
+        attributes={"attr": StringAttr("attr"), "attr_and_prop": StringAttr("attr")},
+        properties={"prop": StringAttr("prop"), "attr_and_prop": StringAttr("prop")},
+    )
+    assert a.get_attr_or_prop("attr") == StringAttr("attr")
+    assert a.get_attr_or_prop("prop") == StringAttr("prop")
+    assert a.get_attr_or_prop("attr_and_prop") == StringAttr("prop")
+    assert a.get_attr_or_prop("none") is None

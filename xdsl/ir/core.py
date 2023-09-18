@@ -769,6 +769,17 @@ class Operation(IRNode):
             yield from region.walk_reverse()
         yield self
 
+    def get_attr_or_prop(self, name: str) -> Attribute | None:
+        """
+        Get a named attribute or property.
+        It first look into the property dictionary, then into the attribute dictionary.
+        """
+        if name in self.properties:
+            return self.properties[name]
+        if name in self.attributes:
+            return self.attributes[name]
+        return None
+
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
