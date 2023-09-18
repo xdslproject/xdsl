@@ -344,6 +344,7 @@ class IOperation:
     __match_args__ = ("op_type", "operands", "results", "successors", "regions")
     name: str
     op_type: type[Operation]
+    properties: immutabledict[str, Attribute]
     attributes: immutabledict[str, Attribute]
     operands: IList[ISSAValue]
     results: IList[IOpResult]
@@ -355,6 +356,7 @@ class IOperation:
         name: str,
         op_type: type[Operation],
         attributes: immutabledict[str, Attribute],
+        properties: immutabledict[str, Attribute],
         operands: Sequence[ISSAValue],
         result_types: Sequence[Attribute],
         successors: Sequence[IBlock],
@@ -363,6 +365,7 @@ class IOperation:
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "op_type", op_type)
         object.__setattr__(self, "attributes", attributes)
+        object.__setattr__(self, "properties", properties)
         object.__setattr__(self, "operands", IList(operands))
         for operand in operands:
             operand._add_user(self)  # pyright: ignore[reportPrivateUsage]
@@ -392,11 +395,19 @@ class IOperation:
         operands: Sequence[ISSAValue],
         result_types: Sequence[Attribute],
         attributes: immutabledict[str, Attribute],
+        properties: immutabledict[str, Attribute],
         successors: Sequence[IBlock],
         regions: Sequence[IRegion],
     ) -> IOperation:
         return cls(
-            name, op_type, attributes, operands, result_types, successors, regions
+            name,
+            op_type,
+            properties,
+            attributes,
+            operands,
+            result_types,
+            successors,
+            regions,
         )
 
     def __hash__(self) -> int:
@@ -482,6 +493,7 @@ class IOperation:
         new_op: Operation = self.op_type.create(
             operands=mutable_operands,
             result_types=[result.type for result in self.results],
+            properties=dict(self.properties),
             attributes=dict(self.attributes),
             successors=mutable_successors,
             regions=mutable_regions,
@@ -537,6 +549,7 @@ class IOperation:
         else:
             operands.extend(existing_operands)
 
+        properties: immutabledict[str, Attribute] = immutabledict(op.properties)
         attributes: immutabledict[str, Attribute] = immutabledict(op.attributes)
 
         successors: list[IBlock] = []
@@ -558,6 +571,7 @@ class IOperation:
             op_type,
             operands,
             [result.type for result in op.results],
+            properties,
             attributes,
             successors,
             regions,
