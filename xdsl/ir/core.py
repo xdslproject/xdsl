@@ -852,6 +852,7 @@ class Operation(IRNode):
         ]
         result_types = [res.type for res in self.results]
         attributes = self.attributes.copy()
+        properties = self.properties.copy()
         successors = [
             (block_mapper[successor] if successor in block_mapper else successor)
             for successor in self.successors
@@ -861,6 +862,7 @@ class Operation(IRNode):
             operands=operands,
             result_types=result_types,
             attributes=attributes,
+            properties=properties,
             successors=successors,
             regions=regions,
         )
@@ -963,6 +965,7 @@ class Operation(IRNode):
             or len(self.regions) != len(other.regions)
             or len(self.successors) != len(other.successors)
             or self.attributes != other.attributes
+            or self.properties != other.properties
         ):
             return False
         if (
