@@ -874,7 +874,6 @@ class Operation(IRNode):
             result_types=result_types,
             properties=properties,
             attributes=attributes,
-            properties=properties,
             successors=successors,
             regions=regions,
         )
