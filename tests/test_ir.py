@@ -5,17 +5,24 @@ from xdsl.dialects.arith import Addi, Arith, Constant, Subi
 from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, i32, i64
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
-from xdsl.ir import Block, ErasedSSAValue, MLContext, Operation, Region, SSAValue
-from xdsl.ir.core import Attribute
+from xdsl.ir import (
+    Attribute,
+    Block,
+    ErasedSSAValue,
+    MLContext,
+    Operation,
+    Region,
+    SSAValue,
+)
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
     VarRegion,
     irdl_op_definition,
     operand_def,
+    prop_def,
     var_region_def,
 )
-from xdsl.irdl.irdl import prop_def
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
