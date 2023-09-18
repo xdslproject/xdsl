@@ -13,7 +13,6 @@ from xdsl.ir import (
     Attribute,
     Block,
     MLContext,
-    Operation,
     OpResult,
     ParametrizedAttribute,
     Region,
@@ -624,7 +623,8 @@ class CustomFormatAttr(ParametrizedAttribute):
         printer.print("<", "zero" if self.attr.data == 0 else "one", ">")
 
 
-class AnyOp(Operation):
+@irdl_op_definition
+class AnyOp(IRDLOperation):
     name = "any"
 
 
