@@ -39,6 +39,7 @@ from xdsl.irdl import (
     AttrConstraint,
     GenericData,
     IRDLOperation,
+    ParamAttrConstraint,
     ParameterDef,
     VarOperand,
     VarOpResult,
@@ -51,7 +52,6 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import ParamAttrConstraint
 from xdsl.traits import (
     IsolatedFromAbove,
     NoTerminator,
@@ -222,12 +222,12 @@ class SymbolRefAttr(ParametrizedAttribute):
 
 class EmptyArrayAttrConstraint(AttrConstraint):
     """
-    Constrain attribute to be empty ArrayData
+    Constrain an attribute to be an empty ArrayAttr
     """
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, ArrayAttr):
-            raise VerifyException(f"expected ArrayData attribute, but got {attr}")
+            raise VerifyException(f"expected ArrayAttr attribute, but got {attr}")
         attr = cast(ArrayAttr[Attribute], attr)
         if attr.data:
             raise VerifyException(f"expected empty array, but got {attr}")
@@ -236,10 +236,10 @@ class EmptyArrayAttrConstraint(AttrConstraint):
 FlatSymbolRefAttrConstraint = ParamAttrConstraint(
     SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]
 )
-"""Constrain SymbolRef to be FlatSymbolRef"""
+"""Constrain a SymbolRefAttr to be flat."""
 
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
-"""SymbolRef constrained to Flat"""
+"""SymbolRef constrained to be flat"""
 
 
 @irdl_attr_definition
@@ -670,11 +670,6 @@ class TensorType(
 
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
-
-
-@irdl_attr_definition
-class InstanceType(ParametrizedAttribute, TypeAttribute):
-    name = "fsm.instance"
 
 
 @irdl_attr_definition
