@@ -12,7 +12,6 @@ from xdsl.backend.riscv.lowering import (
     convert_scf_to_riscv_scf,
     reduce_register_pressure,
 )
-from xdsl.dialects import frep
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin, ModuleOp
@@ -82,7 +81,6 @@ def get_all_dialects() -> list[Dialect]:
         CMath,
         DMP,
         FIR,
-        frep.FRep,
         Func,
         GPU,
         HLS,

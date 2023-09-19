@@ -3,10 +3,10 @@
 %i0 = riscv.get_register : () -> !riscv.reg<a0>
 %ft0 = riscv.get_float_register : () -> !riscv.freg<ft0>
 %ft1 = riscv.get_float_register : () -> !riscv.freg<ft1>
-frep.outer %i0, 0, 0 ({
+riscv.frep_outer %i0, 0, 0 ({
     %ft2 = riscv.vfadd.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
 }) : (!riscv.reg<a0>) -> ()
-frep.inner %i0, 0, 0 ({
+riscv.frep_inner %i0, 0, 0 ({
     %ft2 = riscv.vfadd.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
 }) : (!riscv.reg<a0>) -> ()
 

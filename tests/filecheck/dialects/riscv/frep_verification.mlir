@@ -2,7 +2,7 @@
 
 %i0 = "test.op"() : () -> !riscv.reg<a0>
 %ft0, %ft1 = "test.op"() : () -> (!riscv.freg<ft0>, !riscv.freg<ft1>)
-frep.outer %i0, 1, 0 ({
+riscv.frep_outer %i0, 1, 0 ({
 }) : (!riscv.reg<a0>) -> ()
 
 // CHECK: expected a single block, but got 0 blocks
@@ -11,7 +11,7 @@ frep.outer %i0, 1, 0 ({
 
 %i0 = "test.op"() : () -> !riscv.reg<a0>
 %ft0, %ft1 = "test.op"() : () -> (!riscv.freg<ft0>, !riscv.freg<ft1>)
-frep.outer %i0, 1, 0 ({
+riscv.frep_outer %i0, 1, 0 ({
 ^bb0:
 }) : (!riscv.reg<a0>) -> ()
 
@@ -21,7 +21,7 @@ frep.outer %i0, 1, 0 ({
 
 %i0 = "test.op"() : () -> !riscv.reg<a0>
 %ft0, %ft1 = "test.op"() : () -> (!riscv.freg<ft0>, !riscv.freg<ft1>)
-frep.outer %i0, 0, 1 ({
+riscv.frep_outer %i0, 0, 1 ({
 ^bb0:
 }) : (!riscv.reg<a0>) -> ()
 
@@ -31,7 +31,7 @@ frep.outer %i0, 0, 1 ({
 
 %i0 = "test.op"() : () -> !riscv.reg<a0>
 %ft0, %ft1 = "test.op"() : () -> (!riscv.freg<ft0>, !riscv.freg<ft1>)
-frep.outer %i0, 0, 0 ({
+riscv.frep_outer %i0, 0, 0 ({
     riscv.sw %i0, %i0, 0 : (!riscv.reg<a0>, !riscv.reg<a0>) -> ()
 }) : (!riscv.reg<a0>) -> ()
 
