@@ -1586,7 +1586,12 @@ class AddOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.add"
 
-    traits = frozenset((AddOpHasCanonicalizationPatternsTrait(),))
+    traits = frozenset(
+        (
+            Pure(),
+            AddOpHasCanonicalizationPatternsTrait(),
+        )
+    )
 
 
 @irdl_op_definition
@@ -3125,6 +3130,8 @@ class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
     """
 
     name = "riscv.fadd.s"
+
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
