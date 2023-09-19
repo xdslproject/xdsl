@@ -580,7 +580,9 @@ class FmaOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         return super().__init__(
-            attributes=attributes, operands=[a, b, c], result_types=[SSAValue.get(a).type]
+            attributes=attributes,
+            operands=[a, b, c],
+            result_types=[SSAValue.get(a).type],
         )
 
 
