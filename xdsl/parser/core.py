@@ -18,6 +18,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
+from xdsl.irdl.irdl import IRDLOperation
 from xdsl.parser.attribute_parser import AttrParser
 from xdsl.parser.base_parser import ParserState, Position
 from xdsl.utils.exceptions import MultipleSpansParseError
@@ -895,6 +896,13 @@ class Parser(AttrParser):
         self._parse_optional_location()
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
+
+        # Properties retrocompatibility : if no properties dictionary was present at all,
+        # We extract them from the attribute dictionary by name.
+        if issubclass(op_type, IRDLOperation) and not properties:
+            for property_name in op_type.irdl_definition.properties.keys():
+                if property_name in attrs:
+                    properties[property_name] = attrs.pop(property_name)
 
         return op_type.create(
             operands=operands,

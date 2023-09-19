@@ -368,7 +368,6 @@ def irdl_to_attr_constraint(
         args = get_args(irdl)
         if len(args) != 1:
             raise Exception(f"GenericData args must have length 1, got {args}")
-        args = cast(tuple[Any], args)
         return AllOf([BaseAttr(origin), origin.generic_constraint_coercion(args)])
 
     # Generic ParametrizedAttributes case
@@ -549,10 +548,27 @@ class IRDLOption(ABC):
 
 
 @dataclass
-class AttrSizedOperandSegments(IRDLOption):
+class AttrSizedSegments(IRDLOption):
     """
-    Expect an attribute on the op that contains
-    the sizes of the variadic operands.
+    Expect an attribute on the operation that contains the segment sizes of the
+    operand, result, region, or successor lists.
+    For instance, the list `[a, b, c, d]` with segment sizes `[1, 3]` will result
+    in the `[a], [b, c, d]` lists.
+    The attribute must be a dense array of `i32`, its lenght must be equal to the
+    number of segments (e.g. the number of operand definitions), and its sum must
+    be equal to the number of elements in the list (e.g. the number of operands).
+    """
+
+    attribute_name: ClassVar[str]
+    """Name of the attribute containing the segment sizes."""
+
+
+@dataclass
+class AttrSizedOperandSegments(AttrSizedSegments):
+    """
+    Expect an attribute on the operation that contains the sizes of the operand
+    definitions.
+    See `AttrSizedSegments` for more information.
     """
 
     attribute_name = "operand_segment_sizes"
@@ -560,10 +576,11 @@ class AttrSizedOperandSegments(IRDLOption):
 
 
 @dataclass
-class AttrSizedResultSegments(IRDLOption):
+class AttrSizedResultSegments(AttrSizedSegments):
     """
-    Expect an attribute on the operation that contains
-    the sizes of the variadic results.
+    Expect an attribute on the operation that contains the sizes of the result
+    definitions.
+    See `AttrSizedSegments` for more information.
     """
 
     attribute_name = "result_segment_sizes"
@@ -571,10 +588,11 @@ class AttrSizedResultSegments(IRDLOption):
 
 
 @dataclass
-class AttrSizedRegionSegments(IRDLOption):
+class AttrSizedRegionSegments(AttrSizedSegments):
     """
-    Expect an attribute on the op that contains
-    the sizes of the variadic regions.
+    Expect an attribute on the operation that contains the sizes of the region
+    definitions.
+    See `AttrSizedSegments` for more information.
     """
 
     attribute_name = "region_segment_sizes"
@@ -582,10 +600,11 @@ class AttrSizedRegionSegments(IRDLOption):
 
 
 @dataclass
-class AttrSizedSuccessorSegments(IRDLOption):
+class AttrSizedSuccessorSegments(AttrSizedSegments):
     """
-    Expect an attribute on the op that contains
-    the sizes of the variadic successors.
+    Expect an attribute on the operation that contains the sizes of the successor
+    definitions.
+    See `AttrSizedSegments` for more information.
     """
 
     attribute_name = "successor_segment_sizes"
@@ -1139,9 +1158,23 @@ class OpDef:
                 # in Operation, or are class functions or methods.
 
                 if field_name == "irdl_options":
-                    if not isinstance(value, list):
-                        assert False
-                    op_def.options.extend(cast(list[Any], value))
+                    value = cast(list[IRDLOption], value)
+                    op_def.options.extend(value)
+                    for option in value:
+                        if isinstance(option, AttrSizedSegments):
+                            if option.attribute_name in op_def.attributes:
+                                raise PyRDLOpDefinitionError(
+                                    f"pyrdl operation definition '{pyrdl_def.__name__}' "
+                                    f"has a '{option.attribute_name}' attribute, which "
+                                    "is incompatible with the "
+                                    f"{option.__class__.__name__} option."
+                                )
+                            from xdsl.dialects.builtin import DenseArrayBase
+
+                            attr_def = AttributeDef(
+                                attr_constr_coercion(DenseArrayBase)
+                            )
+                            op_def.attributes[option.attribute_name] = attr_def
                     continue
 
                 if field_name == "traits":

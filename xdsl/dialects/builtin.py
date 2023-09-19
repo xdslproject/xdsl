@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -52,6 +52,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.irdl import ParamAttrConstraint
 from xdsl.traits import (
     IsolatedFromAbove,
     NoTerminator,
@@ -240,6 +241,8 @@ FlatSymbolRefAttrConstraint = ParamAttrConstraint(
 
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
 """SymbolRef constrained to be flat"""
+
+
 
 
 @irdl_attr_definition
@@ -1168,7 +1171,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
         printer.print_op_attributes(self.attributes)
 
 
-class UnregisteredOp(IRDLOperation, ABC):
+class UnregisteredOp(Operation, ABC):
     """
     An unregistered operation.
 

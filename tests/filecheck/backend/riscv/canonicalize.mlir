@@ -22,6 +22,12 @@ builtin.module {
   %multiply_immediates = riscv.mul %2, %3 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
 
+  %multiply_immediate_r0 = riscv.mul %0, %i1 : (!riscv.reg<>, !riscv.reg<a1>) -> !riscv.reg<a0>
+  "test.op"(%multiply_immediate_r0) : (!riscv.reg<a0>) -> ()
+
+  %multiply_immediate_l0 = riscv.mul %i1, %0 : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<a0>
+  "test.op"(%multiply_immediate_l0) : (!riscv.reg<a0>) -> ()
+
   %add_lhs_immediate = riscv.add %2, %i2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%add_lhs_immediate) : (!riscv.reg<a0>) -> ()
 
@@ -65,6 +71,9 @@ builtin.module {
 
   %store_float_ptr = riscv.addi %i2, 8 : (!riscv.reg<>) -> !riscv.reg<>
   riscv.fsw %store_float_ptr, %f2, 4 : (!riscv.reg<>, !riscv.freg<>) -> ()
+
+  %add_lhs_rhs = riscv.add %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
+  "test.op"(%add_lhs_rhs) : (!riscv.reg<a0>) -> ()
 }
 
 // CHECK: builtin.module {
@@ -83,6 +92,12 @@ builtin.module {
 
 // CHECK-NEXT:   %multiply_immediates = riscv.li 6 : () -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %multiply_immediate_r0 = riscv.mv %0 : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%multiply_immediate_r0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %multiply_immediate_l0 = riscv.mv %0 : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%multiply_immediate_l0) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %add_lhs_immediate = riscv.addi %i2, 2 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_lhs_immediate) : (!riscv.reg<a0>) -> ()
@@ -125,5 +140,10 @@ builtin.module {
 // CHECK-NEXT:   "test.op"(%load_float_known_offset) : (!riscv.freg<fa0>) -> ()
 
 // CHECK-NEXT:   riscv.fsw %i2, %f2, 12 : (!riscv.reg<>, !riscv.freg<>) -> ()
+
+// CHECK-NEXT:   %add_lhs_rhs = riscv.li 2 : () -> !riscv.reg<>
+// CHECK-NEXT:   %add_lhs_rhs_1 = riscv.mul %i1, %add_lhs_rhs : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%add_lhs_rhs_1) : (!riscv.reg<a0>) -> ()
+
 
 // CHECK-NEXT: }

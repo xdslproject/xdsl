@@ -4,7 +4,14 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from xdsl.dialects.builtin import IndexType, IntAttr, IntegerType, StringAttr, i32
+from xdsl.dialects.builtin import (
+    DenseArrayBase,
+    IndexType,
+    IntAttr,
+    IntegerType,
+    StringAttr,
+    i32,
+)
 from xdsl.dialects.test import TestType
 from xdsl.ir import Attribute, OpResult, Region
 from xdsl.irdl import (
@@ -42,6 +49,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
+from xdsl.irdl.irdl import BaseAttr
 from xdsl.utils.exceptions import (
     DiagnosticException,
     PyRDLOpDefinitionError,
@@ -57,6 +65,8 @@ from xdsl.utils.test_value import TestSSAValue
 @irdl_op_definition
 class OpDefTestOp(IRDLOperation):
     name = "test.op_def_test"
+
+    irdl_options = [AttrSizedOperandSegments()]
 
     operand: Operand = operand_def()
     result: OpResult = result_def()
@@ -75,10 +85,14 @@ def test_get_definition():
         "test.op_def_test",
         operands=[("operand", OperandDef(AnyAttr()))],
         results=[("result", ResultDef(AnyAttr()))],
-        attributes={"attr": AttributeDef(AnyAttr())},
+        attributes={
+            "attr": AttributeDef(AnyAttr()),
+            "operand_segment_sizes": AttributeDef(BaseAttr(DenseArrayBase)),
+        },
         properties={"prop": PropertyDef(AnyAttr())},
         regions=[("region", RegionDef())],
         accessor_names={"attr": ("attr", "attribute"), "prop": ("prop", "property")},
+        options=[AttrSizedOperandSegments()],
     )
 
 

@@ -34,12 +34,12 @@ builtin.module {
 // CHECK-NEXT:   ^0(%13 : index):
 // CHECK-NEXT:     scf.for %14 = %5 to %9 step %11 {
 // CHECK-NEXT:       %15 = arith.addi %13, %10 : index
-// CHECK-NEXT:       %16 = "arith.cmpi"(%15, %8) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:       %17 = "arith.select"(%16, %15, %8) : (i1, index, index) -> index
+// CHECK-NEXT:       %16 = arith.cmpi ult, %15, %8 : index
+// CHECK-NEXT:       %17 = arith.select %16, %15, %8 : index
 // CHECK-NEXT:       scf.for %18 = %13 to %17 step %7 {
 // CHECK-NEXT:         %19 = arith.addi %14, %11 : index
-// CHECK-NEXT:         %20 = "arith.cmpi"(%19, %9) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:         %21 = "arith.select"(%20, %19, %9) : (i1, index, index) -> index
+// CHECK-NEXT:         %20 = arith.cmpi ult, %19, %9 : index
+// CHECK-NEXT:         %21 = arith.select %20, %19, %9 : index
 // CHECK-NEXT:         scf.for %22 = %14 to %21 step %7 {
 // CHECK-NEXT:           scf.for %23 = %6 to %12 step %7 {
 // CHECK-NEXT:             %24 = arith.constant 1.000000e+00 : f64
@@ -94,12 +94,12 @@ builtin.module {
 // CHECK-NEXT:     ^1(%33 : index):
 // CHECK-NEXT:       scf.for %34 = %27 to %32 step %31 {
 // CHECK-NEXT:         %35 = arith.addi %33, %30 : index
-// CHECK-NEXT:         %36 = "arith.cmpi"(%35, %29) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:         %37 = "arith.select"(%36, %35, %29) : (i1, index, index) -> index
+// CHECK-NEXT:         %36 = arith.cmpi ult, %35, %29 : index
+// CHECK-NEXT:         %37 = arith.select %36, %35, %29 : index
 // CHECK-NEXT:         scf.for %38 = %33 to %37 step %28 {
 // CHECK-NEXT:           %39 = arith.addi %34, %31 : index
-// CHECK-NEXT:           %40 = "arith.cmpi"(%39, %32) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:           %41 = "arith.select"(%40, %39, %32) : (i1, index, index) -> index
+// CHECK-NEXT:           %40 = arith.cmpi ult, %39, %32 : index
+// CHECK-NEXT:           %41 = arith.select %40, %39, %32 : index
 // CHECK-NEXT:           scf.for %42 = %34 to %41 step %28 {
 // CHECK-NEXT:             %i = memref.load %fim1_loadview[%38, %42] : memref<2000x2000xf32, strided<[2004, 1], offset: 4010>>
 // CHECK-NEXT:             memref.store %i, %fi_storeview[%38, %42] : memref<2000x2000xf32, strided<[2004, 1], offset: 4010>>
@@ -141,8 +141,8 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%46, %49, %48) ({
 // CHECK-NEXT:   ^2(%50 : index):
 // CHECK-NEXT:     %51 = arith.addi %50, %48 : index
-// CHECK-NEXT:     %52 = "arith.cmpi"(%51, %49) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:     %53 = "arith.select"(%52, %51, %49) : (i1, index, index) -> index
+// CHECK-NEXT:     %52 = arith.cmpi ult, %51, %49 : index
+// CHECK-NEXT:     %53 = arith.select %52, %51, %49 : index
 // CHECK-NEXT:     scf.for %54 = %50 to %53 step %47 {
 // CHECK-NEXT:       %55 = arith.constant -1 : index
 // CHECK-NEXT:       %56 = arith.addi %54, %55 : index
@@ -180,12 +180,12 @@ builtin.module {
   // CHECK-NEXT:   ^3(%68 : index):
   // CHECK-NEXT:     scf.for %69 = %62 to %67 step %66 {
   // CHECK-NEXT:       %70 = arith.addi %68, %65 : index
-  // CHECK-NEXT:       %71 = "arith.cmpi"(%70, %64) {"predicate" = 6 : i64} : (index, index) -> i1
-  // CHECK-NEXT:       %72 = "arith.select"(%71, %70, %64) : (i1, index, index) -> index
+  // CHECK-NEXT:       %71 = arith.cmpi ult, %70, %64 : index
+  // CHECK-NEXT:       %72 = arith.select %71, %70, %64 : index
   // CHECK-NEXT:       scf.for %73 = %68 to %72 step %63 {
   // CHECK-NEXT:         %74 = arith.addi %69, %66 : index
-  // CHECK-NEXT:         %75 = "arith.cmpi"(%74, %67) {"predicate" = 6 : i64} : (index, index) -> i1
-  // CHECK-NEXT:         %76 = "arith.select"(%75, %74, %67) : (i1, index, index) -> index
+  // CHECK-NEXT:         %75 = arith.cmpi ult, %74, %67 : index
+  // CHECK-NEXT:         %76 = arith.select %75, %74, %67 : index
   // CHECK-NEXT:         scf.for %77 = %69 to %76 step %63 {
   // CHECK-NEXT:           %78 = arith.constant -1 : index
   // CHECK-NEXT:           %79 = arith.addi %73, %78 : index
@@ -229,12 +229,12 @@ builtin.module {
 // CHECK-NEXT:   ^4(%93 : index):
 // CHECK-NEXT:     scf.for %94 = %85 to %89 step %91 {
 // CHECK-NEXT:       %95 = arith.addi %93, %90 : index
-// CHECK-NEXT:       %96 = "arith.cmpi"(%95, %88) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:       %97 = "arith.select"(%96, %95, %88) : (i1, index, index) -> index
+// CHECK-NEXT:       %96 = arith.cmpi ult, %95, %88 : index
+// CHECK-NEXT:       %97 = arith.select %96, %95, %88 : index
 // CHECK-NEXT:       scf.for %98 = %93 to %97 step %87 {
 // CHECK-NEXT:         %99 = arith.addi %94, %91 : index
-// CHECK-NEXT:         %100 = "arith.cmpi"(%99, %89) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:         %101 = "arith.select"(%100, %99, %89) : (i1, index, index) -> index
+// CHECK-NEXT:         %100 = arith.cmpi ult, %99, %89 : index
+// CHECK-NEXT:         %101 = arith.select %100, %99, %89 : index
 // CHECK-NEXT:         scf.for %102 = %94 to %101 step %87 {
 // CHECK-NEXT:           scf.for %103 = %86 to %92 step %87 {
 // CHECK-NEXT:             %104 = arith.constant -1 : index
@@ -312,12 +312,12 @@ builtin.module {
 // CHECK-NEXT:   ^5(%128 : index):
 // CHECK-NEXT:     scf.for %129 = %120 to %124 step %126 {
 // CHECK-NEXT:       %130 = arith.addi %128, %125 : index
-// CHECK-NEXT:       %131 = "arith.cmpi"(%130, %123) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:       %132 = "arith.select"(%131, %130, %123) : (i1, index, index) -> index
+// CHECK-NEXT:       %131 = arith.cmpi ult, %130, %123 : index
+// CHECK-NEXT:       %132 = arith.select %131, %130, %123 : index
 // CHECK-NEXT:       scf.for %133 = %128 to %132 step %122 {
 // CHECK-NEXT:         %134 = arith.addi %129, %126 : index
-// CHECK-NEXT:         %135 = "arith.cmpi"(%134, %124) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:         %136 = "arith.select"(%135, %134, %124) : (i1, index, index) -> index
+// CHECK-NEXT:         %135 = arith.cmpi ult, %134, %124 : index
+// CHECK-NEXT:         %136 = arith.select %135, %134, %124 : index
 // CHECK-NEXT:         scf.for %137 = %129 to %136 step %122 {
 // CHECK-NEXT:           scf.for %138 = %121 to %127 step %122 {
 // CHECK-NEXT:             %139 = arith.constant -1 : index
@@ -388,8 +388,8 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%157, %160, %159) ({
 // CHECK-NEXT:   ^6(%161 : index):
 // CHECK-NEXT:     %162 = arith.addi %161, %159 : index
-// CHECK-NEXT:     %163 = "arith.cmpi"(%162, %160) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:     %164 = "arith.select"(%163, %162, %160) : (i1, index, index) -> index
+// CHECK-NEXT:     %163 = arith.cmpi ult, %162, %160 : index
+// CHECK-NEXT:     %164 = arith.select %163, %162, %160 : index
 // CHECK-NEXT:     scf.for %165 = %161 to %164 step %158 {
 // CHECK-NEXT:       %val = memref.load %in_loadview[%165] : memref<32xf64, strided<[1], offset: 32>>
 // CHECK-NEXT:       memref.store %val, %out_storeview[%165] : memref<32xf64, strided<[1], offset: 32>>
@@ -429,8 +429,8 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%172, %175, %174) ({
 // CHECK-NEXT:   ^7(%176 : index):
 // CHECK-NEXT:     %177 = arith.addi %176, %174 : index
-// CHECK-NEXT:     %178 = "arith.cmpi"(%177, %175) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:     %179 = "arith.select"(%178, %177, %175) : (i1, index, index) -> index
+// CHECK-NEXT:     %178 = arith.cmpi ult, %177, %175 : index
+// CHECK-NEXT:     %179 = arith.select %178, %177, %175 : index
 // CHECK-NEXT:     scf.for %180 = %176 to %179 step %173 {
 // CHECK-NEXT:       %181 = arith.constant -1 : index
 // CHECK-NEXT:       %182 = arith.addi %180, %181 : index
@@ -447,8 +447,8 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%184, %187, %186) ({
 // CHECK-NEXT:   ^8(%188 : index):
 // CHECK-NEXT:     %189 = arith.addi %188, %186 : index
-// CHECK-NEXT:     %190 = "arith.cmpi"(%189, %187) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:     %191 = "arith.select"(%190, %189, %187) : (i1, index, index) -> index
+// CHECK-NEXT:     %190 = arith.cmpi ult, %189, %187 : index
+// CHECK-NEXT:     %191 = arith.select %190, %189, %187 : index
 // CHECK-NEXT:     scf.for %192 = %188 to %191 step %185 {
 // CHECK-NEXT:       %193 = arith.constant 1 : index
 // CHECK-NEXT:       %194 = arith.addi %192, %193 : index
@@ -490,8 +490,8 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%202, %205, %204) ({
 // CHECK-NEXT:   ^9(%206 : index):
 // CHECK-NEXT:     %207 = arith.addi %206, %204 : index
-// CHECK-NEXT:     %208 = "arith.cmpi"(%207, %205) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:     %209 = "arith.select"(%208, %207, %205) : (i1, index, index) -> index
+// CHECK-NEXT:     %208 = arith.cmpi ult, %207, %205 : index
+// CHECK-NEXT:     %209 = arith.select %208, %207, %205 : index
 // CHECK-NEXT:     scf.for %210 = %206 to %209 step %203 {
 // CHECK-NEXT:       %211 = arith.constant -1 : index
 // CHECK-NEXT:       %212 = arith.addi %210, %211 : index
@@ -508,8 +508,8 @@ builtin.module {
 // CHECK-NEXT:   "scf.parallel"(%214, %217, %216) ({
 // CHECK-NEXT:   ^10(%218 : index):
 // CHECK-NEXT:     %219 = arith.addi %218, %216 : index
-// CHECK-NEXT:     %220 = "arith.cmpi"(%219, %217) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:     %221 = "arith.select"(%220, %219, %217) : (i1, index, index) -> index
+// CHECK-NEXT:     %220 = arith.cmpi ult, %219, %217 : index
+// CHECK-NEXT:     %221 = arith.select %220, %219, %217 : index
 // CHECK-NEXT:     scf.for %222 = %218 to %221 step %215 {
 // CHECK-NEXT:       %223 = arith.constant 1 : index
 // CHECK-NEXT:       %224 = arith.addi %222, %223 : index
@@ -574,12 +574,12 @@ builtin.module {
 // CHECK-NEXT:     ^11(%241 : index):
 // CHECK-NEXT:       scf.for %242 = %235 to %240 step %239 {
 // CHECK-NEXT:         %243 = arith.addi %241, %238 : index
-// CHECK-NEXT:         %244 = "arith.cmpi"(%243, %237) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:         %245 = "arith.select"(%244, %243, %237) : (i1, index, index) -> index
+// CHECK-NEXT:         %244 = arith.cmpi ult, %243, %237 : index
+// CHECK-NEXT:         %245 = arith.select %244, %243, %237 : index
 // CHECK-NEXT:         scf.for %246 = %241 to %245 step %236 {
 // CHECK-NEXT:           %247 = arith.addi %242, %239 : index
-// CHECK-NEXT:           %248 = "arith.cmpi"(%247, %240) {"predicate" = 6 : i64} : (index, index) -> i1
-// CHECK-NEXT:           %249 = "arith.select"(%248, %247, %240) : (i1, index, index) -> index
+// CHECK-NEXT:           %248 = arith.cmpi ult, %247, %240 : index
+// CHECK-NEXT:           %249 = arith.select %248, %247, %240 : index
 // CHECK-NEXT:           scf.for %250 = %242 to %249 step %236 {
 // CHECK-NEXT:             %251 = memref.load %t0_loadview[%246, %250] : memref<11x11xf32, strided<[15, 1], offset: 32>>
 // CHECK-NEXT:             memref.store %251, %t1_storeview[%246, %250] : memref<11x11xf32, strided<[15, 1], offset: 32>>

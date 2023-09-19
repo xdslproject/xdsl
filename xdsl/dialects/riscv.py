@@ -1564,9 +1564,12 @@ class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 class AddOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import AddImmediates
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            AddImmediates,
+            AdditionOfSameVariablesToMultiplyByTwo,
+        )
 
-        return (AddImmediates(),)
+        return (AddImmediates(), AdditionOfSameVariablesToMultiplyByTwo())
 
 
 @irdl_op_definition
@@ -2190,9 +2193,12 @@ class CsrrciOp(CsrBitwiseImmOperation):
 class MulOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import MultiplyImmediates
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            MultiplyImmediates,
+            MultiplyImmediateZero,
+        )
 
-        return (MultiplyImmediates(),)
+        return (MultiplyImmediates(), MultiplyImmediateZero())
 
 
 @irdl_op_definition
@@ -2687,6 +2693,22 @@ class ScfgwOp(RsRsIntegerOperation):
     """
 
     name = "riscv.scfgw"
+
+
+@irdl_op_definition
+class ScfgwiOp(RdRsImmIntegerOperation):
+    """
+    Write the immediate value to the Snitch stream configuration location pointed by rs
+    in the memory-mapped address space.
+
+    This is part of the `Xssr' extension (https://pulp-platform.github.io/snitch/rm/custom_instructions/), an extension of the RISC-V ISA.
+    """
+
+    name = "riscv.scfgwi"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        # rd is always zero, so we omit it when printing assembly
+        return self.rs1, self.immediate
 
 
 # endregion
@@ -3279,6 +3301,96 @@ class FSwOp(RsRsImmFloatOperation):
 
 # endregion
 
+# region RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
+
+
+@irdl_op_definition
+class FLdOp(RdRsImmFloatOperation):
+    """
+    Load a double-precision value from memory into floating-point register rd.
+
+    f[rd] = M[x[rs1] + sext(offset)][63:0]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fld
+    """
+
+    name = "riscv.fld"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rd)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
+
+
+@irdl_op_definition
+class FSdOp(RsRsImmFloatOperation):
+    """
+    Store a double-precision value from floating-point register rs2 to memory.
+
+    M[x[rs1] + offset] = f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw
+    """
+
+    name = "riscv.fsd"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rs2)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
+
+
+# endregion
+
+# region 17 "V" Standard Extension for Vector Operations
+
+# https://riscv.org/wp-content/uploads/2018/05/15.20-15.55-18.05.06.VEXT-bcn-v1.pdf
+
+# Vector operations that use standard RISC-V registers are using a non-standard Xfvec
+# extension.
+# All Xfvec instructions performing vectorial single precision operations require 64bit
+# floating point registers (a.k.a.: FLEN==64).
+# https://iis-git.ee.ethz.ch/smach/smallFloat-spec/-/raw/master/smallFloat_isa.pdf
+
+
+@irdl_op_definition
+class VFAddSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Perform a pointwise single-precision floating-point addition over vectors.
+
+    If the registers used are FloatRegisterType, they must be 64-bit wide, and contain two
+    32-bit single-precision floating point values.
+    """
+
+    name = "riscv.vfadd.s"
+
+
+@irdl_op_definition
+class VFMulSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Perform a pointwise single-precision floating-point multiplication over vectors.
+
+    If the registers used are FloatRegisterType, they must be 64-bit wide, and contain two
+    32-bit single-precision floating point values.
+    """
+
+    name = "riscv.vfmul.s"
+
+
+# endregion
+
 
 def _parse_optional_immediate_value(
     parser: Parser, integer_type: IntegerType | IndexType
@@ -3378,6 +3490,7 @@ RISCV = Dialect(
         GetRegisterOp,
         GetFloatRegisterOp,
         ScfgwOp,
+        ScfgwiOp,
         # Floating point
         FMVOp,
         FMAddSOp,
@@ -3406,6 +3519,10 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FLdOp,
+        FSdOp,
+        VFAddSOp,
+        VFMulSOp,
     ],
     [
         IntRegisterType,
