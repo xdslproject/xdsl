@@ -9,16 +9,24 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttr,
     FunctionType,
     IndexType,
-    InstanceType,
     IntegerType,
     StringAttr,
 )
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
     IRDLOperation,
     attr_def,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -39,6 +47,11 @@ from xdsl.traits import (
 from xdsl.utils.exceptions import VerifyException
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
+
+
+@irdl_attr_definition
+class InstanceType(ParametrizedAttribute, TypeAttribute):
+    name = "fsm.instance"
 
 
 @irdl_op_definition
