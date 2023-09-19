@@ -37,6 +37,14 @@ class Pure(OpTrait):
     """A trait that signals that an operation has no side effects."""
 
 
+class ConstantLike(OpTrait):
+    """
+    Operation known to be constant-like.
+
+    https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html
+    """
+
+
 @dataclass(frozen=True)
 class HasParent(OpTrait):
     """Constraint the operation to have a specific parent operation."""
