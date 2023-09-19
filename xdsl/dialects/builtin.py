@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -220,6 +220,25 @@ class SymbolRefAttr(ParametrizedAttribute):
         return root
 
 
+@dataclass
+class CustomErrorMessageAttrConstraint(AttrConstraint):
+    """Emit a different error message if a verification exception was caught."""
+
+    constraint: AttrConstraint
+    new_message: str | Callable[[Attribute], str]
+
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        try:
+            self.constraint.verify(attr, constraint_vars)
+        except VerifyException as e:
+            new_message = (
+                self.new_message
+                if isinstance(self.new_message, str)
+                else self.new_message(attr)
+            )
+            raise VerifyException(new_message) from e
+
+
 class EmptyArrayAttrConstraint(AttrConstraint):
     """
     Constrain attribute to be empty ArrayData
@@ -233,13 +252,14 @@ class EmptyArrayAttrConstraint(AttrConstraint):
             raise VerifyException(f"expected empty array, but got {attr}")
 
 
-FlatSymbolRefAttrConstraint = ParamAttrConstraint(
-    SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]
+FlatSymbolRefAttrConstraint = CustomErrorMessageAttrConstraint(
+    ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
+    "Unexpected nested symbols in FlatSymbolRefAttr.",
 )
 """Constrain SymbolRef to be FlatSymbolRef"""
 
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
-"""SymbolRef constrained to Flat"""
+"""SymbolRef constrained to have an empty `nested_references` property."""
 
 
 @irdl_attr_definition
