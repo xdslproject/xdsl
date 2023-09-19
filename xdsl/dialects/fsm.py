@@ -21,6 +21,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
+from xdsl.ir.core import Dialect
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -31,7 +32,6 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_operand_def,
-    opt_region_def,
     region_def,
     result_def,
     var_operand_def,
@@ -42,7 +42,6 @@ from xdsl.traits import (
     IsTerminator,
     NoTerminator,
     SymbolOpInterface,
-    SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -95,20 +94,20 @@ class HWInstance(IRDLOperation):
             attributes=attributes,
         )
 
-    def verify_(self):
-        if SymbolTable.lookup_symbol(self, self.machine) is None:
-            raise VerifyException("The machine does not exist")
-        if getattr(SymbolOpInterface(self.machine), "arg_names") is not None:
-            if isinstance(
-                self.inputs, type(getattr(SymbolOpInterface(self.machine), "arg_names"))
-            ):
-                raise VerifyException("Input is not consistent with machine inputs")
-        if getattr(SymbolOpInterface(self.machine), "res_names") is not None:
-            if isinstance(
-                self.outputs,
-                type(getattr(SymbolOpInterface(self.machine), "res_names")),
-            ):
-                raise VerifyException("Output is not consistent with machine outputs")
+    # def verify_(self):
+    #     if SymbolTable.lookup_symbol(self, self.machine) is None:
+    #         raise VerifyException("The machine does not exist")
+    #     if getattr(SymbolOpInterface(self.machine), "arg_names") is not None:
+    #         if isinstance(
+    #             self.inputs, type(getattr(SymbolOpInterface(self.machine), "arg_names"))
+    #         ):
+    #             raise VerifyException("Input is not consistent with machine inputs")
+    #     if getattr(SymbolOpInterface(self.machine), "res_names") is not None:
+    #         if isinstance(
+    #             self.outputs,
+    #             type(getattr(SymbolOpInterface(self.machine), "res_names")),
+    #         ):
+    #             raise VerifyException("Output is not consistent with machine outputs")
 
 
 @irdl_op_definition
@@ -133,10 +132,10 @@ class Instance(IRDLOperation):
         attributes["machine"] = machine
         super().__init__(result_types=[instance], attributes=attributes)
 
-    def verify_(self):
-        assert isinstance(self.res.type, InstanceType)
-        if SymbolTable.lookup_symbol(self, self.machine) is None:
-            raise VerifyException("The machine does not exist")
+    # def verify_(self):
+    #     assert isinstance(self.res.type, InstanceType)
+    #     if SymbolTable.lookup_symbol(self, self.machine) is None:
+    #         raise VerifyException("The machine does not exist")
 
 
 @irdl_op_definition
@@ -157,6 +156,8 @@ class Machine(IRDLOperation):
     arg_names = opt_attr_def(ArrayAttr[StringAttr])
     res_names = opt_attr_def(ArrayAttr[StringAttr])
 
+    traits = frozenset([NoTerminator()])
+
     def __init__(
         self,
         sym_name: str,
@@ -168,25 +169,17 @@ class Machine(IRDLOperation):
         res_names: ArrayAttr[StringAttr] | None,
         body: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
-        attributes: dict[str, Attribute] = {}
+        attributes: dict[str, Attribute | None] = {}
         attributes["sym_name"] = StringAttr(sym_name)
         attributes["initialState"] = StringAttr(initial_state)
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
         attributes["function_type"] = function_type
-        if arg_attrs is not None:
-            arg_attrs = arg_attrs
-            attributes["arg_attrs"] = arg_attrs
-        if res_attrs is not None:
-            res_attrs = res_attrs
-            attributes["res_attrs"] = res_attrs
-        if arg_names is not None:
-            arg_names = arg_names
-            attributes["arg_names"] = arg_names
-        if res_names is not None:
-            res_names = res_names
-            attributes["res_names"] = res_names
+        attributes["arg_attrs"] = arg_attrs
+        attributes["res_attrs"] = res_attrs
+        attributes["arg_names"] = arg_names
+        attributes["res_names"] = res_names
         if not isinstance(body, Region):
             body = Region(Block())
 
@@ -219,6 +212,8 @@ class Output(IRDLOperation):
 
     operand = var_operand_def(AnyAttr())
 
+    traits = frozenset([IsTerminator()])
+
     def __init__(
         self,
         operand: Sequence[SSAValue | Operation],
@@ -227,21 +222,21 @@ class Output(IRDLOperation):
             operands=[operand],
         )
 
-    def verify_(self):
-        parent = self.parent_op()
-        res_type_machine = type(None)
-        while HasParent(Machine):
-            if isinstance(parent, Machine):
-                res_type_machine = type(parent.arg_attrs)
-            if parent is not None:
-                parent = parent.parent_op()
-            else:
-                raise VerifyException("Output must be in a machine")
-            if res_type_machine is not type(None):
-                if not isinstance(res_type_machine, type(self.operands)):
-                    raise VerifyException(
-                        "Output type must be consistent with the machine"
-                    )
+    # def verify_(self):
+    #     parent = self.parent_op()
+    # res_type_machine = type(None)
+    # while HasParent(Machine):
+    #     # if isinstance(parent, Machine):
+    #     #     res_type_machine = type(parent.arg_attrs)
+    #     if parent is not None:
+    #         parent = parent.parent_op()
+    # else:
+    #     raise VerifyException("Output must be in a machine")
+    # if res_type_machine is not type(None):
+    #     if not isinstance(res_type_machine, type(self.operands)):
+    #         raise VerifyException(
+    #             "Output type must be consistent with the machine"
+    #         )
 
 
 @irdl_op_definition
@@ -263,6 +258,8 @@ class State(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
+    traits = frozenset([NoTerminator()])
+
     def __init__(
         self,
         sym_name: str,
@@ -280,10 +277,6 @@ class State(IRDLOperation):
             regions=[output, transitions],
         )
 
-    def verify_(self):
-        if NoTerminator(self.output.parent_region()):
-            raise VerifyException("Output region must have a terminator")
-
 
 @irdl_op_definition
 class Transition(IRDLOperation):
@@ -295,9 +288,9 @@ class Transition(IRDLOperation):
 
     name = "fsm.transition"
 
-    guard = opt_region_def()
+    guard = region_def()
 
-    action = opt_region_def()
+    action = region_def()
 
     # attributes
 
@@ -323,7 +316,7 @@ class Transition(IRDLOperation):
         )
 
     def verify_(self):
-        if self.guard is not None and NoTerminator(self.guard):
+        if NoTerminator(self.guard):
             raise VerifyException("Guard region must have a terminator")
 
 
@@ -381,6 +374,8 @@ class Update(IRDLOperation):
 
     value = operand_def(Attribute)
 
+    traits = frozenset([IsTerminator()])
+
     def __init__(
         self,
         variable: SSAValue | Operation,
@@ -390,16 +385,16 @@ class Update(IRDLOperation):
             operands=[variable, value],
         )
 
-    def verify_(self):
-        if not (SymbolOpInterface(self.variable) == Variable):
-            raise VerifyException(
-                "The definition operator of variable attribute must be Vatiable"
-            )
+    # def verify_(self):
+    #     if not (SymbolOpInterface(self.variable) == Variable):
+    #         raise VerifyException(
+    #             "The definition operator of variable attribute must be Variable"
+    #         )
 
-        if not (HasParent(Transition)):
-            raise VerifyException(
-                "Update should only appear in the action region of a transition"
-            )
+    #     if not (HasParent(Transition)):
+    #         raise VerifyException(
+    #             "Update should only appear in the action region of a transition"
+    #         )
 
 
 @irdl_op_definition
@@ -412,7 +407,7 @@ class Variable(IRDLOperation):
     # attributes
 
     initValue = attr_def(Attribute)
-    name_var = attr_def(StringAttr)
+    name_var = opt_attr_def(StringAttr)
 
     # results
 
@@ -421,12 +416,13 @@ class Variable(IRDLOperation):
     def __init__(
         self,
         initValue: Attribute,
-        name_var: str,
+        name_var: str | None,
         result: Sequence[Attribute],
     ):
         attributes: dict[str, Attribute] = {}
         attributes["initValue"] = initValue
-        attributes["name_var"] = StringAttr(name_var)
+        if name_var is not None:
+            attributes["name_var"] = StringAttr(name_var)
         super().__init__(
             result_types=[result],
             attributes=attributes,
@@ -451,3 +447,20 @@ class Return(IRDLOperation):
         super().__init__(
             operands=[operand],
         )
+
+
+FSM = Dialect(
+    [
+        HWInstance,
+        Instance,
+        Machine,
+        Output,
+        State,
+        Transition,
+        Trigger,
+        Update,
+        Variable,
+        Return,
+    ],
+    [InstanceType],
+)
