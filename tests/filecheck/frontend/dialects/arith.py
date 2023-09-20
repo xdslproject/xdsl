@@ -31,27 +31,27 @@ with CodeContext(p):
     def test_shrsi_overload(a: i64, b: i64) -> i64:
         return a >> b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 0 : i64} : (i32, i32) -> i1
+    # CHECK:  arith.cmpi eq, %{{.*}}, %{{.*}} : i32
     def test_cmpi_eq_overload(a: i32, b: i32) -> i1:
         return a == b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 3 : i64} : (i64, i64) -> i1
+    # CHECK: arith.cmpi sle, %{{.*}}, %{{.*}} : i64
     def test_cmpi_le_overload(a: i64, b: i64) -> i1:
         return a <= b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 2 : i64} : (i32, i32) -> i1
+    # CHECK: arith.cmpi slt, %{{.*}}, %{{.*}} : i32
     def test_cmpi_lt_overload(a: i32, b: i32) -> i1:
         return a < b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 5 : i64} : (i64, i64) -> i1
+    # CHECK: arith.cmpi sge, %{{.*}}, %{{.*}} : i64
     def test_cmpi_ge_overload(a: i64, b: i64) -> i1:
         return a >= b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 4 : i64} : (i32, i32) -> i1
+    # CHECK: arith.cmpi sgt, %{{.*}}, %{{.*}} : i32
     def test_cmpi_gt_overload(a: i32, b: i32) -> i1:
         return a > b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 1 : i64} : (i64, i64) -> i1
+    # CHECK: arith.cmpi ne, %{{.*}}, %{{.*}} : i64
     def test_cmpi_ne_overload(a: i64, b: i64) -> i1:
         return a != b
 

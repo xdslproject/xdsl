@@ -206,6 +206,8 @@
     // RISC-V extensions
     riscv.scfgw %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> ()
     // CHECK-NEXT: riscv.scfgw %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> ()
+    %scfgwi_zero = riscv.scfgwi %0, 42 : (!riscv.reg<>) -> !riscv.reg<zero>
+    // CHECK-NEXT: %scfgwi_zero = riscv.scfgwi %0, 42 : (!riscv.reg<>) -> !riscv.reg<zero>
 
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
     %f0 = riscv.get_float_register : () -> !riscv.freg<>
@@ -276,6 +278,17 @@
     // CHECK-NEXT: %{{.*}} = riscv.flw %{{.*}}, 1 : (!riscv.reg<>) -> !riscv.freg<>
     riscv.fsw %0, %f0, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
     // CHECK-NEXT: riscv.fsw %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
+
+    // Vector Ops
+    %fld = riscv.fld %0, 1 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, 1 : (!riscv.reg<>) -> !riscv.freg<>
+    riscv.fsd %0, %f0, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
+    // CHECK-NEXT: riscv.fsd %{{.*}}, %{{.*}}, 1 : (!riscv.reg<>, !riscv.freg<>) -> ()
+
+    %vfadd_s = riscv.vfadd.s %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.vfadd.s %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %vfmul_s = riscv.vfmul.s %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.vfmul.s %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
     // Terminate block
     riscv_func.return
@@ -367,6 +380,7 @@
 // CHECK-GENERIC-NEXT:     }) {"directive" = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:     %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
 // CHECK-GENERIC-NEXT:     "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     %scfgwi_zero = "riscv.scfgwi"(%0) {"immediate" = 42 : si12} : (!riscv.reg<>) -> !riscv.reg<zero>
 // CHECK-GENERIC-NEXT:     %f0 = "riscv.get_float_register"() : () -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %f1 = "riscv.get_float_register"() : () -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %f2 = "riscv.get_float_register"() : () -> !riscv.freg<>
@@ -397,6 +411,10 @@
 // CHECK-GENERIC-NEXT:     %fmv_w_x = "riscv.fmv.w.x"(%0) : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %flw = "riscv.flw"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     "riscv.fsw"(%0, %f0) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.freg<>) -> ()
+// CHECK-GENERIC-NEXT:     %fld = "riscv.fld"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     "riscv.fsd"(%0, %f0) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.freg<>) -> ()
+// CHECK-GENERIC-NEXT:     %vfadd_s = "riscv.vfadd.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %vfmul_s = "riscv.vfmul.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

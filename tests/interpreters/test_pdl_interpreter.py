@@ -2,10 +2,19 @@ from io import StringIO
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, pdl
-from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, ModuleOp, StringAttr, i32
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    StringAttr,
+    i32,
+    i64,
+)
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.experimental.pdl import PDLRewriteFunctions, PDLRewritePattern
 from xdsl.ir import MLContext, OpResult
+from xdsl.irdl.irdl import IRDLOperation, irdl_op_definition, prop_def
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
@@ -245,3 +254,144 @@ def test_interpreter_functions():
     assert interpreter.run_op(
         pdl.ResultOp(0, TestSSAValue(pdl.OperationType())), (add,)
     ) == (add_res,)
+
+
+def constant_zero():
+    @ModuleOp
+    @Builder.implicit_region
+    def ir_module():
+        arith.Constant.from_int_and_width(0, 32)
+
+    return ir_module
+
+
+def constant_one():
+    @ModuleOp
+    @Builder.implicit_region
+    def ir_module():
+        arith.Constant.from_int_and_width(1, 32)
+
+    return ir_module
+
+
+def change_constant_value_pdl():
+    # The rewrite below changes the predicate of a cmpi operation
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(2, None).body):
+            # Type i32
+            pdl_i32 = pdl.TypeOp().result
+
+            # Constant 0: i32
+            zero = pdl.AttributeOp(value=IntegerAttr(0, 32)).results[0]
+            const_op = pdl.OperationOp(
+                op_name=StringAttr("arith.constant"),
+                attribute_value_names=ArrayAttr([StringAttr("value")]),
+                attribute_values=[zero],
+                type_values=[pdl_i32],
+            ).op
+
+            with ImplicitBuilder(pdl.RewriteOp(const_op).body):
+                # changing constants value via attributes
+                one = pdl.AttributeOp(value=IntegerAttr(1, 32)).results[0]
+                const_new = pdl.OperationOp(
+                    op_name=StringAttr("arith.constant"),
+                    attribute_value_names=ArrayAttr([StringAttr("value")]),
+                    attribute_values=[one],
+                    type_values=[pdl_i32],
+                ).op
+                pdl.ReplaceOp(const_op, repl_operation=const_new)
+
+    return pdl_module
+
+
+def test_interpreter_attribute_rewrite():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLRewriteFunctions(MLContext()))
+
+    input_module = constant_zero()
+    expected_module = constant_one()
+    rewrite_module = change_constant_value_pdl()
+    rewrite_module.verify()
+
+    pdl_rewrite_op = next(
+        op for op in rewrite_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    stream = StringIO()
+
+    ctx = MLContext()
+    ctx.register_dialect(arith.Arith)
+
+    PatternRewriteWalker(
+        PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
+        apply_recursively=False,
+    ).rewrite_module(input_module)
+
+    assert expected_module.is_structurally_equivalent(input_module)
+
+
+@irdl_op_definition
+class OnePropOp(IRDLOperation):
+    name = "test.one_prop"
+
+    prop = prop_def(IntegerType)
+
+
+def test_property_rewrite():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLRewriteFunctions(MLContext()))
+
+    @ModuleOp
+    @Builder.implicit_region
+    def input_i32():
+        OnePropOp.create(properties={"prop": i32})
+
+    @ModuleOp
+    @Builder.implicit_region
+    def input_i64():
+        OnePropOp.create(properties={"prop": i64})
+
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(42, None).body):
+            attr_i32 = pdl.AttributeOp(i32).results[0]
+            const_op = pdl.OperationOp(
+                op_name=OnePropOp.name,
+                attribute_value_names=ArrayAttr([StringAttr("prop")]),
+                attribute_values=[attr_i32],
+            ).op
+
+            with ImplicitBuilder(pdl.RewriteOp(const_op).body):
+                # changing constants value via attributes
+                attr_i64 = pdl.AttributeOp(i64).results[0]
+                const_new = pdl.OperationOp(
+                    op_name=StringAttr(OnePropOp.name),
+                    attribute_value_names=ArrayAttr([StringAttr("prop")]),
+                    attribute_values=[attr_i64],
+                ).op
+                pdl.ReplaceOp(const_op, repl_operation=const_new)
+
+    input_module = input_i32
+    expected_module = input_i64
+    rewrite_module = pdl_module
+    rewrite_module.verify()
+
+    pdl_rewrite_op = next(
+        op for op in rewrite_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    stream = StringIO()
+
+    ctx = MLContext()
+    ctx.register_dialect(arith.Arith)
+    ctx.register_op(OnePropOp)
+
+    PatternRewriteWalker(
+        PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
+        apply_recursively=False,
+    ).rewrite_module(input_module)
+    assert str(expected_module) == str(input_module)
+    assert expected_module.is_structurally_equivalent(input_module)

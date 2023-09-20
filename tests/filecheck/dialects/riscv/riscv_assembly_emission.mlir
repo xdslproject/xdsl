@@ -234,6 +234,16 @@
     // CHECK-NEXT: flw j8, 1(zero)
     riscv.fsw %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
     // CHECK-NEXT: fsw j5, 1(zero)
+    %fld = riscv.fld %0, 1 : (!riscv.reg<zero>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fld j8, 1(zero)
+    riscv.fsd %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
+    // CHECK-NEXT: fsd j5, 1(zero)
+
+    // Vector Ops
+    %vfadd_s = riscv.vfadd.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    // CHECK-NEXT: vfadd.s j8, j5, j6
+    %vfmul_s = riscv.vfmul.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    // CHECK-NEXT: vfmul.s j8, j5, j6
 
     // Terminate block
     riscv_func.return
