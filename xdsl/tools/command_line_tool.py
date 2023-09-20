@@ -21,7 +21,7 @@ from xdsl.dialects.experimental.dmp import DMP
 from xdsl.dialects.experimental.fir import FIR
 from xdsl.dialects.experimental.hls import HLS
 from xdsl.dialects.experimental.math import Math
-from xdsl.dialects.FSM import FSM
+from xdsl.dialects.fsm import FSM
 from xdsl.dialects.func import Func
 from xdsl.dialects.gpu import GPU
 from xdsl.dialects.irdl.irdl import IRDL

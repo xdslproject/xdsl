@@ -37,6 +37,7 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     NoTerminator,
+    SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -117,7 +118,7 @@ class Output(IRDLOperation):
 
     operand = var_operand_def(AnyAttr())
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([HasParent(), IsTerminator()])
 
     def __init__(
         self,
@@ -127,21 +128,23 @@ class Output(IRDLOperation):
             operands=[operand],
         )
 
-    # def verify_(self):
-    #     parent = self.parent_op()
-    # res_type_machine = type(None)
-    # while HasParent(Machine):
-    #     # if isinstance(parent, Machine):
-    #     #     res_type_machine = type(parent.arg_attrs)
-    #     if parent is not None:
-    #         parent = parent.parent_op()
-    # else:
-    #     raise VerifyException("Output must be in a machine")
-    # if res_type_machine is not type(None):
-    #     if not isinstance(res_type_machine, type(self.operands)):
-    #         raise VerifyException(
-    #             "Output type must be consistent with the machine"
-    #         )
+    def verify_(self):
+        parent = self.parent_op()
+        while parent is not None:
+            if isinstance(parent, Transition) and len(self.operands) > 0:
+                raise VerifyException("Transition regions should not output any value")
+            elif isinstance(parent, Machine):
+                f = True
+                # for every entry in the dictionary check that the type of the operand
+                # is the same as at least one in the type of the entry
+                for x in getattr(parent, "arg_attrs"):
+                    if isinstance(self.operands, x):
+                        f = False
+                        break
+                if f:
+                    raise VerifyException(
+                        "Output types must be consistent with the machine"
+                    )
 
 
 @irdl_op_definition
@@ -163,7 +166,7 @@ class State(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
-    traits = frozenset([NoTerminator()])
+    traits = frozenset([HasParent(), NoTerminator()])
 
     def __init__(
         self,
@@ -181,6 +184,26 @@ class State(IRDLOperation):
             attributes=attributes,
             regions=[output, transitions],
         )
+
+    def verify_(self):
+        parent = self.parent_op()
+
+        while parent is not None:
+            if (
+                isinstance(parent, Machine)
+                and len(getattr(parent, "res_attrs")) > 0
+                and self.output.block.first_op is None
+            ):
+                raise VerifyException(
+                    "State must have a non-empty output region when the machine has results."
+                )
+
+            parent = parent.parent_op()
+
+        # TODO: output block must have a single output terminator?
+
+        if NoTerminator(self.output):
+            raise VerifyException("Output region must have a terminator")
 
 
 @irdl_op_definition
@@ -221,8 +244,15 @@ class Transition(IRDLOperation):
         )
 
     def verify_(self):
-        if NoTerminator(self.guard):
-            raise VerifyException("Guard region must have a terminator")
+        # TODO implement following test: cannot find def of next state
+        # if nextState.data is None:
+        #     raise VerifyException("Cannot find the definition of the next state")
+        if self.guard.block.first_op is not None and not isinstance(
+            self.guard.block.last_op, Return
+        ):
+            raise VerifyException("Guard region must terminate with ReturnOp")
+        if not isinstance(HasParent(), Transition):
+            raise VerifyException("Transition must be located in a transitions region")
 
 
 @irdl_op_definition
@@ -250,16 +280,13 @@ class Update(IRDLOperation):
             operands=[variable, value],
         )
 
-    # def verify_(self):
-    #     if not (SymbolOpInterface(self.variable) == Variable):
-    #         raise VerifyException(
-    #             "The definition operator of variable attribute must be Variable"
-    #         )
+    def verify_(self) -> None:
+        if not isinstance(SymbolOpInterface(self.variable), Variable):
+            raise VerifyException("Destination is not a variable operation")
 
-    #     if not (HasParent(Transition)):
-    #         raise VerifyException(
-    #             "Update should only appear in the action region of a transition"
-    #         )
+        # TODO i have no idea how to implement these verifications.
+        # 1. must only be located in the action region
+        # 2. multiple updates to the same variable within a single action region is disallowed
 
 
 @irdl_op_definition
