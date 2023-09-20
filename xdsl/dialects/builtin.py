@@ -481,34 +481,59 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
 
     value: ParameterDef[FloatData]
     type: ParameterDef[_FloatAttrType]
+    width: ParameterDef[IntAttr]
 
     @overload
-    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None:
+    def __init__(self, data: float | FloatData, value_type: _FloatAttrType) -> None:
         ...
 
     @overload
-    def __init__(self, data: float | FloatData, type: int) -> None:
+    def __init__(self, data: float | FloatData, value_type: int) -> None:
         ...
 
     def __init__(
-        self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
+        self, data: float | FloatData, value_type: int | _FloatAttrType | AnyFloat
     ) -> None:
         if isinstance(data, float):
             data = FloatData(data)
-        if isinstance(type, int):
-            if type == 16:
+        if isinstance(value_type, int):
+            if value_type == 16:
                 type = Float16Type()
-            elif type == 32:
+                width = 16
+            elif value_type == 32:
                 type = Float32Type()
-            elif type == 64:
+                width = 32
+            elif value_type == 64:
                 type = Float64Type()
-            elif type == 80:
+                width = 64
+            elif value_type == 80:
                 type = Float80Type()
-            elif type == 128:
+                width = 80
+            elif value_type == 128:
                 type = Float128Type()
+                width = 128
             else:
-                raise ValueError(f"Invalid bitwidth: {type}")
-        super().__init__([data, type])
+                raise ValueError(f"Invalid bitwidth: {value_type}")
+        else:
+            if isinstance(value_type, Float16Type):
+                type = Float16Type()
+                width = 16
+            elif isinstance(value_type, Float32Type):
+                type = Float32Type()
+                width = 32
+            elif isinstance(value_type, Float64Type):
+                type = Float64Type()
+                width = 64
+            elif isinstance(value_type, Float80Type):
+                type = Float80Type()
+                width = 80
+            elif isinstance(value_type, Float128Type):
+                type = Float128Type()
+                width = 128
+            else:
+                raise ValueError(f"Invalid bitwidth: {value_type}")
+            width = IntAttr(width)
+        super().__init__([data, type, width])
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
