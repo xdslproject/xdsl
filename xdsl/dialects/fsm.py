@@ -118,7 +118,7 @@ class Output(IRDLOperation):
 
     operand = var_operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(), IsTerminator()])
+    traits = frozenset([IsTerminator()])
 
     def __init__(
         self,
@@ -134,14 +134,9 @@ class Output(IRDLOperation):
             if isinstance(parent, Transition) and len(self.operands) > 0:
                 raise VerifyException("Transition regions should not output any value")
             elif isinstance(parent, Machine):
-                f = True
-                # for every entry in the dictionary check that the type of the operand
+                # check that the type of the operand
                 # is the same as at least one in the type of the entry
-                for x in getattr(parent, "arg_attrs"):
-                    if isinstance(self.operands, x):
-                        f = False
-                        break
-                if f:
+                if isinstance(self.operands, getattr(parent, "res_attrs")):
                     raise VerifyException(
                         "Output types must be consistent with the machine"
                     )
@@ -166,7 +161,7 @@ class State(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
-    traits = frozenset([HasParent(), NoTerminator()])
+    traits = frozenset([NoTerminator()])
 
     def __init__(
         self,
@@ -191,18 +186,16 @@ class State(IRDLOperation):
         while parent is not None:
             if (
                 isinstance(parent, Machine)
+                and getattr(parent, "res_attrs") is not None
                 and len(getattr(parent, "res_attrs")) > 0
                 and self.output.block.first_op is None
             ):
                 raise VerifyException(
                     "State must have a non-empty output region when the machine has results."
                 )
-
             parent = parent.parent_op()
 
-        # TODO: output block must have a single output terminator?
-
-        if NoTerminator(self.output):
+        if NoTerminator(SymbolOpInterface(self.output)):
             raise VerifyException("Output region must have a terminator")
 
 
@@ -244,9 +237,8 @@ class Transition(IRDLOperation):
         )
 
     def verify_(self):
-        # TODO implement following test: cannot find def of next state
-        # if nextState.data is None:
-        #     raise VerifyException("Cannot find the definition of the next state")
+        if not isinstance(SymbolOpInterface(self.nextState), State):
+            raise VerifyException("Can not find next state")
         if self.guard.block.first_op is not None and not isinstance(
             self.guard.block.last_op, Return
         ):
@@ -284,9 +276,22 @@ class Update(IRDLOperation):
         if not isinstance(SymbolOpInterface(self.variable), Variable):
             raise VerifyException("Destination is not a variable operation")
 
-        # TODO i have no idea how to implement these verifications.
-        # 1. must only be located in the action region
-        # 2. multiple updates to the same variable within a single action region is disallowed
+        parent = self.parent_op()
+        while parent is not None:
+            if isinstance(parent, Transition):
+                # walk through the action region
+                found = 0
+                for op in parent.action.walk():
+                    if isinstance(op, Update) and op.variable == self.variable:
+                        found += 1
+                if found == 0:
+                    raise VerifyException(
+                        "Update must only be located in the action region of a transition"
+                    )
+                elif found > 1:
+                    raise VerifyException(
+                        "Multiple updates to the same variable within a single action region is disallowed"
+                    )
 
 
 @irdl_op_definition
