@@ -38,10 +38,66 @@ from xdsl.traits import (
     IsTerminator,
     NoTerminator,
     SymbolOpInterface,
+    SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
+
+
+@irdl_op_definition
+class Transition(IRDLOperation):
+    """Represents a transition of a state with a symbol reference
+    of the next state. This op includes an optional `$guard` region with an `fsm.return`
+    as terminator that returns a Boolean value indicating the guard condition of
+    this transition. This op also includes an optional `$action` region that represents
+    the actions to be executed when this transition is taken"""
+
+    name = "fsm.transition"
+
+    guard = region_def()
+
+    action = region_def()
+
+    # attributes
+
+    nextState = attr_def(FlatSymbolRefAttr)
+
+    def __init__(
+        self,
+        nextState: FlatSymbolRefAttr,
+        action: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        guard: Region | type[Region.DEFAULT] = Region.DEFAULT,
+    ):
+        if isinstance(nextState, str):
+            nextState = FlatSymbolRefAttr(nextState)
+        attributes: dict[str, Attribute] = {}
+        attributes["nextState"] = nextState
+        if not isinstance(action, Region):
+            action = Region(Block())
+        if not isinstance(guard, Region):
+            guard = Region(Block())
+        super().__init__(
+            attributes=attributes,
+            regions=[guard, action],
+        )
+
+    def verify_(self):
+        var = SymbolTable.lookup_symbol(self, self.nextState)
+        if var is None:
+            raise VerifyException("1. Can not find next state")
+        if not isinstance(var, State):
+            raise VerifyException("2. Can not find next state")
+        if (
+            self.guard.blocks
+            and self.guard.block.first_op is not None
+            and not isinstance(self.guard.block.last_op, Return)
+        ):
+            raise VerifyException("Guard region must terminate with ReturnOp")
+        var = self.parent_op()
+        assert isinstance(var, State)
+        if var.transitions != self.parent_region():
+            raise VerifyException("Transition must be located in a transitions region")
 
 
 @irdl_op_definition
@@ -62,7 +118,7 @@ class Machine(IRDLOperation):
     arg_names = opt_attr_def(ArrayAttr[StringAttr])
     res_names = opt_attr_def(ArrayAttr[StringAttr])
 
-    traits = frozenset([NoTerminator()])
+    traits = frozenset([NoTerminator(), SymbolTable()])
 
     def __init__(
         self,
@@ -136,10 +192,11 @@ class Output(IRDLOperation):
             elif isinstance(parent, Machine):
                 # check that the type of the operand
                 # is the same as at least one in the type of the entry
-                if isinstance(self.operands, getattr(parent, "res_attrs")):
+                if isinstance(self.operands, type(getattr(parent, "res_attrs"))):
                     raise VerifyException(
                         "Output types must be consistent with the machine"
                     )
+            parent = parent.parent_op()
 
 
 @irdl_op_definition
@@ -161,7 +218,7 @@ class State(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
-    traits = frozenset([NoTerminator()])
+    traits = frozenset([NoTerminator(), SymbolOpInterface()])
 
     def __init__(
         self,
@@ -195,57 +252,6 @@ class State(IRDLOperation):
                 )
             parent = parent.parent_op()
 
-        if NoTerminator(SymbolOpInterface(self.output)):
-            raise VerifyException("Output region must have a terminator")
-
-
-@irdl_op_definition
-class Transition(IRDLOperation):
-    """Represents a transition of a state with a symbol reference
-    of the next state. This op includes an optional `$guard` region with an `fsm.return`
-    as terminator that returns a Boolean value indicating the guard condition of
-    this transition. This op also includes an optional `$action` region that represents
-    the actions to be executed when this transition is taken"""
-
-    name = "fsm.transition"
-
-    guard = region_def()
-
-    action = region_def()
-
-    # attributes
-
-    nextState = attr_def(FlatSymbolRefAttr)
-
-    def __init__(
-        self,
-        nextState: FlatSymbolRefAttr,
-        action: Region | type[Region.DEFAULT] = Region.DEFAULT,
-        guard: Region | type[Region.DEFAULT] = Region.DEFAULT,
-    ):
-        if isinstance(nextState, str):
-            nextState = FlatSymbolRefAttr(nextState)
-        attributes: dict[str, Attribute] = {}
-        attributes["nextState"] = nextState
-        if not isinstance(action, Region):
-            action = Region(Block())
-        if not isinstance(guard, Region):
-            guard = Region(Block())
-        super().__init__(
-            attributes=attributes,
-            regions=[guard, action],
-        )
-
-    def verify_(self):
-        if not isinstance(SymbolOpInterface(self.nextState), State):
-            raise VerifyException("Can not find next state")
-        if self.guard.block.first_op is not None and not isinstance(
-            self.guard.block.last_op, Return
-        ):
-            raise VerifyException("Guard region must terminate with ReturnOp")
-        if not isinstance(HasParent(), Transition):
-            raise VerifyException("Transition must be located in a transitions region")
-
 
 @irdl_op_definition
 class Update(IRDLOperation):
@@ -273,7 +279,7 @@ class Update(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(SymbolOpInterface(self.variable), Variable):
+        if not isinstance(self.variable.owner, Variable):
             raise VerifyException("Destination is not a variable operation")
 
         parent = self.parent_op()
@@ -292,6 +298,7 @@ class Update(IRDLOperation):
                     raise VerifyException(
                         "Multiple updates to the same variable within a single action region is disallowed"
                     )
+            parent = parent.parent_op()
 
 
 @irdl_op_definition
