@@ -34,7 +34,7 @@ class BinCombOp(IRDLOperation):
 class VariadicCombOp(IRDLOperation):
     """
     A variadic comb operation. It has a variadic number of operands, and a single
-    result, all of the same type.
+    result, all of the same integer type.
     """
 
     T = Annotated[IntegerType, ConstraintVar("T")]
