@@ -1,3 +1,12 @@
+"""
+The comb dialect provides a collection of operations that define a mid-level
+compiler IR for combinational logic. It is designed to be easy to analyze and
+transform, and be a flexible and extensible substrate that may be extended with
+higher level dialects mixed into it.
+
+[1] https://circt.llvm.org/docs/Dialects/Comb/
+"""
+from abc import ABC
 from typing import Annotated
 
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, UnitAttr, i32
@@ -27,11 +36,15 @@ class BinCombOp(IRDLOperation):
     lhs: Operand = operand_def(T)
     rhs: Operand = operand_def(T)
     result: OpResult = result_def(T)
-
+    """
+    "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
+    used for operations which have extended truth table for non-2-state logic for various target
+    languages. The two_state variable describes if we are using 2-state (binary) logic or not."
+    """
     two_state: UnitAttr | None = opt_attr_def(UnitAttr)
 
 
-class VariadicCombOp(IRDLOperation):
+class VariadicCombOperation(IRDLOperation, ABC):
     """
     A variadic comb operation. It has a variadic number of operands, and a single
     result, all of the same integer type.
@@ -41,19 +54,23 @@ class VariadicCombOp(IRDLOperation):
 
     inputs: VarOperand = var_operand_def(T)
     result: OpResult = result_def(T)
-
+    """
+    "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
+    used for operations which have extended truth table for non-2-state logic for various target
+    languages. The two_state variable describes if we are using 2-state (binary) logic or not."
+    """
     two_state: UnitAttr | None = opt_attr_def(UnitAttr)
 
 
 @irdl_op_definition
-class AddOp(VariadicCombOp):
+class AddOp(VariadicCombOperation):
     """Addition"""
 
     name = "comb.add"
 
 
 @irdl_op_definition
-class MulOp(VariadicCombOp):
+class MulOp(VariadicCombOperation):
     """Multiplication"""
 
     name = "comb.mul"
@@ -116,21 +133,21 @@ class SubOp(BinCombOp):
 
 
 @irdl_op_definition
-class AndOp(VariadicCombOp):
+class AndOp(VariadicCombOperation):
     """Bitwise and"""
 
     name = "comb.and"
 
 
 @irdl_op_definition
-class OrOp(VariadicCombOp):
+class OrOp(VariadicCombOperation):
     """Bitwise or"""
 
     name = "comb.or"
 
 
 @irdl_op_definition
-class XorOp(VariadicCombOp):
+class XorOp(VariadicCombOperation):
     """Bitwise xor"""
 
     name = "comb.xor"
