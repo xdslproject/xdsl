@@ -174,6 +174,21 @@
     // CHECK-NEXT:   hello j3, j4, zero, j1
 
 
+    // RISC-V Extensions
+
+    riscv.frep_outer %0, 0, 0 ({
+      %add_o = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
+    }) : (!riscv.reg<zero>) -> ()
+
+    // CHECK:          frep.outer zero, 1, 0, 0
+    // CHECK-NEXT:     add  j2, zero, j1
+
+    riscv.frep_inner %0, 0, 0 ({
+      %add_i = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
+    }) : (!riscv.reg<zero>) -> ()
+    // CHECK:          frep.inner zero, 1, 0, 0
+    // CHECK-NEXT:     add  j2, zero, j1
+
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
 
     %f0 = riscv.fcvt.s.w %0 : (!riscv.reg<zero>) -> !riscv.freg<j5>
