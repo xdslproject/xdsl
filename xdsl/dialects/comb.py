@@ -372,13 +372,31 @@ class ExtractOp(IRDLOperation):
     )
     result: OpResult = result_def(IntegerType)
 
-    def __init__(self, operand: Operation | SSAValue, low_bit: IntegerType):
+    def __init__(
+        self, operand: Operation | SSAValue, low_bit: IntegerAttr[IntegerType]
+    ):
         operand = SSAValue.get(operand)
         return super().__init__(
             attributes={"low_bit": low_bit},
             operands=[operand],
             result_types=[operand.type],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        op = parser.parse_unresolved_operand()
+        parser.parse_keyword("from")
+        bit = parser.parse_integer()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_function_type()
+        (op,) = parser.resolve_operands([op], result_type.inputs.data, parser.pos)
+        return cls(op, IntegerAttr(bit, 32))
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_ssa_value(self.input)
+        printer.print(" : ")
+        printer.print(self.result.type)
 
 
 @irdl_op_definition
@@ -427,6 +445,20 @@ class ReplicateOp(IRDLOperation):
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        op = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_function_type()
+        (op,) = parser.resolve_operands([op], [result_type.inputs.data[0]], parser.pos)
+        return cls.create(operands=[op], result_types=result_type.outputs.data)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_ssa_value(self.input)
+        printer.print(" : ")
+        printer.print(self.result.type)
 
 
 @irdl_op_definition
