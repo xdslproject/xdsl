@@ -423,34 +423,73 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
+class FloatType(ParametrizedAttribute, TypeAttribute, ABC):
+    width: ParameterDef[IntAttr]
+
+    def __init__(self, width: int | IntAttr) -> None:
+        if isinstance(width, int):
+            width = IntAttr(width)
+        super().__init__([width])
+
+    @property
+    def get_bitwidth(self) -> int:
+        return self.width.data
+
+    # @classmethod
+    # def parse_parameter(cls, parser: AttrParser) -> int:
+    # data = parser.parse_integer()
+    # return data
+
+    # def print_parameter(self, printer: Printer) -> None:
+    # printer.print_string(f"{self.data}")
+
+
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, TypeAttribute):
+class BFloat16Type(FloatType):
     name = "bf16"
 
+    def __init__(self) -> None:
+        super().__init__(16)
+
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, TypeAttribute):
+class Float16Type(FloatType):
     name = "f16"
 
+    def __init__(self) -> None:
+        super().__init__(16)
+
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, TypeAttribute):
+class Float32Type(FloatType):
     name = "f32"
 
+    def __init__(self) -> None:
+        super().__init__(32)
+
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, TypeAttribute):
+class Float64Type(FloatType):
     name = "f64"
 
+    def __init__(self) -> None:
+        super().__init__(64)
+
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, TypeAttribute):
+class Float80Type(FloatType):
     name = "f80"
 
+    def __init__(self) -> None:
+        super().__init__(80)
+
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, TypeAttribute):
+class Float128Type(FloatType):
     name = "f128"
+
+    def __init__(self) -> None:
+        super().__init__(128)
 
 
 AnyFloat: TypeAlias = (
