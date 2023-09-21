@@ -30,6 +30,19 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
+ICMP_COMPARISON_OPERATIONS = [
+    "eq",
+    "ne",
+    "slt",
+    "sle",
+    "sgt",
+    "sge",
+    "ult",
+    "ule",
+    "ugt",
+    "uge",
+]
+
 
 class BinCombOperation(IRDLOperation, ABC):
     """
@@ -260,11 +273,11 @@ class ICmpOp(IRDLOperation, ComparisonOperation):
 
     T = Annotated[IntegerType, ConstraintVar("T")]
 
+    predicate: IntegerAttr[IndexType] = attr_def(IntegerAttr[IndexType])
     lhs: Operand = operand_def(T)
     rhs: Operand = operand_def(T)
     result: OpResult = result_def(IntegerType(1))
 
-    predicate: IntegerAttr[IndexType] = attr_def(IntegerAttr[IndexType])
     two_state: UnitAttr = attr_def(UnitAttr)
 
     def __init__(
@@ -297,6 +310,31 @@ class ICmpOp(IRDLOperation, ComparisonOperation):
             result_types=[IntegerType(1)],
             attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
         )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        arg = parser.parse_identifier()
+        parser.parse_punctuation(",")
+        operand1 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        operand2 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        (operand1, operand2) = parser.resolve_operands(
+            [operand1, operand2], 2 * [input_type], parser.pos
+        )
+
+        return cls(operand1, operand2, arg)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_string(ICMP_COMPARISON_OPERATIONS[self.predicate.value.data])
+        printer.print(", ")
+        printer.print_operand(self.lhs)
+        printer.print(", ")
+        printer.print_operand(self.rhs)
+        printer.print(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 @irdl_op_definition
@@ -357,6 +395,24 @@ class ConcatOp(IRDLOperation):
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
 
+    @classmethod
+    def parse(cls, parser: Parser):
+        inputs = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        inputs = parser.resolve_operands(
+            inputs, len(inputs) * [result_type], parser.pos
+        )
+        return cls.create(operands=inputs, result_types=[result_type])
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_list(self.inputs, printer.print_ssa_value)
+        printer.print(" : ")
+        printer.print(self.result.type)
+
 
 @irdl_op_definition
 class ReplicateOp(IRDLOperation):
@@ -398,6 +454,32 @@ class MuxOp(IRDLOperation):
         return super().__init__(
             operands=[condition, true_val, false_val], result_types=[operand2.type]
         )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        condition = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        true_val = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        false_val = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        (condition, true_val, false_val) = parser.resolve_operands(
+            [condition, true_val, false_val],
+            [IntegerType(1), result_type, result_type],
+            parser.pos,
+        )
+        return cls(condition, true_val, false_val)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.cond)
+        printer.print(", ")
+        printer.print_operand(self.true_value)
+        printer.print(", ")
+        printer.print_operand(self.false_value)
+        printer.print(" : ")
+        printer.print_attribute(self.result.type)
 
 
 Comb = Dialect(
