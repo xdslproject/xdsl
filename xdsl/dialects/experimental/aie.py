@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 from xdsl.dialects import memref
-from xdsl.dialects.builtin import AnyAttr, ArrayAttr, IndexType, IntegerAttr, i32
+from xdsl.dialects.builtin import (
+    AnyAttr,
+    ArrayAttr,
+    IndexType,
+    IntegerAttr,
+    StringAttr,
+    i32,
+)
 from xdsl.ir import Dialect, OpResult
 from xdsl.irdl import (
     IRDLOperation,
@@ -50,6 +57,31 @@ class TileOp(IRDLOperation):
     def __init__(self, col: IntegerAttr[i32], row: IntegerAttr[i32]):
         super().__init__(
             attributes={"col": col, "row": row}, result_types=[IndexType()]
+        )
+
+
+@irdl_op_definition
+class ConnectOp(IRDLOperation):
+    name = "connect"
+    sourceBundle: StringAttr = attr_def(StringAttr)
+    sourceChannel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    destBundle: StringAttr = attr_def(StringAttr)
+    destChannel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+
+    def __init__(
+        self,
+        sourceBundle: StringAttr,
+        sourceChannel: IntegerAttr[i32],
+        destBundle: StringAttr,
+        destChannel: IntegerAttr[i32],
+    ):
+        super().__init__(
+            attributes={
+                "sourceBundle": sourceBundle,
+                "sourceChannel": sourceChannel,
+                "destBundle": destBundle,
+                "destChannel": destChannel,
+            }
         )
 
 
