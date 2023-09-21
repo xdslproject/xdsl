@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Annotated
 
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, UnitAttr, i32
@@ -18,6 +19,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 
 
 class BinCombOp(IRDLOperation):
@@ -59,11 +61,6 @@ class BinCombOp(IRDLOperation):
         printer.print_ssa_value(self.lhs)
         printer.print(", ")
         printer.print_ssa_value(self.rhs)
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
-
-    def __hash__(self) -> int:
-        return id(self)
 
 
 class VariadicCombOp(IRDLOperation):
@@ -103,11 +100,6 @@ class VariadicCombOp(IRDLOperation):
         for item in self.inputs:
             printer.print_ssa_value(item)
             printer.print(", ")
-        printer.print(" : ")
-        printer.print_attribute(self.result.type)
-
-    def __hash__(self) -> int:
-        return id(self)
 
 
 @irdl_op_definition
@@ -201,8 +193,46 @@ class XorOp(VariadicCombOp):
     name = "comb.xor"
 
 
+@dataclass
+class ComparisonOperation:
+    """
+    A generic comparison operation, operation definitions inherit this class.
+
+    The first argument to these comparison operations is the type of comparison
+    being performed, the following comparisons are supported:
+
+    -   equal (mnemonic: `"eq"`; integer value: `0`)
+    -   not equal (mnemonic: `"ne"`; integer value: `1`)
+    -   signed less than (mnemonic: `"slt"`; integer value: `2`)
+    -   signed less than or equal (mnemonic: `"sle"`; integer value: `3`)
+    -   signed greater than (mnemonic: `"sgt"`; integer value: `4`)
+    -   signed greater than or equal (mnemonic: `"sge"`; integer value: `5`)
+    -   unsigned less than (mnemonic: `"ult"`; integer value: `6`)
+    -   unsigned less than or equal (mnemonic: `"ule"`; integer value: `7`)
+    -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
+    -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
+    """
+
+    @staticmethod
+    def _get_comparison_predicate(
+        mnemonic: str, comparison_operations: dict[str, int]
+    ) -> int:
+        if mnemonic in comparison_operations:
+            return comparison_operations[mnemonic]
+        else:
+            raise VerifyException(f"Unknown comparison mnemonic: {mnemonic}")
+
+    @staticmethod
+    def _validate_operand_types(operand1: SSAValue, operand2: SSAValue):
+        if operand1.type != operand2.type:
+            raise TypeError(
+                f"Comparison operands must have same type, but "
+                f"provided {operand1.type} and {operand2.type}"
+            )
+
+
 @irdl_op_definition
-class ICmpOp(IRDLOperation):
+class ICmpOp(IRDLOperation, ComparisonOperation):
     """Integer comparison"""
 
     name = "comb.icmp"
@@ -216,6 +246,37 @@ class ICmpOp(IRDLOperation):
     predicate: IntegerAttr[IndexType] = attr_def(IntegerAttr[IndexType])
     two_state: UnitAttr = attr_def(UnitAttr)
 
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        arg: int | str,
+    ):
+        operand1 = SSAValue.get(operand1)
+        operand2 = SSAValue.get(operand2)
+        ICmpOp._validate_operand_types(operand1, operand2)
+
+        if isinstance(arg, str):
+            cmpi_comparison_operations = {
+                "eq": 0,
+                "ne": 1,
+                "slt": 2,
+                "sle": 3,
+                "sgt": 4,
+                "sge": 5,
+                "ult": 6,
+                "ule": 7,
+                "ugt": 8,
+                "uge": 9,
+            }
+            arg = ICmpOp._get_comparison_predicate(arg, cmpi_comparison_operations)
+
+        return super().__init__(
+            operands=[operand1, operand2],
+            result_types=[IntegerType(1)],
+            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+        )
+
 
 @irdl_op_definition
 class ParityOp(IRDLOperation):
@@ -227,6 +288,14 @@ class ParityOp(IRDLOperation):
     result: OpResult = result_def(IntegerType(1))
 
     two_state: UnitAttr | None = opt_attr_def(UnitAttr)
+
+    def __init__(self, operand: Operation | SSAValue, two_state: UnitAttr):
+        operand = SSAValue.get(operand)
+        return super().__init__(
+            attributes={"two_state": two_state},
+            operands=[operand],
+            result_types=[operand.type],
+        )
 
 
 @irdl_op_definition
@@ -244,6 +313,14 @@ class ExtractOp(IRDLOperation):
     )
     result: OpResult = result_def(IntegerType)
 
+    def __init__(self, operand: Operation | SSAValue, low_bit: IntegerType):
+        operand = SSAValue.get(operand)
+        return super().__init__(
+            attributes={"low_bit": low_bit},
+            operands=[operand],
+            result_types=[operand.type],
+        )
+
 
 @irdl_op_definition
 class ConcatOp(IRDLOperation):
@@ -256,6 +333,9 @@ class ConcatOp(IRDLOperation):
     inputs: VarOperand = var_operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
+    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
+        return super().__init__(operands=[op], result_types=[target_type])
+
 
 @irdl_op_definition
 class ReplicateOp(IRDLOperation):
@@ -267,6 +347,9 @@ class ReplicateOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
+
+    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
+        return super().__init__(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -283,6 +366,17 @@ class MuxOp(IRDLOperation):
     true_value: Operand = operand_def(T)
     false_value: Operand = operand_def(T)
     result: OpResult = result_def(T)
+
+    def __init__(
+        self,
+        condition: Operation | SSAValue,
+        true_val: Operation | SSAValue,
+        false_val: Operation | SSAValue,
+    ):
+        operand2 = SSAValue.get(true_val)
+        return super().__init__(
+            operands=[condition, true_val, false_val], result_types=[operand2.type]
+        )
 
 
 Comb = Dialect(
