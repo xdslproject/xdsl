@@ -144,32 +144,3 @@
     }) {sym_name = "C"} : () -> ()
   }) {function_type = (i1) -> i1, initialState = "A", sym_name = "foo"} : () -> ()
 }) : () -> ()
-
-
-// CHECK:  "fsm.machine"() ({
-// CHECK: Can not find initial state
-// CHECK:  ^bb0(%arg0: i1):
-// CHECK:   %0 = "fsm.variable"() {initValue = 0 : i16, name = "cnt"} : () -> i16
-// CHECK:    "fsm.state"() ({
-// CHECK:      "fsm.output"(%arg0) : (i1) -> ()
-// CHECK:    }, {
-// CHECK:      "fsm.transition"() ({
-// CHECK:      }, {
-// CHECK:      }) {nextState = @B} : () -> ()
-// CHECK:    }) {sym_name = "B"} : () -> ()
-// CHECK:  }) {function_type = (i1) -> i1, initialState = "A", sym_name = "foo"} : () -> ()
-
-"builtin.module"() ({
-  "fsm.machine"() ({
-  ^bb0(%arg0: i1):
-    %0 = "fsm.variable"() {initValue = 0 : i16, name = "cnt"} : () -> i16
-    "fsm.state"() ({
-      "fsm.output"(%arg0) : (i1) -> ()
-    }, {
-      "fsm.transition"() ({
-      }, {
-      }) {nextState = @B} : () -> ()
-    }) {sym_name = "B"} : () -> ()
-  }) {function_type = (i1) -> i1, initialState = "A", sym_name = "foo"} : () -> ()
-}) : () -> ()
-

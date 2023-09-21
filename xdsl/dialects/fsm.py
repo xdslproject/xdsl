@@ -66,8 +66,8 @@ class Transition(IRDLOperation):
     def __init__(
         self,
         nextState: FlatSymbolRefAttr,
-        action: Region | type[Region.DEFAULT] = Region.DEFAULT,
         guard: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        action: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
         if isinstance(nextState, str):
             nextState = FlatSymbolRefAttr(nextState)
@@ -83,16 +83,11 @@ class Transition(IRDLOperation):
         )
 
     def verify_(self):
-        var = SymbolTable.lookup_symbol(self, self.nextState)
-        if var is None:
-            raise VerifyException("1. Can not find next state")
-        if not isinstance(var, State):
-            raise VerifyException("2. Can not find next state")
-        if (
-            self.guard.blocks
-            and self.guard.block.first_op is not None
-            and not isinstance(self.guard.block.last_op, Return)
+        if SymbolTable.lookup_symbol(self, self.nextState) is None or not isinstance(
+            SymbolTable.lookup_symbol(self, self.nextState), State
         ):
+            raise VerifyException("Can not find next state")
+        if self.guard.blocks and not isinstance(self.guard.block.last_op, Return):
             raise VerifyException("Guard region must terminate with ReturnOp")
         var = self.parent_op()
         assert isinstance(var, State)
@@ -145,15 +140,22 @@ class Machine(IRDLOperation):
         if not isinstance(body, Region):
             body = Region(Block())
 
-        super().__init__(attributes=attributes)
+        super().__init__(attributes=attributes, regions=[body])
 
     def verify_(self):
         if not SymbolTable.lookup_symbol(self, self.initialState):
             raise VerifyException("Can not find initial state")
-        if self.arg_attrs is not None and self.arg_names is None:
+        if (
+            self.arg_attrs is not None
+            and self.arg_names is None
+            or self.res_attrs is not None
+            and self.res_names is None
+            or self.arg_attrs is None
+            and self.arg_names is not None
+            or self.res_attrs is None
+            and self.res_names is not None
+        ):
             raise VerifyException("arg_attrs must be consistent with arg_names")
-        if self.res_attrs is not None and self.res_names is None:
-            raise VerifyException("res_attrs must be consistent with res_names")
         if self.arg_attrs is not None and self.arg_names is not None:
             if len(self.arg_attrs) != len(self.arg_names):
                 raise VerifyException(
