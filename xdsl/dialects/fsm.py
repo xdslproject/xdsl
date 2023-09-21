@@ -148,6 +148,8 @@ class Machine(IRDLOperation):
         super().__init__(attributes=attributes)
 
     def verify_(self):
+        if not SymbolTable.lookup_symbol(self, self.initialState):
+            raise VerifyException("Can not find initial state")
         if self.arg_attrs is not None and self.arg_names is None:
             raise VerifyException("arg_attrs must be consistent with arg_names")
         if self.res_attrs is not None and self.res_names is None:
