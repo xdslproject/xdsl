@@ -17,6 +17,7 @@ from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.cmath import CMath
+from xdsl.dialects.comb import Comb
 from xdsl.dialects.experimental.dmp import DMP
 from xdsl.dialects.experimental.fir import FIR
 from xdsl.dialects.experimental.hls import HLS
@@ -79,6 +80,7 @@ def get_all_dialects() -> list[Dialect]:
         Builtin,
         Cf,
         CMath,
+        Comb,
         DMP,
         FIR,
         Func,
