@@ -32,7 +32,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import ConstantLike, Pure
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -88,6 +88,8 @@ class Constant(IRDLOperation):
     name = "arith.constant"
     result: OpResult = result_def(Attribute)
     value: Attribute = attr_def(Attribute)
+
+    traits = frozenset((ConstantLike(),))
 
     @overload
     def __init__(
