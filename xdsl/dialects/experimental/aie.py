@@ -6,18 +6,32 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IndexType,
     IntegerAttr,
-    StringAttr,
     i32,
 )
-from xdsl.ir import Dialect, OpResult
+from xdsl.ir import Data, Dialect, OpResult
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
     attr_def,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     result_def,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
+
+
+@irdl_attr_definition
+class WireBundleAttr(Data[str]):
+    name = "wire_bundle"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> str:
+        return parser.parse_str_literal()
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f'"{self.data}"')
 
 
 @irdl_op_definition
@@ -63,16 +77,16 @@ class TileOp(IRDLOperation):
 @irdl_op_definition
 class ConnectOp(IRDLOperation):
     name = "connect"
-    sourceBundle: StringAttr = attr_def(StringAttr)
+    sourceBundle: WireBundleAttr = attr_def(WireBundleAttr)
     sourceChannel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
-    destBundle: StringAttr = attr_def(StringAttr)
+    destBundle: WireBundleAttr = attr_def(WireBundleAttr)
     destChannel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
 
     def __init__(
         self,
-        sourceBundle: StringAttr,
+        sourceBundle: WireBundleAttr,
         sourceChannel: IntegerAttr[i32],
-        destBundle: StringAttr,
+        destBundle: WireBundleAttr,
         destChannel: IntegerAttr[i32],
     ):
         super().__init__(
