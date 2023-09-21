@@ -79,7 +79,6 @@ def get_all_dialects() -> list[Dialect]:
         Arith,
         Builtin,
         Cf,
-        Comb,
         CMath,
         Comb,
         DMP,

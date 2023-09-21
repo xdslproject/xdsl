@@ -74,6 +74,8 @@ class BinCombOperation(IRDLOperation, ABC):
         printer.print_ssa_value(self.lhs)
         printer.print(", ")
         printer.print_ssa_value(self.rhs)
+        printer.print(" : ")
+        printer.print(self.result.type)
 
 
 class VariadicCombOperation(IRDLOperation, ABC):
@@ -104,19 +106,21 @@ class VariadicCombOperation(IRDLOperation, ABC):
 
     @classmethod
     def parse(cls, parser: Parser):
-        inputs = parser.parse_op_args_list()
+        inputs = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         inputs = parser.resolve_operands(
             inputs, len(inputs) * [result_type], parser.pos
         )
-        return cls(inputs, result_type)
+        return cls.create(operands=inputs, result_types=[result_type])
 
     def print(self, printer: Printer):
         printer.print(" ")
-        for item in self.inputs:
-            printer.print_ssa_value(item)
-            printer.print(", ")
+        printer.print_list(self.inputs, printer.print_ssa_value)
+        printer.print(" : ")
+        printer.print(self.result.type)
 
 
 @irdl_op_definition
