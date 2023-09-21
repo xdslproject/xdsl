@@ -10,6 +10,7 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IndexType,
+    IntAttr,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -88,7 +89,7 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
         if name is None:
             return ""
         if not name.startswith("j"):
-            assert name in cls.abi_index_by_name()
+            assert name in cls.abi_index_by_name(), f"{name}"
         return name
 
     def print_parameter(self, printer: Printer) -> None:
@@ -433,7 +434,7 @@ class RISCVOp(Operation, ABC):
 
 
 AssemblyInstructionArg: TypeAlias = (
-    AnyIntegerAttr | LabelAttr | SSAValue | IntRegisterType | str
+    AnyIntegerAttr | LabelAttr | SSAValue | IntRegisterType | str | int
 )
 
 
@@ -1566,9 +1567,10 @@ class AddOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             AddImmediates,
+            AdditionOfSameVariablesToMultiplyByTwo,
         )
 
-        return (AddImmediates(),)
+        return (AddImmediates(), AdditionOfSameVariablesToMultiplyByTwo())
 
 
 @irdl_op_definition
@@ -1584,7 +1586,12 @@ class AddOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.add"
 
-    traits = frozenset((AddOpHasCanonicalizationPatternsTrait(),))
+    traits = frozenset(
+        (
+            Pure(),
+            AddOpHasCanonicalizationPatternsTrait(),
+        )
+    )
 
 
 @irdl_op_definition
@@ -2192,9 +2199,12 @@ class CsrrciOp(CsrBitwiseImmOperation):
 class MulOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import MultiplyImmediates
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            MultiplyImmediates,
+            MultiplyImmediateZero,
+        )
 
-        return (MultiplyImmediates(),)
+        return (MultiplyImmediates(), MultiplyImmediateZero())
 
 
 @irdl_op_definition
@@ -2691,6 +2701,184 @@ class ScfgwOp(RsRsIntegerOperation):
     name = "riscv.scfgw"
 
 
+@irdl_op_definition
+class ScfgwiOp(RdRsImmIntegerOperation):
+    """
+    Write the immediate value to the Snitch stream configuration location pointed by rs
+    in the memory-mapped address space.
+
+    This is part of the `Xssr' extension (https://pulp-platform.github.io/snitch/rm/custom_instructions/), an extension of the RISC-V ISA.
+    """
+
+    name = "riscv.scfgwi"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        # rd is always zero, so we omit it when printing assembly
+        return self.rs1, self.immediate
+
+
+class FRepOperation(IRDLOperation, RISCVInstruction):
+    """
+    From the Snitch paper: https://arxiv.org/abs/2002.10143
+
+    The frep instruction marks the beginning of a floating-point kernel which should be
+    repeated. It indicates how many subsequent instructions are stored in the sequence
+    buffer, how often and how (operand staggering, repetition mode) each instruction is
+    going to be repeated.
+    """
+
+    max_rep = operand_def(IntRegisterType)
+    """Number of times to repeat the instructions."""
+    body = region_def("single_block")
+    """
+    Instructions to repeat, containing maximum 15 instructions, with no side effects.
+    """
+    stagger_mask = attr_def(IntAttr)
+    """
+    4 bits for each operand (rs1 rs2 rs3 rd). If the bit is set, the corresponding operand
+    is staggered.
+    """
+    stagger_count = attr_def(IntAttr)
+    """
+    3 bits, indicating for how many iterations the stagger should increment before it
+    wraps again (up to 23 = 8).
+    """
+
+    traits = frozenset((NoTerminator(),))
+
+    def __init__(
+        self,
+        max_rep: SSAValue | Operation,
+        body: Sequence[Operation] | Sequence[Block] | Region,
+        max_inst: IntAttr,
+        stagger_mask: IntAttr,
+        stagger_count: IntAttr,
+    ):
+        super().__init__(
+            operands=(max_rep,),
+            regions=(body,),
+            attributes={
+                "max_inst": max_inst,
+                "stagger_mask": stagger_mask,
+                "stagger_count": stagger_count,
+            },
+        )
+
+    @property
+    def max_inst(self) -> int:
+        """
+        Number of instructions to be repeated.
+        """
+        return len([op for op in self.body.ops if isinstance(op, RISCVInstruction)])
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (
+            self.max_rep,
+            self.max_inst,
+            self.stagger_mask.data,
+            self.stagger_count.data,
+        )
+
+    def custom_print_attributes(self, printer: Printer):
+        printer.print(", ")
+        printer.print(self.stagger_mask.data)
+        printer.print_string(", ")
+        printer.print(self.stagger_count.data)
+        return {"stagger_mask", "stagger_count"}
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser):
+        attributes = dict[str, Attribute]()
+        attributes["stagger_mask"] = IntAttr(
+            parser.parse_integer(
+                allow_boolean=False, context_msg="Expected stagger mask"
+            )
+        )
+        parser.parse_punctuation(",")
+        attributes["stagger_count"] = IntAttr(
+            parser.parse_integer(
+                allow_boolean=False, context_msg="Expected stagger count"
+            )
+        )
+        return attributes
+
+    def verify_(self) -> None:
+        if self.stagger_count.data:
+            raise VerifyException("Non-zero stagger count currently unsupported")
+        if self.stagger_mask.data:
+            raise VerifyException("Non-zero stagger mask currently unsupported")
+        for instruction in self.body.ops:
+            if not instruction.has_trait(Pure):
+                raise VerifyException(
+                    "Frep operation body may not contain instructions "
+                    f"with side-effects, found {instruction.name}"
+                )
+
+
+@irdl_op_definition
+class FrepOuter(FRepOperation):
+    """
+    Repeats the instruction in the body as if the body were the body of a for loop, for
+    example:
+
+    ```
+    # Repeat 4 times, stagger 1, period 2
+    li a0, 4
+    frep.outer a0, 2, 1, 0b1010
+    fadd.d fa0, ft0, ft2
+    fmul.d fa0, ft3, fa0
+    ```
+
+    is equivalent to:
+    ```
+    fadd.d fa0, ft0, ft2
+    fmul.d fa0, ft3, fa0
+    fadd.d fa1, ft0, ft3
+    fmul.d fa1, ft3, fa1
+    fadd.d fa0, ft0, ft2
+    fmul.d fa0, ft3, fa0
+    fadd.d fa1, ft0, ft3
+    fmul.d fa1, ft3, fa1
+    ```
+    """
+
+    name = "riscv.frep_outer"
+
+    def assembly_instruction_name(self) -> str:
+        return "frep.outer"
+
+
+@irdl_op_definition
+class FrepInner(FRepOperation):
+    """
+    Repeats the instruction in the body, as if each were in its own body of a for loop,
+    for example:
+
+    ```
+    # Repeat three times, stagger 2, period 2
+    li a0, 3
+    frep.inner a0, 2, 2, 0b0100
+    fadd.d fa0, ft0, ft2
+    fmul.d fa0, ft3, fa0
+    ```
+
+    is equivalent to:
+    ```
+    fadd.d fa0, ft0, ft2
+    fadd.d fa0, ft1, ft3
+    fadd.d fa0, ft2, ft3
+    fmul.d fa0, ft3, fa0
+    fmul.d fa0, ft4, fa0
+    fmul.d fa0, ft5, fa0
+    ```
+    """
+
+    name = "riscv.frep_inner"
+
+    def assembly_instruction_name(self) -> str:
+        return "frep.inner"
+
+
 # endregion
 
 # region RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
@@ -2942,6 +3130,8 @@ class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
     """
 
     name = "riscv.fadd.s"
+
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -3281,6 +3471,100 @@ class FSwOp(RsRsImmFloatOperation):
 
 # endregion
 
+# region RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
+
+
+@irdl_op_definition
+class FLdOp(RdRsImmFloatOperation):
+    """
+    Load a double-precision value from memory into floating-point register rd.
+
+    f[rd] = M[x[rs1] + sext(offset)][63:0]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fld
+    """
+
+    name = "riscv.fld"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rd)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
+
+
+@irdl_op_definition
+class FSdOp(RsRsImmFloatOperation):
+    """
+    Store a double-precision value from floating-point register rs2 to memory.
+
+    M[x[rs1] + offset] = f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsw
+    """
+
+    name = "riscv.fsd"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = _assembly_arg_str(self.rs2)
+        imm = _assembly_arg_str(self.immediate)
+        offset = _assembly_arg_str(self.rs1)
+        return _assembly_line(
+            instruction_name, f"{value}, {imm}({offset})", self.comment
+        )
+
+
+# endregion
+
+# region 17 "V" Standard Extension for Vector Operations
+
+# https://riscv.org/wp-content/uploads/2018/05/15.20-15.55-18.05.06.VEXT-bcn-v1.pdf
+
+# Vector operations that use standard RISC-V registers are using a non-standard Xfvec
+# extension.
+# All Xfvec instructions performing vectorial single precision operations require 64bit
+# floating point registers (a.k.a.: FLEN==64).
+# https://iis-git.ee.ethz.ch/smach/smallFloat-spec/-/raw/master/smallFloat_isa.pdf
+
+
+@irdl_op_definition
+class VFAddSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Perform a pointwise single-precision floating-point addition over vectors.
+
+    If the registers used are FloatRegisterType, they must be 64-bit wide, and contain two
+    32-bit single-precision floating point values.
+    """
+
+    name = "riscv.vfadd.s"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class VFMulSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Perform a pointwise single-precision floating-point multiplication over vectors.
+
+    If the registers used are FloatRegisterType, they must be 64-bit wide, and contain two
+    32-bit single-precision floating point values.
+    """
+
+    name = "riscv.vfmul.s"
+
+    traits = frozenset((Pure(),))
+
+
+# endregion
+
 
 def _parse_optional_immediate_value(
     parser: Parser, integer_type: IntegerType | IndexType
@@ -3380,6 +3664,9 @@ RISCV = Dialect(
         GetRegisterOp,
         GetFloatRegisterOp,
         ScfgwOp,
+        ScfgwiOp,
+        FrepOuter,
+        FrepInner,
         # Floating point
         FMVOp,
         FMAddSOp,
@@ -3408,6 +3695,10 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FLdOp,
+        FSdOp,
+        VFAddSOp,
+        VFMulSOp,
     ],
     [
         IntRegisterType,

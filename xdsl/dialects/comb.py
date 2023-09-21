@@ -1,3 +1,12 @@
+"""
+The comb dialect provides a collection of operations that define a mid-level
+compiler IR for combinational logic. It is designed to be easy to analyze and
+transform, and be a flexible and extensible substrate that may be extended with
+higher level dialects mixed into it.
+
+[1] https://circt.llvm.org/docs/Dialects/Comb/
+"""
+from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Annotated
@@ -22,7 +31,7 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
-class BinCombOp(IRDLOperation):
+class BinCombOperation(IRDLOperation, ABC):
     """
     A binary comb operation. It has two operands and one
     result, all of the same integer type.
@@ -33,7 +42,11 @@ class BinCombOp(IRDLOperation):
     lhs: Operand = operand_def(T)
     rhs: Operand = operand_def(T)
     result: OpResult = result_def(T)
-
+    """
+    "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
+    used for operations which have extended truth table for non-2-state logic for various target
+    languages. The two_state variable describes if we are using 2-state (binary) logic or not."
+    """
     two_state: UnitAttr | None = opt_attr_def(UnitAttr)
 
     def __init__(
@@ -63,17 +76,21 @@ class BinCombOp(IRDLOperation):
         printer.print_ssa_value(self.rhs)
 
 
-class VariadicCombOp(IRDLOperation):
+class VariadicCombOperation(IRDLOperation, ABC):
     """
     A variadic comb operation. It has a variadic number of operands, and a single
-    result, all of the same type.
+    result, all of the same integer type.
     """
 
     T = Annotated[IntegerType, ConstraintVar("T")]
 
     inputs: VarOperand = var_operand_def(T)
     result: OpResult = result_def(T)
-
+    """
+    "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
+    used for operations which have extended truth table for non-2-state logic for various target
+    languages. The two_state variable describes if we are using 2-state (binary) logic or not."
+    """
     two_state: UnitAttr | None = opt_attr_def(UnitAttr)
 
     def __init__(
@@ -103,91 +120,91 @@ class VariadicCombOp(IRDLOperation):
 
 
 @irdl_op_definition
-class AddOp(VariadicCombOp):
+class AddOp(VariadicCombOperation):
     """Addition"""
 
     name = "comb.add"
 
 
 @irdl_op_definition
-class MulOp(VariadicCombOp):
+class MulOp(VariadicCombOperation):
     """Multiplication"""
 
     name = "comb.mul"
 
 
 @irdl_op_definition
-class DivUOp(BinCombOp):
+class DivUOp(BinCombOperation):
     """Unsigned division"""
 
     name = "comb.divu"
 
 
 @irdl_op_definition
-class DivSOp(BinCombOp):
+class DivSOp(BinCombOperation):
     """Signed division"""
 
     name = "comb.divs"
 
 
 @irdl_op_definition
-class ModUOp(BinCombOp):
+class ModUOp(BinCombOperation):
     """Unsigned remainder"""
 
     name = "comb.modu"
 
 
 @irdl_op_definition
-class ModSOp(BinCombOp):
+class ModSOp(BinCombOperation):
     """Signed remainder"""
 
     name = "comb.mods"
 
 
 @irdl_op_definition
-class ShlOp(BinCombOp):
+class ShlOp(BinCombOperation):
     """Left shift"""
 
     name = "comb.shl"
 
 
 @irdl_op_definition
-class ShrUOp(BinCombOp):
+class ShrUOp(BinCombOperation):
     """Unsigned right shift"""
 
     name = "comb.shru"
 
 
 @irdl_op_definition
-class ShrSOp(BinCombOp):
+class ShrSOp(BinCombOperation):
     """Signed right shift"""
 
     name = "comb.shrs"
 
 
 @irdl_op_definition
-class SubOp(BinCombOp):
+class SubOp(BinCombOperation):
     """Subtraction"""
 
     name = "comb.sub"
 
 
 @irdl_op_definition
-class AndOp(VariadicCombOp):
+class AndOp(VariadicCombOperation):
     """Bitwise and"""
 
     name = "comb.and"
 
 
 @irdl_op_definition
-class OrOp(VariadicCombOp):
+class OrOp(VariadicCombOperation):
     """Bitwise or"""
 
     name = "comb.or"
 
 
 @irdl_op_definition
-class XorOp(VariadicCombOp):
+class XorOp(VariadicCombOperation):
     """Bitwise xor"""
 
     name = "comb.xor"

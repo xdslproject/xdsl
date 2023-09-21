@@ -52,6 +52,27 @@ class MultiplyImmediates(RewritePattern):
             )
 
 
+class MultiplyImmediateZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op.immediate, IntegerAttr)
+            and op.rs1.op.immediate.value.data == 0
+        ):
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+        elif (
+            isinstance(op.rs2, OpResult)
+            and isinstance(op.rs2.op, riscv.LiOp)
+            and isinstance(op.rs2.op.immediate, IntegerAttr)
+            and op.rs2.op.immediate.value.data == 0
+        ):
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+
+
 class AddImmediates(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AddOp, rewriter: PatternRewriter) -> None:
@@ -256,4 +277,22 @@ class StoreFloatWordWithKnownOffset(RewritePattern):
                     op.rs1.op.immediate.value.data + op.immediate.value.data,
                     comment=op.comment,
                 )
+            )
+
+
+class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AddOp, rewriter: PatternRewriter) -> None:
+        if op.rs1 == op.rs2:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(
+                [
+                    li_op := riscv.LiOp(2),
+                    riscv.MulOp(
+                        op.rs1,
+                        li_op,
+                        rd=rd,
+                        comment=op.comment,
+                    ),
+                ]
             )

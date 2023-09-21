@@ -20,6 +20,7 @@ from xdsl.dialects.cmath import CMath
 from xdsl.dialects.comb import Comb
 from xdsl.dialects.experimental.dmp import DMP
 from xdsl.dialects.experimental.fir import FIR
+from xdsl.dialects.experimental.hls import HLS
 from xdsl.dialects.experimental.math import Math
 from xdsl.dialects.func import Func
 from xdsl.dialects.gpu import GPU
@@ -61,6 +62,9 @@ from xdsl.transforms import (
 )
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
+    hls_convert_stencil_to_ll_mlir,
+    lower_hls,
+    replace_incompatible_fpga,
     stencil_shape_inference,
     stencil_storage_materialization,
 )
@@ -77,10 +81,12 @@ def get_all_dialects() -> list[Dialect]:
         Cf,
         Comb,
         CMath,
+        Comb,
         DMP,
         FIR,
         Func,
         GPU,
+        HLS,
         Linalg,
         IRDL,
         LLVM,
@@ -130,6 +136,9 @@ def get_all_passes() -> list[type[ModulePass]]:
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
+        hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
+        lower_hls.LowerHLSPass,
+        replace_incompatible_fpga.ReplaceIncompatibleFPGA,
     ]
 
 

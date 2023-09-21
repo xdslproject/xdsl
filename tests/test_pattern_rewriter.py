@@ -1003,8 +1003,9 @@ def test_type_conversion():
   }) : () -> ()
   %0 = "test.op"() {"nested" = memref<*xi32>} : () -> i32
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
-  %2 = "test.op"(%0, %1) : (i32, f32) -> memref<*xi32>
-  %3 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  %2 = "test.op"() <{"prop" = memref<*xi32>}> : () -> f32
+  %3 = "test.op"(%0, %1) : (i32, f32) -> memref<*xi32>
+  %4 = "arith.addi"(%0, %0) : (i32, i32) -> i32
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1016,8 +1017,9 @@ def test_type_conversion():
   }) : () -> ()
   %0 = "test.op"() {"nested" = memref<*xindex>} : () -> index
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
-  %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
-  %3 = "arith.addi"(%0, %0) : (index, index) -> index
+  %2 = "test.op"() <{"prop" = memref<*xindex>}> : () -> f32
+  %3 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
+  %4 = "arith.addi"(%0, %0) : (index, index) -> index
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1052,8 +1054,9 @@ def test_type_conversion():
   }) : () -> ()
   %0 = "test.op"() {"nested" = memref<*xi32>} : () -> index
   %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
-  %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xi32>
-  %3 = "arith.addi"(%0, %0) : (index, index) -> index
+  %2 = "test.op"() <{"prop" = memref<*xi32>}> : () -> f32
+  %3 = "test.op"(%0, %1) : (index, f32) -> memref<*xi32>
+  %4 = "arith.addi"(%0, %0) : (index, index) -> index
   "func.return"() : () -> ()
 }) : () -> ()
 """
@@ -1081,8 +1084,9 @@ def test_type_conversion():
   }) : () -> ()
   %0 = "test.op"() {"nested" = memref<*xindex>} : () -> index
   %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
-  %2 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
-  %3 = "arith.addi"(%0, %0) : (index, index) -> i32
+  %2 = "test.op"() <{"prop" = memref<*xindex>}> : () -> f32
+  %3 = "test.op"(%0, %1) : (index, f32) -> memref<*xindex>
+  %4 = "arith.addi"(%0, %0) : (index, index) -> i32
   "func.return"() : () -> ()
 }) : () -> ()
 """

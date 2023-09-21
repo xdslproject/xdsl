@@ -4,6 +4,7 @@ from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
+from xdsl.dialects.test import Test
 from xdsl.ir import MLContext, Operation
 from xdsl.parser import Parser
 from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (  # noqa
@@ -71,22 +72,30 @@ program_successors = """
 }) : () -> ()
 """
 
+program_attr_and_prop = """
+"builtin.module"() ({
+  "test.op"() <{"prop1" = i32}> {"attr1" = i64} : () -> ()
+}) : () -> ()
+"""
+
 
 @pytest.mark.parametrize(
     "program_str",
     [
-        (program_region),
-        (program_region_2),
-        (program_region_2_diff_type),
-        (program_region_2_diff_name),
-        (program_add),
-        (program_add_2),
-        (program_func),
-        (program_successors),
+        program_region,
+        program_region_2,
+        program_region_2_diff_type,
+        program_region_2_diff_name,
+        program_add,
+        program_add_2,
+        program_func,
+        program_successors,
+        program_attr_and_prop,
     ],
 )
 def test_immutable_ir(program_str: str):
     ctx = MLContext()
+    ctx.register_dialect(Test)
     ctx.register_dialect(Builtin)
     ctx.register_dialect(Func)
     ctx.register_dialect(Arith)

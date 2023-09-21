@@ -19,6 +19,9 @@ class RegisterQueue:
         Registers.S0,  # Same register as FP
     }
 
+    DEFAULT_INT_REGISTERS = Registers.A[::-1] + Registers.T[::-1]
+    DEFAULT_FLOAT_REGISTERS = Registers.FA[::-1] + Registers.FT[::-1]
+
     _idx: int = 0
     """Next `j` register index."""
 
@@ -28,20 +31,12 @@ class RegisterQueue:
     "Registers unavailable to be used by the register allocator."
 
     available_int_registers: list[IntRegisterType] = field(
-        default_factory=lambda: [
-            reg
-            for reg_class in (Registers.S[1:], Registers.A, Registers.T)
-            for reg in reg_class
-        ]
+        default_factory=lambda: list(RegisterQueue.DEFAULT_INT_REGISTERS)
     )
     "Registers that integer values can be allocated to in the current context."
 
     available_float_registers: list[FloatRegisterType] = field(
-        default_factory=lambda: [
-            reg
-            for reg_class in (Registers.FS, Registers.FA, Registers.FT)
-            for reg in reg_class
-        ]
+        default_factory=lambda: list(RegisterQueue.DEFAULT_FLOAT_REGISTERS)
     )
     "Registers that floating-point values can be allocated to in the current context."
 
@@ -88,5 +83,11 @@ class RegisterQueue:
         """
         Limits the number of currently available registers to the provided limit.
         """
-        self.available_int_registers = self.available_int_registers[:limit]
-        self.available_float_registers = self.available_float_registers[:limit]
+        if limit < 0:
+            raise ValueError(f"Invalid negative limit value {limit}")
+        if limit:
+            self.available_int_registers = self.available_int_registers[-limit:]
+            self.available_float_registers = self.available_float_registers[-limit:]
+        else:
+            self.available_int_registers = []
+            self.available_float_registers = []
