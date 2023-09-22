@@ -8,10 +8,9 @@ higher level dialects mixed into it.
 """
 from abc import ABC
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Annotated
 
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, UnitAttr, i32
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, UnitAttr, i32, i64
 from xdsl.ir import Dialect, Operation, OpResult, SSAValue
 from xdsl.ir.core import Attribute
 from xdsl.irdl import (
@@ -89,6 +88,43 @@ class BinCombOperation(IRDLOperation, ABC):
         printer.print_ssa_value(self.rhs)
         printer.print(" : ")
         printer.print(self.result.type)
+
+
+class ComparisonOperation(IRDLOperation, ABC):
+    """
+    A generic comparison operation, operation definitions inherit this class.
+
+    The first argument to these comparison operations is the type of comparison
+    being performed, the following comparisons are supported:
+
+    -   equal (mnemonic: `"eq"`; integer value: `0`)
+    -   not equal (mnemonic: `"ne"`; integer value: `1`)
+    -   signed less than (mnemonic: `"slt"`; integer value: `2`)
+    -   signed less than or equal (mnemonic: `"sle"`; integer value: `3`)
+    -   signed greater than (mnemonic: `"sgt"`; integer value: `4`)
+    -   signed greater than or equal (mnemonic: `"sge"`; integer value: `5`)
+    -   unsigned less than (mnemonic: `"ult"`; integer value: `6`)
+    -   unsigned less than or equal (mnemonic: `"ule"`; integer value: `7`)
+    -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
+    -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
+    """
+
+    @staticmethod
+    def _get_comparison_predicate(
+        mnemonic: str, comparison_operations: dict[str, int]
+    ) -> int:
+        if mnemonic in comparison_operations:
+            return comparison_operations[mnemonic]
+        else:
+            raise VerifyException(f"Unknown comparison mnemonic: {mnemonic}")
+
+    @staticmethod
+    def _validate_operand_types(operand1: SSAValue, operand2: SSAValue):
+        if operand1.type != operand2.type:
+            raise TypeError(
+                f"Comparison operands must have same type, but "
+                f"provided {operand1.type} and {operand2.type}"
+            )
 
 
 class VariadicCombOperation(IRDLOperation, ABC):
@@ -227,53 +263,17 @@ class XorOp(VariadicCombOperation):
     name = "comb.xor"
 
 
-@dataclass
-class ComparisonOperation:
-    """
-    A generic comparison operation, operation definitions inherit this class.
-
-    The first argument to these comparison operations is the type of comparison
-    being performed, the following comparisons are supported:
-
-    -   equal (mnemonic: `"eq"`; integer value: `0`)
-    -   not equal (mnemonic: `"ne"`; integer value: `1`)
-    -   signed less than (mnemonic: `"slt"`; integer value: `2`)
-    -   signed less than or equal (mnemonic: `"sle"`; integer value: `3`)
-    -   signed greater than (mnemonic: `"sgt"`; integer value: `4`)
-    -   signed greater than or equal (mnemonic: `"sge"`; integer value: `5`)
-    -   unsigned less than (mnemonic: `"ult"`; integer value: `6`)
-    -   unsigned less than or equal (mnemonic: `"ule"`; integer value: `7`)
-    -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
-    -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
-    """
-
-    @staticmethod
-    def _get_comparison_predicate(
-        mnemonic: str, comparison_operations: dict[str, int]
-    ) -> int:
-        if mnemonic in comparison_operations:
-            return comparison_operations[mnemonic]
-        else:
-            raise VerifyException(f"Unknown comparison mnemonic: {mnemonic}")
-
-    @staticmethod
-    def _validate_operand_types(operand1: SSAValue, operand2: SSAValue):
-        if operand1.type != operand2.type:
-            raise TypeError(
-                f"Comparison operands must have same type, but "
-                f"provided {operand1.type} and {operand2.type}"
-            )
-
-
 @irdl_op_definition
-class ICmpOp(IRDLOperation, ComparisonOperation):
+class ICmpOp(ComparisonOperation):
     """Integer comparison"""
 
     name = "comb.icmp"
 
     T = Annotated[IntegerType, ConstraintVar("T")]
 
-    predicate: IntegerAttr[IndexType] = attr_def(IntegerAttr[IndexType])
+    predicate: IntegerAttr[IntegerType] = attr_def(
+        IntegerAttr[Annotated[IntegerType, i64]]
+    )
     lhs: Operand = operand_def(T)
     rhs: Operand = operand_def(T)
     result: OpResult = result_def(IntegerType(1))
@@ -284,11 +284,10 @@ class ICmpOp(IRDLOperation, ComparisonOperation):
         self,
         operand1: Operation | SSAValue,
         operand2: Operation | SSAValue,
-        arg: int | str,
+        arg: int | str | IntegerAttr[IntegerType],
     ):
         operand1 = SSAValue.get(operand1)
         operand2 = SSAValue.get(operand2)
-        ICmpOp._validate_operand_types(operand1, operand2)
 
         if isinstance(arg, str):
             cmpi_comparison_operations = {
@@ -304,11 +303,12 @@ class ICmpOp(IRDLOperation, ComparisonOperation):
                 "uge": 9,
             }
             arg = ICmpOp._get_comparison_predicate(arg, cmpi_comparison_operations)
-
+        if not isinstance(arg, IntegerAttr):
+            arg = IntegerAttr.from_int_and_width(arg, 64)
         return super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+            attributes={"predicate": arg},
         )
 
     @classmethod
