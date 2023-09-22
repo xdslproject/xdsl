@@ -155,7 +155,7 @@ class Machine(IRDLOperation):
             or self.res_attrs is None
             and self.res_names is not None
         ):
-            raise VerifyException("arg_attrs must be consistent with arg_names")
+            raise VerifyException("attrs must be consistent with names")
         if self.arg_attrs is not None and self.arg_names is not None:
             if len(self.arg_attrs) != len(self.arg_names):
                 raise VerifyException(
@@ -190,15 +190,19 @@ class Output(IRDLOperation):
 
     def verify_(self):
         parent = self.parent_op()
+        if (
+            isinstance(parent, State)
+            and parent.transitions == self.parent_region()
+            and len(self.operands) > 0
+        ):
+            raise VerifyException("Transition regions should not output any value")
         while parent is not None:
-            if isinstance(parent, Transition) and len(self.operands) > 0:
-                raise VerifyException("Transition regions should not output any value")
-            elif isinstance(parent, Machine):
-                # check that the type of the operand
-                # is the same as at least one in the type of the entry
-                if isinstance(self.operands, type(getattr(parent, "res_attrs"))):
+            if isinstance(parent, Machine):
+                if [operand.type for operand in self.operands] == [
+                    type(result) for result in parent.function_type.outputs
+                ] and len(self.operands) == len(parent.function_type.outputs):
                     raise VerifyException(
-                        "Output types must be consistent with the machine"
+                        "Output types must be consistent with the machine's"
                     )
             parent = parent.parent_op()
 
@@ -271,7 +275,7 @@ class Update(IRDLOperation):
 
     value = operand_def(Attribute)
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([HasParent(Transition)])
 
     def __init__(
         self,
