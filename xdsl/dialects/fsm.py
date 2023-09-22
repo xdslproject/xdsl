@@ -19,7 +19,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.core import Dialect
+from xdsl.ir.core import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -30,9 +30,11 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_operand_def,
     region_def,
+    result_def,
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.irdl import irdl_attr_definition
 from xdsl.traits import (
     HasParent,
     IsTerminator,
@@ -43,6 +45,11 @@ from xdsl.traits import (
 from xdsl.utils.exceptions import VerifyException
 
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
+
+
+@irdl_attr_definition
+class InstanceType(ParametrizedAttribute, TypeAttribute):
+    "fsm.instance"
 
 
 @irdl_op_definition
@@ -363,6 +370,158 @@ class Return(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class Instance(IRDLOperation):
+    """Represents an instance of a state machine, including an
+    instance name and a symbol reference of the machine"""
+
+    name = "fsm.instance"
+
+    sym_name = attr_def(StringAttr)
+    machine = attr_def(FlatSymbolRefAttr)
+
+    res = result_def(InstanceType)
+
+    def __init__(
+        self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType
+    ):
+        if isinstance(machine, str):
+            machine = FlatSymbolRefAttr(machine)
+        attributes: dict[str, Attribute] = {}
+        attributes["sym_name"] = StringAttr(sym_name)
+        attributes["machine"] = machine
+        super().__init__(result_types=[instance], attributes=attributes)
+
+    def verify_(self):
+        if not isinstance(SymbolTable.lookup_symbol(self, self.machine), Machine):
+            raise VerifyException("Machine definition does not exist.")
+
+    def getMachine(self) -> Machine | None:
+        m = SymbolTable.lookup_symbol(self, self.machine)
+        if isinstance(m, Machine):
+            return m
+        else:
+            return None
+
+
+@irdl_op_definition
+class Trigger(IRDLOperation):
+    """Triggers a state machine instance. The inputs and outputs are
+    correponding to the inputs and outputs of the referenced machine of the
+    instance"""
+
+    name = "fsm.trigger"
+
+    # operands
+
+    inputs = var_operand_def(AnyAttr())
+
+    instance = operand_def(InstanceType)
+
+    outputs = var_result_def(AnyAttr())
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue | Operation],
+        instance: SSAValue,
+        outputs: Sequence[Attribute],
+    ):
+        super().__init__(
+            operands=[inputs, instance],
+            result_types=[outputs],
+        )
+
+    def verify_(self):
+        if not isinstance(self.instance.owner, Instance):
+            raise VerifyException("The instance operand must be Instance")
+
+        # operand types must match the machine input types
+
+        # result types must match the machine output types
+        m = self.instance.owner.getMachine()
+
+        if m is None:
+            raise VerifyException("Machine definition does not exist.")
+
+        if not (
+            [operand.type for operand in self.operands]
+            == [type(result) for result in m.function_type.outputs]
+            and len(self.operands) == len(m.function_type.outputs)
+        ):
+            raise VerifyException("Output types must be consistent with the machine's")
+
+        if not (
+            [operand.type for operand in self.inputs]
+            == [type(result) for result in m.function_type.inputs]
+            and len(self.operands) == len(m.function_type.inputs)
+        ):
+            raise VerifyException("Input types must be consistent with the machine's")
+
+
+@irdl_op_definition
+class HWInstance(IRDLOperation):
+    """Represents a hardware-style instance of a state machine,
+    including an instance name and a symbol reference of the machine. The inputs
+    and outputs are correponding to the inputs and outputs of the referenced
+    machine."""
+
+    name = "fsm.hw_instance"
+
+    sym_name = attr_def(StringAttr)
+    machine = attr_def(FlatSymbolRefAttr)
+    inputs = var_operand_def(AnyAttr())
+    clock = operand_def(signlessIntegerLike)
+    reset = operand_def(signlessIntegerLike)
+
+    outputs = var_result_def(AnyAttr())
+
+    def __init__(
+        self,
+        sym_name: str | StringAttr,
+        machine: str | FlatSymbolRefAttr,
+        inputs: Sequence[SSAValue | Operation],
+        clock: SSAValue | Operation,
+        reset: SSAValue | Operation,
+        outputs: Sequence[Attribute],
+    ):
+        if isinstance(machine, str):
+            machine = FlatSymbolRefAttr(machine)
+        clock = SSAValue.get(clock)
+        reset = SSAValue.get(reset)
+        attributes: dict[str, Attribute] = {}
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+        attributes["sym_name"] = sym_name
+        attributes["machine"] = machine
+        super().__init__(
+            operands=[inputs, clock, reset],
+            result_types=[outputs],
+            attributes=attributes,
+        )
+
+    def verify_(self):
+        m = SymbolTable.lookup_symbol(self, self.machine)
+        if isinstance(m, Machine):
+            if not (
+                [operand.type for operand in self.inputs]
+                == [type(result) for result in m.function_type.outputs]
+                and len(self.operands) == len(m.function_type.outputs)
+            ):
+                raise VerifyException(
+                    "Output types must be consistent with the machine's"
+                )
+            if not (
+                [operand.type for operand in self.inputs]
+                == [type(result) for result in m.function_type.inputs]
+                and len(self.operands) == len(m.function_type.inputs)
+            ):
+                raise VerifyException(
+                    "Input types must be consistent with the machine's"
+                )
+        else:
+            raise VerifyException("The machine does not exist")
+
+
 FSM = Dialect(
     [
         Machine,
@@ -372,6 +531,9 @@ FSM = Dialect(
         Update,
         Variable,
         Return,
+        Trigger,
+        Instance,
+        HWInstance,
     ],
-    [],
+    [InstanceType],
 )
