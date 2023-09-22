@@ -231,3 +231,42 @@
 }) {function_type = () -> (), initialState = "A", sym_name = "foo"} : () -> ()
 
 // CHECK: Destination is not a variable operation
+
+// -----
+
+"builtin.module"() ({
+  ^bb0(%arg0: i1, %arg1: i1):
+    %0 = "arith.constant"() {value = true} : () -> i1
+    %1 = "fsm.hw_instance"(%0, %arg0, %arg1) {machine = @foo, sym_name = "foo_inst"} : (i1, i1, i1) -> i1
+}) : () -> ()
+
+// CHECK: Machine definition does not exist
+
+// -----
+
+"builtin.module"() ({
+  ^bb0(%arg0: i1, %arg1: i1):
+    %0 = "arith.constant"() {value = true} : () -> i1
+    %1 = "fsm.hw_instance"(%0, %arg0, %arg1) {machine = @foo, sym_name = "foo_inst"} : (i1, i1, i1) -> i1
+}) : () -> ()
+
+// CHECK: Output types must be consistent with the machine's
+
+// -----
+
+"builtin.module"() ({
+  ^bb0(%arg0: i1, %arg1: i1):
+    %0 = "arith.constant"() {value = true} : () -> i1
+    %1 = "fsm.hw_instance"(%0, %arg0, %arg1) {machine = @foo, sym_name = "foo_inst"} : (i1, i1, i1) -> i1
+}) : () -> ()
+
+// CHECK: Input types must be consistent with the machine's
+
+// -----
+
+"builtin.module"() ({
+    ^bb0(%arg0: i1):
+    "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
+}) : () -> ()
+
+// CHECK: Machine definition does not exist

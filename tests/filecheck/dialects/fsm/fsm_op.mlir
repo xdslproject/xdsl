@@ -52,11 +52,11 @@
 // CHECK:    }) {sym_name = "BUSY"} : () -> ()
 // CHECK:  }) {function_type = (i1) -> i1, initialState = "IDLE", sym_name = "foo"} : () -> ()
 // CHECK:"func.func"() ({
-// CHECK:    %0 = "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instance
+// CHECK:    %0 = "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
 // CHECK:    %1 = "arith.constant"() {value = true} : () -> i1
-// CHECK:    %2 = "fsm.trigger"(%1, %0) : (i1, !fsm.instance) -> i1
+// CHECK:    %2 = "fsm.trigger"(%1, %0) : (i1, !fsm.instancetype) -> i1
 // CHECK:    %3 = "arith.constant"() {value = false} : () -> i1
-// CHECK:    %4 = "fsm.trigger"(%3, %0) : (i1, !fsm.instance) -> i1
+// CHECK:    %4 = "fsm.trigger"(%3, %0) : (i1, !fsm.instancetype) -> i1
 // CHECK:    "func.return"() : () -> ()
 // CHECK:  }) {function_type = () -> (), sym_name = "qux"} : () -> ()
 
@@ -95,13 +95,13 @@
       }, {
       }) {nextState = @IDLE} : () -> ()
     }) {sym_name = "BUSY"} : () -> ()
-  }) {function_type = (i1) -> i1, initialState = "IDLE", sym_name = "foo"} : () -> ()
+  }) {function_type = (i1) -> (i1), initialState = "IDLE", sym_name = "foo"} : () -> ()
   "func.func"() ({
-    %0 = "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instance
+    %0 = "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
     %1 = "arith.constant"() {value = true} : () -> i1
-    %2 = "fsm.trigger"(%1, %0) : (i1, !fsm.instance) -> i1
+    %2 = "fsm.trigger"(%1, %0) : (i1, !fsm.instancetype) -> i1
     %3 = "arith.constant"() {value = false} : () -> i1
-    %4 = "fsm.trigger"(%3, %0) : (i1, !fsm.instance) -> i1
+    %4 = "fsm.trigger"(%3, %0) : (i1, !fsm.instancetype) -> i1
     "func.return"() : () -> ()
   }) {function_type = () -> (), sym_name = "qux"} : () -> ()
 }) : () -> ()

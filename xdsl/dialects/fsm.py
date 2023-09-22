@@ -49,7 +49,7 @@ signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 
 @irdl_attr_definition
 class InstanceType(ParametrizedAttribute, TypeAttribute):
-    "fsm.instance"
+    name = "fsm.instancetype"
 
 
 @irdl_op_definition
@@ -378,6 +378,7 @@ class Instance(IRDLOperation):
     name = "fsm.instance"
 
     sym_name = attr_def(StringAttr)
+
     machine = attr_def(FlatSymbolRefAttr)
 
     res = result_def(InstanceType)
@@ -519,7 +520,7 @@ class HWInstance(IRDLOperation):
                     "Input types must be consistent with the machine's"
                 )
         else:
-            raise VerifyException("The machine does not exist")
+            raise VerifyException("Machine definition does not exist")
 
 
 FSM = Dialect(
