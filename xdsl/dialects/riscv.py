@@ -3475,6 +3475,60 @@ class FSwOp(RsRsImmFloatOperation):
 
 
 @irdl_op_definition
+class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Perform double-precision floating-point addition.
+
+    f[rd] = f[rs1]+f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fadd-d
+    """
+
+    name = "riscv.fadd.d"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Perform double-precision floating-point substraction.
+
+    f[rd] = f[rs1]-f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsub-d
+    """
+
+    name = "riscv.fsub.d"
+
+
+@irdl_op_definition
+class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Perform single-precision floating-point multiplication.
+
+    f[rd] = f[rs1]×f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-d
+    """
+
+    name = "riscv.fmul.d"
+
+
+@irdl_op_definition
+class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Perform single-precision floating-point division.
+
+    f[rd] = f[rs1] / f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fdiv-d
+    """
+
+    name = "riscv.fdiv.d"
+
+
+@irdl_op_definition
 class FLdOp(RdRsImmFloatOperation):
     """
     Load a double-precision value from memory into floating-point register rd.
