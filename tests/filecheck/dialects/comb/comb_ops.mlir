@@ -51,8 +51,8 @@
   %icmp = "comb.icmp"(%lhsi1, %rhsi1) {"predicate" = 2 : index, "two_state"} : (i1, i1) -> i1
   // CHECK-NEXT: %icmp = comb.icmp slt, %lhsi1, %rhsi1 : i1
 
-  %parity = "comb.parity"(%lhsi1) : (i1) -> i1
-  // CHECK-NEXT: %parity = "comb.parity"(%lhsi1) : (i1) -> i1
+  %parity = comb.parity %lhsi1 : i1
+  // CHECK-NEXT: %parity = comb.parity %lhsi1 : i1
 
   %extract = comb.extract %lhsi32 from 1 : (i32) -> i32
   // CHECK-NEXT: %extract = comb.extract %lhsi32 : i32
@@ -66,3 +66,4 @@
   %replicate = comb.replicate %lhsi32 : (i32) -> i32
   // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : i32
   }) : () -> ()
+  

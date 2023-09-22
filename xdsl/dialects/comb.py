@@ -348,13 +348,29 @@ class ParityOp(IRDLOperation):
 
     two_state: UnitAttr | None = opt_attr_def(UnitAttr)
 
-    def __init__(self, operand: Operation | SSAValue, two_state: UnitAttr):
+    def __init__(
+        self, operand: Operation | SSAValue, two_state: UnitAttr | None = None
+    ):
         operand = SSAValue.get(operand)
         return super().__init__(
             attributes={"two_state": two_state},
             operands=[operand],
             result_types=[operand.type],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        op = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        op = parser.resolve_operand(op, result_type)
+        return cls(op)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_ssa_value(self.input)
+        printer.print(" : ")
+        printer.print(self.result.type)
 
 
 @irdl_op_definition
