@@ -448,7 +448,7 @@ class Trigger(IRDLOperation):
             == [result for result in m.function_type.inputs]
             and len(self.inputs) == len(m.function_type.inputs)
         ):
-            raise VerifyException("Input type must be consistent with the machine's")
+            raise VerifyException("Input types must be consistent with the machine's")
 
         if not (
             [operand.type for operand in self.outputs]
