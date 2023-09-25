@@ -31,10 +31,10 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_region_def,
+    prop_def,
     region_def,
     result_def,
 )
-from xdsl.irdl import prop_def
 from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolOpInterface,
