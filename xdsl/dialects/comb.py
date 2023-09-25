@@ -90,43 +90,6 @@ class BinCombOperation(IRDLOperation, ABC):
         printer.print(self.result.type)
 
 
-class ComparisonOperation(IRDLOperation, ABC):
-    """
-    A generic comparison operation, operation definitions inherit this class.
-
-    The first argument to these comparison operations is the type of comparison
-    being performed, the following comparisons are supported:
-
-    -   equal (mnemonic: `"eq"`; integer value: `0`)
-    -   not equal (mnemonic: `"ne"`; integer value: `1`)
-    -   signed less than (mnemonic: `"slt"`; integer value: `2`)
-    -   signed less than or equal (mnemonic: `"sle"`; integer value: `3`)
-    -   signed greater than (mnemonic: `"sgt"`; integer value: `4`)
-    -   signed greater than or equal (mnemonic: `"sge"`; integer value: `5`)
-    -   unsigned less than (mnemonic: `"ult"`; integer value: `6`)
-    -   unsigned less than or equal (mnemonic: `"ule"`; integer value: `7`)
-    -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
-    -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
-    """
-
-    @staticmethod
-    def _get_comparison_predicate(
-        mnemonic: str, comparison_operations: dict[str, int]
-    ) -> int:
-        if mnemonic in comparison_operations:
-            return comparison_operations[mnemonic]
-        else:
-            raise VerifyException(f"Unknown comparison mnemonic: {mnemonic}")
-
-    @staticmethod
-    def _validate_operand_types(operand1: SSAValue, operand2: SSAValue):
-        if operand1.type != operand2.type:
-            raise TypeError(
-                f"Comparison operands must have same type, but "
-                f"provided {operand1.type} and {operand2.type}"
-            )
-
-
 class VariadicCombOperation(IRDLOperation, ABC):
     """
     A variadic comb operation. It has a variadic number of operands, and a single
@@ -264,8 +227,23 @@ class XorOp(VariadicCombOperation):
 
 
 @irdl_op_definition
-class ICmpOp(ComparisonOperation):
-    """Integer comparison"""
+class ICmpOp(IRDLOperation, ABC):
+    """Integer comparison: A generic comparison operation, operation definitions inherit this class.
+
+    The first argument to these comparison operations is the type of comparison
+    being performed, the following comparisons are supported:
+
+    -   equal (mnemonic: `"eq"`; integer value: `0`)
+    -   not equal (mnemonic: `"ne"`; integer value: `1`)
+    -   signed less than (mnemonic: `"slt"`; integer value: `2`)
+    -   signed less than or equal (mnemonic: `"sle"`; integer value: `3`)
+    -   signed greater than (mnemonic: `"sgt"`; integer value: `4`)
+    -   signed greater than or equal (mnemonic: `"sge"`; integer value: `5`)
+    -   unsigned less than (mnemonic: `"ult"`; integer value: `6`)
+    -   unsigned less than or equal (mnemonic: `"ule"`; integer value: `7`)
+    -   unsigned greater than (mnemonic: `"ugt"`; integer value: `8`)
+    -   unsigned greater than or equal (mnemonic: `"uge"`; integer value: `9`)
+    """
 
     name = "comb.icmp"
 
@@ -279,6 +257,15 @@ class ICmpOp(ComparisonOperation):
     result: OpResult = result_def(IntegerType(1))
 
     two_state: UnitAttr = attr_def(UnitAttr)
+
+    @staticmethod
+    def _get_comparison_predicate(
+        mnemonic: str, comparison_operations: dict[str, int]
+    ) -> int:
+        if mnemonic in comparison_operations:
+            return comparison_operations[mnemonic]
+        else:
+            raise VerifyException(f"Unknown comparison mnemonic: {mnemonic}")
 
     def __init__(
         self,
