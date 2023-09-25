@@ -95,6 +95,7 @@ def test_get_definition():
         options=[AttrSizedOperandSegments()],
     )
 
+
 @irdl_op_definition
 class PropOptionOp(IRDLOperation):
     name = "test.prop_option_test"

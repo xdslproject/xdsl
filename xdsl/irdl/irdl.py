@@ -1163,8 +1163,12 @@ class OpDef:
                     op_def.options.extend(value)
                     for option in value:
                         if isinstance(option, AttrSizedSegments):
-                            defs = op_def.properties if option.as_property else op_def.attributes
-                            def_name = 'property' if option.as_property else 'attribute'
+                            defs = (
+                                op_def.properties
+                                if option.as_property
+                                else op_def.attributes
+                            )
+                            def_name = "property" if option.as_property else "attribute"
                             if option.attribute_name in defs:
                                 raise PyRDLOpDefinitionError(
                                     f"pyrdl operation definition '{pyrdl_def.__name__}' "
@@ -1173,6 +1177,7 @@ class OpDef:
                                     f"{option} option."
                                 )
                             from xdsl.dialects.builtin import DenseArrayBase
+
                             if option.as_property:
                                 prop_def = PropertyDef(
                                     attr_constr_coercion(DenseArrayBase)
@@ -1395,12 +1400,12 @@ def get_op_constructs(
 
 def get_attr_size_option(
     construct: VarIRConstruct,
-) -> (
-    type[AttrSizedOperandSegments
+) -> type[
+    AttrSizedOperandSegments
     | AttrSizedResultSegments
     | AttrSizedRegionSegments
-    | AttrSizedSuccessorSegments]
-):
+    | AttrSizedSuccessorSegments
+]:
     """Get the AttrSized option for this type."""
     if construct == VarIRConstruct.OPERAND:
         return AttrSizedOperandSegments
@@ -1428,7 +1433,7 @@ def get_variadic_sizes_from_attr(
     from xdsl.dialects.builtin import DenseArrayBase, i32
 
     container = op.properties if from_prop else op.attributes
-    container_name = 'property' if from_prop else 'attribute'
+    container_name = "property" if from_prop else "attribute"
 
     # Check that the attribute is present
     if size_attribute_name not in container:
@@ -1438,7 +1443,8 @@ def get_variadic_sizes_from_attr(
     attribute = container[size_attribute_name]
     if not isinstance(attribute, DenseArrayBase):
         raise VerifyException(
-            f"{size_attribute_name} {container_name} is expected " "to be a DenseArrayBase."
+            f"{size_attribute_name} {container_name} is expected "
+            "to be a DenseArrayBase."
         )
 
     if attribute.elt_type != i32:
@@ -1494,7 +1500,11 @@ def get_variadic_sizes(
     # If the size is in the attributes, fetch it
     if any(isinstance(o, attribute_option) for o in op_def.options):
         return get_variadic_sizes_from_attr(
-            op, defs, construct, attribute_option.attribute_name, attribute_option.as_property
+            op,
+            defs,
+            construct,
+            attribute_option.attribute_name,
+            attribute_option.as_property,
         )
 
     # If there are no variadics arguments,
@@ -1851,9 +1861,13 @@ def irdl_op_init(
                             AttrSizedSuccessorSegments.attribute_name
                         ] = DenseArrayBase.from_list(i32, successor_sizes)
                     case _:
-                        raise ValueError(f"Unexpected option {option} in operation definition {op_def}.")
+                        raise ValueError(
+                            f"Unexpected option {option} in operation definition {op_def}."
+                        )
             case _:
-                raise ValueError(f"Unexpected option {option} in operation definition {op_def}.")
+                raise ValueError(
+                    f"Unexpected option {option} in operation definition {op_def}."
+                )
 
     Operation.__init__(
         self,
@@ -1885,7 +1899,9 @@ def irdl_op_arg_definition(
     # If we have multiple variadics, check that we have an
     # attribute that holds the variadic sizes.
     arg_size_option = get_attr_size_option(construct)
-    if previous_variadics > 1 and (not any(isinstance(o, arg_size_option) for o in op_def.options)):
+    if previous_variadics > 1 and (
+        not any(isinstance(o, arg_size_option) for o in op_def.options)
+    ):
         arg_size_option_name = type(arg_size_option).__name__
         raise Exception(
             f"Operation {op_def.name} defines more than two variadic "
