@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    ContainerOf,
     DictionaryAttr,
     FlatSymbolRefAttr,
     FunctionType,
-    IndexType,
-    IntegerType,
     StringAttr,
 )
 from xdsl.ir import (
@@ -22,7 +20,6 @@ from xdsl.ir import (
 from xdsl.ir.core import Dialect
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     IRDLOperation,
     attr_def,
     irdl_op_definition,
@@ -42,16 +39,21 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 
-signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
+"""
+This file defines the FSM dialect, a CIRCT dialect for FSM description and manipulation.
+https://circt.llvm.org/docs/Dialects/FSM/
+"""
 
 
 @irdl_op_definition
 class Transition(IRDLOperation):
-    """Represents a transition of a state with a symbol reference
+    """
+    Represents a transition of a state with a symbol reference
     of the next state. This op includes an optional `$guard` region with an `fsm.return`
     as terminator that returns a Boolean value indicating the guard condition of
     this transition. This op also includes an optional `$action` region that represents
-    the actions to be executed when this transition is taken"""
+    the actions to be executed when this transition is taken
+    """
 
     name = "fsm.transition"
 
@@ -97,9 +99,11 @@ class Transition(IRDLOperation):
 
 @irdl_op_definition
 class Machine(IRDLOperation):
-    """Represents a finite-state machine, including a machine name,
+    """
+    Represents a finite-state machine, including a machine name,
     the type of machine state, and the types of inputs and outputs. This op also
-    includes a `$body` region that contains internal variables and states."""
+    includes a `$body` region that contains internal variables and states.
+    """
 
     name = "fsm.machine"
 
@@ -145,17 +149,12 @@ class Machine(IRDLOperation):
     def verify_(self):
         if not SymbolTable.lookup_symbol(self, self.initialState):
             raise VerifyException("Can not find initial state")
-        if (
-            self.arg_attrs is not None
-            and self.arg_names is None
-            or self.res_attrs is not None
-            and self.res_names is None
-            or self.arg_attrs is None
-            and self.arg_names is not None
-            or self.res_attrs is None
-            and self.res_names is not None
-        ):
-            raise VerifyException("attrs must be consistent with names")
+        # if arg_names is given, arg_attrs must be given and consistent
+        if (self.arg_attrs is None) ^ (self.arg_names is None):
+            raise VerifyException("arg attrs must be consistent with names")
+        # if res_names is given, res_attrs must be given and consistent
+        if (self.res_attrs is None) ^ (self.res_names is None):
+            raise VerifyException("res attrs must be consistent with names")
         if self.arg_attrs is not None and self.arg_names is not None:
             if len(self.arg_attrs) != len(self.arg_names):
                 raise VerifyException(
@@ -170,9 +169,11 @@ class Machine(IRDLOperation):
 
 @irdl_op_definition
 class Output(IRDLOperation):
-    """Represents the outputs of a machine under a specific state. The
+    """
+    Represents the outputs of a machine under a specific state. The
     types of `$operands` should be consistent with the output types of the state
-    machine"""
+    machine
+    """
 
     name = "fsm.output"
 
@@ -211,10 +212,12 @@ class Output(IRDLOperation):
 
 @irdl_op_definition
 class State(IRDLOperation):
-    """Represents a state of a state machine. This op includes an
+    """
+    Represents a state of a state machine. This op includes an
     `$output` region with an `fsm.output` as terminator to define the machine
     outputs under this state. This op also includes a `transitions` region that
-    contains all the transitions of this state"""
+    contains all the transitions of this state
+    """
 
     name = "fsm.state"
 
@@ -265,9 +268,11 @@ class State(IRDLOperation):
 
 @irdl_op_definition
 class Update(IRDLOperation):
-    """Updates the `$variable` with the `$value`. The definition op of
+    """
+    Updates the `$variable` with the `$value`. The definition op of
     `$variable` should be an `fsm.variable`. This op should *only* appear in the
-    `action` region of a transtion"""
+    `action` region of a transtion
+    """
 
     name = "fsm.update"
 
@@ -313,8 +318,10 @@ class Update(IRDLOperation):
 
 @irdl_op_definition
 class Variable(IRDLOperation):
-    """Represents an internal variable in a state machine with an
-    initialization value"""
+    """
+    Represents an internal variable in a state machine with an
+    initialization value
+    """
 
     name = "fsm.variable"
 
@@ -345,8 +352,10 @@ class Variable(IRDLOperation):
 
 @irdl_op_definition
 class Return(IRDLOperation):
-    """Marks the end of a region of `fsm.transition` and return
-    values if the parent region is a `$guard` region"""
+    """
+    Marks the end of a region of `fsm.transition` and return
+    values if the parent region is a `$guard` region
+    """
 
     name = "fsm.return"
 
