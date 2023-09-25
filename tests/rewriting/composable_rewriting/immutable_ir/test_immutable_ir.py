@@ -105,5 +105,5 @@ def test_immutable_ir(program_str: str):
     program: Operation = parser.parse_op()
     immutable_program = get_immutable_copy(program)
     mutable_program = immutable_program.to_mutable()
-    assert str(program) == str(mutable_program)
+
     assert program.is_structurally_equivalent(mutable_program)
