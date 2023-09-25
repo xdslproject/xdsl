@@ -166,5 +166,5 @@
     %3 = "arith.constant"() {value = false} : () -> i1
     %4 = "fsm.trigger"(%3, %0) : (i1, !fsm.instancetype) -> i1
     "func.return"() : () -> ()
-  }) {function_type = (i1) -> (i1), sym_name = "qux"} : () -> ()
+  }) {function_type = () -> (), sym_name = "qux"} : () -> ()
 }) : () -> ()

@@ -415,8 +415,6 @@ class Trigger(IRDLOperation):
 
     name = "fsm.trigger"
 
-    # operands
-
     inputs = var_operand_def(AnyAttr())
 
     instance = operand_def(InstanceType)
@@ -439,7 +437,6 @@ class Trigger(IRDLOperation):
             raise VerifyException("The instance operand must be Instance")
 
         # operand types must match the machine input types
-
         # result types must match the machine output types
         m = self.instance.owner.getMachine()
 
@@ -447,18 +444,18 @@ class Trigger(IRDLOperation):
             raise VerifyException("Machine definition does not exist.")
 
         if not (
-            [operand.type for operand in self.operands]
-            == [result for result in m.function_type.outputs]
-            and len(self.operands) == len(m.function_type.outputs)
-        ):
-            raise VerifyException("Output type must be consistent with the machine's")
-
-        if not (
             [operand.type for operand in self.inputs]
             == [result for result in m.function_type.inputs]
             and len(self.inputs) == len(m.function_type.inputs)
         ):
-            raise VerifyException("Input types must be consistent with the machine's")
+            raise VerifyException("Input type must be consistent with the machine's")
+
+        if not (
+            [operand.type for operand in self.outputs]
+            == [result for result in m.function_type.outputs]
+            and len(self.outputs) == len(m.function_type.outputs)
+        ):
+            raise VerifyException("Output types must be consistent with the machine's")
 
 
 @irdl_op_definition
