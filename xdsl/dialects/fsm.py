@@ -70,6 +70,8 @@ class Transition(IRDLOperation):
 
     nextState = attr_def(FlatSymbolRefAttr)
 
+    traits = frozenset([NoTerminator()])
+
     def __init__(
         self,
         nextState: FlatSymbolRefAttr,
@@ -207,11 +209,11 @@ class Output(IRDLOperation):
             if isinstance(parent, Machine):
                 if not (
                     [operand.type for operand in self.operands]
-                    == [type(result) for result in parent.function_type.outputs]
+                    == [result for result in parent.function_type.outputs]
                     and len(self.operands) == len(parent.function_type.outputs)
                 ):
                     raise VerifyException(
-                        "Output types must be consistent with the machine's"
+                        "Output type must be consistent with the machine's"
                     )
             parent = parent.parent_op()
 
@@ -395,7 +397,7 @@ class Instance(IRDLOperation):
 
     def verify_(self):
         if not isinstance(SymbolTable.lookup_symbol(self, self.machine), Machine):
-            raise VerifyException("Machine definition does not exist.")
+            raise VerifyException("Machine definition does not exist")
 
     def getMachine(self) -> Machine | None:
         m = SymbolTable.lookup_symbol(self, self.machine)
@@ -449,7 +451,7 @@ class Trigger(IRDLOperation):
             == [type(result) for result in m.function_type.outputs]
             and len(self.operands) == len(m.function_type.outputs)
         ):
-            raise VerifyException("Output types must be consistent with the machine's")
+            raise VerifyException("Output type must be consistent with the machine's")
 
         if not (
             [operand.type for operand in self.inputs]
@@ -501,7 +503,8 @@ class HWInstance(IRDLOperation):
         )
 
     def verify_(self):
-        m = SymbolTable.lookup_symbol(self, self.machine)
+        m = SymbolTable.lookup_symbol(self.parent_op(), self.machine)
+        print("machine is " + str(self.machine))
         if isinstance(m, Machine):
             if not (
                 [operand.type for operand in self.inputs]
@@ -520,7 +523,10 @@ class HWInstance(IRDLOperation):
                     "Input types must be consistent with the machine's"
                 )
         else:
-            raise VerifyException("Machine definition does not exist")
+            raise VerifyException(
+                "Machine definition does not exist and it is "
+                + str(SymbolTable.lookup_symbol(self, self.machine))
+            )
 
 
 FSM = Dialect(

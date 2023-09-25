@@ -244,10 +244,36 @@
 
 // -----
 
+
+"func.func"() ({
+    %0 = "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
+    %1 = "arith.constant"() {value = true} : () -> i1
+    %2 = "fsm.trigger"(%1, %0) : (i1, !fsm.instancetype) -> i1
+    %3 = "arith.constant"() {value = false} : () -> i1
+    %4 = "fsm.trigger"(%3, %0) : (i1, !fsm.instancetype) -> i1
+    "func.return"() : () -> ()
+  }) {function_type = () -> (), sym_name = "qux"} : () -> ()
+
 "builtin.module"() ({
-  ^bb0(%arg0: i1, %arg1: i1):
+
+    "fsm.machine"() ({
+    ^bb0(%arg0: i1):
+    "fsm.state"() ({
+        "fsm.output"() : () -> ()
+    }, {
+        "fsm.transition"() ({
+            ^bb2(%arg2: i2): "fsm.return"() : () -> ()
+        }, {
+            ^bb1(%arg1: i1): "fsm.update"(%arg1, %arg1) : (i1, i1) -> ()
+            "fsm.output"() : () -> ()
+        }) {nextState = @A} : () -> ()
+    }) {sym_name = "A"} : () -> ()
+    }) {function_type = () -> (), initialState = "A", sym_name = "foo"} : () -> ()
     %0 = "arith.constant"() {value = true} : () -> i1
-    %1 = "fsm.hw_instance"(%0, %arg0, %arg1) {machine = @foo, sym_name = "foo_inst"} : (i1, i1, i1) -> i1
+    %1 = "arith.constant"() {value = 13} : () -> i16
+    %2 = "arith.constant"() {value = 17} : () -> i16
+    %3 = "fsm.hw_instance"(%0, %1, %2) {machine = "foo", sym_name = "foo_inst"} : (i1, i16, i16) -> i1
+
 }) : () -> ()
 
 // CHECK: Output types must be consistent with the machine's
@@ -257,7 +283,7 @@
 "builtin.module"() ({
   ^bb0(%arg0: i1, %arg1: i1):
     %0 = "arith.constant"() {value = true} : () -> i1
-    %1 = "fsm.hw_instance"(%0, %arg0, %arg1) {machine = @foo, sym_name = "foo_inst"} : (i1, i1, i1) -> i1
+    %1 = "fsm.hw_instance"(%0, %arg0, %arg1) {machine = "foo", sym_name = "foo_inst"} : (i1, i1, i1) -> i1
 }) : () -> ()
 
 // CHECK: Input types must be consistent with the machine's
