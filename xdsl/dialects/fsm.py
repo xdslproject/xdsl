@@ -46,7 +46,7 @@ https://circt.llvm.org/docs/Dialects/FSM/
 
 
 @irdl_op_definition
-class Transition(IRDLOperation):
+class TransitionOp(IRDLOperation):
     """
     Represents a transition of a state with a symbol reference
     of the next state. This op includes an optional `$guard` region with an `fsm.return`
@@ -61,8 +61,6 @@ class Transition(IRDLOperation):
 
     action = region_def()
 
-    # attributes
-
     nextState = attr_def(FlatSymbolRefAttr)
 
     def __init__(
@@ -73,8 +71,9 @@ class Transition(IRDLOperation):
     ):
         if isinstance(nextState, str):
             nextState = FlatSymbolRefAttr(nextState)
-        attributes: dict[str, Attribute] = {}
-        attributes["nextState"] = nextState
+        attributes: dict[str, Attribute] = {
+            "nextState": nextState,
+        }
         if not isinstance(action, Region):
             action = Region(Block())
         if not isinstance(guard, Region):
@@ -86,19 +85,19 @@ class Transition(IRDLOperation):
 
     def verify_(self):
         if SymbolTable.lookup_symbol(self, self.nextState) is None or not isinstance(
-            SymbolTable.lookup_symbol(self, self.nextState), State
+            SymbolTable.lookup_symbol(self, self.nextState), StateOp
         ):
             raise VerifyException("Can not find next state")
-        if self.guard.blocks and not isinstance(self.guard.block.last_op, Return):
+        if self.guard.blocks and not isinstance(self.guard.block.last_op, ReturnOp):
             raise VerifyException("Guard region must terminate with ReturnOp")
         var = self.parent_op()
-        assert isinstance(var, State)
+        assert isinstance(var, StateOp)
         if var.transitions != self.parent_region():
             raise VerifyException("Transition must be located in a transitions region")
 
 
 @irdl_op_definition
-class Machine(IRDLOperation):
+class MachineOp(IRDLOperation):
     """
     Represents a finite-state machine, including a machine name,
     the type of machine state, and the types of inputs and outputs. This op also
@@ -107,7 +106,7 @@ class Machine(IRDLOperation):
 
     name = "fsm.machine"
 
-    body: Region = region_def()
+    body: Region = region_def("single_block")
 
     sym_name = attr_def(StringAttr)
     initialState = attr_def(StringAttr)
@@ -130,17 +129,19 @@ class Machine(IRDLOperation):
         res_names: ArrayAttr[StringAttr] | None,
         body: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
-        attributes: dict[str, Attribute | None] = {}
-        attributes["sym_name"] = StringAttr(sym_name)
-        attributes["initialState"] = StringAttr(initial_state)
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
-        attributes["function_type"] = function_type
-        attributes["arg_attrs"] = arg_attrs
-        attributes["res_attrs"] = res_attrs
-        attributes["arg_names"] = arg_names
-        attributes["res_names"] = res_names
+        attributes: dict[str, Attribute | None] = {
+            "sym_name": StringAttr(sym_name),
+            "initialState": StringAttr(initial_state),
+            "function_type": function_type,
+            "arg_attrs": arg_attrs,
+            "res_attrs": res_attrs,
+            "arg_names": arg_names,
+            "res_names": res_names,
+        }
+
         if not isinstance(body, Region):
             body = Region(Block())
 
@@ -168,7 +169,7 @@ class Machine(IRDLOperation):
 
 
 @irdl_op_definition
-class Output(IRDLOperation):
+class OutputOp(IRDLOperation):
     """
     Represents the outputs of a machine under a specific state. The
     types of `$operands` should be consistent with the output types of the state
@@ -192,13 +193,13 @@ class Output(IRDLOperation):
     def verify_(self):
         parent = self.parent_op()
         if (
-            isinstance(parent, State)
+            isinstance(parent, StateOp)
             and parent.transitions == self.parent_region()
             and len(self.operands) > 0
         ):
             raise VerifyException("Transition regions should not output any value")
         while parent is not None:
-            if isinstance(parent, Machine):
+            if isinstance(parent, MachineOp):
                 if not (
                     [operand.type for operand in self.operands]
                     == [type(result) for result in parent.function_type.outputs]
@@ -211,7 +212,7 @@ class Output(IRDLOperation):
 
 
 @irdl_op_definition
-class State(IRDLOperation):
+class StateOp(IRDLOperation):
     """
     Represents a state of a state machine. This op includes an
     `$output` region with an `fsm.output` as terminator to define the machine
@@ -221,13 +222,9 @@ class State(IRDLOperation):
 
     name = "fsm.state"
 
-    # includes output and transitions region
-
     output = region_def()
 
     transitions = region_def()
-
-    # attributes
 
     sym_name = attr_def(StringAttr)
 
@@ -239,8 +236,9 @@ class State(IRDLOperation):
         output: Region | type[Region.DEFAULT] = Region.DEFAULT,
         transitions: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
-        attributes: dict[str, Attribute] = {}
-        attributes["sym_name"] = StringAttr(sym_name)
+        attributes: dict[str, Attribute] = {
+            "sym_name": StringAttr(sym_name),
+        }
         if not isinstance(output, Region):
             output = Region(Block())
         if not isinstance(transitions, Region):
@@ -255,7 +253,7 @@ class State(IRDLOperation):
 
         while parent is not None:
             if (
-                isinstance(parent, Machine)
+                isinstance(parent, MachineOp)
                 and getattr(parent, "res_attrs") is not None
                 and len(getattr(parent, "res_attrs")) > 0
                 and self.output.block.first_op is None
@@ -267,7 +265,7 @@ class State(IRDLOperation):
 
 
 @irdl_op_definition
-class Update(IRDLOperation):
+class UpdateOp(IRDLOperation):
     """
     Updates the `$variable` with the `$value`. The definition op of
     `$variable` should be an `fsm.variable`. This op should *only* appear in the
@@ -276,13 +274,11 @@ class Update(IRDLOperation):
 
     name = "fsm.update"
 
-    # operands
-
     variable = operand_def(Attribute)
 
     value = operand_def(Attribute)
 
-    traits = frozenset([HasParent(Transition)])
+    traits = frozenset([HasParent(TransitionOp)])
 
     def __init__(
         self,
@@ -294,16 +290,16 @@ class Update(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(self.variable.owner, Variable):
+        if not isinstance(self.variable.owner, VariableOp):
             raise VerifyException("Destination is not a variable operation")
 
         parent = self.parent_op()
         while parent is not None:
-            if isinstance(parent, Transition):
+            if isinstance(parent, TransitionOp):
                 # walk through the action region
                 found = 0
                 for op in parent.action.walk():
-                    if isinstance(op, Update) and op.variable == self.variable:
+                    if isinstance(op, UpdateOp) and op.variable == self.variable:
                         found += 1
                 if found == 0:
                     raise VerifyException(
@@ -317,7 +313,7 @@ class Update(IRDLOperation):
 
 
 @irdl_op_definition
-class Variable(IRDLOperation):
+class VariableOp(IRDLOperation):
     """
     Represents an internal variable in a state machine with an
     initialization value
@@ -325,12 +321,8 @@ class Variable(IRDLOperation):
 
     name = "fsm.variable"
 
-    # attributes
-
     initValue = attr_def(Attribute)
     name_var = opt_attr_def(StringAttr)
-
-    # results
 
     result = var_result_def(Attribute)
 
@@ -340,8 +332,9 @@ class Variable(IRDLOperation):
         name_var: str | None,
         result: Sequence[Attribute],
     ):
-        attributes: dict[str, Attribute] = {}
-        attributes["initValue"] = initValue
+        attributes: dict[str, Attribute] = {
+            "initValue": initValue,
+        }
         if name_var is not None:
             attributes["name_var"] = StringAttr(name_var)
         super().__init__(
@@ -351,7 +344,7 @@ class Variable(IRDLOperation):
 
 
 @irdl_op_definition
-class Return(IRDLOperation):
+class ReturnOp(IRDLOperation):
     """
     Marks the end of a region of `fsm.transition` and return
     values if the parent region is a `$guard` region
@@ -361,7 +354,7 @@ class Return(IRDLOperation):
 
     operand = opt_operand_def(signlessIntegerLike)
 
-    traits = frozenset([IsTerminator(), HasParent(Transition)])
+    traits = frozenset([IsTerminator(), HasParent(TransitionOp)])
 
     def __init__(
         self,
@@ -374,13 +367,13 @@ class Return(IRDLOperation):
 
 FSM = Dialect(
     [
-        Machine,
-        Output,
-        State,
-        Transition,
-        Update,
-        Variable,
-        Return,
+        MachineOp,
+        OutputOp,
+        StateOp,
+        TransitionOp,
+        UpdateOp,
+        VariableOp,
+        ReturnOp,
     ],
     [],
 )
