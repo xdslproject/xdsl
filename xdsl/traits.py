@@ -309,7 +309,9 @@ class SymbolOpInterface(OpTrait):
         return False
 
     def verify(self, op: Operation) -> None:
-        # If this is an optional symbol, bail out early if possible.
+        # This helper has the same behaviour, so we reuse it as a verifier.That is, it
+        # raises a VerifyException iff this operation is a non-optional symbol *and*
+        # there is no "sym_name" attribute or property.
         self.get_sym_attr_name(op)
 
 
