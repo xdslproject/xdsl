@@ -122,7 +122,7 @@ class Machine(IRDLOperation):
     arg_names = opt_attr_def(ArrayAttr[StringAttr])
     res_names = opt_attr_def(ArrayAttr[StringAttr])
 
-    traits = frozenset([NoTerminator(), SymbolTable()])
+    traits = frozenset([NoTerminator(), SymbolTable(), SymbolOpInterface()])
 
     def __init__(
         self,
@@ -448,15 +448,15 @@ class Trigger(IRDLOperation):
 
         if not (
             [operand.type for operand in self.operands]
-            == [type(result) for result in m.function_type.outputs]
+            == [result for result in m.function_type.outputs]
             and len(self.operands) == len(m.function_type.outputs)
         ):
             raise VerifyException("Output type must be consistent with the machine's")
 
         if not (
             [operand.type for operand in self.inputs]
-            == [type(result) for result in m.function_type.inputs]
-            and len(self.operands) == len(m.function_type.inputs)
+            == [result for result in m.function_type.inputs]
+            and len(self.inputs) == len(m.function_type.inputs)
         ):
             raise VerifyException("Input types must be consistent with the machine's")
 
@@ -503,30 +503,26 @@ class HWInstance(IRDLOperation):
         )
 
     def verify_(self):
-        m = SymbolTable.lookup_symbol(self.parent_op(), self.machine)
-        print("machine is " + str(self.machine))
+        m = SymbolTable.lookup_symbol(self, self.machine)
         if isinstance(m, Machine):
             if not (
                 [operand.type for operand in self.inputs]
-                == [type(result) for result in m.function_type.outputs]
-                and len(self.operands) == len(m.function_type.outputs)
+                == [result for result in m.function_type.inputs]
+                and len(self.inputs) == len(m.function_type.inputs)
+            ):
+                raise VerifyException(
+                    "Inputs types must be consistent with the machine's "
+                )
+            if not (
+                [operand.type for operand in self.outputs]
+                == [result for result in m.function_type.outputs]
+                and len(self.outputs) == len(m.function_type.outputs)
             ):
                 raise VerifyException(
                     "Output types must be consistent with the machine's"
                 )
-            if not (
-                [operand.type for operand in self.inputs]
-                == [type(result) for result in m.function_type.inputs]
-                and len(self.operands) == len(m.function_type.inputs)
-            ):
-                raise VerifyException(
-                    "Input types must be consistent with the machine's"
-                )
         else:
-            raise VerifyException(
-                "Machine definition does not exist and it is "
-                + str(SymbolTable.lookup_symbol(self, self.machine))
-            )
+            raise VerifyException("Machine definition does not exist")
 
 
 FSM = Dialect(
