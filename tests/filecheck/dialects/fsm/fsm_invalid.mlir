@@ -288,7 +288,8 @@
 
 }) : () -> ()
 
-// CHECK: Input types must be consistent with the machine's
+// CHECK: Inputs types must be consistent with the machine's
+
 
 // -----
 
@@ -398,3 +399,4 @@
 }) : () -> ()
 
 // CHECK: The instance operand must be Instance
+
