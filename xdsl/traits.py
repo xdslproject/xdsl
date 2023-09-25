@@ -227,9 +227,9 @@ class SymbolTable(OpTrait):
         block = op.regions[0].blocks[0]
         met_names: set[StringAttr] = set()
         for o in block.ops:
-            if "sym_name" not in o.attributes:
+            if o.get_attr_or_prop("sym_name") is None:
                 continue
-            sym_name = o.attributes["sym_name"]
+            sym_name = o.get_attr_or_prop("sym_name")
             if not isinstance(sym_name, StringAttr):
                 continue
             if sym_name in met_names:
