@@ -95,6 +95,21 @@ def test_get_definition():
         options=[AttrSizedOperandSegments()],
     )
 
+@irdl_op_definition
+class PropOptionOp(IRDLOperation):
+    name = "test.prop_option_test"
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
+def test_property_option():
+    """Test retrieval of an IRDL definition from an operation"""
+    assert PropOptionOp.irdl_definition == OpDef(
+        "test.prop_option_test",
+        properties={"operand_segment_sizes": PropertyDef(BaseAttr(DenseArrayBase))},
+        options=[AttrSizedOperandSegments(as_property=True)],
+    )
+
 
 ################################################################################
 #                            Invalid definitions                               #
