@@ -73,7 +73,7 @@
     }) {sym_name = "B"} : () -> ()
 }) {function_type = () -> (), initialState = "B", sym_name = "foo", arg_names = ["argument"] } : () -> ()
 
-// CHECK: attrs must be consistent with names
+// CHECK: arg_attrs must be consistent with arg_names
 
 // -----
 
@@ -84,9 +84,9 @@
         "fsm.output"() : () -> ()
     }, {
     }) {sym_name = "B"} : () -> ()
-}) {function_type = () -> (), initialState = "B", sym_name = "foo", arg_attrs = [{"name"="1","type"="2"}] } : () -> ()
+}) {function_type = () -> (), initialState = "B", sym_name = "foo", res_attrs = [{"name"="1","type"="2"}] } : () -> ()
 
-// CHECK: attrs must be consistent with names
+// CHECK: res_attrs must be consistent with res_names
 
 // -----
 
@@ -168,7 +168,7 @@
 }) {sym_name = "A"} : () -> ()
 }) {function_type = () -> (), initialState = "A", sym_name = "foo", res_names = ["names"],res_attrs = [{"name"="1","type"="2"}] } : () -> ()
 
-// Update must only be located in the action region of a transition
+// CHECK: Update must only be located in the action region of a transition
 
 // -----
 "fsm.machine"() ({
@@ -192,42 +192,4 @@
 }) {sym_name = "A"} : () -> ()
 }) {function_type = () -> (), initialState = "A", sym_name = "foo", res_names = ["names"],res_attrs = [{"name"="1","type"="2"}] } : () -> ()
 
-// Multiple updates to the same variable within a single action region is disallowed
-
-// -----
-
-"fsm.machine"() ({
-^bb0(%arg0: i1):
-"fsm.state"() ({
-    "fsm.output"(%arg0) : (i1) -> ()
-
-}, {
-    "fsm.transition"() ({
-        
-    }, {
-    }) {nextState = @A} : () -> ()
-    
-}) {sym_name = "A"} : () -> ()
-
-}) {function_type = (i16) -> (i16) , initialState = "A", sym_name = "foo"} : () -> ()
-
-// Output types must be consistent with the machine's
-
-// -----
-
-"fsm.machine"() ({
-^bb0(%arg0: i1):
-%0 = "fsm.variable"() {initValue = 0 : i16, name = "cnt"} : () -> i16
-"fsm.state"() ({
-    "fsm.output"() : () -> ()
-}, {
-    "fsm.transition"() ({
-        ^bb2(%arg2: i2): "fsm.return"() : () -> ()
-    }, {
-        ^bb1(%arg1: i1): "fsm.update"(%arg1, %arg1) : (i1, i1) -> ()
-        "fsm.output"() : () -> ()
-    }) {nextState = @A} : () -> ()
-}) {sym_name = "A"} : () -> ()
-}) {function_type = () -> (), initialState = "A", sym_name = "foo"} : () -> ()
-
-// CHECK: Destination is not a variable operation
+// CHECK: Multiple updates to the same variable within a single action region is disallowed
