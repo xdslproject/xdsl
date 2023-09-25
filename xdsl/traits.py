@@ -227,9 +227,8 @@ class SymbolTable(OpTrait):
         block = op.regions[0].blocks[0]
         met_names: set[StringAttr] = set()
         for o in block.ops:
-            if "sym_name" not in o.attributes:
+            if (sym_name := o.get_attr_or_prop("sym_name")) is None:
                 continue
-            sym_name = o.attributes["sym_name"]
             if not isinstance(sym_name, StringAttr):
                 continue
             if sym_name in met_names:
@@ -309,7 +308,9 @@ class SymbolOpInterface(OpTrait):
         return False
 
     def verify(self, op: Operation) -> None:
-        # If this is an optional symbol, bail out early if possible.
+        # This helper has the same behaviour, so we reuse it as a verifier.That is, it
+        # raises a VerifyException iff this operation is a non-optional symbol *and*
+        # there is no "sym_name" attribute or property.
         self.get_sym_attr_name(op)
 
 
