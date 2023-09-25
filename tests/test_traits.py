@@ -34,7 +34,7 @@ from xdsl.irdl import (
     region_def,
     result_def,
 )
-from xdsl.irdl.irdl import prop_def
+from xdsl.irdl import prop_def
 from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolOpInterface,
