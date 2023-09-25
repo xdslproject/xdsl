@@ -1439,9 +1439,6 @@ def get_variadic_sizes_from_attr(
     if size_attribute_name not in container:
         raise VerifyException(
             f"Expected {size_attribute_name} {container_name} in {op.name} operation."
-            f"{op}"
-            f"{container_name} : {container}"
-            f"from_prop: {from_prop}"
         )
     attribute = container[size_attribute_name]
     if not isinstance(attribute, DenseArrayBase):
