@@ -130,7 +130,7 @@ def test_two_var_result_builder():
     ]
 
     assert op.attributes[
-        AttrSizedResultSegments.property_name
+        AttrSizedResultSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 2])
 
 
@@ -149,7 +149,7 @@ def test_two_var_result_builder2():
         StringAttr("3"),
     ]
     assert op.attributes[
-        AttrSizedResultSegments.property_name
+        AttrSizedResultSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
@@ -181,7 +181,7 @@ def test_var_mixed_builder():
     ]
 
     assert op.attributes[
-        AttrSizedResultSegments.property_name
+        AttrSizedResultSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 1, 2])
 
 
@@ -268,7 +268,7 @@ def test_two_var_operand_builder():
     op2.verify()
     assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
-        AttrSizedOperandSegments.property_name
+        AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 2])
 
 
@@ -278,7 +278,7 @@ def test_two_var_operand_builder2():
     op2.verify()
     assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
-        AttrSizedOperandSegments.property_name
+        AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
@@ -495,7 +495,7 @@ def test_two_var_region_builder():
     op2.verify()
     assert op2.regions == [region1, region2, region3, region4]
     assert op2.attributes[
-        AttrSizedRegionSegments.property_name
+        AttrSizedRegionSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 2])
 
 
@@ -508,7 +508,7 @@ def test_two_var_operand_builder3():
     op2.verify()
     assert op2.regions == [region1, region2, region3, region4]
     assert op2.attributes[
-        AttrSizedRegionSegments.property_name
+        AttrSizedRegionSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
@@ -619,7 +619,7 @@ def test_two_var_successor_builder():
     op2.verify()
     assert op2.successors == [block1, block2, block3, block4]
     assert op2.attributes[
-        AttrSizedSuccessorSegments.property_name
+        AttrSizedSuccessorSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 2])
 
 
@@ -641,7 +641,7 @@ def test_two_var_successor_builder2():
     op2.verify()
     assert op2.successors == [block1, block2, block3, block4]
     assert op2.attributes[
-        AttrSizedSuccessorSegments.property_name
+        AttrSizedSuccessorSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 

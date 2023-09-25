@@ -547,8 +547,8 @@ class IRDLOption(ABC):
     ...
 
 
-@dataclass(kw_only=True)
-class AttrSizedSegments(IRDLOption):
+@dataclass
+class AttrSizedSegments(IRDLOption, ABC):
     """
     Expect an attribute on the operation that contains the segment sizes of the
     operand, result, region, or successor lists.
@@ -559,9 +559,8 @@ class AttrSizedSegments(IRDLOption):
     be equal to the number of elements in the list (e.g. the number of operands).
     """
 
+    attribute_name: ClassVar[str]
     as_property: bool = False
-
-    property_name: ClassVar[str]
     """Name of the attribute containing the segment sizes."""
 
 
@@ -573,7 +572,7 @@ class AttrSizedOperandSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    property_name = "operandSegmentSizes"
+    attribute_name = "operandSegmentSizes"
     """Name of the attribute containing the variadic operand sizes."""
 
 
@@ -585,7 +584,7 @@ class AttrSizedResultSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    property_name = "result_segment_sizes"
+    attribute_name = "result_segment_sizes"
     """Name of the attribute containing the variadic result sizes."""
 
 
@@ -597,7 +596,7 @@ class AttrSizedRegionSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    property_name = "region_segment_sizes"
+    attribute_name = "region_segment_sizes"
     """Name of the attribute containing the variadic region sizes."""
 
 
@@ -609,7 +608,7 @@ class AttrSizedSuccessorSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    property_name = "successor_segment_sizes"
+    attribute_name = "successor_segment_sizes"
     """Name of the attribute containing the variadic successor sizes."""
 
 
@@ -1164,34 +1163,31 @@ class OpDef:
                     op_def.options.extend(value)
                     for option in value:
                         if isinstance(option, AttrSizedSegments):
-                            if option.as_property:
-                                if option.property_name in op_def.properties:
-                                    raise PyRDLOpDefinitionError(
-                                        f"pyrdl operation definition '{pyrdl_def.__name__}' "
-                                        f"has a '{option.property_name}' attribute, which "
-                                        "is incompatible with the "
-                                        f"{option.__class__.__name__} option with as_property."
-                                    )
-                                from xdsl.dialects.builtin import DenseArrayBase
+                            defs = (
+                                op_def.properties
+                                if option.as_property
+                                else op_def.attributes
+                            )
+                            def_name = "property" if option.as_property else "attribute"
+                            if option.attribute_name in defs:
+                                raise PyRDLOpDefinitionError(
+                                    f"pyrdl operation definition '{pyrdl_def.__name__}' "
+                                    f"has a '{option.attribute_name}' {def_name}, which "
+                                    "is incompatible with the "
+                                    f"{option} option."
+                                )
+                            from xdsl.dialects.builtin import DenseArrayBase
 
+                            if option.as_property:
                                 prop_def = PropertyDef(
                                     attr_constr_coercion(DenseArrayBase)
                                 )
-                                op_def.properties[option.property_name] = prop_def
+                                op_def.properties[option.attribute_name] = prop_def
                             else:
-                                if option.property_name in op_def.attributes:
-                                    raise PyRDLOpDefinitionError(
-                                        f"pyrdl operation definition '{pyrdl_def.__name__}' "
-                                        f"has a '{option.property_name}' attribute, which "
-                                        "is incompatible with the "
-                                        f"{option.__class__.__name__} option without as_property."
-                                    )
-                                from xdsl.dialects.builtin import DenseArrayBase
-
                                 attr_def = AttributeDef(
                                     attr_constr_coercion(DenseArrayBase)
                                 )
-                                op_def.attributes[option.property_name] = attr_def
+                                op_def.attributes[option.attribute_name] = attr_def
                     continue
 
                 if field_name == "traits":
@@ -1404,21 +1400,21 @@ def get_op_constructs(
 
 def get_attr_size_option(
     construct: VarIRConstruct,
-) -> (
+) -> type[
     AttrSizedOperandSegments
     | AttrSizedResultSegments
     | AttrSizedRegionSegments
     | AttrSizedSuccessorSegments
-):
+]:
     """Get the AttrSized option for this type."""
     if construct == VarIRConstruct.OPERAND:
-        return AttrSizedOperandSegments()
+        return AttrSizedOperandSegments
     if construct == VarIRConstruct.RESULT:
-        return AttrSizedResultSegments()
+        return AttrSizedResultSegments
     if construct == VarIRConstruct.REGION:
-        return AttrSizedRegionSegments()
+        return AttrSizedRegionSegments
     if construct == VarIRConstruct.SUCCESSOR:
-        return AttrSizedSuccessorSegments()
+        return AttrSizedSuccessorSegments
     assert False, "Unknown VarIRConstruct value"
 
 
@@ -1426,7 +1422,8 @@ def get_variadic_sizes_from_attr(
     op: Operation,
     defs: Sequence[tuple[str, OperandDef | ResultDef | RegionDef | SuccessorDef]],
     construct: VarIRConstruct,
-    size_property_name: str,
+    size_attribute_name: str,
+    from_prop: bool = False,
 ) -> list[int]:
     """
     Get the sizes of the variadic definitions
@@ -1435,29 +1432,35 @@ def get_variadic_sizes_from_attr(
     # Circular import because DenseArrayBase is defined using IRDL
     from xdsl.dialects.builtin import DenseArrayBase, i32
 
-    option = get_attr_size_option(construct)
+    container = op.properties if from_prop else op.attributes
+    container_name = "property" if from_prop else "attribute"
+
     # Check that the attribute is present
-    property = op.get_attr_or_prop(type(option).property_name)
-    if property is None:
+    if size_attribute_name not in container:
         raise VerifyException(
-            f"Expected {size_property_name} property in {op.name} operation."
+            f"Expected {size_attribute_name} {container_name} in {op.name} operation."
+            f"{op}"
+            f"{container_name} : {container}"
+            f"from_prop: {from_prop}"
         )
-    if not isinstance(property, DenseArrayBase):
+    attribute = container[size_attribute_name]
+    if not isinstance(attribute, DenseArrayBase):
         raise VerifyException(
-            f"{size_property_name} property is expected " "to be a DenseArrayBase."
+            f"{size_attribute_name} {container_name} is expected "
+            "to be a DenseArrayBase."
         )
 
-    if property.elt_type != i32:
+    if attribute.elt_type != i32:
         raise VerifyException(
-            f"{size_property_name} property is expected to "
+            f"{size_attribute_name} {container_name} is expected to "
             "be a DenseArrayBase of i32"
         )
-    def_sizes = cast(list[int], [size_attr.data for size_attr in property.data.data])
+    def_sizes = cast(list[int], [size_attr.data for size_attr in attribute.data.data])
 
     if len(def_sizes) != len(defs):
         raise VerifyException(
             f"expected {len(defs)} values in "
-            f"{size_property_name}, but got {len(def_sizes)}"
+            f"{size_attribute_name}, but got {len(def_sizes)}"
         )
 
     variadic_sizes = list[int]()
@@ -1465,14 +1468,14 @@ def get_variadic_sizes_from_attr(
         if isinstance(arg_def, OptionalDef) and arg_size > 1:
             raise VerifyException(
                 f"optional {get_construct_name(construct)} {arg_name} is expected to "
-                f"be of size 0 or 1 in {size_property_name}, but got "
+                f"be of size 0 or 1 in {size_attribute_name}, but got "
                 f"{arg_size}"
             )
 
         if not isinstance(arg_def, VariadicDef) and arg_size != 1:
             raise VerifyException(
                 f"non-variadic {get_construct_name(construct)} {arg_name} is expected "
-                f"to be of size 1 in {size_property_name}, but got {arg_size}"
+                f"to be of size 1 in {size_attribute_name}, but got {arg_size}"
             )
 
         if isinstance(arg_def, VariadicDef):
@@ -1498,9 +1501,14 @@ def get_variadic_sizes(
     ]
 
     # If the size is in the attributes, fetch it
-    if any(isinstance(o, type(attribute_option)) for o in op_def.options):
+    option = next((o for o in op_def.options if isinstance(o, attribute_option)), None)
+    if option is not None:
         return get_variadic_sizes_from_attr(
-            op, defs, construct, attribute_option.property_name
+            op,
+            defs,
+            construct,
+            option.attribute_name,
+            option.as_property,
         )
 
     # If there are no variadics arguments,
@@ -1832,32 +1840,38 @@ def irdl_op_init(
         built_attributes[attr_name] = attr
 
     # Take care of variadic operand and result segment sizes.
-    if option := next(
-        (o for o in op_def.options if isinstance(o, AttrSizedOperandSegments)), None
-    ):
-        if option.as_property:
-            built_properties[
-                AttrSizedOperandSegments.property_name
-            ] = DenseArrayBase.from_list(i32, operand_sizes)
-        else:
-            built_attributes[
-                AttrSizedOperandSegments.property_name
-            ] = DenseArrayBase.from_list(i32, operand_sizes)
+    for option in op_def.options:
+        match option:
+            case AttrSizedSegments():
+                container = built_properties if option.as_property else built_attributes
+                match option:
+                    case AttrSizedOperandSegments():
+                        container[
+                            AttrSizedOperandSegments.attribute_name
+                        ] = DenseArrayBase.from_list(i32, operand_sizes)
 
-    if AttrSizedResultSegments() in op_def.options:
-        built_attributes[
-            AttrSizedResultSegments.property_name
-        ] = DenseArrayBase.from_list(i32, result_sizes)
+                    case AttrSizedResultSegments():
+                        container[
+                            AttrSizedResultSegments.attribute_name
+                        ] = DenseArrayBase.from_list(i32, result_sizes)
 
-    if AttrSizedRegionSegments() in op_def.options:
-        built_attributes[
-            AttrSizedRegionSegments.property_name
-        ] = DenseArrayBase.from_list(i32, region_sizes)
+                    case AttrSizedRegionSegments():
+                        container[
+                            AttrSizedRegionSegments.attribute_name
+                        ] = DenseArrayBase.from_list(i32, region_sizes)
 
-    if AttrSizedSuccessorSegments() in op_def.options:
-        built_attributes[
-            AttrSizedSuccessorSegments.property_name
-        ] = DenseArrayBase.from_list(i32, successor_sizes)
+                    case AttrSizedSuccessorSegments():
+                        container[
+                            AttrSizedSuccessorSegments.attribute_name
+                        ] = DenseArrayBase.from_list(i32, successor_sizes)
+                    case _:
+                        raise ValueError(
+                            f"Unexpected option {option} in operation definition {op_def}."
+                        )
+            case _:
+                raise ValueError(
+                    f"Unexpected option {option} in operation definition {op_def}."
+                )
 
     Operation.__init__(
         self,
@@ -1890,7 +1904,7 @@ def irdl_op_arg_definition(
     # attribute that holds the variadic sizes.
     arg_size_option = get_attr_size_option(construct)
     if previous_variadics > 1 and (
-        not any(isinstance(o, type(arg_size_option)) for o in op_def.options)
+        not any(isinstance(o, arg_size_option) for o in op_def.options)
     ):
         arg_size_option_name = type(arg_size_option).__name__
         raise Exception(
