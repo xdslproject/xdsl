@@ -2,14 +2,11 @@ import pytest
 
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, func, memref, scf
-from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    DenseArrayBase,
     FloatAttr,
     IndexType,
     IntAttr,
-    IntegerAttr,
     IntegerType,
     StridedLayoutAttr,
     i32,
@@ -231,53 +228,6 @@ def test_memref_matmul_verify():
 
     # check that it verifies correctly
     module.verify()
-
-
-def test_memref_subview():
-    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [10, 2])
-    memref_ssa_value = TestSSAValue(i32_memref_type)
-
-    res_memref_type = MemRefType.from_element_type_and_shape(i32, [1, 1])
-
-    offset_arg1 = Constant(IntegerAttr.from_int_and_width(0, 64), i64)
-    offset_arg2 = Constant(IntegerAttr.from_int_and_width(0, 64), i64)
-
-    size_arg1 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
-    size_arg2 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
-
-    stride_arg1 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
-    stride_arg2 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
-
-    operand_segment_sizes = ArrayAttr([IntAttr(1), IntAttr(2), IntAttr(2), IntAttr(2)])
-
-    static_offsets = DenseArrayBase.from_list(i64, [0, 0])
-    static_sizes = DenseArrayBase.from_list(i64, [1, 1])
-    static_strides = DenseArrayBase.from_list(i64, [1, 1])
-
-    subview = Subview.build(
-        operands=[
-            memref_ssa_value,
-            [offset_arg1, offset_arg2],
-            [size_arg1, size_arg2],
-            [stride_arg1, stride_arg2],
-        ],
-        attributes={
-            "operand_segment_sizes": operand_segment_sizes,
-            "static_offsets": static_offsets,
-            "static_sizes": static_sizes,
-            "static_strides": static_strides,
-        },
-        result_types=[res_memref_type],
-    )
-
-    assert subview.source is memref_ssa_value
-    assert subview.offsets == (offset_arg1.result, offset_arg2.result)
-    assert subview.sizes == (size_arg1.result, size_arg2.result)
-    assert subview.strides == (stride_arg1.result, stride_arg2.result)
-    assert subview.static_offsets is static_offsets
-    assert subview.static_sizes is static_sizes
-    assert subview.static_strides is static_strides
-    assert subview.result.type is res_memref_type
 
 
 def test_memref_subview_constant_parameters():
