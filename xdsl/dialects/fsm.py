@@ -34,7 +34,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import irdl_attr_definition
+from xdsl.irdl import irdl_attr_definition
 from xdsl.traits import (
     HasParent,
     IsTerminator,
