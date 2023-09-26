@@ -36,6 +36,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     OptOperand,
+    OptOpResult,
     ParameterDef,
     VarOperand,
     attr_def,
@@ -43,11 +44,13 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_operand_def,
+    opt_prop_def,
+    opt_result_def,
+    prop_def,
     region_def,
     result_def,
     var_operand_def,
 )
-from xdsl.irdl.irdl import OptOpResult, opt_prop_def, opt_result_def, prop_def
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, SymbolOpInterface

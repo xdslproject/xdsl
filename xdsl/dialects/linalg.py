@@ -21,11 +21,11 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     opt_attr_def,
+    prop_def,
     region_def,
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import prop_def
 from xdsl.parser.attribute_parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator

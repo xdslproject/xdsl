@@ -31,11 +31,12 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     irdl_op_definition,
+    opt_prop_def,
+    prop_def,
     region_def,
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import opt_prop_def, prop_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (

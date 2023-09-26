@@ -20,6 +20,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    BaseAttr,
     ConstraintVar,
     IRDLOperation,
     OpDef,
@@ -49,7 +50,6 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import BaseAttr
 from xdsl.utils.exceptions import (
     DiagnosticException,
     PyRDLOpDefinitionError,

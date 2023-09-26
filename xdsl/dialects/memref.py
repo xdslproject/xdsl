@@ -43,10 +43,11 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
+    prop_def,
     result_def,
     var_operand_def,
 )
-from xdsl.irdl.irdl import opt_prop_def, prop_def
 from xdsl.traits import SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa

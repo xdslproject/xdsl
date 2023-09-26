@@ -18,7 +18,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.irdl.irdl import IRDLOperation
+from xdsl.irdl import IRDLOperation
 from xdsl.parser.attribute_parser import AttrParser
 from xdsl.parser.base_parser import ParserState, Position
 from xdsl.utils.exceptions import MultipleSpansParseError

@@ -40,12 +40,13 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
     opt_result_def,
+    prop_def,
     region_def,
     result_def,
     var_operand_def,
 )
-from xdsl.irdl.irdl import opt_prop_def, prop_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import (

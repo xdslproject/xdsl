@@ -13,10 +13,10 @@ from xdsl.irdl import (
     VarOperand,
     irdl_op_definition,
     operand_def,
+    prop_def,
     successor_def,
     var_operand_def,
 )
-from xdsl.irdl.irdl import prop_def
 from xdsl.traits import IsTerminator
 
 
