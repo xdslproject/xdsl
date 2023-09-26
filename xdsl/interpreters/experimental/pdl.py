@@ -252,7 +252,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         attribute_value_names = [avn.data for avn in op.attributeValueNames.data]
 
-        # How to deal with operand_segment_sizes?
+        # How to deal with operandSegmentSizes?
         # operand_values, attribute_values, type_values = args
 
         operand_values = interpreter.get_values(op.operand_values)
