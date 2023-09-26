@@ -99,7 +99,6 @@ class FuncOp(IRDLOperation):
         entry_block: Block = self.body.blocks[0]
         block_arg_types = [arg.type for arg in entry_block.args]
         if self.function_type.inputs.data != tuple(block_arg_types):
-            print(self.function_type.inputs.data)
             raise VerifyException(
                 "Expected entry block arguments to have the same types as the function "
                 "input types"
