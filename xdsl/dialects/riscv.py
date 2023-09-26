@@ -40,11 +40,11 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    region_def,
     result_def,
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import region_def
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer

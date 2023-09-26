@@ -272,7 +272,7 @@ class ParallelOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     traits = frozenset([SingleBlockImplicitTerminator(Yield)])
 
