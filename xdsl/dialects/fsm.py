@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    ContainerOf,
     DictionaryAttr,
     FlatSymbolRefAttr,
     FunctionType,
-    IndexType,
-    IntegerType,
     StringAttr,
 )
 from xdsl.ir import (
@@ -22,7 +20,6 @@ from xdsl.ir import (
 from xdsl.ir.core import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     IRDLOperation,
     attr_def,
     irdl_op_definition,
@@ -43,7 +40,9 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 
-signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
+"""
+Implementation of the FSM dialect by CIRCT. Documentation: https://circt.llvm.org/docs/Dialects/FSM/RationaleFSM/
+"""
 
 
 @irdl_attr_definition
@@ -84,17 +83,19 @@ class MachineOp(IRDLOperation):
         res_names: ArrayAttr[StringAttr] | None,
         body: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
-        attributes: dict[str, Attribute | None] = {}
-        attributes["sym_name"] = StringAttr(sym_name)
-        attributes["initialState"] = StringAttr(initial_state)
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
-        attributes["function_type"] = function_type
-        attributes["arg_attrs"] = arg_attrs
-        attributes["res_attrs"] = res_attrs
-        attributes["arg_names"] = arg_names
-        attributes["res_names"] = res_names
+
+        attributes: dict[str, Attribute | None] = {
+            "sym_name": StringAttr(sym_name),
+            "initialState": StringAttr(initial_state),
+            "function_type": function_type,
+            "arg_attrs": arg_attrs,
+            "res_attrs": res_attrs,
+            "arg_names": arg_names,
+            "res_names": res_names,
+        }
         if not isinstance(body, Region):
             body = Region(Block())
 
@@ -144,8 +145,9 @@ class StateOp(IRDLOperation):
         output: Region | type[Region.DEFAULT] = Region.DEFAULT,
         transitions: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
-        attributes: dict[str, Attribute] = {}
-        attributes["sym_name"] = StringAttr(sym_name)
+        attributes: dict[str, Attribute] = {
+            "sym_name": StringAttr(sym_name),
+        }
         if not isinstance(output, Region):
             output = Region(Block())
         if not isinstance(transitions, Region):
@@ -238,8 +240,9 @@ class TransitionOp(IRDLOperation):
     ):
         if isinstance(nextState, str):
             nextState = FlatSymbolRefAttr(nextState)
-        attributes: dict[str, Attribute] = {}
-        attributes["nextState"] = nextState
+        attributes: dict[str, Attribute] = {
+            "nextState": nextState,
+        }
         if not isinstance(action, Region):
             action = Region(Block())
         if not isinstance(guard, Region):
@@ -334,10 +337,12 @@ class VariableOp(IRDLOperation):
         name_var: str | None,
         result: Sequence[Attribute],
     ):
-        attributes: dict[str, Attribute] = {}
-        attributes["initValue"] = initValue
+        attributes: dict[str, Attribute] = {
+            "initValue": initValue,
+        }
         if name_var is not None:
             attributes["name_var"] = StringAttr(name_var)
+
         super().__init__(
             result_types=[result],
             attributes=attributes,
