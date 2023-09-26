@@ -1498,13 +1498,14 @@ def get_variadic_sizes(
     ]
 
     # If the size is in the attributes, fetch it
-    if any(isinstance(o, attribute_option) for o in op_def.options):
+    option = next((o for o in op_def.options if isinstance(o, attribute_option)), None)
+    if option is not None:
         return get_variadic_sizes_from_attr(
             op,
             defs,
             construct,
-            attribute_option.attribute_name,
-            attribute_option.as_property,
+            option.attribute_name,
+            option.as_property,
         )
 
     # If there are no variadics arguments,
