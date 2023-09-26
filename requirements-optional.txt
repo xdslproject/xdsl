@@ -6,7 +6,7 @@ ipykernel
 pytest<8.0
 nbval<0.11
 filecheck<0.0.24
-lit<17.0.0
+lit<18.0.0
 pre-commit==3.4.0
 ruff==0.0.291
 riscemu==2.1.1
