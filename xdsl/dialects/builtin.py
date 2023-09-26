@@ -39,6 +39,7 @@ from xdsl.irdl import (
     AttrConstraint,
     GenericData,
     IRDLOperation,
+    ParamAttrConstraint,
     ParameterDef,
     VarOperand,
     VarOpResult,
@@ -51,7 +52,6 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import ParamAttrConstraint
 from xdsl.traits import (
     IsolatedFromAbove,
     NoTerminator,

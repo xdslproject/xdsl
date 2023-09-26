@@ -14,7 +14,7 @@ from xdsl.dialects.builtin import (
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.experimental.pdl import PDLRewriteFunctions, PDLRewritePattern
 from xdsl.ir import MLContext, OpResult
-from xdsl.irdl.irdl import IRDLOperation, irdl_op_definition, prop_def
+from xdsl.irdl import IRDLOperation, irdl_op_definition, prop_def
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,

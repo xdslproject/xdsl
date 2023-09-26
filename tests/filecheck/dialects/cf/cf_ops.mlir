@@ -8,7 +8,7 @@ builtin.module {
   }
   // CHECK:      func.func private @assert() {
   // CHECK-NEXT:     %{{.*}} = arith.constant true
-  // CHECK-NEXT:     "cf.assert"(%{{.*}}) {"msg" = "some message"} : (i1) -> ()
+  // CHECK-NEXT:     "cf.assert"(%{{.*}}) <{"msg" = "some message"}> : (i1) -> ()
   // CHECK-NEXT:     func.return
   // CHECK-NEXT:   }
 
@@ -38,14 +38,14 @@ builtin.module {
   func.func private @cond_br(%2 : i1, %3 : i32) -> i32 {
     "cf.br"(%2, %3) [^5] : (i1, i32) -> ()
   ^5(%4 : i1, %5 : i32):
-    "cf.cond_br"(%4, %4, %5, %5, %5, %5) [^5, ^6] {"operand_segment_sizes" = array<i32: 1, 2, 3>} : (i1, i1, i32, i32, i32, i32) -> ()
+    "cf.cond_br"(%4, %4, %5, %5, %5, %5) [^5, ^6] {"operandSegmentSizes" = array<i32: 1, 2, 3>} : (i1, i1, i32, i32, i32, i32) -> ()
   ^6(%6 : i32, %7 : i32, %8 : i32):
     func.return %6 : i32
   }
   // CHECK:      func.func private @cond_br(%2 : i1, %3 : i32) -> i32 {
   // CHECK-NEXT:   "cf.br"(%{{.*}}, %{{.*}}) [^{{.*}}] : (i1, i32) -> ()
   // CHECK-NEXT: ^{{.*}}(%{{.*}} : i1, %{{.*}} : i32):
-  // CHECK-NEXT:   "cf.cond_br"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) [^{{.*}}, ^{{.*}}] {"operand_segment_sizes" = array<i32: 1, 2, 3>} : (i1, i1, i32, i32, i32, i32) -> ()
+  // CHECK-NEXT:   "cf.cond_br"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) [^{{.*}}, ^{{.*}}] <{"operandSegmentSizes" = array<i32: 1, 2, 3>}> : (i1, i1, i32, i32, i32, i32) -> ()
   // CHECK-NEXT: ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32):
   // CHECK-NEXT:   func.return %{{.*}} : i32
   // CHECK-NEXT: }

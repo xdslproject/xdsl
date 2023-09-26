@@ -7,7 +7,7 @@ from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue, TypeAttribute
-from xdsl.irdl.irdl import IRDLOperation
+from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
@@ -252,7 +252,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         attribute_value_names = [avn.data for avn in op.attributeValueNames.data]
 
-        # How to deal with operand_segment_sizes?
+        # How to deal with operandSegmentSizes?
         # operand_values, attribute_values, type_values = args
 
         operand_values = interpreter.get_values(op.operand_values)

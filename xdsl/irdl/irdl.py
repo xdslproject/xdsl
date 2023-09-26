@@ -572,7 +572,7 @@ class AttrSizedOperandSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    attribute_name = "operand_segment_sizes"
+    attribute_name = "operandSegmentSizes"
     """Name of the attribute containing the variadic operand sizes."""
 
 

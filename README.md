@@ -42,7 +42,7 @@ pip install xdsl
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions may result in problems. The supported
-MLIR version is commit `04fc02e583b06b846315904a55af9c273c8b20b9`.
+MLIR version is commit `a3f2751f782f3cdc6ba4790488ec20163a40ac37`.
 
 ## Getting Started
 
