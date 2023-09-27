@@ -25,6 +25,7 @@ from xdsl.irdl import (
     AnyOf,
     IRDLOperation,
     attr_def,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -34,7 +35,6 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl import irdl_attr_definition
 from xdsl.traits import (
     HasParent,
     IsTerminator,
@@ -537,7 +537,7 @@ class HWInstanceOp(IRDLOperation):
                 raise VerifyException(
                     "HWInstanceOp "
                     + str(self.sym_name)
-                    + " inputs type must be consistent with the machine's "
+                    + " input type must be consistent with the machine's "
                     + str(m.sym_name)
                 )
             if not (

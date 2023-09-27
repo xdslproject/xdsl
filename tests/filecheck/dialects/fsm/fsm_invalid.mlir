@@ -211,7 +211,7 @@
 
 }) {function_type = (i16) -> (i16) , initialState = "A", sym_name = "foo"} : () -> ()
 
-// CHECK: Output type must be consistent with the machine's
+// CHECK: OutputOp output type must be consistent with the machine's "foo"
 
 // -----
 
@@ -266,7 +266,7 @@
 
 }) : () -> ()
 
-// CHECK: Output types must be consistent with the machine's
+// CHECK: HWInstanceOp "foo_inst" output type must be consistent with the machine's "foo"
 
 // -----
 
@@ -288,7 +288,7 @@
 
 }) : () -> ()
 
-// CHECK: Inputs types must be consistent with the machine's
+// CHECK: HWInstanceOp "foo_inst" input type must be consistent with the machine's "foo"
 
 
 // -----
@@ -340,7 +340,7 @@
 
 }) : () -> ()
 
-  // CHECK: Output types must be consistent with the machine's
+  // CHECK: TriggerOp output types must be consistent with the machine's "foo"
 
 // -----
 
@@ -383,7 +383,7 @@
 
 }) : () -> ()
 
-// CHECK: Input types must be consistent with the machine's
+// CHECK: TriggerOp input types must be consistent with the machine's "foo"
 
 // -----
 
@@ -399,4 +399,3 @@
 }) : () -> ()
 
 // CHECK: The instance operand must be Instance
-
