@@ -82,8 +82,9 @@ class TransitionOp(IRDLOperation):
     ):
         if isinstance(nextState, str):
             nextState = FlatSymbolRefAttr(nextState)
-        attributes: dict[str, Attribute] = {}
-        attributes["nextState"] = nextState
+        attributes: dict[str, Attribute] = {
+            "nextState": nextState,
+        }
         if not isinstance(action, Region):
             action = Region(Block())
         if not isinstance(guard, Region):
@@ -139,17 +140,18 @@ class MachineOp(IRDLOperation):
         res_names: ArrayAttr[StringAttr] | None,
         body: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
-        attributes: dict[str, Attribute | None] = {}
-        attributes["sym_name"] = StringAttr(sym_name)
-        attributes["initialState"] = StringAttr(initial_state)
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
-        attributes["function_type"] = function_type
-        attributes["arg_attrs"] = arg_attrs
-        attributes["res_attrs"] = res_attrs
-        attributes["arg_names"] = arg_names
-        attributes["res_names"] = res_names
+        attributes: dict[str, Attribute | None] = {
+            "sym_name": StringAttr(sym_name),
+            "initialState": StringAttr(initial_state),
+            "function_type": function_type,
+            "arg_attrs": arg_attrs,
+            "res_attrs": res_attrs,
+            "arg_names": arg_names,
+            "res_names": res_names,
+        }
         if not isinstance(body, Region):
             body = Region(Block())
 
@@ -158,27 +160,26 @@ class MachineOp(IRDLOperation):
     def verify_(self):
         if not SymbolTable.lookup_symbol(self, self.initialState):
             raise VerifyException("Can not find initial state")
-        if (
+        if (self.arg_attrs is None) ^ (self.arg_names is None):
+            raise VerifyException("arg_attrs must be consistent with arg_names")
+        elif (
             self.arg_attrs is not None
-            and self.arg_names is None
-            or self.res_attrs is not None
-            and self.res_names is None
-            or self.arg_attrs is None
             and self.arg_names is not None
-            or self.res_attrs is None
-            and self.res_names is not None
+            and len(self.arg_attrs) != len(self.arg_names)
         ):
-            raise VerifyException("attrs must be consistent with names")
-        if self.arg_attrs is not None and self.arg_names is not None:
-            if len(self.arg_attrs) != len(self.arg_names):
-                raise VerifyException(
-                    "The number of arg_attrs and arg_names should be the same"
-                )
-        if self.res_attrs is not None and self.res_names is not None:
-            if len(self.res_attrs) != len(self.res_names):
-                raise VerifyException(
-                    "The number of res_attrs and res_names should be the same"
-                )
+            raise VerifyException(
+                "The number of arg_attrs and arg_names should be the same"
+            )
+        if (self.res_attrs is None) ^ (self.res_names is None):
+            raise VerifyException("res_attrs must be consistent with res_names")
+        elif (
+            self.res_attrs is not None
+            and self.res_names is not None
+            and len(self.res_attrs) != len(self.res_names)
+        ):
+            raise VerifyException(
+                "The number of res_attrs and res_names should be the same"
+            )
 
 
 @irdl_op_definition
@@ -219,7 +220,7 @@ class OutputOp(IRDLOperation):
                     and len(self.operands) == len(parent.function_type.outputs)
                 ):
                     raise VerifyException(
-                        "OutputOp output type must be consistent with the machine's "
+                        "OutputOp output type must be consistent with the machine "
                         + str(parent.sym_name)
                     )
             parent = parent.parent_op()
@@ -254,8 +255,9 @@ class StateOp(IRDLOperation):
         output: Region | type[Region.DEFAULT] = Region.DEFAULT,
         transitions: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
-        attributes: dict[str, Attribute] = {}
-        attributes["sym_name"] = StringAttr(sym_name)
+        attributes: dict[str, Attribute] = {
+            "sym_name": StringAttr(sym_name),
+        }
         if not isinstance(output, Region):
             output = Region(Block())
         if not isinstance(transitions, Region):
@@ -355,8 +357,9 @@ class VariableOp(IRDLOperation):
         name_var: str | None,
         result: Sequence[Attribute],
     ):
-        attributes: dict[str, Attribute] = {}
-        attributes["initValue"] = initValue
+        attributes: dict[str, Attribute] = {
+            "initValue": initValue,
+        }
         if name_var is not None:
             attributes["name_var"] = StringAttr(name_var)
         super().__init__(
@@ -407,9 +410,10 @@ class InstanceOp(IRDLOperation):
     ):
         if isinstance(machine, str):
             machine = FlatSymbolRefAttr(machine)
-        attributes: dict[str, Attribute] = {}
-        attributes["sym_name"] = StringAttr(sym_name)
-        attributes["machine"] = machine
+        attributes: dict[str, Attribute] = {
+            "sym_name": StringAttr(sym_name),
+            "machine": machine,
+        }
         super().__init__(result_types=[instance], attributes=attributes)
 
     def verify_(self):
@@ -468,7 +472,7 @@ class TriggerOp(IRDLOperation):
             and len(self.inputs) == len(m.function_type.inputs)
         ):
             raise VerifyException(
-                "TriggerOp input types must be consistent with the machine's "
+                "TriggerOp input types must be consistent with the machine "
                 + str(m.sym_name)
             )
 
@@ -478,7 +482,7 @@ class TriggerOp(IRDLOperation):
             and len(self.outputs) == len(m.function_type.outputs)
         ):
             raise VerifyException(
-                "TriggerOp output types must be consistent with the machine's "
+                "TriggerOp output types must be consistent with the machine "
                 + str(m.sym_name)
             )
 
@@ -515,11 +519,12 @@ class HWInstanceOp(IRDLOperation):
             machine = FlatSymbolRefAttr(machine)
         clock = SSAValue.get(clock)
         reset = SSAValue.get(reset)
-        attributes: dict[str, Attribute] = {}
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
-        attributes["sym_name"] = sym_name
-        attributes["machine"] = machine
+        attributes: dict[str, Attribute] = {
+            "sym_name": sym_name,
+            "machine": machine,
+        }
         super().__init__(
             operands=[inputs, clock, reset],
             result_types=[outputs],
@@ -537,7 +542,7 @@ class HWInstanceOp(IRDLOperation):
                 raise VerifyException(
                     "HWInstanceOp "
                     + str(self.sym_name)
-                    + " input type must be consistent with the machine's "
+                    + " input type must be consistent with the machine "
                     + str(m.sym_name)
                 )
             if not (
@@ -548,7 +553,7 @@ class HWInstanceOp(IRDLOperation):
                 raise VerifyException(
                     "HWInstanceOp "
                     + str(self.sym_name)
-                    + " output type must be consistent with the machine's "
+                    + " output type must be consistent with the machine "
                     + str(m.sym_name)
                 )
         else:
