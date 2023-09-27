@@ -51,7 +51,7 @@ builtin.module {
 // -----
 
 builtin.module {
-    %m = "memref.alloc"() {"operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<1x1xf32>
+    %m = "memref.alloc"() {"operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<1x1xf32>
 }
 
 // CHECK:      Lowering memref.alloc not implemented yet
