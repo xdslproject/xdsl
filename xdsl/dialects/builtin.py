@@ -424,6 +424,7 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
 class FloatType(ParametrizedAttribute, TypeAttribute):
+    name = "float_type"
     width: ParameterDef[IntAttr]
 
     def __init__(self, width: int | IntAttr) -> None:
@@ -436,12 +437,15 @@ class FloatType(ParametrizedAttribute, TypeAttribute):
         return self.width.data
 
     # @classmethod
-    # def parse_parameter(cls, parser: AttrParser) -> int:
-    # data = parser.parse_integer()
-    # return data
+    # def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    # parser.parse_characters(
+    # "<",
+    # ": gpu attributes currently have the #gpu<name value> syntax.",
+    # )
 
-    # def print_parameter(self, printer: Printer) -> None:
-    # printer.print_string(f"{self.data}")
+    # def print_parameters(self, printer: Printer) -> None:
+    # printer.print(f"bits: {self.width}")
+    # printer.print("")
 
 
 @irdl_attr_definition
@@ -493,7 +497,13 @@ class Float128Type(FloatType):
 
 
 AnyFloat: TypeAlias = (
-    BFloat16Type | Float16Type | Float32Type | Float64Type | Float80Type | Float128Type
+    FloatType
+    | BFloat16Type
+    | Float16Type
+    | Float32Type
+    | Float64Type
+    | Float80Type
+    | Float128Type
 )
 
 
