@@ -62,7 +62,6 @@
 // CHECK:    }) {sym_name = "BUSY"} : () -> ()
 // CHECK:  }) {function_type = (i1) -> i1, initialState = "IDLE", sym_name = "foo"} : () -> ()
 
-
 "builtin.module"() ({
   "fsm.machine"() ({
   ^bb0(%arg0: i1):
