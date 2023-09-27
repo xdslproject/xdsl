@@ -53,12 +53,14 @@ class InstanceType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
-class Transition(IRDLOperation):
-    """Represents a transition of a state with a symbol reference
+class TransitionOp(IRDLOperation):
+    """
+    Represents a transition of a state with a symbol reference
     of the next state. This op includes an optional `$guard` region with an `fsm.return`
     as terminator that returns a Boolean value indicating the guard condition of
     this transition. This op also includes an optional `$action` region that represents
-    the actions to be executed when this transition is taken"""
+    the actions to be executed when this transition is taken
+    """
 
     name = "fsm.transition"
 
@@ -93,22 +95,24 @@ class Transition(IRDLOperation):
 
     def verify_(self):
         if SymbolTable.lookup_symbol(self, self.nextState) is None or not isinstance(
-            SymbolTable.lookup_symbol(self, self.nextState), State
+            SymbolTable.lookup_symbol(self, self.nextState), StateOp
         ):
             raise VerifyException("Can not find next state")
-        if self.guard.blocks and not isinstance(self.guard.block.last_op, Return):
+        if self.guard.blocks and not isinstance(self.guard.block.last_op, ReturnOp):
             raise VerifyException("Guard region must terminate with ReturnOp")
         var = self.parent_op()
-        assert isinstance(var, State)
+        assert isinstance(var, StateOp)
         if var.transitions != self.parent_region():
             raise VerifyException("Transition must be located in a transitions region")
 
 
 @irdl_op_definition
-class Machine(IRDLOperation):
-    """Represents a finite-state machine, including a machine name,
+class MachineOp(IRDLOperation):
+    """
+    Represents a finite-state machine, including a machine name,
     the type of machine state, and the types of inputs and outputs. This op also
-    includes a `$body` region that contains internal variables and states."""
+    includes a `$body` region that contains internal variables and states.
+    """
 
     name = "fsm.machine"
 
@@ -178,10 +182,12 @@ class Machine(IRDLOperation):
 
 
 @irdl_op_definition
-class Output(IRDLOperation):
-    """Represents the outputs of a machine under a specific state. The
+class OutputOp(IRDLOperation):
+    """
+    Represents the outputs of a machine under a specific state. The
     types of `$operands` should be consistent with the output types of the state
-    machine"""
+    machine
+    """
 
     name = "fsm.output"
 
@@ -200,30 +206,33 @@ class Output(IRDLOperation):
     def verify_(self):
         parent = self.parent_op()
         if (
-            isinstance(parent, State)
+            isinstance(parent, StateOp)
             and parent.transitions == self.parent_region()
             and len(self.operands) > 0
         ):
             raise VerifyException("Transition regions should not output any value")
         while parent is not None:
-            if isinstance(parent, Machine):
+            if isinstance(parent, MachineOp):
                 if not (
                     [operand.type for operand in self.operands]
                     == [result for result in parent.function_type.outputs]
                     and len(self.operands) == len(parent.function_type.outputs)
                 ):
                     raise VerifyException(
-                        "Output type must be consistent with the machine's"
+                        "OutputOp output type must be consistent with the machine's "
+                        + str(parent.sym_name)
                     )
             parent = parent.parent_op()
 
 
 @irdl_op_definition
-class State(IRDLOperation):
-    """Represents a state of a state machine. This op includes an
+class StateOp(IRDLOperation):
+    """
+    Represents a state of a state machine. This op includes an
     `$output` region with an `fsm.output` as terminator to define the machine
     outputs under this state. This op also includes a `transitions` region that
-    contains all the transitions of this state"""
+    contains all the transitions of this state
+    """
 
     name = "fsm.state"
 
@@ -261,7 +270,7 @@ class State(IRDLOperation):
 
         while parent is not None:
             if (
-                isinstance(parent, Machine)
+                isinstance(parent, MachineOp)
                 and getattr(parent, "res_attrs") is not None
                 and len(getattr(parent, "res_attrs")) > 0
                 and self.output.block.first_op is None
@@ -273,10 +282,12 @@ class State(IRDLOperation):
 
 
 @irdl_op_definition
-class Update(IRDLOperation):
-    """Updates the `$variable` with the `$value`. The definition op of
+class UpdateOp(IRDLOperation):
+    """
+    Updates the `$variable` with the `$value`. The definition op of
     `$variable` should be an `fsm.variable`. This op should *only* appear in the
-    `action` region of a transtion"""
+    `action` region of a transtion
+    """
 
     name = "fsm.update"
 
@@ -286,7 +297,7 @@ class Update(IRDLOperation):
 
     value = operand_def(Attribute)
 
-    traits = frozenset([HasParent(Transition)])
+    traits = frozenset([HasParent(TransitionOp)])
 
     def __init__(
         self,
@@ -298,16 +309,16 @@ class Update(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(self.variable.owner, Variable):
+        if not isinstance(self.variable.owner, VariableOp):
             raise VerifyException("Destination is not a variable operation")
 
         parent = self.parent_op()
         while parent is not None:
-            if isinstance(parent, Transition):
+            if isinstance(parent, TransitionOp):
                 # walk through the action region
                 found = 0
                 for op in parent.action.walk():
-                    if isinstance(op, Update) and op.variable == self.variable:
+                    if isinstance(op, UpdateOp) and op.variable == self.variable:
                         found += 1
                 if found == 0:
                     raise VerifyException(
@@ -321,9 +332,11 @@ class Update(IRDLOperation):
 
 
 @irdl_op_definition
-class Variable(IRDLOperation):
-    """Represents an internal variable in a state machine with an
-    initialization value"""
+class VariableOp(IRDLOperation):
+    """
+    Represents an internal variable in a state machine with an
+    initialization value
+    """
 
     name = "fsm.variable"
 
@@ -353,15 +366,17 @@ class Variable(IRDLOperation):
 
 
 @irdl_op_definition
-class Return(IRDLOperation):
-    """Marks the end of a region of `fsm.transition` and return
-    values if the parent region is a `$guard` region"""
+class ReturnOp(IRDLOperation):
+    """
+    Marks the end of a region of `fsm.transition` and return
+    values if the parent region is a `$guard` region
+    """
 
     name = "fsm.return"
 
     operand = opt_operand_def(signlessIntegerLike)
 
-    traits = frozenset([IsTerminator(), HasParent(Transition)])
+    traits = frozenset([IsTerminator(), HasParent(TransitionOp)])
 
     def __init__(
         self,
@@ -373,9 +388,11 @@ class Return(IRDLOperation):
 
 
 @irdl_op_definition
-class Instance(IRDLOperation):
-    """Represents an instance of a state machine, including an
-    instance name and a symbol reference of the machine"""
+class InstanceOp(IRDLOperation):
+    """
+    Represents an instance of a state machine, including an
+    instance name and a symbol reference of the machine
+    """
 
     name = "fsm.instance"
 
@@ -396,22 +413,24 @@ class Instance(IRDLOperation):
         super().__init__(result_types=[instance], attributes=attributes)
 
     def verify_(self):
-        if not isinstance(SymbolTable.lookup_symbol(self, self.machine), Machine):
+        if not isinstance(SymbolTable.lookup_symbol(self, self.machine), MachineOp):
             raise VerifyException("Machine definition does not exist")
 
-    def getMachine(self) -> Machine | None:
+    def getMachine(self) -> MachineOp | None:
         m = SymbolTable.lookup_symbol(self, self.machine)
-        if isinstance(m, Machine):
+        if isinstance(m, MachineOp):
             return m
         else:
             return None
 
 
 @irdl_op_definition
-class Trigger(IRDLOperation):
-    """Triggers a state machine instance. The inputs and outputs are
+class TriggerOp(IRDLOperation):
+    """
+    Triggers a state machine instance. The inputs and outputs are
     correponding to the inputs and outputs of the referenced machine of the
-    instance"""
+    instance
+    """
 
     name = "fsm.trigger"
 
@@ -433,7 +452,7 @@ class Trigger(IRDLOperation):
         )
 
     def verify_(self):
-        if not isinstance(self.instance.owner, Instance):
+        if not isinstance(self.instance.owner, InstanceOp):
             raise VerifyException("The instance operand must be Instance")
 
         # operand types must match the machine input types
@@ -448,22 +467,30 @@ class Trigger(IRDLOperation):
             == [result for result in m.function_type.inputs]
             and len(self.inputs) == len(m.function_type.inputs)
         ):
-            raise VerifyException("Input types must be consistent with the machine's")
+            raise VerifyException(
+                "TriggerOp input types must be consistent with the machine's "
+                + str(m.sym_name)
+            )
 
         if not (
             [operand.type for operand in self.outputs]
             == [result for result in m.function_type.outputs]
             and len(self.outputs) == len(m.function_type.outputs)
         ):
-            raise VerifyException("Output types must be consistent with the machine's")
+            raise VerifyException(
+                "TriggerOp output types must be consistent with the machine's "
+                + str(m.sym_name)
+            )
 
 
 @irdl_op_definition
-class HWInstance(IRDLOperation):
-    """Represents a hardware-style instance of a state machine,
+class HWInstanceOp(IRDLOperation):
+    """
+    Represents a hardware-style instance of a state machine,
     including an instance name and a symbol reference of the machine. The inputs
     and outputs are correponding to the inputs and outputs of the referenced
-    machine."""
+    machine.
+    """
 
     name = "fsm.hw_instance"
 
@@ -501,14 +528,17 @@ class HWInstance(IRDLOperation):
 
     def verify_(self):
         m = SymbolTable.lookup_symbol(self, self.machine)
-        if isinstance(m, Machine):
+        if isinstance(m, MachineOp):
             if not (
                 [operand.type for operand in self.inputs]
                 == [result for result in m.function_type.inputs]
                 and len(self.inputs) == len(m.function_type.inputs)
             ):
                 raise VerifyException(
-                    "Inputs types must be consistent with the machine's "
+                    "HWInstanceOp "
+                    + str(self.sym_name)
+                    + " inputs type must be consistent with the machine's "
+                    + str(m.sym_name)
                 )
             if not (
                 [operand.type for operand in self.outputs]
@@ -516,7 +546,10 @@ class HWInstance(IRDLOperation):
                 and len(self.outputs) == len(m.function_type.outputs)
             ):
                 raise VerifyException(
-                    "Output types must be consistent with the machine's"
+                    "HWInstanceOp "
+                    + str(self.sym_name)
+                    + " output type must be consistent with the machine's "
+                    + str(m.sym_name)
                 )
         else:
             raise VerifyException("Machine definition does not exist")
@@ -524,16 +557,16 @@ class HWInstance(IRDLOperation):
 
 FSM = Dialect(
     [
-        Machine,
-        Output,
-        State,
-        Transition,
-        Update,
-        Variable,
-        Return,
-        Trigger,
-        Instance,
-        HWInstance,
+        MachineOp,
+        OutputOp,
+        StateOp,
+        TransitionOp,
+        UpdateOp,
+        VariableOp,
+        ReturnOp,
+        TriggerOp,
+        InstanceOp,
+        HWInstanceOp,
     ],
     [InstanceType],
 )
