@@ -1,5 +1,7 @@
 // RUN XDSL_ROUNDTRIP
 
+// COM: the machine consists of a single state (IDLE) with no transitions
+
 // CHECK:  "fsm.machine"() ({
 // CHECK:  ^bb0(%arg0: i1):
 // CHECK:    "fsm.state"() ({
@@ -16,6 +18,14 @@
   }) {function_type = (i1) -> (), initialState = "IDLE", sym_name = "foo"} : () -> ()
 }) : () -> ()
 
+// COM: the machine consists of two states
+// COM: IDLE outputs constant value true
+// COM: BUSY outputs constant value false
+// COM: and the following transitions: 
+// COM: IDLE --> BUSY returns a value from the guard region (fsm.return) and updates a variable (fsm.update)
+// COM: BUSY --> IDLE returns a value from the guard region (fsm.return) resulting from arithmetic operations 
+// COM: BUSY --> BUSY returns a value resulting from arithmetic operations from the guard region and updates %0 
+// COM: with %2 according to the result of previous arith operations
 
 // CHECK:  ^bb0(%arg0: i1):
 // CHECK:    %0 = "fsm.variable"() {initValue = 0 : i16, name = "cnt"} : () -> i16
@@ -90,6 +100,11 @@
     }) {sym_name = "BUSY"} : () -> ()
   }) {function_type = (i1) -> i1, initialState = "IDLE", sym_name = "foo"} : () -> ()
 }) : () -> ()
+
+// COM: the machine consists of three states A (initial), B, C
+// COM: A outputs value resulting from fsm.variable ("cnt") and has transition A --> A
+// COM: B outputs value resulting from fsm.variable ("cnt") and has transition B --> B
+// COM: C outputs value resulting from fsm.variable ("cnt") and has transition C --> C
 
 // CHECK:  "fsm.machine"() ({
 // CHECK:  ^bb0(%arg0: i1):
