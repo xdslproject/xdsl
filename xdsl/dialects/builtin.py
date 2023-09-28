@@ -423,7 +423,8 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
-class FloatType(ParametrizedAttribute, TypeAttribute):
+@irdl_attr_definition
+class _FloatType(ParametrizedAttribute, TypeAttribute, ABC):
     name = "float_type"
     width: ParameterDef[IntAttr]
 
@@ -449,7 +450,7 @@ class FloatType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class BFloat16Type(FloatType):
+class BFloat16Type(_FloatType):
     name = "bf16"
 
     def __init__(self) -> None:
@@ -457,7 +458,7 @@ class BFloat16Type(FloatType):
 
 
 @irdl_attr_definition
-class Float16Type(FloatType):
+class Float16Type(_FloatType):
     name = "f16"
 
     def __init__(self) -> None:
@@ -465,7 +466,7 @@ class Float16Type(FloatType):
 
 
 @irdl_attr_definition
-class Float32Type(FloatType):
+class Float32Type(_FloatType):
     name = "f32"
 
     def __init__(self) -> None:
@@ -473,7 +474,7 @@ class Float32Type(FloatType):
 
 
 @irdl_attr_definition
-class Float64Type(FloatType):
+class Float64Type(_FloatType):
     name = "f64"
 
     def __init__(self) -> None:
@@ -481,7 +482,7 @@ class Float64Type(FloatType):
 
 
 @irdl_attr_definition
-class Float80Type(FloatType):
+class Float80Type(_FloatType):
     name = "f80"
 
     def __init__(self) -> None:
@@ -489,7 +490,7 @@ class Float80Type(FloatType):
 
 
 @irdl_attr_definition
-class Float128Type(FloatType):
+class Float128Type(_FloatType):
     name = "f128"
 
     def __init__(self) -> None:
@@ -497,13 +498,7 @@ class Float128Type(FloatType):
 
 
 AnyFloat: TypeAlias = (
-    FloatType
-    | BFloat16Type
-    | Float16Type
-    | Float32Type
-    | Float64Type
-    | Float80Type
-    | Float128Type
+    BFloat16Type | Float16Type | Float32Type | Float64Type | Float80Type | Float128Type
 )
 
 
