@@ -465,21 +465,19 @@ class ParametrizedAttribute(Attribute):
 
 @dataclass(init=False)
 class IRNode(ABC):
-    parent: IRNode | None = field(default=None, init=False, repr=False)
-
     def is_ancestor(self, op: IRNode) -> bool:
         "Returns true if the IRNode is an ancestor of another IRNode."
         if op is self:
             return True
-        if op.parent is None:
+        if (parent := op.parent_node) is None:
             return False
-        return self.is_ancestor(op.parent)
+        return self.is_ancestor(parent)
 
     def get_toplevel_object(self) -> IRNode:
         """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
+        if (parent := self.parent_node) is None:
             return self
-        return self.parent.get_toplevel_object()
+        return parent.get_toplevel_object()
 
     def is_structurally_equivalent(
         self,
@@ -487,6 +485,11 @@ class IRNode(ABC):
         context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None,
     ) -> bool:
         """Check if two IR nodes are structurally equivalent."""
+        ...
+
+    @property
+    @abstractmethod
+    def parent_node(self) -> IRNode | None:
         ...
 
     @abstractmethod
@@ -580,6 +583,10 @@ class Operation(IRNode):
     This is a static field, and is made empty by default by PyRDL if not set
     by the operation definition.
     """
+
+    @property
+    def parent_node(self) -> IRNode | None:
+        return self.parent
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
@@ -1172,6 +1179,10 @@ class Block(IRNode):
         self.add_ops(ops)
 
     @property
+    def parent_node(self) -> IRNode | None:
+        return self.parent
+
+    @property
     def ops(self) -> BlockOps:
         """Returns a multi-pass Iterable of this block's operations."""
         return BlockOps(self)
@@ -1489,6 +1500,10 @@ class Region(IRNode):
             blocks = (blocks,)
         for block in blocks:
             self.add_block(block)
+
+    @property
+    def parent_node(self) -> IRNode | None:
+        return self.parent
 
     def parent_block(self) -> Block | None:
         return self.parent.parent if self.parent else None
