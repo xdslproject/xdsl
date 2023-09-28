@@ -261,9 +261,10 @@ class Printer:
 
         self._indent += 1
         for op in block.ops:
-            if not (op.has_trait(IsTerminator) and not print_block_terminator):
-                self._print_new_line()
-                self.print_op(op)
+            if not print_block_terminator and op.has_trait(IsTerminator):
+                continue
+            self._print_new_line()
+            self.print_op(op)
         self._indent -= 1
 
     def print_block_argument(self, arg: BlockArgument, print_type: bool = True) -> None:
