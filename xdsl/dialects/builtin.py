@@ -492,21 +492,25 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
         self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
     ) -> None:
         if isinstance(data, float):
-            data = FloatData(data)
+            data_attr = FloatData(data)
+        else:
+            data_attr = data
         if isinstance(type, int):
             if type == 16:
-                type = Float16Type()
+                type_attr = Float16Type()
             elif type == 32:
-                type = Float32Type()
+                type_attr = Float32Type()
             elif type == 64:
-                type = Float64Type()
+                type_attr = Float64Type()
             elif type == 80:
-                type = Float80Type()
+                type_attr = Float80Type()
             elif type == 128:
-                type = Float128Type()
+                type_attr = Float128Type()
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
-        super().__init__([data, type])
+        else:
+            type_attr = type
+        super().__init__([data_attr, type_attr])
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
