@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    ContainerOf,
     DictionaryAttr,
     FlatSymbolRefAttr,
     FunctionType,
-    IndexType,
-    IntegerType,
     StringAttr,
 )
 from xdsl.ir import (
@@ -22,10 +20,8 @@ from xdsl.ir import (
 from xdsl.ir.core import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     IRDLOperation,
     attr_def,
-    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -35,6 +31,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.irdl import irdl_attr_definition
 from xdsl.traits import (
     HasParent,
     IsTerminator,
@@ -44,67 +41,14 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 
-signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
+"""
+Implementation of the FSM dialect by CIRCT. Documentation: https://circt.llvm.org/docs/Dialects/FSM/RationaleFSM/
+"""
 
 
 @irdl_attr_definition
 class InstanceType(ParametrizedAttribute, TypeAttribute):
     name = "fsm.instancetype"
-
-
-@irdl_op_definition
-class TransitionOp(IRDLOperation):
-    """
-    Represents a transition of a state with a symbol reference
-    of the next state. This op includes an optional `$guard` region with an `fsm.return`
-    as terminator that returns a Boolean value indicating the guard condition of
-    this transition. This op also includes an optional `$action` region that represents
-    the actions to be executed when this transition is taken
-    """
-
-    name = "fsm.transition"
-
-    guard = region_def()
-
-    action = region_def()
-
-    # attributes
-
-    nextState = attr_def(FlatSymbolRefAttr)
-
-    traits = frozenset([NoTerminator()])
-
-    def __init__(
-        self,
-        nextState: FlatSymbolRefAttr,
-        guard: Region | type[Region.DEFAULT] = Region.DEFAULT,
-        action: Region | type[Region.DEFAULT] = Region.DEFAULT,
-    ):
-        if isinstance(nextState, str):
-            nextState = FlatSymbolRefAttr(nextState)
-        attributes: dict[str, Attribute] = {
-            "nextState": nextState,
-        }
-        if not isinstance(action, Region):
-            action = Region(Block())
-        if not isinstance(guard, Region):
-            guard = Region(Block())
-        super().__init__(
-            attributes=attributes,
-            regions=[guard, action],
-        )
-
-    def verify_(self):
-        if SymbolTable.lookup_symbol(self, self.nextState) is None or not isinstance(
-            SymbolTable.lookup_symbol(self, self.nextState), StateOp
-        ):
-            raise VerifyException("Can not find next state")
-        if self.guard.blocks and not isinstance(self.guard.block.last_op, ReturnOp):
-            raise VerifyException("Guard region must terminate with ReturnOp")
-        var = self.parent_op()
-        assert isinstance(var, StateOp)
-        if var.transitions != self.parent_region():
-            raise VerifyException("Transition must be located in a transitions region")
 
 
 @irdl_op_definition
@@ -143,6 +87,7 @@ class MachineOp(IRDLOperation):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
+
         attributes: dict[str, Attribute | None] = {
             "sym_name": StringAttr(sym_name),
             "initialState": StringAttr(initial_state),
@@ -162,24 +107,69 @@ class MachineOp(IRDLOperation):
             raise VerifyException("Can not find initial state")
         if (self.arg_attrs is None) ^ (self.arg_names is None):
             raise VerifyException("arg_attrs must be consistent with arg_names")
-        elif (
-            self.arg_attrs is not None
-            and self.arg_names is not None
-            and len(self.arg_attrs) != len(self.arg_names)
-        ):
-            raise VerifyException(
-                "The number of arg_attrs and arg_names should be the same"
-            )
+        elif self.arg_attrs is not None and self.arg_names is not None:
+            if len(self.arg_attrs) != len(self.arg_names):
+                raise VerifyException(
+                    "The number of arg_attrs and arg_names should be the same"
+                )
         if (self.res_attrs is None) ^ (self.res_names is None):
             raise VerifyException("res_attrs must be consistent with res_names")
-        elif (
-            self.res_attrs is not None
-            and self.res_names is not None
-            and len(self.res_attrs) != len(self.res_names)
+        elif self.res_attrs is not None and self.res_names is not None:
+            if len(self.res_attrs) != len(self.res_names):
+                raise VerifyException(
+                    "The number of res_attrs and res_names should be the same"
+                )
+
+
+@irdl_op_definition
+class StateOp(IRDLOperation):
+    """
+    Represents a state of a state machine. This op includes an
+    `$output` region with an `fsm.output` as terminator to define the machine
+    outputs under this state. This op also includes a `transitions` region that
+    contains all the transitions of this state
+    """
+
+    name = "fsm.state"
+
+    output = region_def()
+
+    transitions = region_def()
+
+    sym_name = attr_def(StringAttr)
+
+    traits = frozenset([NoTerminator(), SymbolOpInterface(), HasParent(MachineOp)])
+
+    def __init__(
+        self,
+        sym_name: str,
+        output: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        transitions: Region | type[Region.DEFAULT] = Region.DEFAULT,
+    ):
+        attributes: dict[str, Attribute] = {
+            "sym_name": StringAttr(sym_name),
+        }
+        if not isinstance(output, Region):
+            output = Region(Block())
+        if not isinstance(transitions, Region):
+            transitions = Region(Block())
+        super().__init__(
+            attributes=attributes,
+            regions=[output, transitions],
+        )
+
+    def verify_(self):
+        parent = self.parent_op()
+        assert isinstance(parent, MachineOp)
+        if (
+            parent.res_attrs is not None
+            and len(parent.res_attrs) > 0
+            and self.output.block.first_op is None
         ):
             raise VerifyException(
-                "The number of res_attrs and res_names should be the same"
+                "State must have a non-empty output region when the machine has results."
             )
+        parent = parent.parent_op()
 
 
 @irdl_op_definition
@@ -194,7 +184,7 @@ class OutputOp(IRDLOperation):
 
     operand = var_operand_def(AnyAttr())
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([IsTerminator(), HasParent(StateOp)])
 
     def __init__(
         self,
@@ -227,60 +217,58 @@ class OutputOp(IRDLOperation):
 
 
 @irdl_op_definition
-class StateOp(IRDLOperation):
+class TransitionOp(IRDLOperation):
     """
-    Represents a state of a state machine. This op includes an
-    `$output` region with an `fsm.output` as terminator to define the machine
-    outputs under this state. This op also includes a `transitions` region that
-    contains all the transitions of this state
+    Represents a transition of a state with a symbol reference
+    of the next state. This op includes an optional `$guard` region with an `fsm.return`
+    as terminator that returns a Boolean value indicating the guard condition of
+    this transition. This op also includes an optional `$action` region that represents
+    the actions to be executed when this transition is taken
     """
 
-    name = "fsm.state"
+    name = "fsm.transition"
 
-    # includes output and transitions region
+    guard = region_def()
 
-    output = region_def()
-
-    transitions = region_def()
+    action = region_def()
 
     # attributes
 
-    sym_name = attr_def(StringAttr)
+    nextState = attr_def(FlatSymbolRefAttr)
 
-    traits = frozenset([NoTerminator(), SymbolOpInterface()])
+    traits = frozenset([NoTerminator(), HasParent(StateOp)])
 
     def __init__(
         self,
-        sym_name: str,
-        output: Region | type[Region.DEFAULT] = Region.DEFAULT,
-        transitions: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        nextState: FlatSymbolRefAttr,
+        guard: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        action: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
+        if isinstance(nextState, str):
+            nextState = FlatSymbolRefAttr(nextState)
         attributes: dict[str, Attribute] = {
-            "sym_name": StringAttr(sym_name),
+            "nextState": nextState,
         }
-        if not isinstance(output, Region):
-            output = Region(Block())
-        if not isinstance(transitions, Region):
-            transitions = Region(Block())
+        if not isinstance(action, Region):
+            action = Region(Block())
+        if not isinstance(guard, Region):
+            guard = Region(Block())
         super().__init__(
             attributes=attributes,
-            regions=[output, transitions],
+            regions=[guard, action],
         )
 
     def verify_(self):
-        parent = self.parent_op()
-
-        while parent is not None:
-            if (
-                isinstance(parent, MachineOp)
-                and getattr(parent, "res_attrs") is not None
-                and len(getattr(parent, "res_attrs")) > 0
-                and self.output.block.first_op is None
-            ):
-                raise VerifyException(
-                    "State must have a non-empty output region when the machine has results."
-                )
-            parent = parent.parent_op()
+        if SymbolTable.lookup_symbol(self, self.nextState) is None or not isinstance(
+            SymbolTable.lookup_symbol(self, self.nextState), StateOp
+        ):
+            raise VerifyException("Can not find next state")
+        if self.guard.blocks and not isinstance(self.guard.block.last_op, ReturnOp):
+            raise VerifyException("Guard region must terminate with ReturnOp")
+        var = self.parent_op()
+        assert isinstance(var, StateOp)
+        if var.transitions != self.parent_region():
+            raise VerifyException("Transition must be located in a transitions region")
 
 
 @irdl_op_definition
@@ -292,8 +280,6 @@ class UpdateOp(IRDLOperation):
     """
 
     name = "fsm.update"
-
-    # operands
 
     variable = operand_def(Attribute)
 
@@ -342,12 +328,8 @@ class VariableOp(IRDLOperation):
 
     name = "fsm.variable"
 
-    # attributes
-
     initValue = attr_def(Attribute)
     name_var = opt_attr_def(StringAttr)
-
-    # results
 
     result = var_result_def(Attribute)
 
