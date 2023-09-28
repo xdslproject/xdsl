@@ -95,7 +95,7 @@ class Yield(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         attrs, args = parse_return_op_like(parser)
-        op = Yield.get(*args)
+        op = Yield(*args)
         op.attributes.update(attrs)
         return op
 
@@ -282,7 +282,7 @@ class For(IRDLOperation):
         body = parser.parse_region((index, *iter_args))
         if not body.block.ops:
             assert not iter_args, "Cannot create implicit yield with arguments"
-            body.block.add_op(Yield.get())
+            body.block.add_op(Yield())
 
         return For(lb, ub, step, iter_arg_operands, body)
 
