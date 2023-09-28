@@ -440,8 +440,6 @@ class TriggerOp(IRDLOperation):
         if not isinstance(self.instance.owner, InstanceOp):
             raise VerifyException("The instance operand must be Instance")
 
-        # operand types must match the machine input types
-        # result types must match the machine output types
         m = self.instance.owner.getMachine()
 
         if m is None:
