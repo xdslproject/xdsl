@@ -424,14 +424,11 @@ def test_print_block_without_terminator():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block(block, print_block_terminator=False)
-    p.print("\n  ")
-    p.print_op(term_op)
     assert (
         io.getvalue()
         == """
 ^0:
-  "test.op"() : () -> ()
-  "test.termop"() : () -> ()"""
+  "test.op"() : () -> ()"""
     )
 
 
