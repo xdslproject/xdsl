@@ -428,7 +428,10 @@ def test_print_block_without_terminator():
     p.print_op(term_op)
     assert (
         io.getvalue()
-        == """\n^0:\n  "test.op"() : () -> ()\n  "test.termop"() : () -> ()"""
+        == """
+^0:
+  "test.op"() : () -> ()
+  "test.termop"() : () -> ()"""
     )
 
 
