@@ -472,8 +472,6 @@ class FloatData(Data[float]):
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
-_FloatAttrTypeInv = TypeVar("_FloatAttrTypeInv", bound=AnyFloat)
-
 
 @irdl_attr_definition
 class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
