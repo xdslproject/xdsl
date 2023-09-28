@@ -232,8 +232,6 @@ class TransitionOp(IRDLOperation):
 
     action = region_def()
 
-    # attributes
-
     nextState = attr_def(FlatSymbolRefAttr)
 
     traits = frozenset([NoTerminator(), HasParent(StateOp)])
