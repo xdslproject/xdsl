@@ -437,17 +437,6 @@ class _FloatType(ParametrizedAttribute, TypeAttribute, ABC):
     def get_bitwidth(self) -> int:
         return self.width.data
 
-    # @classmethod
-    # def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-    # parser.parse_characters(
-    # "<",
-    # ": gpu attributes currently have the #gpu<name value> syntax.",
-    # )
-
-    # def print_parameters(self, printer: Printer) -> None:
-    # printer.print(f"bits: {self.width}")
-    # printer.print("")
-
 
 @irdl_attr_definition
 class BFloat16Type(_FloatType):
