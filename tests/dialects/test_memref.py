@@ -208,13 +208,13 @@ def test_memref_matmul_verify():
                         out_i_j = memref.Load.get(out, [i, j])
                         new_out_val = arith.Addf(out_i_j, mul)
                         memref.Store.get(new_out_val, out, [i, j])
-                        scf.Yield.get()
+                        scf.Yield()
 
                     scf.For(lit0, dim_a1, lit1, [], inner_loop)
-                    scf.Yield.get()
+                    scf.Yield()
 
                 scf.For(lit0, dim_b0, lit1, [], mid_loop)
-                scf.Yield.get()
+                scf.Yield()
 
             scf.For(lit0, dim_a0, lit1, [], outer_loop)
 

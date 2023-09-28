@@ -194,7 +194,7 @@ def test_parallel_verify_only_induction_in_block():
     initVals = [init_val]
 
     b = Block(arg_types=[IndexType(), i32])
-    b.add_op(Yield.get(init_val))
+    b.add_op(Yield(init_val))
 
     body = Region(b)
     p = ParallelOp([lbi], [ubi], [si], body, initVals)
@@ -202,7 +202,7 @@ def test_parallel_verify_only_induction_in_block():
         p.verify()
 
     b2 = Block(arg_types=[IndexType(), i32, i32])
-    b2.add_op(Yield.get(init_val))
+    b2.add_op(Yield(init_val))
     body2 = Region(b2)
     p2 = ParallelOp([lbi], [ubi], [si], body2, initVals)
     with pytest.raises(VerifyException):
@@ -215,14 +215,14 @@ def test_parallel_block_arg_indextype():
     si = Constant.from_int_and_width(1, IndexType())
 
     b = Block(arg_types=[IndexType()])
-    b.add_op(Yield.get())
+    b.add_op(Yield())
 
     body = Region(b)
     p = ParallelOp([lbi], [ubi], [si], body)
     p.verify()
 
     b2 = Block(arg_types=[i32])
-    b2.add_op(Yield.get())
+    b2.add_op(Yield())
     body2 = Region(b2)
     p2 = ParallelOp([lbi], [ubi], [si], body2)
     with pytest.raises(VerifyException):
@@ -271,7 +271,7 @@ def test_parallel_verify_reduction_and_block_type_fails():
     reduce_block.add_ops([reduce_constant, rro])
 
     b.add_op(ReduceOp(init_val, reduce_block))
-    b.add_op(Yield.get())
+    b.add_op(Yield())
 
     body = Region(b)
     p = ParallelOp([lbi], [ubi], [si], body, initVals)
@@ -287,7 +287,7 @@ def test_parallel_verify_yield_zero_ops():
     val = Constant.from_int_and_width(10, i64)
 
     b = Block(arg_types=[IndexType()])
-    b.add_op(Yield.get(val))
+    b.add_op(Yield(val))
     body = Region(b)
     p = ParallelOp([lbi], [ubi], [si], body)
     with pytest.raises(
@@ -298,7 +298,7 @@ def test_parallel_verify_yield_zero_ops():
         p.verify()
 
     b2 = Block(arg_types=[IndexType()])
-    b2.add_op(Yield.get())
+    b2.add_op(Yield())
     body2 = Region(b2)
     p2 = ParallelOp([lbi], [ubi], [si], body2)
     # Should verify as yield is empty
@@ -449,7 +449,7 @@ def test_empty_else():
     m = ModuleOp(
         [
             t := Constant.from_int_and_width(1, 1),
-            If.get(
+            If(
                 t,
                 [],
                 [

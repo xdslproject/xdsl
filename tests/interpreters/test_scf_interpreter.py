@@ -34,7 +34,7 @@ def sum_to_for_op():
         def for_loop_region(args: tuple[BlockArgument, ...]):
             (i, acc) = args
             res = arith.Addi(i, acc)
-            scf.Yield.get(res)
+            scf.Yield(res)
 
         result = scf.For(lb, ub, step, (initial,), for_loop_region)
         func.Return(result)
