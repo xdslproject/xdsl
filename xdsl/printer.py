@@ -283,14 +283,14 @@ class Printer:
         region: Region,
         print_entry_block_args: bool = True,
         print_empty_block: bool = True,
-        print_block_terminator: bool = True,
+        print_block_terminators: bool = True,
     ) -> None:
         """
         Print a region with syntax `{ <block>* }`
         * If `print_entry_block_args` is False, the arguments of the entry block
           are not printed.
         * If `print_empty_block` is False, empty entry blocks are not printed.
-        * If `print_block_terminator` is False, the block terminators are not printed.
+        * If `print_block_terminators` is False, the block terminators are not printed.
         """
 
         # Empty region
@@ -307,10 +307,10 @@ class Printer:
         self.print_block(
             entry_block,
             print_block_args=print_entry_block_args,
-            print_block_terminator=print_block_terminator,
+            print_block_terminator=print_block_terminators,
         )
         for block in region.blocks[1:]:
-            self.print_block(block, print_block_terminator=print_block_terminator)
+            self.print_block(block, print_block_terminator=print_block_terminators)
         self._print_new_line()
         self.print("}")
 
