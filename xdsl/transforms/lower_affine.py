@@ -115,7 +115,7 @@ class LowerAffineFor(RewritePattern):
         step_op = arith.Constant(op.step)
         rewriter.insert_op_before_matched_op(step_op)
         rewriter.replace_matched_op(
-            scf.For.get(
+            scf.For(
                 lb_val,
                 ub_val,
                 step_op.result,
@@ -128,7 +128,7 @@ class LowerAffineFor(RewritePattern):
 class LowerAffineYield(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.Yield, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(scf.Yield.get(*op.arguments))
+        rewriter.replace_matched_op(scf.Yield(*op.arguments))
 
 
 class LowerAffinePass(ModulePass):
