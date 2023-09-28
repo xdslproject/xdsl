@@ -27,13 +27,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.deprecation import deprecated
 from xdsl.traits import (
     HasParent,
     IsTerminator,
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
 
