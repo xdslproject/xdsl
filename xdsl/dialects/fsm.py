@@ -196,11 +196,8 @@ class OutputOp(IRDLOperation):
 
     def verify_(self):
         parent = self.parent_op()
-        if (
-            isinstance(parent, StateOp)
-            and parent.transitions == self.parent_region()
-            and len(self.operands) > 0
-        ):
+        assert isinstance(parent, StateOp)
+        if parent.transitions == self.parent_region() and len(self.operands) > 0:
             raise VerifyException("Transition regions should not output any value")
         while parent is not None:
             if isinstance(parent, MachineOp):
@@ -299,22 +296,20 @@ class UpdateOp(IRDLOperation):
             raise VerifyException("Destination is not a variable operation")
 
         parent = self.parent_op()
-        while parent is not None:
-            if isinstance(parent, TransitionOp):
-                # walk through the action region
-                found = 0
-                for op in parent.action.walk():
-                    if isinstance(op, UpdateOp) and op.variable == self.variable:
-                        found += 1
-                if found == 0:
-                    raise VerifyException(
-                        "Update must only be located in the action region of a transition"
-                    )
-                elif found > 1:
-                    raise VerifyException(
-                        "Multiple updates to the same variable within a single action region is disallowed"
-                    )
-            parent = parent.parent_op()
+        assert isinstance(parent, TransitionOp)
+
+        found = 0
+        for op in parent.action.walk():
+            if isinstance(op, UpdateOp) and op.variable == self.variable:
+                found += 1
+        if found == 0:
+            raise VerifyException(
+                "Update must only be located in the action region of a transition"
+            )
+        elif found > 1:
+            raise VerifyException(
+                "Multiple updates to the same variable within a single action region is disallowed"
+            )
 
 
 @irdl_op_definition
