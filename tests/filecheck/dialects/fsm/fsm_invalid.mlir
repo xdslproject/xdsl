@@ -193,3 +193,209 @@
 }) {function_type = () -> (), initialState = "A", sym_name = "foo", res_names = ["names"],res_attrs = [{"name"="1","type"="2"}] } : () -> ()
 
 // CHECK: Multiple updates to the same variable within a single action region is disallowed
+
+// -----
+
+"fsm.machine"() ({
+^bb0(%arg0: i1):
+"fsm.state"() ({
+    "fsm.output"(%arg0) : (i1) -> ()
+
+}, {
+    "fsm.transition"() ({
+        
+    }, {
+    }) {nextState = @A} : () -> ()
+    
+}) {sym_name = "A"} : () -> ()
+
+}) {function_type = (i16) -> (i16) , initialState = "A", sym_name = "foo"} : () -> ()
+
+// CHECK: OutputOp output type must be consistent with the machine "foo"
+
+// -----
+
+"fsm.machine"() ({
+^bb0(%arg0: i1):
+%0 = "test.op"() : () -> i1
+"fsm.state"() ({
+    "fsm.output"() : () -> ()
+}, {
+    "fsm.transition"() ({
+        ^bb2(%arg2: i2): "fsm.return"() : () -> ()
+    }, {
+        ^bb1(%arg1: i1): "fsm.update"(%0, %arg1) : (i1, i1) -> ()
+        "fsm.output"() : () -> ()
+    }) {nextState = @A} : () -> ()
+}) {sym_name = "A"} : () -> ()
+}) {function_type = () -> (), initialState = "A", sym_name = "foo"} : () -> ()
+
+// CHECK: Destination is not a variable operation
+
+// -----
+
+"builtin.module"() ({
+
+  %0 = "arith.constant"() {value = 0 : i16} : () -> i16
+  %arg1 = "arith.constant"() {value = 0 : i16} : () -> i16
+  %arg2 = "arith.constant"() {value = 0 : i16} : () -> i16
+  %2 = "fsm.hw_instance"(%0, %arg1, %arg2) {machine = @foo, sym_name = "foo_inst"} : (i16, i16, i16) -> i16
+
+}) : () -> ()
+
+// CHECK: Machine definition does not exist
+
+// -----
+
+"builtin.module"() ({
+
+  %0 = "fsm.variable"() {initValue = 0 : i16, name = "cnt"} : () -> i16
+  "fsm.machine"() ({
+    "fsm.state"() ({
+    }, {
+      "fsm.transition"() ({
+      }, {
+      }) {nextState = @A} : () -> ()
+    }) {sym_name = "A"} : () -> ()
+    
+  }) {function_type = (i16) -> (i1), initialState = "A", sym_name = "foo"} : () -> ()
+  %arg1 = "arith.constant"() {value = 0 : i16} : () -> i16
+  %arg2 = "arith.constant"() {value = 0 : i16} : () -> i16
+  %arg3 = "arith.constant"() {value = 0 : i16} : () -> i16
+  %2 = "fsm.hw_instance"(%arg3, %arg1, %arg2) {machine = @foo, sym_name = "foo_inst"} : (i16, i16, i16) -> i16
+
+}) : () -> ()
+
+// CHECK: HWInstanceOp "foo_inst" output type must be consistent with the machine "foo"
+
+// -----
+
+"builtin.module"() ({
+
+  %0 = "fsm.variable"() {initValue = 1 : i16, name = "cnt"} : () -> i16
+  "fsm.machine"() ({
+    "fsm.state"() ({
+    }, {
+      "fsm.transition"() ({
+      }, {
+      }) {nextState = @A} : () -> ()
+    }) {sym_name = "A"} : () -> ()
+  }) {function_type = () -> (), initialState = "A", sym_name = "foo"} : () -> ()
+  %arg1 = "arith.constant"() {value = 0 : i16} : () -> i16
+  %arg2 = "arith.constant"() {value = 0 : i16} : () -> i16
+  %arg3 = "arith.constant"() {value = 0 : i16} : () -> i16
+  %2 = "fsm.hw_instance"(%arg3, %arg1, %arg2) {machine = @foo, sym_name = "foo_inst"} : (i16, i16, i16) -> i16
+
+}) : () -> ()
+
+// CHECK: HWInstanceOp "foo_inst" input type must be consistent with the machine "foo"
+
+
+// -----
+
+"func.func"() ({
+    %0 = "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
+    %1 = "arith.constant"() {value = true} : () -> i1
+    %2 = "fsm.trigger"(%1, %0) : (i1, !fsm.instancetype) -> i1
+    %3 = "arith.constant"() {value = false} : () -> i1
+    %4 = "fsm.trigger"(%3, %0) : (i1, !fsm.instancetype) -> i1
+    "func.return"() : () -> ()
+  }) {function_type = () -> (), sym_name = "qux"} : () -> ()
+
+// CHECK: Machine definition does not exist
+
+// -----
+
+"builtin.module"()({
+    %0 = "arith.constant"() {value = 2 : i16} : () -> i16
+    "fsm.machine"() ({
+    "fsm.state"() ({
+    }, {
+        "fsm.transition"() ({
+        }, {
+        }) {nextState = @A} : () -> ()
+    }) {sym_name = "A"} : () -> ()
+    "fsm.state"() ({
+    }, {
+        "fsm.transition"() ({
+        }, {
+        }) {nextState = @C} : () -> ()
+    }) {sym_name = "B"} : () -> ()
+    "fsm.state"() ({
+    }, {
+        "fsm.transition"() ({
+        }, {
+        }) {nextState = @C} : () -> ()
+    }) {sym_name = "C"} : () -> ()
+    }) {function_type = (i16) -> (i16), initialState = "A", sym_name = "foo"} : () -> ()
+ 
+    "func.func"() ({
+    %3 = "arith.constant"() {value = 16: i16} : () -> i16
+    
+    %4 = "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
+    %1 = "arith.constant"() {value = true} : () -> i16
+    %2 = "fsm.trigger"(%1, %4) : (i16, !fsm.instancetype) -> i1
+    "func.return"() : () -> ()
+  }) {function_type = () -> (), sym_name = "qux"} : () -> ()
+
+}) : () -> ()
+
+  // CHECK: TriggerOp output types must be consistent with the machine "foo"
+
+// -----
+
+"builtin.module"()({
+    %0 = "fsm.variable"() {initValue = 0 : i16, name = "cnt"} : () -> i16
+
+
+"fsm.machine"() ({
+    "fsm.state"() ({
+        "fsm.output"(%0) : (i16) -> ()
+    }, {
+        "fsm.transition"() ({
+        }, {
+        }) {nextState = @A} : () -> ()
+    }) {sym_name = "A"} : () -> ()
+    "fsm.state"() ({
+        "fsm.output"(%0) : (i16) -> ()
+    }, {
+        "fsm.transition"() ({
+        }, {
+        }) {nextState = @C} : () -> ()
+    }) {sym_name = "B"} : () -> ()
+    "fsm.state"() ({
+        "fsm.output"(%0) : (i16) -> ()
+    }, {
+        "fsm.transition"() ({
+        }, {
+        }) {nextState = @C} : () -> ()
+    }) {sym_name = "C"} : () -> ()
+    }) {function_type = (i16) -> (i16), initialState = "A", sym_name = "foo"} : () -> ()
+ 
+    "func.func"() ({
+    %3 = "arith.constant"() {value = 16: i16} : () -> i16
+    
+    %4 = "fsm.instance"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
+    %1 = "arith.constant"() {value = true} : () -> i1
+    %2 = "fsm.trigger"(%1, %4) : (i1, !fsm.instancetype) -> i16
+    "func.return"() : () -> ()
+  }) {function_type = () -> (), sym_name = "qux"} : () -> ()
+
+}) : () -> ()
+
+// CHECK: TriggerOp input types must be consistent with the machine "foo"
+
+// -----
+
+"builtin.module"()({
+    %0 = "fsm.variable"() {initValue = 0 : i16, name = "cnt"} : () -> i16
+    "fsm.machine"() ({
+    %4 = "test.op"() {machine = @foo, sym_name = "foo_inst"} : () -> !fsm.instancetype
+    %1 = "arith.constant"() {value = true} : () -> i16
+    %2 = "fsm.trigger"(%1, %4) : (i16, !fsm.instancetype) -> i1
+    "func.return"() : () -> ()
+  }) {function_type = () -> (), sym_name = "qux"} : () -> ()
+
+}) : () -> ()
+
+// CHECK: The instance operand must be Instance
