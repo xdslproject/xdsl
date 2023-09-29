@@ -247,7 +247,7 @@ class For(IRDLOperation):
             self.body,
             print_entry_block_args=False,
             print_empty_block=False,
-            print_block_terminator=bool(iter_args),
+            print_block_terminators=bool(iter_args),
         )
 
     @classmethod
