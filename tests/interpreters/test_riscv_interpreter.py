@@ -145,14 +145,14 @@ def test_riscv_interpreter():
     assert interpreter.run_op(
         riscv.FLdOp(TestSSAValue(register), 8),
         (buffer,),
-    ) == (struct.unpack(">d", struct.pack(">ff", 3.0, 4.0))[0],)
+    ) == (struct.unpack("<d", struct.pack("<ff", 3.0, 4.0))[0],)
 
     assert buffer == test_buffer
 
     assert (
         interpreter.run_op(
             riscv.FSdOp(TestSSAValue(register), TestSSAValue(fregister), 8),
-            (buffer, struct.unpack(">d", struct.pack(">ff", 5.0, 6.0))[0]),
+            (buffer, struct.unpack("<d", struct.pack("<ff", 5.0, 6.0))[0]),
         )
         == ()
     )
