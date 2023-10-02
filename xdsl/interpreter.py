@@ -425,7 +425,7 @@ class Interpreter:
         default_factory=dict
     )
     """
-    Runtime data associated with an interpreter function implementation.
+    Runtime data associated with an interpreter functions implementation.
     """
 
     @property
@@ -594,6 +594,11 @@ class Interpreter:
         key: str,
         factory: Callable[[], Any],
     ) -> Any:
+        """
+        Get data associated with a specific interpreter functions class, with a given key.
+        If the data is missing, the `factory` argument will be executed and stored on the
+        interpreter.
+        """
         if functions not in self._impl_data:
             functions_data = {}
             self._impl_data = functions_data
