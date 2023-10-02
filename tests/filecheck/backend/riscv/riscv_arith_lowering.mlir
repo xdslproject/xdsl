@@ -15,12 +15,19 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.li 1073741824 : () -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %rhsf32 : (!riscv.reg<>) -> !riscv.freg<>
 
-    // TODO: lower f64 constant
     %lhsf64_reg, %rhsf64_reg = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
     %lhsf64 = builtin.unrealized_conversion_cast %lhsf64_reg : !riscv.freg<> to f64
     %rhsf64 = builtin.unrealized_conversion_cast %rhsf64_reg : !riscv.freg<> to f64
 
     // CHECK-NEXT: %lhsf64_reg, %rhsf64_reg = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
+
+    %f64 = "arith.constant"() {value = 1234.5678 : f64} : () -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.get_register : () -> !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = riscv.li 1083394629 : () -> !riscv.reg<>
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.li 1834810029 : () -> !riscv.reg<>
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg<>) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg<>
 
     %addi32 = "arith.addi"(%lhsi32, %rhsi32) : (i32, i32) -> i32
     // CHECK-NEXT: %{{.*}} = riscv.add %lhsi32, %rhsi32 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
