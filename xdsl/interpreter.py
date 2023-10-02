@@ -12,8 +12,7 @@ from typing import (
 )
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, OperationInvT, SSAValue
-from xdsl.ir.core import Attribute, Block, Region
+from xdsl.ir import Attribute, Block, Operation, OperationInvT, Region, SSAValue
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 

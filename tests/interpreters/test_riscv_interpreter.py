@@ -7,7 +7,7 @@ from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
-from xdsl.ir.core import Block, Region
+from xdsl.ir import Block, Region
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue

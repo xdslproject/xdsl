@@ -4,14 +4,13 @@ from typing import Any, cast
 
 import wgpu  # pyright: ignore
 import wgpu.utils  # pyright: ignore
-
 from xdsl.dialects import gpu
 from xdsl.dialects.builtin import IndexType
 from xdsl.dialects.memref import MemRefType
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.ir.core import Attribute, SSAValue
+from xdsl.ir import Attribute, SSAValue
 from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
 
