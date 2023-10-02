@@ -30,18 +30,17 @@ builtin.module {
 // CHECK-NEXT:        %{{.*}} = riscv.li 0 : () -> !riscv.reg<>
 // CHECK-NEXT:        %{{.*}} = riscv.li 256 : () -> !riscv.reg<>
 // CHECK-NEXT:        %{{.*}} = riscv.li 4 : () -> !riscv.reg<>
-// CHECK-NEXT:        "riscv_scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
-// CHECK-NEXT:        ^0(%arg4 : !riscv.reg<>):
+// CHECK-NEXT:        riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
 // CHECK-NEXT:          %{{.*}} = riscv.add %{{.*}}, %arg4 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:          %{{.*}} = riscv.flw %{{.*}}, 0 {"comment" = "load value from memref of shape (64,)"} : (!riscv.reg<>) -> !riscv.freg<>
+// CHECK-NEXT:          %{{.*}} = riscv.flw %{{.*}}, 0 {"comment" = "load float from memref of shape (64,)"} : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-NEXT:          %{{.*}} = riscv.add %{{.*}}, %arg4 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:          %{{.*}} = riscv.flw %{{.*}}, 0 {"comment" = "load value from memref of shape (64,)"} : (!riscv.reg<>) -> !riscv.freg<>
+// CHECK-NEXT:          %{{.*}} = riscv.flw %{{.*}}, 0 {"comment" = "load float from memref of shape (64,)"} : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-NEXT:          %{{.*}} = riscv.fmul.s %{{.*}}, %0 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-NEXT:          %{{.*}} = riscv.fadd.s %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-NEXT:          %{{.*}} = riscv.add %{{.*}}, %arg4 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:          riscv.fsw %{{.*}}, %{{.*}}, 0 {"comment" = "store float value to memref of shape (64,)"} : (!riscv.reg<>, !riscv.freg<>) -> ()
-// CHECK-NEXT:          "riscv_scf.yield"() : () -> ()
-// CHECK-NEXT:        }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:          riscv_scf.yield
+// CHECK-NEXT:        }
 // CHECK-NEXT:        riscv_func.return
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }

@@ -7,6 +7,7 @@ from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
@@ -130,10 +131,10 @@ class PDLMatcher:
         for avn, av in zip(attribute_value_names, pdl_op.attribute_values):
             assert isinstance(av, OpResult)
             assert isinstance(av.op, pdl.AttributeOp)
-            if avn not in xdsl_op.attributes:
+            if (attr := xdsl_op.get_attr_or_prop(avn)) is None:
                 return False
 
-            if not self.match_attribute(av, av.op, avn, xdsl_op.attributes[avn]):
+            if not self.match_attribute(av, av.op, avn, attr):
                 return False
 
         pdl_operands = pdl_op.operand_values
@@ -251,7 +252,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         attribute_value_names = [avn.data for avn in op.attributeValueNames.data]
 
-        # How to deal with operand_segment_sizes?
+        # How to deal with operandSegmentSizes?
         # operand_values, attribute_values, type_values = args
 
         operand_values = interpreter.get_values(op.operand_values)
@@ -268,10 +269,30 @@ class PDLRewriteFunctions(InterpreterFunctions):
         for type_value in type_values:
             assert isinstance(type_value, TypeAttribute)
 
-        attributes = dict(zip(attribute_value_names, attribute_values))
+        attributes = dict[str, Attribute]()
+        properties = dict[str, Attribute]()
+
+        # If the op is an IRDL-defined operation, get the property names.
+        if issubclass(op_type, IRDLOperation):
+            property_names = op_type.irdl_definition.properties.keys()
+        else:
+            property_names = []
+
+        # Move the attributes to the attribute or property dictionary
+        # depending on whether they are a properties or not.
+        for attribute_name, attribute_value in zip(
+            attribute_value_names, attribute_values
+        ):
+            if attribute_name in property_names:
+                properties[attribute_name] = attribute_value
+            else:
+                attributes[attribute_name] = attribute_value
 
         result_op = op_type.create(
-            operands=operand_values, result_types=type_values, attributes=attributes
+            operands=operand_values,
+            result_types=type_values,
+            attributes=attributes,
+            properties=properties,
         )
 
         return (result_op,)
@@ -283,6 +304,13 @@ class PDLRewriteFunctions(InterpreterFunctions):
         (parent,) = args
         assert isinstance(parent, Operation)
         return (parent.results[op.index.value.data],)
+
+    @impl(pdl.AttributeOp)
+    def run_attribute(
+        self, interpreter: Interpreter, op: pdl.AttributeOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        assert isinstance(op.value, Attribute)
+        return (op.value,)
 
     @impl(pdl.ReplaceOp)
     def run_replace(
