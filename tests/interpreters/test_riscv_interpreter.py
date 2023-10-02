@@ -4,10 +4,10 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, i1
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
-from xdsl.ir.core import Block, Region
+from xdsl.ir import Block, Region
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
@@ -202,12 +202,33 @@ def test_register_contents():
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(riscv_functions)
 
+    assert RiscvFunctions.registers(interpreter) == {
+        riscv.Registers.ZERO.register_name: 0
+    }
+
+    with pytest.raises(
+        InterpretationError, match="Unexpected type i1, expected register type"
+    ):
+        RiscvFunctions.get_reg_value(interpreter, i1, 2)
+
+    with pytest.raises(
+        InterpretationError, match="Unexpected type i1, expected register type"
+    ):
+        RiscvFunctions.set_reg_value(interpreter, i1, 2)
+
+    assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 0) == 0
+    assert RiscvFunctions.set_reg_value(interpreter, riscv.Registers.ZERO, 1) == 0
     assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 0) == 0
 
     with pytest.raises(
         InterpretationError, match="Runtime and stored value mismatch: 1 != 0"
     ):
         RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 1)
+
+    with pytest.raises(
+        InterpretationError, match="Value not found for register name t0"
+    ):
+        RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 2)
 
     assert RiscvFunctions.set_reg_value(interpreter, riscv.Registers.T0, 1) == 1
 
