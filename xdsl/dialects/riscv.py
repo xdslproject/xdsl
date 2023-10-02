@@ -2689,6 +2689,16 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 # region RISC-V Extensions
 
 
+class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ScfgwOpUsingImmediate,
+        )
+
+        return (ScfgwOpUsingImmediate(),)
+
+
 @irdl_op_definition
 class ScfgwOp(RsRsIntegerOperation):
     """
