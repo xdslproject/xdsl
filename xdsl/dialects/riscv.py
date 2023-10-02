@@ -3474,6 +3474,16 @@ class FSwOp(RsRsImmFloatOperation):
 # region RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
 
 
+class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadDoubleWithKnownOffset,
+        )
+
+        return (LoadDoubleWithKnownOffset(),)
+
+
 @irdl_op_definition
 class FLdOp(RdRsImmFloatOperation):
     """
@@ -3486,6 +3496,8 @@ class FLdOp(RdRsImmFloatOperation):
 
     name = "riscv.fld"
 
+    traits = frozenset((FLdOpHasCanonicalizationPatternTrait(),))
+
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
         value = _assembly_arg_str(self.rd)
@@ -3494,6 +3506,16 @@ class FLdOp(RdRsImmFloatOperation):
         return _assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
+
+
+class FSdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            StoreDoubleWithKnownOffset,
+        )
+
+        return (StoreDoubleWithKnownOffset(),)
 
 
 @irdl_op_definition
@@ -3507,6 +3529,8 @@ class FSdOp(RsRsImmFloatOperation):
     """
 
     name = "riscv.fsd"
+
+    traits = frozenset((FSdOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
