@@ -24,10 +24,10 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     Operand,
-    attr_def,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     result_def,
 )
 from xdsl.parser import Parser
@@ -87,7 +87,7 @@ class FastMathFlagsAttr(LLVMFastMathAttr):
 class Constant(IRDLOperation):
     name = "arith.constant"
     result: OpResult = result_def(Attribute)
-    value: Attribute = attr_def(Attribute)
+    value: Attribute = prop_def(Attribute)
 
     traits = frozenset((ConstantLike(),))
 
@@ -110,13 +110,13 @@ class Constant(IRDLOperation):
             value = cast(AnyIntegerAttr | FloatAttr[AnyFloat], value)
             value_type = value.type
         super().__init__(
-            operands=[], result_types=[value_type], attributes={"value": value}
+            operands=[], result_types=[value_type], properties={"value": value}
         )
 
     @staticmethod
     @deprecated("Please use Constant(attr, value_type)")
     def from_attr(attr: Attribute, value_type: Attribute) -> Constant:
-        return Constant.create(result_types=[value_type], attributes={"value": attr})
+        return Constant.create(result_types=[value_type], properties={"value": attr})
 
     @staticmethod
     def from_int_and_width(
@@ -126,7 +126,7 @@ class Constant(IRDLOperation):
             value_type = IntegerType(value_type)
         return Constant.create(
             result_types=[value_type],
-            attributes={"value": IntegerAttr(value, value_type)},
+            properties={"value": IntegerAttr(value, value_type)},
         )
 
     @staticmethod
@@ -136,13 +136,10 @@ class Constant(IRDLOperation):
     ) -> Constant:
         if isinstance(value, float):
             value = FloatAttr(value, value_type)
-        return Constant.create(result_types=[value_type], attributes={"value": value})
+        return Constant.create(result_types=[value_type], properties={"value": value})
 
     def print(self, printer: Printer):
-        attrs = self.attributes.copy()
-        attrs.pop("value")
-
-        printer.print_op_attributes(attrs)
+        printer.print_op_attributes(self.attributes)
 
         printer.print(" ")
         printer.print_attribute(self.value)
@@ -209,7 +206,16 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
 
 
 SignlessIntegerBinaryOp = BinaryOperation[Annotated[Attribute, signlessIntegerLike]]
-FloatingPointLikeBinaryOp = BinaryOperation[Annotated[Attribute, floatingPointLike]]
+
+
+class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+
+
+FloatingPointLikeBinaryOp = BinaryOperationWithFastMath[
+    Annotated[Attribute, floatingPointLike]
+]
+
 IntegerBinaryOp = BinaryOperation[IntegerType]
 
 
@@ -416,7 +422,7 @@ class Cmpi(IRDLOperation, ComparisonOperation):
     """
 
     name = "arith.cmpi"
-    predicate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    predicate: AnyIntegerAttr = prop_def(AnyIntegerAttr)
     lhs: Operand = operand_def(signlessIntegerLike)
     rhs: Operand = operand_def(signlessIntegerLike)
     result: OpResult = result_def(IntegerType(1))
@@ -449,7 +455,7 @@ class Cmpi(IRDLOperation, ComparisonOperation):
         return super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+            properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
         )
 
     @classmethod
@@ -506,7 +512,7 @@ class Cmpf(IRDLOperation, ComparisonOperation):
     """
 
     name = "arith.cmpf"
-    predicate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    predicate: AnyIntegerAttr = prop_def(AnyIntegerAttr)
     lhs: Operand = operand_def(floatingPointLike)
     rhs: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(IntegerType(1))
@@ -546,7 +552,7 @@ class Cmpf(IRDLOperation, ComparisonOperation):
         return super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            attributes={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+            properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
         )
 
     @classmethod
@@ -659,7 +665,7 @@ class Divf(FloatingPointLikeBinaryOp):
 @irdl_op_definition
 class Negf(IRDLOperation):
     name = "arith.negf"
-    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
+    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(floatingPointLike)
 

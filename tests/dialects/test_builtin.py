@@ -28,7 +28,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute
-from xdsl.irdl.irdl import AttrConstraint
+from xdsl.irdl import AttrConstraint
 from xdsl.utils.exceptions import VerifyException
 
 

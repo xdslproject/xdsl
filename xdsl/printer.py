@@ -56,6 +56,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
+from xdsl.traits import IsTerminator
 from xdsl.utils.diagnostic import Diagnostic
 
 indentNumSpaces = 2
@@ -237,10 +238,16 @@ class Printer:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def print_block(self, block: Block, print_block_args: bool = True) -> None:
+    def print_block(
+        self,
+        block: Block,
+        print_block_args: bool = True,
+        print_block_terminator: bool = True,
+    ) -> None:
         """
         Print a block with syntax `(<caret-ident>`(` <block-args> `)`)? ops* )`
         * If `print_block_args` is False, the label and arguments are not printed.
+        * If `print_block_terminator` is False, the block terminator is not printed.
         """
 
         if print_block_args:
@@ -254,6 +261,8 @@ class Printer:
 
         self._indent += 1
         for op in block.ops:
+            if not print_block_terminator and op.has_trait(IsTerminator):
+                continue
             self._print_new_line()
             self.print_op(op)
         self._indent -= 1
@@ -274,12 +283,14 @@ class Printer:
         region: Region,
         print_entry_block_args: bool = True,
         print_empty_block: bool = True,
+        print_block_terminators: bool = True,
     ) -> None:
         """
         Print a region with syntax `{ <block>* }`
         * If `print_entry_block_args` is False, the arguments of the entry block
           are not printed.
         * If `print_empty_block` is False, empty entry blocks are not printed.
+        * If `print_block_terminators` is False, the block terminators are not printed.
         """
 
         # Empty region
@@ -293,9 +304,13 @@ class Printer:
         print_entry_block_args = (
             bool(entry_block.args) and print_entry_block_args
         ) or (not entry_block.ops and print_empty_block)
-        self.print_block(entry_block, print_block_args=print_entry_block_args)
+        self.print_block(
+            entry_block,
+            print_block_args=print_entry_block_args,
+            print_block_terminator=print_block_terminators,
+        )
         for block in region.blocks[1:]:
-            self.print_block(block)
+            self.print_block(block, print_block_terminator=print_block_terminators)
         self._print_new_line()
         self.print("}")
 

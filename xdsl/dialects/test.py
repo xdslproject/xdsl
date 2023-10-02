@@ -20,12 +20,12 @@ from xdsl.irdl import (
     VarSuccessor,
     irdl_attr_definition,
     irdl_op_definition,
+    opt_prop_def,
     var_operand_def,
     var_region_def,
     var_result_def,
     var_successor_def,
 )
-from xdsl.irdl.irdl import opt_prop_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator

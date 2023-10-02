@@ -14,7 +14,7 @@
         "scf.reduce.return"(%11) : (f32) -> ()
       }) : (f32) -> ()
       "scf.yield"() : () -> ()
-    }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f64
+    }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f64
 }) : () -> ()
 
 // CHECK: Miss match on scf.parallel result type and reduction op type number 0 , parallel argment is of type f64 whereas reduction operation is of type f32

@@ -20,6 +20,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    BaseAttr,
     ConstraintVar,
     IRDLOperation,
     OpDef,
@@ -49,7 +50,6 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import BaseAttr
 from xdsl.utils.exceptions import (
     DiagnosticException,
     PyRDLOpDefinitionError,
@@ -87,7 +87,7 @@ def test_get_definition():
         results=[("result", ResultDef(AnyAttr()))],
         attributes={
             "attr": AttributeDef(AnyAttr()),
-            "operand_segment_sizes": AttributeDef(BaseAttr(DenseArrayBase)),
+            "operandSegmentSizes": AttributeDef(BaseAttr(DenseArrayBase)),
         },
         properties={"prop": PropertyDef(AnyAttr())},
         regions=[("region", RegionDef())],
@@ -107,7 +107,7 @@ def test_property_option():
     """Test retrieval of an IRDL definition from an operation"""
     assert PropOptionOp.irdl_definition == OpDef(
         "test.prop_option_test",
-        properties={"operand_segment_sizes": PropertyDef(BaseAttr(DenseArrayBase))},
+        properties={"operandSegmentSizes": PropertyDef(BaseAttr(DenseArrayBase))},
         options=[AttrSizedOperandSegments(as_property=True)],
     )
 

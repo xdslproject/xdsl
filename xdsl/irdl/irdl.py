@@ -572,7 +572,7 @@ class AttrSizedOperandSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    attribute_name = "operand_segment_sizes"
+    attribute_name = "operandSegmentSizes"
     """Name of the attribute containing the variadic operand sizes."""
 
 
@@ -584,7 +584,7 @@ class AttrSizedResultSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    attribute_name = "result_segment_sizes"
+    attribute_name = "resultSegmentSizes"
     """Name of the attribute containing the variadic result sizes."""
 
 
@@ -596,7 +596,7 @@ class AttrSizedRegionSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    attribute_name = "region_segment_sizes"
+    attribute_name = "regionSegmentSizes"
     """Name of the attribute containing the variadic region sizes."""
 
 
@@ -608,7 +608,7 @@ class AttrSizedSuccessorSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    attribute_name = "successor_segment_sizes"
+    attribute_name = "successorSegmentSizes"
     """Name of the attribute containing the variadic successor sizes."""
 
 

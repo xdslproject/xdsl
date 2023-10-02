@@ -9,7 +9,7 @@
 
 
 // CHECK:         "builtin.module"() ({
-// CHECK-NEXT:      "func.func"() ({
+// CHECK-NEXT:      "func.func"() <{"function_type" = () -> (), "sym_name" = "do_nothing"}> ({
 // CHECK-NEXT:        "func.return"() : () -> ()
-// CHECK-NEXT:      }) {"function_type" = () -> (), "sym_name" = "do_nothing"} : () -> ()
+// CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:    }) : () -> ()
