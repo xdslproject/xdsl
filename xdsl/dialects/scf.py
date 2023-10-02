@@ -24,6 +24,7 @@ from xdsl.irdl import (
     region_def,
     var_operand_def,
     var_result_def,
+    traits_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
@@ -76,10 +77,9 @@ class Yield(IRDLOperation):
     name = "scf.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(
+        lambda: frozenset([IsTerminator(), HasParent(For, If, ParallelOp, While)])
+    )
 
     def __init__(self, *operands: SSAValue | Operation):
         super().__init__(operands=[operands])
