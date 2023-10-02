@@ -1,3 +1,4 @@
+import struct
 from dataclasses import dataclass
 
 from xdsl.backend.riscv.lowering.utils import (
@@ -24,7 +25,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.dead_code_elimination import dce
-from xdsl.utils.bitwise_casts import convert_f32_to_u32
 
 _INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 _FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
@@ -50,16 +50,20 @@ class LowerArithConstant(RewritePattern):
                 raise NotImplementedError("Only 32 bit integers are supported for now")
         elif isinstance(op.value, FloatAttr):
             if isinstance(op_result_type, Float32Type):
+                # There is no way to load an immediate value to a float register directly.
+                # We have to load the bits into an integer register, store them on the
+                # stack, and load again.
+
+                # This lowering assumes that xlen is >32 and flen is >32
+
+                bits = struct.unpack("<i", struct.pack("<f", op.value.value.data))[0]
                 rewriter.replace_matched_op(
                     [
-                        lui := riscv.LiOp(
-                            convert_f32_to_u32(op.value.value.data),
-                            rd=_INT_REGISTER_TYPE,
-                        ),
-                        fld := riscv.FCvtSWOp(
-                            lui.rd, rd=riscv.FloatRegisterType.unallocated()
-                        ),
-                        UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
+                        sp := riscv.GetRegisterOp(riscv.Registers.SP),
+                        li := riscv.LiOp(bits),
+                        riscv.SwOp(sp, li, -4),
+                        flw := riscv.FLwOp(sp, -4, rd=_FLOAT_REGISTER_TYPE),
+                        UnrealizedConversionCastOp.get(flw.results, (op_result_type,)),
                     ],
                 )
             else:
