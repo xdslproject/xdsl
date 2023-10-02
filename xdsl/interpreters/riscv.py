@@ -141,6 +141,7 @@ class TypedPtr(Generic[_T]):
 
 _DATA_KEY = "data"
 REGISTERS_KEY = "registers"
+STACK_KEY = "stack"
 
 
 @register_impls
@@ -239,7 +240,22 @@ class RiscvFunctions(InterpreterFunctions):
         return interpreter.get_data(
             RiscvFunctions,
             REGISTERS_KEY,
-            lambda: {riscv.Registers.ZERO.register_name: 0},
+            lambda: {
+                riscv.Registers.ZERO.register_name: 0,
+                riscv.Registers.SP.register_name: RiscvFunctions.stack(interpreter),
+            },
+        )
+
+    @staticmethod
+    def stack(interpreter: Interpreter) -> RawPtr:
+        """
+        Stack memory, by default 1mb.
+        """
+        stack_size = 1 << 20
+        return interpreter.get_data(
+            RiscvFunctions,
+            STACK_KEY,
+            lambda: RawPtr(bytearray(stack_size), offset=stack_size),
         )
 
     @staticmethod

@@ -203,7 +203,8 @@ def test_register_contents():
     interpreter.register_implementations(riscv_functions)
 
     assert RiscvFunctions.registers(interpreter) == {
-        riscv.Registers.ZERO.register_name: 0
+        riscv.Registers.ZERO.register_name: 0,
+        riscv.Registers.SP.register_name: RawPtr(bytearray(1 << 20), offset=1 << 20),
     }
 
     with pytest.raises(
