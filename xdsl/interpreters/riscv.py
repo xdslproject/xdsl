@@ -67,12 +67,13 @@ class RawPtr:
     def get_iter(self, format: str) -> Iterator[Any]:
         if self.deallocated:
             raise ValueError("Cannot get item of deallocated ptr")
-        return (
-            values[0]
-            for values in struct.iter_unpack(
-                format, memoryview(self.memory)[self.offset :]
-            )
-        )
+        # The memoryview needs to be a multiple of the size of the packed format
+        format_size = struct.calcsize(format)
+        mem_view = memoryview(self.memory)[self.offset :]
+        remainder = len(mem_view) % format_size
+        if remainder:
+            mem_view = mem_view[:-remainder]
+        return (values[0] for values in struct.iter_unpack(format, mem_view))
 
     def get(self, format: str) -> Any:
         return next(self.get_iter(format))
@@ -145,6 +146,11 @@ class RiscvFunctions(InterpreterFunctions):
     _data: dict[str, RawPtr] | None
     custom_instructions: dict[str, CustomInstructionFn] = {}
     bitwidth: int
+    stack: RawPtr
+    """
+    Stack memory, by default 1mb. Pointer points to current head of the stack, which is
+    initialized to point to the last 16 bytes of the stack.
+    """
 
     def __init__(
         self,
@@ -153,6 +159,7 @@ class RiscvFunctions(InterpreterFunctions):
         bitwidth: int = 32,
         data: dict[str, RawPtr] | None = None,
         custom_instructions: dict[str, CustomInstructionFn] | None = None,
+        stack_size: int = 1 << 20,  # one MB
     ):
         super().__init__()
         self.module_op = module_op
@@ -161,6 +168,8 @@ class RiscvFunctions(InterpreterFunctions):
         if custom_instructions is None:
             custom_instructions = {}
         self.custom_instructions = custom_instructions
+        self.stack = RawPtr.zeros(stack_size)
+        self.stack.offset = len(self.stack.memory)
 
     @property
     def data(self) -> dict[str, Any]:
@@ -304,7 +313,7 @@ class RiscvFunctions(InterpreterFunctions):
     # region F extension
 
     @impl(riscv.FMulSOp)
-    def run_fmul(
+    def run_fmul_s(
         self,
         interpreter: Interpreter,
         op: riscv.FMulSOp,
@@ -341,6 +350,19 @@ class RiscvFunctions(InterpreterFunctions):
         offset = self.get_immediate_value(op, op.immediate)
         return ((args[0] + offset).float32[0],)
 
+    # endregion
+
+    # region D extension
+
+    @impl(riscv.FMulDOp)
+    def run_fmul_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMulDOp,
+        args: tuple[Any, ...],
+    ):
+        return (args[0] * args[1],)
+
     @impl(riscv.FSdOp)
     def run_fsd(
         self,
@@ -367,12 +389,15 @@ class RiscvFunctions(InterpreterFunctions):
     def run_get_register(
         self, interpreter: Interpreter, op: riscv.GetRegisterOp, args: PythonValues
     ) -> PythonValues:
-        if not op.res.type == riscv.Registers.ZERO:
-            raise InterpretationError(
-                f"Cannot interpret riscv.get_register op with non-ZERO type {op.res.type}"
-            )
-
-        return (0,)
+        match op.res.type:
+            case riscv.Registers.ZERO:
+                return (0,)
+            case riscv.Registers.SP:
+                return (self.stack,)
+            case _:
+                raise InterpretationError(
+                    f"Cannot interpret riscv.get_register op with register {op.res.type}"
+                )
 
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(

@@ -166,7 +166,7 @@ def test_riscv_interpreter():
     get_non_zero = riscv.GetRegisterOp(riscv.IntRegisterType.unallocated())
     with pytest.raises(
         InterpretationError,
-        match="Cannot interpret riscv.get_register op with non-ZERO type",
+        match="Cannot interpret riscv.get_register op with register !riscv.reg<>",
     ):
         interpreter.run_op(get_non_zero, ())
 
