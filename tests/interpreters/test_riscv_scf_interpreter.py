@@ -47,7 +47,7 @@ def interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     module_op.verify()
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(RiscvScfFunctions())
-    interpreter.register_implementations(RiscvFunctions(module_op))
+    interpreter.register_implementations(RiscvFunctions())
     interpreter.register_implementations(FuncFunctions())
     (result,) = interpreter.call_op(func_name, (n,))
     return result

@@ -421,6 +421,12 @@ class Interpreter:
     )
     file: IO[str] | None = field(default=None)
     _symbol_table: dict[str, Operation] | None = None
+    _impl_data: dict[type[InterpreterFunctions], dict[str, Any]] = field(
+        default_factory=dict
+    )
+    """
+    Runtime data associated with an interpreter function implementation.
+    """
 
     @property
     def symbol_table(self) -> dict[str, Operation]:
@@ -581,6 +587,26 @@ class Interpreter:
             return self.symbol_table[symbol]
         else:
             raise InterpretationError(f'Could not find symbol "{symbol}"')
+
+    def get_data(
+        self,
+        functions: type[InterpreterFunctions],
+        key: str,
+        factory: Callable[[], Any],
+    ) -> Any:
+        if functions not in self._impl_data:
+            functions_data = {}
+            self._impl_data = functions_data
+        else:
+            functions_data = self._impl_data[functions]
+
+        if key not in functions_data:
+            data = factory()
+            functions_data[key] = data
+        else:
+            data = functions_data[key]
+
+        return data
 
     def print(self, *args: Any, **kwargs: Any):
         """Print to current file."""

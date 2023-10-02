@@ -21,13 +21,20 @@ def test_riscv_interpreter():
     ) -> PythonValues:
         return args
 
-    module_op = ModuleOp([])
+    module_op = ModuleOp(
+        [
+            riscv.AssemblySectionOp(
+                ".data",
+                Region(
+                    Block([riscv.LabelOp("label0"), riscv.DirectiveOp(".word", "2A")])
+                ),
+            )
+        ]
+    )
     register = riscv.IntRegisterType.unallocated()
     fregister = riscv.FloatRegisterType.unallocated()
 
     riscv_functions = RiscvFunctions(
-        module_op,
-        data={"label0": RawPtr.new_int32([42])},
         custom_instructions={"my_custom_instruction": my_custom_instruction},
     )
     interpreter = Interpreter(module_op)
