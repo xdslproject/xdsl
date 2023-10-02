@@ -601,7 +601,7 @@ class Interpreter:
         """
         if functions not in self._impl_data:
             functions_data = {}
-            self._impl_data = functions_data
+            self._impl_data[functions] = functions_data
         else:
             functions_data = self._impl_data[functions]
 
