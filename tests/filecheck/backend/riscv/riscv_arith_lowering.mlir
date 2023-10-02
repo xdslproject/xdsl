@@ -15,6 +15,13 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.li 1073741824 : () -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %rhsf32 : (!riscv.reg<>) -> !riscv.freg<>
 
+    // TODO: lower f64 constant
+    %lhsf64_reg, %rhsf64_reg = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
+    %lhsf64 = builtin.unrealized_conversion_cast %lhsf64_reg : !riscv.freg<> to f64
+    %rhsf64 = builtin.unrealized_conversion_cast %rhsf64_reg : !riscv.freg<> to f64
+
+    // CHECK-NEXT: %lhsf64_reg, %rhsf64_reg = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
+
     %addi32 = "arith.addi"(%lhsi32, %rhsi32) : (i32, i32) -> i32
     // CHECK-NEXT: %{{.*}} = riscv.add %lhsi32, %rhsi32 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     %addindex = "arith.addi"(%lhsindex, %rhsindex) : (index, index) -> index
@@ -87,6 +94,16 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.fdiv.s %lhsf32_1, %rhsf32_1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     %negf32 = "arith.negf"(%rhsf32) : (f32) -> f32
     // CHECK-NEXT: %{{.*}} = riscv.fsgnjn.s %rhsf32_1, %rhsf32_1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+
+    %addf64 = "arith.addf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fadd.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %subf64 = "arith.subf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fsub.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %mulf64 = "arith.mulf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fmul.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %divf64 = "arith.divf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fdiv.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
     %sitofp = "arith.sitofp"(%lhsi32) : (i32) -> f32
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %lhsi32 : (!riscv.reg<>) -> !riscv.freg<>
