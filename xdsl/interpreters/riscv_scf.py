@@ -30,9 +30,7 @@ class RiscvScfFunctions(InterpreterFunctions):
         loop_args = tuple(loop_args)
 
         for i in range(lb, ub, step):
-            RiscvFunctions.set_reg_values(
-                interpreter, op.body.block.args, (i, *loop_args)
-            )
+            RiscvFunctions.set_reg_value(interpreter, op.body.block.args[0].type, i)
             loop_args = interpreter.run_ssacfg_region(
                 op.body, (i, *loop_args), "for_loop"
             )
