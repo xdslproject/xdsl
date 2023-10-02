@@ -465,12 +465,26 @@ class RiscvFunctions(InterpreterFunctions):
     def run_get_register(
         self, interpreter: Interpreter, op: riscv.GetRegisterOp, args: PythonValues
     ) -> PythonValues:
-        if not op.res.type == riscv.Registers.ZERO:
+        attr = op.res.type
+
+        if not isinstance(attr, riscv.RISCVRegisterType):
+            raise InterpretationError(f"Unexpected type {attr}, expected register type")
+
+        if not attr.is_allocated:
             raise InterpretationError(
-                f"Cannot interpret riscv.get_register op with non-ZERO type {op.res.type}"
+                f"Cannot get value for unallocated register {attr}"
             )
 
-        return (0,)
+        name = attr.register_name
+
+        registers = RiscvFunctions.registers(interpreter)
+
+        if name not in registers:
+            raise InterpretationError(f"Value not found for register name {name}")
+
+        stored_value = registers[name]
+
+        return (stored_value,)
 
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(

@@ -173,7 +173,7 @@ def test_riscv_interpreter():
     get_non_zero = riscv.GetRegisterOp(riscv.IntRegisterType.unallocated())
     with pytest.raises(
         InterpretationError,
-        match="Cannot interpret riscv.get_register op with non-ZERO type",
+        match="Cannot get value for unallocated register !riscv.reg<>",
     ):
         interpreter.run_op(get_non_zero, ())
 
@@ -193,3 +193,30 @@ def test_get_data():
         "one": RawPtr.new_int32([1]),
         "two_three": RawPtr.new_int32([2, 3]),
     }
+
+
+def test_register_contents():
+    module_op = ModuleOp([])
+
+    riscv_functions = RiscvFunctions()
+    interpreter = Interpreter(module_op)
+    interpreter.register_implementations(riscv_functions)
+
+    assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 0) == 0
+
+    with pytest.raises(
+        InterpretationError, match="Runtime and stored value mismatch: 1 != 0"
+    ):
+        RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 1)
+
+    assert RiscvFunctions.set_reg_value(interpreter, riscv.Registers.T0, 1) == 1
+
+    assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 1) == 1
+
+    with pytest.raises(
+        InterpretationError, match="Runtime and stored value mismatch: 2 != 1"
+    ):
+        RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 2)
+
+    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
+    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.T0), ()) == (1,)
