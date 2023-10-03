@@ -262,6 +262,16 @@ class TwoVarOperandOp(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments()]
 
 
+# Define a similar operation with the segment sizes as a property to test this case
+@irdl_op_definition
+class TwoVarOperandPropOp(IRDLOperation):
+    name = "test.two_var_operand_op"
+
+    res1: VarOperand = var_operand_def(StringAttr)
+    res2: VarOperand = var_operand_def(StringAttr)
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
 def test_two_var_operand_builder():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = TwoVarOperandOp.build(operands=[[op1, op1], [op1, op1]])
@@ -278,6 +288,26 @@ def test_two_var_operand_builder2():
     op2.verify()
     assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
+        AttrSizedOperandSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [1, 3])
+
+
+def test_two_var_operand_prop_builder():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op2 = TwoVarOperandPropOp.build(operands=[[op1, op1], [op1, op1]])
+    op2.verify()
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
+    assert op2.properties[
+        AttrSizedOperandSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [2, 2])
+
+
+def test_two_var_operand_prop_builder2():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op2 = TwoVarOperandPropOp.build(operands=[[op1], [op1, op1, op1]])
+    op2.verify()
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
+    assert op2.properties[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
 

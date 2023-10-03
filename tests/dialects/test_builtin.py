@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import pytest
 
@@ -7,6 +8,7 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
     ComplexType,
+    CustomErrorMessageAttrConstraint,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -26,6 +28,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute
+from xdsl.irdl import AttrConstraint
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -268,3 +271,32 @@ def test_dense_as_tuple():
 
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)
+
+
+def test_custom_error_message_constraint():
+    @dataclass
+    class AlwaysFails(AttrConstraint):
+        message: str
+
+        def verify(
+            self, attr: Attribute, constraint_vars: dict[str, Attribute]
+        ) -> None:
+            raise VerifyException(self.message)
+
+    inner = AlwaysFails("fail")
+
+    one = IntAttr(1)
+
+    with pytest.raises(VerifyException, match="wrapped") as e:
+        outer = CustomErrorMessageAttrConstraint(inner, "wrapped")
+        outer.verify(one, {})
+        assert hasattr(e, "__context__")
+        context = getattr(e, "__context__")
+        assert "fail" in context
+
+    with pytest.raises(VerifyException, match="wrapped #int<1>") as e:
+        outer = CustomErrorMessageAttrConstraint(inner, lambda k: f"wrapped {k}")
+        outer.verify(one, {})
+        assert hasattr(e, "__context__")
+        context = getattr(e, "__context__")
+        assert "fail" in context

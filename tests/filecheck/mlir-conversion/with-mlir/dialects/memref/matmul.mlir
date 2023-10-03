@@ -9,7 +9,7 @@
     %5 = "memref.dim"(%0, %3) : (memref<?x?xi64>, index) -> index
     %6 = "memref.dim"(%1, %2) : (memref<?x?xi64>, index) -> index
     %7 = "memref.dim"(%1, %3) : (memref<?x?xi64>, index) -> index
-    %8 = "memref.alloca"(%4, %7) {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 2, 0>} : (index, index) -> memref<?x?xi64>
+    %8 = "memref.alloca"(%4, %7) {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 2, 0>} : (index, index) -> memref<?x?xi64>
     %9 = "arith.constant"() {"value" = 0 : i64} : () -> i64
     "scf.for"(%2, %4, %3) ({
     ^1(%10 : index):
@@ -35,16 +35,16 @@
 }) : () -> ()
 
 // CHECK: "builtin.module"() ({
-// CHECK-NEXT:   "func.func"() ({
+// CHECK-NEXT:   "func.func"() <{"function_type" = (memref<?x?xi64>, memref<?x?xi64>) -> memref<?x?xi64>, "sym_name" = "matmul", "sym_visibility" = "private"}> ({
 // CHECK-NEXT:   ^0(%{{.+}} : memref<?x?xi64>, %{{.+}} : memref<?x?xi64>):
-// CHECK-NEXT:     %{{.+}} = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:     %{{.+}} = "arith.constant"() {"value" = 1 : index} : () -> index
+// CHECK-NEXT:     %{{.+}} = "arith.constant"() <{"value" = 0 : index}> : () -> index
+// CHECK-NEXT:     %{{.+}} = "arith.constant"() <{"value" = 1 : index}> : () -> index
 // CHECK-NEXT:     %{{.+}} = "memref.dim"(%{{.+}}, %{{.+}}) : (memref<?x?xi64>, index) -> index
 // CHECK-NEXT:     %{{.+}} = "memref.dim"(%{{.+}}, %{{.+}}) : (memref<?x?xi64>, index) -> index
 // CHECK-NEXT:     %{{.+}} = "memref.dim"(%{{.+}}, %{{.+}}) : (memref<?x?xi64>, index) -> index
 // CHECK-NEXT:     %{{.+}} = "memref.dim"(%{{.+}}, %{{.+}}) : (memref<?x?xi64>, index) -> index
-// CHECK-NEXT:     %{{.+}} = "memref.alloca"(%{{.+}}, %{{.+}}) {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 2, 0>} : (index, index) -> memref<?x?xi64>
-// CHECK-NEXT:     %{{.+}} = "arith.constant"() {"value" = 0 : i64} : () -> i64
+// CHECK-NEXT:     %{{.+}} = "memref.alloca"(%{{.+}}, %{{.+}}) <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 2, 0>}> : (index, index) -> memref<?x?xi64>
+// CHECK-NEXT:     %{{.+}} = "arith.constant"() <{"value" = 0 : i64}> : () -> i64
 // CHECK-NEXT:     "scf.for"(%{{.+}}, %{{.+}}, %{{.+}}) ({
 // CHECK-NEXT:     ^1(%{{.+}} : index):
 // CHECK-NEXT:       "scf.for"(%{{.+}}, %{{.+}}, %{{.+}}) ({
@@ -65,5 +65,5 @@
 // CHECK-NEXT:       "scf.yield"() : () -> ()
 // CHECK-NEXT:     }) : (index, index, index) -> ()
 // CHECK-NEXT:     "func.return"(%{{.+}}) : (memref<?x?xi64>) -> ()
-// CHECK-NEXT:   }) {"function_type" = (memref<?x?xi64>, memref<?x?xi64>) -> memref<?x?xi64>, "sym_name" = "matmul", "sym_visibility" = "private"} : () -> ()
+// CHECK-NEXT:   }) : () -> ()
 // CHECK-NEXT: }) : () -> ()

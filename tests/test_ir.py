@@ -1,24 +1,38 @@
-from typing import cast
-
 import pytest
 
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Subi
-from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp, i32, i64
+from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
-from xdsl.ir import Block, ErasedSSAValue, MLContext, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    ErasedSSAValue,
+    MLContext,
+    Operation,
+    Region,
+    SSAValue,
+)
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
     VarRegion,
     irdl_op_definition,
     operand_def,
+    prop_def,
     var_region_def,
 )
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
+
+
+@irdl_op_definition
+class TestWithPropOp(IRDLOperation):
+    name = "test.op_with_prop"
+
+    prop = prop_def(Attribute)
 
 
 def test_ops_accessor():
@@ -152,16 +166,12 @@ def test_op_operands_indexing():
 
 
 def test_op_clone():
-    a = Constant.from_int_and_width(1, 32)
+    a = TestWithPropOp.create(properties={"prop": i32}, attributes={"attr": i64})
     b = a.clone()
 
     assert a is not b
 
-    assert isinstance(b.value, IntegerAttr)
-    b_value = cast(IntegerAttr[IntegerType], b.value)
-
-    assert b_value.value.data == 1
-    assert b_value.type.width.data == 32
+    assert a.is_structurally_equivalent(b)
 
 
 def test_op_clone_with_regions():
@@ -499,6 +509,14 @@ def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     assert lhs.is_structurally_equivalent(rhs) == expected_result
 
 
+def test_is_structurally_equivalent_properties():
+    op32 = TestWithPropOp.create(properties={"prop": i32})
+    op32prime = TestWithPropOp.create(properties={"prop": i32})
+    op64 = TestWithPropOp.create(properties={"prop": i64})
+    assert op32.is_structurally_equivalent(op32prime)
+    assert not op32.is_structurally_equivalent(op64)
+
+
 def test_is_structurally_equivalent_free_operands():
     val1 = TestSSAValue(i32)
     val2 = TestSSAValue(i64)
@@ -722,3 +740,14 @@ def test_region_clone():
     region = Region(block_a)
     region2 = region.clone()
     assert region.is_structurally_equivalent(region2)
+
+
+def test_get_attr_or_prop():
+    a = test.TestOp.create(
+        attributes={"attr": StringAttr("attr"), "attr_and_prop": StringAttr("attr")},
+        properties={"prop": StringAttr("prop"), "attr_and_prop": StringAttr("prop")},
+    )
+    assert a.get_attr_or_prop("attr") == StringAttr("attr")
+    assert a.get_attr_or_prop("prop") == StringAttr("prop")
+    assert a.get_attr_or_prop("attr_and_prop") == StringAttr("prop")
+    assert a.get_attr_or_prop("none") is None

@@ -37,6 +37,14 @@ class Pure(OpTrait):
     """A trait that signals that an operation has no side effects."""
 
 
+class ConstantLike(OpTrait):
+    """
+    Operation known to be constant-like.
+
+    https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html
+    """
+
+
 @dataclass(frozen=True)
 class HasParent(OpTrait):
     """Constraint the operation to have a specific parent operation."""
@@ -219,9 +227,8 @@ class SymbolTable(OpTrait):
         block = op.regions[0].blocks[0]
         met_names: set[StringAttr] = set()
         for o in block.ops:
-            if "sym_name" not in o.attributes:
+            if (sym_name := o.get_attr_or_prop("sym_name")) is None:
                 continue
-            sym_name = o.attributes["sym_name"]
             if not isinstance(sym_name, StringAttr):
                 continue
             if sym_name in met_names:
@@ -283,17 +290,15 @@ class SymbolOpInterface(OpTrait):
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
 
-        if "sym_name" not in op.attributes and self.is_optional_symbol(op):
+        sym_name = op.get_attr_or_prop("sym_name")
+        if sym_name is None and self.is_optional_symbol(op):
             return None
-        if "sym_name" not in op.attributes or not isinstance(
-            op.attributes["sym_name"], StringAttr
-        ):
+        if not isinstance(sym_name, StringAttr):
             raise VerifyException(
                 f'Operation {op.name} must have a "sym_name" attribute of type '
                 f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
             )
-        attr = op.attributes["sym_name"]
-        return attr
+        return sym_name
 
     def is_optional_symbol(self, op: Operation) -> bool:
         """
@@ -303,19 +308,10 @@ class SymbolOpInterface(OpTrait):
         return False
 
     def verify(self, op: Operation) -> None:
-        # import builtin here to avoid circular import
-        from xdsl.dialects.builtin import StringAttr
-
-        # If this is an optional symbol, bail out early if possible.
-        if self.is_optional_symbol(op) and "sym_name" not in op.attributes:
-            return
-        if "sym_name" not in op.attributes or not isinstance(
-            op.attributes["sym_name"], StringAttr
-        ):
-            raise VerifyException(
-                f'Operation {op.name} must have a "sym_name" attribute of type '
-                f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
-            )
+        # This helper has the same behaviour, so we reuse it as a verifier.That is, it
+        # raises a VerifyException iff this operation is a non-optional symbol *and*
+        # there is no "sym_name" attribute or property.
+        self.get_sym_attr_name(op)
 
 
 class OptionalSymbolOpInterface(SymbolOpInterface):

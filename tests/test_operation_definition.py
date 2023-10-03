@@ -4,7 +4,14 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from xdsl.dialects.builtin import IndexType, IntAttr, IntegerType, StringAttr, i32
+from xdsl.dialects.builtin import (
+    DenseArrayBase,
+    IndexType,
+    IntAttr,
+    IntegerType,
+    StringAttr,
+    i32,
+)
 from xdsl.dialects.test import TestType
 from xdsl.ir import Attribute, OpResult, Region
 from xdsl.irdl import (
@@ -13,6 +20,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    BaseAttr,
     ConstraintVar,
     IRDLOperation,
     OpDef,
@@ -58,6 +66,8 @@ from xdsl.utils.test_value import TestSSAValue
 class OpDefTestOp(IRDLOperation):
     name = "test.op_def_test"
 
+    irdl_options = [AttrSizedOperandSegments()]
+
     operand: Operand = operand_def()
     result: OpResult = result_def()
     prop: Attribute = prop_def(Attribute)
@@ -75,10 +85,30 @@ def test_get_definition():
         "test.op_def_test",
         operands=[("operand", OperandDef(AnyAttr()))],
         results=[("result", ResultDef(AnyAttr()))],
-        attributes={"attr": AttributeDef(AnyAttr())},
+        attributes={
+            "attr": AttributeDef(AnyAttr()),
+            "operandSegmentSizes": AttributeDef(BaseAttr(DenseArrayBase)),
+        },
         properties={"prop": PropertyDef(AnyAttr())},
         regions=[("region", RegionDef())],
         accessor_names={"attr": ("attr", "attribute"), "prop": ("prop", "property")},
+        options=[AttrSizedOperandSegments()],
+    )
+
+
+@irdl_op_definition
+class PropOptionOp(IRDLOperation):
+    name = "test.prop_option_test"
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
+def test_property_option():
+    """Test retrieval of an IRDL definition from an operation"""
+    assert PropOptionOp.irdl_definition == OpDef(
+        "test.prop_option_test",
+        properties={"operandSegmentSizes": PropertyDef(BaseAttr(DenseArrayBase))},
+        options=[AttrSizedOperandSegments(as_property=True)],
     )
 
 
