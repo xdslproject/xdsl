@@ -7,8 +7,9 @@ builtin+printf to riscv.
 
 from typing import IO, ClassVar
 
-from riscemu.core import Instruction, Int32
-from riscemu.instructions import InstructionSet
+from riscemu.core.instruction import Instruction
+from riscemu.core.int32 import Int32
+from riscemu.instructions.instruction_set import InstructionSet
 
 from xdsl.interpreters.riscv import RawPtr
 from xdsl.interpreters.shaped_array import ShapedArray

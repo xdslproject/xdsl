@@ -4,9 +4,14 @@ from collections.abc import Sequence
 from io import StringIO
 from typing import IO, ClassVar
 
-from riscemu.core import Instruction
-from riscemu.instructions import RV32F, RV32I, RV32M, InstructionSet, Zicsr
-from riscemu.riscemu_main import RiscemuMain, RiscemuSource, RunConfig
+from riscemu.config import RunConfig
+from riscemu.core.instruction import Instruction
+from riscemu.instructions.instruction_set import InstructionSet
+from riscemu.instructions.RV32F import RV32F
+from riscemu.instructions.RV32I import RV32I
+from riscemu.instructions.RV32M import RV32M
+from riscemu.instructions.Zicsr import Zicsr
+from riscemu.riscemu_main import RiscemuMain, RiscemuSource
 
 
 class RV_Debug(InstructionSet):
