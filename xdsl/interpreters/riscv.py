@@ -312,11 +312,11 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         return (args[0] * args[1],)
 
-    @impl(riscv.FCvtSWOp)
-    def run_fcvt_s_w(
+    @impl(riscv.FMvWXOp)
+    def run_fmv_w_x(
         self,
         interpreter: Interpreter,
-        op: riscv.FCvtSWOp,
+        op: riscv.FMvWXOp,
         args: tuple[Any, ...],
     ):
         return (convert_u32_to_f32(args[0]),)

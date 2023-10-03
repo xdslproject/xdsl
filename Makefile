@@ -55,7 +55,7 @@ tests: pytest tests-toy filecheck pytest-nb pyright
 
 # re-generate the output from all jupyter notebooks in the docs directory
 rerun-notebooks:
-	jupyter nbconvert --ClearMetadataPreprocessor.enabled=True --inplace --to notebook --execute docs/*.ipynb
+	jupyter nbconvert --ClearMetadataPreprocessor.enabled=True --inplace --to notebook --execute docs/*.ipynb docs/Toy/*.ipynb
 
 # set up all precommit hooks
 precommit-install:

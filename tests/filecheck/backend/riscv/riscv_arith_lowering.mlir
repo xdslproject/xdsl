@@ -10,10 +10,10 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.li 2 : () -> !riscv.reg<>
     %lhsf32 = "arith.constant"() {value = 1.000000e+00 : f32} : () -> f32
     // CHECK-NEXT: %{{.*}} = riscv.li 1065353216 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %lhsf32 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmv.w.x %lhsf32 : (!riscv.reg<>) -> !riscv.freg<>
     %rhsf32 = "arith.constant"() {value = 2.000000e+00 : f32} : () -> f32
     // CHECK-NEXT: %{{.*}} = riscv.li 1073741824 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %rhsf32 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmv.w.x %rhsf32 : (!riscv.reg<>) -> !riscv.freg<>
 
     %addi32 = "arith.addi"(%lhsi32, %rhsi32) : (i32, i32) -> i32
     // CHECK-NEXT: %{{.*}} = riscv.add %lhsi32, %rhsi32 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
