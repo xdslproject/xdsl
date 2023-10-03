@@ -89,7 +89,7 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.fsgnjn.s %rhsf32_1, %rhsf32_1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
     %sitofp = "arith.sitofp"(%lhsi32) : (i32) -> f32
-    // CHECK-NEXT: %{{.*}} = riscv.fmv.w.x %lhsi32 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %lhsi32 : (!riscv.reg<>) -> !riscv.freg<>
     %fptosi = "arith.fptosi"(%lhsf32) : (f32) -> i32
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.w.s %lhsf32_1 : (!riscv.freg<>) -> !riscv.reg<>
 
