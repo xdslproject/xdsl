@@ -16,4 +16,4 @@ nbconvert>=7.7.2,<8.0.0
 # pyright version has to be fixed with `==`. The CI parses this file
 # and installs the according version for typechecking.
 pyright==1.1.327
-wgpu==0.9.4
+wgpu==0.9.5
