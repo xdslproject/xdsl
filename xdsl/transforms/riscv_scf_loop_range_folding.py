@@ -63,9 +63,6 @@ class HoistIndexTimesConstant(RewritePattern):
                 new_ub := riscv.AddOp(
                     op.lb, new_distance, rd=riscv.IntRegisterType.unallocated()
                 ),
-                new_ub := riscv.AddOp(
-                    new_lb, new_distance, rd=riscv.IntRegisterType.unallocated()
-                ),
                 new_step := riscv.MulOp(
                     op.step, factor, rd=riscv.IntRegisterType.unallocated()
                 ),
