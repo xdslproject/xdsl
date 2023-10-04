@@ -7,12 +7,12 @@ builtin+printf to riscv.
 
 from typing import IO, ClassVar
 
+from riscemu.core.instruction import Instruction
+from riscemu.core.int32 import Int32
 from riscemu.instructions.instruction_set import InstructionSet
-from riscemu.types.instruction import Instruction
-from riscemu.types.int32 import Int32
 
+from xdsl.interpreters.riscv import RawPtr
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.utils.bitwise_casts import convert_u32_to_f32
 
 
 # Define a RISC-V ISA extension by subclassing InstructionSet
@@ -37,12 +37,8 @@ class ToyAccelerator(InstructionSet):
         byte_array = bytearray(value.to_bytes(4, byteorder="little"))
         self.mmu.write(ptr + offset * 4, 4, byte_array)
 
-    def buffer_read(self, ptr: int, len: int, /, offset: int = 0) -> list[int]:
-        return [self.ptr_read(ptr, offset) for offset in range(offset, offset + len)]
-
-    def buffer_write(self, ptr: int, /, data: list[int], offset: int = 0):
-        for i, value in enumerate(data):
-            self.ptr_write(ptr, value=value, offset=offset + i)
+    def buffer_read(self, ptr: int, len: int, /, offset: int = 0) -> RawPtr:
+        return RawPtr(self.mmu.read(ptr + offset, len))
 
     def buffer_copy(self, /, source: int, destination: int, count: int):
         self.mmu.write(destination, count * 4, self.mmu.read(source, count * 4))
@@ -59,9 +55,7 @@ class ToyAccelerator(InstructionSet):
 
         data = self.buffer_read(b_ptr, b_els)
 
-        shaped_array = ShapedArray(
-            [convert_u32_to_f32(value) for value in data], [b_els]
-        )
+        shaped_array = ShapedArray(data.float32.get_list(b_els), [b_els])
 
         print(f"{shaped_array}", file=type(self).stream)
 
@@ -73,12 +67,10 @@ class ToyAccelerator(InstructionSet):
 
         b_ptr, b_rows, b_cols = (self.get_reg(ins.get_reg(i)) for i in range(3))
 
-        size = b_rows * b_cols
-
-        data = self.buffer_read(b_ptr, size)
+        data = self.buffer_read(b_ptr, b_rows * b_cols * 4)
 
         shaped_array = ShapedArray(
-            [convert_u32_to_f32(value) for value in data], [b_rows, b_cols]
+            data.float32.get_list(b_rows * b_cols), [b_rows, b_cols]
         )
 
         print(f"{shaped_array}", file=type(self).stream)

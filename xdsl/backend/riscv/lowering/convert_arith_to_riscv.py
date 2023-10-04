@@ -7,6 +7,7 @@ from xdsl.backend.riscv.lowering.utils import (
 from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
     Float32Type,
+    Float64Type,
     FloatAttr,
     IndexType,
     IntegerAttr,
@@ -56,7 +57,7 @@ class LowerArithConstant(RewritePattern):
                             convert_f32_to_u32(op.value.value.data),
                             rd=_INT_REGISTER_TYPE,
                         ),
-                        fld := riscv.FCvtSWOp(
+                        fld := riscv.FMvWXOp(
                             lui.rd, rd=riscv.FloatRegisterType.unallocated()
                         ),
                         UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
@@ -122,7 +123,8 @@ class LowerBinaryIntegerOp(RewritePattern):
 @dataclass
 class LowerBinaryFloatOp(RewritePattern):
     arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
-    riscv_op_cls: type[RdRsRsFloatOperation]
+    riscv_f_op_cls: type[RdRsRsFloatOperation]
+    riscv_d_op_cls: type[RdRsRsFloatOperation]
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
         if not isinstance(op, self.arith_op_cls):
@@ -130,10 +132,18 @@ class LowerBinaryFloatOp(RewritePattern):
 
         lhs = UnrealizedConversionCastOp.get((op.lhs,), (_FLOAT_REGISTER_TYPE,))
         rhs = UnrealizedConversionCastOp.get((op.rhs,), (_FLOAT_REGISTER_TYPE,))
-        add = self.riscv_op_cls(lhs, rhs, rd=_FLOAT_REGISTER_TYPE)
-        cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.type,))
+        match op.lhs.type:
+            case Float32Type():
+                cls = self.riscv_f_op_cls
+            case Float64Type():
+                cls = self.riscv_d_op_cls
+            case _:
+                assert False, f"Unexpected float type {op.lhs.type}"
 
-        rewriter.replace_matched_op((lhs, rhs, add, cast))
+        new_op = cls(lhs, rhs, rd=_FLOAT_REGISTER_TYPE)
+        cast = UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,))
+
+        rewriter.replace_matched_op((lhs, rhs, new_op, cast))
 
 
 lower_arith_addi = LowerBinaryIntegerOp(arith.Addi, riscv.AddOp)
@@ -260,10 +270,10 @@ lower_arith_shrui = LowerBinaryIntegerOp(arith.ShRUI, riscv.SrlOp)
 lower_arith_shrsi = LowerBinaryIntegerOp(arith.ShRSI, riscv.SraOp)
 
 
-lower_arith_addf = LowerBinaryFloatOp(arith.Addf, riscv.FAddSOp)
-lower_arith_subf = LowerBinaryFloatOp(arith.Subf, riscv.FSubSOp)
-lower_arith_mulf = LowerBinaryFloatOp(arith.Mulf, riscv.FMulSOp)
-lower_arith_divf = LowerBinaryFloatOp(arith.Divf, riscv.FDivSOp)
+lower_arith_addf = LowerBinaryFloatOp(arith.Addf, riscv.FAddSOp, riscv.FAddDOp)
+lower_arith_subf = LowerBinaryFloatOp(arith.Subf, riscv.FSubSOp, riscv.FSubDOp)
+lower_arith_mulf = LowerBinaryFloatOp(arith.Mulf, riscv.FMulSOp, riscv.FMulDOp)
+lower_arith_divf = LowerBinaryFloatOp(arith.Divf, riscv.FDivSOp, riscv.FDivDOp)
 
 
 class LowerArithNegf(RewritePattern):
