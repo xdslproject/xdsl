@@ -45,19 +45,19 @@
         // CHECK-GENERIC-NEXT: %operand_range = "pdl.range"(%many_operands, %i32_operand) : (!pdl.range<!pdl.value>, !pdl.value) -> !pdl.range<!pdl.value>
 
         %any_op = pdl.operation
-        // CHECK-GENERIC-NEXT: %any_op = "pdl.operation"() {"attributeValueNames" = [], "operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> !pdl.operation
+        // CHECK-GENERIC-NEXT: %any_op = "pdl.operation"() {"attributeValueNames" = [], "operandSegmentSizes" = array<i32: 0, 0, 0>} : () -> !pdl.operation
         %op_with_name = pdl.operation "name"
-        // CHECK-GENERIC-NEXT: %op_with_name = "pdl.operation"() {"attributeValueNames" = [], "opName" = "name", "operand_segment_sizes" = array<i32: 0, 0, 0>} : () -> !pdl.operation
+        // CHECK-GENERIC-NEXT: %op_with_name = "pdl.operation"() {"attributeValueNames" = [], "opName" = "name", "operandSegmentSizes" = array<i32: 0, 0, 0>} : () -> !pdl.operation
         %op_with_operands = pdl.operation (%many_operands, %any_operand : !pdl.range<!pdl.value>, !pdl.value)
-        // CHECK-GENERIC-NEXT: %op_with_operands = "pdl.operation"(%many_operands, %any_operand) {"attributeValueNames" = [], "operand_segment_sizes" = array<i32: 2, 0, 0>} : (!pdl.range<!pdl.value>, !pdl.value) -> !pdl.operation
+        // CHECK-GENERIC-NEXT: %op_with_operands = "pdl.operation"(%many_operands, %any_operand) {"attributeValueNames" = [], "operandSegmentSizes" = array<i32: 2, 0, 0>} : (!pdl.range<!pdl.value>, !pdl.value) -> !pdl.operation
         %op_with_attributes = pdl.operation {"attr1" = %any_attr, "attr2" = %i32_attr}
-        // CHECK-GENERIC-NEXT: %op_with_attributes = "pdl.operation"(%any_attr, %i32_attr) {"attributeValueNames" = ["attr1", "attr2"], "operand_segment_sizes" = array<i32: 0, 2, 0>} : (!pdl.attribute, !pdl.attribute) -> !pdl.operation
+        // CHECK-GENERIC-NEXT: %op_with_attributes = "pdl.operation"(%any_attr, %i32_attr) {"attributeValueNames" = ["attr1", "attr2"], "operandSegmentSizes" = array<i32: 0, 2, 0>} : (!pdl.attribute, !pdl.attribute) -> !pdl.operation
         %op_with_results = pdl.operation -> (%any_type, %many_types : !pdl.type, !pdl.range<!pdl.type>)
-        // CHECK-GENERIC-NEXT: %op_with_results = "pdl.operation"(%any_type, %many_types) {"attributeValueNames" = [], "operand_segment_sizes" = array<i32: 0, 0, 2>} : (!pdl.type, !pdl.range<!pdl.type>) -> !pdl.operation
+        // CHECK-GENERIC-NEXT: %op_with_results = "pdl.operation"(%any_type, %many_types) {"attributeValueNames" = [], "operandSegmentSizes" = array<i32: 0, 0, 2>} : (!pdl.type, !pdl.range<!pdl.type>) -> !pdl.operation
         %op_with_all = pdl.operation "name" (%many_operands : !pdl.range<!pdl.value>)
                                             {"attr1" = %any_attr, "attr2" = %i32_attr , "attr2" = %i32_attr}
                                             -> (%any_type, %many_types : !pdl.type, !pdl.range<!pdl.type>)
-        // CHECK-GENERIC-NEXT: %op_with_all = "pdl.operation"(%many_operands, %any_attr, %i32_attr, %i32_attr, %any_type, %many_types) {"attributeValueNames" = ["attr1", "attr2", "attr2"], "opName" = "name", "operand_segment_sizes" = array<i32: 1, 3, 2>} : (!pdl.range<!pdl.value>, !pdl.attribute, !pdl.attribute, !pdl.attribute, !pdl.type, !pdl.range<!pdl.type>) -> !pdl.operation
+        // CHECK-GENERIC-NEXT: %op_with_all = "pdl.operation"(%many_operands, %any_attr, %i32_attr, %i32_attr, %any_type, %many_types) {"attributeValueNames" = ["attr1", "attr2", "attr2"], "opName" = "name", "operandSegmentSizes" = array<i32: 1, 3, 2>} : (!pdl.range<!pdl.value>, !pdl.attribute, !pdl.attribute, !pdl.attribute, !pdl.type, !pdl.range<!pdl.type>) -> !pdl.operation
 
         %res1 = pdl.result 0 of %op_with_name
         // CHECK-GENERIC-NEXT: %res1 = "pdl.result"(%op_with_name) {"index" = 0 : i32} : (!pdl.operation) -> !pdl.value
@@ -72,9 +72,9 @@
 
         pdl.rewrite {
             pdl.replace %any_op with %op_with_name
-            // CHECK-GENERIC: "pdl.replace"(%any_op, %op_with_name) {"operand_segment_sizes" = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
+            // CHECK-GENERIC: "pdl.replace"(%any_op, %op_with_name) {"operandSegmentSizes" = array<i32: 1, 1, 0>} : (!pdl.operation, !pdl.operation) -> ()
             pdl.replace %any_op with (%res1, %any_operand : !pdl.value, !pdl.value)
-            // CHECK-GENERIC-NEXT: "pdl.replace"(%any_op, %res1, %any_operand) {"operand_segment_sizes" = array<i32: 1, 0, 2>} : (!pdl.operation, !pdl.value, !pdl.value) -> ()
+            // CHECK-GENERIC-NEXT: "pdl.replace"(%any_op, %res1, %any_operand) {"operandSegmentSizes" = array<i32: 1, 0, 2>} : (!pdl.operation, !pdl.value, !pdl.value) -> ()
         }
     }
 }): () -> ()

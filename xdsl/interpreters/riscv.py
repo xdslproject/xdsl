@@ -97,27 +97,27 @@ class RawPtr:
 
     @property
     def int32(self) -> TypedPtr[int]:
-        return TypedPtr(self, ">i")
+        return TypedPtr(self, "<i")
 
     @staticmethod
     def new_int32(els: Sequence[int]) -> RawPtr:
-        return RawPtr.new(">i", [(el,) for el in els])
+        return RawPtr.new("<i", [(el,) for el in els])
 
     @property
     def float32(self) -> TypedPtr[float]:
-        return TypedPtr(self, ">f")
+        return TypedPtr(self, "<f")
 
     @staticmethod
     def new_float32(els: Sequence[float]) -> RawPtr:
-        return RawPtr.new(">f", [(el,) for el in els])
+        return RawPtr.new("<f", [(el,) for el in els])
 
     @property
     def float64(self) -> TypedPtr[float]:
-        return TypedPtr(self, ">d")
+        return TypedPtr(self, "<d")
 
     @staticmethod
     def new_float64(els: Sequence[float]) -> RawPtr:
-        return RawPtr.new(">d", [(el,) for el in els])
+        return RawPtr.new("<d", [(el,) for el in els])
 
 
 @dataclass

@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolRefAttr
+from xdsl.dialects.builtin import (
+    FlatSymbolRefAttr,
+    FunctionType,
+    StringAttr,
+    SymbolRefAttr,
+)
 from xdsl.dialects.utils import (
     parse_call_op_like,
     parse_func_op_like,
@@ -25,9 +30,9 @@ from xdsl.irdl import (
     IRDLOperation,
     VarOperand,
     VarOpResult,
-    attr_def,
     irdl_op_definition,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     region_def,
     var_operand_def,
     var_result_def,
@@ -56,9 +61,9 @@ class FuncOp(IRDLOperation):
     name = "func.func"
 
     body: Region = region_def()
-    sym_name: StringAttr = attr_def(StringAttr)
-    function_type: FunctionType = attr_def(FunctionType)
-    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
+    sym_name: StringAttr = prop_def(StringAttr)
+    function_type: FunctionType = prop_def(FunctionType)
+    sym_visibility: StringAttr | None = opt_prop_def(StringAttr)
 
     traits = frozenset(
         [IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()]
@@ -78,12 +83,12 @@ class FuncOp(IRDLOperation):
             function_type = FunctionType.from_lists(inputs, outputs)
         if not isinstance(region, Region):
             region = Region(Block(arg_types=function_type.inputs))
-        attributes: dict[str, Attribute | None] = {
+        properties: dict[str, Attribute | None] = {
             "sym_name": StringAttr(name),
             "function_type": function_type,
             "sym_visibility": visibility,
         }
-        super().__init__(attributes=attributes, regions=[region])
+        super().__init__(properties=properties, regions=[region])
 
     def verify_(self) -> None:
         # If this is an empty region (external function), then return
@@ -200,7 +205,7 @@ class FuncOp(IRDLOperation):
         if return_op is not None:
             return_type = tuple(arg.type for arg in return_op.operands)
 
-        self.attributes["function_type"] = FunctionType.from_lists(
+        self.properties["function_type"] = FunctionType.from_lists(
             [arg.type for arg in self.args],
             return_type,
         )
@@ -240,7 +245,7 @@ class FuncOp(IRDLOperation):
 class Call(IRDLOperation):
     name = "func.call"
     arguments: VarOperand = var_operand_def(AnyAttr())
-    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
+    callee: FlatSymbolRefAttr = prop_def(FlatSymbolRefAttr)
 
     # Note: naming this results triggers an ArgumentError
     res: VarOpResult = var_result_def(AnyAttr())
@@ -257,7 +262,7 @@ class Call(IRDLOperation):
         super().__init__(
             operands=[arguments],
             result_types=[return_types],
-            attributes={"callee": callee},
+            properties={"callee": callee},
         )
 
     def print(self, printer: Printer):

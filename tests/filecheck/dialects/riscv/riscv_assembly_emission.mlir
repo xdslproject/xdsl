@@ -174,6 +174,21 @@
     // CHECK-NEXT:   hello j3, j4, zero, j1
 
 
+    // RISC-V Extensions
+
+    riscv.frep_outer %0, 0, 0 ({
+      %add_o = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
+    }) : (!riscv.reg<zero>) -> ()
+
+    // CHECK:          frep.outer zero, 1, 0, 0
+    // CHECK-NEXT:     add  j2, zero, j1
+
+    riscv.frep_inner %0, 0, 0 ({
+      %add_i = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
+    }) : (!riscv.reg<zero>) -> ()
+    // CHECK:          frep.inner zero, 1, 0, 0
+    // CHECK-NEXT:     add  j2, zero, j1
+
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
 
     %f0 = riscv.fcvt.s.w %0 : (!riscv.reg<zero>) -> !riscv.freg<j5>
@@ -190,13 +205,13 @@
     // CHECK-NEXT: fnmsub.s j8, j5, j6, j7
     %fnmadd = riscv.fnmadd.s %f0, %f1, %f2 : (!riscv.freg<j5>, !riscv.freg<j6>, !riscv.freg<j7>) -> !riscv.freg<j8>
     // CHECK-NEXT: fnmadd.s j8, j5, j6, j7
-    %fadd = riscv.fadd.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    %fadd_s = riscv.fadd.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
     // CHECK-NEXT: fadd.s j8, j5, j6
-    %fsub = riscv.fsub.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    %fsub_s = riscv.fsub.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
     // CHECK-NEXT: fsub.s j8, j5, j6
-    %fmul = riscv.fmul.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    %fmul_s = riscv.fmul.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
     // CHECK-NEXT: fmul.s j8, j5, j6
-    %fdiv = riscv.fdiv.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    %fdiv_s = riscv.fdiv.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
     // CHECK-NEXT: fdiv.s j8, j5, j6
     %fsqrt = riscv.fsqrt.s %f0 : (!riscv.freg<j5>) -> !riscv.freg<j8>
     // CHECK-NEXT: fsqrt.s j8, j5
@@ -234,10 +249,22 @@
     // CHECK-NEXT: flw j8, 1(zero)
     riscv.fsw %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
     // CHECK-NEXT: fsw j5, 1(zero)
+
+    // RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
+
     %fld = riscv.fld %0, 1 : (!riscv.reg<zero>) -> !riscv.freg<j8>
     // CHECK-NEXT: fld j8, 1(zero)
     riscv.fsd %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
     // CHECK-NEXT: fsd j5, 1(zero)
+
+    %fadd_d= riscv.fadd.d %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fadd.d j8, j5, j6
+    %fsub_d = riscv.fsub.d %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fsub.d j8, j5, j6
+    %fmul_d = riscv.fmul.d %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fmul.d j8, j5, j6
+    %fdiv_d = riscv.fdiv.d %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fdiv.d j8, j5, j6
 
     // Vector Ops
     %vfadd_s = riscv.vfadd.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>

@@ -30,10 +30,10 @@ def test_llvm_pointer_ops():
     assert ptr.res.type.type == builtin.i32
     assert isinstance(ptr.res.type.addr_space, builtin.NoneAttr)
 
-    assert "volatile_" in store.attributes
-    assert "nontemporal" in store.attributes
-    assert "alignment" in store.attributes
-    assert "ordering" in store.attributes
+    assert "volatile_" in store.properties
+    assert "nontemporal" in store.properties
+    assert "alignment" in store.properties
+    assert "ordering" in store.properties
 
     assert isinstance(nullptr.nullptr.type, llvm.LLVMPointerType)
     assert isinstance(nullptr.nullptr.type.type, builtin.NoneAttr)
@@ -100,10 +100,10 @@ def test_llvm_getelementptr_op():
         inbounds=True,
     )
 
-    assert "inbounds" in gep1.attributes
+    assert "inbounds" in gep1.properties
     assert gep1.result.type == ptr_type
     assert gep1.ptr == ptr.res
-    assert "elem_type" not in gep1.attributes
+    assert "elem_type" not in gep1.properties
     assert len(gep1.rawConstantIndices.data) == 1
     assert len(gep1.ssa_indices) == 0
 
@@ -115,8 +115,8 @@ def test_llvm_getelementptr_op():
         pointee_type=builtin.i32,
     )
 
-    assert "elem_type" in gep2.attributes
-    assert "inbounds" not in gep2.attributes
+    assert "elem_type" in gep2.properties
+    assert "inbounds" not in gep2.properties
     assert gep2.result.type == ptr_type
     assert len(gep1.rawConstantIndices.data) == 1
     assert len(gep1.ssa_indices) == 0

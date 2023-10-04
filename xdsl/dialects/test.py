@@ -20,6 +20,7 @@ from xdsl.irdl import (
     VarSuccessor,
     irdl_attr_definition,
     irdl_op_definition,
+    opt_prop_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -45,17 +46,23 @@ class TestOp(IRDLOperation):
     ops: VarOperand = var_operand_def()
     regs: VarRegion = var_region_def()
 
+    prop1 = opt_prop_def(Attribute)
+    prop2 = opt_prop_def(Attribute)
+    prop3 = opt_prop_def(Attribute)
+
     def __init__(
         self,
         operands: Sequence[SSAValue | Operation] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
         regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
     ):
         super().__init__(
             operands=(operands,),
             result_types=(result_types,),
             attributes=attributes,
+            properties=properties,
             regions=(regions,),
         )
 
@@ -78,6 +85,10 @@ class TestTermOp(IRDLOperation):
     regs: VarRegion = var_region_def()
     successor: VarSuccessor = var_successor_def()
 
+    prop1 = opt_prop_def(Attribute)
+    prop2 = opt_prop_def(Attribute)
+    prop3 = opt_prop_def(Attribute)
+
     traits = frozenset([IsTerminator()])
 
     def __init__(
@@ -85,6 +96,7 @@ class TestTermOp(IRDLOperation):
         operands: Sequence[SSAValue | Operation] = (),
         result_types: Sequence[Attribute] = (),
         attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block] = (),
         regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
     ):
@@ -92,6 +104,7 @@ class TestTermOp(IRDLOperation):
             operands=(operands,),
             result_types=(result_types,),
             attributes=attributes,
+            properties=properties,
             successors=(successors,),
             regions=(regions,),
         )
