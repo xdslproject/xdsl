@@ -66,7 +66,7 @@ def memref_shape_ops(
         case Float32Type():
             bytes_per_element = element_type.get_bitwidth // 8
         case Float64Type():
-            bytes_per_element = 8
+            bytes_per_element = element_type.get_bitwidth // 8
         case _:
             raise DiagnosticException(
                 f"Unsupported memref element type for riscv lowering: {element_type}"
