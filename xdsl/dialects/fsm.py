@@ -27,6 +27,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_operand_def,
     region_def,
+    result_def,
     var_operand_def,
     var_result_def,
 )
@@ -196,7 +197,6 @@ class OutputOp(IRDLOperation):
     def verify_(self):
         parent = self.parent_op()
         assert isinstance(parent, StateOp)
-
         if parent.transitions == self.parent_region() and len(self.operands) > 0:
             raise VerifyException("Transition regions should not output any value")
         while parent is not None:
@@ -207,7 +207,8 @@ class OutputOp(IRDLOperation):
                     and len(self.operands) == len(parent.function_type.outputs)
                 ):
                     raise VerifyException(
-                        "Output type must be consistent with the machine's"
+                        "OutputOp output type must be consistent with the machine "
+                        + str(parent.sym_name)
                     )
             parent = parent.parent_op()
 
@@ -253,15 +254,15 @@ class TransitionOp(IRDLOperation):
         )
 
     def verify_(self):
-        var = SymbolTable.lookup_symbol(self, self.nextState)
-        if var is None or not isinstance(var, StateOp):
+        if SymbolTable.lookup_symbol(self, self.nextState) is None or not isinstance(
+            SymbolTable.lookup_symbol(self, self.nextState), StateOp
+        ):
             raise VerifyException("Can not find next state")
         if self.guard.blocks and not isinstance(self.guard.block.last_op, ReturnOp):
             raise VerifyException("Guard region must terminate with ReturnOp")
         var = self.parent_op()
-        if (
-            isinstance(var, StateOp) and var.transitions != self.parent_region()
-        ):  # if i dont put the first check in the if there will be an error despite the trait
+        assert isinstance(var, StateOp)
+        if var.transitions != self.parent_region():
             raise VerifyException("Transition must be located in a transitions region")
 
 
@@ -274,8 +275,6 @@ class UpdateOp(IRDLOperation):
     """
 
     name = "fsm.update"
-
-    # operands
 
     variable = operand_def(Attribute)
 
@@ -322,12 +321,8 @@ class VariableOp(IRDLOperation):
 
     name = "fsm.variable"
 
-    # attributes
-
     initValue = attr_def(Attribute)
     name_var = opt_attr_def(StringAttr)
-
-    # results
 
     result = var_result_def(Attribute)
 
@@ -342,7 +337,6 @@ class VariableOp(IRDLOperation):
         }
         if name_var is not None:
             attributes["name_var"] = StringAttr(name_var)
-
         super().__init__(
             result_types=[result],
             attributes=attributes,
@@ -371,6 +365,174 @@ class ReturnOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class InstanceOp(IRDLOperation):
+    """
+    Represents an instance of a state machine, including an
+    instance name and a symbol reference of the machine
+    """
+
+    name = "fsm.instance"
+
+    sym_name = attr_def(StringAttr)
+
+    machine = attr_def(FlatSymbolRefAttr)
+
+    res = result_def(InstanceType)
+
+    def __init__(
+        self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType
+    ):
+        if isinstance(machine, str):
+            machine = FlatSymbolRefAttr(machine)
+        attributes: dict[str, Attribute] = {
+            "sym_name": StringAttr(sym_name),
+            "machine": machine,
+        }
+        super().__init__(result_types=[instance], attributes=attributes)
+
+    def verify_(self):
+        if not isinstance(SymbolTable.lookup_symbol(self, self.machine), MachineOp):
+            raise VerifyException("Machine definition does not exist")
+
+    def getMachine(self) -> MachineOp | None:
+        m = SymbolTable.lookup_symbol(self, self.machine)
+        if isinstance(m, MachineOp):
+            return m
+        else:
+            return None
+
+
+@irdl_op_definition
+class TriggerOp(IRDLOperation):
+    """
+    Triggers a state machine instance. The inputs and outputs are
+    correponding to the inputs and outputs of the referenced machine of the
+    instance
+    """
+
+    name = "fsm.trigger"
+
+    inputs = var_operand_def(AnyAttr())
+
+    instance = operand_def(InstanceType)
+
+    outputs = var_result_def(AnyAttr())
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue | Operation],
+        instance: SSAValue,
+        outputs: Sequence[Attribute],
+    ):
+        super().__init__(
+            operands=[inputs, instance],
+            result_types=[outputs],
+        )
+
+    def verify_(self):
+        if not isinstance(self.instance.owner, InstanceOp):
+            raise VerifyException("The instance operand must be Instance")
+
+        m = self.instance.owner.getMachine()
+
+        if m is None:
+            raise VerifyException("Machine definition does not exist.")
+
+        if not (
+            [operand.type for operand in self.inputs]
+            == [result for result in m.function_type.inputs]
+            and len(self.inputs) == len(m.function_type.inputs)
+        ):
+            raise VerifyException(
+                "TriggerOp input types must be consistent with the machine "
+                + str(m.sym_name)
+            )
+
+        if not (
+            [operand.type for operand in self.outputs]
+            == [result for result in m.function_type.outputs]
+            and len(self.outputs) == len(m.function_type.outputs)
+        ):
+            raise VerifyException(
+                "TriggerOp output types must be consistent with the machine "
+                + str(m.sym_name)
+            )
+
+
+@irdl_op_definition
+class HWInstanceOp(IRDLOperation):
+    """
+    Represents a hardware-style instance of a state machine,
+    including an instance name and a symbol reference of the machine. The inputs
+    and outputs are correponding to the inputs and outputs of the referenced
+    machine.
+    """
+
+    name = "fsm.hw_instance"
+
+    sym_name = attr_def(StringAttr)
+    machine = attr_def(FlatSymbolRefAttr)
+    inputs = var_operand_def(AnyAttr())
+    clock = operand_def(signlessIntegerLike)
+    reset = operand_def(signlessIntegerLike)
+
+    outputs = var_result_def(AnyAttr())
+
+    def __init__(
+        self,
+        sym_name: str | StringAttr,
+        machine: str | FlatSymbolRefAttr,
+        inputs: Sequence[SSAValue | Operation],
+        clock: SSAValue | Operation,
+        reset: SSAValue | Operation,
+        outputs: Sequence[Attribute],
+    ):
+        if isinstance(machine, str):
+            machine = FlatSymbolRefAttr(machine)
+        clock = SSAValue.get(clock)
+        reset = SSAValue.get(reset)
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+        attributes: dict[str, Attribute] = {
+            "sym_name": sym_name,
+            "machine": machine,
+        }
+        super().__init__(
+            operands=[inputs, clock, reset],
+            result_types=[outputs],
+            attributes=attributes,
+        )
+
+    def verify_(self):
+        m = SymbolTable.lookup_symbol(self, self.machine)
+        if isinstance(m, MachineOp):
+            if not (
+                [operand.type for operand in self.inputs]
+                == [result for result in m.function_type.inputs]
+                and len(self.inputs) == len(m.function_type.inputs)
+            ):
+                raise VerifyException(
+                    "HWInstanceOp "
+                    + str(self.sym_name)
+                    + " input type must be consistent with the machine "
+                    + str(m.sym_name)
+                )
+            if not (
+                [operand.type for operand in self.outputs]
+                == [result for result in m.function_type.outputs]
+                and len(self.outputs) == len(m.function_type.outputs)
+            ):
+                raise VerifyException(
+                    "HWInstanceOp "
+                    + str(self.sym_name)
+                    + " output type must be consistent with the machine "
+                    + str(m.sym_name)
+                )
+        else:
+            raise VerifyException("Machine definition does not exist")
+
+
 FSM = Dialect(
     [
         MachineOp,
@@ -380,6 +542,9 @@ FSM = Dialect(
         UpdateOp,
         VariableOp,
         ReturnOp,
+        TriggerOp,
+        InstanceOp,
+        HWInstanceOp,
     ],
-    [],
+    [InstanceType],
 )

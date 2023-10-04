@@ -342,7 +342,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
         if res != []:
             parallel_block.insert_arg(res[0].type, 1)
             cast(Operation, parallel_block.last_op).detach()
-            yieldop = Yield.get(res[0].op)
+            yieldop = Yield(res[0].op)
             parallel_block.add_op(yieldop)
 
         for_region = Region([parallel_block])
@@ -369,7 +369,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
             for_region.block.insert_op_after(
                 cast(OpResult, step[i + 1]).op, cast(OpResult, ub[i + 1]).op
             )
-            yieldop = Yield.get()
+            yieldop = Yield()
             for_region.block.add_op(yieldop)
             for_op = For.get(lb[i], ub[i], step[i], [], for_region)
 

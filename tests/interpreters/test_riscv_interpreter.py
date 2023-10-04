@@ -112,9 +112,9 @@ def test_riscv_interpreter():
 
     # same behaviour as riscemu currently, but incorrect
     # the top line is the one that should pass, the other is the same as riscemu
-    # assert interpreter.run_op(riscv.FCvtSWOp(TestSSAValue(fregister)), (3,)) == (3.0,)
+    # assert interpreter.run_op(riscv.FMvWXOp(TestSSAValue(fregister)), (3,)) == (3.0,)
     assert interpreter.run_op(
-        riscv.FCvtSWOp(
+        riscv.FMvWXOp(
             TestSSAValue(fregister), rd=riscv.FloatRegisterType.unallocated()
         ),
         (convert_f32_to_u32(3.0),),
@@ -145,14 +145,14 @@ def test_riscv_interpreter():
     assert interpreter.run_op(
         riscv.FLdOp(TestSSAValue(register), 8),
         (buffer,),
-    ) == (struct.unpack(">d", struct.pack(">ff", 3.0, 4.0))[0],)
+    ) == (struct.unpack("<d", struct.pack("<ff", 3.0, 4.0))[0],)
 
     assert buffer == test_buffer
 
     assert (
         interpreter.run_op(
             riscv.FSdOp(TestSSAValue(register), TestSSAValue(fregister), 8),
-            (buffer, struct.unpack(">d", struct.pack(">ff", 5.0, 6.0))[0]),
+            (buffer, struct.unpack("<d", struct.pack("<ff", 5.0, 6.0))[0]),
         )
         == ()
     )
