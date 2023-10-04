@@ -423,9 +423,7 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
-@irdl_attr_definition
 class _FloatType(ParametrizedAttribute, TypeAttribute, ABC):
-    name = "float_type"
     width: ParameterDef[IntAttr]
 
     def __init__(self, width: int | IntAttr) -> None:
