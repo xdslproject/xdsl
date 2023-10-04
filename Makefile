@@ -20,7 +20,7 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 # set up the venv with all dependencies for development
 venv: requirements-optional.txt requirements.txt
 	python3 -m venv ${VENV_DIR}
-	source ${VENV_DIR}/bin/activate
+	. ${VENV_DIR}/bin/activate
 	python3 -m pip --require-virtualenv install -r requirements-optional.txt -r requirements.txt
 	python3 -m pip --require-virtualenv install -e ".[extras]"
 
