@@ -112,3 +112,24 @@ def test_external_func():
     i.call_op("testfunc", (100,))
 
     assert funcs.a == 100
+
+
+def test_interpreter_data():
+    class Funcs0(InterpreterFunctions):
+        ...
+
+    class Funcs1(InterpreterFunctions):
+        ...
+
+    interpreter = Interpreter(ModuleOp([]))
+
+    obj1 = interpreter.get_data(Funcs0, "a", lambda: {"b": 2})
+    assert obj1 == {"b": 2}
+
+    obj1["c"] = 3
+
+    assert interpreter.get_data(Funcs0, "a", lambda: {"b": 2}) == {"b": 2, "c": 3}
+
+    assert interpreter.get_data(Funcs0, "d", lambda: {"b": 2}) == {"b": 2}
+
+    assert interpreter.get_data(Funcs1, "a", lambda: {"b": 2}) == {"b": 2}

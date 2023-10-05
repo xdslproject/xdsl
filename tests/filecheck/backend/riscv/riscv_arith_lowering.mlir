@@ -10,10 +10,17 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.li 2 : () -> !riscv.reg<>
     %lhsf32 = "arith.constant"() {value = 1.000000e+00 : f32} : () -> f32
     // CHECK-NEXT: %{{.*}} = riscv.li 1065353216 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %lhsf32 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmv.w.x %lhsf32 : (!riscv.reg<>) -> !riscv.freg<>
     %rhsf32 = "arith.constant"() {value = 2.000000e+00 : f32} : () -> f32
     // CHECK-NEXT: %{{.*}} = riscv.li 1073741824 : () -> !riscv.reg<>
-    // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %rhsf32 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmv.w.x %rhsf32 : (!riscv.reg<>) -> !riscv.freg<>
+
+    // TODO: lower f64 constant
+    %lhsf64_reg, %rhsf64_reg = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
+    %lhsf64 = builtin.unrealized_conversion_cast %lhsf64_reg : !riscv.freg<> to f64
+    %rhsf64 = builtin.unrealized_conversion_cast %rhsf64_reg : !riscv.freg<> to f64
+
+    // CHECK-NEXT: %lhsf64_reg, %rhsf64_reg = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
 
     %lhsf64_reg, %rhsf64_reg = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
     %lhsf64 = builtin.unrealized_conversion_cast %lhsf64_reg : !riscv.freg<> to f64

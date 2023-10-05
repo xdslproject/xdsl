@@ -16,7 +16,6 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.comparisons import to_signed, to_unsigned
-from xdsl.ir.core import Operation
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.exceptions import InterpretationError
 
@@ -140,10 +139,11 @@ class TypedPtr(Generic[_T]):
         (self.raw + index * self.size).set(self.format, value)
 
 
+_DATA_KEY = "data"
+
+
 @register_impls
 class RiscvFunctions(InterpreterFunctions):
-    module_op: ModuleOp
-    _data: dict[str, RawPtr] | None
     custom_instructions: dict[str, CustomInstructionFn] = {}
     bitwidth: int
     stack: RawPtr
@@ -154,28 +154,26 @@ class RiscvFunctions(InterpreterFunctions):
 
     def __init__(
         self,
-        module_op: ModuleOp,
         *,
         bitwidth: int = 32,
-        data: dict[str, RawPtr] | None = None,
         custom_instructions: dict[str, CustomInstructionFn] | None = None,
         stack_size: int = 1 << 20,  # one MB
     ):
         super().__init__()
-        self.module_op = module_op
         self.bitwidth = bitwidth
-        self._data = data
         if custom_instructions is None:
             custom_instructions = {}
         self.custom_instructions = custom_instructions
         self.stack = RawPtr.zeros(stack_size)
         self.stack.offset = len(self.stack.memory)
 
-    @property
-    def data(self) -> dict[str, Any]:
-        if self._data is None:
-            self._data = RiscvFunctions.get_data(self.module_op)
-        return self._data
+    @staticmethod
+    def data(interpreter: Interpreter) -> dict[str, Any]:
+        return interpreter.get_data(
+            RiscvFunctions,
+            _DATA_KEY,
+            lambda: RiscvFunctions.get_data(interpreter.module),
+        )
 
     @staticmethod
     def get_data(module_op: ModuleOp) -> dict[str, RawPtr]:
@@ -203,17 +201,17 @@ class RiscvFunctions(InterpreterFunctions):
         else:
             assert False, "Could not find data section"
 
-    def get_value(self, op: Operation, key: str) -> Any:
-        return self.data[key]
+    def get_data_value(self, interpreter: Interpreter, key: str) -> Any:
+        return self.data(interpreter)[key]
 
     def get_immediate_value(
-        self, op: Operation, imm: AnyIntegerAttr | riscv.LabelAttr
+        self, interpreter: Interpreter, imm: AnyIntegerAttr | riscv.LabelAttr
     ) -> int | RawPtr:
         match imm:
             case IntegerAttr():
                 return imm.value.data
             case riscv.LabelAttr():
-                data = self.get_value(op, imm.data)
+                data = self.get_data_value(interpreter, imm.data)
                 return data
 
     @impl(riscv.LiOp)
@@ -223,7 +221,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.LiOp,
         args: tuple[Any, ...],
     ):
-        return (self.get_immediate_value(op, op.immediate),)
+        return (self.get_immediate_value(interpreter, op.immediate),)
 
     @impl(riscv.MVOp)
     def run_mv(
@@ -242,7 +240,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         unsigned_lhs = to_unsigned(args[0], self.bitwidth)
-        imm = self.get_immediate_value(op, op.immediate)
+        imm = self.get_immediate_value(interpreter, op.immediate)
         if isinstance(imm, RawPtr):
             raise NotImplementedError("Cannot compare pointer in interpreter")
         unsigned_imm = to_unsigned(imm, self.bitwidth)
@@ -264,7 +262,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.SlliOp,
         args: tuple[Any, ...],
     ):
-        imm = self.get_immediate_value(op, op.immediate)
+        imm = self.get_immediate_value(interpreter, op.immediate)
         assert isinstance(imm, int)
         return (args[0] << imm,)
 
@@ -297,7 +295,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.LwOp,
         args: tuple[Any, ...],
     ):
-        offset = self.get_immediate_value(op, op.immediate)
+        offset = self.get_immediate_value(interpreter, op.immediate)
         assert isinstance(offset, int)
         return ((args[0] + offset).int32[0],)
 
@@ -321,11 +319,11 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         return (args[0] * args[1],)
 
-    @impl(riscv.FCvtSWOp)
-    def run_fcvt_s_w(
+    @impl(riscv.FMvWXOp)
+    def run_fmv_w_x(
         self,
         interpreter: Interpreter,
-        op: riscv.FCvtSWOp,
+        op: riscv.FMvWXOp,
         args: tuple[Any, ...],
     ):
         return (convert_u32_to_f32(args[0]),)
@@ -347,7 +345,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FLwOp,
         args: tuple[Any, ...],
     ):
-        offset = self.get_immediate_value(op, op.immediate)
+        offset = self.get_immediate_value(interpreter, op.immediate)
         return ((args[0] + offset).float32[0],)
 
     # endregion
@@ -380,7 +378,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FLdOp,
         args: tuple[Any, ...],
     ):
-        offset = self.get_immediate_value(op, op.immediate)
+        offset = self.get_immediate_value(interpreter, op.immediate)
         return ((args[0] + offset).float64[0],)
 
     # endregion

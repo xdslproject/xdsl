@@ -21,13 +21,20 @@ def test_riscv_interpreter():
     ) -> PythonValues:
         return args
 
-    module_op = ModuleOp([])
+    module_op = ModuleOp(
+        [
+            riscv.AssemblySectionOp(
+                ".data",
+                Region(
+                    Block([riscv.LabelOp("label0"), riscv.DirectiveOp(".word", "2A")])
+                ),
+            )
+        ]
+    )
     register = riscv.IntRegisterType.unallocated()
     fregister = riscv.FloatRegisterType.unallocated()
 
     riscv_functions = RiscvFunctions(
-        module_op,
-        data={"label0": RawPtr.new_int32([42])},
         custom_instructions={"my_custom_instruction": my_custom_instruction},
     )
     interpreter = Interpreter(module_op)
@@ -112,9 +119,9 @@ def test_riscv_interpreter():
 
     # same behaviour as riscemu currently, but incorrect
     # the top line is the one that should pass, the other is the same as riscemu
-    # assert interpreter.run_op(riscv.FCvtSWOp(TestSSAValue(fregister)), (3,)) == (3.0,)
+    # assert interpreter.run_op(riscv.FMvWXOp(TestSSAValue(fregister)), (3,)) == (3.0,)
     assert interpreter.run_op(
-        riscv.FCvtSWOp(
+        riscv.FMvWXOp(
             TestSSAValue(fregister), rd=riscv.FloatRegisterType.unallocated()
         ),
         (convert_f32_to_u32(3.0),),

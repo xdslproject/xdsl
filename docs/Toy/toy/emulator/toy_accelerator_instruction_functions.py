@@ -1,14 +1,12 @@
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 
 
 class ToyAcceleratorInstructionFunctions(RiscvFunctions):
-    def __init__(self, module_op: ModuleOp):
+    def __init__(self):
         super().__init__(
-            module_op,
             custom_instructions={
                 "tensor.print1d": accelerator_tensor_print1d,
                 "tensor.print2d": accelerator_tensor_print2d,
