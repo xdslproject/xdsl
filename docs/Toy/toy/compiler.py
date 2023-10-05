@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from io import StringIO
 from pathlib import Path
 
@@ -26,6 +27,7 @@ from xdsl.dialects import (
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
+from xdsl.passes import ModulePass, PassPipelinePass
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_affine import LowerAffinePass
@@ -68,91 +70,107 @@ def parse_toy(program: str, ctx: MLContext | None = None) -> ModuleOp:
     return module_op
 
 
+def _toy_passes() -> Iterator[ModulePass]:
+    return iter(())
+
+
+def _toy_opt_passes() -> Iterator[ModulePass]:
+    yield from _toy_passes()
+    yield CanonicalizePass()
+
+
+def _toy_inline_passes() -> Iterator[ModulePass]:
+    yield from _toy_opt_passes()
+    yield InlineToyPass()
+
+
+def _toy_infer_shapes_passes() -> Iterator[ModulePass]:
+    yield from _toy_inline_passes()
+    yield ShapeInferencePass()
+
+
+def _affine_passes() -> Iterator[ModulePass]:
+    yield from _toy_infer_shapes_passes()
+    yield LowerToAffinePass()
+
+
+def _scf_passes() -> Iterator[ModulePass]:
+    yield from _affine_passes()
+    yield LowerAffinePass()
+
+
+def _riscv_passes() -> Iterator[ModulePass]:
+    yield from _scf_passes()
+    yield SetupRiscvPass()
+    yield ConvertFuncToRiscvFuncPass()
+    yield LowerMemrefToRiscv()
+    yield ConvertMemrefToRiscvPass()
+    yield LowerPrintfRiscvPass()
+    yield ConvertArithToRiscvPass()
+    yield ConvertScfToRiscvPass()
+    yield DeadCodeElimination()
+    yield ReconcileUnrealizedCastsPass()
+
+
+def _riscv_opt_passes() -> Iterator[ModulePass]:
+    yield from _riscv_passes()
+
+    # Perform optimizations that don't depend on register allocation
+    # e.g. constant folding
+    yield CanonicalizePass()
+    yield RiscvScfLoopRangeFoldingPass()
+    yield CanonicalizePass()
+    yield RiscvReduceRegisterPressurePass()
+
+
+def _riscv_regalloc_passes() -> Iterator[ModulePass]:
+    yield from _riscv_opt_passes()
+
+    yield RISCVRegisterAllocation()
+
+
+def _riscv_regalloc_opt_passes() -> Iterator[ModulePass]:
+    yield from _riscv_regalloc_passes()
+
+    # Perform optimizations that depend on register allocation
+    # e.g. redundant moves
+    yield CanonicalizePass()
+
+
+def _riscv_lowered_passes() -> Iterator[ModulePass]:
+    yield from _riscv_regalloc_opt_passes()
+
+    yield LowerRISCVFunc(insert_exit_syscall=True)
+    yield LowerScfForToLabels()
+
+
+def pass_pipeline(target: str) -> PassPipelinePass:
+    generators = {
+        "toy": _toy_passes,
+        "toy-opt": _toy_opt_passes,
+        "toy-inline": _toy_inline_passes,
+        "toy-infer-shapes": _toy_infer_shapes_passes,
+        "affine": _affine_passes,
+        "scf": _scf_passes,
+        "riscv": _riscv_passes,
+        "riscv-opt": _riscv_opt_passes,
+        "riscv-regalloc": _riscv_regalloc_passes,
+        "riscv-regalloc-opt": _riscv_regalloc_opt_passes,
+        "riscv-lowered": _riscv_lowered_passes,
+    }
+
+    if target not in generators:
+        raise ValueError(f"Unknown target option {target}")
+    return PassPipelinePass(list(generators[target]()))
+
+
 def transform(
     ctx: MLContext,
     module_op: ModuleOp,
     *,
     target: str = "riscv-assembly",
 ):
-    if target == "toy":
-        return
-
-    CanonicalizePass().apply(ctx, module_op)
-
-    if target == "toy-opt":
-        return
-
-    InlineToyPass().apply(ctx, module_op)
-
-    if target == "toy-inline":
-        return
-
-    ShapeInferencePass().apply(ctx, module_op)
-
-    if target == "toy-infer-shapes":
-        return
-
-    LowerToAffinePass().apply(ctx, module_op)
-    module_op.verify()
-
-    if target == "affine":
-        return
-
-    LowerAffinePass().apply(ctx, module_op)
-
-    if target == "scf":
-        return
-
-    SetupRiscvPass().apply(ctx, module_op)
-    ConvertFuncToRiscvFuncPass().apply(ctx, module_op)
-    LowerMemrefToRiscv().apply(ctx, module_op)
-    ConvertMemrefToRiscvPass().apply(ctx, module_op)
-    LowerPrintfRiscvPass().apply(ctx, module_op)
-    ConvertArithToRiscvPass().apply(ctx, module_op)
-    ConvertScfToRiscvPass().apply(ctx, module_op)
-    DeadCodeElimination().apply(ctx, module_op)
-    ReconcileUnrealizedCastsPass().apply(ctx, module_op)
-
-    module_op.verify()
-
-    if target == "riscv":
-        return
-
-    # Perform optimizations that don't depend on register allocation
-    # e.g. constant folding
-    CanonicalizePass().apply(ctx, module_op)
-    RiscvScfLoopRangeFoldingPass().apply(ctx, module_op)
-    CanonicalizePass().apply(ctx, module_op)
-    RiscvReduceRegisterPressurePass().apply(ctx, module_op)
-
-    module_op.verify()
-
-    if target == "riscv-opt":
-        return
-
-    RISCVRegisterAllocation().apply(ctx, module_op)
-
-    module_op.verify()
-
-    if target == "riscv-regalloc":
-        return
-
-    # Perform optimizations that depend on register allocation
-    # e.g. redundant moves
-    CanonicalizePass().apply(ctx, module_op)
-
-    module_op.verify()
-
-    if target == "riscv-regalloc-opt":
-        return
-
-    LowerRISCVFunc(insert_exit_syscall=True).apply(ctx, module_op)
-    LowerScfForToLabels().apply(ctx, module_op)
-
-    if target == "riscv-lowered":
-        return
-
-    raise ValueError(f"Unknown target option {target}")
+    pass_pipeline(target).apply(ctx, module_op)
 
 
 def compile(program: str) -> str:

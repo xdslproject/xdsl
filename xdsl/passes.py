@@ -103,6 +103,16 @@ class ModulePass(ABC):
         return cls(**arg_dict)
 
 
+@dataclass
+class PassPipelinePass(ModulePass):
+    passes: list[ModulePass]
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        for p in self.passes:
+            p.apply(ctx, op)
+            op.verify()
+
+
 def _convert_pass_arg_to_type(
     value: PassArgListType, dest_type: Any
 ) -> PassArgListType | PassArgElementType | None:
