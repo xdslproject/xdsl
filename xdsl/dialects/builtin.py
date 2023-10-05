@@ -431,10 +431,6 @@ class _FloatType(ParametrizedAttribute, TypeAttribute, ABC):
             width = IntAttr(width)
         super().__init__([width])
 
-    @property
-    def get_bitwidth(self) -> int:
-        return self.width.data
-
 
 @irdl_attr_definition
 class BFloat16Type(_FloatType):
