@@ -418,11 +418,11 @@ class RiscvFunctions(InterpreterFunctions):
         results = (args[0] * args[1],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.FCvtSWOp)
-    def run_fcvt_s_w(
+    @impl(riscv.FMvWXOp)
+    def run_fmv_w_x(
         self,
         interpreter: Interpreter,
-        op: riscv.FCvtSWOp,
+        op: riscv.FMvWXOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)

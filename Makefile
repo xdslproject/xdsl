@@ -20,7 +20,7 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 # set up the venv with all dependencies for development
 venv: requirements-optional.txt requirements.txt
 	python3 -m venv ${VENV_DIR}
-	source ${VENV_DIR}/bin/activate
+	. ${VENV_DIR}/bin/activate
 	python3 -m pip --require-virtualenv install -r requirements-optional.txt -r requirements.txt
 	python3 -m pip --require-virtualenv install -e ".[extras]"
 
@@ -55,7 +55,7 @@ tests: pytest tests-toy filecheck pytest-nb pyright
 
 # re-generate the output from all jupyter notebooks in the docs directory
 rerun-notebooks:
-	jupyter nbconvert --ClearMetadataPreprocessor.enabled=True --inplace --to notebook --execute docs/*.ipynb
+	jupyter nbconvert --ClearMetadataPreprocessor.enabled=True --inplace --to notebook --execute docs/*.ipynb docs/Toy/*.ipynb
 
 # set up all precommit hooks
 precommit-install:

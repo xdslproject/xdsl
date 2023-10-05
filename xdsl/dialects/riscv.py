@@ -3474,16 +3474,6 @@ class FSwOp(RsRsImmFloatOperation):
 # region RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
 
 
-class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            LoadDoubleWithKnownOffset,
-        )
-
-        return (LoadDoubleWithKnownOffset(),)
-
-
 @irdl_op_definition
 class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
@@ -3515,7 +3505,7 @@ class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 @irdl_op_definition
 class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
-    Perform single-precision floating-point multiplication.
+    Perform double-precision floating-point multiplication.
 
     f[rd] = f[rs1]×f[rs2]
 
@@ -3528,7 +3518,7 @@ class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 @irdl_op_definition
 class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
-    Perform single-precision floating-point division.
+    Perform double-precision floating-point division.
 
     f[rd] = f[rs1] / f[rs2]
 
@@ -3536,6 +3526,16 @@ class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
     """
 
     name = "riscv.fdiv.d"
+
+
+class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadDoubleWithKnownOffset,
+        )
+
+        return (LoadDoubleWithKnownOffset(),)
 
 
 @irdl_op_definition
@@ -3755,10 +3755,6 @@ RISCV = Dialect(
         FSubSOp,
         FMulSOp,
         FDivSOp,
-        FAddDOp,
-        FSubDOp,
-        FMulDOp,
-        FDivDOp,
         FSqrtSOp,
         FSgnJSOp,
         FSgnJNSOp,
@@ -3777,6 +3773,10 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FAddDOp,
+        FSubDOp,
+        FMulDOp,
+        FDivDOp,
         FLdOp,
         FSdOp,
         VFAddSOp,
