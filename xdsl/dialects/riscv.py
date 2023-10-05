@@ -2689,8 +2689,18 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 # region RISC-V Extensions
 
 
+class ScfgwOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ScfgwImmediatePattern,
+        )
+
+        return (ScfgwImmediatePattern(),)
+
+
 @irdl_op_definition
-class ScfgwOp(RsRsIntegerOperation):
+class ScfgwOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Write a the value in rs1 to the Snitch stream configuration
     location pointed by rs2 in the memory-mapped address space.
@@ -2699,6 +2709,8 @@ class ScfgwOp(RsRsIntegerOperation):
     """
 
     name = "riscv.scfgw"
+
+    traits = frozenset((ScfgwOpHasCanonicalizationPatternTrait(),))
 
 
 @irdl_op_definition
