@@ -140,7 +140,7 @@ class ToyAccelerator(InstructionSet):
 
         result_reg = ins.get_reg(0)
         value_ptr_reg = ins.get_reg(1)
-        offset = ins.get_imm(2)
+        offset = ins.get_imm(2).abs_value.value
 
         value_ptr = self.regs.get(value_ptr_reg).value
 
@@ -157,7 +157,7 @@ class ToyAccelerator(InstructionSet):
 
         value_reg = ins.get_reg(0)
         destination_ptr_reg = ins.get_reg(1)
-        offset = ins.get_imm(2)
+        offset = ins.get_imm(2).abs_value.value
 
         value = self.regs.get_f(value_reg).value
         destination_ptr = self.regs.get(destination_ptr_reg).value
