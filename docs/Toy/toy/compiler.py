@@ -32,6 +32,7 @@ from xdsl.transforms.lower_affine import LowerAffinePass
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
+from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
 
 from .dialects import toy
 from .emulator.toy_accelerator_instructions import ToyAccelerator
@@ -119,6 +120,8 @@ def transform(
 
     # Perform optimizations that don't depend on register allocation
     # e.g. constant folding
+    CanonicalizePass().apply(ctx, module_op)
+    RiscvScfLoopRangeFoldingPass().apply(ctx, module_op)
     CanonicalizePass().apply(ctx, module_op)
     RiscvReduceRegisterPressurePass().apply(ctx, module_op)
 
