@@ -44,6 +44,7 @@ from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
 from .rewrites.lower_toy_affine import LowerToAffinePass
+from .rewrites.lower_toy_linalg import LowerToLinalgPass
 from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
 
@@ -92,6 +93,11 @@ def _toy_infer_shapes_passes() -> Iterator[ModulePass]:
 def _affine_passes() -> Iterator[ModulePass]:
     yield from _toy_infer_shapes_passes()
     yield LowerToAffinePass()
+
+
+def _linalg_passes() -> Iterator[ModulePass]:
+    yield from _toy_infer_shapes_passes()
+    yield LowerToLinalgPass()
 
 
 def _scf_passes() -> Iterator[ModulePass]:
@@ -151,6 +157,7 @@ def pass_pipeline(target: str) -> PassPipelinePass:
         "toy-inline": _toy_inline_passes,
         "toy-infer-shapes": _toy_infer_shapes_passes,
         "affine": _affine_passes,
+        "linalg": _linalg_passes,
         "scf": _scf_passes,
         "riscv": _riscv_passes,
         "riscv-opt": _riscv_opt_passes,

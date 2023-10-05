@@ -4,8 +4,8 @@ from pathlib import Path
 from xdsl.dialects.riscv import riscv_code
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
-from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.func import FuncFunctions
+from xdsl.interpreters.linalg import LinalgFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
@@ -34,6 +34,7 @@ parser.add_argument(
         "toy-inline",
         "toy-infer-shapes",
         "affine",
+        "linalg",
         "scf",
         "riscv",
         "riscv-opt",
@@ -103,16 +104,17 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
     interpreter = Interpreter(module_op)
     if emit in ("toy", "toy-opt", "toy-inline", "toy-infer-shapes"):
         interpreter.register_implementations(ToyFunctions())
-    if emit in ("affine"):
+    if emit in ("affine", "linalg"):
         interpreter.register_implementations(AffineFunctions())
-    if emit in ("affine", "scf"):
+    if emit in ("linalg",):
+        interpreter.register_implementations(LinalgFunctions())
+    if emit in ("affine", "scf", "linalg"):
         interpreter.register_implementations(ArithFunctions())
         interpreter.register_implementations(MemrefFunctions())
         interpreter.register_implementations(PrintfFunctions())
         interpreter.register_implementations(FuncFunctions())
     if emit == "scf":
         interpreter.register_implementations(ScfFunctions())
-        interpreter.register_implementations(BuiltinFunctions())
 
     if emit in ("riscv", "riscv-opt", "riscv-regalloc", "riscv-regalloc-opt"):
         interpreter.register_implementations(ToyAcceleratorInstructionFunctions())

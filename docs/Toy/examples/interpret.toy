@@ -7,6 +7,7 @@
 # RUN: python -m toy %s --emit=riscv | filecheck %s
 # RUN: python -m toy %s --emit=riscv-regalloc | filecheck %s
 # RUN: python -m toy %s --emit=riscv-asm | filecheck %s
+# RUN: python -m toy %s --emit=linalg | filecheck %s
 
 # User defined generic function that operates on unknown shaped arguments
 def multiply_transpose(a, b) {
