@@ -58,7 +58,7 @@ class LowerArithConstant(RewritePattern):
                             convert_f32_to_u32(op.value.value.data),
                             rd=_INT_REGISTER_TYPE,
                         ),
-                        fld := riscv.FCvtSWOp(
+                        fld := riscv.FMvWXOp(
                             lui.rd, rd=riscv.FloatRegisterType.unallocated()
                         ),
                         UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
