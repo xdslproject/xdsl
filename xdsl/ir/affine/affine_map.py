@@ -88,6 +88,18 @@ class AffineMap:
             results=results,
         )
 
+    @property
+    def transpose(self) -> AffineMap:
+        """
+        Returns a map with transposed codomain.
+
+        Example:
+           (d0, d1, d2) -> (d1, d1, d0, d2, d1, d2, d1, d0)
+        returns:
+           (d0, d1, d2) -> (d0, d1, d2, d1, d2, d0, d1, d1)
+        """
+        return AffineMap(self.num_dims, self.num_symbols, tuple(reversed(self.results)))
+
     def eval(self, dims: list[int], symbols: list[int]) -> list[int]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
         assert len(dims) == self.num_dims
