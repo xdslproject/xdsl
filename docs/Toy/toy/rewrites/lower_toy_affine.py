@@ -271,7 +271,6 @@ def build_affine_loop_nest(
 
 def lower_op_to_loops(
     op: toy.AddOp | toy.MulOp | toy.TransposeOp,
-    operands: _ValueRange,
     rewriter: PatternRewriter,
     process_iteration: LoopIterationFn,
 ):
@@ -294,7 +293,7 @@ def lower_op_to_loops(
         # Call the processing function with the rewriter, the memref operands, and the
         # loop induction variables. This function will return the value to store at the
         # current index.
-        value_to_store = process_iteration(nested_builder, operands, ivs)
+        value_to_store = process_iteration(nested_builder, op.operands, ivs)
         store_op = affine.Store(value_to_store, alloc.memref, ivs)
         nested_builder.insert(store_op)
 
@@ -327,7 +326,7 @@ class AddOpLowering(RewritePattern):
             new_binop = builder.insert(arith.Addf(loaded_lhs, loaded_rhs))
             return new_binop.result
 
-        lower_op_to_loops(op, op.operands, rewriter, body)
+        lower_op_to_loops(op, rewriter, body)
 
 
 class MulOpLowering(RewritePattern):
@@ -342,7 +341,7 @@ class MulOpLowering(RewritePattern):
             new_binop = builder.insert(arith.Mulf(loaded_lhs, loaded_rhs))
             return new_binop.result
 
-        lower_op_to_loops(op, op.operands, rewriter, body)
+        lower_op_to_loops(op, rewriter, body)
 
 
 class ConstantOpLowering(RewritePattern):
@@ -435,7 +434,7 @@ class TransposeOpLowering(RewritePattern):
             builder.insert(load_op)
             return load_op.result
 
-        lower_op_to_loops(op, op.operands, rewriter, body)
+        lower_op_to_loops(op, rewriter, body)
 
 
 # endregion RewritePatterns
