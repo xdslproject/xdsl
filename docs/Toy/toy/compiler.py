@@ -41,9 +41,9 @@ from .emulator.toy_accelerator_instructions import ToyAccelerator
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
+from .rewrites.lower_linalg_affine import LinalgToAffinePass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
-from .rewrites.lower_toy_affine import LowerToAffinePass
 from .rewrites.lower_toy_linalg import LowerToLinalgPass
 from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
@@ -90,14 +90,14 @@ def _toy_infer_shapes_passes() -> Iterator[ModulePass]:
     yield ShapeInferencePass()
 
 
-def _affine_passes() -> Iterator[ModulePass]:
-    yield from _toy_infer_shapes_passes()
-    yield LowerToAffinePass()
-
-
 def _linalg_passes() -> Iterator[ModulePass]:
     yield from _toy_infer_shapes_passes()
     yield LowerToLinalgPass()
+
+
+def _affine_passes() -> Iterator[ModulePass]:
+    yield from _linalg_passes()
+    yield LinalgToAffinePass()
 
 
 def _scf_passes() -> Iterator[ModulePass]:
