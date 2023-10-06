@@ -7,7 +7,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.scf import ScfFunctions
-from xdsl.ir.core import BlockArgument
+from xdsl.ir import BlockArgument
 
 index = IndexType()
 

@@ -3,8 +3,8 @@ from io import StringIO
 from xdsl.dialects import arith, builtin, gpu, memref, test
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i32
 from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
-from xdsl.ir.core import MLContext
-from xdsl.parser.core import Parser
+from xdsl.ir import MLContext
+from xdsl.parser import Parser
 from xdsl.utils.test_value import TestSSAValue
 
 lhs_op = test.TestOp(result_types=[IndexType()])

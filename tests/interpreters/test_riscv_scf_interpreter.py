@@ -7,7 +7,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
-from xdsl.ir.core import BlockArgument
+from xdsl.ir import BlockArgument
 
 index = IndexType()
 register = riscv.IntRegisterType.unallocated()
