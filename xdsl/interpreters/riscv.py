@@ -452,6 +452,54 @@ class RiscvFunctions(InterpreterFunctions):
         results = ((args[0] + offset).float32[0],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    # endregion
+
+    # region D extension
+
+    @impl(riscv.FAddDOp)
+    def run_fadd_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FAddDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] + args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.FSubDOp)
+    def run_fsub_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FSubDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] - args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.FMulDOp)
+    def run_fmul_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMulDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] * args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.FDivDOp)
+    def run_fdiv_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FDivDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] / args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.FSdOp)
     def run_fsd(
         self,
