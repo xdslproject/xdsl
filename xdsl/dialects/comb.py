@@ -11,8 +11,7 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, UnitAttr, i32, i64
-from xdsl.ir import Dialect, Operation, OpResult, SSAValue
-from xdsl.ir.core import Attribute
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
