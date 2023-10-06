@@ -28,6 +28,7 @@ class LowerSnrtSsrRead(RewritePattern):
         dim = op.dim
         assert isinstance(dim.owner, riscv.LiOp)
         dim_v = dim.owner.immediate
+        assert isinstance(dim_v, builtin.IntegerAttr)
 
         rewriter.replace_matched_op(
             [snitch.SsrSetDimensionSourceOp(op.dm, op.ptr, dim_v)]
@@ -49,6 +50,7 @@ class LowerSnrtSsrWrite(RewritePattern):
         dim = op.dim
         assert isinstance(dim.owner, riscv.LiOp)
         dim_v = dim.owner.immediate
+        assert isinstance(dim_v, builtin.IntegerAttr)
 
         rewriter.replace_matched_op(
             [snitch.SsrSetDimensionDestinationOp(op.dm, op.ptr, dim_v)]
@@ -101,8 +103,8 @@ class LowerSnrtLoop2d(RewritePattern):
         assert len(op.bounds) == 2
         assert len(op.strides) == 2
         dm = op.data_mover
-        int_0 = builtin.IntegerAttr(0)
-        int_1 = builtin.IntegerAttr(1)
+        int_0 = builtin.IntegerAttr(0, 32)
+        int_1 = builtin.IntegerAttr(1, 32)
 
         rewriter.replace_matched_op(
             [
