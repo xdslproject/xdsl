@@ -36,6 +36,7 @@ from xdsl.dialects.riscv import RISCV
 from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.riscv_scf import RISCV_Scf
 from xdsl.dialects.scf import Scf
+from xdsl.dialects.seq import Seq
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
 from xdsl.dialects.stencil import Stencil
@@ -101,6 +102,7 @@ def get_all_dialects() -> list[Dialect]:
         RISCV_Func,
         RISCV_Scf,
         Scf,
+        Seq,
         Snitch,
         SnitchRuntime,
         Stencil,
