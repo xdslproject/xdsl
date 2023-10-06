@@ -155,7 +155,6 @@ class RiscvFunctions(InterpreterFunctions):
         *,
         bitwidth: int = 32,
         custom_instructions: dict[str, CustomInstructionFn] | None = None,
-        stack_size: int = 1 << 20,  # one MB
     ):
         super().__init__()
         self.bitwidth = bitwidth
