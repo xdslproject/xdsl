@@ -35,7 +35,9 @@ builtin.module {
   // CHECK-NEXT:         %14 = arith.constant 1.000000e+00 : f64
   // CHECK-NEXT:         %15 = arith.addf %0, %14 : f64
   // CHECK-NEXT:         memref.store %15, %3[%11, %12, %13] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
+  // CHECK-NEXT:         scf.yield
   // CHECK-NEXT:       }
+  // CHECK-NEXT:       scf.yield
   // CHECK-NEXT:     }
   // CHECK-NEXT:     scf.yield
   // CHECK-NEXT:   }) : (index, index, index) -> ()
@@ -76,6 +78,7 @@ builtin.module {
   // CHECK-NEXT:       scf.for %22 = %17 to %20 step %18 {
   // CHECK-NEXT:         %i = memref.load %fim1_loadview[%21, %22] : memref<2000x2000xf32, strided<[2004, 1], offset: 4010>>
   // CHECK-NEXT:         memref.store %i, %fi_storeview[%21, %22] : memref<2000x2000xf32, strided<[2004, 1], offset: 4010>>
+  // CHECK-NEXT:         scf.yield
   // CHECK-NEXT:       }
   // CHECK-NEXT:       scf.yield
   // CHECK-NEXT:     }) : (index, index, index) -> ()
@@ -139,6 +142,7 @@ builtin.module {
   // CHECK-NEXT:       %43 = arith.constant -1 : index
   // CHECK-NEXT:       %44 = arith.addi %41, %43 : index
   // CHECK-NEXT:       %45 = memref.load %35[%44, %42] : memref<65x68xf64, strided<[72, 1], offset: 292>>
+  // CHECK-NEXT:       scf.yield
   // CHECK-NEXT:     }
   // CHECK-NEXT:     scf.yield
   // CHECK-NEXT:   }) : (index, index, index) -> ()
@@ -175,7 +179,9 @@ builtin.module {
   // CHECK-NEXT:          %61 = arith.constant 1 : index
   // CHECK-NEXT:          %62 = arith.addi %58, %61 : index
   // CHECK-NEXT:          %63 = memref.load %48[%60, %57, %62] : memref<65x64x69xf64, strided<[5624, 76, 1], offset: 22804>>
+  // CHECK-NEXT:          scf.yield
   // CHECK-NEXT:        }
+  // CHECK-NEXT:        scf.yield
   // CHECK-NEXT:      }
   // CHECK-NEXT:      scf.yield
   // CHECK-NEXT:    }) : (index, index, index) -> ()
@@ -256,7 +262,9 @@ builtin.module {
   // CHECK-NEXT:         %100 = arith.mulf %96, %cst : f64
   // CHECK-NEXT:         %101 = arith.addf %100, %99 : f64
   // CHECK-NEXT:         memref.store %101, %71[%81, %82, %83] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+  // CHECK-NEXT:         scf.yield
   // CHECK-NEXT:       }
+  // CHECK-NEXT:       scf.yield
   // CHECK-NEXT:     }
   // CHECK-NEXT:     scf.yield
   // CHECK-NEXT:   }) : (index, index, index) -> ()
@@ -445,6 +453,7 @@ builtin.module {
 // CHECK-NEXT:       scf.for %160 = %155 to %158 step %156 {
 // CHECK-NEXT:         %161 = memref.load %t0_loadview[%159, %160] : memref<11x11xf32, strided<[15, 1], offset: 32>>
 // CHECK-NEXT:         memref.store %161, %t1_storeview[%159, %160] : memref<11x11xf32, strided<[15, 1], offset: 32>>
+// CHECK-NEXT:         scf.yield
 // CHECK-NEXT:       }
 // CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }) : (index, index, index) -> ()
