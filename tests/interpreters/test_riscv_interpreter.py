@@ -7,7 +7,7 @@ from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
-from xdsl.ir.core import Block, Region
+from xdsl.ir import Block, Region
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
@@ -21,13 +21,20 @@ def test_riscv_interpreter():
     ) -> PythonValues:
         return args
 
-    module_op = ModuleOp([])
+    module_op = ModuleOp(
+        [
+            riscv.AssemblySectionOp(
+                ".data",
+                Region(
+                    Block([riscv.LabelOp("label0"), riscv.DirectiveOp(".word", "2A")])
+                ),
+            )
+        ]
+    )
     register = riscv.IntRegisterType.unallocated()
     fregister = riscv.FloatRegisterType.unallocated()
 
     riscv_functions = RiscvFunctions(
-        module_op,
-        data={"label0": RawPtr.new_int32([42])},
         custom_instructions={"my_custom_instruction": my_custom_instruction},
     )
     interpreter = Interpreter(module_op)

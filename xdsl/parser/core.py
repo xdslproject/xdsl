@@ -19,8 +19,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import IRDLOperation
-from xdsl.parser.attribute_parser import AttrParser
-from xdsl.parser.base_parser import ParserState, Position
+from xdsl.parser import AttrParser, ParserState, Position
 from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, Token
 

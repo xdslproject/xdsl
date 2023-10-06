@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence, Set
+from collections.abc import Sequence, Set
 from io import StringIO
 from typing import IO, ClassVar, Generic, TypeAlias, TypeVar
 
@@ -404,7 +404,7 @@ class RISCVOp(Operation, ABC):
         return []
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         """
         Parse attributes with custom syntax. Subclasses may override this method.
         """
@@ -625,7 +625,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(20, Signedness.UNSIGNED)
@@ -680,7 +680,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(20, Signedness.SIGNED)
@@ -742,7 +742,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(12, Signedness.SIGNED)
@@ -783,7 +783,7 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
         super().__init__(rs1, immediate, rd=rd, comment=comment)
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(5, Signedness.UNSIGNED)
@@ -844,7 +844,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(12, Signedness.SIGNED)
@@ -929,7 +929,7 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rs1, self.rs2, self.offset
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["offset"] = _parse_immediate_value(parser, IntegerType(12))
         return attributes
@@ -979,7 +979,7 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rs1, self.rs2, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(12, Signedness.SIGNED)
@@ -1089,7 +1089,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.csr, self.rs1
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
@@ -1167,7 +1167,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.csr, self.rs1
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
@@ -1243,7 +1243,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.csr, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
@@ -1311,7 +1311,7 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.csr, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
@@ -2345,7 +2345,7 @@ class LiOp(RdImmIntegerOperation):
         super().__init__(immediate, rd=rd, comment=comment)
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(32, Signedness.SIGNED)
@@ -2403,7 +2403,7 @@ class LabelOp(IRDLOperation, RISCVOp):
         return _append_comment(f"{self.label.data}:", self.comment)
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
         return attributes
@@ -2454,7 +2454,7 @@ class DirectiveOp(IRDLOperation, RISCVOp):
         return _assembly_line(self.directive.data, arg_str, is_indented=False)
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["directive"] = StringAttr(
             parser.parse_str_literal("Expected directive")
@@ -2998,7 +2998,7 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rs1, self.rs2, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(12, Signedness.SIGNED)
@@ -3054,7 +3054,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(12, Signedness.SIGNED)
@@ -3474,16 +3474,6 @@ class FSwOp(RsRsImmFloatOperation):
 # region RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
 
 
-class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            LoadDoubleWithKnownOffset,
-        )
-
-        return (LoadDoubleWithKnownOffset(),)
-
-
 @irdl_op_definition
 class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
@@ -3515,7 +3505,7 @@ class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 @irdl_op_definition
 class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
-    Perform single-precision floating-point multiplication.
+    Perform double-precision floating-point multiplication.
 
     f[rd] = f[rs1]×f[rs2]
 
@@ -3528,7 +3518,7 @@ class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 @irdl_op_definition
 class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
-    Perform single-precision floating-point division.
+    Perform double-precision floating-point division.
 
     f[rd] = f[rs1] / f[rs2]
 
@@ -3536,6 +3526,16 @@ class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
     """
 
     name = "riscv.fdiv.d"
+
+
+class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadDoubleWithKnownOffset,
+        )
+
+        return (LoadDoubleWithKnownOffset(),)
 
 
 @irdl_op_definition
@@ -3755,10 +3755,6 @@ RISCV = Dialect(
         FSubSOp,
         FMulSOp,
         FDivSOp,
-        FAddDOp,
-        FSubDOp,
-        FMulDOp,
-        FDivDOp,
         FSqrtSOp,
         FSgnJSOp,
         FSgnJNSOp,
@@ -3777,6 +3773,10 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FAddDOp,
+        FSubDOp,
+        FMulDOp,
+        FDivDOp,
         FLdOp,
         FSdOp,
         VFAddSOp,
