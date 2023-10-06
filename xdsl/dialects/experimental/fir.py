@@ -11,8 +11,7 @@ from xdsl.dialects.builtin import (
     TupleType,
     UnitAttr,
 )
-from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, TypeAttribute
-from xdsl.ir.core import OpResult
+from xdsl.ir import Attribute, Dialect, OpResult, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,

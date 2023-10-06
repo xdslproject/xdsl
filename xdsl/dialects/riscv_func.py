@@ -34,7 +34,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser.core import Parser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import CallableOpInterface, HasParent, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException

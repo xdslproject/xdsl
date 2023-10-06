@@ -16,6 +16,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.comparisons import to_signed, to_unsigned
+from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.exceptions import InterpretationError
 
@@ -139,6 +140,8 @@ class TypedPtr(Generic[_T]):
 
 
 _DATA_KEY = "data"
+REGISTERS_KEY = "registers"
+STACK_KEY = "stack"
 
 
 @register_impls
@@ -159,11 +162,100 @@ class RiscvFunctions(InterpreterFunctions):
         self.custom_instructions = custom_instructions
 
     @staticmethod
+    def get_reg_value(interpreter: Interpreter, attr: Attribute, value: Any) -> Any:
+        if not isinstance(attr, riscv.RISCVRegisterType):
+            raise InterpretationError(f"Unexpected type {attr}, expected register type")
+
+        if not attr.is_allocated:
+            return value
+
+        name = attr.register_name
+
+        registers = RiscvFunctions.registers(interpreter)
+
+        if name not in registers:
+            raise InterpretationError(f"Value not found for register name {name}")
+
+        stored_value = registers[name]
+
+        if stored_value != value:
+            raise InterpretationError(
+                f"Runtime and stored value mismatch: {value} != {stored_value}"
+            )
+
+        return value
+
+    @staticmethod
+    def set_reg_value(interpreter: Interpreter, attr: Attribute, value: Any) -> Any:
+        if not isinstance(attr, riscv.RISCVRegisterType):
+            raise InterpretationError(f"Unexpected type {attr}, expected register type")
+
+        if not attr.is_allocated:
+            return value
+
+        name = attr.register_name
+
+        if name == riscv.Registers.ZERO.register_name:
+            # Values assigned to ZERO are erased
+            return 0
+
+        registers = RiscvFunctions.registers(interpreter)
+
+        registers[name] = value
+
+        return value
+
+    @staticmethod
+    def get_reg_values(
+        interpreter: Interpreter,
+        ssa_values: Sequence[SSAValue],
+        python_values: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(ssa_values) == len(python_values)
+        return tuple(
+            RiscvFunctions.get_reg_value(interpreter, ssa_value.type, python_value)
+            for ssa_value, python_value in zip(ssa_values, python_values)
+        )
+
+    @staticmethod
+    def set_reg_values(
+        interpreter: Interpreter, results: Sequence[SSAValue], values: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        assert len(results) == len(values)
+        return tuple(
+            RiscvFunctions.set_reg_value(interpreter, result.type, value)
+            for result, value in zip(results, values)
+        )
+
+    @staticmethod
     def data(interpreter: Interpreter) -> dict[str, Any]:
         return interpreter.get_data(
             RiscvFunctions,
             _DATA_KEY,
             lambda: RiscvFunctions.get_data(interpreter.module),
+        )
+
+    @staticmethod
+    def registers(interpreter: Interpreter) -> dict[str, Any]:
+        return interpreter.get_data(
+            RiscvFunctions,
+            REGISTERS_KEY,
+            lambda: {
+                riscv.Registers.ZERO.register_name: 0,
+                riscv.Registers.SP.register_name: RiscvFunctions.stack(interpreter),
+            },
+        )
+
+    @staticmethod
+    def stack(interpreter: Interpreter) -> RawPtr:
+        """
+        Stack memory, by default 1mb.
+        """
+        stack_size = 1 << 20
+        return interpreter.get_data(
+            RiscvFunctions,
+            STACK_KEY,
+            lambda: RawPtr(bytearray(stack_size), offset=stack_size),
         )
 
     @staticmethod
@@ -212,7 +304,8 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.LiOp,
         args: tuple[Any, ...],
     ):
-        return (self.get_immediate_value(interpreter, op.immediate),)
+        results = (self.get_immediate_value(interpreter, op.immediate),)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.MVOp)
     def run_mv(
@@ -221,7 +314,9 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.MVOp,
         args: tuple[Any, ...],
     ):
-        return args
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = args
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SltiuOp)
     def run_sltiu(
@@ -230,12 +325,14 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.SltiuOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         unsigned_lhs = to_unsigned(args[0], self.bitwidth)
         imm = self.get_immediate_value(interpreter, op.immediate)
         if isinstance(imm, RawPtr):
             raise NotImplementedError("Cannot compare pointer in interpreter")
         unsigned_imm = to_unsigned(imm, self.bitwidth)
-        return (int(unsigned_lhs < unsigned_imm),)
+        results = (int(unsigned_lhs < unsigned_imm),)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.AddOp)
     def run_add(
@@ -244,7 +341,9 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.AddOp,
         args: tuple[Any, ...],
     ):
-        return (args[0] + args[1],)
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] + args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SlliOp)
     def run_shift_left(
@@ -253,9 +352,11 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.SlliOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         imm = self.get_immediate_value(interpreter, op.immediate)
         assert isinstance(imm, int)
-        return (args[0] << imm,)
+        results = (args[0] << imm,)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.MulOp)
     def run_mul(
@@ -264,10 +365,12 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.MulOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         lhs = to_signed(args[0], self.bitwidth)
         rhs = to_signed(args[1], self.bitwidth)
 
-        return (lhs * rhs,)
+        results = (lhs * rhs,)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SwOp)
     def run_sw(
@@ -276,6 +379,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.SwOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         (args[0] + op.immediate.value.data).int32[0] = args[1]
         return ()
 
@@ -286,9 +390,11 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.LwOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = self.get_immediate_value(interpreter, op.immediate)
         assert isinstance(offset, int)
-        return ((args[0] + offset).int32[0],)
+        results = ((args[0] + offset).int32[0],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.LabelOp)
     def run_label(
@@ -308,7 +414,9 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FMulSOp,
         args: tuple[Any, ...],
     ):
-        return (args[0] * args[1],)
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] * args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FMvWXOp)
     def run_fmv_w_x(
@@ -317,7 +425,9 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FMvWXOp,
         args: tuple[Any, ...],
     ):
-        return (convert_u32_to_f32(args[0]),)
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (convert_u32_to_f32(args[0]),)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FSwOp)
     def run_fsw(
@@ -326,6 +436,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FSwOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         (args[0] + op.immediate.value.data).float32[0] = args[1]
         return ()
 
@@ -336,8 +447,10 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FLwOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = self.get_immediate_value(interpreter, op.immediate)
-        return ((args[0] + offset).float32[0],)
+        results = ((args[0] + offset).float32[0],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FSdOp)
     def run_fsd(
@@ -346,6 +459,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FSdOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         (args[0] + op.immediate.value.data).float64[0] = args[1]
         return ()
 
@@ -356,8 +470,10 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.FLdOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = self.get_immediate_value(interpreter, op.immediate)
-        return ((args[0] + offset).float64[0],)
+        results = ((args[0] + offset).float64[0],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     # endregion
 
@@ -365,12 +481,26 @@ class RiscvFunctions(InterpreterFunctions):
     def run_get_register(
         self, interpreter: Interpreter, op: riscv.GetRegisterOp, args: PythonValues
     ) -> PythonValues:
-        if not op.res.type == riscv.Registers.ZERO:
+        attr = op.res.type
+
+        if not isinstance(attr, riscv.RISCVRegisterType):
+            raise InterpretationError(f"Unexpected type {attr}, expected register type")
+
+        if not attr.is_allocated:
             raise InterpretationError(
-                f"Cannot interpret riscv.get_register op with non-ZERO type {op.res.type}"
+                f"Cannot get value for unallocated register {attr}"
             )
 
-        return (0,)
+        name = attr.register_name
+
+        registers = RiscvFunctions.registers(interpreter)
+
+        if name not in registers:
+            raise InterpretationError(f"Value not found for register name {name}")
+
+        stored_value = registers[name]
+
+        return (stored_value,)
 
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(
@@ -379,6 +509,7 @@ class RiscvFunctions(InterpreterFunctions):
         op: riscv.CustomAssemblyInstructionOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         instr = op.instruction_name.data
         if instr not in self.custom_instructions:
             raise InterpretationError(
@@ -386,4 +517,5 @@ class RiscvFunctions(InterpreterFunctions):
                 f" {instr}"
             )
 
-        return self.custom_instructions[instr](interpreter, op, args)
+        results = self.custom_instructions[instr](interpreter, op, args)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)

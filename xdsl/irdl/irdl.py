@@ -26,6 +26,7 @@ from typing import (
 
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     Block,
     Data,
     Operation,
@@ -35,7 +36,6 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.core import AttributeInvT
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     ParseError,
