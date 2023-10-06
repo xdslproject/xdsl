@@ -2710,6 +2710,8 @@ class ScfgwOp(RsRsIntegerOperation):
 
     name = "riscv.scfgw"
 
+    traits = frozenset((ScfgwOpHasCanonicalizationPatternsTrait(),))
+
 
 @irdl_op_definition
 class ScfgwiOp(RdRsImmIntegerOperation):
