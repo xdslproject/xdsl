@@ -2702,7 +2702,7 @@ class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 @irdl_op_definition
 class ScfgwOp(RsRsIntegerOperation):
     """
-    Write a the value in rs1 to the Snitch stream configuration
+    Write the value in rs1 to the Snitch stream configuration
     location pointed by rs2 in the memory-mapped address space.
 
     This is an extension of the RISC-V ISA.
@@ -2714,10 +2714,11 @@ class ScfgwOp(RsRsIntegerOperation):
 @irdl_op_definition
 class ScfgwiOp(RdRsImmIntegerOperation):
     """
-    Write the immediate value to the Snitch stream configuration location pointed by rs
-    in the memory-mapped address space.
+    Write the value in rs to the Snitch stream configuration location pointed by
+    immediate value in the memory-mapped address space.
 
-    This is part of the `Xssr' extension (https://pulp-platform.github.io/snitch/rm/custom_instructions/), an extension of the RISC-V ISA.
+    This is part of the `Xssr' extension (https://pulp-platform.github.io/snitch/rm/custom_instructions/),
+    an extension of the RISC-V ISA.
     """
 
     name = "riscv.scfgwi"
