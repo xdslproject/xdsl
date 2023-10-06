@@ -422,8 +422,6 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
-# class _FloatType(ParametrizedAttribute, TypeAttribute, ABC):
-
 
 class _FloatType(ABC):
     @property
