@@ -117,6 +117,44 @@ def test_riscv_interpreter():
         (3.0, 4.0),
     ) == (12.0,)
 
+    # D extension arithmetic
+
+    assert interpreter.run_op(
+        riscv.FAddDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0),
+    ) == (7.0,)
+
+    assert interpreter.run_op(
+        riscv.FSubDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0),
+    ) == (-1.0,)
+
+    assert interpreter.run_op(
+        riscv.FMulDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0),
+    ) == (12.0,)
+
+    assert interpreter.run_op(
+        riscv.FDivDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0),
+    ) == (0.75,)
+
     # same behaviour as riscemu currently, but incorrect
     # the top line is the one that should pass, the other is the same as riscemu
     # assert interpreter.run_op(riscv.FMvWXOp(TestSSAValue(fregister)), (3,)) == (3.0,)
