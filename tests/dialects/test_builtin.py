@@ -39,12 +39,12 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def test_FloatType_bitwidths():
-    assert BFloat16Type().width.data == 16
-    assert Float16Type().width.data == 16
-    assert Float32Type().width.data == 32
-    assert Float64Type().width.data == 64
-    assert Float80Type().width.data == 80
-    assert Float128Type().width.data == 128
+    assert BFloat16Type().get_bitwidth == 16
+    assert Float16Type().get_bitwidth == 16
+    assert Float32Type().get_bitwidth == 32
+    assert Float64Type().get_bitwidth == 64
+    assert Float80Type().get_bitwidth == 80
+    assert Float128Type().get_bitwidth == 128
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():

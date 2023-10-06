@@ -422,62 +422,68 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
+# class _FloatType(ParametrizedAttribute, TypeAttribute, ABC):
 
-class _FloatType(ParametrizedAttribute, TypeAttribute, ABC):
-    width: ParameterDef[IntAttr]
 
-    def __init__(self, width: int | IntAttr) -> None:
-        if isinstance(width, int):
-            width = IntAttr(width)
-        super().__init__([width])
+class _FloatType(ABC):
+    @property
+    @abstractmethod
+    def get_bitwidth(self) -> int:
+        raise NotImplementedError()
 
 
 @irdl_attr_definition
-class BFloat16Type(_FloatType):
+class BFloat16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "bf16"
 
-    def __init__(self) -> None:
-        super().__init__(16)
+    @property
+    def get_bitwidth(self) -> int:
+        return 16
 
 
 @irdl_attr_definition
-class Float16Type(_FloatType):
+class Float16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f16"
 
-    def __init__(self) -> None:
-        super().__init__(16)
+    @property
+    def get_bitwidth(self) -> int:
+        return 16
 
 
 @irdl_attr_definition
-class Float32Type(_FloatType):
+class Float32Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f32"
 
-    def __init__(self) -> None:
-        super().__init__(32)
+    @property
+    def get_bitwidth(self) -> int:
+        return 32
 
 
 @irdl_attr_definition
-class Float64Type(_FloatType):
+class Float64Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f64"
 
-    def __init__(self) -> None:
-        super().__init__(64)
+    @property
+    def get_bitwidth(self) -> int:
+        return 64
 
 
 @irdl_attr_definition
-class Float80Type(_FloatType):
+class Float80Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f80"
 
-    def __init__(self) -> None:
-        super().__init__(80)
+    @property
+    def get_bitwidth(self) -> int:
+        return 80
 
 
 @irdl_attr_definition
-class Float128Type(_FloatType):
+class Float128Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f128"
 
-    def __init__(self) -> None:
-        super().__init__(128)
+    @property
+    def get_bitwidth(self) -> int:
+        return 128
 
 
 AnyFloat: TypeAlias = (
