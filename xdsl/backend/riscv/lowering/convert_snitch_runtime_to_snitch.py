@@ -113,8 +113,12 @@ class LowerSnrtLoop2d(RewritePattern):
                 snitch.SsrSetDimensionBoundOp(dm, new_b0, int_0),
                 snitch.SsrSetDimensionBoundOp(dm, new_b1, int_1),
                 snitch.SsrSetDimensionStrideOp(dm, op.strides[0], int_0),
-                s0_b0 := riscv.MulOp(op.bounds[0], op.strides[0]),
-                stride_1 := riscv.SubOp(op.strides[1], s0_b0),
+                s0_b0 := riscv.MulOp(
+                    op.bounds[0], op.strides[0], rd=riscv.IntRegisterType.unallocated()
+                ),
+                stride_1 := riscv.SubOp(
+                    op.strides[1], s0_b0, rd=riscv.IntRegisterType.unallocated()
+                ),
                 snitch.SsrSetDimensionStrideOp(dm, stride_1, int_1),
             ]
         )
