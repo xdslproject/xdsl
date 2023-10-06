@@ -422,34 +422,65 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
+class _FloatType(ABC):
+    @property
+    @abstractmethod
+    def get_bitwidth(self) -> int:
+        raise NotImplementedError()
+
+
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, TypeAttribute):
+class BFloat16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "bf16"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 16
+
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, TypeAttribute):
+class Float16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f16"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 16
+
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, TypeAttribute):
+class Float32Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f32"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 32
+
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, TypeAttribute):
+class Float64Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f64"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 64
+
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, TypeAttribute):
+class Float80Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f80"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 80
+
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, TypeAttribute):
+class Float128Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f128"
+
+    @property
+    def get_bitwidth(self) -> int:
+        return 128
 
 
 AnyFloat: TypeAlias = (
