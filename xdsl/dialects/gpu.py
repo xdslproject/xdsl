@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    Block,
     Dialect,
     Operation,
     OpResult,
@@ -25,7 +26,6 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.core import Block
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,

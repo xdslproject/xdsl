@@ -155,7 +155,6 @@ class RiscvFunctions(InterpreterFunctions):
         *,
         bitwidth: int = 32,
         custom_instructions: dict[str, CustomInstructionFn] | None = None,
-        stack_size: int = 1 << 20,  # one MB
     ):
         super().__init__()
         self.bitwidth = bitwidth
@@ -458,6 +457,28 @@ class RiscvFunctions(InterpreterFunctions):
 
     # region D extension
 
+    @impl(riscv.FAddDOp)
+    def run_fadd_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FAddDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] + args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.FSubDOp)
+    def run_fsub_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FSubDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] - args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.FMulDOp)
     def run_fmul_d(
         self,
@@ -467,6 +488,17 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (args[0] * args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.FDivDOp)
+    def run_fdiv_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FDivDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] / args[1],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FSdOp)
