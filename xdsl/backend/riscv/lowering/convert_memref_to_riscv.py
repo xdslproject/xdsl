@@ -14,8 +14,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import MLContext, Operation, SSAValue
-from xdsl.ir.core import Attribute
+from xdsl.ir import Attribute, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -64,9 +63,9 @@ def memref_shape_ops(
                 )
             bytes_per_element = element_type.width.data // 8
         case Float32Type():
-            bytes_per_element = 4
+            bytes_per_element = element_type.get_bitwidth // 8
         case Float64Type():
-            bytes_per_element = 8
+            bytes_per_element = element_type.get_bitwidth // 8
         case _:
             raise DiagnosticException(
                 f"Unsupported memref element type for riscv lowering: {element_type}"

@@ -7,7 +7,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.cf import CfFunctions
 from xdsl.interpreters.func import FuncFunctions
-from xdsl.ir.core import Block, Region
+from xdsl.ir import Block, Region
 
 
 def sum_to_fn(n: int) -> int:

@@ -13,15 +13,18 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Block,
+    Dialect,
     Operation,
+    ParametrizedAttribute,
     Region,
     SSAValue,
+    TypeAttribute,
 )
-from xdsl.ir.core import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
     attr_def,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -31,7 +34,6 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import irdl_attr_definition
 from xdsl.traits import (
     HasParent,
     IsTerminator,
