@@ -41,10 +41,11 @@ from .emulator.toy_accelerator_instructions import ToyAccelerator
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
+from .rewrites.lower_linalg_affine import LinalgToAffinePass
 from .rewrites.lower_linalg_stream import LinalgToStreamPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
-from .rewrites.lower_stream_affine import StreamToAffinePass
+from .rewrites.lower_stream_scf import StreamToScfPass
 from .rewrites.lower_toy_linalg import LowerToLinalgPass
 from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
@@ -102,17 +103,19 @@ def _stream_passes() -> Iterator[ModulePass]:
 
 
 def _affine_passes() -> Iterator[ModulePass]:
-    yield from _stream_passes()
-    yield StreamToAffinePass()
+    yield from _linalg_passes()
+    yield LinalgToAffinePass()
 
 
 def _scf_passes() -> Iterator[ModulePass]:
-    yield from _affine_passes()
+    yield from _stream_passes()
+    yield StreamToScfPass()
     yield LowerAffinePass()
 
 
 def _riscv_passes() -> Iterator[ModulePass]:
-    yield from _scf_passes()
+    yield from _affine_passes()
+    yield LowerAffinePass()
     yield SetupRiscvPass()
     yield ConvertFuncToRiscvFuncPass()
     yield LowerMemrefToRiscv()

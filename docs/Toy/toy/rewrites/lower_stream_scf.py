@@ -1,5 +1,5 @@
 from xdsl.builder import Builder
-from xdsl.dialects import affine, stream
+from xdsl.dialects import stream
 from xdsl.dialects.builtin import (
     ModuleOp,
 )
@@ -18,8 +18,6 @@ from .lower_toy_affine import (
     build_affine_loop_nest_const,
 )
 
-# region Helpers
-
 
 class LowerGenericOp(RewritePattern):
     @op_type_rewrite_pattern
@@ -29,28 +27,18 @@ class LowerGenericOp(RewritePattern):
         # of the innermost loop given a builder, a location and a range of loop induction
         # variables.
 
-        # yooo
-        assert not op.stream_inputs
-        assert not op.stream_outputs
-        assert not op.iter_count
-
-        rank = op.get_num_loops()
-        lower_bounds = tuple(0 for _ in range(rank))
-        steps = tuple(1 for _ in range(rank))
+        ub = tuple(b.data for b in op.static_loop_ranges.data)
+        lower_bounds = tuple(0 for _ in range(len(ub)))
+        steps = tuple(1 for _ in range(len(ub)))
 
         def impl_loop(nested_builder: Builder, ivs: ValueRange):
-            load_ops = [
-                nested_builder.insert(
-                    affine.Load(op.memref_inputs[i], ivs, op.indexing_maps.data[i])
-                )
-                for i in range(len(op.memref_inputs))
-            ]
+            load_ops = [nested_builder.insert(stream.ReadOp(i)) for i in op.inputs]
 
             block = op.body.block
 
             # Replace block args with operand casts
             for load_op, arg in zip(load_ops, block.args):
-                arg.replace_by(load_op.result)
+                arg.replace_by(load_op.res)
 
             # remove block args
             while len(block.args):
@@ -66,27 +54,21 @@ class LowerGenericOp(RewritePattern):
             yield_op = body_block.last_op
             assert isinstance(yield_op, stream.YieldOp), f"{yield_op}"
 
-            store_op = affine.Store(
-                yield_op.values[0], op.memref_outputs[0], ivs, op.indexing_maps.data[-1]
-            )
-            nested_builder.insert(store_op)
+            for v, o in zip(yield_op.operands, op.outputs):
+                nested_builder.insert(stream.WriteOp(v, o))
+
             rewriter.erase_op(yield_op)
 
         parent_block = op.parent
         assert parent_block is not None
         builder = Builder(parent_block, op)
-        build_affine_loop_nest_const(
-            builder, lower_bounds, op.get_static_loop_ranges(), steps, impl_loop
-        )
+        build_affine_loop_nest_const(builder, lower_bounds, ub, steps, impl_loop)
 
         rewriter.erase_matched_op()
 
 
-# endregion RewritePatterns
-
-
-class StreamToAffinePass(ModulePass):
-    name = "stream-to-affine"
+class StreamToScfPass(ModulePass):
+    name = "stream-to-scf"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(

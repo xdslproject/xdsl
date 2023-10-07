@@ -6,6 +6,8 @@ expects that all calls have been inlined, and all shapes have been resolved.
 
 from xdsl.dialects import linalg, stream
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    IntAttr,
     ModuleOp,
 )
 from xdsl.ir import MLContext
@@ -23,17 +25,34 @@ class LowerGenericOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: linalg.Generic, rewriter: PatternRewriter):
         if op.res:
-            raise NotImplementedError("Cannot lower linalg generic op with results")
-        rewriter.replace_matched_op(
-            stream.GenericOp(
-                (),
-                op.inputs,
-                (),
-                op.outputs,
-                rewriter.move_region_contents_to_new_regions(op.body),
-                op.indexing_maps,
-                None,
+            # Cannot lower linalg generic op with results
+            return
+
+        ub = op.get_static_loop_ranges()
+        ub_attr = ArrayAttr(IntAttr(b) for b in ub)
+
+        new_inputs = [
+            stream.StridedReadOp(memref, ub_attr, indexing_map)
+            for memref, indexing_map in zip(op.inputs, op.indexing_maps)
+        ]
+        new_outputs = [
+            stream.StridedWriteOp(memref, ub_attr, indexing_map)
+            for memref, indexing_map in zip(
+                op.outputs, op.indexing_maps.data[-len(op.outputs) :]
             )
+        ]
+
+        rewriter.replace_matched_op(
+            [
+                *new_inputs,
+                *new_outputs,
+                stream.GenericOp(
+                    [i.stream for i in new_inputs],
+                    [o.stream for o in new_outputs],
+                    rewriter.move_region_contents_to_new_regions(op.body),
+                    ub_attr,
+                ),
+            ]
         )
 
 

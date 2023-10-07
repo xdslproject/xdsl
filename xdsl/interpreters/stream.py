@@ -1,5 +1,9 @@
+from collections.abc import Iterator, Sequence
+from dataclasses import dataclass
 from itertools import product
-from typing import Any
+from typing import Any, Generic, TypeVar
+
+from typing_extensions import Protocol
 
 from xdsl.dialects import stream
 from xdsl.interpreter import (
@@ -12,6 +16,51 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.ir.affine.affine_map import AffineMap
+
+T = TypeVar("T")
+TCov = TypeVar("TCov", covariant=True)
+TCon = TypeVar("TCon", contravariant=True)
+
+
+class InputStream(Protocol[TCov]):
+    def read(self) -> TCov:
+        raise NotImplementedError()
+
+
+class OutputStream(Protocol[TCon]):
+    def write(self, value: TCon) -> None:
+        raise NotImplementedError()
+
+
+def strided_memref_index_iter(
+    affine_map: AffineMap, ub: list[int]
+) -> Iterator[list[int]]:
+    return iter(
+        affine_map.eval(list(affine_dims), [])
+        for affine_dims in product(*(range(b) for b in ub))
+    )
+
+
+@dataclass
+class StridedMemrefInputStream(Generic[TCov], InputStream[TCov]):
+    index_iter: Iterator[Sequence[int]]
+    array: ShapedArray[TCov]
+
+    def read(self) -> TCov:
+        indices = next(self.index_iter)
+        value = self.array.load(indices)
+        return value
+
+
+@dataclass
+class StridedMemrefOutputStream(Generic[TCon], OutputStream[TCon]):
+    index_iter: Iterator[Sequence[int]]
+    array: ShapedArray[TCon]
+
+    def write(self, value: TCon) -> None:
+        indices = next(self.index_iter)
+        self.array.store(indices, value)
 
 
 @register_impls
@@ -20,36 +69,62 @@ class StreamFunctions(InterpreterFunctions):
     def run_generic(
         self, interpreter: Interpreter, op: stream.GenericOp, args: tuple[Any, ...]
     ) -> PythonValues:
-        # bla
-        assert not op.stream_inputs
-        assert not op.stream_outputs
-        assert op.iter_count is None
-
-        inputs: tuple[ShapedArray[float], ...] = interpreter.get_values(
-            op.memref_inputs
+        input_streams: tuple[InputStream[Any], ...] = interpreter.get_values(op.inputs)
+        output_streams: tuple[OutputStream[Any], ...] = interpreter.get_values(
+            op.outputs
         )
-        outputs: tuple[ShapedArray[float], ...] = interpreter.get_values(
-            op.memref_outputs
+
+        loop_ranges = op.static_loop_ranges
+
+        for _ in product(*(range(loop_range.data) for loop_range in loop_ranges)):
+            loop_args = tuple(i.read() for i in input_streams)
+            loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
+            for o, r in zip(output_streams, loop_results):
+                o.write(r)
+
+        return ()
+
+    @impl(stream.StridedReadOp)
+    def run_strided_read(
+        self, interpreter: Interpreter, op: stream.StridedReadOp, args: tuple[Any, ...]
+    ) -> PythonValues:
+        (memref,) = args
+        memref: ShapedArray[Any] = memref
+
+        input_stream_factory = StridedMemrefInputStream(
+            strided_memref_index_iter(op.indexing_map.data, [b.data for b in op.ub]),
+            memref,
         )
-        indexing_maps = op.get_indexing_maps()
+        return (input_stream_factory,)
 
-        assert inputs, "inputs should not be empty"
-        assert len(inputs) == len(indexing_maps) - 1
-        assert len(outputs) == 1, "can only handle single output map for now"
+    @impl(stream.StridedWriteOp)
+    def run_strided_write(
+        self, interpreter: Interpreter, op: stream.StridedWriteOp, args: tuple[Any, ...]
+    ) -> PythonValues:
+        (memref,) = args
+        memref: ShapedArray[Any] = memref
 
-        loop_ranges = op.get_static_loop_ranges()
+        output_stream_factory = StridedMemrefOutputStream(
+            strided_memref_index_iter(op.indexing_map.data, [b.data for b in op.ub]),
+            memref,
+        )
+        return (output_stream_factory,)
 
-        for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
-            loop_args = tuple(
-                i.load(tuple(indexing_map.eval(list(indices), [])))
-                for i, indexing_map in zip(inputs, indexing_maps)
-            )
-            (loop_results,) = interpreter.run_ssacfg_region(
-                op.body, loop_args, "for_loop"
-            )
-            result_indices = indexing_maps[-1].eval(list(indices), [])
-            outputs[0].store(tuple(result_indices), loop_results)
+    @impl(stream.ReadOp)
+    def run_read(
+        self, interpreter: Interpreter, op: stream.ReadOp, args: tuple[Any, ...]
+    ) -> PythonValues:
+        (stream,) = args
+        stream: InputStream[Any] = stream
+        return (stream.read(),)
 
+    @impl(stream.WriteOp)
+    def run_write(
+        self, interpreter: Interpreter, op: stream.WriteOp, args: tuple[Any, ...]
+    ) -> PythonValues:
+        (stream, value) = args
+        stream: OutputStream[Any] = stream
+        stream.write(value)
         return ()
 
     @impl_terminator(stream.YieldOp)

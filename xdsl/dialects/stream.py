@@ -8,7 +8,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     IntAttr,
-    ShapedType,
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (
@@ -21,7 +20,6 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
@@ -29,10 +27,10 @@ from xdsl.irdl import (
     Operand,
     ParameterDef,
     VarOperand,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     prop_def,
     region_def,
     result_def,
@@ -74,117 +72,29 @@ class OutputStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElemen
 class GenericOp(IRDLOperation):
     name = "stream.generic"
 
-    stream_inputs: VarOperand = var_operand_def(InputStreamType)
-    memref_inputs: VarOperand = var_operand_def(MemRefType)
+    inputs = var_operand_def(InputStreamType)
+    outputs = var_operand_def(OutputStreamType)
 
-    stream_outputs: VarOperand = var_operand_def(InputStreamType)
-    memref_outputs: VarOperand = var_operand_def(MemRefType)
+    body = region_def("single_block")
 
-    body: Region = region_def("single_block")
-
-    # Trait attributes
-    indexing_maps: ArrayAttr[AffineMapAttr] = prop_def(ArrayAttr[AffineMapAttr])
-    """
-    len(indexing_maps) == len(memref_inputs) + len(memref_outputs)
-    """
-    iter_count = opt_attr_def(IntAttr)
-    """
-    If `indexing_maps` is empty, contains the number of iterations to run the loop,
-    otherwise empty.
-    """
+    static_loop_ranges = prop_def(ArrayAttr[IntAttr])
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
-        stream_inputs: Sequence[SSAValue],
-        memref_inputs: Sequence[SSAValue],
-        stream_outputs: Sequence[SSAValue],
-        memref_outputs: Sequence[SSAValue],
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue],
         body: Region,
-        indexing_maps: ArrayAttr[AffineMapAttr],
-        iter_count: IntAttr | None,
+        static_loop_ranges: ArrayAttr[IntAttr],
     ) -> None:
         super().__init__(
-            operands=[stream_inputs, memref_inputs, stream_outputs, memref_outputs],
-            result_types=[],
+            operands=[inputs, outputs],
             properties={
-                "indexing_maps": indexing_maps,
-                "iter_count": iter_count,
+                "static_loop_ranges": static_loop_ranges,
             },
             regions=[body],
         )
-
-    def get_indexing_maps(self) -> list[AffineMap]:
-        return [attr.data for attr in self.indexing_maps]
-
-    def get_num_loops(self) -> int:
-        if self.iter_count is not None:
-            return self.iter_count.data
-
-        return self.indexing_maps.data[0].data.num_dims
-
-    def get_loops_to_shapes_map(self) -> AffineMap:
-        """
-        Returns a map to answer the question: "given an iteration space over
-        the codomain, what are the subshapes of the operands involved in the
-        computation".
-        The default behavior is to just concatenate all the indexing maps.
-        """
-        result_exprs = tuple(
-            res for map in self.get_indexing_maps() for res in map.results
-        )
-
-        dims = self.get_num_loops()
-
-        # FIXME: Support symbols.
-        for map in self.get_indexing_maps():
-            if map.num_symbols != 0:
-                raise NotImplementedError(
-                    "Indexing maps with symbols not supported for now."
-                )
-
-        syms = 0
-        return AffineMap(dims, syms, result_exprs)
-
-    def get_shapes_to_loops_map(self) -> AffineMap:
-        """
-        Returns a map to answer the question: "Given a list of operand ranges,
-        what is the subportion of the iteration space involved in the
-        computation". This is the inverse problem of `get_loops_to_shapes_map`.
-        Return the empty AffineMap when such an AffineMap cannot be
-        constructed. The default behavior is based on a very simple inference
-        procedure that only works with permutation affine maps. A more advanced
-        Tensor-Comprehension like inference is possible but has proven to be
-        ambiguous in unfavorable case. A safer and more robust alternative is
-        to allow each op to define its own AffineMap.
-        """
-        loops_to_shapes = self.get_loops_to_shapes_map()
-        inverse = loops_to_shapes.inverse_permutation()
-        if not inverse:
-            raise NotImplementedError(
-                "Non-invertible maps need dynamic shapes, which are not implemented."
-            )
-        return inverse
-
-    def get_static_shapes(self) -> list[int]:
-        sizes: list[int] = []
-        for input in self.memref_inputs:
-            if isinstance(input.type, ShapedType):
-                for dim in input.type.get_shape():
-                    sizes.append(dim)
-        for output in self.memref_outputs:
-            if isinstance(output.type, ShapedType):
-                for dim in output.type.get_shape():
-                    sizes.append(dim)
-        return sizes
-
-    def get_static_loop_ranges(self) -> list[int]:
-        if self.iter_count:
-            return [self.iter_count.data]
-
-        shapes_to_loops = self.get_shapes_to_loops_map()
-        return shapes_to_loops.eval(self.get_static_shapes(), [])
 
 
 @irdl_op_definition
@@ -224,11 +134,11 @@ class WriteOp(IRDLOperation):
 
     T = Annotated[Attribute, ConstraintVar("T")]
 
-    value: Operand = operand_def(T)
     stream: Operand = operand_def(OutputStreamType[T])
+    value: Operand = operand_def(T)
 
     def __init__(self, value: SSAValue, stream: SSAValue):
-        super().__init__(operands=[value, stream])
+        super().__init__(operands=[stream, value])
 
     @classmethod
     def parse(cls, parser: Parser) -> WriteOp:
@@ -267,8 +177,7 @@ class YieldOp(IRDLOperation):
 @irdl_op_definition
 class StridedReadOp(IRDLOperation):
     """
-    Generates a stream reading from a memref sequentially. Currently only supports reading
-    each element in order.
+    Generates a stream reading from a memref sequentially.
     """
 
     name = "stream.strided_read"
@@ -276,21 +185,29 @@ class StridedReadOp(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     memref = operand_def(MemRefType[T])
-    stream = operand_def(InputStreamType[T])
+    stream = result_def(InputStreamType[T])
+    ub = attr_def(ArrayAttr[IntAttr])
+    indexing_map = attr_def(AffineMapAttr)
 
-    def __init__(self, memref: SSAValue):
+    def __init__(
+        self, memref: SSAValue, ub: ArrayAttr[IntAttr], indexing_map: AffineMapAttr
+    ):
         assert isinstance(memref.type, MemRefType)
         memref_type = cast(MemRefType[Attribute], memref.type)
         super().__init__(
-            operands=[memref], result_types=[InputStreamType(memref_type.element_type)]
+            operands=[memref],
+            result_types=[InputStreamType(memref_type.element_type)],
+            attributes={
+                "ub": ub,
+                "indexing_map": indexing_map,
+            },
         )
 
 
 @irdl_op_definition
 class StridedWriteOp(IRDLOperation):
     """
-    Generates a stream writing from a memref sequentially. Currently only supports writing
-    each element in order.
+    Generates a stream writing from a memref sequentially.
     """
 
     name = "stream.strided_write"
@@ -298,13 +215,22 @@ class StridedWriteOp(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     memref = operand_def(MemRefType[T])
-    stream = operand_def(OutputStreamType[T])
+    stream = result_def(OutputStreamType[T])
+    ub = attr_def(ArrayAttr[IntAttr])
+    indexing_map = attr_def(AffineMapAttr)
 
-    def __init__(self, memref: SSAValue):
+    def __init__(
+        self, memref: SSAValue, ub: ArrayAttr[IntAttr], indexing_map: AffineMapAttr
+    ):
         assert isinstance(memref.type, MemRefType)
         memref_type = cast(MemRefType[Attribute], memref.type)
         super().__init__(
-            operands=[memref], result_types=[OutputStreamType(memref_type.element_type)]
+            operands=[memref],
+            result_types=[OutputStreamType(memref_type.element_type)],
+            attributes={
+                "ub": ub,
+                "indexing_map": indexing_map,
+            },
         )
 
 

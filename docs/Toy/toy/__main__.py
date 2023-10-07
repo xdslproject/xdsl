@@ -110,7 +110,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         interpreter.register_implementations(AffineFunctions())
     if emit in ("linalg",):
         interpreter.register_implementations(LinalgFunctions())
-    if emit in ("stream",):
+    if emit in ("stream", "scf"):
         interpreter.register_implementations(StreamFunctions())
     if emit in ("affine", "scf", "linalg", "stream"):
         interpreter.register_implementations(ArithFunctions())
