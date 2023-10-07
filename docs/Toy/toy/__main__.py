@@ -11,7 +11,7 @@ from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.interpreters.scf import ScfFunctions
-from xdsl.interpreters.snitch_stream_functions import SnitchStreamFunctions
+from xdsl.interpreters.snitch_stream import SnitchStreamFunctions
 from xdsl.interpreters.stream import StreamFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer

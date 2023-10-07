@@ -13,7 +13,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
-from xdsl.interpreters.riscv import RawPtr
+from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.stream import InputStream, OutputStream
 
 
@@ -64,6 +64,9 @@ class SnitchStreamFunctions(InterpreterFunctions):
 
         for _ in product(*(range(loop_range.data) for loop_range in loop_ranges)):
             loop_args = tuple(i.read() for i in input_streams)
+            loop_args = RiscvFunctions.set_reg_values(
+                interpreter, op.body.block.args, loop_args
+            )
             loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
             for o, r in zip(output_streams, loop_results):
                 o.write(r)
