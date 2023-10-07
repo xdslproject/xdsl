@@ -35,6 +35,7 @@ from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
+from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
 
 from .dialects import toy
 from .emulator.toy_accelerator_instructions import ToyAccelerator
@@ -157,6 +158,7 @@ def _riscv_opt_passes() -> Iterator[ModulePass]:
 def _riscv_regalloc_passes() -> Iterator[ModulePass]:
     yield from _riscv_opt_passes()
 
+    yield SnitchRegisterAllocation()
     yield RISCVRegisterAllocation()
 
 
