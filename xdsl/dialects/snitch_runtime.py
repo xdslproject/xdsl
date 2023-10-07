@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Annotated, Generic, TypeVar
 
-from xdsl.dialects.builtin import IndexType, i32, i64
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.dialects import riscv
+from xdsl.ir import Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     Operand,
     VarOperand,
@@ -16,12 +14,6 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.utils.exceptions import VerifyException
-
-# Transfer ID
-tx_id = i32
-# Indicates address range in memory, a "memory slice"
-slice_t_begin = i64
-slice_t_end = i64
 
 
 class SnitchRuntimeBaseOperation(IRDLOperation, ABC):
@@ -42,12 +34,10 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOperation, ABC):
     A base class for snitch runtime functions that get a certain value at runtime
     """
 
-    result: OpResult = result_def(i32)
+    result: OpResult = result_def(riscv.IntRegisterType)
 
-    def __init__(
-        self,
-    ):
-        super().__init__(result_types=[i32])
+    def __init__(self, rd: riscv.IntRegisterType):
+        super().__init__(result_types=[rd])
 
 
 class NoOperandNoResultBaseOperation(SnitchRuntimeBaseOperation, ABC):
@@ -250,9 +240,6 @@ class GlobalBarrierOp(NoOperandNoResultBaseOperation):
     name = "snrt.global_barrier"
 
 
-_T = TypeVar("_T", bound=Attribute)
-
-
 @irdl_op_definition
 class BarrierRegPtrOp(SnitchRuntimeGetInfo):
     """
@@ -267,13 +254,18 @@ class GetMemoryInfoBaseOperation(SnitchRuntimeBaseOperation, ABC):
     Generic base class for operations returning memory slices
     """
 
-    slice_begin: OpResult = result_def(slice_t_begin)
-    slice_end: OpResult = result_def(slice_t_end)
+    slice_begin: OpResult = result_def(riscv.IntRegisterType)
+    slice_end: OpResult = result_def(riscv.IntRegisterType)
 
     def __init__(
         self,
     ):
-        super().__init__(result_types=[slice_t_begin, slice_t_end])
+        super().__init__(
+            result_types=[
+                riscv.IntRegisterType.unallocated(),
+                riscv.IntRegisterType.unallocated(),
+            ]
+        )
 
 
 @irdl_op_definition
@@ -303,39 +295,38 @@ class ZeroMemoryOp(GetMemoryInfoBaseOperation):
     name = "snrt.zero_memory"
 
 
-class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
+class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, ABC):
     """
     Initiate an asynchronous 1D DMA transfer
     """
 
-    T = Annotated[Attribute, ConstraintVar("T"), _T]
-    dst: Operand = operand_def(T)
-    src: Operand = operand_def(T)
-    size: Operand = operand_def(IndexType)
-    transfer_id: OpResult = result_def(tx_id)
+    dst: Operand = operand_def(riscv.IntRegisterType)
+    src: Operand = operand_def(riscv.IntRegisterType)
+    size: Operand = operand_def(riscv.IntRegisterType)
+    transfer_id: OpResult = result_def(riscv.IntRegisterType)
 
     def __init__(
         self,
         dst: Operation | SSAValue,
         src: Operation | SSAValue,
         size: Operation | SSAValue,
+        rd: riscv.IntRegisterType,
     ):
-        super().__init__(operands=[dst, src, size], result_types=[tx_id])
+        super().__init__(operands=[dst, src, size], result_types=[rd])
 
 
-class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
+class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, ABC):
     """
     Generic base class for starting asynchronous 2D DMA transfers
     """
 
-    T = Annotated[Attribute, ConstraintVar("T"), _T]
-    dst: Operand = operand_def(T)
-    src: Operand = operand_def(T)
-    dst_stride: Operand = operand_def(IndexType)
-    src_stride: Operand = operand_def(IndexType)
-    size: Operand = operand_def(IndexType)
-    repeat: Operand = operand_def(IndexType)
-    transfer_id: OpResult = result_def(tx_id)
+    dst: Operand = operand_def(riscv.IntRegisterType)
+    src: Operand = operand_def(riscv.IntRegisterType)
+    dst_stride: Operand = operand_def(riscv.IntRegisterType)
+    src_stride: Operand = operand_def(riscv.IntRegisterType)
+    size: Operand = operand_def(riscv.IntRegisterType)
+    repeat: Operand = operand_def(riscv.IntRegisterType)
+    transfer_id: OpResult = result_def(riscv.IntRegisterType)
 
     def __init__(
         self,
@@ -345,15 +336,16 @@ class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
         src_stride: Operation | SSAValue,
         size: Operation | SSAValue,
         repeat: Operation | SSAValue,
+        rd: riscv.IntRegisterType,
     ):
         super().__init__(
             operands=[dst, src, dst_stride, src_stride, size, repeat],
-            result_types=[tx_id],
+            result_types=[rd],
         )
 
 
 @irdl_op_definition
-class DmaStart1DOp(DmaStart1DBaseOperation[Annotated[Attribute, i32]]):
+class DmaStart1DOp(DmaStart1DBaseOperation):
     """
     Initiate an asynchronous 1D DMA transfer with 32-bits pointers
     """
@@ -362,7 +354,7 @@ class DmaStart1DOp(DmaStart1DBaseOperation[Annotated[Attribute, i32]]):
 
 
 @irdl_op_definition
-class DmaStart1DWideptrOp(DmaStart1DBaseOperation[Annotated[Attribute, i64]]):
+class DmaStart1DWideptrOp(DmaStart1DBaseOperation):
     """
     Initiate an asynchronous 1D DMA transfer with 64-bits wide pointers
     """
@@ -371,7 +363,7 @@ class DmaStart1DWideptrOp(DmaStart1DBaseOperation[Annotated[Attribute, i64]]):
 
 
 @irdl_op_definition
-class DmaStart2DOp(DmaStart2DBaseOperation[Annotated[Attribute, i32]]):
+class DmaStart2DOp(DmaStart2DBaseOperation):
     """
     Initiate an asynchronous 2D DMA transfer with 32-bits pointers
     """
@@ -380,7 +372,7 @@ class DmaStart2DOp(DmaStart2DBaseOperation[Annotated[Attribute, i32]]):
 
 
 @irdl_op_definition
-class DmaStart2DWideptrOp(DmaStart2DBaseOperation[Annotated[Attribute, i64]]):
+class DmaStart2DWideptrOp(DmaStart2DBaseOperation):
     """
     Initiate an asynchronous 2D DMA transfer with 64-bits wide pointers
     """
@@ -395,7 +387,7 @@ class DmaWaitOp(SnitchRuntimeBaseOperation):
     """
 
     name = "snrt.dma_wait"
-    transfer_id: Operand = operand_def(tx_id)
+    transfer_id: Operand = operand_def(riscv.IntRegisterType)
 
     def __init__(self, transfer_id: Operation | SSAValue):
         super().__init__(operands=[transfer_id])
@@ -425,7 +417,7 @@ The different SSR data movers.
     SNRT_SSR_DM1 = 1,
     SNRT_SSR_DM2 = 2,
 """
-ssr_dm = i32
+ssr_dm = riscv.IntRegisterType
 
 """
 The different dimensions - those determine how many levels of nesting a loop can have, used in read and write operations.
@@ -435,7 +427,7 @@ The snitch system handles cases with up to 4, but this can be extended.
     SNRT_SSR_3D = 2,
     SNRT_SSR_4D = 3,
 """
-ssr_dim = i32
+ssr_dim = riscv.IntRegisterType
 
 
 class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
@@ -451,9 +443,9 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     }
     """
 
-    data_mover: Operand = operand_def(ssr_dm)
-    bounds: VarOperand = var_operand_def(IndexType)
-    strides: VarOperand = var_operand_def(IndexType)
+    data_mover: Operand = operand_def(riscv.IntRegisterType)
+    bounds: VarOperand = var_operand_def(riscv.IntRegisterType)
+    strides: VarOperand = var_operand_def(riscv.IntRegisterType)
     irdl_options = [AttrSizedOperandSegments()]
 
     def verify_(self) -> None:
@@ -539,8 +531,8 @@ class SsrRepeatOp(SnitchRuntimeBaseOperation, ABC):
     """
 
     name = "snrt.ssr_repeat"
-    dm: Operand = operand_def(ssr_dm)
-    count: Operand = operand_def(IndexType)
+    dm: Operand = operand_def(riscv.IntRegisterType)
+    count: Operand = operand_def(riscv.IntRegisterType)
 
     def __init__(
         self,
@@ -571,7 +563,7 @@ class SsrDisableOp(NoOperandNoResultBaseOperation):
 class SsrReadWriteBaseOperation(SnitchRuntimeBaseOperation, ABC):
     dm: Operand = operand_def(ssr_dm)
     dim: Operand = operand_def(ssr_dim)
-    ptr: Operand = operand_def(i32)
+    ptr: Operand = operand_def(riscv.IntRegisterType)
 
     def __init__(
         self,
