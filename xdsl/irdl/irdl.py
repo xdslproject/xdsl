@@ -26,6 +26,7 @@ from typing import (
 
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     Block,
     Data,
     Operation,
@@ -35,7 +36,6 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.core import AttributeInvT
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     ParseError,
@@ -585,7 +585,7 @@ class AttrSizedResultSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    attribute_name = "result_segment_sizes"
+    attribute_name = "resultSegmentSizes"
     """Name of the attribute containing the variadic result sizes."""
 
 
@@ -597,7 +597,7 @@ class AttrSizedRegionSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    attribute_name = "region_segment_sizes"
+    attribute_name = "regionSegmentSizes"
     """Name of the attribute containing the variadic region sizes."""
 
 
@@ -609,7 +609,7 @@ class AttrSizedSuccessorSegments(AttrSizedSegments):
     See `AttrSizedSegments` for more information.
     """
 
-    attribute_name = "successor_segment_sizes"
+    attribute_name = "successorSegmentSizes"
     """Name of the attribute containing the variadic successor sizes."""
 
 

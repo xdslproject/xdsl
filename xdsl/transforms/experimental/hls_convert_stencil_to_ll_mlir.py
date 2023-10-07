@@ -43,8 +43,16 @@ from xdsl.dialects.stencil import (
     StencilBoundsAttr,
     TempType,
 )
-from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue
-from xdsl.ir.core import Block, BlockArgument, Region
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    MLContext,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -96,14 +104,14 @@ def gen_duplicate_loop(
             hls_write.attributes["duplicate"] = IntAttr(1)
             builder.insert(hls_write)
 
-        yield_op = scf.Yield.get()
+        yield_op = scf.Yield()
         builder.insert(yield_op)
 
     lb = Constant.from_int_and_width(0, IndexType())
     ub = n
     step = Constant.from_int_and_width(1, IndexType())
 
-    for_duplicate = scf.For.get(lb, ub, step, [], for_body)
+    for_duplicate = scf.For(lb, ub, step, [], for_body)
 
     return [ii, lb, ub, step, for_duplicate]
 
@@ -361,7 +369,7 @@ def transform_apply_into_loop(
 ):
     body = prepare_apply_body(op, rewriter)
 
-    body.block.add_op(scf.Yield.get())
+    body.block.add_op(scf.Yield())
     dim: int = ndim
     assert dim == 3
 
@@ -419,7 +427,7 @@ def transform_apply_into_loop(
     current_region = body
     for_op_lst: list[scf.For] = []
     for i in range(1, dim + 1):
-        for_op = scf.For.get(
+        for_op = scf.For(
             lb=lowerBounds[-i],
             ub=upperBounds[-i],
             step=one,
@@ -427,7 +435,7 @@ def transform_apply_into_loop(
             body=current_region,
         )
         for_op_lst.append(for_op)
-        block = Block(ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()])
+        block = Block(ops=[for_op, scf.Yield()], arg_types=[builtin.IndexType()])
         current_region = Region(block)
 
         # if i == 2:
@@ -442,9 +450,9 @@ def transform_apply_into_loop(
             )
 
     y_for_op = for_op_lst[1]
-    p = scf.ParallelOp.get(
-        lowerBounds=[lowerBounds[0]],
-        upperBounds=[upperBounds[0]],
+    p = scf.ParallelOp(
+        lower_bounds=[lowerBounds[0]],
+        upper_bounds=[upperBounds[0]],
         steps=[one],
         body=current_region,
     )
@@ -1172,10 +1180,10 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
                     builder.insert(load_op)
                     builder.insert(store_op)
 
-                yield_op = scf.Yield.get()
+                yield_op = scf.Yield()
                 builder.insert(yield_op)
 
-            for_local_copies = scf.For.get(lb, ub, step, [], for_body)
+            for_local_copies = scf.For(lb, ub, step, [], for_body)
             rewriter.insert_op_before_matched_op([lb, ub, step, ii, for_local_copies])
 
             self.inserted_already = True

@@ -17,8 +17,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
 )
 from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
-from xdsl.ir import Dialect, Operation, OpResult, SSAValue
-from xdsl.ir.core import Attribute
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AnyOf,
     ConstraintVar,

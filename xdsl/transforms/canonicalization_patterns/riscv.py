@@ -2,7 +2,7 @@ from typing import cast
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.ir.core import OpResult
+from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -272,6 +272,44 @@ class StoreFloatWordWithKnownOffset(RewritePattern):
         ):
             rewriter.replace_matched_op(
                 riscv.FSwOp(
+                    op.rs1.op.rs1,
+                    op.rs2,
+                    op.rs1.op.immediate.value.data + op.immediate.value.data,
+                    comment=op.comment,
+                )
+            )
+
+
+class LoadDoubleWithKnownOffset(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.FLdOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.AddiOp)
+            and isinstance(op.rs1.op.immediate, IntegerAttr)
+            and isinstance(op.immediate, IntegerAttr)
+        ):
+            rd = cast(riscv.FloatRegisterType, op.rd.type)
+            rewriter.replace_matched_op(
+                riscv.FLdOp(
+                    op.rs1.op.rs1,
+                    op.rs1.op.immediate.value.data + op.immediate.value.data,
+                    rd=rd,
+                    comment=op.comment,
+                )
+            )
+
+
+class StoreDoubleWithKnownOffset(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.FSdOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.AddiOp)
+            and isinstance(op.rs1.op.immediate, IntegerAttr)
+        ):
+            rewriter.replace_matched_op(
+                riscv.FSdOp(
                     op.rs1.op.rs1,
                     op.rs2,
                     op.rs1.op.immediate.value.data + op.immediate.value.data,

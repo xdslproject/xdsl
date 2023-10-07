@@ -3475,6 +3475,70 @@ class FSwOp(RsRsImmFloatOperation):
 
 
 @irdl_op_definition
+class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Perform double-precision floating-point addition.
+
+    f[rd] = f[rs1]+f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fadd-d
+    """
+
+    name = "riscv.fadd.d"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Perform double-precision floating-point substraction.
+
+    f[rd] = f[rs1]-f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fsub-d
+    """
+
+    name = "riscv.fsub.d"
+
+
+@irdl_op_definition
+class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Perform double-precision floating-point multiplication.
+
+    f[rd] = f[rs1]×f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmul-d
+    """
+
+    name = "riscv.fmul.d"
+
+
+@irdl_op_definition
+class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Perform double-precision floating-point division.
+
+    f[rd] = f[rs1] / f[rs2]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fdiv-d
+    """
+
+    name = "riscv.fdiv.d"
+
+
+class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadDoubleWithKnownOffset,
+        )
+
+        return (LoadDoubleWithKnownOffset(),)
+
+
+@irdl_op_definition
 class FLdOp(RdRsImmFloatOperation):
     """
     Load a double-precision value from memory into floating-point register rd.
@@ -3486,6 +3550,8 @@ class FLdOp(RdRsImmFloatOperation):
 
     name = "riscv.fld"
 
+    traits = frozenset((FLdOpHasCanonicalizationPatternTrait(),))
+
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
         value = _assembly_arg_str(self.rd)
@@ -3494,6 +3560,16 @@ class FLdOp(RdRsImmFloatOperation):
         return _assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
+
+
+class FSdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            StoreDoubleWithKnownOffset,
+        )
+
+        return (StoreDoubleWithKnownOffset(),)
 
 
 @irdl_op_definition
@@ -3507,6 +3583,8 @@ class FSdOp(RsRsImmFloatOperation):
     """
 
     name = "riscv.fsd"
+
+    traits = frozenset((FSdOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3695,6 +3773,10 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FAddDOp,
+        FSubDOp,
+        FMulDOp,
+        FDivDOp,
         FLdOp,
         FSdOp,
         VFAddSOp,

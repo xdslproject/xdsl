@@ -1159,7 +1159,7 @@ class Block(IRNode):
     _first_op: Operation | None = field(repr=False)
     _last_op: Operation | None = field(repr=False)
 
-    parent: Region | None
+    parent: Region | None = field(default=None, repr=False)
     """Parent region containing the block."""
 
     def __init__(
