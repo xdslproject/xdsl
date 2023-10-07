@@ -11,9 +11,8 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import AffineMapAttr, Float64Type, ModuleOp
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import MLContext
+from xdsl.ir import Block, MLContext, Region
 from xdsl.ir.affine.affine_map import AffineMap
-from xdsl.ir.core import Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

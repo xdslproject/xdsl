@@ -41,9 +41,10 @@ from .emulator.toy_accelerator_instructions import ToyAccelerator
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
-from .rewrites.lower_linalg_affine import LinalgToAffinePass
+from .rewrites.lower_linalg_stream import LinalgToStreamPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
+from .rewrites.lower_stream_affine import StreamToAffinePass
 from .rewrites.lower_toy_linalg import LowerToLinalgPass
 from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
@@ -95,9 +96,14 @@ def _linalg_passes() -> Iterator[ModulePass]:
     yield LowerToLinalgPass()
 
 
-def _affine_passes() -> Iterator[ModulePass]:
+def _stream_passes() -> Iterator[ModulePass]:
     yield from _linalg_passes()
-    yield LinalgToAffinePass()
+    yield LinalgToStreamPass()
+
+
+def _affine_passes() -> Iterator[ModulePass]:
+    yield from _stream_passes()
+    yield StreamToAffinePass()
 
 
 def _scf_passes() -> Iterator[ModulePass]:
@@ -156,8 +162,9 @@ def pass_pipeline(target: str) -> PassPipelinePass:
         "toy-opt": _toy_opt_passes,
         "toy-inline": _toy_inline_passes,
         "toy-infer-shapes": _toy_infer_shapes_passes,
-        "affine": _affine_passes,
         "linalg": _linalg_passes,
+        "stream": _stream_passes,
+        "affine": _affine_passes,
         "scf": _scf_passes,
         "riscv": _riscv_passes,
         "riscv-opt": _riscv_opt_passes,

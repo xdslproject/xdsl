@@ -11,6 +11,7 @@ from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.interpreters.scf import ScfFunctions
+from xdsl.interpreters.stream import StreamFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
@@ -35,6 +36,7 @@ parser.add_argument(
         "toy-infer-shapes",
         "affine",
         "linalg",
+        "stream",
         "scf",
         "riscv",
         "riscv-opt",
@@ -104,11 +106,13 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
     interpreter = Interpreter(module_op)
     if emit in ("toy", "toy-opt", "toy-inline", "toy-infer-shapes"):
         interpreter.register_implementations(ToyFunctions())
-    if emit in ("affine", "linalg"):
+    if emit in ("affine", "linalg", "stream"):
         interpreter.register_implementations(AffineFunctions())
     if emit in ("linalg",):
         interpreter.register_implementations(LinalgFunctions())
-    if emit in ("affine", "scf", "linalg"):
+    if emit in ("stream",):
+        interpreter.register_implementations(StreamFunctions())
+    if emit in ("affine", "scf", "linalg", "stream"):
         interpreter.register_implementations(ArithFunctions())
         interpreter.register_implementations(MemrefFunctions())
         interpreter.register_implementations(PrintfFunctions())
