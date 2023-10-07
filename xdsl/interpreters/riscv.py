@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 import struct
-from collections.abc import Callable, Iterator, MutableSequence, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeAlias, TypeVar
 
@@ -133,7 +133,7 @@ class TypedPtr(Generic[_T]):
     def get_list(self, count: int) -> list[_T]:
         return self.raw.get_list(self.format, count)
 
-    def __getitem__(self, index: int) -> _T | MutableSequence[_T]:
+    def __getitem__(self, index: int) -> _T:
         return (self.raw + index * self.size).get(self.format)
 
     def __setitem__(self, index: int, value: _T):

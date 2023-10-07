@@ -46,6 +46,7 @@ from .rewrites.lower_linalg_stream import LinalgToStreamPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
 from .rewrites.lower_stream_scf import StreamToScfPass
+from .rewrites.lower_stream_snitch_stream import StreamToSnitchStreamPass
 from .rewrites.lower_toy_linalg import LowerToLinalgPass
 from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
@@ -113,6 +114,21 @@ def _scf_passes() -> Iterator[ModulePass]:
     yield LowerAffinePass()
 
 
+def _snitch_stream_passes() -> Iterator[ModulePass]:
+    yield from _stream_passes()
+    yield StreamToSnitchStreamPass()
+    yield LowerAffinePass()
+    yield SetupRiscvPass()
+    yield ConvertFuncToRiscvFuncPass()
+    yield LowerMemrefToRiscv()
+    yield ConvertMemrefToRiscvPass()
+    yield LowerPrintfRiscvPass()
+    yield ConvertArithToRiscvPass()
+    yield ConvertScfToRiscvPass()
+    yield DeadCodeElimination()
+    yield ReconcileUnrealizedCastsPass()
+
+
 def _riscv_passes() -> Iterator[ModulePass]:
     yield from _affine_passes()
     yield LowerAffinePass()
@@ -169,6 +185,7 @@ def pass_pipeline(target: str) -> PassPipelinePass:
         "stream": _stream_passes,
         "affine": _affine_passes,
         "scf": _scf_passes,
+        "snitch-stream": _snitch_stream_passes,
         "riscv": _riscv_passes,
         "riscv-opt": _riscv_opt_passes,
         "riscv-regalloc": _riscv_regalloc_passes,

@@ -11,6 +11,7 @@ from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.interpreters.scf import ScfFunctions
+from xdsl.interpreters.snitch_stream_functions import SnitchStreamFunctions
 from xdsl.interpreters.stream import StreamFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
@@ -38,6 +39,7 @@ parser.add_argument(
         "linalg",
         "stream",
         "scf",
+        "snitch-stream",
         "riscv",
         "riscv-opt",
         "riscv-regalloc",
@@ -112,6 +114,8 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         interpreter.register_implementations(LinalgFunctions())
     if emit in ("stream", "scf"):
         interpreter.register_implementations(StreamFunctions())
+    if emit in ("snitch-stream"):
+        interpreter.register_implementations(SnitchStreamFunctions())
     if emit in ("affine", "scf", "linalg", "stream"):
         interpreter.register_implementations(ArithFunctions())
         interpreter.register_implementations(MemrefFunctions())
@@ -120,7 +124,13 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
     if emit == "scf":
         interpreter.register_implementations(ScfFunctions())
 
-    if emit in ("riscv", "riscv-opt", "riscv-regalloc", "riscv-regalloc-opt"):
+    if emit in (
+        "snitch-stream",
+        "riscv",
+        "riscv-opt",
+        "riscv-regalloc",
+        "riscv-regalloc-opt",
+    ):
         interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
         interpreter.register_implementations(RiscvScfFunctions())
