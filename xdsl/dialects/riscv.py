@@ -2762,7 +2762,6 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
         self,
         max_rep: SSAValue | Operation,
         body: Sequence[Operation] | Sequence[Block] | Region,
-        max_inst: IntAttr,
         stagger_mask: IntAttr,
         stagger_count: IntAttr,
     ):
@@ -2770,7 +2769,6 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
             operands=(max_rep,),
             regions=(body,),
             attributes={
-                "max_inst": max_inst,
                 "stagger_mask": stagger_mask,
                 "stagger_count": stagger_count,
             },
