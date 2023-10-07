@@ -2700,7 +2700,7 @@ class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class ScfgwOp(RsRsIntegerOperation):
+class ScfgwOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
     Write the value in rs1 to the Snitch stream configuration
     location pointed by rs2 in the memory-mapped address space.
@@ -2713,6 +2713,10 @@ class ScfgwOp(RsRsIntegerOperation):
     name = "riscv.scfgw"
 
     traits = frozenset((ScfgwOpHasCanonicalizationPatternsTrait(),))
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        # rd is always zero, so we omit it when printing assembly
+        return self.rs1, self.rs2
 
 
 @irdl_op_definition
