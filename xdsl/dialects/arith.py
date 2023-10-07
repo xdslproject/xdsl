@@ -133,11 +133,13 @@ class Constant(IRDLOperation):
     def from_float_and_width(
         value: float | FloatAttr[_FloatTypeT], value_type: _FloatTypeT
     ) -> Constant:
-        if isinstance(value, float):
-            value_attr = FloatAttr(value, value_type)
+        if isinstance(value, FloatAttr):
+            value_attr = value
         else:
-            value_attr: FloatAttr[_FloatTypeT] = value
-        return Constant(value_attr, value_type)
+            value_attr = FloatAttr(value, value_type)
+        return Constant.create(
+            result_types=[value_type], properties={"value": value_attr}
+        )
 
     def print(self, printer: Printer):
         printer.print_op_attributes(self.attributes)
