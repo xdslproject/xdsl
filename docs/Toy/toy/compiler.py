@@ -128,6 +128,7 @@ def _snitch_stream_passes() -> Iterator[ModulePass]:
     yield ConvertScfToRiscvPass()
     yield DeadCodeElimination()
     yield ReconcileUnrealizedCastsPass()
+    yield SnitchRegisterAllocation()
 
 
 def _riscv_passes() -> Iterator[ModulePass]:
@@ -158,7 +159,6 @@ def _riscv_opt_passes() -> Iterator[ModulePass]:
 def _riscv_regalloc_passes() -> Iterator[ModulePass]:
     yield from _riscv_opt_passes()
 
-    yield SnitchRegisterAllocation()
     yield RISCVRegisterAllocation()
 
 
