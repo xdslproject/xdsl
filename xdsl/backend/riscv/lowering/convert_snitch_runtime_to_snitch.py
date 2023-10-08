@@ -124,8 +124,8 @@ class LowerSnrtLoop2d(RewritePattern):
         )
 
 
-class SnitchRuntimeCallsToSnicthPass(ModulePass):
-    name = "convert_snitch_runtime_to_snitch"
+class ConvertSnitchRuntimeToSnitchPass(ModulePass):
+    name = "convert-snitch-runtime-to-snitch"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
