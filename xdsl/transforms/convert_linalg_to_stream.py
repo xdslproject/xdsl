@@ -62,8 +62,8 @@ class LowerYieldOp(RewritePattern):
         rewriter.replace_matched_op(stream.YieldOp(*op.operands))
 
 
-class LinalgToStreamPass(ModulePass):
-    name = "linalg-to-stream"
+class ConvertLinalgToStreamPass(ModulePass):
+    name = "convert-linalg-to-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(

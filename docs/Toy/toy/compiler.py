@@ -14,6 +14,9 @@ from xdsl.backend.riscv.lowering.convert_snitch_runtime_to_snitch import (
 from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch_runtime import (
     ConvertSnitchStreamToSnitchRuntime,
 )
+from xdsl.backend.riscv.lowering.convert_stream_to_snitch_stream import (
+    ConvertStreamToSnitchStreamPass,
+)
 from xdsl.backend.riscv.lowering.reduce_register_pressure import (
     RiscvReduceRegisterPressurePass,
 )
@@ -36,6 +39,7 @@ from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PassPipelinePass
 from xdsl.transforms.canonicalize import CanonicalizePass
+from xdsl.transforms.convert_linalg_to_stream import ConvertLinalgToStreamPass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_affine import LowerAffinePass
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
@@ -51,11 +55,9 @@ from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
 from .rewrites.lower_linalg_affine import LinalgToAffinePass
-from .rewrites.lower_linalg_stream import LinalgToStreamPass
 from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_printf_riscv import LowerPrintfRiscvPass
 from .rewrites.lower_stream_scf import StreamToScfPass
-from .rewrites.lower_stream_snitch_stream import StreamToSnitchStreamPass
 from .rewrites.lower_toy_linalg import LowerToLinalgPass
 from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
@@ -110,7 +112,7 @@ def _linalg_passes() -> Iterator[ModulePass]:
 
 def _stream_passes() -> Iterator[ModulePass]:
     yield from _linalg_passes()
-    yield LinalgToStreamPass()
+    yield ConvertLinalgToStreamPass()
 
 
 def _affine_passes() -> Iterator[ModulePass]:
@@ -126,7 +128,7 @@ def _scf_passes() -> Iterator[ModulePass]:
 
 def _snitch_stream_passes() -> Iterator[ModulePass]:
     yield from _stream_passes()
-    yield StreamToSnitchStreamPass()
+    yield ConvertStreamToSnitchStreamPass()
     yield LowerAffinePass()
     yield SetupRiscvPass()
     yield ConvertFuncToRiscvFuncPass()

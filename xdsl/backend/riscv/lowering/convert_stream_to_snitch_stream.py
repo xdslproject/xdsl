@@ -125,8 +125,8 @@ class LowerStridedWriteOp(RewritePattern):
         )
 
 
-class StreamToSnitchStreamPass(ModulePass):
-    name = "stream-to-snitch-stream"
+class ConvertStreamToSnitchStreamPass(ModulePass):
+    name = "convert-stream-to-snitch-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         # Lower yield before generic
