@@ -2876,7 +2876,7 @@ class FrepOuter(FRepOperation):
     name = "riscv.frep_outer"
 
     def assembly_instruction_name(self) -> str:
-        return "frep.outer"
+        return "frep.o"
 
 
 @irdl_op_definition
@@ -2907,7 +2907,7 @@ class FrepInner(FRepOperation):
     name = "riscv.frep_inner"
 
     def assembly_instruction_name(self) -> str:
-        return "frep.inner"
+        return "frep.i"
 
 
 @irdl_op_definition
