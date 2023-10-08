@@ -1531,7 +1531,12 @@ class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.mv"
 
-    traits = frozenset((MVHasCanonicalizationPatternsTrait(),))
+    traits = frozenset(
+        (
+            Pure(),
+            MVHasCanonicalizationPatternsTrait(),
+        )
+    )
 
 
 class FMVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
@@ -1556,7 +1561,12 @@ class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
     name = "riscv.fmv.s"
 
-    traits = frozenset((FMVHasCanonicalizationPatternsTrait(),))
+    traits = frozenset(
+        (
+            Pure(),
+            FMVHasCanonicalizationPatternsTrait(),
+        )
+    )
 
 
 ## Integer Register-Register Operations
@@ -3523,6 +3533,8 @@ class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
     """
 
     name = "riscv.fmul.d"
+
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
