@@ -1340,10 +1340,14 @@ class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
+            AddImmediateConstant,
             AddImmediateZero,
         )
 
-        return (AddImmediateZero(),)
+        return (
+            AddImmediateZero(),
+            AddImmediateConstant(),
+        )
 
 
 @irdl_op_definition
