@@ -24,6 +24,7 @@ from xdsl.dialects import (
     affine,
     arith,
     func,
+    linalg,
     memref,
     printf,
     riscv,
@@ -66,6 +67,7 @@ def context() -> MLContext:
     ctx.register_dialect(arith.Arith)
     ctx.register_dialect(Builtin)
     ctx.register_dialect(func.Func)
+    ctx.register_dialect(linalg.Linalg)
     ctx.register_dialect(memref.MemRef)
     ctx.register_dialect(printf.Printf)
     ctx.register_dialect(riscv_func.RISCV_Func)

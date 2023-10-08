@@ -2727,6 +2727,11 @@ class ScfgwOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]
     traits = frozenset((ScfgwOpHasCanonicalizationPatternTrait(),))
 
 
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        # rd is always zero, so we omit it when printing assembly
+        return self.rs1, self.rs2
+
+
 @irdl_op_definition
 class ScfgwiOp(RdRsImmIntegerOperation):
     """
