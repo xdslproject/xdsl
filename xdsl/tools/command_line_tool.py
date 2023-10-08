@@ -10,6 +10,9 @@ from xdsl.backend.riscv.lowering import (
     convert_func_to_riscv_func,
     convert_memref_to_riscv,
     convert_scf_to_riscv_scf,
+    convert_snitch_runtime_to_snitch,
+    convert_snitch_stream_to_snitch_runtime,
+    convert_stream_to_snitch_stream,
     reduce_register_pressure,
 )
 from xdsl.dialects.affine import Affine
@@ -50,6 +53,7 @@ from xdsl.passes import ModulePass
 from xdsl.transforms import (
     canonicalize,
     canonicalize_dmp,
+    convert_linalg_to_stream,
     dead_code_elimination,
     lower_affine,
     lower_mpi,
@@ -62,6 +66,7 @@ from xdsl.transforms import (
     reconcile_unrealized_casts,
     riscv_register_allocation,
     riscv_scf_loop_range_folding,
+    snitch_register_allocation,
 )
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
@@ -117,7 +122,11 @@ def get_all_passes() -> list[type[ModulePass]]:
     return [
         canonicalize.CanonicalizePass,
         canonicalize_dmp.CanonicalizeDmpPass,
+        convert_linalg_to_stream.ConvertLinalgToStreamPass,
+        convert_snitch_runtime_to_snitch.ConvertSnitchRuntimeToSnitchPass,
+        convert_snitch_stream_to_snitch_runtime.ConvertSnitchStreamToSnitchRuntime,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
+        convert_stream_to_snitch_stream.ConvertStreamToSnitchStreamPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
         stencil_global_to_local.GlobalStencilToLocalStencil2DHorizontal,
@@ -133,6 +142,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         reduce_register_pressure.RiscvReduceRegisterPressurePass,
         riscv_register_allocation.RISCVRegisterAllocation,
         riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass,
+        snitch_register_allocation.SnitchRegisterAllocation,
         convert_arith_to_riscv.ConvertArithToRiscvPass,
         convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
         convert_memref_to_riscv.ConvertMemrefToRiscvPass,
