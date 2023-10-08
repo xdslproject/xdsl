@@ -40,6 +40,13 @@ parser.add_argument(
         "stream",
         "scf",
         "snitch-stream",
+        "snitch-runtime",
+        "snitch",
+        "snitch-opt",
+        "snitch-regalloc",
+        "snitch-regalloc-opt",
+        "snitch-lowered",
+        "snitch-asm",
         "riscv",
         "riscv-opt",
         "riscv-regalloc",
@@ -77,10 +84,15 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
                 print(f"Unknown file format {path}")
                 return
 
-    asm = emit == "riscv-asm"
+    asm_targets = {
+        "riscv-asm": "riscv-lowered",
+        "snitch-asm": "snitch-lowered",
+    }
+
+    asm = emit in asm_targets
 
     if asm:
-        emit = "riscv-lowered"
+        emit = asm_targets[emit]
 
     transform(ctx, module_op, target=emit)
 

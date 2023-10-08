@@ -8,6 +8,12 @@ from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
 )
 from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemrefToRiscvPass
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
+from xdsl.backend.riscv.lowering.convert_snitch_runtime_to_snitch import (
+    ConvertSnitchRuntimeToSnitchPass,
+)
+from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch_runtime import (
+    ConvertSnitchStreamToSnitchRuntime,
+)
 from xdsl.backend.riscv.lowering.reduce_register_pressure import (
     RiscvReduceRegisterPressurePass,
 )
@@ -32,6 +38,7 @@ from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_affine import LowerAffinePass
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
+from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
@@ -131,6 +138,51 @@ def _snitch_stream_passes() -> Iterator[ModulePass]:
     yield SnitchRegisterAllocation()
 
 
+def _snitch_runtime_passes() -> Iterator[ModulePass]:
+    yield from _snitch_stream_passes()
+
+    yield ConvertSnitchStreamToSnitchRuntime()
+
+
+def _snitch_passes() -> Iterator[ModulePass]:
+    yield from _snitch_runtime_passes()
+
+    yield ConvertSnitchRuntimeToSnitchPass()
+
+
+def _snitch_opt_passes() -> Iterator[ModulePass]:
+    yield from _snitch_passes()
+
+    yield LowerSnitchPass()
+    # Perform optimizations that don't depend on register allocation
+    # e.g. constant folding
+    yield CanonicalizePass()
+    yield RiscvScfLoopRangeFoldingPass()
+    yield CanonicalizePass()
+    yield RiscvReduceRegisterPressurePass()
+
+
+def _snitch_regalloc_passes() -> Iterator[ModulePass]:
+    yield from _snitch_opt_passes()
+
+    yield RISCVRegisterAllocation()
+
+
+def _snitch_regalloc_opt_passes() -> Iterator[ModulePass]:
+    yield from _snitch_regalloc_passes()
+
+    # Perform optimizations that depend on register allocation
+    # e.g. redundant moves
+    yield CanonicalizePass()
+
+
+def _snitch_lowered_passes() -> Iterator[ModulePass]:
+    yield from _snitch_regalloc_opt_passes()
+
+    yield LowerRISCVFunc(insert_exit_syscall=True)
+    yield LowerScfForToLabels()
+
+
 def _riscv_passes() -> Iterator[ModulePass]:
     yield from _affine_passes()
     yield LowerAffinePass()
@@ -188,6 +240,12 @@ def pass_pipeline(target: str) -> PassPipelinePass:
         "affine": _affine_passes,
         "scf": _scf_passes,
         "snitch-stream": _snitch_stream_passes,
+        "snitch-runtime": _snitch_runtime_passes,
+        "snitch": _snitch_passes,
+        "snitch-opt": _snitch_opt_passes,
+        "snitch-regalloc": _snitch_regalloc_passes,
+        "snitch-regalloc-opt": _snitch_regalloc_opt_passes,
+        "snitch-lowered": _snitch_lowered_passes,
         "riscv": _riscv_passes,
         "riscv-opt": _riscv_opt_passes,
         "riscv-regalloc": _riscv_regalloc_passes,

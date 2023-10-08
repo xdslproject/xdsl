@@ -2828,7 +2828,9 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
         if self.stagger_mask.data:
             raise VerifyException("Non-zero stagger mask currently unsupported")
         for instruction in self.body.ops:
-            if not instruction.has_trait(Pure):
+            if not instruction.has_trait(Pure) and not isinstance(
+                instruction, FrepYieldOp
+            ):
                 raise VerifyException(
                     "Frep operation body may not contain instructions "
                     f"with side-effects, found {instruction.name}"
@@ -2897,6 +2899,21 @@ class FrepInner(FRepOperation):
 
     def assembly_instruction_name(self) -> str:
         return "frep.inner"
+
+
+@irdl_op_definition
+class FrepYieldOp(IRDLOperation, RISCVOp):
+    name = "riscv.frep_yield"
+
+    values: VarOperand = var_operand_def()
+
+    traits = frozenset([IsTerminator()])
+
+    def __init__(self, *operands: SSAValue | Operation) -> None:
+        super().__init__(operands=[SSAValue.get(operand) for operand in operands])
+
+    def assembly_line(self) -> str | None:
+        return None
 
 
 # endregion
