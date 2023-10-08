@@ -453,6 +453,17 @@ class RiscvFunctions(InterpreterFunctions):
         results = ((args[0] + offset).float32[0],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.FMVOp)
+    def run_fmv(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMVOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = args
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     # endregion
 
     # region D extension
