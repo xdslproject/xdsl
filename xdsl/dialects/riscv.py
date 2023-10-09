@@ -2689,25 +2689,44 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 # region RISC-V Extensions
 
 
-@irdl_op_definition
-class ScfgwOp(RsRsIntegerOperation):
-    """
-    Write a the value in rs1 to the Snitch stream configuration
-    location pointed by rs2 in the memory-mapped address space.
+class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ScfgwOpUsingImmediate,
+        )
 
-    This is an extension of the RISC-V ISA.
+        return (ScfgwOpUsingImmediate(),)
+
+
+@irdl_op_definition
+class ScfgwOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+    """
+    Write the value in rs1 to the Snitch stream configuration
+    location pointed by rs2 in the memory-mapped address space.
+    Register rd is always fixed to zero.
+
+    This is a RISC-V ISA extension, part of the `Xssr' extension.
+    https://pulp-platform.github.io/snitch/rm/custom_instructions/
     """
 
     name = "riscv.scfgw"
+
+    traits = frozenset((ScfgwOpHasCanonicalizationPatternsTrait(),))
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        # rd is always zero, so we omit it when printing assembly
+        return self.rs1, self.rs2
 
 
 @irdl_op_definition
 class ScfgwiOp(RdRsImmIntegerOperation):
     """
-    Write the immediate value to the Snitch stream configuration location pointed by rs
-    in the memory-mapped address space.
+    Write the value in rs to the Snitch stream configuration location pointed by
+    immediate value in the memory-mapped address space.
 
-    This is part of the `Xssr' extension (https://pulp-platform.github.io/snitch/rm/custom_instructions/), an extension of the RISC-V ISA.
+    This is a RISC-V ISA extension, part of the `Xssr' extension.
+    https://pulp-platform.github.io/snitch/rm/custom_instructions/
     """
 
     name = "riscv.scfgwi"

@@ -81,6 +81,8 @@ builtin.module {
 
   %add_lhs_rhs = riscv.add %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
   "test.op"(%add_lhs_rhs) : (!riscv.reg<a0>) -> ()
+
+  riscv.scfgw %1, %0 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 }
 
 // CHECK: builtin.module {
@@ -157,5 +159,6 @@ builtin.module {
 // CHECK-NEXT:   %add_lhs_rhs_1 = riscv.mul %i1, %add_lhs_rhs : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_lhs_rhs_1) : (!riscv.reg<a0>) -> ()
 
+// CHECK-NEXT:  %{{.*}} = riscv.scfgwi %1, 0 : (!riscv.reg<>) -> !riscv.reg<>
 
 // CHECK-NEXT: }
