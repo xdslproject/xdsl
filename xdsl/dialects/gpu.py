@@ -45,9 +45,9 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
-from xdsl.irdl.irdl import traits_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -357,7 +357,7 @@ class MemcpyOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    traits = traits_def(lambda: frozenset([IsTerminator()]))
+    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ModuleOp)]))
 
     def __init__(self):
         return super().__init__()
