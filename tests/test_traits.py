@@ -35,11 +35,7 @@ from xdsl.irdl import (
     region_def,
     result_def,
 )
-from xdsl.traits import (
-    OptionalSymbolOpInterface,
-    SymbolOpInterface,
-    SymbolTable,
-)
+from xdsl.traits import OptionalSymbolOpInterface, SymbolOpInterface, SymbolTable
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -427,3 +423,31 @@ def test_symbol_table(SymbolOp: type[PropSymbolOp | SymbolOp]):
 
     assert SymbolTable.lookup_symbol(op, "name") is None
     assert SymbolTable.lookup_symbol(op, SymbolRefAttr("nested", ["name"])) is symbol
+
+
+def test_insert_symbol_if_not_exists():
+    @irdl_op_definition
+    class SymbolTableOp(IRDLOperation):
+        name = "test.symbol_table"
+
+        reg = region_def()
+
+        traits = frozenset([SymbolTable()])
+
+    # Check a flat happy case, with symbol lookup
+    symbol = SymbolOp("name")
+    symbol2 = SymbolOp("name2")
+    terminator = test.TestTermOp()
+
+    op = SymbolTableOp(regions=[Region(Block([symbol, terminator]))])
+    op.verify()
+
+    trait = op.get_trait(SymbolTable)
+    assert trait is not None
+
+    assert trait.insert_symbol_if_not_exists(op, symbol.clone()) is False
+    assert len(op.reg.ops) == 2
+
+    assert trait.insert_symbol_if_not_exists(op, symbol2) is True
+    assert len(op.reg.ops) == 3
+    assert symbol2 in list(op.reg.ops)

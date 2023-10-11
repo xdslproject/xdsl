@@ -264,6 +264,31 @@ class SymbolTable(OpTrait):
                 return SymbolTable.lookup_symbol(o, nested_name)
         return None
 
+    @staticmethod
+    def insert_symbol_if_not_exists(symbol_table_op: Operation, symbol_op: Operation):
+        trait = symbol_op.get_trait(SymbolOpInterface)
+
+        if trait is None:
+            raise ValueError(
+                "Passed symbol_op does not have the SymbolOpInterface trait"
+            )
+
+        symbol_name = trait.get_sym_attr_name(symbol_op)
+
+        if symbol_name is None:
+            raise ValueError("Passed symbol_op does not have a symbol attribute name")
+
+        tbl_trait = symbol_table_op.get_trait(SymbolTable)
+
+        if tbl_trait is None:
+            raise ValueError("Passed symbol_table_op does not have a SymbolTable trait")
+
+        if tbl_trait.lookup_symbol(symbol_table_op, symbol_name) is None:
+            symbol_table_op.regions[0].blocks[0].add_op(symbol_op)
+            return True
+
+        return False
+
 
 class SymbolOpInterface(OpTrait):
     """
