@@ -2843,7 +2843,7 @@ class FrepOuter(FRepOperation):
     ```
     # Repeat 4 times, stagger 1, period 2
     li a0, 4
-    frep.outer a0, 2, 1, 0b1010
+    frep.o a0, 2, 1, 0b1010
     fadd.d fa0, ft0, ft2
     fmul.d fa0, ft3, fa0
     ```
@@ -2864,7 +2864,7 @@ class FrepOuter(FRepOperation):
     name = "riscv.frep_outer"
 
     def assembly_instruction_name(self) -> str:
-        return "frep.outer"
+        return "frep.o"
 
 
 @irdl_op_definition
@@ -2876,7 +2876,7 @@ class FrepInner(FRepOperation):
     ```
     # Repeat three times, stagger 2, period 2
     li a0, 3
-    frep.inner a0, 2, 2, 0b0100
+    frep.i a0, 2, 2, 0b0100
     fadd.d fa0, ft0, ft2
     fmul.d fa0, ft3, fa0
     ```
@@ -2895,7 +2895,7 @@ class FrepInner(FRepOperation):
     name = "riscv.frep_inner"
 
     def assembly_instruction_name(self) -> str:
-        return "frep.inner"
+        return "frep.i"
 
 
 # endregion
