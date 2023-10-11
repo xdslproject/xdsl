@@ -138,7 +138,7 @@ riscv_func.func @pres_4(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
 // CHECK-NEXT:     scfgwi  a2, 898
 // CHECK-NEXT:     csrrsi  zero, 1984, 1
 // CHECK-NEXT:     addi  a0, zero, 63
-// CHECK-NEXT:     frep.outer a0, 1, 0, 0
+// CHECK-NEXT:     frep.o a0, 1, 0, 0
 // CHECK-NEXT:     vfadd.s  ft2, ft0, ft1
 // CHECK-NEXT:     csrrci  zero, 1984, 1
 // CHECK-NEXT:     ret
