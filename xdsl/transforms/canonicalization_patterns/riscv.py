@@ -355,15 +355,19 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
             )
 
 
-class ScfgwImmediatePattern(RewritePattern):
+class ScfgwOpUsingImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.ScfgwOp, rewriter: PatternRewriter) -> None:
-        if isinstance(op.rs2, OpResult) and isinstance(op.rs2.op, riscv.LiOp):
+        if (
+            isinstance(op.rs2, OpResult)
+            and isinstance(op.rs2.op, riscv.LiOp)
+            and isinstance(op.rs2.op.immediate, IntegerAttr)
+        ):
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(
                 riscv.ScfgwiOp(
                     op.rs1,
-                    op.rs2.op.immediate,
+                    op.rs2.op.immediate.value.data,
                     rd=rd,
                     comment=op.comment,
                 ),

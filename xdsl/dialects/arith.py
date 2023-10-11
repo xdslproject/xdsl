@@ -134,11 +134,11 @@ class Constant(IRDLOperation):
         value: float | FloatAttr[_FloatTypeT], value_type: _FloatTypeT
     ) -> Constant:
         if isinstance(value, FloatAttr):
-            new_value = value
+            value_attr = value
         else:
-            new_value = FloatAttr(value, value_type)
+            value_attr = FloatAttr(value, value_type)
         return Constant.create(
-            result_types=[value_type], properties={"value": new_value}
+            result_types=[value_type], properties={"value": value_attr}
         )
 
     def print(self, printer: Printer):

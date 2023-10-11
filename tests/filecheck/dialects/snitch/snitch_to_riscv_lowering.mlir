@@ -27,7 +27,7 @@ builtin.module {
   // CHECK-NEXT: %{{.*}} = riscv.scfgw %stride, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<zero>
   "snitch.ssr_set_dimension_source"(%stream, %addr) {"dimension" = 3 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
   // CHECK: %{{.*}} = riscv.addi %stream, 864 : (!riscv.reg<>) -> !riscv.reg<>
-  // riscv.scfgw %addr, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> ()
+  // riscv.scfgw %addr, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<zero>
   "snitch.ssr_set_dimension_destination"(%stream, %addr) {"dimension" = 3 : i32} : (!riscv.reg<>, !riscv.reg<>) -> ()
   // CHECK: %{{.*}} = riscv.addi %stream, 992 : (!riscv.reg<>) -> !riscv.reg<>
   // CHECK-NEXT: %{{.*}} = riscv.scfgw %addr, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<zero>

@@ -113,7 +113,11 @@ def make_stream_set_config_ops(value: Operand, stream: Operand, baseaddr: int):
             stream,
             immediate=IntegerAttr(baseaddr << 5, i32),
         ),
-        riscv.ScfgwOp(rs1=value, rs2=address, rd=riscv.Registers.ZERO),
+        riscv.ScfgwOp(
+            rs1=value,
+            rs2=address,
+            rd=riscv.Registers.ZERO,
+        ),
     ]
 
 

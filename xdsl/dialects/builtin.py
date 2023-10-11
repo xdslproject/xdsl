@@ -422,34 +422,65 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
+class _FloatType(ABC):
+    @property
+    @abstractmethod
+    def get_bitwidth(self) -> int:
+        raise NotImplementedError()
+
+
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, TypeAttribute):
+class BFloat16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "bf16"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 16
+
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, TypeAttribute):
+class Float16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f16"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 16
+
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, TypeAttribute):
+class Float32Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f32"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 32
+
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, TypeAttribute):
+class Float64Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f64"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 64
+
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, TypeAttribute):
+class Float80Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f80"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 80
+
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, TypeAttribute):
+class Float128Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f128"
+
+    @property
+    def get_bitwidth(self) -> int:
+        return 128
 
 
 AnyFloat: TypeAlias = (
@@ -471,8 +502,6 @@ class FloatData(Data[float]):
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
-_FloatAttrTypeInv = TypeVar("_FloatAttrTypeInv", bound=AnyFloat)
-
 
 @irdl_attr_definition
 class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
@@ -493,9 +522,9 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
         self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
     ) -> None:
         if isinstance(data, FloatData):
-            new_data = data
+            data_attr = data
         else:
-            new_data = FloatData(data)
+            data_attr = FloatData(data)
         if isinstance(type, int):
             if type == 16:
                 type = Float16Type()
@@ -509,7 +538,7 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
                 type = Float128Type()
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
-        super().__init__([new_data, type])
+        super().__init__([data_attr, type])
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
