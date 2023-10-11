@@ -67,12 +67,13 @@ class RawPtr:
     def get_iter(self, format: str) -> Iterator[Any]:
         if self.deallocated:
             raise ValueError("Cannot get item of deallocated ptr")
-        return (
-            values[0]
-            for values in struct.iter_unpack(
-                format, memoryview(self.memory)[self.offset :]
-            )
-        )
+        # The memoryview needs to be a multiple of the size of the packed format
+        format_size = struct.calcsize(format)
+        mem_view = memoryview(self.memory)[self.offset :]
+        remainder = len(mem_view) % format_size
+        if remainder:
+            mem_view = mem_view[:-remainder]
+        return (values[0] for values in struct.iter_unpack(format, mem_view))
 
     def get(self, format: str) -> Any:
         return next(self.get_iter(format))
@@ -408,7 +409,7 @@ class RiscvFunctions(InterpreterFunctions):
     # region F extension
 
     @impl(riscv.FMulSOp)
-    def run_fmul(
+    def run_fmul_s(
         self,
         interpreter: Interpreter,
         op: riscv.FMulSOp,
