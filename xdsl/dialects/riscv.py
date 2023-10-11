@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, ClassVar, Generic, TypeAlias, TypeVar
+from typing import IO, ClassVar, Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -2732,6 +2732,10 @@ class ScfgwOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]
         # rd is always zero, so we omit it when printing assembly
         return self.rs1, self.rs2
 
+    def verify_(self) -> None:
+        if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
+            raise VerifyException(f"scfgw rd must be ZERO, got {self.rd.type}")
+
 
 @irdl_op_definition
 class ScfgwiOp(RdRsImmIntegerOperation):
@@ -2748,6 +2752,10 @@ class ScfgwiOp(RdRsImmIntegerOperation):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         # rd is always zero, so we omit it when printing assembly
         return self.rs1, self.immediate
+
+    def verify_(self) -> None:
+        if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
+            raise VerifyException(f"scfgwi rd must be ZERO, got {self.rd.type}")
 
 
 class FRepOperation(IRDLOperation, RISCVInstruction):
