@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import IO, Any, ClassVar
+from typing import IO, Any
 
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
@@ -28,12 +27,6 @@ class PDLMatcher:
     """
     For each SSAValue that is an OpResult of an operation in the PDL dialect,
     the corresponding xDSL object.
-    """
-
-    native_constraints: ClassVar[dict[str, Callable[..., bool]]] = {}
-    """
-    The functions that can be used in `pdl.apply_native_constraint`. Note that we do
-    not verify that the functions are used with the correct types.
     """
 
     def match_operand(
@@ -179,13 +172,6 @@ class PDLMatcher:
 
         return True
 
-    def check_native_constraints(self, pdl_op: pdl.ApplyNativeConstraintOp) -> bool:
-        args = [self.matching_context[operand] for operand in pdl_op.operands]
-        name = pdl_op.constraint_name.data
-        if name not in self.native_constraints:
-            raise InterpretationError(f"{name} PDL native constraint is not registered")
-        return self.native_constraints[name](*args)
-
 
 @dataclass
 class PDLRewritePattern(RewritePattern):
@@ -219,13 +205,6 @@ class PDLRewritePattern(RewritePattern):
         matcher = PDLMatcher()
         if not matcher.match_operation(pdl_op_val, pdl_op, xdsl_op):
             return
-
-        parent = self.pdl_rewrite_op.parent_op()
-        assert isinstance(parent, pdl.PatternOp)
-        for constraint_op in parent.walk():
-            if isinstance(constraint_op, pdl.ApplyNativeConstraintOp):
-                if not matcher.check_native_constraints(constraint_op):
-                    return
 
         self.interpreter.push_scope("rewrite")
         self.interpreter.set_values(matcher.matching_context.items())
