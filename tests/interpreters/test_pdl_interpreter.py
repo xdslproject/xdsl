@@ -1,7 +1,7 @@
 from io import StringIO
 
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import arith, func, pdl
+from xdsl.dialects import arith, func, pdl, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IntegerAttr,
@@ -12,7 +12,10 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.experimental.pdl import PDLRewriteFunctions, PDLRewritePattern
+from xdsl.interpreters.experimental.pdl import (
+    PDLRewriteFunctions,
+    PDLRewritePattern,
+)
 from xdsl.ir import MLContext, OpResult
 from xdsl.irdl import IRDLOperation, irdl_op_definition, prop_def
 from xdsl.pattern_rewriter import (
@@ -395,3 +398,31 @@ def test_property_rewrite():
     ).rewrite_module(input_module)
     assert str(expected_module) == str(input_module)
     assert expected_module.is_structurally_equivalent(input_module)
+
+
+def test_erase_op():
+    @ModuleOp
+    @Builder.implicit_region
+    def input_module():
+        test.TestOp.create()
+
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(42, None).body):
+            op = pdl.OperationOp(
+                op_name=test.TestOp.name,
+            ).op
+            with ImplicitBuilder(pdl.RewriteOp(op).body):
+                pdl.EraseOp(op)
+
+    pdl_rewrite_op = next(
+        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    ctx = MLContext()
+    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
+
+    pattern_walker.rewrite_module(input_module)
+
+    assert input_module.is_structurally_equivalent(ModuleOp([]))
