@@ -43,8 +43,16 @@ from xdsl.dialects.stencil import (
     StencilBoundsAttr,
     TempType,
 )
-from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue
-from xdsl.ir.core import Block, BlockArgument, Region
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    MLContext,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

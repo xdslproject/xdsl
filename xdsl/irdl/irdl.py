@@ -26,6 +26,7 @@ from typing import (
 
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     Block,
     Data,
     Operation,
@@ -35,7 +36,6 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.core import AttributeInvT
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     ParseError,
@@ -368,6 +368,7 @@ def irdl_to_attr_constraint(
         args = get_args(irdl)
         if len(args) != 1:
             raise Exception(f"GenericData args must have length 1, got {args}")
+        args = cast(tuple[Attribute], args)
         return AllOf([BaseAttr(origin), origin.generic_constraint_coercion(args)])
 
     # Generic ParametrizedAttributes case

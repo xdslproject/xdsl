@@ -116,6 +116,7 @@ def make_stream_set_config_ops(value: Operand, stream: Operand, baseaddr: int):
         riscv.ScfgwOp(
             rs1=value,
             rs2=address,
+            rd=riscv.Registers.ZERO,
         ),
     ]
 

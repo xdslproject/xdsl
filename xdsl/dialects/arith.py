@@ -17,8 +17,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
 )
 from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
-from xdsl.ir import Dialect, Operation, OpResult, SSAValue
-from xdsl.ir.core import Attribute
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AnyOf,
     ConstraintVar,
@@ -134,9 +133,13 @@ class Constant(IRDLOperation):
     def from_float_and_width(
         value: float | FloatAttr[_FloatTypeT], value_type: _FloatTypeT
     ) -> Constant:
-        if isinstance(value, float):
-            value = FloatAttr(value, value_type)
-        return Constant.create(result_types=[value_type], properties={"value": value})
+        if isinstance(value, FloatAttr):
+            value_attr = value
+        else:
+            value_attr = FloatAttr(value, value_type)
+        return Constant.create(
+            result_types=[value_type], properties={"value": value_attr}
+        )
 
     def print(self, printer: Printer):
         printer.print_op_attributes(self.attributes)

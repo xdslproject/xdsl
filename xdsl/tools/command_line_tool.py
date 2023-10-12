@@ -36,6 +36,7 @@ from xdsl.dialects.riscv import RISCV
 from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.riscv_scf import RISCV_Scf
 from xdsl.dialects.scf import Scf
+from xdsl.dialects.seq import Seq
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
 from xdsl.dialects.stencil import Stencil
@@ -60,6 +61,7 @@ from xdsl.transforms import (
     printf_to_putchar,
     reconcile_unrealized_casts,
     riscv_register_allocation,
+    riscv_scf_loop_range_folding,
 )
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
@@ -100,6 +102,7 @@ def get_all_dialects() -> list[Dialect]:
         RISCV_Func,
         RISCV_Scf,
         Scf,
+        Seq,
         Snitch,
         SnitchRuntime,
         Stencil,
@@ -129,6 +132,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         printf_to_putchar.PrintfToPutcharPass,
         reduce_register_pressure.RiscvReduceRegisterPressurePass,
         riscv_register_allocation.RISCVRegisterAllocation,
+        riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass,
         convert_arith_to_riscv.ConvertArithToRiscvPass,
         convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
         convert_memref_to_riscv.ConvertMemrefToRiscvPass,

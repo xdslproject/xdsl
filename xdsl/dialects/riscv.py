@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence, Set
+from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, ClassVar, Generic, TypeAlias, TypeVar
+from typing import IO, ClassVar, Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -404,7 +404,7 @@ class RISCVOp(Operation, ABC):
         return []
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         """
         Parse attributes with custom syntax. Subclasses may override this method.
         """
@@ -625,7 +625,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(20, Signedness.UNSIGNED)
@@ -680,7 +680,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(20, Signedness.SIGNED)
@@ -742,7 +742,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(12, Signedness.SIGNED)
@@ -783,7 +783,7 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
         super().__init__(rs1, immediate, rd=rd, comment=comment)
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(5, Signedness.UNSIGNED)
@@ -844,7 +844,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(12, Signedness.SIGNED)
@@ -929,7 +929,7 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rs1, self.rs2, self.offset
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["offset"] = _parse_immediate_value(parser, IntegerType(12))
         return attributes
@@ -979,7 +979,7 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rs1, self.rs2, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(12, Signedness.SIGNED)
@@ -1089,7 +1089,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.csr, self.rs1
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
@@ -1167,7 +1167,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.csr, self.rs1
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
@@ -1243,7 +1243,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.csr, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
@@ -1311,7 +1311,7 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.csr, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["csr"] = IntegerAttr(
             parser.parse_integer(allow_boolean=False, context_msg="Expected csr"),
@@ -2345,7 +2345,7 @@ class LiOp(RdImmIntegerOperation):
         super().__init__(immediate, rd=rd, comment=comment)
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(32, Signedness.SIGNED)
@@ -2403,7 +2403,7 @@ class LabelOp(IRDLOperation, RISCVOp):
         return _append_comment(f"{self.label.data}:", self.comment)
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
         return attributes
@@ -2454,7 +2454,7 @@ class DirectiveOp(IRDLOperation, RISCVOp):
         return _assembly_line(self.directive.data, arg_str, is_indented=False)
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["directive"] = StringAttr(
             parser.parse_str_literal("Expected directive")
@@ -2689,25 +2689,48 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 # region RISC-V Extensions
 
 
-@irdl_op_definition
-class ScfgwOp(RsRsIntegerOperation):
-    """
-    Write a the value in rs1 to the Snitch stream configuration
-    location pointed by rs2 in the memory-mapped address space.
+class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ScfgwOpUsingImmediate,
+        )
 
-    This is an extension of the RISC-V ISA.
+        return (ScfgwOpUsingImmediate(),)
+
+
+@irdl_op_definition
+class ScfgwOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+    """
+    Write the value in rs1 to the Snitch stream configuration
+    location pointed by rs2 in the memory-mapped address space.
+    Register rd is always fixed to zero.
+
+    This is a RISC-V ISA extension, part of the `Xssr' extension.
+    https://pulp-platform.github.io/snitch/rm/custom_instructions/
     """
 
     name = "riscv.scfgw"
+
+    traits = frozenset((ScfgwOpHasCanonicalizationPatternsTrait(),))
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        # rd is always zero, so we omit it when printing assembly
+        return self.rs1, self.rs2
+
+    def verify_(self) -> None:
+        if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
+            raise VerifyException(f"scfgw rd must be ZERO, got {self.rd.type}")
 
 
 @irdl_op_definition
 class ScfgwiOp(RdRsImmIntegerOperation):
     """
-    Write the immediate value to the Snitch stream configuration location pointed by rs
-    in the memory-mapped address space.
+    Write the value in rs to the Snitch stream configuration location pointed by
+    immediate value in the memory-mapped address space.
 
-    This is part of the `Xssr' extension (https://pulp-platform.github.io/snitch/rm/custom_instructions/), an extension of the RISC-V ISA.
+    This is a RISC-V ISA extension, part of the `Xssr' extension.
+    https://pulp-platform.github.io/snitch/rm/custom_instructions/
     """
 
     name = "riscv.scfgwi"
@@ -2715,6 +2738,10 @@ class ScfgwiOp(RdRsImmIntegerOperation):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         # rd is always zero, so we omit it when printing assembly
         return self.rs1, self.immediate
+
+    def verify_(self) -> None:
+        if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
+            raise VerifyException(f"scfgwi rd must be ZERO, got {self.rd.type}")
 
 
 class FRepOperation(IRDLOperation, RISCVInstruction):
@@ -2824,7 +2851,7 @@ class FrepOuter(FRepOperation):
     ```
     # Repeat 4 times, stagger 1, period 2
     li a0, 4
-    frep.outer a0, 2, 1, 0b1010
+    frep.o a0, 2, 1, 0b1010
     fadd.d fa0, ft0, ft2
     fmul.d fa0, ft3, fa0
     ```
@@ -2845,7 +2872,7 @@ class FrepOuter(FRepOperation):
     name = "riscv.frep_outer"
 
     def assembly_instruction_name(self) -> str:
-        return "frep.outer"
+        return "frep.o"
 
 
 @irdl_op_definition
@@ -2857,7 +2884,7 @@ class FrepInner(FRepOperation):
     ```
     # Repeat three times, stagger 2, period 2
     li a0, 3
-    frep.inner a0, 2, 2, 0b0100
+    frep.i a0, 2, 2, 0b0100
     fadd.d fa0, ft0, ft2
     fmul.d fa0, ft3, fa0
     ```
@@ -2876,7 +2903,7 @@ class FrepInner(FRepOperation):
     name = "riscv.frep_inner"
 
     def assembly_instruction_name(self) -> str:
-        return "frep.inner"
+        return "frep.i"
 
 
 # endregion
@@ -2998,7 +3025,7 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rs1, self.rs2, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(12, Signedness.SIGNED)
@@ -3054,7 +3081,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> Mapping[str, Attribute]:
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(
             parser, IntegerType(12, Signedness.SIGNED)
@@ -3474,16 +3501,6 @@ class FSwOp(RsRsImmFloatOperation):
 # region RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
 
 
-class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            LoadDoubleWithKnownOffset,
-        )
-
-        return (LoadDoubleWithKnownOffset(),)
-
-
 @irdl_op_definition
 class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
@@ -3515,7 +3532,7 @@ class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 @irdl_op_definition
 class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
-    Perform single-precision floating-point multiplication.
+    Perform double-precision floating-point multiplication.
 
     f[rd] = f[rs1]×f[rs2]
 
@@ -3528,7 +3545,7 @@ class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 @irdl_op_definition
 class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
-    Perform single-precision floating-point division.
+    Perform double-precision floating-point division.
 
     f[rd] = f[rs1] / f[rs2]
 
@@ -3536,6 +3553,16 @@ class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
     """
 
     name = "riscv.fdiv.d"
+
+
+class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadDoubleWithKnownOffset,
+        )
+
+        return (LoadDoubleWithKnownOffset(),)
 
 
 @irdl_op_definition
@@ -3755,10 +3782,6 @@ RISCV = Dialect(
         FSubSOp,
         FMulSOp,
         FDivSOp,
-        FAddDOp,
-        FSubDOp,
-        FMulDOp,
-        FDivDOp,
         FSqrtSOp,
         FSgnJSOp,
         FSgnJNSOp,
@@ -3777,6 +3800,10 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FAddDOp,
+        FSubDOp,
+        FMulDOp,
+        FDivDOp,
         FLdOp,
         FSdOp,
         VFAddSOp,

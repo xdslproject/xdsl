@@ -2,7 +2,7 @@ from typing import cast
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.ir.core import OpResult
+from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -333,4 +333,23 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
                         comment=op.comment,
                     ),
                 ]
+            )
+
+
+class ScfgwOpUsingImmediate(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.ScfgwOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs2, OpResult)
+            and isinstance(op.rs2.op, riscv.LiOp)
+            and isinstance(op.rs2.op.immediate, IntegerAttr)
+        ):
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(
+                riscv.ScfgwiOp(
+                    op.rs1,
+                    op.rs2.op.immediate.value.data,
+                    rd=rd,
+                    comment=op.comment,
+                ),
             )

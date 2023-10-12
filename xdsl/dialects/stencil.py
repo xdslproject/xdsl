@@ -13,11 +13,11 @@ from xdsl.ir import (
     Dialect,
     Operation,
     OpResult,
+    ParametrizedAttribute,
     Region,
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.core import ParametrizedAttribute
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
