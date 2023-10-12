@@ -330,3 +330,11 @@ class PDLRewriteFunctions(InterpreterFunctions):
             assert False, "Unexpected ReplaceOp"
 
         return ()
+
+    @impl(pdl.EraseOp)
+    def run_erase(
+        self, interpreter: Interpreter, op: pdl.EraseOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        (old,) = interpreter.get_values((op.op_value,))
+        self.rewriter.erase_op(old)
+        return ()
