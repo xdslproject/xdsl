@@ -2,6 +2,7 @@ from typing import cast
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import IntegerAttr
+from xdsl.ir import Operation
 from xdsl.ir.core import OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -334,3 +335,37 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
                     ),
                 ]
             )
+
+class BitwiseAndByZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AndOp, rewriter: PatternRewriter):
+        """
+        rewrite pattern to optimize bitwise and by 0
+        x & 0 = 0
+        """
+
+        # check if the first operand is 0
+        if(
+            isinstance(op.rs1, OpResult) and
+            isinstance(op.rs1.op, riscv.LiOp) and
+            isinstance(op.rs1.op.immediate, IntegerAttr) and
+            op.rs1.op.immediate.value.data == 0
+        ):
+            # if first source is equal to 0, move the content of the first source (0)
+            # to the destination 
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+        
+        # check if the second operand is 0
+        if(
+            isinstance(op.rs2, OpResult) and
+            isinstance(op.rs2.op, riscv.LiOp) and
+            isinstance(op.rs2.op.immediate, IntegerAttr) and
+            op.rs2.op.immediate.value.data == 0
+        ):
+            # if second source is equal to 0, move the content of the second source (0)
+            # to the destination
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+
+
