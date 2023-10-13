@@ -2,7 +2,6 @@ from typing import cast
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.ir import Operation
 from xdsl.ir.core import OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,
