@@ -62,7 +62,7 @@ def test_rewrite_swap_inputs_pdl():
     stream = StringIO()
 
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
+    ctx.load_dialect(arith.Arith)
 
     PatternRewriteWalker(
         PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
@@ -176,7 +176,7 @@ def test_rewrite_add_zero_pdl():
     stream = StringIO()
 
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
+    ctx.load_dialect(arith.Arith)
 
     PatternRewriteWalker(
         PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
@@ -326,7 +326,7 @@ def test_interpreter_attribute_rewrite():
     stream = StringIO()
 
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
+    ctx.load_dialect(arith.Arith)
 
     PatternRewriteWalker(
         PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
@@ -390,8 +390,8 @@ def test_property_rewrite():
     stream = StringIO()
 
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
-    ctx.register_op(OnePropOp)
+    ctx.load_dialect(arith.Arith)
+    ctx.load_op(OnePropOp)
 
     PatternRewriteWalker(
         PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),

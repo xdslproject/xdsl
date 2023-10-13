@@ -15,9 +15,9 @@ def rewrite_and_compare(
     prog: str, expected_prog: str, transformation: Callable[[ModuleOp, Rewriter], None]
 ):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(test.Test)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(test.Test)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()

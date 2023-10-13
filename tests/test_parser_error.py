@@ -23,7 +23,7 @@ class UnkownOp(IRDLOperation):
 
 def check_error(prog: str, line: int, column: int, message: str):
     ctx = MLContext()
-    ctx.register_op(UnkownOp)
+    ctx.load_op(UnkownOp)
 
     parser = Parser(ctx, prog)
     with pytest.raises(ParseError, match=message) as e:
@@ -35,7 +35,7 @@ def check_error(prog: str, line: int, column: int, message: str):
 def test_parser_missing_equal():
     """Test a missing equal sign error."""
     ctx = MLContext()
-    ctx.register_op(UnkownOp)
+    ctx.load_op(UnkownOp)
 
     prog = """
 "unknown"() ({
@@ -48,7 +48,7 @@ def test_parser_missing_equal():
 def test_parser_redefined_value():
     """Test an SSA value redefinition error."""
     ctx = MLContext()
-    ctx.register_op(UnkownOp)
+    ctx.load_op(UnkownOp)
 
     prog = """
 "unknown"() ({
@@ -62,7 +62,7 @@ def test_parser_redefined_value():
 def test_parser_missing_operation_name():
     """Test a missing operation name error."""
     ctx = MLContext()
-    ctx.register_op(UnkownOp)
+    ctx.load_op(UnkownOp)
 
     prog = """
 "unknown"() ({
