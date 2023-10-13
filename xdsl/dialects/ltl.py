@@ -23,12 +23,8 @@ Implementation of the LTL dialect by CIRCT. Documentation: https://circt.llvm.or
 class Property(ParametrizedAttribute, TypeAttribute):
     """
     The `ltl.property` type represents a verifiable property built from linear
-    temporal logic sequences and quantifiers, for example, *"if you see sequence
-    A, eventually you will see sequence B"*.
-    Note that this type explicitly identifies a *property*. However, a boolean
-    value (`i1`) or a sequence (`ltl.sequence`) is also a valid property.
-    Operations that accept a property as an operand will use the `AnyProperty`
-    constraint, which also accepts `ltl.sequence` and `i1`.
+    temporal logic sequences and quantifiers, for example, "if you see sequence
+    A, eventually you will see sequence B".
     """
 
     name = "ltl.property"
@@ -38,10 +34,7 @@ class Property(ParametrizedAttribute, TypeAttribute):
 class Sequence(ParametrizedAttribute, TypeAttribute):
     """
     The ltl.sequence type represents a sequence of linear temporal logic, for example,
-    “A is true two cycles after B is true”. Note that this type explicitly identifies
-    a sequence. However, a boolean value (i1) is also a valid sequence.
-    Operations that accept a sequence as an operand will use the AnySequence constraint,
-    which also accepts i1.
+    “A is true two cycles after B is true”.
     """
 
     name = "ltl.sequence"
@@ -51,7 +44,7 @@ class Sequence(ParametrizedAttribute, TypeAttribute):
 class AndOp(IRDLOperation):
     """
     A conjunction of booleans, sequences, or properties. If any of the $inputs is of type
-    !ltl.property, the result of the op is an !ltl.property. Otherwise it is an !ltl.sequence.
+    !ltl.property or !ltl.sequence or 1-bit signless int, the result of the op is consistent with the input type.
     """
 
     name = "ltl.and"
@@ -77,5 +70,8 @@ LTL = Dialect(
     [
         AndOp,
     ],
-    [Property, Sequence],
+    [
+        Property,
+        Sequence,
+    ],
 )
