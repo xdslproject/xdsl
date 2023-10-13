@@ -3673,7 +3673,7 @@ def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAt
             printer.print_string_literal(immediate.data)
 
 
-class BitwiseHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
