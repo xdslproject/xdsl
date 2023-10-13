@@ -1,29 +1,17 @@
 from __future__ import annotations
-from xdsl.dialects.builtin import ContainerOf
-from xdsl.ir import Attribute, SSAValue
-
-from xdsl.ir.core import Attribute, ParametrizedAttribute, TypeAttribute
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_attr_definition,
-    irdl_op_definition,
-)
 
 from typing import Annotated
+
+from xdsl.dialects.builtin import IntegerType
+from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
+    ConstraintVar,
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
-    operand_def,
-    AnyOf,
-    ConstraintVar
-
+    result_def,
+    var_operand_def,
 )
-
-from xdsl.dialects.arith import signlessIntegerLike
-from xdsl.irdl.irdl import result_def
-
-
 
 """
 Implementation of the LTL dialect by CIRCT. Documentation: https://circt.llvm.org/docs/Dialects/LTL/
@@ -31,7 +19,7 @@ Implementation of the LTL dialect by CIRCT. Documentation: https://circt.llvm.or
 
 
 @irdl_attr_definition
-class property(ParametrizedAttribute, TypeAttribute):
+class Property(ParametrizedAttribute, TypeAttribute):
     """
     The `ltl.property` type represents a verifiable property built from linear
     temporal logic sequences and quantifiers, for example, *"if you see sequence
@@ -42,11 +30,11 @@ class property(ParametrizedAttribute, TypeAttribute):
     constraint, which also accepts `ltl.sequence` and `i1`.
     """
 
-    name = "ltl.propertytype"
+    name = "ltl.property"
 
 
 @irdl_attr_definition
-class sequence(ParametrizedAttribute, TypeAttribute):
+class Sequence(ParametrizedAttribute, TypeAttribute):
     """
     The ltl.sequence type represents a sequence of linear temporal logic, for example,
     “A is true two cycles after B is true”. Note that this type explicitly identifies
@@ -55,10 +43,11 @@ class sequence(ParametrizedAttribute, TypeAttribute):
     which also accepts i1.
     """
 
-    name = "ltl.sequencetype"
+    name = "ltl.sequence"
 
 
-ltltype = ContainerOf(AnyOf([sequence, property, signlessIntegerLike]))
+AnyLTLType = Sequence | Property | IntegerType
+
 
 @irdl_op_definition
 class AndOp(IRDLOperation):
@@ -69,20 +58,22 @@ class AndOp(IRDLOperation):
 
     name = "ltl.and"
 
-    T = Annotated[Attribute, ConstraintVar("T"), sequence | property | signlessIntegerLike]
+    T = Annotated[Attribute, ConstraintVar("T"), AnyLTLType]
 
-    input = operand_def(T)
+    input = var_operand_def(T)
 
     result = result_def(T)
 
     def __init__(
-            self, 
-            operand: SSAValue, 
+        self,
+        operand: SSAValue,
     ):
-        super().__init__(operands = [operand])
+        super().__init__(operands=[operand])
 
-    def verify_(self):
-        if isinstance(self.input, property) ^ isinstance(self.result, property):
-            raise ValueError("AndOp: property type mismatch")
-        if isinstance(self.input, sequence) ^ isinstance(self.result, sequence):
-            raise ValueError("AndOp: sequence type mismatch")
+
+LTL = Dialect(
+    [
+        AndOp,
+    ],
+    [Property, Sequence],
+)
