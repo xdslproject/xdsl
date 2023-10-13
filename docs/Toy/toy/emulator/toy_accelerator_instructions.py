@@ -7,6 +7,7 @@ builtin+printf to riscv.
 
 from typing import IO, ClassVar
 
+from riscemu.core import Float64
 from riscemu.core.instruction import Instruction
 from riscemu.core.int32 import Int32
 from riscemu.instructions.instruction_set import InstructionSet
@@ -148,7 +149,7 @@ class ToyAccelerator(InstructionSet):
 
         value = buffer.float64.get_list(1)[0]
 
-        self.regs.set_f(result_reg, value)
+        self.regs.set_f(result_reg, Float64(value))
 
     def instruction_fsd(self, ins: Instruction):
         """
