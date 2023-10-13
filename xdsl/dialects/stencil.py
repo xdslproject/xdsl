@@ -58,7 +58,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
         return [ArrayAttr(IntAttr(i) for i in ints)]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print(f'<{", ".join((str(e) for e in self))}>')
+        printer.print(f'<{", ".join(str(e) for e in self)}>')
 
     def verify(self) -> None:
         l = len(self)
