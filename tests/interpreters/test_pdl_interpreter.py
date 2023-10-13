@@ -438,7 +438,7 @@ def test_native_constraint():
     @ModuleOp
     @Builder.implicit_region
     def input_module_false():
-        test.TestOp.create(properties={"attr": StringAttr("fooo")})
+        test.TestOp.create(properties={"attr": StringAttr("baar")})
 
     @ModuleOp
     @Builder.implicit_region
@@ -489,7 +489,7 @@ def test_native_constraint_constant_parameter():
     @ModuleOp
     @Builder.implicit_region
     def input_module_false():
-        test.TestOp.create(properties={"attr": StringAttr("fooo")})
+        test.TestOp.create(properties={"attr": StringAttr("baar")})
 
     @ModuleOp
     @Builder.implicit_region
