@@ -20,6 +20,8 @@ def test_simple():
     @ModuleOp
     @Builder.implicit_region
     def module():
+        riscv.DirectiveOp(".globl", "main")
+
         @Builder.implicit_region
         def body():
             six = riscv.LiOp(6).rd
@@ -38,11 +40,10 @@ def test_simple():
 
     code = riscv.riscv_code(module)
 
-    # TODO: fix the adding of .text .globl main
     stream = StringIO()
     RV_Debug.stream = stream
     run_riscv(
-        ".text\n.globl main\n" + code,
+        code,
         extensions=[RV_Debug],
         unlimited_regs=True,
         verbosity=1,
@@ -54,6 +55,8 @@ def test_multiply_add():
     @ModuleOp
     @Builder.implicit_region
     def module():
+        riscv.DirectiveOp(".globl", "main")
+
         @Builder.implicit_region
         def main():
             riscv.LiOp(3, rd=riscv.Registers.A0)
@@ -160,13 +163,9 @@ def test_multiply_add():
     stream = StringIO()
     RV_Debug.stream = stream
     run_riscv(
-        ".text\n.globl main\n" + code,
+        code,
         extensions=[RV_Debug],
         unlimited_regs=True,
         verbosity=1,
     )
-    assert (
-        stream.getvalue()
-        == """7
-"""
-    )
+    assert stream.getvalue() == "7\n"
