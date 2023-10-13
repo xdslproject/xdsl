@@ -2,8 +2,7 @@
 
 
 "builtin.module"() ({
-    %seq = "arith.constant"() {value = 0} : () -> !ltl.sequence
-    %seq2 = "arith.constant"() {value = 0} : () -> !ltl.property
+    %seq, %seq2 = "test.op"() : () -> (!ltl.sequence, !ltl.property)
     "ltl.and"(%seq, %seq2) : (!ltl.sequence,!ltl.property)->(!ltl.property)
     // CHECK: attribute !ltl.sequence expected from variable 'T', but got !ltl.property
 }) : () -> ()

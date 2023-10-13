@@ -45,7 +45,7 @@ class Sequence(ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class AndOp(IRDLOperation):
     """
-    A conjunction of booleans, sequences, or properties. If any of the $inputs is of type
+    A conjunction of booleans, sequences, or properties. If any of the `inputs` is of type
     !ltl.property or !ltl.sequence or 1-bit signless int, the result of the op is consistent with the input type.
     """
 
