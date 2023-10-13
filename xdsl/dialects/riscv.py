@@ -1621,6 +1621,14 @@ class SltuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType])
 
     name = "riscv.sltu"
 
+class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseAndByZero
+        )
+
+        return (BitwiseAndByZero(),)
 
 @irdl_op_definition
 class AndOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
@@ -1633,6 +1641,8 @@ class AndOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.and"
+
+    traits = frozenset((BitwiseAndHasCanonicalizationPatternsTrait(),))
 
 
 @irdl_op_definition
@@ -3672,15 +3682,6 @@ def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAt
         case LabelAttr():
             printer.print_string_literal(immediate.data)
 
-
-class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            BitwiseAndByZero
-        )
-
-        return (BitwiseAndByZero(),)
 
 RISCV = Dialect(
     [
