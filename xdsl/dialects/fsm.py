@@ -201,7 +201,7 @@ class OutputOp(IRDLOperation):
         assert isinstance(parent, StateOp)
         if parent.transitions == self.parent_region() and len(self.operands) > 0:
             raise VerifyException("Transition regions should not output any value")
-        while parent is not None:
+        while (parent := parent.parent_op()) is not None:
             if isinstance(parent, MachineOp):
                 if not (
                     [operand.type for operand in self.operands]
@@ -212,7 +212,6 @@ class OutputOp(IRDLOperation):
                         "OutputOp output type must be consistent with the machine "
                         + str(parent.sym_name)
                     )
-            parent = parent.parent_op()
 
 
 @irdl_op_definition
