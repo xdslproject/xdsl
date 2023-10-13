@@ -1,3 +1,9 @@
+"""
+Implementation of the LTL dialect by CIRCT.
+
+https://circt.llvm.org/docs/Dialects/LTL/
+"""
+
 from __future__ import annotations
 
 from typing import Annotated
@@ -14,17 +20,13 @@ from xdsl.irdl import (
     var_operand_def,
 )
 
-"""
-Implementation of the LTL dialect by CIRCT. Documentation: https://circt.llvm.org/docs/Dialects/LTL/
-"""
-
 
 @irdl_attr_definition
 class Property(ParametrizedAttribute, TypeAttribute):
     """
     The `ltl.property` type represents a verifiable property built from linear
-    temporal logic sequences and quantifiers, for example, "if you see sequence
-    A, eventually you will see sequence B".
+    temporal logic sequences and quantifiers, for example,
+    "if you see sequence A, eventually you will see sequence B".
     """
 
     name = "ltl.property"
