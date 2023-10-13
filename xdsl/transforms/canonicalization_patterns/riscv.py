@@ -345,10 +345,9 @@ class BitwiseAndByZero(RewritePattern):
 
         # check if the first operand is 0
         if(
-            isinstance(op.rs1, OpResult) and
-            isinstance(op.rs1.op, riscv.LiOp) and
-            isinstance(op.rs1.op.immediate, IntegerAttr) and
-            op.rs1.op.immediate.value.data == 0
+            isinstance(op.rs1.owner, riscv.LiOp) and
+            isinstance(op.rs1.owner.immediate, IntegerAttr) and
+            op.rs1.owner.immediate.value.data == 0
         ):
             # if first source is equal to 0, move the content of the first source (0)
             # to the destination 
@@ -357,10 +356,9 @@ class BitwiseAndByZero(RewritePattern):
         
         # check if the second operand is 0
         if(
-            isinstance(op.rs2, OpResult) and
-            isinstance(op.rs2.op, riscv.LiOp) and
-            isinstance(op.rs2.op.immediate, IntegerAttr) and
-            op.rs2.op.immediate.value.data == 0
+            isinstance(op.rs2.owner, riscv.LiOp) and
+            isinstance(op.rs2.owner.immediate, IntegerAttr) and
+            op.rs2.owner.immediate.value.data == 0
         ):
             # if second source is equal to 0, move the content of the second source (0)
             # to the destination
