@@ -7,9 +7,7 @@ builtin+printf to riscv.
 
 from typing import IO, ClassVar
 
-from riscemu.core import Float64
-from riscemu.core.instruction import Instruction
-from riscemu.core.int32 import Int32
+from riscemu.core import Instruction, Int32
 from riscemu.instructions.instruction_set import InstructionSet
 
 from xdsl.interpreters.riscv import RawPtr
@@ -34,12 +32,6 @@ class ToyAccelerator(InstructionSet):
 
     def buffer_read(self, ptr: int, len: int) -> RawPtr:
         return RawPtr(self.mmu.read(ptr, len))
-
-    def buffer_write(self, ptr: int, buffer: RawPtr):
-        self.mmu.write(ptr, len(buffer.memory), buffer.memory)
-
-    def buffer_copy(self, /, source: int, destination: int, count: int):
-        self.mmu.write(destination, count * 4, self.mmu.read(source, count * 4))
 
     # Custom instructions
 
@@ -103,69 +95,6 @@ class ToyAccelerator(InstructionSet):
         self.ptr_write(heap_ptr, value=new_heap_count)
 
         self.regs.set(destination_ptr_reg, Int32(result_ptr))
-
-    # should be in riscemu
-
-    def instruction_fmul_d(self, ins: Instruction):
-        """
-        Multiplies two double values.
-        """
-
-        result_reg = ins.get_reg(0)
-        lhs_reg = ins.get_reg(1)
-        rhs_reg = ins.get_reg(2)
-
-        lhs = self.regs.get_f(lhs_reg)
-        rhs = self.regs.get_f(rhs_reg)
-
-        self.regs.set_f(result_reg, lhs * rhs)
-
-    def instruction_fadd_d(self, ins: Instruction):
-        """
-        Adds two double values.
-        """
-
-        result_reg = ins.get_reg(0)
-        lhs_reg = ins.get_reg(1)
-        rhs_reg = ins.get_reg(2)
-
-        lhs = self.regs.get_f(lhs_reg)
-        rhs = self.regs.get_f(rhs_reg)
-
-        self.regs.set_f(result_reg, lhs + rhs)
-
-    def instruction_fld(self, ins: Instruction):
-        """
-        Loads a double value into a float register.
-        """
-
-        result_reg = ins.get_reg(0)
-        value_ptr_reg = ins.get_reg(1)
-        offset = ins.get_imm(2).abs_value.value
-
-        value_ptr = self.regs.get(value_ptr_reg).value
-
-        buffer = self.buffer_read(value_ptr + offset, 8)
-
-        value = buffer.float64.get_list(1)[0]
-
-        self.regs.set_f(result_reg, Float64(value))
-
-    def instruction_fsd(self, ins: Instruction):
-        """
-        Stores a double value from a float register.
-        """
-
-        value_reg = ins.get_reg(0)
-        destination_ptr_reg = ins.get_reg(1)
-        offset = ins.get_imm(2).abs_value.value
-
-        value = self.regs.get_f(value_reg).value
-        destination_ptr = self.regs.get(destination_ptr_reg).value
-
-        buffer = RawPtr.new_float64([value])
-
-        self.buffer_write(destination_ptr + offset, buffer)
 
     def __eq__(self, __value: object) -> bool:
         if not isinstance(__value, ToyAccelerator):

@@ -30,6 +30,7 @@ def test_simple():
             riscv.CustomAssemblyInstructionOp(
                 "print", inputs=[forty_two], result_types=[]
             )
+            riscv.ReturnOp()
 
         riscv_func.FuncOp("main", body, ((), ()))
 
@@ -37,15 +38,16 @@ def test_simple():
 
     code = riscv.riscv_code(module)
 
+    # TODO: fix the adding of .text .globl main
     stream = StringIO()
     RV_Debug.stream = stream
     run_riscv(
-        code,
+        ".text\n.globl main\n" + code,
         extensions=[RV_Debug],
         unlimited_regs=True,
         verbosity=1,
     )
-    assert "42\n" == stream.getvalue()
+    assert stream.getvalue() == "42\n"
 
 
 def test_multiply_add():
@@ -158,7 +160,7 @@ def test_multiply_add():
     stream = StringIO()
     RV_Debug.stream = stream
     run_riscv(
-        code,
+        ".text\n.globl main\n" + code,
         extensions=[RV_Debug],
         unlimited_regs=True,
         verbosity=1,
