@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from xdsl.dialects.builtin import IntegerType
+from xdsl.dialects.builtin import IntegerType, Signedness
 from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
+    AnyOf,
     ConstraintVar,
     IRDLOperation,
     irdl_attr_definition,
@@ -46,9 +47,6 @@ class Sequence(ParametrizedAttribute, TypeAttribute):
     name = "ltl.sequence"
 
 
-AnyLTLType = Sequence | Property | IntegerType
-
-
 @irdl_op_definition
 class AndOp(IRDLOperation):
     """
@@ -58,7 +56,11 @@ class AndOp(IRDLOperation):
 
     name = "ltl.and"
 
-    T = Annotated[Attribute, ConstraintVar("T"), AnyLTLType]
+    T = Annotated[
+        Attribute,
+        AnyOf([Sequence, Property, IntegerType(1, signedness=Signedness.SIGNLESS)]),
+        ConstraintVar("T"),
+    ]
 
     input = var_operand_def(T)
 

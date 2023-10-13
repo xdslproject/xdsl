@@ -10,8 +10,10 @@
 // CHECK-NEXT:  }) : () -> ()
 
 "builtin.module"() ({
+    %b = "arith.constant"() {value = 0} : () -> i1
     %seq = "arith.constant"() {value = 0} : () -> !ltl.sequence
     %p = "arith.constant"() {value = 0} : () -> !ltl.property
     "ltl.and"(%seq, %seq) : (!ltl.sequence,!ltl.sequence)->(!ltl.sequence)
     "ltl.and"(%p, %p) : (!ltl.property,!ltl.property)->(!ltl.property)
+    "ltl.and"(%b, %b) : (i1,i1)->(i1)
 }) : () -> ()
