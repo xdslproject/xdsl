@@ -440,8 +440,8 @@ def test_results(format: str, program: str, generic_program: str):
         assembly_format = format
 
     ctx = MLContext()
-    ctx.load_op(TwoResultOp)
-    ctx.load_dialect(Test)
+    ctx.register_op(TwoResultOp)
+    ctx.register_dialect(Test)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
