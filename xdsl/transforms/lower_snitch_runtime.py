@@ -96,6 +96,23 @@ class LowerDma2DOpToFunc(RewritePattern, ABC):
     ):
         rewrite_to_func_call(op, "snrt_" + op.name[5:], rewriter)
 
+class LowerSsrLoopOpToFunc(RewritePattern, ABC):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self,
+        op: snitch_runtime.SsrLoopBaseOp,
+        rewriter: PatternRewriter,
+    ):
+        rewrite_to_func_call(op, "snrt_" + op.name[5:], rewriter)
+
+class LowerSsrReadWriteOpToFunc(RewritePattern, ABC):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self,
+        op: snitch_runtime.SsrReadWriteBaseOperation,
+        rewriter: PatternRewriter,
+    ):
+        rewrite_to_func_call(op, "snrt_" + op.name[5:], rewriter)
 
 class AddExternalFuncs(RewritePattern, ABC):
     """
@@ -134,6 +151,8 @@ class LowerSnitchRuntimePass(ModulePass):
                     LowerBarrierOpToFunc(),
                     LowerDma1DOpToFunc(),
                     LowerDma2DOpToFunc(),
+                    LowerSsrLoopOpToFunc(),
+                    LowerSsrReadWriteOpToFunc(),
                 ]
             ),
             apply_recursively=True,
