@@ -27,8 +27,7 @@ from xdsl.dialects.memref import (
     Subview,
     UnrankedMemrefType,
 )
-from xdsl.ir import Attribute, OpResult
-from xdsl.ir.core import BlockArgument
+from xdsl.ir import Attribute, BlockArgument, OpResult
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue

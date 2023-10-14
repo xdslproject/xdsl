@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, ClassVar, Generic, TypeAlias, TypeVar
+from typing import IO, ClassVar, Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -2699,25 +2699,48 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 # region RISC-V Extensions
 
 
-@irdl_op_definition
-class ScfgwOp(RsRsIntegerOperation):
-    """
-    Write a the value in rs1 to the Snitch stream configuration
-    location pointed by rs2 in the memory-mapped address space.
+class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ScfgwOpUsingImmediate,
+        )
 
-    This is an extension of the RISC-V ISA.
+        return (ScfgwOpUsingImmediate(),)
+
+
+@irdl_op_definition
+class ScfgwOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+    """
+    Write the value in rs1 to the Snitch stream configuration
+    location pointed by rs2 in the memory-mapped address space.
+    Register rd is always fixed to zero.
+
+    This is a RISC-V ISA extension, part of the `Xssr' extension.
+    https://pulp-platform.github.io/snitch/rm/custom_instructions/
     """
 
     name = "riscv.scfgw"
+
+    traits = frozenset((ScfgwOpHasCanonicalizationPatternsTrait(),))
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        # rd is always zero, so we omit it when printing assembly
+        return self.rs1, self.rs2
+
+    def verify_(self) -> None:
+        if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
+            raise VerifyException(f"scfgw rd must be ZERO, got {self.rd.type}")
 
 
 @irdl_op_definition
 class ScfgwiOp(RdRsImmIntegerOperation):
     """
-    Write the immediate value to the Snitch stream configuration location pointed by rs
-    in the memory-mapped address space.
+    Write the value in rs to the Snitch stream configuration location pointed by
+    immediate value in the memory-mapped address space.
 
-    This is part of the `Xssr' extension (https://pulp-platform.github.io/snitch/rm/custom_instructions/), an extension of the RISC-V ISA.
+    This is a RISC-V ISA extension, part of the `Xssr' extension.
+    https://pulp-platform.github.io/snitch/rm/custom_instructions/
     """
 
     name = "riscv.scfgwi"
@@ -2725,6 +2748,10 @@ class ScfgwiOp(RdRsImmIntegerOperation):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         # rd is always zero, so we omit it when printing assembly
         return self.rs1, self.immediate
+
+    def verify_(self) -> None:
+        if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
+            raise VerifyException(f"scfgwi rd must be ZERO, got {self.rd.type}")
 
 
 class FRepOperation(IRDLOperation, RISCVInstruction):
@@ -2834,7 +2861,7 @@ class FrepOuter(FRepOperation):
     ```
     # Repeat 4 times, stagger 1, period 2
     li a0, 4
-    frep.outer a0, 2, 1, 0b1010
+    frep.o a0, 2, 1, 0b1010
     fadd.d fa0, ft0, ft2
     fmul.d fa0, ft3, fa0
     ```
@@ -2855,7 +2882,7 @@ class FrepOuter(FRepOperation):
     name = "riscv.frep_outer"
 
     def assembly_instruction_name(self) -> str:
-        return "frep.outer"
+        return "frep.o"
 
 
 @irdl_op_definition
@@ -2867,7 +2894,7 @@ class FrepInner(FRepOperation):
     ```
     # Repeat three times, stagger 2, period 2
     li a0, 3
-    frep.inner a0, 2, 2, 0b0100
+    frep.i a0, 2, 2, 0b0100
     fadd.d fa0, ft0, ft2
     fmul.d fa0, ft3, fa0
     ```
@@ -2886,7 +2913,7 @@ class FrepInner(FRepOperation):
     name = "riscv.frep_inner"
 
     def assembly_instruction_name(self) -> str:
-        return "frep.inner"
+        return "frep.i"
 
 
 # endregion

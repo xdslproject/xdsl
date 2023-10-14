@@ -5,8 +5,7 @@ from typing import IO, cast
 
 from xdsl.dialects import arith, builtin, gpu, memref
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Operation, SSAValue
-from xdsl.ir.core import Attribute
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.utils.hints import isa
 
 

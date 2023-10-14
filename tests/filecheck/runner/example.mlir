@@ -1,11 +1,12 @@
 // RUN: xdsl-run %s | filecheck %s
 
 builtin.module {
-  func.func @main() -> index {
-    %1 = "arith.constant"() {"value" = 0} : () -> index
-    %42 = "arith.constant"() {"value" = 42} : () -> index
+  func.func @main() {
+    %6 = arith.constant 6 : index
+    %7 = arith.constant 7 : index
+    %42 = arith.muli %6, %7 : index
     printf.print_format "The magic number is {}", %42 : index
-    "func.return"(%1) : (index) -> ()
+    func.return
   }
 }
 

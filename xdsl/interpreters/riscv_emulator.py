@@ -5,12 +5,8 @@ from io import StringIO
 from typing import IO, ClassVar
 
 from riscemu.config import RunConfig
-from riscemu.core.instruction import Instruction
-from riscemu.instructions.instruction_set import InstructionSet
-from riscemu.instructions.RV32F import RV32F
-from riscemu.instructions.RV32I import RV32I
-from riscemu.instructions.RV32M import RV32M
-from riscemu.instructions.Zicsr import Zicsr
+from riscemu.core import Instruction
+from riscemu.instructions import RV32D, RV32F, RV32I, RV32M, InstructionSet, Zicsr
 from riscemu.riscemu_main import RiscemuMain, RiscemuSource
 
 
@@ -50,10 +46,11 @@ def run_riscv(
         debug_on_exception=False,
         unlimited_registers=unlimited_regs,
         use_libc=True,
+        flen=64,
     )
 
     main = RiscemuMain(cfg)
-    main.selected_ins_sets = [RV32I, RV32M, RV32F, Zicsr, RV_Debug, *extensions]
+    main.selected_ins_sets = [RV32I, RV32M, RV32F, RV32D, Zicsr, RV_Debug, *extensions]
     main.register_all_program_loaders()
 
     source = RiscemuSource("example.asm", StringIO(code))

@@ -5,11 +5,13 @@ builtin.module {
   %o0 = riscv.mv %i0 : (!riscv.reg<a0>) -> !riscv.reg<a0>
   %o1 = riscv.mv %i1 : (!riscv.reg<a1>) -> !riscv.reg<a2>
   %o2 = riscv.mv %i2 : (!riscv.reg<>) -> !riscv.reg<>
+  "test.op"(%o0, %o1, %o2) : (!riscv.reg<a0>, !riscv.reg<a2>, !riscv.reg<>) -> ()
 
   %f0, %f1, %f2 = "test.op"() : () -> (!riscv.freg<fa0>, !riscv.freg<fa1>, !riscv.freg<>)
   %fo0 = riscv.fmv.s %f0 : (!riscv.freg<fa0>) -> !riscv.freg<fa0>
   %fo1 = riscv.fmv.s %f1 : (!riscv.freg<fa1>) -> !riscv.freg<fa2>
   %fo2 = riscv.fmv.s %f2 : (!riscv.freg<>) -> !riscv.freg<>
+  "test.op"(%fo0, %fo1, %fo2) : (!riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>) -> ()
 
   %0 = riscv.li 0 : () -> !riscv.reg<>
   %1 = riscv.li 1 : () -> !riscv.reg<>
@@ -87,15 +89,21 @@ builtin.module {
 
   %and_bitwise_zero_r0 = riscv.and 0, %1 : (!riscv.reg<>, !riscv.reg<a1>) -> !riscv.reg<a0>
   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
+
+  // scfgw immediates
+  %scfgw = riscv.scfgw %i1, %1 : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<zero>
+  "test.op"(%scfgw) : (!riscv.reg<zero>) -> ()
 }
 
 // CHECK: builtin.module {
 // CHECK-NEXT:   %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<>)
 // CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<a1>) -> !riscv.reg<a2>
 // CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:   "test.op"(%i0, %o1, %o2) : (!riscv.reg<a0>, !riscv.reg<a2>, !riscv.reg<>) -> ()
 // CHECK-NEXT:   %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (!riscv.freg<fa0>, !riscv.freg<fa1>, !riscv.freg<>)
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<fa1>) -> !riscv.freg<fa2>
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
+// CHECK-NEXT:   "test.op"(%f0, %fo1, %fo2) : (!riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>) -> ()
 
 // CHECK-NEXT:   %0 = riscv.li 0 : () -> !riscv.reg<>
 // CHECK-NEXT:   %1 = riscv.li 1 : () -> !riscv.reg<>
@@ -168,5 +176,8 @@ builtin.module {
 
 // CHECK-NEXT:   %and_bitwise_zero_r0 = riscv.mv %0 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %scfgw = riscv.scfgwi %i1, 1 : (!riscv.reg<a1>) -> !riscv.reg<zero>
+// CHECK-NEXT:   "test.op"(%scfgw) : (!riscv.reg<zero>) -> ()
 
 // CHECK-NEXT: }
