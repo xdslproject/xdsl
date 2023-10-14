@@ -167,10 +167,11 @@ class AttrDictDirective(FormatDirective):
         state.attributes = res
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if op.attributes:
-            if self.with_keyword:
-                printer.print(" attributes")
-            printer.print_op_attributes(op.attributes)
+        if not op.attributes:
+            return
+        if self.with_keyword:
+            printer.print(" attributes")
+        printer.print_op_attributes(op.attributes)
         state.last_was_punctuation = False
         state.should_emit_space = False
 
