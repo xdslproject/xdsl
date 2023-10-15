@@ -154,6 +154,10 @@ def test_riscv_interpreter():
         ),
         (3.0, 4.0),
     ) == (0.75,)
+    assert interpreter.run_op(
+        riscv.FMVOp(TestSSAValue(register), rd=riscv.FloatRegisterType.unallocated()),
+        (42.0,),
+    ) == (42.0,)
 
     # same behaviour as riscemu currently, but incorrect
     # the top line is the one that should pass, the other is the same as riscemu
