@@ -96,6 +96,7 @@ class LowerDma2DOpToFunc(RewritePattern, ABC):
     ):
         rewrite_to_func_call(op, "snrt_" + op.name[5:], rewriter)
 
+
 class LowerSsrLoopOpToFunc(RewritePattern, ABC):
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -105,6 +106,7 @@ class LowerSsrLoopOpToFunc(RewritePattern, ABC):
     ):
         rewrite_to_func_call(op, "snrt_" + op.name[5:], rewriter)
 
+
 class LowerSsrReadWriteOpToFunc(RewritePattern, ABC):
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -113,6 +115,7 @@ class LowerSsrReadWriteOpToFunc(RewritePattern, ABC):
         rewriter: PatternRewriter,
     ):
         rewrite_to_func_call(op, "snrt_" + op.name[5:], rewriter)
+
 
 class AddExternalFuncs(RewritePattern, ABC):
     """
