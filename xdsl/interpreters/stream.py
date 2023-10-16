@@ -1,4 +1,4 @@
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import product
 from typing import Any, Generic, TypeVar
@@ -16,7 +16,6 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.ir.affine.affine_map import AffineMap
 
 T = TypeVar("T")
 TCov = TypeVar("TCov", covariant=True)
@@ -33,34 +32,34 @@ class OutputStream(Protocol[TCon]):
         raise NotImplementedError()
 
 
-def strided_memref_index_iter(
-    affine_map: AffineMap, ub: list[int]
-) -> Iterator[list[int]]:
-    return iter(
-        affine_map.eval(list(affine_dims), [])
-        for affine_dims in product(*(range(b) for b in ub))
-    )
+def strided_pointer_offset_iter(strides: list[int], ub: list[int]) -> Iterator[int]:
+    indices_iter = product(*(range(b) for b in ub))
+    offsets = [
+        sum((stride * index for stride, index in zip(strides, indices)))
+        for indices in indices_iter
+    ]
+    return iter(offsets)
 
 
 @dataclass
 class StridedMemrefInputStream(Generic[TCov], InputStream[TCov]):
-    index_iter: Iterator[Sequence[int]]
+    index_iter: Iterator[int]
     array: ShapedArray[TCov]
 
     def read(self) -> TCov:
-        indices = next(self.index_iter)
-        value = self.array.load(indices)
+        index = next(self.index_iter)
+        value = self.array.data[index]
         return value
 
 
 @dataclass
 class StridedMemrefOutputStream(Generic[TCon], OutputStream[TCon]):
-    index_iter: Iterator[Sequence[int]]
+    index_iter: Iterator[int]
     array: ShapedArray[TCon]
 
     def write(self, value: TCon) -> None:
-        indices = next(self.index_iter)
-        self.array.store(indices, value)
+        index = next(self.index_iter)
+        self.array.data[index] = value
 
 
 @register_impls
@@ -92,7 +91,9 @@ class StreamFunctions(InterpreterFunctions):
         memref: ShapedArray[Any] = memref
 
         input_stream_factory = StridedMemrefInputStream(
-            strided_memref_index_iter(op.indexing_map.data, [b.data for b in op.ub]),
+            strided_pointer_offset_iter(
+                [stride.data for stride in op.strides], [b.data for b in op.ub]
+            ),
             memref,
         )
         return (input_stream_factory,)
@@ -105,7 +106,9 @@ class StreamFunctions(InterpreterFunctions):
         memref: ShapedArray[Any] = memref
 
         output_stream_factory = StridedMemrefOutputStream(
-            strided_memref_index_iter(op.indexing_map.data, [b.data for b in op.ub]),
+            strided_pointer_offset_iter(
+                [stride.data for stride in op.strides], [b.data for b in op.ub]
+            ),
             memref,
         )
         return (output_stream_factory,)

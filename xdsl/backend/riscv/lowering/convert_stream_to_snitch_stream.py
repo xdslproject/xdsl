@@ -1,6 +1,3 @@
-import operator
-from itertools import accumulate
-
 from xdsl.backend.riscv.lowering.utils import (
     cast_block_args_to_regs,
     cast_operands_to_regs,
@@ -15,7 +12,6 @@ from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
 )
 from xdsl.ir import MLContext, Operation, SSAValue
-from xdsl.ir.affine.affine_map import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -73,36 +69,17 @@ class LowerYieldOp(RewritePattern):
         rewriter.replace_matched_op(snitch_stream.YieldOp(*new_operands))
 
 
-def strides_for_affine_map(
-    affine_map: AffineMap, ub: list[int], bitwidth: int
-) -> list[int]:
-    identity = AffineMap.identity(affine_map.num_dims)
-    if affine_map == identity:
-        prod_dims: list[int] = list(
-            accumulate(reversed(ub), operator.mul, initial=bitwidth)
-        )[1::-1]
-        return prod_dims
-    elif affine_map == identity.transpose:
-        prod_dims: list[int] = list(accumulate(ub, operator.mul, initial=bitwidth))[:-1]
-        return prod_dims
-    else:
-        raise NotImplementedError(f"Unsupported affine map {affine_map}")
-
-
 class LowerStridedReadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stream.StridedReadOp, rewriter: PatternRewriter):
         (pointer,) = cast_operands_to_regs(rewriter)
-        strides = strides_for_affine_map(
-            op.indexing_map.data, [b.data for b in op.ub], 8
-        )
 
         rewriter.replace_matched_op(
             snitch_stream.StridedReadOp(
                 pointer,
                 riscv.FloatRegisterType.unallocated(),
                 op.ub,
-                ArrayAttr([IntAttr(stride) for stride in strides]),
+                ArrayAttr([IntAttr(stride.data * 8) for stride in op.strides]),
             )
         )
 
@@ -111,16 +88,13 @@ class LowerStridedWriteOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stream.StridedWriteOp, rewriter: PatternRewriter):
         (pointer,) = cast_operands_to_regs(rewriter)
-        strides = strides_for_affine_map(
-            op.indexing_map.data, [b.data for b in op.ub], 8
-        )
 
         rewriter.replace_matched_op(
             snitch_stream.StridedWriteOp(
                 pointer,
                 riscv.FloatRegisterType.unallocated(),
                 op.ub,
-                ArrayAttr([IntAttr(stride) for stride in strides]),
+                ArrayAttr([IntAttr(stride.data * 8) for stride in op.strides]),
             )
         )
 

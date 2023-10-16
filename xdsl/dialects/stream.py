@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from typing import Annotated, Generic, TypeVar, cast
 
 from xdsl.dialects.builtin import (
-    AffineMapAttr,
     ArrayAttr,
     ContainerType,
     IntAttr,
@@ -187,10 +186,13 @@ class StridedReadOp(IRDLOperation):
     memref = operand_def(MemRefType[T])
     stream = result_def(InputStreamType[T])
     ub = attr_def(ArrayAttr[IntAttr])
-    indexing_map = attr_def(AffineMapAttr)
+    strides = attr_def(ArrayAttr[IntAttr])
 
     def __init__(
-        self, memref: SSAValue, ub: ArrayAttr[IntAttr], indexing_map: AffineMapAttr
+        self,
+        memref: SSAValue,
+        ub: ArrayAttr[IntAttr],
+        strides: ArrayAttr[IntAttr],
     ):
         assert isinstance(memref.type, MemRefType)
         memref_type = cast(MemRefType[Attribute], memref.type)
@@ -199,7 +201,7 @@ class StridedReadOp(IRDLOperation):
             result_types=[InputStreamType(memref_type.element_type)],
             attributes={
                 "ub": ub,
-                "indexing_map": indexing_map,
+                "strides": strides,
             },
         )
 
@@ -217,10 +219,13 @@ class StridedWriteOp(IRDLOperation):
     memref = operand_def(MemRefType[T])
     stream = result_def(OutputStreamType[T])
     ub = attr_def(ArrayAttr[IntAttr])
-    indexing_map = attr_def(AffineMapAttr)
+    strides = attr_def(ArrayAttr[IntAttr])
 
     def __init__(
-        self, memref: SSAValue, ub: ArrayAttr[IntAttr], indexing_map: AffineMapAttr
+        self,
+        memref: SSAValue,
+        ub: ArrayAttr[IntAttr],
+        strides: ArrayAttr[IntAttr],
     ):
         assert isinstance(memref.type, MemRefType)
         memref_type = cast(MemRefType[Attribute], memref.type)
@@ -229,7 +234,7 @@ class StridedWriteOp(IRDLOperation):
             result_types=[OutputStreamType(memref_type.element_type)],
             attributes={
                 "ub": ub,
-                "indexing_map": indexing_map,
+                "strides": strides,
             },
         )
 

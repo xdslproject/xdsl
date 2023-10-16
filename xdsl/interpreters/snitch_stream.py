@@ -14,16 +14,11 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
-from xdsl.interpreters.stream import InputStream, OutputStream
-
-
-def strided_pointer_offset_iter(strides: list[int], ub: list[int]) -> Iterator[int]:
-    indices_iter = product(*(range(b) for b in ub))
-    offsets = [
-        sum((stride * index for stride, index in zip(strides, indices)))
-        for indices in indices_iter
-    ]
-    return iter(offsets)
+from xdsl.interpreters.stream import (
+    InputStream,
+    OutputStream,
+    strided_pointer_offset_iter,
+)
 
 
 @dataclass

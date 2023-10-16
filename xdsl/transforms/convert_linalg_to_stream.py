@@ -4,6 +4,9 @@ affine loops, memref operations and standard operations. This lowering
 expects that all calls have been inlined, and all shapes have been resolved.
 """
 
+import operator
+from itertools import accumulate
+
 from xdsl.dialects import linalg, stream
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -11,6 +14,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
 )
 from xdsl.ir import MLContext
+from xdsl.ir.affine.affine_map import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -19,6 +23,22 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+
+
+def strides_for_affine_map(
+    affine_map: AffineMap, ub: list[int], bitwidth: int
+) -> list[int]:
+    identity = AffineMap.identity(affine_map.num_dims)
+    if affine_map == identity:
+        prod_dims: list[int] = list(
+            accumulate(reversed(ub), operator.mul, initial=bitwidth)
+        )[1::-1]
+        return prod_dims
+    elif affine_map == identity.transpose:
+        prod_dims: list[int] = list(accumulate(ub, operator.mul, initial=bitwidth))[:-1]
+        return prod_dims
+    else:
+        raise NotImplementedError(f"Unsupported affine map {affine_map}")
 
 
 class LowerGenericOp(RewritePattern):
@@ -32,11 +52,33 @@ class LowerGenericOp(RewritePattern):
         ub_attr = ArrayAttr(IntAttr(b) for b in ub)
 
         new_inputs = [
-            stream.StridedReadOp(memref, ub_attr, indexing_map)
+            stream.StridedReadOp(
+                memref,
+                ub_attr,
+                ArrayAttr(
+                    [
+                        IntAttr(stride)
+                        for stride in strides_for_affine_map(
+                            indexing_map.data, [b.data for b in ub_attr], 1
+                        )
+                    ]
+                ),
+            )
             for memref, indexing_map in zip(op.inputs, op.indexing_maps)
         ]
         new_outputs = [
-            stream.StridedWriteOp(memref, ub_attr, indexing_map)
+            stream.StridedWriteOp(
+                memref,
+                ub_attr,
+                ArrayAttr(
+                    [
+                        IntAttr(stride)
+                        for stride in strides_for_affine_map(
+                            indexing_map.data, [b.data for b in ub_attr], 1
+                        )
+                    ]
+                ),
+            )
             for memref, indexing_map in zip(
                 op.outputs, op.indexing_maps.data[-len(op.outputs) :]
             )
