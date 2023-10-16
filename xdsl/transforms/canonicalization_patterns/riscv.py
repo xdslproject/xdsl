@@ -335,6 +335,7 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
                 ]
             )
 
+
 class BitwiseAndByZero(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AndOp, rewriter: PatternRewriter):
@@ -344,28 +345,24 @@ class BitwiseAndByZero(RewritePattern):
         """
 
         # check if the first operand is 0
-        if(
-            isinstance(op.rs1.owner, riscv.LiOp) and
-            isinstance(op.rs1.owner.immediate, IntegerAttr) and
-            op.rs1.owner.immediate.value.data == 0
+        if (
+            isinstance(op.rs1.owner, riscv.LiOp)
+            and isinstance(op.rs1.owner.immediate, IntegerAttr)
+            and op.rs1.owner.immediate.value.data == 0
         ):
-            # if first source is equal to 0, move the content of the first source (0)
-            # to the destination 
+            # if first source is equal to 0, move the content of the first source (0) to the destination
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
-        
+
         # check if the second operand is 0
-        if(
-            isinstance(op.rs2.owner, riscv.LiOp) and
-            isinstance(op.rs2.owner.immediate, IntegerAttr) and
-            op.rs2.owner.immediate.value.data == 0
+        if (
+            isinstance(op.rs2.owner, riscv.LiOp)
+            and isinstance(op.rs2.owner.immediate, IntegerAttr)
+            and op.rs2.owner.immediate.value.data == 0
         ):
-            # if second source is equal to 0, move the content of the second source (0)
-            # to the destination
+            # if second source is equal to 0, move the content of the second source (0) to the destination
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
-
-
 
 
 class ScfgwOpUsingImmediate(RewritePattern):

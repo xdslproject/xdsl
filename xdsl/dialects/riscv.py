@@ -1621,14 +1621,14 @@ class SltuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType])
 
     name = "riscv.sltu"
 
+
 class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            BitwiseAndByZero
-        )
+        from xdsl.transforms.canonicalization_patterns.riscv import BitwiseAndByZero
 
         return (BitwiseAndByZero(),)
+
 
 @irdl_op_definition
 class AndOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
