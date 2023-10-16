@@ -82,10 +82,10 @@ builtin.module {
   %add_lhs_rhs = riscv.add %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
   "test.op"(%add_lhs_rhs) : (!riscv.reg<a0>) -> ()
 
-  %and_bitwise_zero_l0 = riscv.and %1, 0 : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<a0>
+  %and_bitwise_zero_l0 = riscv.and %1, %0 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%and_bitwise_zero_l0) : (!riscv.reg<a0>) -> ()
 
-  %and_bitwise_zero_r0 = riscv.and 0, %1 : (!riscv.reg<>, !riscv.reg<a1>) -> !riscv.reg<a0>
+  %and_bitwise_zero_r0 = riscv.and %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 }
 
