@@ -180,13 +180,13 @@
       %add_o = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
     }) : (!riscv.reg<zero>) -> ()
 
-    // CHECK:          frep.outer zero, 1, 0, 0
+    // CHECK:          frep.o zero, 1, 0, 0
     // CHECK-NEXT:     add  j2, zero, j1
 
     riscv.frep_inner %0, 0, 0 ({
       %add_i = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
     }) : (!riscv.reg<zero>) -> ()
-    // CHECK:          frep.inner zero, 1, 0, 0
+    // CHECK:          frep.i zero, 1, 0, 0
     // CHECK-NEXT:     add  j2, zero, j1
 
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
