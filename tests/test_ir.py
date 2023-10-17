@@ -495,10 +495,10 @@ program_successors = """
 )
 def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Cf)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Cf)
 
     parser = Parser(ctx, args[0])
     lhs: Operation = parser.parse_op()
@@ -547,10 +547,10 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
 }) : () -> ()
 """
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Cf)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Cf)
 
     parser = Parser(ctx, program_func)
     program = parser.parse_operation()

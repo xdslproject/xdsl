@@ -57,36 +57,42 @@ class MLContext:
 
     allow_unregistered: bool = field(default=False)
 
-    _registeredOps: dict[str, type[Operation]] = field(init=False, default_factory=dict)
-    _registeredAttrs: dict[str, type[Attribute]] = field(
-        init=False, default_factory=dict
-    )
+    _loaded_ops: dict[str, type[Operation]] = field(init=False, default_factory=dict)
+    _loaded_attrs: dict[str, type[Attribute]] = field(init=False, default_factory=dict)
 
-    def registered_ops(self) -> Iterable[type[Operation]]:
+    @property
+    def loaded_ops(self) -> Iterable[type[Operation]]:
         """
-        Returns all the registered operations. Not valid across mutations of this object.
+        Returns all the loaded operations. Not valid across mutations of this object.
         """
-        return self._registeredOps.values()
+        return self._loaded_ops.values()
 
-    def register_dialect(self, dialect: Dialect):
-        """Register a dialect. Operation and Attribute names should be unique"""
+    @property
+    def loaded_attrs(self) -> Iterable[type[Attribute]]:
+        """
+        Returns all the loaded attributes. Not valid across mutations of this object.
+        """
+        return self._loaded_attrs.values()
+
+    def load_dialect(self, dialect: Dialect):
+        """Load a dialect. Operation and Attribute names should be unique"""
         for op in dialect.operations:
-            self.register_op(op)
+            self.load_op(op)
 
         for attr in dialect.attributes:
-            self.register_attr(attr)
+            self.load_attr(attr)
 
-    def register_op(self, op: type[Operation]) -> None:
-        """Register an operation definition. Operation names should be unique."""
-        if op.name in self._registeredOps:
-            raise Exception(f"Operation {op.name} has already been registered")
-        self._registeredOps[op.name] = op
+    def load_op(self, op: type[Operation]) -> None:
+        """Load an operation definition. Operation names should be unique."""
+        if op.name in self._loaded_ops:
+            raise Exception(f"Operation {op.name} has already been loaded")
+        self._loaded_ops[op.name] = op
 
-    def register_attr(self, attr: type[Attribute]) -> None:
-        """Register an attribute definition. Attribute names should be unique."""
-        if attr.name in self._registeredAttrs:
-            raise Exception(f"Attribute {attr.name} has already been registered")
-        self._registeredAttrs[attr.name] = attr
+    def load_attr(self, attr: type[Attribute]) -> None:
+        """Load an attribute definition. Attribute names should be unique."""
+        if attr.name in self._loaded_attrs:
+            raise Exception(f"Attribute {attr.name} has already been loaded")
+        self._loaded_attrs[attr.name] = attr
 
     def get_optional_op(self, name: str) -> type[Operation] | None:
         """
@@ -94,13 +100,13 @@ class MLContext:
         If the operation is not registered, return None unless unregistered operations
         are allowed in the context, in which case return an UnregisteredOp.
         """
-        if name in self._registeredOps:
-            return self._registeredOps[name]
+        if name in self._loaded_ops:
+            return self._loaded_ops[name]
         if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredOp
 
             op_type = UnregisteredOp.with_name(name)
-            self._registeredOps[name] = op_type
+            self._loaded_ops[name] = op_type
             return op_type
         return None
 
@@ -127,15 +133,15 @@ class MLContext:
         additional flag is required to create an UnregisterAttr that is
         also a type.
         """
-        if name in self._registeredAttrs:
-            return self._registeredAttrs[name]
+        if name in self._loaded_attrs:
+            return self._loaded_attrs[name]
         if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredAttr
 
             attr_type = UnregisteredAttr.with_name_and_type(
                 name, create_unregistered_as_type
             )
-            self._registeredAttrs[name] = attr_type
+            self._loaded_attrs[name] = attr_type
             return attr_type
 
         return None
