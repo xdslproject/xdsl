@@ -669,7 +669,8 @@ class DistributeStencilPass(DmpDecompositionPass):
 
     restrict_domain: bool = True
     """
-    Apply the domain restriction
+    Apply the domain restriction (i.e. change the stencil.apply to operate on the
+    local domain. If false, it assumes that the generated code is already local)
     """
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
