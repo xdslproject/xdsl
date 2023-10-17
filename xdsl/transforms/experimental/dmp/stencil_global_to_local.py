@@ -57,7 +57,7 @@ class AddHaloExchangeOps(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
         swap_op = dmp.SwapOp.get(op.res)
-        swap_op.nodes = self.strategy.comm_layout()
+        swap_op.topo = self.strategy.comm_layout()
         rewriter.insert_op_after_matched_op(swap_op)
 
 
@@ -69,7 +69,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         assert op.swaps is not None
-        assert op.nodes is not None
+        assert op.topo is not None
         exchanges = list(op.swaps)
 
         assert isinstance(op.input_stencil.type, ShapedType)
@@ -81,7 +81,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
                     op.input_stencil,
                     exchanges,
                     op.input_stencil.type.get_element_type(),
-                    op.nodes,
+                    op.topo,
                     emit_init=self.init,
                     emit_debug=self.debug_prints,
                 )
@@ -142,7 +142,7 @@ def _generate_single_axis_calc_and_check(
 
 
 def _grid_coords_from_rank(
-    my_rank: SSAValue, grid: dmp.NodeGridAttr
+    my_rank: SSAValue, grid: dmp.RankTopoAttr
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Takes a rank and a dmp.grid, and returns operations to calculate
@@ -166,7 +166,7 @@ def _grid_coords_from_rank(
 def _generate_dest_rank_computation(
     my_rank: SSAValue,
     offsets: tuple[int, ...],
-    grid: dmp.NodeGridAttr,
+    grid: dmp.RankTopoAttr,
 ) -> tuple[list[Operation], SSAValue, SSAValue]:
     """
     Takes the current rank, a tuple of offsets in grid coords, and a dmp.grid
@@ -245,7 +245,7 @@ def generate_mpi_calls_for(
     source: SSAValue,
     exchanges: list[dmp.ExchangeDeclarationAttr],
     dtype: Attribute,
-    grid: dmp.NodeGridAttr,
+    grid: dmp.RankTopoAttr,
     emit_init: bool = True,
     emit_debug: bool = False,
 ) -> Iterable[Operation]:

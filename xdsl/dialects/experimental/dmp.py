@@ -354,17 +354,17 @@ class ShapeAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class NodeGridAttr(ParametrizedAttribute):
+class RankTopoAttr(ParametrizedAttribute):
     """
     This attribute specifies the node layout used to distribute the computation.
 
-    dmp.grid<3x3> means nine nodes organized in a 3x3 grid.
+    dmp.grid<3x3> means nine ranks organized in a 3x3 grid.
 
     This allows for higher-dimensional grids as well, e.g. dmp.grid<3x3x3> for
     3-dimensional data.
     """
 
-    name = "dmp.grid"
+    name = "dmp.topo"
 
     shape: ParameterDef[builtin.DenseArrayBase]
 
@@ -418,7 +418,7 @@ class SwapOp(IRDLOperation):
         builtin.ArrayAttr[ExchangeDeclarationAttr]
     )
 
-    nodes: NodeGridAttr | None = opt_attr_def(NodeGridAttr)
+    topo: RankTopoAttr | None = opt_attr_def(RankTopoAttr)
 
     @staticmethod
     def get(input_stencil: SSAValue | Operation):
@@ -432,6 +432,6 @@ DMP = Dialect(
     [
         ExchangeDeclarationAttr,
         ShapeAttr,
-        NodeGridAttr,
+        RankTopoAttr,
     ],
 )

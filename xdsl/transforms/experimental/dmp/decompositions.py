@@ -21,7 +21,7 @@ class DomainDecompositionStrategy(ABC):
         raise NotImplementedError("SlicingStrategy must implement halo_exchange_defs!")
 
     @abstractmethod
-    def comm_layout(self) -> dmp.NodeGridAttr:
+    def comm_layout(self) -> dmp.RankTopoAttr:
         raise NotImplementedError("SlicingStrategy must implement comm_count!")
 
 
@@ -137,5 +137,5 @@ class GridSlice2d(DomainDecompositionStrategy):
         # TOOD: add diagonals
         assert not self.diagonals
 
-    def comm_layout(self) -> dmp.NodeGridAttr:
-        return dmp.NodeGridAttr(self.topology)
+    def comm_layout(self) -> dmp.RankTopoAttr:
+        return dmp.RankTopoAttr(self.topology)
