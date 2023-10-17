@@ -28,6 +28,7 @@ from xdsl.dialects.gpu import GPU
 from xdsl.dialects.irdl.irdl import IRDL
 from xdsl.dialects.linalg import Linalg
 from xdsl.dialects.llvm import LLVM
+from xdsl.dialects.ltl import LTL
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.pdl import PDL
@@ -93,6 +94,7 @@ def get_all_dialects() -> list[Dialect]:
         Linalg,
         IRDL,
         LLVM,
+        LTL,
         Math,
         MemRef,
         MPI,
