@@ -228,6 +228,29 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
     return rewriter.move_region_contents_to_new_regions(op.region)
 
 
+def loop_from_bounds(
+    lb: SSAValue | Operation,
+    ub: SSAValue | Operation,
+    step: SSAValue | Operation,
+    parallel: bool,
+):
+    if parallel:
+        return scf.ParallelOp.get(
+            lowerBounds=[lb],
+            upperBounds=[ub],
+            steps=[step],
+            body=Region(Block([scf.Yield.get()], arg_types=[builtin.IndexType()])),
+        )
+    else:
+        return scf.For.get(
+            lb=lb,
+            ub=ub,
+            step=step,
+            iter_args=[],
+            body=Region(Block([scf.Yield.get()], arg_types=[builtin.IndexType()])),
+        )
+
+
 @dataclass
 class ApplyOpToParallel(RewritePattern):
     return_targets: dict[ReturnOp, list[SSAValue | None]]
@@ -289,13 +312,8 @@ class ApplyOpToParallel(RewritePattern):
                     dim += tiled_dim
 
                 assert lowerBounds[0] is not None
-                p = scf.ParallelOp.get(
-                    lowerBounds=[lowerBounds[0]],
-                    upperBounds=[upperBounds[0]],
-                    steps=[steps[0]],
-                    body=Region(
-                        Block([scf.Yield.get()], arg_types=[builtin.IndexType()])
-                    ),
+                p = loop_from_bounds(
+                    lowerBounds[0], upperBounds[0], steps[0], parallel=True
                 )
                 loops: list[scf.ParallelOp | scf.For] = [p]
                 current_loop = p
@@ -316,14 +334,8 @@ class ApplyOpToParallel(RewritePattern):
                         block.insert_ops_before([add, cmpi, minop], last)
                         tiled_index += 1
                     assert (lb := lowerBounds[i]) is not None
-                    loop = scf.For.get(
-                        lb=lb,
-                        ub=upperBounds[i],
-                        step=steps[i],
-                        iter_args=[],
-                        body=Region(
-                            Block([scf.Yield.get()], arg_types=[builtin.IndexType()])
-                        ),
+                    loop = loop_from_bounds(
+                        lb, upperBounds[i], steps[i], parallel=False
                     )
                     block.insert_op_before(loop, last)
                     current_loop = loop
