@@ -12,8 +12,7 @@ from typing import (
 )
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, OperationInvT, SSAValue
-from xdsl.ir.core import Attribute, Block, Region
+from xdsl.ir import Attribute, Block, Operation, OperationInvT, Region, SSAValue
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 
@@ -99,13 +98,25 @@ class InterpreterFunctions:
         except AttributeError as e:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
 
+    @classmethod
+    def _ext_impls(
+        cls,
+    ) -> Iterable[tuple[str, ExtFuncImpl[InterpreterFunctions]]]:
+        try:
+            impl_dict = getattr(cls, _EXT_FUNC_DICT)
+            return impl_dict.items()
+        except AttributeError as e:
+            raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
+
 
 _FT = TypeVar("_FT", bound=InterpreterFunctions)
 
 _IMPL_OP_TYPE = "__impl_op_type"
 _CAST_IMPL_TYPES = "__cast_impl_types"
+_EXT_FUNC_NAME = "__external_func_name"
 _IMPL_DICT = "__impl_dict"
 _CAST_IMPL_DICT = "__cast_impl_dict"
+_EXT_FUNC_DICT = "__external_func_dict"
 
 P = ParamSpec("P")
 
@@ -197,6 +208,20 @@ def impl_cast(
     return annot
 
 
+def impl_external(
+    sym_name: str,
+) -> Callable[[ExtFuncImpl[_FT]], ExtFuncImpl[_FT]]:
+    """
+    Marks the Python implementation of an external function.
+    """
+
+    def annot(func: ExtFuncImpl[_FT]) -> ExtFuncImpl[_FT]:
+        setattr(func, _EXT_FUNC_NAME, sym_name)
+        return func
+
+    return annot
+
+
 def register_impls(ft: type[_FT]) -> type[_FT]:
     """
     Enumerates the methods on a given class, and registers the ones marked with
@@ -208,6 +233,7 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
 
     impl_dict: _ImplDict = {}
     cast_impl_dict: _CastImplDict = {}
+    external_func_dict: _ExtFuncImplDict = {}
 
     for cls in ft.mro():
         # Iterate from subclass through superclasses
@@ -225,9 +251,17 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
                 if types not in cast_impl_dict:
                     # subclass overrides superclass definition
                     cast_impl_dict[types] = val
+            elif _EXT_FUNC_NAME in val.__dir__():
+                # This is an annotated external function
+                sym_name = getattr(val, _EXT_FUNC_NAME)
+                assert isinstance(sym_name, str)
+                if sym_name not in external_func_dict:
+                    # subclass overrides superclass definition
+                    external_func_dict[sym_name] = val
 
     setattr(ft, _IMPL_DICT, impl_dict)
     setattr(ft, _CAST_IMPL_DICT, cast_impl_dict)
+    setattr(ft, _EXT_FUNC_DICT, external_func_dict)
 
     return ft
 
@@ -250,6 +284,9 @@ class _InterpreterFunctionImpls:
             InterpreterFunctions, CastImpl[InterpreterFunctions, Attribute, Attribute]
         ],
     ] = field(default_factory=dict)
+    _external_funcs_dict: dict[
+        str, tuple[InterpreterFunctions, ExtFuncImpl[InterpreterFunctions]]
+    ] = field(default_factory=dict)
 
     def register_from(self, ft: InterpreterFunctions, /, override: bool):
         impls = ft._impls()  # pyright: ignore[reportPrivateUsage]
@@ -263,14 +300,24 @@ class _InterpreterFunctionImpls:
             self._impl_dict[op_type] = (ft, impl)
 
         cast_impls = ft._cast_impls()  # pyright: ignore[reportPrivateUsage]
-        for types, impl in cast_impls:
+        for types, cast_impl in cast_impls:
             if types in self._cast_impl_dict and not override:
                 raise ValueError(
                     "Attempting to register implementation for cast with types "
                     f"{types}, but types already registered"
                 )
 
-            self._cast_impl_dict[types] = (ft, impl)
+            self._cast_impl_dict[types] = (ft, cast_impl)
+
+        ext_impls = ft._ext_impls()  # pyright: ignore[reportPrivateUsage]
+        for sym_name, ext_impl in ext_impls:
+            if sym_name in self._external_funcs_dict and not override:
+                raise ValueError(
+                    "Attempting to register external function with name "
+                    f"{sym_name}, but it's already registered"
+                )
+
+            self._external_funcs_dict[sym_name] = (ft, ext_impl)
 
     def run(
         self, interpreter: Interpreter, op: Operation, args: tuple[Any, ...]
@@ -295,6 +342,18 @@ class _InterpreterFunctionImpls:
             )
         ft, impl = self._cast_impl_dict[types]
         return impl(ft, input_type, output_type, value)
+
+    def call_external(
+        self, interpreter: Interpreter, sym_name: str, op: Operation, args: PythonValues
+    ) -> PythonValues:
+        if sym_name not in self._external_funcs_dict:
+            raise InterpretationError(
+                f"Could not find external function implementation named {sym_name}"
+            )
+
+        ft, ext_func = self._external_funcs_dict[sym_name]
+
+        return ext_func(ft, interpreter, op, args)
 
 
 @dataclass
@@ -361,6 +420,12 @@ class Interpreter:
     )
     file: IO[str] | None = field(default=None)
     _symbol_table: dict[str, Operation] | None = None
+    _impl_data: dict[type[InterpreterFunctions], dict[str, Any]] = field(
+        default_factory=dict
+    )
+    """
+    Runtime data associated with an interpreter functions implementation.
+    """
 
     @property
     def symbol_table(self) -> dict[str, Operation]:
@@ -447,7 +512,11 @@ class Interpreter:
 
         body = interface.get_callable_region(op)
 
-        results = self.run_ssacfg_region(body, inputs, name)
+        # TODO: make this an interface that exposes `is_external_decl` or similar
+        if not body.blocks or not body.blocks[0].ops:
+            results = self._impls.call_external(self, name, op, inputs)
+        else:
+            results = self.run_ssacfg_region(body, inputs, name)
         assert results is not None
         return results
 
@@ -479,7 +548,7 @@ class Interpreter:
                 result = self._impls.run(self, op, inputs)
                 self.interpreter_assert(
                     len(op.results) == len(result.values),
-                    f"Incorrect number of results for op {op.name}",
+                    f"Incorrect number of results for op {op.name}, expected {len(op.results)} but got {len(result.values)}",
                 )
                 self.set_values(zip(op.results, result.values))
 
@@ -517,6 +586,31 @@ class Interpreter:
             return self.symbol_table[symbol]
         else:
             raise InterpretationError(f'Could not find symbol "{symbol}"')
+
+    def get_data(
+        self,
+        functions: type[InterpreterFunctions],
+        key: str,
+        factory: Callable[[], Any],
+    ) -> Any:
+        """
+        Get data associated with a specific interpreter functions class, with a given key.
+        If the data is missing, the `factory` argument will be executed and stored on the
+        interpreter.
+        """
+        if functions not in self._impl_data:
+            functions_data = {}
+            self._impl_data[functions] = functions_data
+        else:
+            functions_data = self._impl_data[functions]
+
+        if key not in functions_data:
+            data = factory()
+            functions_data[key] = data
+        else:
+            data = functions_data[key]
+
+        return data
 
     def print(self, *args: Any, **kwargs: Any):
         """Print to current file."""
@@ -578,4 +672,14 @@ _ImplDict: TypeAlias = dict[type[Operation], OpImpl[InterpreterFunctions, Operat
 _CastImplDict: TypeAlias = dict[
     tuple[type[Attribute], type[Attribute]],
     CastImpl[InterpreterFunctions, Attribute, Attribute],
+]
+
+ExtFuncImpl: TypeAlias = Callable[
+    [_FT, Interpreter, Operation, PythonValues],
+    PythonValues,
+]
+
+_ExtFuncImplDict: TypeAlias = dict[
+    str,
+    ExtFuncImpl[InterpreterFunctions],
 ]

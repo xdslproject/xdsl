@@ -7,19 +7,19 @@ builtin.module {
   %0 = "test.op"() : () -> i1
   "scf.if"(%0) ({
     %1 = "test.op"() : () -> i32
-    "scf.yield"() : () -> ()
+    scf.yield
   }, {
     %2 = "test.op"() : () -> i32
-    "scf.yield"() : () -> ()
+    scf.yield
   }) : (i1) -> ()
 
   // CHECK:      %{{.*}} = "test.op"() : () -> i1
   // CHECK-NEXT: "scf.if"(%{{.*}}) ({
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
-  // CHECK-NEXT:   "scf.yield"() : () -> ()
+  // CHECK-NEXT:   scf.yield
   // CHECK-NEXT: }, {
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
-  // CHECK-NEXT:   "scf.yield"() : () -> ()
+  // CHECK-NEXT:   scf.yield
   // CHECK-NEXT: }) : (i1) -> ()
 
 
@@ -34,10 +34,10 @@ builtin.module {
 
   // CHECK:      %{{.*}} = "scf.if"(%{{.*}}) ({
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
-  // CHECK-NEXT:   "scf.yield"(%{{.*}}) : (i32) -> ()
+  // CHECK-NEXT:   scf.yield %{{.*}} : i32
   // CHECK-NEXT: }, {
   // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
-  // CHECK-NEXT:   "scf.yield"(%{{.*}}) : (i32) -> ()
+  // CHECK-NEXT:   scf.yield %{{.*}} : i32
   // CHECK-NEXT: }) : (i1) -> i32
 
   func.func @while() {
@@ -59,11 +59,11 @@ builtin.module {
   // CHECK-NEXT:   %{{.*}} = "scf.while"(%{{.*}}) ({
   // CHECK-NEXT:   ^{{.*}}(%{{.*}} : i32):
   // CHECK-NEXT:     %{{.*}} = arith.constant 0 : i32
-  // CHECK-NEXT:     %{{.*}} = "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 1 : i64} : (i32, i32) -> i1
+  // CHECK-NEXT:     %{{.*}} = arith.cmpi ne, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:     "scf.condition"(%{{.*}}, %{{.*}}) : (i1, i32) -> ()
   // CHECK-NEXT:   }, {
   // CHECK-NEXT:   ^{{.*}}(%{{.*}} : i32):
-  // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (i32) -> ()
+  // CHECK-NEXT:     scf.yield %{{.*}} : i32
   // CHECK-NEXT:   }) : (i32) -> i32
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
@@ -92,13 +92,13 @@ builtin.module {
   // CHECK-NEXT:    %6, %7 = "scf.while"(%{{.*}}, %{{.*}}) ({
   // CHECK-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : f32):
   // CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
-  // CHECK-NEXT:      %{{.*}} = "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 0 : i64} : (i32, i32) -> i1
+  // CHECK-NEXT:      %{{.*}} = arith.cmpi eq, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:      "scf.condition"(%{{.*}}, %{{.*}}, %{{.*}}) : (i1, i32, f32) -> ()
   // CHECK-NEXT:    }, {
   // CHECK-NEXT:    ^3(%{{.*}} : i32, %{{.*}} : f32):
   // CHECK-NEXT:      %{{.*}} = arith.constant 1.000000e+00 : f32
   // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
-  // CHECK-NEXT:      "scf.yield"(%{{.*}}, %{{.*}}) : (i32, f32) -> ()
+  // CHECK-NEXT:      scf.yield %{{.*}}, %{{.*}} : i32, f32
   // CHECK-NEXT:    }) : (i32, f32) -> (i32, f32)
   // CHECK-NEXT:    func.return
   // CHECK-NEXT:  }
@@ -121,11 +121,10 @@ builtin.module {
   // CHECK-NEXT:   %{{.*}} = arith.constant 42 : index
   // CHECK-NEXT:   %{{.*}} = arith.constant 3 : index
   // CHECK-NEXT:   %{{.*}} = arith.constant 1 : index
-  // CHECK-NEXT:   %{{.*}} = "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) ({
-  // CHECK-NEXT:   ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
+  // CHECK-NEXT:   %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (index) {
   // CHECK-NEXT:     %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
-  // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (index) -> ()
-  // CHECK-NEXT:   }) : (index, index, index, index) -> index
+  // CHECK-NEXT:     scf.yield %{{.*}} : index
+  // CHECK-NEXT:   }
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 

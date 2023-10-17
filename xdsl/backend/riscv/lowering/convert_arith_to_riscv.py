@@ -1,4 +1,5 @@
-from typing import overload
+import struct
+from dataclasses import dataclass
 
 from xdsl.backend.riscv.lowering.utils import (
     cast_matched_op_results,
@@ -7,6 +8,7 @@ from xdsl.backend.riscv.lowering.utils import (
 from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
     Float32Type,
+    Float64Type,
     FloatAttr,
     IndexType,
     IntegerAttr,
@@ -14,7 +16,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir.core import MLContext, Operation
+from xdsl.ir import MLContext, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -56,14 +58,37 @@ class LowerArithConstant(RewritePattern):
                             convert_f32_to_u32(op.value.value.data),
                             rd=_INT_REGISTER_TYPE,
                         ),
-                        fld := riscv.FCvtSWOp(
+                        fld := riscv.FMvWXOp(
                             lui.rd, rd=riscv.FloatRegisterType.unallocated()
                         ),
                         UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
                     ],
                 )
+            elif isinstance(op_result_type, Float64Type):
+                # There is no way to load an immediate value to a float register directly.
+                # We have to load the bits into an integer register, store them on the
+                # stack, and load again.
+
+                # TODO: check the xlen in this lowering.
+
+                # This lowering assumes that xlen is 32 and flen is 64
+
+                lower, upper = struct.unpack(
+                    "<ii", struct.pack("<d", op.value.value.data)
+                )
+                rewriter.replace_matched_op(
+                    [
+                        sp := riscv.GetRegisterOp(riscv.Registers.SP),
+                        li_upper := riscv.LiOp(upper),
+                        riscv.SwOp(sp, li_upper, -4),
+                        li_lower := riscv.LiOp(lower),
+                        riscv.SwOp(sp, li_lower, -8),
+                        fld := riscv.FLdOp(sp, -8, rd=_FLOAT_REGISTER_TYPE),
+                        UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
+                    ],
+                )
             else:
-                raise NotImplementedError("Only 32 bit floats are supported")
+                raise NotImplementedError("Only 32 or 64 bit floats are supported")
         elif isinstance(op_result_type, IndexType) and isinstance(
             op.value, IntegerAttr
         ):
@@ -93,74 +118,63 @@ class LowerArithIndexCast(RewritePattern):
         )
 
 
-class LowerBinaryOp(RewritePattern):
-    arith_op_cls: type[arith.SignlessIntegerBinaryOp] | type[
-        arith.FloatingPointLikeBinaryOp
-    ]
-    riscv_op_cls: type[riscv.RdRsRsIntegerOperation] | type[riscv.RdRsRsFloatOperation]
-    register_type: riscv.IntRegisterType | riscv.FloatRegisterType
+RdRsRsIntegerOperation = riscv.RdRsRsOperation[
+    riscv.IntRegisterType, riscv.IntRegisterType, riscv.IntRegisterType
+]
 
-    @overload
-    def __init__(
-        self,
-        arith_op_cls: type[arith.SignlessIntegerBinaryOp],
-        riscv_op_cls: type[riscv.RdRsRsIntegerOperation],
-        register_type: riscv.IntRegisterType,
-    ) -> None:
-        ...
+RdRsRsFloatOperation = riscv.RdRsRsOperation[
+    riscv.FloatRegisterType, riscv.FloatRegisterType, riscv.FloatRegisterType
+]
 
-    @overload
-    def __init__(
-        self,
-        arith_op_cls: type[arith.FloatingPointLikeBinaryOp],
-        riscv_op_cls: type[riscv.RdRsRsFloatOperation],
-        register_type: riscv.FloatRegisterType,
-    ) -> None:
-        ...
 
-    def __init__(
-        self,
-        arith_op_cls: type[arith.SignlessIntegerBinaryOp]
-        | type[arith.FloatingPointLikeBinaryOp],
-        riscv_op_cls: type[riscv.RdRsRsIntegerOperation]
-        | type[riscv.RdRsRsFloatOperation],
-        register_type: riscv.IntRegisterType | riscv.FloatRegisterType,
-    ) -> None:
-        self.arith_op_cls = arith_op_cls
-        self.riscv_op_cls = riscv_op_cls
-        self.register_type = register_type
+@dataclass
+class LowerBinaryIntegerOp(RewritePattern):
+    arith_op_cls: type[arith.SignlessIntegerBinaryOp]
+    riscv_op_cls: type[RdRsRsIntegerOperation]
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
         if not isinstance(op, self.arith_op_cls):
             return
 
-        lhs = UnrealizedConversionCastOp.get((op.lhs,), (self.register_type,))
-        rhs = UnrealizedConversionCastOp.get((op.rhs,), (self.register_type,))
-        add = self.riscv_op_cls(lhs, rhs)
+        lhs = UnrealizedConversionCastOp.get((op.lhs,), (_INT_REGISTER_TYPE,))
+        rhs = UnrealizedConversionCastOp.get((op.rhs,), (_INT_REGISTER_TYPE,))
+        add = self.riscv_op_cls(lhs, rhs, rd=_INT_REGISTER_TYPE)
         cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.type,))
 
         rewriter.replace_matched_op((lhs, rhs, add, cast))
 
 
-def lower_signless_integer_binary_op(
-    arith_op_cls: type[arith.SignlessIntegerBinaryOp],
-    riscv_op_cls: type[riscv.RdRsRsIntegerOperation],
-) -> LowerBinaryOp:
-    return LowerBinaryOp(arith_op_cls, riscv_op_cls, _INT_REGISTER_TYPE)
+@dataclass
+class LowerBinaryFloatOp(RewritePattern):
+    arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
+    riscv_f_op_cls: type[RdRsRsFloatOperation]
+    riscv_d_op_cls: type[RdRsRsFloatOperation]
+
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
+        if not isinstance(op, self.arith_op_cls):
+            return
+
+        lhs = UnrealizedConversionCastOp.get((op.lhs,), (_FLOAT_REGISTER_TYPE,))
+        rhs = UnrealizedConversionCastOp.get((op.rhs,), (_FLOAT_REGISTER_TYPE,))
+        match op.lhs.type:
+            case Float32Type():
+                cls = self.riscv_f_op_cls
+            case Float64Type():
+                cls = self.riscv_d_op_cls
+            case _:
+                assert False, f"Unexpected float type {op.lhs.type}"
+
+        new_op = cls(lhs, rhs, rd=_FLOAT_REGISTER_TYPE)
+        cast = UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,))
+
+        rewriter.replace_matched_op((lhs, rhs, new_op, cast))
 
 
-def lower_float_binary_op(
-    arith_op_cls: type[arith.FloatingPointLikeBinaryOp],
-    riscv_op_cls: type[riscv.RdRsRsFloatOperation],
-) -> LowerBinaryOp:
-    return LowerBinaryOp(arith_op_cls, riscv_op_cls, _FLOAT_REGISTER_TYPE)
-
-
-lower_arith_addi = lower_signless_integer_binary_op(arith.Addi, riscv.AddOp)
-lower_arith_subi = lower_signless_integer_binary_op(arith.Subi, riscv.SubOp)
-lower_arith_muli = lower_signless_integer_binary_op(arith.Muli, riscv.MulOp)
-lower_arith_divui = lower_signless_integer_binary_op(arith.DivUI, riscv.DivuOp)
-lower_arith_divsi = lower_signless_integer_binary_op(arith.DivSI, riscv.DivOp)
+lower_arith_addi = LowerBinaryIntegerOp(arith.Addi, riscv.AddOp)
+lower_arith_subi = LowerBinaryIntegerOp(arith.Subi, riscv.SubOp)
+lower_arith_muli = LowerBinaryIntegerOp(arith.Muli, riscv.MulOp)
+lower_arith_divui = LowerBinaryIntegerOp(arith.DivUI, riscv.DivuOp)
+lower_arith_divsi = LowerBinaryIntegerOp(arith.DivSI, riscv.DivOp)
 
 
 class LowerArithFloorDivSI(RewritePattern):
@@ -183,8 +197,8 @@ class LowerArithCeilDivUI(RewritePattern):
         raise NotImplementedError("CeilDivUI is not supported")
 
 
-lower_arith_remui = lower_signless_integer_binary_op(arith.RemUI, riscv.RemuOp)
-lower_arith_remsi = lower_signless_integer_binary_op(arith.RemSI, riscv.RemOp)
+lower_arith_remui = LowerBinaryIntegerOp(arith.RemUI, riscv.RemuOp)
+lower_arith_remsi = LowerBinaryIntegerOp(arith.RemSI, riscv.RemOp)
 
 
 class LowerArithMinSI(RewritePattern):
@@ -221,37 +235,45 @@ class LowerArithCmpi(RewritePattern):
         match op.predicate.value.data:
             # eq
             case 0:
-                xor_op = riscv.XorOp(lhs, rhs)
+                xor_op = riscv.XorOp(lhs, rhs, rd=riscv.IntRegisterType.unallocated())
                 seqz_op = riscv.SltiuOp(xor_op, 1)
                 rewriter.replace_matched_op([xor_op, seqz_op])
             # ne
             case 1:
                 zero = riscv.GetRegisterOp(riscv.Registers.ZERO)
-                xor_op = riscv.XorOp(lhs, rhs)
-                snez_op = riscv.SltuOp(zero, xor_op)
+                xor_op = riscv.XorOp(lhs, rhs, rd=riscv.IntRegisterType.unallocated())
+                snez_op = riscv.SltuOp(
+                    zero, xor_op, rd=riscv.IntRegisterType.unallocated()
+                )
                 rewriter.replace_matched_op([zero, xor_op, snez_op])
             # slt
             case 2:
-                rewriter.replace_matched_op([riscv.SltOp(lhs, rhs)])
+                rewriter.replace_matched_op(
+                    [riscv.SltOp(lhs, rhs, rd=riscv.IntRegisterType.unallocated())]
+                )
             # sle
             case 3:
-                slt = riscv.SltOp(lhs, rhs)
+                slt = riscv.SltOp(lhs, rhs, rd=riscv.IntRegisterType.unallocated())
                 xori = riscv.XoriOp(slt, 1)
                 rewriter.replace_matched_op([slt, xori])
             # ult
             case 4:
-                rewriter.replace_matched_op([riscv.SltuOp(lhs, rhs)])
+                rewriter.replace_matched_op(
+                    [riscv.SltuOp(lhs, rhs, rd=riscv.IntRegisterType.unallocated())]
+                )
             # ule
             case 5:
-                sltu = riscv.SltuOp(lhs, rhs)
+                sltu = riscv.SltuOp(lhs, rhs, rd=riscv.IntRegisterType.unallocated())
                 xori = riscv.XoriOp(sltu, 1)
                 rewriter.replace_matched_op([sltu, xori])
             # ugt
             case 6:
-                rewriter.replace_matched_op([riscv.SltuOp(rhs, lhs)])
+                rewriter.replace_matched_op(
+                    [riscv.SltuOp(rhs, lhs, rd=riscv.IntRegisterType.unallocated())]
+                )
             # uge
             case 7:
-                sltu = riscv.SltuOp(rhs, lhs)
+                sltu = riscv.SltuOp(rhs, lhs, rd=riscv.IntRegisterType.unallocated())
                 xori = riscv.XoriOp(sltu, 1)
                 rewriter.replace_matched_op([sltu, xori])
             case _:
@@ -264,18 +286,18 @@ class LowerArithSelect(RewritePattern):
         raise NotImplementedError("Select is not supported")
 
 
-lower_arith_andi = lower_signless_integer_binary_op(arith.AndI, riscv.AndOp)
-lower_arith_ori = lower_signless_integer_binary_op(arith.OrI, riscv.OrOp)
-lower_arith_xori = lower_signless_integer_binary_op(arith.XOrI, riscv.XorOp)
-lower_arith_shli = lower_signless_integer_binary_op(arith.ShLI, riscv.SllOp)
-lower_arith_shrui = lower_signless_integer_binary_op(arith.ShRUI, riscv.SrlOp)
-lower_arith_shrsi = lower_signless_integer_binary_op(arith.ShRSI, riscv.SraOp)
+lower_arith_andi = LowerBinaryIntegerOp(arith.AndI, riscv.AndOp)
+lower_arith_ori = LowerBinaryIntegerOp(arith.OrI, riscv.OrOp)
+lower_arith_xori = LowerBinaryIntegerOp(arith.XOrI, riscv.XorOp)
+lower_arith_shli = LowerBinaryIntegerOp(arith.ShLI, riscv.SllOp)
+lower_arith_shrui = LowerBinaryIntegerOp(arith.ShRUI, riscv.SrlOp)
+lower_arith_shrsi = LowerBinaryIntegerOp(arith.ShRSI, riscv.SraOp)
 
 
-lower_arith_addf = lower_float_binary_op(arith.Addf, riscv.FAddSOp)
-lower_arith_subf = lower_float_binary_op(arith.Subf, riscv.FSubSOp)
-lower_arith_mulf = lower_float_binary_op(arith.Mulf, riscv.FMulSOp)
-lower_arith_divf = lower_float_binary_op(arith.Divf, riscv.FDivSOp)
+lower_arith_addf = LowerBinaryFloatOp(arith.Addf, riscv.FAddSOp, riscv.FAddDOp)
+lower_arith_subf = LowerBinaryFloatOp(arith.Subf, riscv.FSubSOp, riscv.FSubDOp)
+lower_arith_mulf = LowerBinaryFloatOp(arith.Mulf, riscv.FMulSOp, riscv.FMulDOp)
+lower_arith_divf = LowerBinaryFloatOp(arith.Divf, riscv.FDivSOp, riscv.FDivDOp)
 
 
 class LowerArithNegf(RewritePattern):
@@ -286,7 +308,9 @@ class LowerArithNegf(RewritePattern):
                 operand := UnrealizedConversionCastOp.get(
                     (op.operand,), (_FLOAT_REGISTER_TYPE,)
                 ),
-                negf := riscv.FSgnJNSOp(operand, operand),
+                negf := riscv.FSgnJNSOp(
+                    operand, operand, rd=riscv.FloatRegisterType.unallocated()
+                ),
                 UnrealizedConversionCastOp.get((negf.rd,), (op.result.type,)),
             )
         )
@@ -334,17 +358,29 @@ class LowerArithCmpf(RewritePattern):
             case 6:
                 flt1 = riscv.FltSOP(lhs, rhs)
                 flt2 = riscv.FltSOP(rhs, lhs)
-                rewriter.replace_matched_op([flt1, flt2, riscv.OrOp(flt2, flt1)])
+                rewriter.replace_matched_op(
+                    [
+                        flt1,
+                        flt2,
+                        riscv.OrOp(flt2, flt1, rd=riscv.IntRegisterType.unallocated()),
+                    ]
+                )
             # ord
             case 7:
                 feq1 = riscv.FeqSOP(lhs, lhs)
                 feq2 = riscv.FeqSOP(rhs, rhs)
-                rewriter.replace_matched_op([feq1, feq2, riscv.AndOp(feq2, feq1)])
+                rewriter.replace_matched_op(
+                    [
+                        feq1,
+                        feq2,
+                        riscv.AndOp(feq2, feq1, rd=riscv.IntRegisterType.unallocated()),
+                    ]
+                )
             # ueq
             case 8:
                 flt1 = riscv.FltSOP(lhs, rhs)
                 flt2 = riscv.FltSOP(rhs, lhs)
-                or_ = riscv.OrOp(flt2, flt1)
+                or_ = riscv.OrOp(flt2, flt1, rd=riscv.IntRegisterType.unallocated())
                 rewriter.replace_matched_op([flt1, flt2, or_, riscv.XoriOp(or_, 1)])
             # ugt
             case 9:
@@ -370,7 +406,7 @@ class LowerArithCmpf(RewritePattern):
             case 14:
                 feq1 = riscv.FeqSOP(lhs, lhs)
                 feq2 = riscv.FeqSOP(rhs, rhs)
-                and_ = riscv.AndOp(feq2, feq1)
+                and_ = riscv.AndOp(feq2, feq1, rd=riscv.IntRegisterType.unallocated())
                 rewriter.replace_matched_op([feq1, feq2, and_, riscv.XoriOp(and_, 1)])
             # true
             case 15:

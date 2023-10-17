@@ -34,7 +34,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser.core import Parser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import CallableOpInterface, HasParent, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
@@ -73,7 +73,7 @@ class SyscallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CallOp(IRDLOperation):
+class CallOp(IRDLOperation, riscv.RISCVInstruction):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
@@ -129,6 +129,12 @@ class CallOp(IRDLOperation):
             call.attributes |= extra_attributes.data
         return call
 
+    def assembly_instruction_name(self) -> str:
+        return "jal"
+
+    def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
+        return (self.callee.string_value(),)
+
 
 class FuncOpCallableInterface(CallableOpInterface):
     @classmethod
@@ -138,13 +144,14 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(IRDLOperation):
+class FuncOp(IRDLOperation, riscv.RISCVOp):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
     sym_name: StringAttr = attr_def(StringAttr)
     body: Region = region_def()
     function_type: FunctionType = attr_def(FunctionType)
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
     traits = frozenset([SymbolOpInterface(), FuncOpCallableInterface()])
 
@@ -153,19 +160,32 @@ class FuncOp(IRDLOperation):
         name: str,
         region: Region,
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
+        visibility: StringAttr | str | None = None,
     ):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
             function_type = FunctionType.from_lists(inputs, outputs)
-        attributes: dict[str, Attribute] = {
+        if isinstance(visibility, str):
+            visibility = StringAttr(visibility)
+        attributes: dict[str, Attribute | None] = {
             "sym_name": StringAttr(name),
             "function_type": function_type,
+            "sym_visibility": visibility,
         }
 
         super().__init__(attributes=attributes, regions=[region])
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
+        # Parse visibility keyword if present
+        if parser.parse_optional_keyword("public"):
+            visibility = "public"
+        elif parser.parse_optional_keyword("nested"):
+            visibility = "nested"
+        elif parser.parse_optional_keyword("private"):
+            visibility = "private"
+        else:
+            visibility = None
         (
             name,
             input_types,
@@ -173,26 +193,33 @@ class FuncOp(IRDLOperation):
             region,
             extra_attrs,
         ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type")
+            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
-        func = FuncOp(name, region, (input_types, return_types))
+        func = FuncOp(name, region, (input_types, return_types), visibility)
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
         return func
 
     def print(self, printer: Printer):
+        if self.sym_visibility:
+            visibility = self.sym_visibility.data
+            printer.print(f" {visibility}")
+
         print_func_op_like(
             printer,
             self.sym_name,
             self.function_type,
             self.body,
             self.attributes,
-            reserved_attr_names=("sym_name", "function_type"),
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
+
+    def assembly_line(self) -> str:
+        return f"{self.sym_name.data}:"
 
 
 @irdl_op_definition
-class ReturnOp(IRDLOperation):
+class ReturnOp(IRDLOperation, riscv.RISCVInstruction):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
@@ -203,8 +230,7 @@ class ReturnOp(IRDLOperation):
 
     def __init__(
         self,
-        values: Sequence[Operation | SSAValue],
-        *,
+        *values: Operation | SSAValue,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
@@ -228,9 +254,15 @@ class ReturnOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> ReturnOp:
         attrs, args = parse_return_op_like(parser)
-        op = ReturnOp(args)
+        op = ReturnOp(*args)
         op.attributes.update(attrs)
         return op
+
+    def assembly_instruction_name(self) -> str:
+        return "ret"
+
+    def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
+        return ()
 
 
 RISCV_Func = Dialect(

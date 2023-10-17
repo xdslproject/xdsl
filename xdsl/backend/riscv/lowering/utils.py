@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 
 from xdsl.dialects import builtin, riscv
 from xdsl.ir import Attribute, Block, Operation, SSAValue
@@ -57,8 +57,8 @@ def move_ops_for_value(
         raise NotImplementedError(f"Unsupported register type for move op: {rd}")
 
 
-def move_to_a_regs(
-    values: Iterable[SSAValue],
+def move_to_regs(
+    values: Iterable[SSAValue], reg_types: Iterable[riscv.RISCVRegisterType]
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
@@ -67,13 +67,28 @@ def move_to_a_regs(
     new_ops = list[Operation]()
     new_values = list[SSAValue]()
 
-    for index, value in enumerate(values):
-        register_type = register_type_for_type(value.type)
-        move_op, new_value = move_ops_for_value(value, register_type.a_register(index))
+    for value, register_type in zip(values, reg_types):
+        move_op, new_value = move_ops_for_value(value, register_type)
         new_ops.append(move_op)
         new_values.append(new_value)
 
     return new_ops, new_values
+
+
+def a_regs(values: Iterable[SSAValue]) -> Iterator[riscv.RISCVRegisterType]:
+    return (
+        register_type_for_type(value.type).a_register(index)
+        for index, value in enumerate(values)
+    )
+
+
+def move_to_a_regs(
+    values: Iterable[SSAValue],
+) -> tuple[list[Operation], list[SSAValue]]:
+    """
+    Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
+    """
+    return move_to_regs(values, a_regs(values))
 
 
 def move_to_unallocated_regs(

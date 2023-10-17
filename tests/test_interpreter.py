@@ -3,15 +3,18 @@ from typing import Any
 
 import pytest
 
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, func
 from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
+    PythonValues,
     impl_cast,
+    impl_external,
     register_impls,
 )
 from xdsl.interpreters.builtin import BuiltinFunctions
+from xdsl.ir import Operation
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
 
@@ -86,3 +89,47 @@ def test_cast():
     assert len(results) == 1
     index1 = results[0]
     assert isinstance(index1, Index)
+
+
+def test_external_func():
+    @dataclass
+    @register_impls
+    class TestFunc(InterpreterFunctions):
+        a: int
+
+        @impl_external("testfunc")
+        def testfunc(
+            self, interp: Interpreter, op: Operation, args: PythonValues
+        ) -> PythonValues:
+            assert isinstance(args[0], int)
+            self.a = args[0]
+            return tuple()
+
+    i = Interpreter(ModuleOp([func.FuncOp.external("testfunc", [builtin.i32], [])]))
+    funcs = TestFunc(0)
+
+    i.register_implementations(funcs)
+    i.call_op("testfunc", (100,))
+
+    assert funcs.a == 100
+
+
+def test_interpreter_data():
+    class Funcs0(InterpreterFunctions):
+        ...
+
+    class Funcs1(InterpreterFunctions):
+        ...
+
+    interpreter = Interpreter(ModuleOp([]))
+
+    obj1 = interpreter.get_data(Funcs0, "a", lambda: {"b": 2})
+    assert obj1 == {"b": 2}
+
+    obj1["c"] = 3
+
+    assert interpreter.get_data(Funcs0, "a", lambda: {"b": 2}) == {"b": 2, "c": 3}
+
+    assert interpreter.get_data(Funcs0, "d", lambda: {"b": 2}) == {"b": 2}
+
+    assert interpreter.get_data(Funcs1, "a", lambda: {"b": 2}) == {"b": 2}

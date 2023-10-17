@@ -5,8 +5,7 @@ import pytest
 from xdsl.builder import Builder
 from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
-from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
+from xdsl.ir import BlockArgument, MLContext
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
@@ -21,19 +20,23 @@ def test_simple():
     @ModuleOp
     @Builder.implicit_region
     def module():
+        riscv.DirectiveOp(".globl", "main")
+
         @Builder.implicit_region
         def body():
             six = riscv.LiOp(6).rd
             seven = riscv.LiOp(7).rd
-            forty_two = riscv.MulOp(six, seven).rd
+            forty_two = riscv.MulOp(
+                six, seven, rd=riscv.IntRegisterType.unallocated()
+            ).rd
             riscv.CustomAssemblyInstructionOp(
                 "print", inputs=[forty_two], result_types=[]
             )
+            riscv.ReturnOp()
 
         riscv_func.FuncOp("main", body, ((), ()))
 
     RISCVRegisterAllocation().apply(ctx, module)
-    LowerRISCVFunc().apply(ctx, module)
 
     code = riscv.riscv_code(module)
 
@@ -45,13 +48,15 @@ def test_simple():
         unlimited_regs=True,
         verbosity=1,
     )
-    assert "42\n" == stream.getvalue()
+    assert stream.getvalue() == "42\n"
 
 
 def test_multiply_add():
     @ModuleOp
     @Builder.implicit_region
     def module():
+        riscv.DirectiveOp(".globl", "main")
+
         @Builder.implicit_region
         def main():
             riscv.LiOp(3, rd=riscv.Registers.A0)
@@ -65,34 +70,42 @@ def test_multiply_add():
             riscv.LiOp(93, rd=riscv.Registers.A7)
             riscv.EcallOp()
 
-        riscv.LabelOp("main", main)
+        riscv_func.FuncOp("main", main, ((), ()))
 
-        @Builder.implicit_region
-        def multiply():
+        @Builder.implicit_region((riscv.Registers.A0, riscv.Registers.A1))
+        def multiply(args: tuple[BlockArgument, ...]):
             riscv.CommentOp("no extra registers needed, so no need to deal with stack")
-            a0_multiply = riscv.GetRegisterOp(riscv.Registers.A0)
-            a1_multiply = riscv.GetRegisterOp(riscv.Registers.A1)
-            riscv.MulOp(a0_multiply, a1_multiply, rd=riscv.Registers.A0)
-            riscv.ReturnOp()
+            rs1, rs2 = args
+            res = riscv.MulOp(rs1, rs2, rd=riscv.Registers.A0).rd
+            riscv_func.ReturnOp(res)
 
-        riscv.LabelOp("multiply", multiply)
+        riscv_func.FuncOp(
+            "multiply",
+            multiply,
+            ((riscv.Registers.A0, riscv.Registers.A1), (riscv.Registers.A0,)),
+        )
 
-        @Builder.implicit_region
-        def add():
+        @Builder.implicit_region((riscv.Registers.A0, riscv.Registers.A1))
+        def add(args: tuple[BlockArgument, ...]):
             riscv.CommentOp("no extra registers needed, so no need to deal with stack")
-            a0_add = riscv.GetRegisterOp(riscv.Registers.A0)
-            a1_add = riscv.GetRegisterOp(riscv.Registers.A1)
-            riscv.AddOp(a0_add, a1_add, rd=riscv.Registers.A0)
-            riscv.ReturnOp()
+            rs1, rs2 = args
+            res = riscv.AddOp(rs1, rs2, rd=riscv.Registers.A0).rd
+            riscv_func.ReturnOp(res)
 
-        riscv.LabelOp("add", add)
+        riscv_func.FuncOp(
+            "add",
+            add,
+            ((riscv.Registers.A0, riscv.Registers.A1), (riscv.Registers.A0,)),
+        )
 
-        @Builder.implicit_region
-        def muladd():
+        @Builder.implicit_region(
+            (riscv.Registers.A0, riscv.Registers.A1, riscv.Registers.A2)
+        )
+        def muladd(args: tuple[BlockArgument, ...]):
             riscv.CommentOp("a0 <- a0 * a1 + a2")
             riscv.CommentOp("prologue")
             # get registers with the arguments to muladd
-            a2_muladd = riscv.GetRegisterOp(riscv.Registers.A2)
+            _, _, a2_muladd = args
 
             # get registers we'll use in this section
             sp_muladd = riscv.GetRegisterOp(riscv.Registers.SP)
@@ -134,7 +147,14 @@ def test_multiply_add():
             riscv.CommentOp("jump back to caller")
             riscv.ReturnOp()
 
-        riscv.LabelOp("muladd", muladd)
+        riscv_func.FuncOp(
+            "muladd",
+            muladd,
+            (
+                (riscv.Registers.A0, riscv.Registers.A1, riscv.Registers.A2),
+                (riscv.Registers.A0,),
+            ),
+        )
 
     RISCVRegisterAllocation().apply(ctx, module)
 
@@ -148,8 +168,4 @@ def test_multiply_add():
         unlimited_regs=True,
         verbosity=1,
     )
-    assert (
-        stream.getvalue()
-        == """7
-"""
-    )
+    assert stream.getvalue() == "7\n"

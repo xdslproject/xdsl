@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     Generic,
     TypeAlias,
@@ -38,19 +39,17 @@ from xdsl.irdl import (
     AttrConstraint,
     GenericData,
     IRDLOperation,
+    ParamAttrConstraint,
     ParameterDef,
     VarOperand,
     VarOpResult,
-    VarRegion,
     attr_constr_coercion,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
     opt_attr_def,
     region_def,
     var_operand_def,
-    var_region_def,
     var_result_def,
 )
 from xdsl.traits import (
@@ -130,12 +129,12 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
         super().__init__(tuple(param))
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT]:
+    def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
         data = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_attribute
         )
         # the type system can't ensure that the elements are of type _ArrayAttrT
-        result = cast(tuple[AttributeCovT], tuple(data))
+        result = cast(tuple[AttributeCovT, ...], tuple(data))
         return result
 
     def print_parameter(self, printer: Printer) -> None:
@@ -219,6 +218,48 @@ class SymbolRefAttr(ParametrizedAttribute):
         for ref in self.nested_references.data:
             root += "." + ref.data
         return root
+
+
+@dataclass
+class CustomErrorMessageAttrConstraint(AttrConstraint):
+    """Emit a different error message if a verification exception was caught."""
+
+    constraint: AttrConstraint
+    new_message: str | Callable[[Attribute], str]
+
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        try:
+            self.constraint.verify(attr, constraint_vars)
+        except VerifyException as e:
+            new_message = (
+                self.new_message
+                if isinstance(self.new_message, str)
+                else self.new_message(attr)
+            )
+            raise VerifyException(new_message) from e
+
+
+class EmptyArrayAttrConstraint(AttrConstraint):
+    """
+    Constrain attribute to be empty ArrayData
+    """
+
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, ArrayAttr):
+            raise VerifyException(f"expected ArrayData attribute, but got {attr}")
+        attr = cast(ArrayAttr[Attribute], attr)
+        if attr.data:
+            raise VerifyException(f"expected empty array, but got {attr}")
+
+
+FlatSymbolRefAttrConstraint = CustomErrorMessageAttrConstraint(
+    ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
+    "Unexpected nested symbols in FlatSymbolRefAttr.",
+)
+"""Constrain SymbolRef to be FlatSymbolRef"""
+
+FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
+"""SymbolRef constrained to have an empty `nested_references` property."""
 
 
 @irdl_attr_definition
@@ -316,7 +357,6 @@ class IndexType(ParametrizedAttribute):
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
-_IntegerAttrTypeInv = TypeVar("_IntegerAttrTypeInv", bound=IntegerType | IndexType)
 
 
 @irdl_attr_definition
@@ -382,34 +422,65 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
+class _FloatType(ABC):
+    @property
+    @abstractmethod
+    def get_bitwidth(self) -> int:
+        raise NotImplementedError()
+
+
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, TypeAttribute):
+class BFloat16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "bf16"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 16
+
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, TypeAttribute):
+class Float16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f16"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 16
+
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, TypeAttribute):
+class Float32Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f32"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 32
+
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, TypeAttribute):
+class Float64Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f64"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 64
+
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, TypeAttribute):
+class Float80Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f80"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 80
+
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, TypeAttribute):
+class Float128Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f128"
+
+    @property
+    def get_bitwidth(self) -> int:
+        return 128
 
 
 AnyFloat: TypeAlias = (
@@ -431,8 +502,6 @@ class FloatData(Data[float]):
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
-_FloatAttrTypeInv = TypeVar("_FloatAttrTypeInv", bound=AnyFloat)
-
 
 @irdl_attr_definition
 class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
@@ -452,8 +521,10 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
     def __init__(
         self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
     ) -> None:
-        if isinstance(data, float):
-            data = FloatData(data)
+        if isinstance(data, FloatData):
+            data_attr = data
+        else:
+            data_attr = FloatData(data)
         if isinstance(type, int):
             if type == 16:
                 type = Float16Type()
@@ -467,7 +538,7 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
                 type = Float128Type()
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
-        super().__init__([data, type])
+        super().__init__([data_attr, type])
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
@@ -767,7 +838,7 @@ class DenseIntOrFPElementsAttr(
     data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
-    def get_shape(self) -> tuple[int] | None:
+    def get_shape(self) -> tuple[int, ...] | None:
         if isinstance(self.type, UnrankedTensorType):
             return None
         return self.type.get_shape()
@@ -1147,7 +1218,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
         printer.print_op_attributes(self.attributes)
 
 
-class UnregisteredOp(IRDLOperation, ABC):
+class UnregisteredOp(Operation, ABC):
     """
     An unregistered operation.
 
@@ -1156,13 +1227,18 @@ class UnregisteredOp(IRDLOperation, ABC):
     """
 
     name = "builtin.unregistered"
-
-    op_name: StringAttr = attr_def(StringAttr, attr_name="op_name__")
-    args: VarOperand = var_operand_def()
-    res: VarOpResult = var_result_def()
-    regs: VarRegion = var_region_def()
-
     traits = frozenset()
+
+    @property
+    def op_name(self) -> StringAttr:
+        if "op_name__" not in self.attributes:
+            raise ValueError("missing 'op_name__' attribute")
+        op_name = self.attributes["op_name__"]
+        if not isinstance(op_name, StringAttr):
+            raise ValueError(
+                f"'op_name__' is expected to have 'StringAttr' type, got {op_name}"
+            )
+        return op_name
 
     @classmethod
     def with_name(cls, name: str) -> type[Operation]:
@@ -1195,7 +1271,7 @@ class UnregisteredOp(IRDLOperation, ABC):
                 op.attributes["op_name__"] = StringAttr(name)
                 return op
 
-        return irdl_op_definition(UnregisteredOpWithName)
+        return UnregisteredOpWithName
 
 
 @irdl_attr_definition

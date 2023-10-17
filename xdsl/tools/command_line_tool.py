@@ -17,14 +17,18 @@ from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.cmath import CMath
+from xdsl.dialects.comb import Comb
 from xdsl.dialects.experimental.dmp import DMP
 from xdsl.dialects.experimental.fir import FIR
+from xdsl.dialects.experimental.hls import HLS
 from xdsl.dialects.experimental.math import Math
+from xdsl.dialects.fsm import FSM
 from xdsl.dialects.func import Func
 from xdsl.dialects.gpu import GPU
 from xdsl.dialects.irdl.irdl import IRDL
 from xdsl.dialects.linalg import Linalg
 from xdsl.dialects.llvm import LLVM
+from xdsl.dialects.ltl import LTL
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.pdl import PDL
@@ -33,6 +37,7 @@ from xdsl.dialects.riscv import RISCV
 from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.riscv_scf import RISCV_Scf
 from xdsl.dialects.scf import Scf
+from xdsl.dialects.seq import Seq
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
 from xdsl.dialects.stencil import Stencil
@@ -47,6 +52,7 @@ from xdsl.transforms import (
     canonicalize,
     canonicalize_dmp,
     dead_code_elimination,
+    lower_affine,
     lower_mpi,
     lower_riscv_func,
     lower_snitch,
@@ -56,9 +62,13 @@ from xdsl.transforms import (
     printf_to_putchar,
     reconcile_unrealized_casts,
     riscv_register_allocation,
+    riscv_scf_loop_range_folding,
 )
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
+    hls_convert_stencil_to_ll_mlir,
+    lower_hls,
+    replace_incompatible_fpga,
     stencil_shape_inference,
     stencil_storage_materialization,
 )
@@ -74,13 +84,17 @@ def get_all_dialects() -> list[Dialect]:
         Builtin,
         Cf,
         CMath,
+        Comb,
         DMP,
         FIR,
+        FSM,
         Func,
         GPU,
+        HLS,
         Linalg,
         IRDL,
         LLVM,
+        LTL,
         Math,
         MemRef,
         MPI,
@@ -90,6 +104,7 @@ def get_all_dialects() -> list[Dialect]:
         RISCV_Func,
         RISCV_Scf,
         Scf,
+        Seq,
         Snitch,
         SnitchRuntime,
         Stencil,
@@ -109,6 +124,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         DesymrefyPass,
         stencil_global_to_local.DistributeStencilPass,
         stencil_global_to_local.LowerHaloToMPI,
+        lower_affine.LowerAffinePass,
         lower_mpi.LowerMPIPass,
         lower_riscv_func.LowerRISCVFunc,
         lower_snitch.LowerSnitchPass,
@@ -118,6 +134,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         printf_to_putchar.PrintfToPutcharPass,
         reduce_register_pressure.RiscvReduceRegisterPressurePass,
         riscv_register_allocation.RISCVRegisterAllocation,
+        riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass,
         convert_arith_to_riscv.ConvertArithToRiscvPass,
         convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
         convert_memref_to_riscv.ConvertMemrefToRiscvPass,
@@ -126,6 +143,9 @@ def get_all_passes() -> list[type[ModulePass]]:
         stencil_shape_inference.StencilShapeInferencePass,
         stencil_storage_materialization.StencilStorageMaterializationPass,
         reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
+        hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
+        lower_hls.LowerHLSPass,
+        replace_incompatible_fpga.ReplaceIncompatibleFPGA,
     ]
 
 

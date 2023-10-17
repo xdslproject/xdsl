@@ -13,7 +13,9 @@ from xdsl.interpreters import (
     func,
     memref,
     printf,
+    riscv,
     riscv_func,
+    riscv_libc,
     scf,
 )
 from xdsl.interpreters.experimental import pdl
@@ -53,7 +55,9 @@ class xDSLRunMain(CommandLineTool):
     def register_implementations(self, interpreter: Interpreter):
         interpreter.register_implementations(func.FuncFunctions())
         interpreter.register_implementations(cf.CfFunctions())
+        interpreter.register_implementations(riscv.RiscvFunctions())
         interpreter.register_implementations(riscv_func.RiscvFuncFunctions())
+        interpreter.register_implementations(riscv_libc.RiscvLibcFunctions())
         interpreter.register_implementations(pdl.PDLRewriteFunctions(self.ctx))
         interpreter.register_implementations(affine.AffineFunctions())
         interpreter.register_implementations(memref.MemrefFunctions())

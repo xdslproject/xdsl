@@ -7,13 +7,14 @@ from xdsl.backend.riscv.lowering.utils import (
 )
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import (
+    AnyFloat,
     Float32Type,
+    Float64Type,
     IntegerType,
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import MLContext, Operation, SSAValue
-from xdsl.ir.core import Attribute
+from xdsl.ir import Attribute, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -62,7 +63,9 @@ def memref_shape_ops(
                 )
             bytes_per_element = element_type.width.data // 8
         case Float32Type():
-            bytes_per_element = 4
+            bytes_per_element = element_type.get_bitwidth // 8
+        case Float64Type():
+            bytes_per_element = element_type.get_bitwidth // 8
         case _:
             raise DiagnosticException(
                 f"Unsupported memref element type for riscv lowering: {element_type}"
@@ -76,8 +79,12 @@ def memref_shape_ops(
         case [idx1, idx2]:
             ops = [
                 cols := riscv.LiOp(shape[1]),
-                row_offset := riscv.MulOp(cols, idx1),
-                offset := riscv.AddOp(row_offset, idx2),
+                row_offset := riscv.MulOp(
+                    cols, idx1, rd=riscv.IntRegisterType.unallocated()
+                ),
+                offset := riscv.AddOp(
+                    row_offset, idx2, rd=riscv.IntRegisterType.unallocated()
+                ),
             ]
             offset_in_elements = offset.rd
         case _:
@@ -91,9 +98,12 @@ def memref_shape_ops(
             offset_bytes := riscv.MulOp(
                 offset_in_elements,
                 bytes_per_element_op.rd,
+                rd=riscv.IntRegisterType.unallocated(),
                 comment="multiply by element size",
             ),
-            ptr := riscv.AddOp(mem, offset_bytes),
+            ptr := riscv.AddOp(
+                mem, offset_bytes, rd=riscv.IntRegisterType.unallocated()
+            ),
         ]
     )
 
@@ -112,14 +122,34 @@ class ConvertMemrefStoreOp(RewritePattern):
         ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
 
         rewriter.insert_op_before_matched_op(ops)
-        if isinstance(value.type, riscv.IntRegisterType):
-            new_op = riscv.SwOp(
-                ptr, value, 0, comment=f"store int value to memref of shape {shape}"
-            )
-        else:
-            new_op = riscv.FSwOp(
-                ptr, value, 0, comment=f"store float value to memref of shape {shape}"
-            )
+        match value.type:
+            case riscv.IntRegisterType():
+                new_op = riscv.SwOp(
+                    ptr, value, 0, comment=f"store int value to memref of shape {shape}"
+                )
+            case riscv.FloatRegisterType():
+                float_type = cast(AnyFloat, memref_type.element_type)
+                match float_type:
+                    case Float32Type():
+                        new_op = riscv.FSwOp(
+                            ptr,
+                            value,
+                            0,
+                            comment=f"store float value to memref of shape {shape}",
+                        )
+                    case Float64Type():
+                        new_op = riscv.FSdOp(
+                            ptr,
+                            value,
+                            0,
+                            comment=f"store double value to memref of shape {shape}",
+                        )
+                    case _:
+                        assert False, f"Unexpected floating point type {float_type}"
+
+            case _:
+                assert False, f"Unexpected register type {value.type}"
+
         rewriter.replace_matched_op(new_op)
 
 
@@ -136,14 +166,27 @@ class ConvertMemrefLoadOp(RewritePattern):
 
         result_register_type = register_type_for_type(op.res.type)
 
-        if result_register_type is riscv.IntRegisterType:
-            lw_op = riscv.LwOp(
-                ptr, 0, comment=f"load value from memref of shape {shape}"
-            )
-        else:
-            lw_op = riscv.FLwOp(
-                ptr, 0, comment=f"load value from memref of shape {shape}"
-            )
+        match result_register_type:
+            case riscv.IntRegisterType:
+                lw_op = riscv.LwOp(
+                    ptr, 0, comment=f"load word from memref of shape {shape}"
+                )
+            case riscv.FloatRegisterType:
+                float_type = cast(AnyFloat, memref_type.element_type)
+                match float_type:
+                    case Float32Type():
+                        lw_op = riscv.FLwOp(
+                            ptr, 0, comment=f"load float from memref of shape {shape}"
+                        )
+                    case Float64Type():
+                        lw_op = riscv.FLdOp(
+                            ptr, 0, comment=f"load double from memref of shape {shape}"
+                        )
+                    case _:
+                        assert False, f"Unexpected floating point type {float_type}"
+
+            case _:
+                assert False, f"Unexpected register type {result_register_type}"
 
         rewriter.replace_matched_op(
             [

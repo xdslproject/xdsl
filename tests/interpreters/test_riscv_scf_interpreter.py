@@ -7,7 +7,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
-from xdsl.ir.core import BlockArgument
+from xdsl.ir import BlockArgument
 
 index = IndexType()
 register = riscv.IntRegisterType.unallocated()
@@ -36,7 +36,7 @@ def sum_to_for_op():
         @Builder.implicit_region((register, register))
         def for_loop_region(args: tuple[BlockArgument, ...]):
             (i, acc) = args
-            res = riscv.AddOp(i, acc)
+            res = riscv.AddOp(i, acc, rd=riscv.IntRegisterType.unallocated())
             riscv_scf.YieldOp(res)
 
         result = riscv_scf.ForOp(lb, ub, step, (initial,), for_loop_region)
@@ -47,7 +47,7 @@ def interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     module_op.verify()
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(RiscvScfFunctions())
-    interpreter.register_implementations(RiscvFunctions(module_op))
+    interpreter.register_implementations(RiscvFunctions())
     interpreter.register_implementations(FuncFunctions())
     (result,) = interpreter.call_op(func_name, (n,))
     return result

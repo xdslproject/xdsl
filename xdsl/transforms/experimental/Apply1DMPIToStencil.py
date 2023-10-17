@@ -124,7 +124,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
         null_req_one = llvm.StoreOp(mpi_request_null, one_conv)
 
-        top_halo_exhange = scf.If.get(
+        top_halo_exhange = scf.If(
             compare_top_op,
             [],
             [
@@ -135,9 +135,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
                 mpi_send_top_op,
                 recv_ptr,
                 mpi_recv_top_op,
-                scf.Yield.get(),
+                scf.Yield(),
             ],
-            [zero_conv, null_req_zero, one_conv, null_req_one, scf.Yield.get()],
+            [zero_conv, null_req_zero, one_conv, null_req_one, scf.Yield()],
         )
         mpi_operations += [top_halo_exhange]
 
@@ -187,7 +187,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
         null_req_three = llvm.StoreOp(mpi_request_null, three_conv)
 
-        bottom_halo_exhange = scf.If.get(
+        bottom_halo_exhange = scf.If(
             compare_bottom_op,
             [],
             [
@@ -204,9 +204,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
                 added_ptr_b_recv,
                 ptr_b_recv,
                 mpi_recv_bottom_op,
-                scf.Yield.get(),
+                scf.Yield(),
             ],
-            [two_conv, null_req_two, three_conv, null_req_three, scf.Yield.get()],
+            [two_conv, null_req_two, three_conv, null_req_three, scf.Yield()],
         )
 
         mpi_operations += [bottom_halo_exhange]

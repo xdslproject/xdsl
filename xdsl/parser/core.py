@@ -18,8 +18,8 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.parser.attribute_parser import AttrParser
-from xdsl.parser.base_parser import ParserState, Position
+from xdsl.irdl import IRDLOperation
+from xdsl.parser import AttrParser, ParserState, Position
 from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, Token
 
@@ -83,7 +83,7 @@ class Parser(AttrParser):
     must_ type parsers are preferred because they are explicit about their failure modes.
     """
 
-    ssa_values: dict[str, tuple[SSAValue]]
+    ssa_values: dict[str, tuple[SSAValue, ...]]
     blocks: dict[str, tuple[Block, Span | None]]
     forward_block_references: dict[str, list[Span]]
     """
@@ -515,7 +515,7 @@ class Parser(AttrParser):
             type = self.parse_type()
         return self.Argument(name_token.span, type)
 
-    def parse_argument(self, expect_type: bool = True) -> Argument:
+    def parse_argument(self, *, expect_type: bool = True) -> Argument:
         """
         Parse a block argument with format:
           arg ::= percent-id `:` type
@@ -895,6 +895,13 @@ class Parser(AttrParser):
         self._parse_optional_location()
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
+
+        # Properties retrocompatibility : if no properties dictionary was present at all,
+        # We extract them from the attribute dictionary by name.
+        if issubclass(op_type, IRDLOperation) and not properties:
+            for property_name in op_type.irdl_definition.properties.keys():
+                if property_name in attrs:
+                    properties[property_name] = attrs.pop(property_name)
 
         return op_type.create(
             operands=operands,

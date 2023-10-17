@@ -27,9 +27,11 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
     opt_region_def,
     opt_result_def,
     opt_successor_def,
+    prop_def,
     region_def,
     result_def,
     successor_def,
@@ -40,12 +42,9 @@ from xdsl.irdl import (
 )
 from xdsl.traits import IsTerminator
 
-#  ____                 _ _
-# |  _ \ ___  ___ _   _| | |_
-# | |_) / _ \/ __| | | | | __|
-# |  _ <  __/\__ \ |_| | | |_
-# |_| \_\___||___/\__,_|_|\__|
-#
+################################################################################
+#                                 Results                                      #
+################################################################################
 
 
 @irdl_op_definition
@@ -186,13 +185,9 @@ def test_var_mixed_builder():
     ] == DenseArrayBase.from_list(i32, [2, 1, 2])
 
 
-#   ___                                 _
-#  / _ \ _ __   ___ _ __ __ _ _ __   __| |
-# | | | | '_ \ / _ \ '__/ _` | '_ \ / _` |
-# | |_| | |_) |  __/ | | (_| | | | | (_| |
-#  \___/| .__/ \___|_|  \__,_|_| |_|\__,_|
-#       |_|
-#
+################################################################################
+#                                 Operands                                     #
+################################################################################
 
 
 @irdl_op_definition
@@ -267,6 +262,16 @@ class TwoVarOperandOp(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments()]
 
 
+# Define a similar operation with the segment sizes as a property to test this case
+@irdl_op_definition
+class TwoVarOperandPropOp(IRDLOperation):
+    name = "test.two_var_operand_op"
+
+    res1: VarOperand = var_operand_def(StringAttr)
+    res2: VarOperand = var_operand_def(StringAttr)
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
 def test_two_var_operand_builder():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = TwoVarOperandOp.build(operands=[[op1, op1], [op1, op1]])
@@ -287,17 +292,34 @@ def test_two_var_operand_builder2():
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
-#      _   _   _        _ _           _
-#     / \ | |_| |_ _ __(_) |__  _   _| |_ ___
-#    / _ \| __| __| '__| | '_ \| | | | __/ _ \
-#   / ___ \ |_| |_| |  | | |_) | |_| | ||  __/
-#  /_/   \_\__|\__|_|  |_|_.__/ \__,_|\__\___|
-#
+def test_two_var_operand_prop_builder():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op2 = TwoVarOperandPropOp.build(operands=[[op1, op1], [op1, op1]])
+    op2.verify()
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
+    assert op2.properties[
+        AttrSizedOperandSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [2, 2])
+
+
+def test_two_var_operand_prop_builder2():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op2 = TwoVarOperandPropOp.build(operands=[[op1], [op1, op1, op1]])
+    op2.verify()
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
+    assert op2.properties[
+        AttrSizedOperandSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [1, 3])
+
+
+################################################################################
+#                                Attribute                                     #
+################################################################################
 
 
 @irdl_op_definition
 class AttrOp(IRDLOperation):
-    name = "test.two_var_result_op"
+    name = "test.attr_op"
     attr: StringAttr = attr_def(StringAttr)
 
 
@@ -327,13 +349,39 @@ def test_optional_attr_op_empty():
     assert op.opt_attr is None
 
 
-#  ____            _
-# |  _ \ ___  __ _(_) ___  _ __
-# | |_) / _ \/ _` | |/ _ \| '_ \
-# |  _ <  __/ (_| | | (_) | | | |
-# |_| \_\___|\__, |_|\___/|_| |_|
-#            |___/
-#
+################################################################################
+#                                 Property                                     #
+################################################################################
+
+
+@irdl_op_definition
+class PropertyOp(IRDLOperation):
+    name = "test.prop_op"
+    attr: StringAttr = prop_def(StringAttr)
+
+
+def test_prop_op():
+    op = PropertyOp.build(properties={"attr": StringAttr("0")})
+    op.verify()
+    assert op.attr == StringAttr("0")
+
+
+@irdl_op_definition
+class OptionalPropertyOp(IRDLOperation):
+    name = "test.opt_prop_op"
+
+    opt_attr: StringAttr | None = opt_prop_def(StringAttr)
+
+
+def test_optional_prop_op_empty():
+    op = OptionalPropertyOp.build()
+    op.verify()
+    assert op.opt_attr is None
+
+
+################################################################################
+#                                  Region                                      #
+################################################################################
 
 
 @irdl_op_definition
@@ -494,12 +542,9 @@ def test_two_var_operand_builder3():
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
-#  ____
-# / ___| _   _  ___ ___ ___  ___ ___  ___  _ __
-# \___ \| | | |/ __/ __/ _ \/ __/ __|/ _ \| '__|
-#  ___) | |_| | (_| (_|  __/\__ \__ \ (_) | |
-# |____/ \__,_|\___\___\___||___/___/\___/|_|
-#
+################################################################################
+#                                Successor                                     #
+################################################################################
 
 
 @irdl_op_definition
@@ -630,12 +675,9 @@ def test_two_var_successor_builder2():
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
-#  __  __ _
-# |  \/  (_)___  ___
-# | |\/| | / __|/ __|
-# | |  | | \__ \ (__
-# |_|  |_|_|___/\___|
-#
+################################################################################
+#                                   Misc                                       #
+################################################################################
 
 
 def test_parent_pointers():

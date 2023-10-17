@@ -5,8 +5,7 @@ from typing import IO, cast
 
 from xdsl.dialects import arith, builtin, gpu, memref
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Operation, SSAValue
-from xdsl.ir.core import Attribute
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.utils.hints import isa
 
 
@@ -178,7 +177,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: arith.Constant, out_stream: IO[str]):
-        value = int(str(op.attributes.get("value")).split()[0])
+        value = int(str(op.value).split()[0])
         cons_type = op.result.type
         if isinstance(op.result.type, builtin.IndexType):
             cons_type = "u32"

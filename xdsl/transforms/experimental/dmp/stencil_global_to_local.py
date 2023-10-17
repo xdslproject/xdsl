@@ -328,16 +328,16 @@ def generate_mpi_calls_for(
                 tag,
                 req_recv,
             )
-            yield scf.Yield.get()
+            yield scf.Yield()
 
         def else_() -> Iterable[Operation]:
             # set the request object to MPI_REQUEST_NULL s.t. they are ignored
             # in the waitall call
             yield mpi.NullRequestOp.get(req_send)
             yield mpi.NullRequestOp.get(req_recv)
-            yield scf.Yield.get()
+            yield scf.Yield()
 
-        yield scf.If.get(
+        yield scf.If(
             is_in_bounds,
             [],
             Region([Block(then())]),
@@ -349,7 +349,7 @@ def generate_mpi_calls_for(
 
     # start shuffling data into the main memref again
     for ex, buffer, cond_val in recv_buffers:
-        yield scf.If.get(
+        yield scf.If(
             cond_val,
             [],
             Region(
@@ -370,11 +370,11 @@ def generate_mpi_calls_for(
                             )
                         ]
                         * (1 if emit_debug else 0)
-                        + [scf.Yield.get()]
+                        + [scf.Yield()]
                     )
                 ]
             ),
-            Region([Block([scf.Yield.get()])]),
+            Region([Block([scf.Yield()])]),
         )
 
 

@@ -5,15 +5,14 @@ from io import StringIO
 import pytest
 from conftest import assert_print_op
 
+from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant
 from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, UnitAttr, i32
 from xdsl.dialects.func import Func
-from xdsl.dialects.test import Test, TestOp
 from xdsl.ir import (
     Attribute,
     Block,
     MLContext,
-    Operation,
     OpResult,
     ParametrizedAttribute,
     Region,
@@ -56,9 +55,9 @@ def test_simple_forgotten_op():
 def test_print_op_location():
     """Test that an op can be printed with its location."""
     ctx = MLContext()
-    ctx.register_dialect(Test)
+    ctx.register_dialect(test.Test)
 
-    add = TestOp(operands=[[]], result_types=[[i32]], regions=[[]])
+    add = test.TestOp(result_types=[i32])
 
     add.verify()
 
@@ -119,7 +118,7 @@ def test_op_message():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message
   ---------------------
@@ -152,7 +151,7 @@ def test_two_different_op_messages():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
   ---------------------
@@ -187,7 +186,7 @@ def test_two_same_op_messages():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   ^^^^^^^^^^^^^^^^^^^^^
   | Test message 1
   ---------------------
@@ -226,7 +225,7 @@ def test_op_message_with_region():
 ^^^^^^^^^^^^^^^^
 | Test
 ----------------
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -259,7 +258,7 @@ def test_op_message_with_region_and_overflow():
 ^^^^^^^^^^^^^^^^---
 | Test long message
 -------------------
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()"""
 
@@ -320,7 +319,7 @@ def test_print_custom_name():
 
     expected = """\
 "builtin.module"() ({
-  %i = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %i = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %0 = "arith.addi"(%i, %i) : (i32, i32) -> i32
 }) : () -> ()
 """
@@ -373,7 +372,7 @@ def test_print_block_argument_location():
 def test_print_block():
     """Print a block."""
     block = Block(arg_types=[i32, i32])
-    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+    block.add_op(test.TestOp(operands=(block.args[1],)))
 
     # Print block arguments inside the block
     io = StringIO()
@@ -387,7 +386,7 @@ def test_print_block():
 def test_print_block_without_arguments():
     """Print a block and its arguments separately."""
     block = Block(arg_types=[i32, i32])
-    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+    block.add_op(test.TestOp(operands=(block.args[1],)))
 
     # Print block arguments separately from the block
     io = StringIO()
@@ -399,10 +398,44 @@ def test_print_block_without_arguments():
     assert io.getvalue() == """%0 : i32, %1 : i32\n  "test.op"(%1) : (i32) -> ()"""
 
 
+def test_print_block_with_terminator():
+    """Print a block and with its terminator."""
+    block = Block(ops=[test.TestOp.create(), test.TestTermOp.create()])
+
+    # Print block ops including block terminator
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_block(block, print_block_terminator=True)
+    assert (
+        io.getvalue()
+        == """
+^0:
+  "test.op"() : () -> ()
+  "test.termop"() : () -> ()"""
+    )
+
+
+def test_print_block_without_terminator():
+    """Print a block and its terminator separately."""
+    term_op = test.TestTermOp.create()
+    block = Block(ops=[test.TestOp.create(), term_op])
+
+    # Print block ops separately from the block terminator
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_block(block, print_block_terminator=False)
+    assert (
+        io.getvalue()
+        == """
+^0:
+  "test.op"() : () -> ()"""
+    )
+
+
 def test_print_region():
     """Print a region."""
     block = Block(arg_types=[i32, i32])
-    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+    block.add_op(test.TestOp(operands=(block.args[1],)))
     region = Region(block)
 
     io = StringIO()
@@ -417,7 +450,7 @@ def test_print_region():
 def test_print_region_without_arguments():
     """Print a region and its arguments separately."""
     block = Block(arg_types=[i32, i32])
-    block.add_op(TestOp(operands=(block.args[1],), result_types=[[]], regions=[[]]))
+    block.add_op(test.TestOp(operands=(block.args[1],)))
     region = Region(block)
 
     io = StringIO()
@@ -521,7 +554,7 @@ def test_custom_format():
     """
     prog = """\
 builtin.module {
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = test.add %0 + %0 : i32
 }
 """
@@ -557,7 +590,7 @@ def test_custom_format_II():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = "test.add"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()
 """
@@ -624,7 +657,8 @@ class CustomFormatAttr(ParametrizedAttribute):
         printer.print("<", "zero" if self.attr.data == 0 else "one", ">")
 
 
-class AnyOp(Operation):
+@irdl_op_definition
+class AnyOp(IRDLOperation):
     name = "any"
 
 
@@ -658,7 +692,7 @@ def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() {"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : i64}} : () -> ()
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : i64}} : () -> ()
     """
 
     ctx = MLContext()

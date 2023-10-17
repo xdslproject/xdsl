@@ -10,16 +10,24 @@
     %sum_new = "arith.addi"(%sum_iter, %iv) : (index, index) -> index
     "scf.yield"(%sum_new) : (index) -> ()
   }) : (index, index, index, index) -> index
+  "scf.for"(%lb, %ub, %step) ({
+  ^bb0(%iv: index):
+    "scf.yield"() : () -> ()
+  }) : (index, index, index) -> ()
 }) : () -> ()
 
 // CHECK: "builtin.module"() ({
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 42 : index} : () -> index
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 7 : index} : () -> index
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 36 : index} : () -> index
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 0 : index}> : () -> index
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 42 : index}> : () -> index
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 7 : index}> : () -> index
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 36 : index}> : () -> index
 // CHECK-NEXT:   %{{.*}} = "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) ({
 // CHECK-NEXT:   ^0(%{{.*}} : index, %{{.*}} : index):
 // CHECK-NEXT:     %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (index, index) -> index
 // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (index) -> ()
 // CHECK-NEXT:   }) : (index, index, index, index) -> index
+// CHECK-NEXT:   "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}) ({
+// CHECK-NEXT:   ^1(%{{.*}}: index):
+// CHECK-NEXT:     "scf.yield"() : () -> ()
+// CHECK-NEXT:   }) : (index, index, index) -> ()
 // CHECK-NEXT: }) : () -> ()

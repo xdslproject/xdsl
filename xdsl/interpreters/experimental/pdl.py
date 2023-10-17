@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import IO, Any
+from typing import IO, Any, ClassVar
 
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
@@ -27,6 +29,32 @@ class PDLMatcher:
     For each SSAValue that is an OpResult of an operation in the PDL dialect,
     the corresponding xDSL object.
     """
+
+    native_constraints: ClassVar[dict[str, Callable[..., bool]]] = {}
+    """
+    The functions that can be used in `pdl.apply_native_constraint`. Note that we do
+    not verify that the functions are used with the correct types.
+    """
+
+    def get_constant_or_matched_value(
+        self, ssa_val: SSAValue
+    ) -> Operation | Attribute | SSAValue:
+        """
+        Get the value that is already matched, or that is defined by a constant such as
+        the result of a constant `pdl.attribute`, or of a `pdl.type`, or of a matched
+        operation.
+        """
+        if ssa_val in self.matching_context:
+            return self.matching_context[ssa_val]
+        if isinstance(ssa_val.owner, pdl.AttributeOp):
+            if ssa_val.owner.value is None:
+                raise InterpretationError("expected constant `pdl.attribute`")
+            return ssa_val.owner.value
+        if isinstance(ssa_val.owner, pdl.TypeOp):
+            if ssa_val.owner.constantType is None:
+                raise InterpretationError("expected constant `pdl.type`")
+            return ssa_val.owner.constantType
+        raise InterpretationError("expected constant or matched value")
 
     def match_operand(
         self, ssa_val: SSAValue, pdl_op: pdl.OperandOp, xdsl_val: SSAValue
@@ -130,10 +158,10 @@ class PDLMatcher:
         for avn, av in zip(attribute_value_names, pdl_op.attribute_values):
             assert isinstance(av, OpResult)
             assert isinstance(av.op, pdl.AttributeOp)
-            if avn not in xdsl_op.attributes:
+            if (attr := xdsl_op.get_attr_or_prop(avn)) is None:
                 return False
 
-            if not self.match_attribute(av, av.op, avn, xdsl_op.attributes[avn]):
+            if not self.match_attribute(av, av.op, avn, attr):
                 return False
 
         pdl_operands = pdl_op.operand_values
@@ -171,6 +199,15 @@ class PDLMatcher:
 
         return True
 
+    def check_native_constraints(self, pdl_op: pdl.ApplyNativeConstraintOp) -> bool:
+        args = [
+            self.get_constant_or_matched_value(operand) for operand in pdl_op.operands
+        ]
+        name = pdl_op.constraint_name.data
+        if name not in self.native_constraints:
+            raise InterpretationError(f"{name} PDL native constraint is not registered")
+        return self.native_constraints[name](*args)
+
 
 @dataclass
 class PDLRewritePattern(RewritePattern):
@@ -204,6 +241,13 @@ class PDLRewritePattern(RewritePattern):
         matcher = PDLMatcher()
         if not matcher.match_operation(pdl_op_val, pdl_op, xdsl_op):
             return
+
+        parent = self.pdl_rewrite_op.parent_op()
+        assert isinstance(parent, pdl.PatternOp)
+        for constraint_op in parent.walk():
+            if isinstance(constraint_op, pdl.ApplyNativeConstraintOp):
+                if not matcher.check_native_constraints(constraint_op):
+                    return
 
         self.interpreter.push_scope("rewrite")
         self.interpreter.set_values(matcher.matching_context.items())
@@ -251,7 +295,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         attribute_value_names = [avn.data for avn in op.attributeValueNames.data]
 
-        # How to deal with operand_segment_sizes?
+        # How to deal with operandSegmentSizes?
         # operand_values, attribute_values, type_values = args
 
         operand_values = interpreter.get_values(op.operand_values)
@@ -268,10 +312,30 @@ class PDLRewriteFunctions(InterpreterFunctions):
         for type_value in type_values:
             assert isinstance(type_value, TypeAttribute)
 
-        attributes = dict(zip(attribute_value_names, attribute_values))
+        attributes = dict[str, Attribute]()
+        properties = dict[str, Attribute]()
+
+        # If the op is an IRDL-defined operation, get the property names.
+        if issubclass(op_type, IRDLOperation):
+            property_names = op_type.irdl_definition.properties.keys()
+        else:
+            property_names = []
+
+        # Move the attributes to the attribute or property dictionary
+        # depending on whether they are a properties or not.
+        for attribute_name, attribute_value in zip(
+            attribute_value_names, attribute_values
+        ):
+            if attribute_name in property_names:
+                properties[attribute_name] = attribute_value
+            else:
+                attributes[attribute_name] = attribute_value
 
         result_op = op_type.create(
-            operands=operand_values, result_types=type_values, attributes=attributes
+            operands=operand_values,
+            result_types=type_values,
+            attributes=attributes,
+            properties=properties,
         )
 
         return (result_op,)
@@ -283,6 +347,13 @@ class PDLRewriteFunctions(InterpreterFunctions):
         (parent,) = args
         assert isinstance(parent, Operation)
         return (parent.results[op.index.value.data],)
+
+    @impl(pdl.AttributeOp)
+    def run_attribute(
+        self, interpreter: Interpreter, op: pdl.AttributeOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        assert isinstance(op.value, Attribute)
+        return (op.value,)
 
     @impl(pdl.ReplaceOp)
     def run_replace(
@@ -301,4 +372,12 @@ class PDLRewriteFunctions(InterpreterFunctions):
         else:
             assert False, "Unexpected ReplaceOp"
 
+        return ()
+
+    @impl(pdl.EraseOp)
+    def run_erase(
+        self, interpreter: Interpreter, op: pdl.EraseOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        (old,) = interpreter.get_values((op.op_value,))
+        self.rewriter.erase_op(old)
         return ()

@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
@@ -38,11 +40,11 @@ from xdsl.irdl import (
     Operand,
     ParameterDef,
     VarOperand,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     result_def,
     var_operand_def,
 )
@@ -51,8 +53,9 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
-    from xdsl.parser import AttrParser
+    from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
+
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -197,6 +200,28 @@ class Load(IRDLOperation):
             operands=[ref, indices], result_types=[ssa_value_type.element_type]
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        unresolved_ref = parser.parse_unresolved_operand()
+        unresolved_indices = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        ref_type = parser.parse_attribute()
+        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
+        resolved_indices = [
+            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
+        ]
+        return cls.get(resolved_ref, resolved_indices)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.memref)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_operand)
+        printer.print_string("] : ")
+        printer.print_attribute(self.memref.type)
+
 
 @irdl_op_definition
 class Store(IRDLOperation):
@@ -225,6 +250,32 @@ class Store(IRDLOperation):
     ) -> Store:
         return Store.build(operands=[value, ref, indices])
 
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        value = parser.parse_operand()
+        parser.parse_punctuation(",")
+        unresolved_ref = parser.parse_unresolved_operand()
+        unresolved_indices = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        ref_type = parser.parse_attribute()
+        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
+        resolved_indices = [
+            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
+        ]
+        return cls.get(value, resolved_ref, resolved_indices)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.value)
+        printer.print_string(", ")
+        printer.print(self.memref)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_operand)
+        printer.print_string("] : ")
+        printer.print_attribute(self.memref.type)
+
 
 @irdl_op_definition
 class Alloc(IRDLOperation):
@@ -236,9 +287,9 @@ class Alloc(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     def get(
@@ -269,9 +320,9 @@ class Alloca(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     def get(
@@ -292,7 +343,7 @@ class Alloca(IRDLOperation):
         return Alloca.build(
             operands=[dynamic_sizes, []],
             result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
-            attributes={
+            properties={
                 "alignment": alignment,
             },
         )
@@ -312,12 +363,12 @@ class Dealloc(IRDLOperation):
 class GetGlobal(IRDLOperation):
     name = "memref.get_global"
     memref: OpResult = result_def(MemRefType[Attribute])
-    name_: SymbolRefAttr = attr_def(SymbolRefAttr, attr_name="name")
+    name_: SymbolRefAttr = prop_def(SymbolRefAttr, prop_name="name")
 
     @staticmethod
     def get(name: str, return_type: Attribute) -> GetGlobal:
         return GetGlobal.build(
-            result_types=[return_type], attributes={"name": SymbolRefAttr(name)}
+            result_types=[return_type], properties={"name": SymbolRefAttr(name)}
         )
 
     # TODO how to verify the types, as the global might be defined in another
@@ -328,10 +379,10 @@ class GetGlobal(IRDLOperation):
 class Global(IRDLOperation):
     name = "memref.global"
 
-    sym_name: StringAttr = attr_def(StringAttr)
-    sym_visibility: StringAttr = attr_def(StringAttr)
-    type: Attribute = attr_def(Attribute)
-    initial_value: Attribute = attr_def(Attribute)
+    sym_name: StringAttr = prop_def(StringAttr)
+    sym_visibility: StringAttr = prop_def(StringAttr)
+    type: Attribute = prop_def(Attribute)
+    initial_value: Attribute = prop_def(Attribute)
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -353,7 +404,7 @@ class Global(IRDLOperation):
         sym_visibility: StringAttr = StringAttr("private"),
     ) -> Global:
         return Global.build(
-            attributes={
+            properties={
                 "sym_name": sym_name,
                 "type": sym_type,
                 "initial_value": initial_value,
@@ -414,12 +465,12 @@ class Subview(IRDLOperation):
     offsets: VarOperand = var_operand_def(IndexType)
     sizes: VarOperand = var_operand_def(IndexType)
     strides: VarOperand = var_operand_def(IndexType)
-    static_offsets: DenseArrayBase = attr_def(DenseArrayBase)
-    static_sizes: DenseArrayBase = attr_def(DenseArrayBase)
-    static_strides: DenseArrayBase = attr_def(DenseArrayBase)
+    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
+    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
+    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
     result: OpResult = result_def(MemRefType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     def from_static_parameters(
@@ -476,7 +527,7 @@ class Subview(IRDLOperation):
         return Subview.build(
             operands=[source, [], [], []],
             result_types=[return_type],
-            attributes={
+            properties={
                 "static_offsets": DenseArrayBase.from_list(i64, offsets),
                 "static_sizes": DenseArrayBase.from_list(i64, sizes),
                 "static_strides": DenseArrayBase.from_list(i64, strides),
