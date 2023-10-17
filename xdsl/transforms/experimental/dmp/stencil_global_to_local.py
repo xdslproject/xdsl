@@ -17,7 +17,7 @@ from xdsl.rewriter import Rewriter
 from xdsl.transforms.experimental.dmp.decompositions import (
     DomainDecompositionStrategy,
     GridSlice2d,
-    HorizontalSlices2D,
+    GridSlice3d,
 )
 from xdsl.transforms.experimental.stencil_shape_inference import (
     StencilShapeInferencePass,
@@ -638,8 +638,8 @@ class DmpDecompositionPass(ModulePass, ABC):
     """
 
     STRATEGIES: ClassVar[dict[str, type[DomainDecompositionStrategy]]] = {
-        "2d-horizontal": HorizontalSlices2D,
         "2d-grid": GridSlice2d,
+        "3d-grid": GridSlice3d,
     }
 
     strategy: str
