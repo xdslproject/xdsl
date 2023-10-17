@@ -350,7 +350,7 @@ class BitwiseAndByZero(RewritePattern):
             and isinstance(op.rs1.owner.immediate, IntegerAttr)
             and op.rs1.owner.immediate.value.data == 0
         ):
-            # if first source is equal to 0, move the content of the first source (0) to the destination
+            # if the first operand is 0, set the destination to 0
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
 
@@ -360,7 +360,7 @@ class BitwiseAndByZero(RewritePattern):
             and isinstance(op.rs2.owner.immediate, IntegerAttr)
             and op.rs2.owner.immediate.value.data == 0
         ):
-            # if second source is equal to 0, move the content of the second source (0) to the destination
+            # if the second operand is 0, set the destination to 0
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
 
