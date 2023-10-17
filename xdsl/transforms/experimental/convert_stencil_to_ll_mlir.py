@@ -257,6 +257,8 @@ class ApplyOpToParallel(RewritePattern):
 
     target: Literal["cpu", "gpu"]
 
+    collapse: int
+
     tile_sizes: list[int] | None
 
     @op_type_rewrite_pattern
@@ -335,7 +337,7 @@ class ApplyOpToParallel(RewritePattern):
                         tiled_index += 1
                     assert (lb := lowerBounds[i]) is not None
                     loop = loop_from_bounds(
-                        lb, upperBounds[i], steps[i], parallel=False
+                        lb, upperBounds[i], steps[i], parallel=(i < self.collapse)
                     )
                     block.insert_op_before(loop, last)
                     current_loop = loop
@@ -579,6 +581,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
     target: Literal["cpu", "gpu"] = "cpu"
+    collapse: int = 1
     tile_sizes: list[int] | None = None
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
@@ -589,7 +592,9 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ApplyOpToParallel(return_targets, self.target, self.tile_sizes),
+                    ApplyOpToParallel(
+                        return_targets, self.target, self.collapse, self.tile_sizes
+                    ),
                     StencilStoreToSubview(return_targets),
                     CastOpToMemref(self.target),
                     LoadOpToMemref(),
