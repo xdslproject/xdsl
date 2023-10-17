@@ -185,8 +185,8 @@ class AttrDictWithKeywordOp(IRDLOperation):
 def test_attr_dict(program: str, generic_program: str):
     """Test the 'attr-dict' and 'attr-dict-with-keyword' directives."""
     ctx = MLContext()
-    ctx.load_op(AttrDictOp)
-    ctx.load_op(AttrDictWithKeywordOp)
+    ctx.register_op(AttrDictOp)
+    ctx.register_op(AttrDictWithKeywordOp)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
@@ -230,7 +230,7 @@ def test_punctuations_and_keywords(format: str, program: str):
         assembly_format = format
 
     ctx = MLContext()
-    ctx.load_op(PunctuationOp)
+    ctx.register_op(PunctuationOp)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, '"test.punctuation"() : () -> ()', ctx)
@@ -340,8 +340,8 @@ def test_operands(format: str, program: str, generic_program: str):
         assembly_format = format
 
     ctx = MLContext()
-    ctx.load_op(TwoOperandsOp)
-    ctx.load_dialect(Test)
+    ctx.register_op(TwoOperandsOp)
+    ctx.register_dialect(Test)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
@@ -369,8 +369,8 @@ def test_operands_graph_region(format: str, program: str):
         assembly_format = format
 
     ctx = MLContext()
-    ctx.load_op(TwoOperandsOp)
-    ctx.load_dialect(Test)
+    ctx.register_op(TwoOperandsOp)
+    ctx.register_dialect(Test)
 
     check_roundtrip(program, ctx)
 
