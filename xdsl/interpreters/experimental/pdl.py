@@ -36,6 +36,26 @@ class PDLMatcher:
     not verify that the functions are used with the correct types.
     """
 
+    def get_constant_or_matched_value(
+        self, ssa_val: SSAValue
+    ) -> Operation | Attribute | SSAValue:
+        """
+        Get the value that is already matched, or that is defined by a constant such as
+        the result of a constant `pdl.attribute`, or of a `pdl.type`, or of a matched
+        operation.
+        """
+        if ssa_val in self.matching_context:
+            return self.matching_context[ssa_val]
+        if isinstance(ssa_val.owner, pdl.AttributeOp):
+            if ssa_val.owner.value is None:
+                raise InterpretationError("expected constant `pdl.attribute`")
+            return ssa_val.owner.value
+        if isinstance(ssa_val.owner, pdl.TypeOp):
+            if ssa_val.owner.constantType is None:
+                raise InterpretationError("expected constant `pdl.type`")
+            return ssa_val.owner.constantType
+        raise InterpretationError("expected constant or matched value")
+
     def match_operand(
         self, ssa_val: SSAValue, pdl_op: pdl.OperandOp, xdsl_val: SSAValue
     ):
@@ -180,7 +200,9 @@ class PDLMatcher:
         return True
 
     def check_native_constraints(self, pdl_op: pdl.ApplyNativeConstraintOp) -> bool:
-        args = [self.matching_context[operand] for operand in pdl_op.operands]
+        args = [
+            self.get_constant_or_matched_value(operand) for operand in pdl_op.operands
+        ]
         name = pdl_op.constraint_name.data
         if name not in self.native_constraints:
             raise InterpretationError(f"{name} PDL native constraint is not registered")
