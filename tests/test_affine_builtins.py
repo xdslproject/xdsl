@@ -99,6 +99,12 @@ def test_composition():
     assert map3.eval([5, 6], []) == [-3, -28]
 
 
+def test_transpose():
+    assert AffineMap.empty().transpose == AffineMap.empty()
+    m2 = AffineMap.identity(2).transpose
+    assert m2 == AffineMap(2, 0, (AffineExpr.dimension(1), AffineExpr.dimension(0)))
+
+
 def test_helpers():
     m0 = AffineMap.constant_map(0)
     assert m0 == AffineMap(0, 0, (AffineExpr.constant(0),))
