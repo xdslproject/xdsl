@@ -13,7 +13,7 @@ pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv  # noqa: E402
 
 ctx = MLContext()
-ctx.register_dialect(riscv.RISCV)
+ctx.load_dialect(riscv.RISCV)
 
 
 def test_simple():

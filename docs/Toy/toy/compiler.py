@@ -65,17 +65,17 @@ from .rewrites.shape_inference import ShapeInferencePass
 
 def context() -> MLContext:
     ctx = MLContext()
-    ctx.register_dialect(affine.Affine)
-    ctx.register_dialect(arith.Arith)
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(func.Func)
-    ctx.register_dialect(linalg.Linalg)
-    ctx.register_dialect(memref.MemRef)
-    ctx.register_dialect(printf.Printf)
-    ctx.register_dialect(riscv_func.RISCV_Func)
-    ctx.register_dialect(riscv.RISCV)
-    ctx.register_dialect(scf.Scf)
-    ctx.register_dialect(toy.Toy)
+    ctx.load_dialect(affine.Affine)
+    ctx.load_dialect(arith.Arith)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(func.Func)
+    ctx.load_dialect(linalg.Linalg)
+    ctx.load_dialect(memref.MemRef)
+    ctx.load_dialect(printf.Printf)
+    ctx.load_dialect(riscv_func.RISCV_Func)
+    ctx.load_dialect(riscv.RISCV)
+    ctx.load_dialect(scf.Scf)
+    ctx.load_dialect(toy.Toy)
     return ctx
 
 
