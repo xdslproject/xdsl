@@ -102,7 +102,7 @@ class LowerGenericOp(RewritePattern):
             stream.StridedWriteOp(
                 memref,
                 stride_pattern.pattern,
-                IntAttr(i),
+                IntAttr(i + len(op.inputs)),
             )
             for i, (memref, stride_pattern) in enumerate(
                 zip(op.outputs, stride_patterns[-len(op.outputs) :])
