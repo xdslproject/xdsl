@@ -17,6 +17,7 @@ from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.stream import (
     InputStream,
     OutputStream,
+    StridePattern,
     strided_pointer_offset_iter,
 )
 
@@ -68,6 +69,15 @@ class SnitchStreamFunctions(InterpreterFunctions):
 
         return ()
 
+    @impl(snitch_stream.StridePatternOp)
+    def run_stride_pattern(
+        self,
+        interpreter: Interpreter,
+        op: snitch_stream.StridePatternOp,
+        args: PythonValues,
+    ) -> PythonValues:
+        return (StridePattern([b.data for b in op.ub], [s.data for s in op.strides]),)
+
     @impl(snitch_stream.StridedReadOp)
     def run_strided_read(
         self,
@@ -75,13 +85,12 @@ class SnitchStreamFunctions(InterpreterFunctions):
         op: snitch_stream.StridedReadOp,
         args: tuple[Any, ...],
     ) -> PythonValues:
-        (memref,) = args
+        (memref, pattern) = args
         memref: RawPtr = memref
+        pattern: StridePattern = pattern
 
         input_stream_factory = StridedPointerInputStream(
-            strided_pointer_offset_iter(
-                [s.data for s in op.strides], [b.data for b in op.ub]
-            ),
+            strided_pointer_offset_iter(pattern.strides, pattern.ub),
             memref,
         )
         return (input_stream_factory,)
@@ -93,13 +102,12 @@ class SnitchStreamFunctions(InterpreterFunctions):
         op: snitch_stream.StridedWriteOp,
         args: tuple[Any, ...],
     ) -> PythonValues:
-        (memref,) = args
+        (memref, pattern) = args
         memref: RawPtr = memref
+        pattern: StridePattern = pattern
 
         output_stream_factory = StridedPointerOutputStream(
-            strided_pointer_offset_iter(
-                [s.data for s in op.strides], [b.data for b in op.ub]
-            ),
+            strided_pointer_offset_iter(pattern.strides, pattern.ub),
             memref,
         )
         return (output_stream_factory,)

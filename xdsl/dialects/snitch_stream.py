@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IntAttr,
 )
-from xdsl.dialects.stream import InputStreamType, OutputStreamType
+from xdsl.dialects.stream import InputStreamType, OutputStreamType, StridePatternType
 from xdsl.ir import (
     Dialect,
     Operation,
@@ -141,6 +141,35 @@ class YieldOp(IRDLOperation):
 
 
 @irdl_op_definition
+class StridePatternOp(IRDLOperation):
+    """
+    Specifies a stream access pattern reading from a pointer sequentially.
+    """
+
+    name = "snitch_stream.stride_pattern"
+
+    stream = result_def(StridePatternType)
+    ub = attr_def(ArrayAttr[IntAttr])
+    strides = attr_def(ArrayAttr[IntAttr])
+    dm = attr_def(IntAttr)
+
+    def __init__(
+        self,
+        ub: ArrayAttr[IntAttr],
+        strides: ArrayAttr[IntAttr],
+        dm: IntAttr,
+    ):
+        super().__init__(
+            result_types=[StridePatternType()],
+            attributes={
+                "ub": ub,
+                "strides": strides,
+                "dm": dm,
+            },
+        )
+
+
+@irdl_op_definition
 class StridedReadOp(IRDLOperation):
     """
     Generates a stream reading from a memref sequentially.
@@ -149,23 +178,22 @@ class StridedReadOp(IRDLOperation):
     name = "snitch_stream.strided_read"
 
     pointer = operand_def(riscv.IntRegisterType)
+    pattern = operand_def(StridePatternType)
     stream = result_def(InputStreamType[riscv.FloatRegisterType])
-    ub = attr_def(ArrayAttr[IntAttr])
-    strides = attr_def(ArrayAttr[IntAttr])
+    dm = attr_def(IntAttr)
 
     def __init__(
         self,
         pointer: SSAValue,
+        pattern: SSAValue,
         register: riscv.FloatRegisterType,
-        ub: ArrayAttr[IntAttr],
-        strides: ArrayAttr[IntAttr],
+        dm: IntAttr,
     ):
         super().__init__(
-            operands=[pointer],
+            operands=[pointer, pattern],
             result_types=[InputStreamType(register)],
             attributes={
-                "ub": ub,
-                "strides": strides,
+                "dm": dm,
             },
         )
 
@@ -179,23 +207,22 @@ class StridedWriteOp(IRDLOperation):
     name = "snitch_stream.strided_write"
 
     pointer = operand_def(riscv.IntRegisterType)
+    pattern = operand_def(StridePatternType)
     stream = result_def(OutputStreamType[riscv.FloatRegisterType])
-    ub = attr_def(ArrayAttr[IntAttr])
-    strides = attr_def(ArrayAttr[IntAttr])
+    dm = attr_def(IntAttr)
 
     def __init__(
         self,
         pointer: SSAValue,
+        pattern: SSAValue,
         register: riscv.FloatRegisterType,
-        ub: ArrayAttr[IntAttr],
-        strides: ArrayAttr[IntAttr],
+        dm: IntAttr,
     ):
         super().__init__(
-            operands=[pointer],
+            operands=[pointer, pattern],
             result_types=[OutputStreamType(register)],
             attributes={
-                "ub": ub,
-                "strides": strides,
+                "dm": dm,
             },
         )
 

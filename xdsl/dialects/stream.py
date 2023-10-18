@@ -67,6 +67,11 @@ class OutputStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElemen
     name = "output_stream"
 
 
+@irdl_attr_definition
+class StridePatternType(ParametrizedAttribute, TypeAttribute):
+    name = "stream.stride_pattern_type"
+
+
 @irdl_op_definition
 class GenericOp(IRDLOperation):
     name = "stream.generic"
@@ -174,6 +179,35 @@ class YieldOp(IRDLOperation):
 
 
 @irdl_op_definition
+class StridePatternOp(IRDLOperation):
+    """
+    Specifies a stream access pattern reading from a memref sequentially.
+    """
+
+    name = "stream.stride_pattern"
+
+    pattern = result_def(StridePatternType)
+    ub = attr_def(ArrayAttr[IntAttr])
+    strides = attr_def(ArrayAttr[IntAttr])
+    dm = attr_def(IntAttr)
+
+    def __init__(
+        self,
+        ub: ArrayAttr[IntAttr],
+        strides: ArrayAttr[IntAttr],
+        dm: IntAttr,
+    ) -> None:
+        super().__init__(
+            result_types=[StridePatternType()],
+            attributes={
+                "ub": ub,
+                "strides": strides,
+                "dm": dm,
+            },
+        )
+
+
+@irdl_op_definition
 class StridedReadOp(IRDLOperation):
     """
     Generates a stream reading from a memref sequentially.
@@ -184,24 +218,23 @@ class StridedReadOp(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     memref = operand_def(MemRefType[T])
+    pattern = operand_def(StridePatternType())
     stream = result_def(InputStreamType[T])
-    ub = attr_def(ArrayAttr[IntAttr])
-    strides = attr_def(ArrayAttr[IntAttr])
+    dm = attr_def(IntAttr)
 
     def __init__(
         self,
         memref: SSAValue,
-        ub: ArrayAttr[IntAttr],
-        strides: ArrayAttr[IntAttr],
+        pattern: SSAValue,
+        dm: IntAttr,
     ):
         assert isinstance(memref.type, MemRefType)
         memref_type = cast(MemRefType[Attribute], memref.type)
         super().__init__(
-            operands=[memref],
+            operands=[memref, pattern],
             result_types=[InputStreamType(memref_type.element_type)],
             attributes={
-                "ub": ub,
-                "strides": strides,
+                "dm": dm,
             },
         )
 
@@ -217,24 +250,23 @@ class StridedWriteOp(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     memref = operand_def(MemRefType[T])
+    pattern = operand_def(StridePatternType())
     stream = result_def(OutputStreamType[T])
-    ub = attr_def(ArrayAttr[IntAttr])
-    strides = attr_def(ArrayAttr[IntAttr])
+    dm = attr_def(IntAttr)
 
     def __init__(
         self,
         memref: SSAValue,
-        ub: ArrayAttr[IntAttr],
-        strides: ArrayAttr[IntAttr],
+        pattern: SSAValue,
+        dm: IntAttr,
     ):
         assert isinstance(memref.type, MemRefType)
         memref_type = cast(MemRefType[Attribute], memref.type)
         super().__init__(
-            operands=[memref],
+            operands=[memref, pattern],
             result_types=[OutputStreamType(memref_type.element_type)],
             attributes={
-                "ub": ub,
-                "strides": strides,
+                "dm": dm,
             },
         )
 

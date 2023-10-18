@@ -13,9 +13,37 @@ from xdsl.pattern_rewriter import (
 )
 
 
+class LowerStridePatternOp(RewritePattern):
+    """
+    Lower a stride pattern to snrt_ssr_loop_2d.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_stream.StridePatternOp, rewriter: PatternRewriter, /
+    ):
+        dim = len(op.ub)
+        if dim != 2:
+            raise NotImplementedError("Only 2d loop stride patterns are supported")
+
+        rewriter.replace_matched_op(
+            [
+                dm := riscv.LiOp(op.dm.data),
+                b0 := riscv.LiOp(op.ub.data[0].data),
+                b1 := riscv.LiOp(op.ub.data[1].data),
+                s0 := riscv.LiOp(op.strides.data[0].data),
+                s1 := riscv.LiOp(op.strides.data[1].data),
+                snitch_runtime.SsrLoop2dOp(dm, (b0, b1), (s0, s1)),
+                # The result is rewritten to be the dimensionality of the stream
+                # configuration, which is `dim-1`.
+                riscv.LiOp(dim - 1),
+            ]
+        )
+
+
 class LowerStridedReadOp(RewritePattern):
     """
-    Lower a strided read to snrt_ssr_loop_2d followed immediately by snrt_ssr_read.
+    Lower a strided read to snrt_ssr_read.
     """
 
     @op_type_rewrite_pattern
@@ -25,20 +53,11 @@ class LowerStridedReadOp(RewritePattern):
         stream_type = cast(
             stream.InputStreamType[riscv.FloatRegisterType], op.stream.type
         )
-        dm_index = riscv.Registers.FT.index(stream_type.element_type)
-
-        assert len(op.ub) == 2
 
         rewriter.replace_matched_op(
             [
-                dm := riscv.LiOp(dm_index),
-                b0 := riscv.LiOp(op.ub.data[0].data),
-                b1 := riscv.LiOp(op.ub.data[1].data),
-                s0 := riscv.LiOp(op.strides.data[0].data),
-                s1 := riscv.LiOp(op.strides.data[1].data),
-                dim_2d := riscv.LiOp(1),
-                snitch_runtime.SsrLoop2dOp(dm, (b0, b1), (s0, s1)),
-                snitch_runtime.SsrReadOp(dm, dim_2d, op.pointer),
+                dm := riscv.LiOp(op.dm.data),
+                snitch_runtime.SsrReadOp(dm, op.pattern, op.pointer),
                 riscv.GetFloatRegisterOp(stream_type.element_type),
             ]
         )
@@ -46,7 +65,7 @@ class LowerStridedReadOp(RewritePattern):
 
 class LowerStridedWriteOp(RewritePattern):
     """
-    Lower a strided write to snrt_ssr_loop_2d followed immediately by snrt_ssr_write.
+    Lower a strided write to snrt_ssr_write.
     """
 
     @op_type_rewrite_pattern
@@ -56,20 +75,11 @@ class LowerStridedWriteOp(RewritePattern):
         stream_type = cast(
             stream.InputStreamType[riscv.FloatRegisterType], op.stream.type
         )
-        dm_index = riscv.Registers.FT.index(stream_type.element_type)
-
-        assert len(op.ub) == 2
 
         rewriter.replace_matched_op(
             [
-                dm := riscv.LiOp(dm_index),
-                b0 := riscv.LiOp(op.ub.data[0].data),
-                b1 := riscv.LiOp(op.ub.data[1].data),
-                s0 := riscv.LiOp(op.strides.data[0].data),
-                s1 := riscv.LiOp(op.strides.data[1].data),
-                dim_2d := riscv.LiOp(1),
-                snitch_runtime.SsrLoop2dOp(dm, (b0, b1), (s0, s1)),
-                snitch_runtime.SsrWriteOp(dm, dim_2d, op.pointer),
+                dm := riscv.LiOp(op.dm.data),
+                snitch_runtime.SsrWriteOp(dm, op.pattern, op.pointer),
                 riscv.GetFloatRegisterOp(stream_type.element_type),
             ]
         )
@@ -120,6 +130,7 @@ class ConvertSnitchStreamToSnitchRuntime(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
+                    LowerStridePatternOp(),
                     LowerStridedReadOp(),
                     LowerStridedWriteOp(),
                     LowerGenericOp(),

@@ -32,6 +32,12 @@ class OutputStream(Protocol[TCon]):
         raise NotImplementedError()
 
 
+@dataclass
+class StridePattern:
+    ub: list[int]
+    strides: list[int]
+
+
 def strided_pointer_offset_iter(strides: list[int], ub: list[int]) -> Iterator[int]:
     indices_iter = product(*(range(b) for b in ub))
     offsets = [
@@ -83,17 +89,22 @@ class StreamFunctions(InterpreterFunctions):
 
         return ()
 
+    @impl(stream.StridePatternOp)
+    def run_stride_pattern(
+        self, interpreter: Interpreter, op: stream.StridePatternOp, args: PythonValues
+    ) -> PythonValues:
+        return (StridePattern([b.data for b in op.ub], [s.data for s in op.strides]),)
+
     @impl(stream.StridedReadOp)
     def run_strided_read(
         self, interpreter: Interpreter, op: stream.StridedReadOp, args: tuple[Any, ...]
     ) -> PythonValues:
-        (memref,) = args
+        (memref, pattern) = args
         memref: ShapedArray[Any] = memref
+        pattern: StridePattern = pattern
 
         input_stream_factory = StridedMemrefInputStream(
-            strided_pointer_offset_iter(
-                [stride.data for stride in op.strides], [b.data for b in op.ub]
-            ),
+            strided_pointer_offset_iter(pattern.strides, pattern.ub),
             memref,
         )
         return (input_stream_factory,)
@@ -102,13 +113,12 @@ class StreamFunctions(InterpreterFunctions):
     def run_strided_write(
         self, interpreter: Interpreter, op: stream.StridedWriteOp, args: tuple[Any, ...]
     ) -> PythonValues:
-        (memref,) = args
+        (memref, pattern) = args
         memref: ShapedArray[Any] = memref
+        pattern: StridePattern = pattern
 
         output_stream_factory = StridedMemrefOutputStream(
-            strided_pointer_offset_iter(
-                [stride.data for stride in op.strides], [b.data for b in op.ub]
-            ),
+            strided_pointer_offset_iter(pattern.strides, pattern.ub),
             memref,
         )
         return (output_stream_factory,)

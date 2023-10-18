@@ -51,41 +51,67 @@ class LowerGenericOp(RewritePattern):
         ub = op.get_static_loop_ranges()
         ub_attr = ArrayAttr(IntAttr(b) for b in ub)
 
+        first_affine_map = op.indexing_maps.data[0]
+        all_maps_same = not any(
+            other != first_affine_map for other in op.indexing_maps.data[1:]
+        )
+
+        if all_maps_same:
+            first_strides = ArrayAttr(
+                [
+                    IntAttr(stride)
+                    for stride in strides_for_affine_map(
+                        first_affine_map.data, [b.data for b in ub_attr], 1
+                    )
+                ]
+            )
+            dm_all = IntAttr(31)
+            stride_pattern_ops = [
+                stream.StridePatternOp(ub_attr, first_strides, dm_all)
+            ]
+            stride_patterns = stride_pattern_ops * len(ub)
+        else:
+            stride_pattern_ops = [
+                stream.StridePatternOp(
+                    ub_attr,
+                    ArrayAttr(
+                        [
+                            IntAttr(stride)
+                            for stride in strides_for_affine_map(
+                                affine_map.data, [b.data for b in ub_attr], 1
+                            )
+                        ]
+                    ),
+                    IntAttr(i),
+                )
+                for i, affine_map in enumerate(op.indexing_maps)
+            ]
+            stride_patterns = stride_pattern_ops
+
         new_inputs = [
             stream.StridedReadOp(
                 memref,
-                ub_attr,
-                ArrayAttr(
-                    [
-                        IntAttr(stride)
-                        for stride in strides_for_affine_map(
-                            indexing_map.data, [b.data for b in ub_attr], 1
-                        )
-                    ]
-                ),
+                stride_pattern.pattern,
+                IntAttr(i),
             )
-            for memref, indexing_map in zip(op.inputs, op.indexing_maps)
+            for i, (memref, stride_pattern) in enumerate(
+                zip(op.inputs, stride_patterns)
+            )
         ]
         new_outputs = [
             stream.StridedWriteOp(
                 memref,
-                ub_attr,
-                ArrayAttr(
-                    [
-                        IntAttr(stride)
-                        for stride in strides_for_affine_map(
-                            indexing_map.data, [b.data for b in ub_attr], 1
-                        )
-                    ]
-                ),
+                stride_pattern.pattern,
+                IntAttr(i),
             )
-            for memref, indexing_map in zip(
-                op.outputs, op.indexing_maps.data[-len(op.outputs) :]
+            for i, (memref, stride_pattern) in enumerate(
+                zip(op.outputs, stride_patterns[-len(op.outputs) :])
             )
         ]
 
         rewriter.replace_matched_op(
             [
+                *stride_pattern_ops,
                 *new_inputs,
                 *new_outputs,
                 stream.GenericOp(

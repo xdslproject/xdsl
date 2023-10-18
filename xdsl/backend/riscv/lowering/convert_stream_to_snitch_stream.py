@@ -69,17 +69,29 @@ class LowerYieldOp(RewritePattern):
         rewriter.replace_matched_op(snitch_stream.YieldOp(*new_operands))
 
 
+class LowerStridePatternOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stream.StridePatternOp, rewriter: PatternRewriter):
+        rewriter.replace_matched_op(
+            snitch_stream.StridePatternOp(
+                op.ub,
+                ArrayAttr(IntAttr(stride.data * 8) for stride in op.strides),
+                op.dm,
+            )
+        )
+
+
 class LowerStridedReadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stream.StridedReadOp, rewriter: PatternRewriter):
-        (pointer,) = cast_operands_to_regs(rewriter)
+        (pointer,) = cast_operands_to_regs(rewriter, (op.memref,))
 
         rewriter.replace_matched_op(
             snitch_stream.StridedReadOp(
                 pointer,
+                op.pattern,
                 riscv.FloatRegisterType.unallocated(),
-                op.ub,
-                ArrayAttr([IntAttr(stride.data * 8) for stride in op.strides]),
+                op.dm,
             )
         )
 
@@ -87,14 +99,14 @@ class LowerStridedReadOp(RewritePattern):
 class LowerStridedWriteOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stream.StridedWriteOp, rewriter: PatternRewriter):
-        (pointer,) = cast_operands_to_regs(rewriter)
+        (pointer,) = cast_operands_to_regs(rewriter, (op.memref,))
 
         rewriter.replace_matched_op(
             snitch_stream.StridedWriteOp(
                 pointer,
+                op.pattern,
                 riscv.FloatRegisterType.unallocated(),
-                op.ub,
-                ArrayAttr([IntAttr(stride.data * 8) for stride in op.strides]),
+                op.dm,
             )
         )
 
@@ -115,6 +127,7 @@ class ConvertStreamToSnitchStreamPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     LowerGenericOp(),
+                    LowerStridePatternOp(),
                     LowerStridedReadOp(),
                     LowerStridedWriteOp(),
                 ]

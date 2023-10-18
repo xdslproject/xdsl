@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Sequence
 
 from xdsl.dialects import builtin, riscv
 from xdsl.ir import Attribute, Block, Operation, SSAValue
@@ -110,7 +110,9 @@ def move_to_unallocated_regs(
     return new_ops, new_values
 
 
-def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
+def cast_operands_to_regs(
+    rewriter: PatternRewriter, operands: Sequence[SSAValue] | None = None
+) -> list[SSAValue]:
     """
     Add cast operations just before the targeted operation
     if the operands were not already int registers
@@ -119,7 +121,10 @@ def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     new_ops = list[Operation]()
     new_operands = list[SSAValue]()
 
-    for operand in rewriter.current_operation.operands:
+    if operands is None:
+        operands = rewriter.current_operation.operands
+
+    for operand in operands:
         if not isinstance(
             operand.type, riscv.IntRegisterType | riscv.FloatRegisterType
         ):
