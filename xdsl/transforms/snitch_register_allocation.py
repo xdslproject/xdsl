@@ -25,13 +25,13 @@ class AllocateSnitchGenericRegisters(RewritePattern):
             arg.type = riscv.Registers.FT[a]
 
         for i, arg in enumerate(op.inputs):
-            arg.type = stream.InputStreamType(riscv.Registers.FT[i])
+            arg.type = stream.ReadableStreamType(riscv.Registers.FT[i])
 
         input_count = len(op.inputs)
 
         for o, arg in enumerate(op.outputs):
             t = riscv.Registers.FT[o + input_count]
-            arg.type = stream.OutputStreamType(t)
+            arg.type = stream.WritableStreamType(t)
             yield_op.operands[o].type = t
 
 

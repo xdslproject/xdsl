@@ -51,7 +51,7 @@ class LowerStridedReadOp(RewritePattern):
         self, op: snitch_stream.StridedReadOp, rewriter: PatternRewriter, /
     ):
         stream_type = cast(
-            stream.InputStreamType[riscv.FloatRegisterType], op.stream.type
+            stream.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
         )
 
         rewriter.replace_matched_op(
@@ -73,7 +73,7 @@ class LowerStridedWriteOp(RewritePattern):
         self, op: snitch_stream.StridedWriteOp, rewriter: PatternRewriter, /
     ):
         stream_type = cast(
-            stream.InputStreamType[riscv.FloatRegisterType], op.stream.type
+            stream.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
         )
 
         rewriter.replace_matched_op(

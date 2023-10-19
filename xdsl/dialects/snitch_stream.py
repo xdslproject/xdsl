@@ -8,7 +8,11 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IntAttr,
 )
-from xdsl.dialects.stream import InputStreamType, OutputStreamType, StridePatternType
+from xdsl.dialects.stream import (
+    ReadableStreamType,
+    StridePatternType,
+    WritableStreamType,
+)
 from xdsl.ir import (
     Dialect,
     Operation,
@@ -39,8 +43,8 @@ from xdsl.traits import IsTerminator
 class GenericOp(IRDLOperation):
     name = "snitch_stream.generic"
 
-    inputs = var_operand_def(InputStreamType)
-    outputs = var_operand_def(OutputStreamType)
+    inputs = var_operand_def(ReadableStreamType)
+    outputs = var_operand_def(WritableStreamType)
 
     body = region_def("single_block")
 
@@ -70,7 +74,7 @@ class ReadOp(IRDLOperation):
 
     T = Annotated[riscv.FloatRegisterType, ConstraintVar("T")]
 
-    stream: Operand = operand_def(InputStreamType[T])
+    stream: Operand = operand_def(ReadableStreamType[T])
     res: OpResult = result_def(T)
 
     def __init__(self, stream: SSAValue, result_type: riscv.FloatRegisterType):
@@ -84,7 +88,7 @@ class ReadOp(IRDLOperation):
         result_type = parser.parse_attribute()
         if not isinstance(result_type, riscv.FloatRegisterType):
             parser.raise_error("Expected a floating point register", type_start_pos)
-        resolved = parser.resolve_operand(unresolved, InputStreamType(result_type))
+        resolved = parser.resolve_operand(unresolved, ReadableStreamType(result_type))
         return ReadOp(resolved, result_type)
 
     def print(self, printer: Printer):
@@ -100,7 +104,7 @@ class WriteOp(IRDLOperation):
 
     T = Annotated[riscv.FloatRegisterType, ConstraintVar("T")]
 
-    stream: Operand = operand_def(OutputStreamType[T])
+    stream: Operand = operand_def(WritableStreamType[T])
     value: Operand = operand_def(T)
 
     def __init__(self, value: SSAValue, stream: SSAValue):
@@ -115,7 +119,7 @@ class WriteOp(IRDLOperation):
         result_type = parser.parse_attribute()
         resolved_value = parser.resolve_operand(unresolved_value, result_type)
         resolved_stream = parser.resolve_operand(
-            unresolved_stream, InputStreamType(result_type)
+            unresolved_stream, ReadableStreamType(result_type)
         )
         return WriteOp(resolved_value, resolved_stream)
 
@@ -179,7 +183,7 @@ class StridedReadOp(IRDLOperation):
 
     pointer = operand_def(riscv.IntRegisterType)
     pattern = operand_def(StridePatternType)
-    stream = result_def(InputStreamType[riscv.FloatRegisterType])
+    stream = result_def(ReadableStreamType[riscv.FloatRegisterType])
     dm = attr_def(IntAttr)
 
     def __init__(
@@ -191,7 +195,7 @@ class StridedReadOp(IRDLOperation):
     ):
         super().__init__(
             operands=[pointer, pattern],
-            result_types=[InputStreamType(register)],
+            result_types=[ReadableStreamType(register)],
             attributes={
                 "dm": dm,
             },
@@ -208,7 +212,7 @@ class StridedWriteOp(IRDLOperation):
 
     pointer = operand_def(riscv.IntRegisterType)
     pattern = operand_def(StridePatternType)
-    stream = result_def(OutputStreamType[riscv.FloatRegisterType])
+    stream = result_def(WritableStreamType[riscv.FloatRegisterType])
     dm = attr_def(IntAttr)
 
     def __init__(
@@ -220,7 +224,7 @@ class StridedWriteOp(IRDLOperation):
     ):
         super().__init__(
             operands=[pointer, pattern],
-            result_types=[OutputStreamType(register)],
+            result_types=[WritableStreamType(register)],
             attributes={
                 "dm": dm,
             },
@@ -237,7 +241,7 @@ SnitchStream = Dialect(
         StridedWriteOp,
     ],
     [
-        InputStreamType,
-        OutputStreamType,
+        ReadableStreamType,
+        WritableStreamType,
     ],
 )
