@@ -44,6 +44,21 @@ class IteratorTypeAttr(Data[IteratorType]):
     name = "linalg.iterator_type"
 
     @classmethod
+    @property
+    def parallel(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.PARALLEL)
+
+    @classmethod
+    @property
+    def reduction(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.REDUCTION)
+
+    @classmethod
+    @property
+    def window(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.WINDOW)
+
+    @classmethod
     def parse_parameter(cls, parser: AttrParser) -> IteratorType:
         if parser.parse_optional_keyword("parallel") is not None:
             return IteratorType.PARALLEL
@@ -182,7 +197,7 @@ class Yield(IRDLOperation):
     traits = frozenset([IsTerminator()])
 
     def __init__(self, *operands: SSAValue | Operation) -> None:
-        super().__init__(operands=[SSAValue.get(operand) for operand in operands])
+        super().__init__(operands=[operands])
 
 
 Linalg = Dialect([Generic, Yield], [IteratorTypeAttr])
