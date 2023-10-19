@@ -135,7 +135,7 @@ class StreamFunctions(InterpreterFunctions):
     def run_write(
         self, interpreter: Interpreter, op: stream.WriteOp, args: tuple[Any, ...]
     ) -> PythonValues:
-        (stream, value) = args
+        (value, stream) = args
         stream: OutputStream[Any] = stream
         stream.write(value)
         return ()
