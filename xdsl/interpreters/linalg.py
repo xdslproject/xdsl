@@ -46,7 +46,7 @@ class LinalgFunctions(InterpreterFunctions):
 
         for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
             loop_args = tuple(
-                i.load(tuple(indexing_map.eval(list(indices), [])))
+                i.load(indexing_map.eval(list(indices), []))
                 for i, indexing_map in zip(inputs, input_indexing_maps, strict=True)
             )
             loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
@@ -54,7 +54,7 @@ class LinalgFunctions(InterpreterFunctions):
                 loop_results, output_indexing_maps, strict=True
             ):
                 result_indices = indexing_map.eval(list(indices), [])
-                outputs[0].store(tuple(result_indices), res)
+                outputs[0].store(result_indices, res)
 
         return ()
 
