@@ -119,6 +119,7 @@ class ReadOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> ReadOp:
+        parser.parse_characters("from")
         unresolved = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_attribute()
@@ -126,7 +127,7 @@ class ReadOp(IRDLOperation):
         return ReadOp(resolved, result_type)
 
     def print(self, printer: Printer):
-        printer.print_string(" ")
+        printer.print_string(" from ")
         printer.print(self.stream)
         printer.print_string(" : ")
         printer.print_attribute(self.res.type)
@@ -138,30 +139,30 @@ class WriteOp(IRDLOperation):
 
     T = Annotated[Attribute, ConstraintVar("T")]
 
-    stream: Operand = operand_def(WritableStreamType[T])
     value: Operand = operand_def(T)
+    stream: Operand = operand_def(WritableStreamType[T])
 
     def __init__(self, value: SSAValue, stream: SSAValue):
-        super().__init__(operands=[stream, value])
+        super().__init__(operands=[value, stream])
 
     @classmethod
     def parse(cls, parser: Parser) -> WriteOp:
-        unresolved_stream = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
         unresolved_value = parser.parse_unresolved_operand()
+        parser.parse_characters("to")
+        unresolved_stream = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_attribute()
         resolved_value = parser.resolve_operand(unresolved_value, result_type)
         resolved_stream = parser.resolve_operand(
-            unresolved_stream, ReadableStreamType(result_type)
+            unresolved_stream, WritableStreamType(result_type)
         )
         return WriteOp(resolved_value, resolved_stream)
 
     def print(self, printer: Printer):
         printer.print_string(" ")
-        printer.print_ssa_value(self.stream)
-        printer.print_string(", ")
         printer.print_ssa_value(self.value)
+        printer.print_string(" to ")
+        printer.print_ssa_value(self.stream)
         printer.print_string(" : ")
         printer.print_attribute(self.value.type)
 
@@ -271,7 +272,7 @@ class StridedWriteOp(IRDLOperation):
         )
 
 
-Linalg = Dialect(
+Stream = Dialect(
     [
         GenericOp,
         YieldOp,
