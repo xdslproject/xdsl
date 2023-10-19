@@ -15,15 +15,15 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.stream import (
-    InputStream,
-    OutputStream,
+    ReadableStream,
     StridePattern,
+    WritableStream,
     strided_pointer_offset_iter,
 )
 
 
 @dataclass
-class StridedPointerInputStream(InputStream[float]):
+class StridedPointerInputStream(ReadableStream[float]):
     offset_iter: Iterator[int]
     pointer: RawPtr
 
@@ -33,7 +33,7 @@ class StridedPointerInputStream(InputStream[float]):
 
 
 @dataclass
-class StridedPointerOutputStream(OutputStream[float]):
+class StridedPointerOutputStream(WritableStream[float]):
     offset_iter: Iterator[int]
     pointer: RawPtr
 
@@ -51,8 +51,10 @@ class SnitchStreamFunctions(InterpreterFunctions):
         op: snitch_stream.GenericOp,
         args: tuple[Any, ...],
     ) -> PythonValues:
-        input_streams: tuple[InputStream[Any], ...] = interpreter.get_values(op.inputs)
-        output_streams: tuple[OutputStream[Any], ...] = interpreter.get_values(
+        input_streams: tuple[ReadableStream[Any], ...] = interpreter.get_values(
+            op.inputs
+        )
+        output_streams: tuple[WritableStream[Any], ...] = interpreter.get_values(
             op.outputs
         )
 
@@ -117,7 +119,7 @@ class SnitchStreamFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: snitch_stream.ReadOp, args: tuple[Any, ...]
     ) -> PythonValues:
         (stream,) = args
-        stream: InputStream[Any] = stream
+        stream: ReadableStream[Any] = stream
         return (stream.read(),)
 
     @impl(snitch_stream.WriteOp)
@@ -125,7 +127,7 @@ class SnitchStreamFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: snitch_stream.WriteOp, args: tuple[Any, ...]
     ) -> PythonValues:
         (stream, value) = args
-        stream: OutputStream[Any] = stream
+        stream: WritableStream[Any] = stream
         stream.write(value)
         return ()
 

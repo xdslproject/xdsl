@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from itertools import product
 from typing import Any, Generic, TypeVar
@@ -22,14 +22,30 @@ TCov = TypeVar("TCov", covariant=True)
 TCon = TypeVar("TCon", contravariant=True)
 
 
-class InputStream(Protocol[TCov]):
+class ReadableStream(Protocol[TCov]):
     def read(self) -> TCov:
         raise NotImplementedError()
 
 
-class OutputStream(Protocol[TCon]):
+class WritableStream(Protocol[TCon]):
     def write(self, value: TCon) -> None:
         raise NotImplementedError()
+
+
+@dataclass
+class AnyReadableStream(Generic[TCov], ReadableStream[TCov]):
+    _read: Callable[[], TCov]
+
+    def read(self) -> TCov:
+        return self._read()
+
+
+@dataclass
+class AnyWritableStream(Generic[TCon], WritableStream[TCon]):
+    _write: Callable[[TCon], None]
+
+    def write(self, value: TCon) -> None:
+        self._write(value)
 
 
 @dataclass
@@ -48,7 +64,7 @@ def strided_pointer_offset_iter(strides: list[int], ub: list[int]) -> Iterator[i
 
 
 @dataclass
-class StridedMemrefInputStream(Generic[TCov], InputStream[TCov]):
+class StridedMemrefInputStream(Generic[TCov], ReadableStream[TCov]):
     index_iter: Iterator[int]
     array: ShapedArray[TCov]
 
@@ -59,7 +75,7 @@ class StridedMemrefInputStream(Generic[TCov], InputStream[TCov]):
 
 
 @dataclass
-class StridedMemrefOutputStream(Generic[TCon], OutputStream[TCon]):
+class StridedMemrefOutputStream(Generic[TCon], WritableStream[TCon]):
     index_iter: Iterator[int]
     array: ShapedArray[TCon]
 
@@ -74,8 +90,10 @@ class StreamFunctions(InterpreterFunctions):
     def run_generic(
         self, interpreter: Interpreter, op: stream.GenericOp, args: tuple[Any, ...]
     ) -> PythonValues:
-        input_streams: tuple[InputStream[Any], ...] = interpreter.get_values(op.inputs)
-        output_streams: tuple[OutputStream[Any], ...] = interpreter.get_values(
+        input_streams: tuple[ReadableStream[Any], ...] = interpreter.get_values(
+            op.inputs
+        )
+        output_streams: tuple[WritableStream[Any], ...] = interpreter.get_values(
             op.outputs
         )
 
@@ -128,7 +146,7 @@ class StreamFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: stream.ReadOp, args: tuple[Any, ...]
     ) -> PythonValues:
         (stream,) = args
-        stream: InputStream[Any] = stream
+        stream: ReadableStream[Any] = stream
         return (stream.read(),)
 
     @impl(stream.WriteOp)
@@ -136,7 +154,7 @@ class StreamFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: stream.WriteOp, args: tuple[Any, ...]
     ) -> PythonValues:
         (value, stream) = args
-        stream: OutputStream[Any] = stream
+        stream: WritableStream[Any] = stream
         stream.write(value)
         return ()
 
