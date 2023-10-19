@@ -218,7 +218,7 @@ class CommandLineTool:
         Add other/additional dialects by overloading this function.
         """
         for dialect in get_all_dialects():
-            self.ctx.register_dialect(dialect)
+            self.ctx.load_dialect(dialect)
 
     def register_all_frontends(self):
         """

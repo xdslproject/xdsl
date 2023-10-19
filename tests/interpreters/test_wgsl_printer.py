@@ -347,10 +347,10 @@ builtin.module attributes {gpu.container_module} {
             }
 """
     context = MLContext()
-    context.register_dialect(arith.Arith)
-    context.register_dialect(memref.MemRef)
-    context.register_dialect(builtin.Builtin)
-    context.register_dialect(gpu.GPU)
+    context.load_dialect(arith.Arith)
+    context.load_dialect(memref.MemRef)
+    context.load_dialect(builtin.Builtin)
+    context.load_dialect(gpu.GPU)
     parser = Parser(context, mlir_source)
     module = parser.parse_module()
 
