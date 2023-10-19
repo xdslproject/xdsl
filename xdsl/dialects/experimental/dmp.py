@@ -125,7 +125,10 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         return prod(self.size)
 
     @property
-    def rank(self) -> int:
+    def dims(self) -> int:
+        """
+        number of dimensions of the grid
+        """
         return len(self.size)
 
     def source_area(self) -> ExchangeDeclarationAttr:
@@ -222,7 +225,7 @@ class ShapeAttr(ParametrizedAttribute):
         - halo_size(n, end  ) = dn - cn
     """
 
-    name = "dmp.shape"
+    name = "dmp.shape_with_halo"
 
     buff_lb_: ParameterDef[builtin.DenseArrayBase]
     buff_ub_: ParameterDef[builtin.DenseArrayBase]
