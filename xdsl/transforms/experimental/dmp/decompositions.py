@@ -183,19 +183,19 @@ class GridSlice3d(DomainDecompositionStrategy):
 
 
 def _flat_face_exchanges_for_dim(
-    shape: dmp.HaloShapeInformation, dim: int
+    shape: dmp.HaloShapeInformation, axis: int
 ) -> tuple[dmp.HaloExchangeDecl, dmp.HaloExchangeDecl]:
     """
-    Generate the two exchange delcarations to exchange the "flat" faces in dimension
-    "dim".
+    Generate the two exchange delcarations to exchange the faces on the
+    axis "axis".
     """
     dimensions = shape.dims
-    assert dim <= dimensions
+    assert axis <= dimensions
 
     def coords(where: Literal["start", "end"]):
         for d in range(dimensions):
             # for the dim we want to exchange, return either start or end halo region
-            if d == dim:
+            if d == axis:
                 if where == "start":
                     # "start" halo goes from buffer start to core start
                     yield shape.buffer_start(d), shape.core_start(d)
@@ -214,13 +214,13 @@ def _flat_face_exchanges_for_dim(
         # towards positive dim:
         dmp.HaloExchangeDecl.from_points(
             ex1_coords,
-            dim,
-            1,
+            axis,
+            dir_sign=1,
         ),
         # towards negative dim:
         dmp.HaloExchangeDecl.from_points(
             ex2_coords,
-            dim,
-            -1,
+            axis,
+            dir_sign=-1,
         ),
     )

@@ -390,6 +390,8 @@ class NodeGrid(ParametrizedAttribute):
 
     This allows for higher-dimensional grids as well, e.g. dmp.grid<3x3x3> for
     3-dimensional data.
+
+    This must be row-major.
     """
 
     name = "dmp.grid"
