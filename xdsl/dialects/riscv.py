@@ -371,14 +371,15 @@ class RISCVOp(Operation, ABC):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        args = cls.parse_unresolved_operand(parser)
+        args = cls.parse_unresolved_operands(parser)
         custom_attributes = cls.custom_parse_attributes(parser)
         remaining_attributes = parser.parse_optional_attr_dict()
         # TODO ensure distinct keys for attributes
         attributes = custom_attributes | remaining_attributes
         regions = parser.parse_region_list()
+        pos = parser.pos
         operand_types, result_types = cls.parse_op_type(parser)
-        operands = parser.resolve_operands(args, operand_types, parser.pos)
+        operands = parser.resolve_operands(args, operand_types, pos)
         return cls.create(
             operands=operands,
             result_types=result_types,
@@ -387,7 +388,7 @@ class RISCVOp(Operation, ABC):
         )
 
     @classmethod
-    def parse_unresolved_operand(cls, parser: Parser) -> list[UnresolvedOperand]:
+    def parse_unresolved_operands(cls, parser: Parser) -> list[UnresolvedOperand]:
         """
         Parse a list of comma separated unresolved operands.
 
@@ -1041,6 +1042,19 @@ class NullaryOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return ()
+
+    @classmethod
+    def parse_unresolved_operands(cls, parser: Parser) -> list[UnresolvedOperand]:
+        return []
+
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
 
 
 class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):

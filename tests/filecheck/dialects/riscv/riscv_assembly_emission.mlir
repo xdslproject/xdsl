@@ -57,7 +57,7 @@
     // CHECK-NEXT: sub j2, j2, j1
     %sra = riscv.sra %2, %1 : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
     // CHECK-NEXT: sra j2, j2, j1
-    riscv.nop : () -> ()
+    riscv.nop
     // CHECK-NEXT: nop
 
     // RV32I/RV64I: 2.5 Control Transfer Instructions
@@ -82,7 +82,7 @@
     riscv.jalr %0 "label" : (!riscv.reg<zero>) -> ()
     // CHECK-NEXT: jalr zero, label
 
-    riscv.ret : () -> ()
+    riscv.ret
     // CHECK-NEXT: ret
   ^0(%b00 : !riscv.reg<>, %b01 : !riscv.reg<>):
 
@@ -150,11 +150,11 @@
     %li = riscv.li 1: () -> !riscv.reg<j0>
     // CHECK-NEXT: li j0, 1
     // Environment Call and Breakpoints
-    riscv.ecall : () -> ()
+    riscv.ecall
     // CHECK-NEXT: ecall
-    riscv.ebreak : () -> ()
+    riscv.ebreak
     // CHECK-NEXT: ebreak
-    riscv.ret : () -> ()
+    riscv.ret
     // CHECK-NEXT: ret
   ^1(%b10 : !riscv.reg<>, %b11 : !riscv.reg<>):
 

@@ -54,8 +54,8 @@
     // CHECK-NEXT: %{{.*}} = riscv.sub %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     %sra = riscv.sra %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.sra %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-    riscv.nop : () -> ()
-    // CHECK-NEXT: riscv.nop : () -> ()
+    riscv.nop
+    // CHECK-NEXT: riscv.nop
 
     // RV32I/RV64I: 2.5 Control Transfer Instructions
 
@@ -79,8 +79,8 @@
     riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
     // CHECK-NEXT: riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
 
-    riscv.ret : () -> ()
-    // CHECK-NEXT: riscv.ret : () -> ()
+    riscv.ret
+    // CHECK-NEXT: riscv.ret
   ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
   // CHECK-NEXT: ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
 
@@ -145,8 +145,8 @@
     // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg<>
 
     // Machine Mode Privileged Instructions
-    riscv.wfi : () -> ()
-    // CHECK-NEXT: riscv.wfi : () -> ()
+    riscv.wfi
+    // CHECK-NEXT: riscv.wfi
 
 
     // RV32M/RV64M: 7 “M” Standard Extension for Integer Multiplication and Division
@@ -176,10 +176,10 @@
     %li = riscv.li 1 : () -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
     // Environment Call and Breakpoints
-    riscv.ecall : () -> ()
-    // CHECK-NEXT: riscv.ecall : () -> ()
-    riscv.ebreak : () -> ()
-    // CHECK-NEXT: riscv.ebreak : () -> ()
+    riscv.ecall
+    // CHECK-NEXT: riscv.ecall
+    riscv.ebreak
+    // CHECK-NEXT: riscv.ebreak
     riscv.directive ".bss": () -> ()
     // CHECK-NEXT: riscv.directive ".bss" : () -> ()
     riscv.directive ".align" "2" : () -> ()
