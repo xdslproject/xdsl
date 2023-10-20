@@ -32,6 +32,13 @@ class AffineMap:
         )
 
     @staticmethod
+    def transpose_map() -> AffineMap:
+        """
+        Returns the map transposing a 2D matrix: `(i, j) -> (j, i)`.
+        """
+        return AffineMap(2, 0, (AffineExpr.dimension(1), AffineExpr.dimension(0)))
+
+    @staticmethod
     def empty() -> AffineMap:
         return AffineMap(0, 0, ())
 
@@ -88,18 +95,6 @@ class AffineMap:
             num_symbols=0,
             results=results,
         )
-
-    @property
-    def transpose(self) -> AffineMap:
-        """
-        Returns a map with transposed codomain.
-
-        Example:
-           (d0, d1, d2) -> (d1, d1, d0, d2, d1, d2, d1, d0)
-        returns:
-           (d0, d1, d2) -> (d0, d1, d2, d1, d2, d0, d1, d1)
-        """
-        return AffineMap(self.num_dims, self.num_symbols, tuple(reversed(self.results)))
 
     def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> list[int]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""

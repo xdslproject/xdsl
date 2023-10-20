@@ -127,7 +127,6 @@ class TransposeOpLowering(RewritePattern):
             op.arg.type, toy.TensorTypeF64 | MemRefType[Float64Type]
         ), f"{op.arg.type}"
         rank = len(op.arg.type.shape)
-        map = AffineMap.identity(rank)
 
         block = Block(arg_types=(op.arg.type.element_type,))
 
@@ -136,8 +135,8 @@ class TransposeOpLowering(RewritePattern):
 
         lower_op_to_linalg(
             op,
-            AffineMapAttr(map),
-            AffineMapAttr(map.transpose),
+            AffineMapAttr(AffineMap.identity(rank)),
+            AffineMapAttr(AffineMap.transpose_map()),
             rewriter,
             block,
         )

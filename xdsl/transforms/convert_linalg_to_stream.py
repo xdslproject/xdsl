@@ -28,13 +28,12 @@ from xdsl.pattern_rewriter import (
 def strides_for_affine_map(
     affine_map: AffineMap, ub: list[int], bitwidth: int
 ) -> list[int]:
-    identity = AffineMap.identity(affine_map.num_dims)
-    if affine_map == identity:
+    if affine_map == AffineMap.identity(affine_map.num_dims):
         prod_dims: list[int] = list(
             accumulate(reversed(ub), operator.mul, initial=bitwidth)
         )[1::-1]
         return prod_dims
-    elif affine_map == identity.transpose:
+    elif affine_map == AffineMap.transpose_map():
         prod_dims: list[int] = list(accumulate(ub, operator.mul, initial=bitwidth))[:-1]
         return prod_dims
     else:
