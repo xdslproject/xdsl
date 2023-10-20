@@ -106,7 +106,7 @@ def test_helpers():
     assert m1 == AffineMap(0, 0, (AffineExpr.constant(0), AffineExpr.constant(1)))
     m2 = AffineMap.identity(2)
     assert m2 == AffineMap(2, 0, (AffineExpr.dimension(0), AffineExpr.dimension(1)))
-    m2 = AffineMap.transpose(2)
+    m2 = AffineMap.transpose_map()
     assert m2 == AffineMap(2, 0, (AffineExpr.dimension(1), AffineExpr.dimension(0)))
     m3 = AffineMap.empty()
     assert m3 == AffineMap(0, 0, ())
