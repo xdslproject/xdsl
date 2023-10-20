@@ -36,7 +36,7 @@ class AffineMap:
         """
         Returns the map transposing a 2D matrix: `(i, j) -> (j, i)`.
         """
-        return AffineMap(2, 0, (AffineExpr.dimension(1), AffineExpr.dimension(1)))
+        return AffineMap(2, 0, (AffineExpr.dimension(1), AffineExpr.dimension(0)))
 
     @staticmethod
     def empty() -> AffineMap:
