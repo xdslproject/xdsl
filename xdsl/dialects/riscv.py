@@ -378,11 +378,11 @@ class RISCVOp(Operation, ABC):
         attributes = custom_attributes | remaining_attributes
         regions = parser.parse_region_list()
         parser.parse_punctuation(":")
-        func_type = parser.parse_function_type()
-        operands = parser.resolve_operands(args, func_type.inputs.data, parser.pos)
+        operand_types, result_types = cls.parse_op_type(parser)
+        operands = parser.resolve_operands(args, operand_types, parser.pos)
         return cls.create(
             operands=operands,
-            result_types=func_type.outputs.data,
+            result_types=result_types,
             attributes=attributes,
             regions=regions,
         )
@@ -410,6 +410,13 @@ class RISCVOp(Operation, ABC):
         """
         return parser.parse_optional_attr_dict()
 
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        func_type = parser.parse_function_type()
+        return func_type.inputs.data, func_type.outputs.data
+
     def print(self, printer: Printer) -> None:
         if self.operands:
             printer.print(" ")
@@ -423,7 +430,7 @@ class RISCVOp(Operation, ABC):
         printer.print_op_attributes(unprinted_attributes)
         printer.print_regions(self.regions)
         printer.print(" : ")
-        printer.print_operation_type(self)
+        self.print_op_type(printer)
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         """
@@ -431,6 +438,9 @@ class RISCVOp(Operation, ABC):
         """
         printer.print_op_attributes(self.attributes)
         return self.attributes.keys()
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print_operation_type(self)
 
 
 AssemblyInstructionArg: TypeAlias = (
