@@ -36,6 +36,7 @@ from xdsl.dialects.printf import Printf
 from xdsl.dialects.riscv import RISCV
 from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.riscv_scf import RISCV_Scf
+from xdsl.dialects.riscv_snitch import RISCV_Snitch
 from xdsl.dialects.scf import Scf
 from xdsl.dialects.seq import Seq
 from xdsl.dialects.snitch import Snitch
@@ -103,6 +104,7 @@ def get_all_dialects() -> list[Dialect]:
         RISCV,
         RISCV_Func,
         RISCV_Scf,
+        RISCV_Snitch,
         Scf,
         Seq,
         Snitch,
