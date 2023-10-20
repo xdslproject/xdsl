@@ -110,33 +110,39 @@ def move_to_unallocated_regs(
     return new_ops, new_values
 
 
-def cast_operands_to_regs(
-    rewriter: PatternRewriter, operands: Sequence[SSAValue] | None = None
-) -> list[SSAValue]:
+def cast_ops_for_values(
+    values: Sequence[SSAValue],
+) -> tuple[list[Operation], list[SSAValue]]:
+    """
+    Returns cast operations and new SSA values. The SSA values are guaranteed to be either
+    the original SSA value, if it already had a register type, or the result of a cast
+    operation. The resulting list has the same length and same order as the input.
+    """
+
+    new_ops = list[Operation]()
+    new_values = list[SSAValue]()
+
+    for value in values:
+        if not isinstance(value.type, riscv.IntRegisterType | riscv.FloatRegisterType):
+            new_type = register_type_for_type(value.type)
+            cast_op = builtin.UnrealizedConversionCastOp.get(
+                (value,), (new_type.unallocated(),)
+            )
+            new_ops.append(cast_op)
+            value = cast_op.results[0]
+
+        new_values.append(value)
+
+    return new_ops, new_values
+
+
+def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     """
     Add cast operations just before the targeted operation
     if the operands were not already int registers
     """
 
-    new_ops = list[Operation]()
-    new_operands = list[SSAValue]()
-
-    if operands is None:
-        operands = rewriter.current_operation.operands
-
-    for operand in operands:
-        if not isinstance(
-            operand.type, riscv.IntRegisterType | riscv.FloatRegisterType
-        ):
-            new_type = register_type_for_type(operand.type)
-            cast_op = builtin.UnrealizedConversionCastOp.get(
-                (operand,), (new_type.unallocated(),)
-            )
-            new_ops.append(cast_op)
-            operand = cast_op.results[0]
-
-        new_operands.append(operand)
-
+    new_ops, new_operands = cast_ops_for_values(rewriter.current_operation.operands)
     rewriter.insert_op_before_matched_op(new_ops)
     return new_operands
 

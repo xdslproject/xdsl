@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.ir.affine import AffineDimExpr, AffineExpr
@@ -100,7 +101,7 @@ class AffineMap:
         """
         return AffineMap(self.num_dims, self.num_symbols, tuple(reversed(self.results)))
 
-    def eval(self, dims: list[int], symbols: list[int]) -> list[int]:
+    def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> list[int]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
         assert len(dims) == self.num_dims
         assert len(symbols) == self.num_symbols

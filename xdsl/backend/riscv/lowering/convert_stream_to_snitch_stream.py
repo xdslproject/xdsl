@@ -1,6 +1,6 @@
 from xdsl.backend.riscv.lowering.utils import (
     cast_block_args_to_regs,
-    cast_operands_to_regs,
+    cast_ops_for_values,
     move_ops_for_value,
     register_type_for_type,
 )
@@ -84,7 +84,10 @@ class LowerStridePatternOp(RewritePattern):
 class LowerStridedReadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stream.StridedReadOp, rewriter: PatternRewriter):
-        (pointer,) = cast_operands_to_regs(rewriter, (op.memref,))
+        new_ops, new_operands = cast_ops_for_values((op.memref,))
+        rewriter.insert_op_before_matched_op(new_ops)
+
+        (pointer,) = new_operands
 
         rewriter.replace_matched_op(
             snitch_stream.StridedReadOp(
@@ -99,7 +102,10 @@ class LowerStridedReadOp(RewritePattern):
 class LowerStridedWriteOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stream.StridedWriteOp, rewriter: PatternRewriter):
-        (pointer,) = cast_operands_to_regs(rewriter, (op.memref,))
+        new_ops, new_operands = cast_ops_for_values((op.memref,))
+        rewriter.insert_op_before_matched_op(new_ops)
+
+        (pointer,) = new_operands
 
         rewriter.replace_matched_op(
             snitch_stream.StridedWriteOp(

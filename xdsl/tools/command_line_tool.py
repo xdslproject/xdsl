@@ -133,7 +133,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         convert_stream_to_snitch_stream.ConvertStreamToSnitchStreamPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
-        stencil_global_to_local.GlobalStencilToLocalStencil2DHorizontal,
+        stencil_global_to_local.DistributeStencilPass,
         stencil_global_to_local.LowerHaloToMPI,
         lower_affine.LowerAffinePass,
         lower_mpi.LowerMPIPass,
