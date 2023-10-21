@@ -119,7 +119,9 @@ class ReturnOpToMemref(RewritePattern):
         store_list: list[memref.Store] = []
 
         parallel = op.parent_op()
-        assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp | scf.For)
+        assert isinstance(
+            parallel, scf.ParallelOp | gpu.LaunchOp | scf.For | builtin.UnregisteredOp
+        )
 
         for j in range(len(op.arg)):
             target = self.return_target[op][j]
@@ -228,27 +230,43 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
     return rewriter.move_region_contents_to_new_regions(op.region)
 
 
+OmpYieldOp = builtin.UnregisteredOp.with_name("omp.yield")
+OmpSimdLoopOp = builtin.UnregisteredOp.with_name("omp.simdloop")
+
+
 def loop_from_bounds(
     lb: SSAValue | Operation,
     ub: SSAValue | Operation,
     step: SSAValue | Operation,
     parallel: bool,
+    simd: bool,
 ):
+    body = Region(Block([scf.Yield.get()], arg_types=[builtin.IndexType()]))
+    if simd:
+        return OmpSimdLoopOp.create(
+            operands=[SSAValue.get(lb), SSAValue.get(ub), SSAValue.get(step)],
+            regions=[body],
+            attributes={
+                "operand_segment_sizes": builtin.DenseArrayBase.create_dense_int_or_index(
+                    builtin.IntegerType(32), [1, 1, 1, 0, 0, 0]
+                )
+            },
+        )
     if parallel:
         return scf.ParallelOp.get(
             lowerBounds=[lb],
             upperBounds=[ub],
             steps=[step],
-            body=Region(Block([scf.Yield.get()], arg_types=[builtin.IndexType()])),
+            body=body,
         )
-    else:
-        return scf.For.get(
-            lb=lb,
-            ub=ub,
-            step=step,
-            iter_args=[],
-            body=Region(Block([scf.Yield.get()], arg_types=[builtin.IndexType()])),
-        )
+
+    return scf.For.get(
+        lb=lb,
+        ub=ub,
+        step=step,
+        iter_args=[],
+        body=body,
+    )
 
 
 @dataclass
@@ -272,7 +290,7 @@ class ApplyOpToParallel(RewritePattern):
         return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
 
         body = prepare_apply_body(op, rewriter)
-        body.block.add_op(scf.Yield.get())
+        body.block.add_op(OmpYieldOp.create())
         dim = res_type.get_num_dims()
 
         # Then create the corresponding scf.parallel
@@ -315,18 +333,18 @@ class ApplyOpToParallel(RewritePattern):
 
                 assert lowerBounds[0] is not None
                 p = loop_from_bounds(
-                    lowerBounds[0], upperBounds[0], steps[0], parallel=True
+                    lowerBounds[0], upperBounds[0], steps[0], parallel=True, simd=False
                 )
-                loops: list[scf.ParallelOp | scf.For] = [p]
+                loops: list[scf.ParallelOp | scf.For | builtin.UnregisteredOp] = [p]
                 current_loop = p
                 tiled_index = 0
 
                 for i in range(1, dim):
-                    block = current_loop.body.block
+                    block = current_loop.regions[0].block
                     last = block.last_op
                     assert last is not None
                     if lowerBounds[i] is None:
-                        lb = loops[tiled_index].body.block.args[0]
+                        lb = loops[tiled_index].regions[0].block.args[0]
                         lowerBounds[i] = lb
                         add = arith.Addi(lb, cst_tile_sizes[tiled_index])
                         cmpi = arith.Cmpi(add, total_upper_bounds[tiled_index], "ult")
@@ -337,15 +355,19 @@ class ApplyOpToParallel(RewritePattern):
                         tiled_index += 1
                     assert (lb := lowerBounds[i]) is not None
                     loop = loop_from_bounds(
-                        lb, upperBounds[i], steps[i], parallel=(i < self.collapse)
+                        lb,
+                        upperBounds[i],
+                        steps[i],
+                        parallel=(i < self.collapse),
+                        simd=(i == dim - 1),
                     )
                     block.insert_op_before(loop, last)
                     current_loop = loop
                     loops.append(loop)
 
-                current_loop.body.detach_block(current_loop.body.block)
+                current_loop.regions[0].detach_block(current_loop.regions[0].block)
 
-                current_loop.body.insert_block(body.detach_block(0), 0)
+                current_loop.regions[0].insert_block(body.detach_block(0), 0)
 
             case "gpu":
                 stencil_rank = len(upperBounds)
