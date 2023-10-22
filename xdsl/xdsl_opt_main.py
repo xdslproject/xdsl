@@ -266,6 +266,8 @@ class xDSLOptMain(CommandLineTool):
             if not self.args.disable_verify:
                 prog.verify()
             self.pipeline.apply(self.ctx, prog)
+            if not self.args.disable_verify:
+                prog.verify()
         except DiagnosticException as e:
             if self.args.verify_diagnostics:
                 print(e)
