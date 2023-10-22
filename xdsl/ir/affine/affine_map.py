@@ -59,6 +59,25 @@ class AffineMap:
     def from_callable(
         func: AffineMapBuilderT, *, dim_symbol_split: tuple[int, int] | None = None
     ) -> AffineMap:
+        """
+        Creates an `AffineMap` by calling the function provided. If `dim_symbol_split` is
+        not provided or `None`, then all parameters are treated as dimension expressions.
+        If `dim_symbol_split` is provided, `func` is expected to have the same number of
+        arguments as the sum of elements of `dim_symbol_split`.
+
+        3D Identity:
+        ```
+        AffineMap.from_callable(lambda i, j, k: (i, j, k))
+        ```
+        Constant:
+        ```
+        AffineMap.from_callable(lambda i, j: (0, 0))
+        ```
+        Mix of dimensions and symbols:
+        ```
+        AffineMap.from_callable(lambda i, p: (p, i), dim_symbol_split=(1,1))
+        ```
+        """
         if dim_symbol_split is None:
             sig = getfullargspec(func)
             num_dims = len(sig.args)
