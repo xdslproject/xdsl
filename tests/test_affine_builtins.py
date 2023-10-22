@@ -1,4 +1,5 @@
 from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.ir.affine.affine_expr import AffineBinaryOpExpr, AffineBinaryOpKind
 
 
 def test_simple_map():
@@ -110,3 +111,26 @@ def test_helpers():
     assert m2 == AffineMap(2, 0, (AffineExpr.dimension(1), AffineExpr.dimension(0)))
     m3 = AffineMap.empty()
     assert m3 == AffineMap(0, 0, ())
+
+
+def test_from_callable():
+    assert AffineMap.from_callable(lambda: (1,)) == AffineMap.constant_map(1)
+    assert AffineMap.from_callable(lambda: (0, 1)) == AffineMap.point_map(0, 1)
+    assert AffineMap.from_callable(lambda i, j: (i, j)) == AffineMap.identity(2)
+    assert AffineMap.from_callable(lambda i, j: (j, i)) == AffineMap.transpose_map()
+    assert AffineMap.from_callable(lambda: ()) == AffineMap.empty()
+
+    assert AffineMap.from_callable(
+        lambda i, j, p, q: (p + i, q + j), dim_symbol_split=(2, 2)
+    ) == AffineMap(
+        2,
+        2,
+        (
+            AffineBinaryOpExpr(
+                AffineBinaryOpKind.Add, AffineExpr.symbol(0), AffineExpr.dimension(0)
+            ),
+            AffineBinaryOpExpr(
+                AffineBinaryOpKind.Add, AffineExpr.symbol(1), AffineExpr.dimension(1)
+            ),
+        ),
+    )
