@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from xdsl.dialects.arith import signlessIntegerLike
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import IndexType, IntegerType
+from xdsl.dialects.arith import signlessIntegerLike
+from xdsl.dialects.builtin import IndexType, IntegerType, Signedness
 from xdsl.dialects.utils import (
     parse_assignment,
     parse_return_op_like,
@@ -185,52 +185,56 @@ class For(IRDLOperation):
         return For(lb, ub, step, iter_args, body)
 
     def verify_(self):
-        if (len(self.iter_args) + 1) != len(self.body.block.args):
+        # op region verification
+        for i, opnd in enumerate(self.operands[:3]):
+            if not isinstance(opnd.type, IndexType) and not (
+                isinstance(opnd.type, IntegerType)
+                and opnd.type.signedness == Signedness.SIGNLESS
+            ):
+                raise VerifyException(
+                    f"Operand #{i} must be signless integer or index, but got {opnd.type}"
+                )
+
+        # body block verification
+
+        if len(self.body.block.args) == 0:
             raise VerifyException(
-                f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
-                f"{len(self.body.block.args)}. The body must have the induction "
-                f"variable and loop-carried variables as arguments."
+                "Body block must at least have induction var as block arg"
             )
-        if self.body.block.args and (iter_var := self.body.block.args[0]):
-            if not isinstance(iter_var.type, IndexType | IntegerType):
+
+        indvar, *block_iter_args = self.body.block.args
+        block_iter_args_num = len(block_iter_args)
+        iter_args = self.iter_args
+        iter_args_num = len(self.iter_args)
+
+        for i, opnd in enumerate(self.operands[:3]):
+            if opnd.type != indvar.type:
                 raise VerifyException(
-                    f"The induction variable is of type {iter_var.type}"
-                    " instead of index or signless integer"
+                    "Expected induction var to be same type as bounds and step"
                 )
-            if not isinstance(iter_var.type, type(self.lb.type)):
+        if iter_args_num + 1 != block_iter_args_num + 1:
+            raise VerifyException(
+                f"Expected {iter_args_num + 1} args, but got {block_iter_args_num + 1}. "
+                "Body block must have induction and loop-carried variables as args."
+            )
+        for i, arg in enumerate(iter_args):
+            if block_iter_args[i].type != arg.type:
                 raise VerifyException(
-                    f"The induction variable is of type {iter_var.type}"
-                    f" and does not match lower bound of type {self.lb.type}."
-                )
-            if not isinstance(iter_var.type, type(self.ub.type)):
-                raise VerifyException(
-                    f"The induction variable is of type {iter_var.type}"
-                    f" and does not match upper bound of type {self.ub.type}."
-                )
-            if not isinstance(iter_var.type, type(self.step.type)):
-                raise VerifyException(
-                    f"The induction variable is of type {iter_var.type}"
-                    f" and does not match step of type {self.ub.type}."
-                )
-        for idx, arg in enumerate(self.iter_args):
-            if self.body.block.args[idx + 1].type != arg.type:
-                raise VerifyException(
-                    f"Block arguments with wrong type, expected {arg.type}, "
-                    f"got {self.body.block.args[idx].type}. Arguments after the "
-                    f"induction variable must match the carried variables."
+                    f"Block arg #{i + 1} expected to be {arg.type}, but got {block_iter_args[i].type}. "
+                    "Block args after the induction variable must match the loop-carried variables."
                 )
         if len(self.body.ops) > 0 and isinstance(self.body.block.last_op, Yield):
             yieldop = self.body.block.last_op
-            if len(yieldop.arguments) != len(self.iter_args):
+            if len(yieldop.arguments) != iter_args_num:
                 raise VerifyException(
-                    f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
-                    f"The scf.for must yield its carried variables."
+                    f"{yieldop.name} expected {iter_args_num} args, but got {len(yieldop.arguments)}. "
+                    f"The {self.name} must yield its loop-carried variables."
                 )
-            for idx, arg in enumerate(yieldop.arguments):
-                if self.iter_args[idx].type != arg.type:
+            for i, arg in enumerate(yieldop.arguments):
+                if iter_args[i].type != arg.type:
                     raise VerifyException(
-                        f"Expected {self.iter_args[idx].type}, got {arg.type}. The "
-                        f"scf.for's scf.yield must match carried variables types."
+                        f"Expected yield arg #{i} to be {iter_args[i].type}, but got {arg.type}. "
+                        f"{yieldop.name} of {self.name} must match loop-carried variable types."
                     )
 
     def print(self, printer: Printer):
