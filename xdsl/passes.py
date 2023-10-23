@@ -111,7 +111,7 @@ def _empty_callback(
 
 
 @dataclass
-class PassPipelinePass(ModulePass):
+class PipelinePass(ModulePass):
     passes: list[ModulePass]
     callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] = field(
         default=_empty_callback
