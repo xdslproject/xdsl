@@ -42,6 +42,7 @@ from xdsl.dialects.seq import Seq
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
 from xdsl.dialects.stencil import Stencil
+from xdsl.dialects.stream import Stream
 from xdsl.dialects.test import Test
 from xdsl.dialects.vector import Vector
 from xdsl.frontend.passes.desymref import DesymrefyPass
@@ -110,6 +111,7 @@ def get_all_dialects() -> list[Dialect]:
         Snitch,
         SnitchRuntime,
         Stencil,
+        Stream,
         Symref,
         Test,
         Vector,
