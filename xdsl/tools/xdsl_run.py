@@ -11,6 +11,7 @@ from xdsl.interpreters import (
     builtin,
     cf,
     func,
+    linalg,
     memref,
     printf,
     riscv,
@@ -66,6 +67,7 @@ class xDSLRunMain(CommandLineTool):
         interpreter.register_implementations(riscv_libc.RiscvLibcFunctions())
         interpreter.register_implementations(pdl.PDLRewriteFunctions(self.ctx))
         interpreter.register_implementations(affine.AffineFunctions())
+        interpreter.register_implementations(linalg.LinalgFunctions())
         interpreter.register_implementations(memref.MemrefFunctions())
         if self.args.wgpu:
             from xdsl.interpreters.experimental import wgpu
