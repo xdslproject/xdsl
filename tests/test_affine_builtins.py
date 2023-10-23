@@ -1,3 +1,7 @@
+import re
+
+import pytest
+
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.ir.affine.affine_expr import AffineBinaryOpExpr, AffineBinaryOpKind
 
@@ -134,3 +138,13 @@ def test_from_callable():
             ),
         ),
     )
+
+
+def test_from_callable_fail():
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Argument count mismatch in AffineMap.from_callable: 1 != 1 + 1"
+        ),
+    ):
+        AffineMap.from_callable(lambda i: (i,), dim_symbol_split=(1, 1))
