@@ -648,7 +648,7 @@ class GlobalStencilToLocalStencil2DHorizontal(DmpDecompositionPass):
     pass pipeline!
     """
 
-    name = "dmp-decompose-2d"
+    name = "dmp-decompose"
 
     restrict_domain: bool = True
 
