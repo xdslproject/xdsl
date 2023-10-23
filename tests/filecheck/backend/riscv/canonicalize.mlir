@@ -91,7 +91,7 @@ builtin.module {
   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
   // scfgw immediates
-  %scfgw = riscv.scfgw %i1, %1 : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<zero>
+  %scfgw = riscv_snitch.scfgw %i1, %1 : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<zero>
   "test.op"(%scfgw) : (!riscv.reg<zero>) -> ()
 }
 
@@ -177,7 +177,7 @@ builtin.module {
 // CHECK-NEXT:   %and_bitwise_zero_r0 = riscv.mv %0 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %scfgw = riscv.scfgwi %i1, 1 : (!riscv.reg<a1>) -> !riscv.reg<zero>
+// CHECK-NEXT:   %scfgw = riscv_snitch.scfgwi %i1, 1 : (!riscv.reg<a1>) -> !riscv.reg<zero>
 // CHECK-NEXT:   "test.op"(%scfgw) : (!riscv.reg<zero>) -> ()
 
 // CHECK-NEXT: }
