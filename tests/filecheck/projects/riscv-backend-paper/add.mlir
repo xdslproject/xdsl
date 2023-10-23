@@ -1,4 +1,5 @@
-// RUN: xdsl-run %s | filecheck %s
+// RUN: xdsl-run %s | filecheck %s --check-prefix=CHECK-LINALG
+// RUN: xdsl-opt %s -p convert-linalg-to-stream | xdsl-run | filecheck %s --check-prefix=CHECK-STREAM
 
 builtin.module {
     "memref.global"() {"sym_name" = "a", "type" = memref<2x3xf64>, "initial_value" = dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf64>, "sym_visibility" = "public"} : () -> ()
@@ -19,4 +20,5 @@ builtin.module {
     }
 }
 
-// CHECK: [[1.0, 2.25, 3.5], [4.75, 6.0, 7.25]]
+// CHECK-LINALG: [[1.0, 2.25, 3.5], [4.75, 6.0, 7.25]]
+// CHECK-STREAM: [[1.0, 2.25, 3.5], [4.75, 6.0, 7.25]]

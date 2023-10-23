@@ -280,9 +280,11 @@ Stream = Dialect(
         WriteOp,
         StridedReadOp,
         StridedWriteOp,
+        StridePatternOp,
     ],
     [
         ReadableStreamType,
         WritableStreamType,
+        StridePatternType,
     ],
 )
