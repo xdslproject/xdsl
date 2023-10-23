@@ -1,6 +1,6 @@
 from typing import cast
 
-from xdsl.dialects import riscv
+from xdsl.dialects import riscv, riscv_snitch
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
@@ -386,7 +386,9 @@ class BitwiseAndByZero(RewritePattern):
 
 class ScfgwOpUsingImmediate(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.ScfgwOp, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(
+        self, op: riscv_snitch.ScfgwOp, rewriter: PatternRewriter
+    ) -> None:
         if (
             isinstance(op.rs2, OpResult)
             and isinstance(op.rs2.op, riscv.LiOp)
@@ -394,7 +396,7 @@ class ScfgwOpUsingImmediate(RewritePattern):
         ):
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(
-                riscv.ScfgwiOp(
+                riscv_snitch.ScfgwiOp(
                     op.rs1,
                     op.rs2.op.immediate.value.data,
                     rd=rd,

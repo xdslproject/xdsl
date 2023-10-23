@@ -1,7 +1,14 @@
 from math import prod
 from typing import cast
 
-from xdsl.dialects import builtin, riscv, snitch_runtime, snitch_stream, stream
+from xdsl.dialects import (
+    builtin,
+    riscv,
+    riscv_snitch,
+    snitch_runtime,
+    snitch_stream,
+    stream,
+)
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -104,7 +111,7 @@ class LowerGenericOp(RewritePattern):
         rewriter.insert_op_before_matched_op(loop_count)
         rewriter.replace_matched_op(
             [
-                riscv.FrepOuter(
+                riscv_snitch.FrepOuter(
                     loop_count,
                     rewriter.move_region_contents_to_new_regions(op.body),
                     builtin.IntAttr(0),
@@ -120,7 +127,7 @@ class LowerYieldOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_stream.YieldOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_matched_op(riscv.FrepYieldOp(*op.operands))
+        rewriter.replace_matched_op(riscv_snitch.FrepYieldOp(*op.operands))
 
 
 class ConvertSnitchStreamToSnitchRuntime(ModulePass):
