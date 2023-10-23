@@ -62,7 +62,7 @@ def test_linalg_generic():
         Region(Block(arg_types=(i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(2)),
-            AffineMapAttr(AffineMap.transpose(2)),
+            AffineMapAttr(AffineMap.transpose_map()),
             AffineMapAttr(
                 AffineMap(
                     2,
