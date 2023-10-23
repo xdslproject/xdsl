@@ -640,7 +640,7 @@ class DmpDecompositionPass(ModulePass, ABC):
 
 
 @dataclass
-class GlobalStencilToLocalStencil2DHorizontal(DmpDecompositionPass):
+class GlobalStencilToLocalStencil(DmpDecompositionPass):
     """
     Decompose a stencil to apply to a local domain.
 
