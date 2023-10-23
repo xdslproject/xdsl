@@ -7,7 +7,7 @@ from typing import IO
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import print_assembly, riscv_code
 from xdsl.ir import MLContext
-from xdsl.passes import ModulePass, PassPipelinePass
+from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool, get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
@@ -26,7 +26,7 @@ class xDSLOptMain(CommandLineTool):
     stream.
     """
 
-    pipeline: PassPipelinePass
+    pipeline: PipelinePass
     """ The pass-pipeline to be applied. """
 
     def __init__(
@@ -223,7 +223,7 @@ class xDSLOptMain(CommandLineTool):
                 printer.print_op(module)
                 print("\n\n\n")
 
-        self.pipeline = PassPipelinePass(
+        self.pipeline = PipelinePass(
             [self.available_passes[p.name].from_pass_spec(p) for p in pipeline],
             callback,
         )
@@ -266,6 +266,8 @@ class xDSLOptMain(CommandLineTool):
             if not self.args.disable_verify:
                 prog.verify()
             self.pipeline.apply(self.ctx, prog)
+            if not self.args.disable_verify:
+                prog.verify()
         except DiagnosticException as e:
             if self.args.verify_diagnostics:
                 print(e)

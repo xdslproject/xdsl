@@ -37,7 +37,7 @@ from xdsl.dialects import (
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
-from xdsl.passes import ModulePass, PassPipelinePass
+from xdsl.passes import ModulePass, PipelinePass
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.convert_linalg_to_stream import ConvertLinalgToStreamPass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
@@ -233,7 +233,7 @@ def _riscv_lowered_passes() -> Iterator[ModulePass]:
     yield LowerScfForToLabels()
 
 
-def pass_pipeline(target: str) -> PassPipelinePass:
+def pass_pipeline(target: str) -> PipelinePass:
     generators = {
         "toy": _toy_passes,
         "toy-opt": _toy_opt_passes,
@@ -259,7 +259,7 @@ def pass_pipeline(target: str) -> PassPipelinePass:
 
     if target not in generators:
         raise ValueError(f"Unknown target option {target}")
-    return PassPipelinePass(list(generators[target]()))
+    return PipelinePass(list(generators[target]()))
 
 
 def transform(

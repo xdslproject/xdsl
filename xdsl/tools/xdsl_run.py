@@ -11,6 +11,7 @@ from xdsl.interpreters import (
     builtin,
     cf,
     func,
+    linalg,
     memref,
     printf,
     riscv,
@@ -50,6 +51,12 @@ class xDSLRunMain(CommandLineTool):
             action="store_true",
             help="Enable the WGPU JIT-compilation interpreter.",
         )
+        arg_parser.add_argument(
+            "--verbose",
+            default=False,
+            action="store_true",
+            help="Print resulting Python values.",
+        )
         return super().register_all_arguments(arg_parser)
 
     def register_implementations(self, interpreter: Interpreter):
@@ -60,6 +67,7 @@ class xDSLRunMain(CommandLineTool):
         interpreter.register_implementations(riscv_libc.RiscvLibcFunctions())
         interpreter.register_implementations(pdl.PDLRewriteFunctions(self.ctx))
         interpreter.register_implementations(affine.AffineFunctions())
+        interpreter.register_implementations(linalg.LinalgFunctions())
         interpreter.register_implementations(memref.MemrefFunctions())
         if self.args.wgpu:
             from xdsl.interpreters.experimental import wgpu
@@ -79,7 +87,8 @@ class xDSLRunMain(CommandLineTool):
                 interpreter = Interpreter(module)
                 self.register_implementations(interpreter)
                 result = interpreter.call_op("main", ())
-                print(f"result: {result}")
+                if self.args.verbose:
+                    print(f"result: {result}")
         finally:
             if input is not sys.stdin:
                 input.close()

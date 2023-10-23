@@ -46,16 +46,16 @@ def main() {
 # CHECK-NEXT:     "affine.store"(%8, %9) {"map" = affine_map<() -> (1, 2)>} : (f64, memref<2x3xf64>) -> ()
 # CHECK-NEXT:     "linalg.generic"(%9, %2) <{"indexing_maps" = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d1, d0)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 1, 1>}> ({
 # CHECK-NEXT:     ^0(%17 : f64):
-# CHECK-NEXT:       "linalg.yield"(%17) : (f64) -> ()
+# CHECK-NEXT:       linalg.yield %17 : f64
 # CHECK-NEXT:     }) : (memref<2x3xf64>, memref<3x2xf64>) -> ()
 # CHECK-NEXT:     "linalg.generic"(%16, %1) <{"indexing_maps" = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d1, d0)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 1, 1>}> ({
 # CHECK-NEXT:     ^1(%18 : f64):
-# CHECK-NEXT:       "linalg.yield"(%18) : (f64) -> ()
+# CHECK-NEXT:       linalg.yield %18 : f64
 # CHECK-NEXT:     }) : (memref<2x3xf64>, memref<3x2xf64>) -> ()
 # CHECK-NEXT:     "linalg.generic"(%2, %1, %0) <{"indexing_maps" = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
 # CHECK-NEXT:     ^2(%19 : f64, %20 : f64):
 # CHECK-NEXT:       %21 = arith.mulf %19, %20 : f64
-# CHECK-NEXT:       "linalg.yield"(%21) : (f64) -> ()
+# CHECK-NEXT:       linalg.yield %21 : f64
 # CHECK-NEXT:     }) : (memref<3x2xf64>, memref<3x2xf64>, memref<3x2xf64>) -> ()
 # CHECK-NEXT:     printf.print_format "{}", %0 : memref<3x2xf64>
 # CHECK-NEXT:     "memref.dealloc"(%16) : (memref<2x3xf64>) -> ()

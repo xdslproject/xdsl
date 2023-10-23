@@ -20,35 +20,46 @@ class LinalgFunctions(InterpreterFunctions):
     def run_generic(
         self, interpreter: Interpreter, op: linalg.Generic, args: tuple[Any, ...]
     ) -> PythonValues:
-        assert list(op.iterator_types.data) == [
-            linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL)
-        ] * len(args), f"{op.iterator_types.data} {len(args)}"
-        assert op.library_call is None
-        assert not op.res
+        if not all(it.data == linalg.IteratorType.PARALLEL for it in op.iterator_types):
+            raise NotImplementedError(
+                'Only "parallel" iterator types supported in linalg.generic interpreter'
+            )
+        if op.library_call is not None:
+            raise NotImplementedError(
+                "library_call not yet supported in linalg.generic interpreter"
+            )
+        if op.res:
+            raise NotImplementedError(
+                "results not yet supported in linalg.generic interpreter"
+            )
 
-        inputs: tuple[ShapedArray[float], ...] = interpreter.get_values(op.inputs)
-        outputs: tuple[ShapedArray[float], ...] = interpreter.get_values(op.outputs)
+        inputs_count = len(op.inputs)
+
+        inputs: tuple[ShapedArray[float], ...] = args[:inputs_count]
+        outputs: tuple[ShapedArray[float], ...] = args[inputs_count:]
+
         indexing_maps = op.get_indexing_maps()
-
-        assert inputs, "inputs should not be empty"
-        assert len(inputs) == len(indexing_maps) - 1
-        assert len(outputs) == 1, "can only handle single output map for now"
+        input_indexing_maps = indexing_maps[:inputs_count]
+        output_indexing_maps = indexing_maps[inputs_count:]
 
         loop_ranges = op.get_static_loop_ranges()
 
         for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
             loop_args = tuple(
-                i.load(tuple(indexing_map.eval(list(indices), [])))
-                for i, indexing_map in zip(inputs, indexing_maps)
+                i.load(indexing_map.eval(indices, ()))
+                for i, indexing_map in zip(inputs, input_indexing_maps, strict=True)
             )
-            (loop_results,) = interpreter.run_ssacfg_region(
-                op.body, loop_args, "for_loop"
-            )
-            result_indices = indexing_maps[-1].eval(list(indices), [])
-            outputs[0].store(tuple(result_indices), loop_results)
+            loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
+            for res, indexing_map in zip(
+                loop_results, output_indexing_maps, strict=True
+            ):
+                result_indices = indexing_map.eval(indices, ())
+                outputs[0].store(result_indices, res)
 
         return ()
 
     @impl_terminator(linalg.Yield)
-    def run_br(self, interpreter: Interpreter, op: linalg.Yield, args: tuple[Any, ...]):
+    def run_yield(
+        self, interpreter: Interpreter, op: linalg.Yield, args: tuple[Any, ...]
+    ):
         return ReturnedValues(args), ()
