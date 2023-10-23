@@ -202,27 +202,6 @@
     %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1 {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
     // CHECK-NEXT:   %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1 {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
 
-
-    // RISC-V extensions
-    %scfgw = riscv_snitch.scfgw %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<zero>
-    // CHECK-NEXT: %scfgw = riscv_snitch.scfgw %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<zero>
-    %scfgwi_zero = riscv_snitch.scfgwi %0, 42 : (!riscv.reg<>) -> !riscv.reg<zero>
-    // CHECK-NEXT: %scfgwi_zero = riscv_snitch.scfgwi %0, 42 : (!riscv.reg<>) -> !riscv.reg<zero>
-
-    riscv_snitch.frep_outer %0, 0, 0 ({
-      %add_o = riscv.add %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-    }) : (!riscv.reg<>) -> ()
-    // CHECK-NEXT:  riscv_snitch.frep_outer %0, 0, 0 ({
-    // CHECK-NEXT: %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT:  }) : (!riscv.reg<>) -> ()
-
-    riscv_snitch.frep_inner %0, 0, 0 ({
-      %add_i = riscv.add %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-    }) : (!riscv.reg<>) -> ()
-    // CHECK-NEXT:  riscv_snitch.frep_inner %0, 0, 0 ({
-    // CHECK-NEXT: %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-    // CHECK-NEXT:  }) : (!riscv.reg<>) -> ()
-
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
     %f0 = riscv.get_float_register : () -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.get_float_register : () -> !riscv.freg<>
@@ -393,14 +372,6 @@
 // CHECK-GENERIC-NEXT:       %nested_li_1 = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     }) {"directive" = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:     %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
-// CHECK-GENERIC-NEXT:     %scfgw = "riscv_snitch.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<zero>
-// CHECK-GENERIC-NEXT:     %scfgwi_zero = "riscv_snitch.scfgwi"(%0) {"immediate" = 42 : si12} : (!riscv.reg<>) -> !riscv.reg<zero>
-// CHECK-GENERIC-NEXT:    "riscv_snitch.frep_outer"(%{{.*}}) ({
-// CHECK-GENERIC-NEXT:      %{{.*}} = "riscv.add"(%{{.*}}, %{{.*}}) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:    }) {"stagger_mask" = #int<0>, "stagger_count" = #int<0>} : (!riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:    "riscv_snitch.frep_inner"(%{{.*}}) ({
-// CHECK-GENERIC-NEXT:      %{{.*}} = "riscv.add"(%{{.*}}, %{{.*}}) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:    }) {"stagger_mask" = #int<0>, "stagger_count" = #int<0>} : (!riscv.reg<>) -> ()
 // CHECK-GENERIC-NEXT:     %f0 = "riscv.get_float_register"() : () -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %f1 = "riscv.get_float_register"() : () -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %f2 = "riscv.get_float_register"() : () -> !riscv.freg<>
