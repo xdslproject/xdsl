@@ -3,14 +3,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, ClassVar, Generic, TypeAlias, TypeVar, cast
+from typing import IO, ClassVar, Generic, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IndexType,
-    IntAttr,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -371,24 +370,24 @@ class RISCVOp(Operation, ABC):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        args = cls.parse_unresolved_operand(parser)
+        args = cls.parse_unresolved_operands(parser)
         custom_attributes = cls.custom_parse_attributes(parser)
         remaining_attributes = parser.parse_optional_attr_dict()
         # TODO ensure distinct keys for attributes
         attributes = custom_attributes | remaining_attributes
         regions = parser.parse_region_list()
-        parser.parse_punctuation(":")
-        func_type = parser.parse_function_type()
-        operands = parser.resolve_operands(args, func_type.inputs.data, parser.pos)
+        pos = parser.pos
+        operand_types, result_types = cls.parse_op_type(parser)
+        operands = parser.resolve_operands(args, operand_types, pos)
         return cls.create(
             operands=operands,
-            result_types=func_type.outputs.data,
+            result_types=result_types,
             attributes=attributes,
             regions=regions,
         )
 
     @classmethod
-    def parse_unresolved_operand(cls, parser: Parser) -> list[UnresolvedOperand]:
+    def parse_unresolved_operands(cls, parser: Parser) -> list[UnresolvedOperand]:
         """
         Parse a list of comma separated unresolved operands.
 
@@ -410,6 +409,14 @@ class RISCVOp(Operation, ABC):
         """
         return parser.parse_optional_attr_dict()
 
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        func_type = parser.parse_function_type()
+        return func_type.inputs.data, func_type.outputs.data
+
     def print(self, printer: Printer) -> None:
         if self.operands:
             printer.print(" ")
@@ -422,8 +429,7 @@ class RISCVOp(Operation, ABC):
         }
         printer.print_op_attributes(unprinted_attributes)
         printer.print_regions(self.regions)
-        printer.print(" : ")
-        printer.print_operation_type(self)
+        self.print_op_type(printer)
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         """
@@ -431,6 +437,10 @@ class RISCVOp(Operation, ABC):
         """
         printer.print_op_attributes(self.attributes)
         return self.attributes.keys()
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print(" : ")
+        printer.print_operation_type(self)
 
 
 AssemblyInstructionArg: TypeAlias = (
@@ -1031,6 +1041,19 @@ class NullaryOperation(IRDLOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return ()
+
+    @classmethod
+    def parse_unresolved_operands(cls, parser: Parser) -> list[UnresolvedOperand]:
+        return []
+
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
 
 
 class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -2696,228 +2719,6 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 
 # endregion
 
-# region RISC-V Extensions
-
-
-class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ScfgwOpUsingImmediate,
-        )
-
-        return (ScfgwOpUsingImmediate(),)
-
-
-@irdl_op_definition
-class ScfgwOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
-    """
-    Write the value in rs1 to the Snitch stream configuration
-    location pointed by rs2 in the memory-mapped address space.
-    Register rd is always fixed to zero.
-
-    This is a RISC-V ISA extension, part of the `Xssr' extension.
-    https://pulp-platform.github.io/snitch/rm/custom_instructions/
-    """
-
-    name = "riscv.scfgw"
-
-    traits = frozenset((ScfgwOpHasCanonicalizationPatternsTrait(),))
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        # rd is always zero, so we omit it when printing assembly
-        return self.rs1, self.rs2
-
-    def verify_(self) -> None:
-        if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
-            raise VerifyException(f"scfgw rd must be ZERO, got {self.rd.type}")
-
-
-@irdl_op_definition
-class ScfgwiOp(RdRsImmIntegerOperation):
-    """
-    Write the value in rs to the Snitch stream configuration location pointed by
-    immediate value in the memory-mapped address space.
-
-    This is a RISC-V ISA extension, part of the `Xssr' extension.
-    https://pulp-platform.github.io/snitch/rm/custom_instructions/
-    """
-
-    name = "riscv.scfgwi"
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        # rd is always zero, so we omit it when printing assembly
-        return self.rs1, self.immediate
-
-    def verify_(self) -> None:
-        if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
-            raise VerifyException(f"scfgwi rd must be ZERO, got {self.rd.type}")
-
-
-class FRepOperation(IRDLOperation, RISCVInstruction):
-    """
-    From the Snitch paper: https://arxiv.org/abs/2002.10143
-
-    The frep instruction marks the beginning of a floating-point kernel which should be
-    repeated. It indicates how many subsequent instructions are stored in the sequence
-    buffer, how often and how (operand staggering, repetition mode) each instruction is
-    going to be repeated.
-    """
-
-    max_rep = operand_def(IntRegisterType)
-    """Number of times to repeat the instructions."""
-    body = region_def("single_block")
-    """
-    Instructions to repeat, containing maximum 15 instructions, with no side effects.
-    """
-    stagger_mask = attr_def(IntAttr)
-    """
-    4 bits for each operand (rs1 rs2 rs3 rd). If the bit is set, the corresponding operand
-    is staggered.
-    """
-    stagger_count = attr_def(IntAttr)
-    """
-    3 bits, indicating for how many iterations the stagger should increment before it
-    wraps again (up to 23 = 8).
-    """
-
-    traits = frozenset((NoTerminator(),))
-
-    def __init__(
-        self,
-        max_rep: SSAValue | Operation,
-        body: Sequence[Operation] | Sequence[Block] | Region,
-        max_inst: IntAttr,
-        stagger_mask: IntAttr,
-        stagger_count: IntAttr,
-    ):
-        super().__init__(
-            operands=(max_rep,),
-            regions=(body,),
-            attributes={
-                "max_inst": max_inst,
-                "stagger_mask": stagger_mask,
-                "stagger_count": stagger_count,
-            },
-        )
-
-    @property
-    def max_inst(self) -> int:
-        """
-        Number of instructions to be repeated.
-        """
-        return len([op for op in self.body.ops if isinstance(op, RISCVInstruction)])
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (
-            self.max_rep,
-            self.max_inst,
-            self.stagger_mask.data,
-            self.stagger_count.data,
-        )
-
-    def custom_print_attributes(self, printer: Printer):
-        printer.print(", ")
-        printer.print(self.stagger_mask.data)
-        printer.print_string(", ")
-        printer.print(self.stagger_count.data)
-        return {"stagger_mask", "stagger_count"}
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser):
-        attributes = dict[str, Attribute]()
-        attributes["stagger_mask"] = IntAttr(
-            parser.parse_integer(
-                allow_boolean=False, context_msg="Expected stagger mask"
-            )
-        )
-        parser.parse_punctuation(",")
-        attributes["stagger_count"] = IntAttr(
-            parser.parse_integer(
-                allow_boolean=False, context_msg="Expected stagger count"
-            )
-        )
-        return attributes
-
-    def verify_(self) -> None:
-        if self.stagger_count.data:
-            raise VerifyException("Non-zero stagger count currently unsupported")
-        if self.stagger_mask.data:
-            raise VerifyException("Non-zero stagger mask currently unsupported")
-        for instruction in self.body.ops:
-            if not instruction.has_trait(Pure):
-                raise VerifyException(
-                    "Frep operation body may not contain instructions "
-                    f"with side-effects, found {instruction.name}"
-                )
-
-
-@irdl_op_definition
-class FrepOuter(FRepOperation):
-    """
-    Repeats the instruction in the body as if the body were the body of a for loop, for
-    example:
-
-    ```
-    # Repeat 4 times, stagger 1, period 2
-    li a0, 4
-    frep.o a0, 2, 1, 0b1010
-    fadd.d fa0, ft0, ft2
-    fmul.d fa0, ft3, fa0
-    ```
-
-    is equivalent to:
-    ```
-    fadd.d fa0, ft0, ft2
-    fmul.d fa0, ft3, fa0
-    fadd.d fa1, ft0, ft3
-    fmul.d fa1, ft3, fa1
-    fadd.d fa0, ft0, ft2
-    fmul.d fa0, ft3, fa0
-    fadd.d fa1, ft0, ft3
-    fmul.d fa1, ft3, fa1
-    ```
-    """
-
-    name = "riscv.frep_outer"
-
-    def assembly_instruction_name(self) -> str:
-        return "frep.o"
-
-
-@irdl_op_definition
-class FrepInner(FRepOperation):
-    """
-    Repeats the instruction in the body, as if each were in its own body of a for loop,
-    for example:
-
-    ```
-    # Repeat three times, stagger 2, period 2
-    li a0, 3
-    frep.i a0, 2, 2, 0b0100
-    fadd.d fa0, ft0, ft2
-    fmul.d fa0, ft3, fa0
-    ```
-
-    is equivalent to:
-    ```
-    fadd.d fa0, ft0, ft2
-    fadd.d fa0, ft1, ft3
-    fadd.d fa0, ft2, ft3
-    fmul.d fa0, ft3, fa0
-    fmul.d fa0, ft4, fa0
-    fmul.d fa0, ft5, fa0
-    ```
-    """
-
-    name = "riscv.frep_inner"
-
-    def assembly_instruction_name(self) -> str:
-        return "frep.i"
-
-
-# endregion
-
 # region RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
 
 
@@ -3778,10 +3579,6 @@ RISCV = Dialect(
         CommentOp,
         GetRegisterOp,
         GetFloatRegisterOp,
-        ScfgwOp,
-        ScfgwiOp,
-        FrepOuter,
-        FrepInner,
         # Floating point
         FMVOp,
         FMAddSOp,

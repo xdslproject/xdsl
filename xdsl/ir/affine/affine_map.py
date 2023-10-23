@@ -32,13 +32,11 @@ class AffineMap:
         )
 
     @staticmethod
-    def transpose(rank: int) -> AffineMap:
+    def transpose_map() -> AffineMap:
         """
-        Reverses the indices.
+        Returns the map transposing a 2D matrix: `(i, j) -> (j, i)`.
         """
-        return AffineMap(
-            rank, 0, tuple(AffineExpr.dimension(dim) for dim in reversed(range(rank)))
-        )
+        return AffineMap(2, 0, (AffineExpr.dimension(1), AffineExpr.dimension(0)))
 
     @staticmethod
     def empty() -> AffineMap:
