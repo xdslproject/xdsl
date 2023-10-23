@@ -926,7 +926,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttributeInvT,
     *,
     attr_name: str | None = None,
     default: None = None,

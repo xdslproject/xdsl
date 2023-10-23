@@ -468,10 +468,10 @@ class GetGlobal(IRDLOperation):
 class Global(IRDLOperation):
     name = "memref.global"
 
-    sym_name: StringAttr = prop_def(StringAttr)
-    sym_visibility: StringAttr = prop_def(StringAttr)
-    type: Attribute = prop_def(Attribute)
-    initial_value: Attribute = prop_def(Attribute)
+    sym_name = prop_def(StringAttr)
+    sym_visibility = opt_prop_def(StringAttr)
+    type = prop_def(Attribute)
+    initial_value = prop_def(Attribute)
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -489,17 +489,54 @@ class Global(IRDLOperation):
     def get(
         sym_name: StringAttr,
         sym_type: Attribute,
-        initial_value: Attribute,
+        initial_value: Attribute | None,
         sym_visibility: StringAttr = StringAttr("private"),
     ) -> Global:
         return Global.build(
-            properties={
+            attributes={
                 "sym_name": sym_name,
                 "type": sym_type,
                 "initial_value": initial_value,
                 "sym_visibility": sym_visibility,
             }
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        visibility_str = parser.parse_optional_str_literal()
+        visibility = (
+            StringAttr("private")
+            if visibility_str is None
+            else StringAttr(visibility_str)
+        )
+        sym_name = parser.parse_symbol_name()
+        parser.parse_punctuation(":")
+        sym_type = parser.parse_attribute()
+        if parser.parse_optional_punctuation("="):
+            initial_value = parser.parse_attribute()
+        else:
+            initial_value = None
+        attributes = parser.parse_optional_attr_dict_with_reserved_attr_names(
+            ("sym_name", "type", "initial_value", "sym_visibility")
+        )
+        res = cls.get(sym_name, sym_type, initial_value, visibility)
+        if attributes is not None:
+            res.attributes.update(attributes.data)
+        return res
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        if self.sym_visibility is not None:
+            assert False
+        printer.print(self.value)
+        printer.print_string(", ")
+        printer.print(self.memref)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_operand)
+        printer.print_string("]")
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print_attribute(self.memref.type)
 
 
 @irdl_op_definition

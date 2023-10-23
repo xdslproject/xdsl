@@ -8,6 +8,19 @@ builtin.module {
     func.return
   }
   "memref.global"() {"sym_name" = "g", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
+
+  // Private variable with an initial value.
+  memref.global "private" @x : memref<2xf32> = dense<0.0>
+
+  // Declaration of an external variable.
+  memref.global "private" @y : memref<4xi32>
+
+  // Uninitialized externally visible variable.
+  memref.global @z : memref<3xf16> = uninitialized
+
+  // Externally visible constant variable.
+  memref.global constant @c : memref<2xi32> = dense<1, 4>
+
   func.func private @memref_test() {
     %0 = "memref.get_global"() {"name" = @g} : () -> memref<1xindex>
     %1 = arith.constant 0 : index
