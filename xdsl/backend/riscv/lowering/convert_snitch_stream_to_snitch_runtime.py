@@ -1,4 +1,3 @@
-from math import prod
 from typing import cast
 
 from xdsl.dialects import (
@@ -107,7 +106,7 @@ class LowerGenericOp(RewritePattern):
         for arg in reversed(block.args):
             rewriter.erase_block_argument(arg)
 
-        loop_count = riscv.LiOp(prod(r.data for r in op.static_loop_ranges) - 1)
+        loop_count = riscv.LiOp(op.repeat_count.data - 1)
         rewriter.insert_op_before_matched_op(loop_count)
         rewriter.replace_matched_op(
             [

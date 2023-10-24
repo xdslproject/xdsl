@@ -35,7 +35,7 @@ class LowerGenericOp(RewritePattern):
                 op.inputs,
                 op.outputs,
                 new_region,
-                op.static_loop_ranges,
+                op.repeat_count,
             )
         )
 

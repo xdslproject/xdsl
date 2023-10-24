@@ -97,9 +97,7 @@ class StreamFunctions(InterpreterFunctions):
             op.outputs
         )
 
-        loop_ranges = op.static_loop_ranges
-
-        for _ in product(*(range(loop_range.data) for loop_range in loop_ranges)):
+        for _ in range(op.repeat_count.data):
             loop_args = tuple(i.read() for i in input_streams)
             loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
             for o, r in zip(output_streams, loop_results):

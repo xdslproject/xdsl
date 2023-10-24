@@ -1,6 +1,5 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
-from itertools import product
 from typing import Any
 
 from xdsl.dialects import snitch_stream
@@ -58,9 +57,7 @@ class SnitchStreamFunctions(InterpreterFunctions):
             op.outputs
         )
 
-        loop_ranges = op.static_loop_ranges
-
-        for _ in product(*(range(loop_range.data) for loop_range in loop_ranges)):
+        for _ in range(op.repeat_count.data):
             loop_args = tuple(i.read() for i in input_streams)
             loop_args = RiscvFunctions.set_reg_values(
                 interpreter, op.body.block.args, loop_args

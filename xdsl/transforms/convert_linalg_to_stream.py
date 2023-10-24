@@ -6,6 +6,7 @@ expects that all calls have been inlined, and all shapes have been resolved.
 
 import operator
 from itertools import accumulate
+from math import prod
 
 from xdsl.dialects import linalg, stream
 from xdsl.dialects.builtin import (
@@ -48,6 +49,7 @@ class LowerGenericOp(RewritePattern):
             return
 
         ub = op.get_static_loop_ranges()
+        repeat_count = prod(ub)
         ub_attr = ArrayAttr(IntAttr(b) for b in ub)
 
         first_affine_map = op.indexing_maps.data[0]
@@ -117,7 +119,7 @@ class LowerGenericOp(RewritePattern):
                     [i.stream for i in new_inputs],
                     [o.stream for o in new_outputs],
                     rewriter.move_region_contents_to_new_regions(op.body),
-                    ub_attr,
+                    IntAttr(repeat_count),
                 ),
             ]
         )

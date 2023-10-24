@@ -48,7 +48,7 @@ class GenericOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    static_loop_ranges = prop_def(ArrayAttr[IntAttr])
+    repeat_count = prop_def(IntAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -57,12 +57,12 @@ class GenericOp(IRDLOperation):
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
         body: Region,
-        static_loop_ranges: ArrayAttr[IntAttr],
+        repeat_count: IntAttr,
     ) -> None:
         super().__init__(
             operands=[inputs, outputs],
             properties={
-                "static_loop_ranges": static_loop_ranges,
+                "repeat_count": repeat_count,
             },
             regions=[body],
         )
