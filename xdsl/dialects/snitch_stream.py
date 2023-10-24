@@ -29,7 +29,6 @@ from xdsl.irdl import (
     attr_def,
     irdl_op_definition,
     operand_def,
-    prop_def,
     region_def,
     result_def,
     var_operand_def,
@@ -43,27 +42,23 @@ from xdsl.traits import IsTerminator
 class GenericOp(IRDLOperation):
     name = "snitch_stream.generic"
 
+    repeat_count = operand_def(riscv.IntRegisterType)
     inputs = var_operand_def(ReadableStreamType)
     outputs = var_operand_def(WritableStreamType)
 
     body = region_def("single_block")
 
-    repeat_count = prop_def(IntAttr)
-
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
+        repeat_count: SSAValue,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
         body: Region,
-        repeat_count: IntAttr,
     ) -> None:
         super().__init__(
-            operands=[inputs, outputs],
-            properties={
-                "repeat_count": repeat_count,
-            },
+            operands=[repeat_count, inputs, outputs],
             regions=[body],
         )
 

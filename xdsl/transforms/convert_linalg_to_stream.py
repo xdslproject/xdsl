@@ -8,10 +8,12 @@ import operator
 from itertools import accumulate
 from math import prod
 
-from xdsl.dialects import linalg, stream
+from xdsl.dialects import arith, linalg, stream
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    IndexType,
     IntAttr,
+    IntegerAttr,
     ModuleOp,
 )
 from xdsl.ir import MLContext
@@ -115,11 +117,12 @@ class LowerGenericOp(RewritePattern):
                 *stride_pattern_ops,
                 *new_inputs,
                 *new_outputs,
+                repeat_count := arith.Constant(IntegerAttr(repeat_count, IndexType())),
                 stream.GenericOp(
+                    repeat_count.result,
                     [i.stream for i in new_inputs],
                     [o.stream for o in new_outputs],
                     rewriter.move_region_contents_to_new_regions(op.body),
-                    IntAttr(repeat_count),
                 ),
             ]
         )

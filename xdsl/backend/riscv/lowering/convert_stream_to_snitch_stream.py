@@ -30,13 +30,17 @@ class LowerGenericOp(RewritePattern):
         # The only thing to do is to rewrite the block arguments to be float registers.
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         cast_block_args_to_regs(new_region.block, rewriter)
+        cast_op, repeat_count = cast_ops_for_values((op.repeat_count,))
         rewriter.replace_matched_op(
-            snitch_stream.GenericOp(
-                op.inputs,
-                op.outputs,
-                new_region,
-                op.repeat_count,
-            )
+            [
+                *cast_op,
+                snitch_stream.GenericOp(
+                    repeat_count[0],
+                    op.inputs,
+                    op.outputs,
+                    new_region,
+                ),
+            ]
         )
 
 

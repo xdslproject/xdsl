@@ -28,11 +28,10 @@ class LowerGenericOp(RewritePattern):
         rewriter.replace_matched_op(
             [
                 lb := arith.Constant(IntegerAttr(0, index)),
-                ub := arith.Constant(IntegerAttr(op.repeat_count, index)),
                 step := arith.Constant(IntegerAttr(1, index)),
                 loop := scf.For(
                     lb,
-                    ub,
+                    op.repeat_count,
                     step,
                     (),
                     rewriter.move_region_contents_to_new_regions(op.body),

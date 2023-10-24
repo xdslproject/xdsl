@@ -90,6 +90,7 @@ class StreamFunctions(InterpreterFunctions):
     def run_generic(
         self, interpreter: Interpreter, op: stream.GenericOp, args: tuple[Any, ...]
     ) -> PythonValues:
+        repeat_count = args[0]
         input_streams: tuple[ReadableStream[Any], ...] = interpreter.get_values(
             op.inputs
         )
@@ -97,7 +98,7 @@ class StreamFunctions(InterpreterFunctions):
             op.outputs
         )
 
-        for _ in range(op.repeat_count.data):
+        for _ in range(repeat_count):
             loop_args = tuple(i.read() for i in input_streams)
             loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
             for o, r in zip(output_streams, loop_results):

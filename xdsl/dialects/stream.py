@@ -6,6 +6,7 @@ from typing import Annotated, Generic, TypeVar, cast
 from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
+    IndexType,
     IntAttr,
 )
 from xdsl.dialects.memref import MemRefType
@@ -30,7 +31,6 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    prop_def,
     region_def,
     result_def,
     var_operand_def,
@@ -76,27 +76,23 @@ class StridePatternType(ParametrizedAttribute, TypeAttribute):
 class GenericOp(IRDLOperation):
     name = "stream.generic"
 
+    repeat_count = operand_def(IndexType)
     inputs = var_operand_def(ReadableStreamType)
     outputs = var_operand_def(WritableStreamType)
 
     body = region_def("single_block")
 
-    repeat_count = prop_def(IntAttr)
-
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
+        repeat_count: SSAValue,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
         body: Region,
-        repeat_count: IntAttr,
     ) -> None:
         super().__init__(
-            operands=[inputs, outputs],
-            properties={
-                "repeat_count": repeat_count,
-            },
+            operands=[repeat_count, inputs, outputs],
             regions=[body],
         )
 

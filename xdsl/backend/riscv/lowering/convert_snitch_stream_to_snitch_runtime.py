@@ -106,7 +106,7 @@ class LowerGenericOp(RewritePattern):
         for arg in reversed(block.args):
             rewriter.erase_block_argument(arg)
 
-        loop_count = riscv.LiOp(op.repeat_count.data - 1)
+        loop_count = riscv.AddiOp(op.repeat_count, -1)
         rewriter.insert_op_before_matched_op(loop_count)
         rewriter.replace_matched_op(
             [
