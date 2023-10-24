@@ -45,6 +45,9 @@ builtin.module {
   %add_immediate_zero = riscv.addi %2, 0 : (!riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%add_immediate_zero) : (!riscv.reg<a0>) -> ()
 
+  %add_immediate_constant = riscv.addi %2, 1 : (!riscv.reg<>) -> !riscv.reg<a0>
+  "test.op"(%add_immediate_constant) : (!riscv.reg<a0>) -> ()
+
   // Unchanged
   %sub_lhs_immediate = riscv.sub %2, %i2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%sub_lhs_immediate) : (!riscv.reg<a0>) -> ()
@@ -134,6 +137,9 @@ builtin.module {
 
 // CHECK-NEXT:   %add_immediate_zero = riscv.mv %2 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_immediate_zero) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %add_immediate_constant = riscv.li 3 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%add_immediate_constant) : (!riscv.reg<a0>) -> ()
 
   // Unchanged
 // CHECK-NEXT:   %sub_lhs_immediate = riscv.sub %2, %i2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
