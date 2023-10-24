@@ -40,7 +40,6 @@ parser.add_argument(
         "stream",
         "scf",
         "snitch-stream",
-        "snitch-runtime",
         "snitch",
         "snitch-opt",
         "snitch-regalloc",

@@ -8,11 +8,8 @@ from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
 )
 from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemrefToRiscvPass
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
-from xdsl.backend.riscv.lowering.convert_snitch_runtime_to_snitch import (
-    ConvertSnitchRuntimeToSnitchPass,
-)
-from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch_runtime import (
-    ConvertSnitchStreamToSnitchRuntime,
+from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
+    ConvertSnitchStreamToSnitch,
 )
 from xdsl.backend.riscv.lowering.convert_stream_to_snitch_stream import (
     ConvertStreamToSnitchStreamPass,
@@ -142,16 +139,10 @@ def _snitch_stream_passes() -> Iterator[ModulePass]:
     yield SnitchRegisterAllocation()
 
 
-def _snitch_runtime_passes() -> Iterator[ModulePass]:
+def _snitch_passes() -> Iterator[ModulePass]:
     yield from _snitch_stream_passes()
 
-    yield ConvertSnitchStreamToSnitchRuntime()
-
-
-def _snitch_passes() -> Iterator[ModulePass]:
-    yield from _snitch_runtime_passes()
-
-    yield ConvertSnitchRuntimeToSnitchPass()
+    yield ConvertSnitchStreamToSnitch()
 
 
 def _snitch_opt_passes() -> Iterator[ModulePass]:
@@ -244,7 +235,6 @@ def pass_pipeline(target: str) -> PipelinePass:
         "affine": _affine_passes,
         "scf": _scf_passes,
         "snitch-stream": _snitch_stream_passes,
-        "snitch-runtime": _snitch_runtime_passes,
         "snitch": _snitch_passes,
         "snitch-opt": _snitch_opt_passes,
         "snitch-regalloc": _snitch_regalloc_passes,
