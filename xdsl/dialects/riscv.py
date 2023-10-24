@@ -1363,10 +1363,14 @@ class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
+            AddImmediateConstant,
             AddImmediateZero,
         )
 
-        return (AddImmediateZero(),)
+        return (
+            AddImmediateZero(),
+            AddImmediateConstant(),
+        )
 
 
 @irdl_op_definition
@@ -1554,7 +1558,12 @@ class MVOp(RdRsOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.mv"
 
-    traits = frozenset((MVHasCanonicalizationPatternsTrait(),))
+    traits = frozenset(
+        (
+            Pure(),
+            MVHasCanonicalizationPatternsTrait(),
+        )
+    )
 
 
 class FMVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
@@ -1579,7 +1588,12 @@ class FMVOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
 
     name = "riscv.fmv.s"
 
-    traits = frozenset((FMVHasCanonicalizationPatternsTrait(),))
+    traits = frozenset(
+        (
+            Pure(),
+            FMVHasCanonicalizationPatternsTrait(),
+        )
+    )
 
 
 ## Integer Register-Register Operations
@@ -3351,6 +3365,8 @@ class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
     """
 
     name = "riscv.fmul.d"
+
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition

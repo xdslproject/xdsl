@@ -129,6 +129,24 @@ class AddImmediateZero(RewritePattern):
             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
 
 
+class AddImmediateConstant(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AddiOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(li := op.rs1.owner, riscv.LiOp)
+            and isinstance(imm := li.immediate, IntegerAttr)
+            and isinstance(op.immediate, IntegerAttr)
+        ):
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(
+                riscv.LiOp(
+                    imm.value.data + op.immediate.value.data,
+                    rd=rd,
+                    comment=op.comment,
+                )
+            )
+
+
 class SubImmediates(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
