@@ -11,15 +11,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from math import prod
+from typing import Literal
 
 from xdsl.dialects import builtin, memref, stencil
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
@@ -94,6 +89,30 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
                 builtin.DenseArrayBase.from_list(data_type, source_offset),
                 builtin.DenseArrayBase.from_list(data_type, neighbor),
             ]
+        )
+
+    @classmethod
+    def from_points(
+        cls,
+        points: Sequence[tuple[int, int]],
+        dim: int,
+        dir_sign: Literal[1, -1],
+        neighbor_offset: int = 1,
+    ):
+        sizes = tuple(e - s for s, e, in points)
+        return cls(
+            # get starting points
+            tuple(s for s, _ in points),
+            # calculated sizes
+            sizes,
+            # source_offset (opposite of exchange direction)
+            tuple(
+                0 if d != dim else -1 * dir_sign * sizes[dim] for d in range(len(sizes))
+            ),
+            # direction
+            tuple(
+                0 if d != dim else dir_sign * neighbor_offset for d in range(len(sizes))
+            ),
         )
 
     @property
@@ -196,17 +215,17 @@ class ShapeAttr(ParametrizedAttribute):
     create the following pattern, higher dimensional examples can
     be derived from this:
 
-    a0 b0          c0 d0
-    +--+-----------+--+ a1
+    a1 b1          c1 d1
+    +--+-----------+--+ a0
     |  |           |  |
-    +--+-----------+--+ b1
-    |  |           |  |
-    |  |           |  |
+    +--+-----------+--+ b0
     |  |           |  |
     |  |           |  |
-    +--+-----------+--+ c1
     |  |           |  |
-    +--+-----------+--+ d1
+    |  |           |  |
+    +--+-----------+--+ c0
+    |  |           |  |
+    +--+-----------+--+ d0
 
     We can now name these points:
 
@@ -265,10 +284,10 @@ class ShapeAttr(ParametrizedAttribute):
 
     @staticmethod
     def from_index_attrs(
-        buff_lb: stencil.IndexAttr,
-        core_lb: stencil.IndexAttr,
-        core_ub: stencil.IndexAttr,
-        buff_ub: stencil.IndexAttr,
+        buff_lb: stencil.IndexAttr | Sequence[int],
+        core_lb: stencil.IndexAttr | Sequence[int],
+        core_ub: stencil.IndexAttr | Sequence[int],
+        buff_ub: stencil.IndexAttr | Sequence[int],
     ):
         data_type = builtin.i64
         return ShapeAttr(

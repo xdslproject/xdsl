@@ -1,6 +1,7 @@
 from abc import ABC
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from math import prod
 from typing import ClassVar, TypeVar, cast
 
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
@@ -19,6 +20,7 @@ from xdsl.rewriter import Rewriter
 from xdsl.transforms.experimental.dmp.decompositions import (
     DomainDecompositionStrategy,
     GridSlice2d,
+    GridSlice3d,
 )
 from xdsl.transforms.experimental.stencil_shape_inference import (
     StencilShapeInferencePass,
@@ -153,13 +155,18 @@ def _grid_coords_from_rank(
     # the nodes coordinates in grid-space
     node_pos_nd: list[SSAValue] = []
 
-    # first we translate the mpi rank into grid coordinates
-    # (reversing the row major mapping)
-    divide_by = 1
-    for size in grid.as_tuple():
-        ret_ops.extend(_div_mod(my_rank, divide_by, size))
-        divide_by *= size
-        node_pos_nd.append(ret_ops[-1].results[0])
+    shape = grid.as_tuple()
+    divisors = [prod(shape[i + 1 :]) for i in range(len(shape))]
+
+    carry = my_rank
+    for div in divisors:
+        imm = arith.Constant.from_int_and_width(div, builtin.i32)
+        coord_i = arith.DivUI(carry, imm)
+        carry = arith.RemUI(carry, imm)
+
+        ret_ops.extend([imm, coord_i, carry])
+        node_pos_nd.append(coord_i.result)
+
     return ret_ops, node_pos_nd
 
 
@@ -204,41 +211,19 @@ def _generate_dest_rank_computation(
 
     # calculate rank of destination node from grid coords
 
-    multiply_by = grid.as_tuple()[0]
-    carry: SSAValue = dest_pos_nd[0]
+    carry: SSAValue = dest_pos_nd[-1]
 
-    # dest rank: x * 1 + y * size[x] + z * size[x] * size[y] ...
-    for pos, size in zip(dest_pos_nd[1:], grid.as_tuple()[1:]):
-        fac = arith.Constant.from_int_and_width(multiply_by, _rank_dtype)
-        val = arith.Muli(pos, fac)
-        new_carry = arith.Addi(carry, val)
-        carry = new_carry.result
-        multiply_by *= size
-        ret_ops.extend([fac, val, new_carry])
+    shape = grid.as_tuple()
+    multiples = [prod(shape[i + 1 :]) for i in range(len(shape))]
+
+    for pos, mul in zip(dest_pos_nd[:-1], multiples[:-1]):
+        val = arith.Constant.from_int_and_width(mul, builtin.i32)
+        intermediate = arith.Muli(val, pos)
+        carry_op = arith.Addi(carry, intermediate)
+        carry = carry_op.result
+        ret_ops.extend([val, intermediate, carry_op])
 
     return ret_ops, carry, accumulated_cond_val
-
-
-def _div_mod(i: SSAValue, div: int, mod: int) -> list[Operation]:
-    """
-    Given (i, div, mod), generate ops that calculate (i / div) % mod
-
-    The last returned operation has the final value as it's single result.
-    """
-    # these asserts should never trigger, but I'd rather have the compiler yell at me
-    # when something goes wrong than see a spectacular runtime crash :D
-    assert div > 0, "cannot work with negatives here!"
-    assert mod > 0, "cannot work with negatives here!"
-    # make sure we operate on an integer
-    assert isinstance(i.type, builtin.IntegerType | builtin.IndexType)
-    # we can use unsigned arithmetic here, because all we do is divide by positive
-    # numbers and modulo positive numbers
-    return [
-        div_v := arith.Constant.from_int_and_width(div, i.type),
-        div_res := arith.DivUI(i, div_v),
-        mod_v := arith.Constant.from_int_and_width(mod, i.type),
-        arith.RemUI(div_res, mod_v),
-    ]
 
 
 def generate_mpi_calls_for(
@@ -655,6 +640,7 @@ class DistributeStencilPass(DmpDecompositionPass):
 
     STRATEGIES: ClassVar[dict[str, type[DomainDecompositionStrategy]]] = {
         "2d-grid": GridSlice2d,
+        "3d-grid": GridSlice3d,
     }
 
     slices: list[int]
