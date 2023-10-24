@@ -16,7 +16,7 @@ from xdsl.interpreters.stream import StreamFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
-from .compiler import context, emulate_riscv, transform
+from .compiler import context, emulate_riscv, pass_pipeline, transform
 from .emulator.toy_accelerator_instruction_functions import (
     ToyAcceleratorInstructionFunctions,
 )
@@ -58,9 +58,10 @@ parser.add_argument(
 )
 parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
+parser.add_argument("--passes", dest="print_passes", action="store_true")
 
 
-def main(path: Path, emit: str, ir: bool, print_generic: bool):
+def main(path: Path, emit: str, ir: bool, print_generic: bool, print_passes: bool):
     ctx = context()
 
     path = args.source
@@ -92,6 +93,11 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
 
     if asm:
         emit = asm_targets[emit]
+
+    if print_passes:
+        pipeline = pass_pipeline(emit)
+        print(pipeline)
+        return
 
     transform(ctx, module_op, target=emit)
 
@@ -151,4 +157,4 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.source, args.emit, args.ir, args.print_generic)
+    main(args.source, args.emit, args.ir, args.print_generic, args.print_passes)
