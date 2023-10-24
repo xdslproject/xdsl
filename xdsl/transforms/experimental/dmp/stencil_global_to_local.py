@@ -640,7 +640,7 @@ class DmpDecompositionPass(ModulePass, ABC):
 
 
 @dataclass
-class GlobalStencilToLocalStencil2DHorizontal(DmpDecompositionPass):
+class GlobalStencilToLocalStencil(DmpDecompositionPass):
     """
     Decompose a stencil to apply to a local domain.
 
@@ -648,7 +648,7 @@ class GlobalStencilToLocalStencil2DHorizontal(DmpDecompositionPass):
     pass pipeline!
     """
 
-    name = "dmp-decompose-2d"
+    name = "dmp-decompose"
 
     restrict_domain: bool = True
 
