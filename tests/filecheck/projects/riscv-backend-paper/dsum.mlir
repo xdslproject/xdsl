@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p convert-linalg-to-stream,convert-stream-to-snitch-stream,convert-func-to-riscv-func,convert-memref-to-riscv,convert-arith-to-riscv,convert-scf-to-riscv-scf,dce,reconcile-unrealized-casts,snitch-allocate-registers,convert-snitch-stream-to-snitch,lower-snitch,canonicalize,riscv-scf-loop-range-folding,canonicalize,riscv-reduce-register-pressure,riscv-allocate-registers,canonicalize,lower-riscv-func,lower-riscv-scf-to-labels -t riscv-asm
+// RUN: xdsl-opt %s -p convert-linalg-to-stream,convert-stream-to-snitch-stream,convert-func-to-riscv-func,convert-memref-to-riscv,convert-arith-to-riscv,convert-scf-to-riscv-scf,dce,reconcile-unrealized-casts,snitch-allocate-registers,convert-snitch-stream-to-snitch,lower-snitch,canonicalize,riscv-scf-loop-range-folding,canonicalize,riscv-reduce-register-pressure,riscv-allocate-registers,canonicalize,lower-riscv-func,lower-riscv-scf-to-labels -t riscv-asm | filecheck %s
 
 func.func public @dsum(%X: memref<8x16xf64>,
                       %Y: memref<8x16xf64>,
@@ -23,7 +23,7 @@ func.func public @dsum(%X: memref<8x16xf64>,
 }
 
 // CHECK:       .text
-// CHECK-NEXT:  .globl add
+// CHECK-NEXT:  .globl dsum
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  dsum:
 // CHECK-NEXT:      mv t2, a0
