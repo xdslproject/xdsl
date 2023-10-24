@@ -54,87 +54,10 @@ class GridSlice2d(DomainDecompositionStrategy):
     def halo_exchange_defs(
         self, shape: dmp.HaloShapeInformation
     ) -> Iterable[dmp.HaloExchangeDecl]:
-        # calculate values for the dimensions that were not decomposed
-        residual_offsets = [0 for _ in range(2, shape.dims)]
-        residual_sizes = [shape.buff_size(n) for n in range(2, shape.dims)]
-        residual_source_offsets = [0 for _ in range(2, shape.dims)]
+        yield from _flat_face_exchanges_for_dim(shape, 0)
 
-        # exchange to node "above" us on X axis direction
-        yield dmp.HaloExchangeDecl(
-            offset=(
-                shape.buffer_start(dmp.DIM_X),
-                shape.buffer_start(dmp.DIM_Y),
-                *residual_offsets,
-            ),
-            size=(
-                shape.buff_size(dmp.DIM_X),
-                shape.halo_size(dmp.DIM_Y),
-                *residual_sizes,
-            ),
-            source_offset=(
-                0,
-                shape.halo_size(dmp.DIM_Y),
-                *residual_source_offsets,
-            ),
-            neighbor=(-1, 0),
-        )
-        # exchange to node "below" us on X axis direction
-        yield dmp.HaloExchangeDecl(
-            offset=(
-                shape.buffer_start(dmp.DIM_X),
-                shape.core_end(dmp.DIM_Y),
-                *residual_offsets,
-            ),
-            size=(
-                shape.buff_size(dmp.DIM_X),
-                shape.halo_size(dmp.DIM_Y, at_end=True),
-                *residual_sizes,
-            ),
-            source_offset=(
-                0,
-                -shape.halo_size(dmp.DIM_Y, at_end=True),
-                *residual_source_offsets,
-            ),
-            neighbor=(1, 0),
-        )
-        # exchange to node "left" of us on Y axis
-        yield dmp.HaloExchangeDecl(
-            offset=(
-                shape.buffer_start(dmp.DIM_X),
-                shape.buffer_start(dmp.DIM_Y),
-                *residual_offsets,
-            ),
-            size=(
-                shape.halo_size(dmp.DIM_X),
-                shape.buff_size(dmp.DIM_Y),
-                *residual_sizes,
-            ),
-            source_offset=(
-                shape.halo_size(dmp.DIM_X),
-                0,
-                *residual_source_offsets,
-            ),
-            neighbor=(0, -1),
-        )
-        # exchange to node "right" of us on Y axis
-        yield dmp.HaloExchangeDecl(
-            offset=(
-                shape.core_end(dmp.DIM_X),
-                shape.buffer_start(dmp.DIM_Y),
-                *residual_offsets,
-            ),
-            size=(
-                shape.halo_size(dmp.DIM_X, at_end=True),
-                shape.buff_size(dmp.DIM_Y),
-                *residual_sizes,
-            ),
-            source_offset=(
-                -shape.halo_size(dmp.DIM_X),
-                0,
-                *residual_source_offsets,
-            ),
-            neighbor=(0, 1),
-        )
+        yield from _flat_face_exchanges_for_dim(shape, 1)
+
         # TOOD: add diagonals
         assert not self.diagonals
 
