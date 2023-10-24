@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from enum import Enum
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyShapedType,
@@ -11,6 +13,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StringAttr,
 )
+from xdsl.dialects.utils import parse_return_op_like, print_return_op_like
 from xdsl.ir import Attribute, Data, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
@@ -26,7 +29,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 
@@ -198,6 +201,16 @@ class Yield(IRDLOperation):
 
     def __init__(self, *operands: SSAValue | Operation) -> None:
         super().__init__(operands=[operands])
+
+    def print(self, printer: Printer):
+        print_return_op_like(printer, self.attributes, self.values)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        attrs, args = parse_return_op_like(parser)
+        op = cls(*args)
+        op.attributes.update(attrs)
+        return op
 
 
 Linalg = Dialect([Generic, Yield], [IteratorTypeAttr])
