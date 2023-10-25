@@ -57,7 +57,7 @@ class PatternRewriter:
             return True
         if op.parent is None:
             return self.current_operation.get_toplevel_object() is not op
-        return self._can_modify_block(op.parent)
+        return self._can_modify_op_in_block(op.parent)
 
     def _can_modify_block(self, block: Block) -> bool:
         """Check if the block can be modified by this rewriter."""
