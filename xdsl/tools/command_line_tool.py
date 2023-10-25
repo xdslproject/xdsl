@@ -44,6 +44,7 @@ from xdsl.dialects.scf import Scf
 from xdsl.dialects.seq import Seq
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
+from xdsl.dialects.snitch_stream import SnitchStream
 from xdsl.dialects.stencil import Stencil
 from xdsl.dialects.stream import Stream
 from xdsl.dialects.test import Test
@@ -114,6 +115,7 @@ def get_all_dialects() -> list[Dialect]:
         Seq,
         Snitch,
         SnitchRuntime,
+        SnitchStream,
         Stencil,
         Stream,
         Symref,
