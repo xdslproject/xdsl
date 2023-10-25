@@ -261,11 +261,12 @@ class RiscvFunctions(InterpreterFunctions):
 
     @staticmethod
     def get_data(module_op: ModuleOp) -> dict[str, RawPtr]:
+        data: dict[str, RawPtr] | None = None
         for op in module_op.ops:
             if isinstance(op, riscv.AssemblySectionOp):
                 if op.directive.data == ".data":
-                    data: dict[str, RawPtr] = {}
-
+                    if data is None:
+                        data = {}
                     assert op.data is not None
                     ops = list(op.data.block.ops)
                     for label, data_op in pairs(ops):
@@ -281,9 +282,9 @@ class RiscvFunctions(InterpreterFunctions):
                                 assert (
                                     False
                                 ), f"Unexpected directive {data_op.directive.data}"
-                    return data
-        else:
+        if data is None:
             assert False, "Could not find data section"
+        return data
 
     def get_data_value(self, interpreter: Interpreter, key: str) -> Any:
         return self.data(interpreter)[key]
