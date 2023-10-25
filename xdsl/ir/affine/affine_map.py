@@ -1,9 +1,22 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from inspect import getfullargspec
 
 from xdsl.ir.affine import AffineDimExpr, AffineExpr
+
+AffineExprBuilderT = AffineExpr | int
+
+AffineMapBuilderT = (
+    Callable[[], tuple[AffineExprBuilderT, ...]]
+    | Callable[[AffineExpr], tuple[AffineExprBuilderT, ...]]
+    | Callable[[AffineExpr, AffineExpr], tuple[AffineExprBuilderT, ...]]
+    | Callable[[AffineExpr, AffineExpr, AffineExpr], tuple[AffineExprBuilderT, ...]]
+    | Callable[
+        [AffineExpr, AffineExpr, AffineExpr, AffineExpr], tuple[AffineExprBuilderT, ...]
+    ]
+)
 
 
 @dataclass(frozen=True)
@@ -41,6 +54,49 @@ class AffineMap:
     @staticmethod
     def empty() -> AffineMap:
         return AffineMap(0, 0, ())
+
+    @staticmethod
+    def from_callable(
+        func: AffineMapBuilderT, *, dim_symbol_split: tuple[int, int] | None = None
+    ) -> AffineMap:
+        """
+        Creates an `AffineMap` by calling the function provided. If `dim_symbol_split` is
+        not provided or `None`, then all parameters are treated as dimension expressions.
+        If `dim_symbol_split` is provided, `func` is expected to have the same number of
+        arguments as the sum of elements of `dim_symbol_split`.
+
+        3D Identity:
+        ```
+        AffineMap.from_callable(lambda i, j, k: (i, j, k))
+        ```
+        Constant:
+        ```
+        AffineMap.from_callable(lambda i, j: (0, 0))
+        ```
+        Mix of dimensions and symbols:
+        ```
+        AffineMap.from_callable(lambda i, p: (p, i), dim_symbol_split=(1,1))
+        ```
+        """
+        sig = getfullargspec(func)
+        num_args = len(sig.args)
+        if dim_symbol_split is None:
+            num_dims = num_args
+            num_symbols = 0
+        else:
+            num_dims, num_symbols = dim_symbol_split
+            if num_args != num_dims + num_symbols:
+                raise ValueError(
+                    f"Argument count mismatch in AffineMap.from_callable: {num_args} != "
+                    f"{num_dims} + {num_symbols}"
+                )
+        dim_exprs = [AffineExpr.dimension(dim) for dim in range(num_dims)]
+        sym_exprs = [AffineExpr.symbol(sym) for sym in range(num_symbols)]
+        result_exprs = func(*dim_exprs, *sym_exprs)
+        results_tuple = tuple(
+            AffineExpr.constant(r) if isinstance(r, int) else r for r in result_exprs
+        )
+        return AffineMap(num_dims, num_symbols, results_tuple)
 
     def compose(self, map: AffineMap) -> AffineMap:
         """Compose the AffineMap with the given AffineMap."""
