@@ -203,7 +203,11 @@ class ConvertMemrefGlobalOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Global, rewriter: PatternRewriter):
         initial_value = op.initial_value
-        assert isinstance(initial_value, DenseIntOrFPElementsAttr), f"{initial_value}"
+
+        if not isinstance(initial_value, DenseIntOrFPElementsAttr):
+            raise DiagnosticException(
+                f"Unsupported memref.global initial value: {initial_value}"
+            )
 
         memref_type = cast(memref.MemRefType[Any], op.type)
         element_type = memref_type.element_type
@@ -246,7 +250,12 @@ class ConvertMemrefGlobalOp(RewritePattern):
 class ConvertMemrefGetGlobalOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.GetGlobal, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(riscv.LiOp(op.name_.string_value()))
+        rewriter.replace_matched_op(
+            [
+                ptr := riscv.LiOp(op.name_.string_value()),
+                UnrealizedConversionCastOp.get((ptr,), (op.memref.type,)),
+            ]
+        )
 
 
 class ConvertMemrefToRiscvPass(ModulePass):
@@ -260,12 +269,6 @@ class ConvertMemrefToRiscvPass(ModulePass):
                     ConvertMemrefDeallocOp(),
                     ConvertMemrefStoreOp(),
                     ConvertMemrefLoadOp(),
-                ]
-            )
-        ).rewrite_module(op)
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
                     ConvertMemrefGlobalOp(),
                     ConvertMemrefGetGlobalOp(),
                 ]
