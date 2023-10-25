@@ -133,15 +133,14 @@ class AddImmediateConstant(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AddiOp, rewriter: PatternRewriter) -> None:
         if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
+            isinstance(li := op.rs1.owner, riscv.LiOp)
+            and isinstance(imm := li.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(
                 riscv.LiOp(
-                    op.rs1.op.immediate.value.data + op.immediate.value.data,
+                    imm.value.data + op.immediate.value.data,
                     rd=rd,
                     comment=op.comment,
                 )
