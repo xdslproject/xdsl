@@ -2,11 +2,8 @@
 # RUN: python -m toy %s --emit=toy-opt | filecheck %s
 # RUN: python -m toy %s --emit=toy-inline | filecheck %s
 # RUN: python -m toy %s --emit=toy-infer-shapes | filecheck %s
-# RUN: python -m toy %s --emit=linalg | filecheck %s
-# RUN: python -m toy %s --emit=stream | filecheck %s
 # RUN: python -m toy %s --emit=affine | filecheck %s
 # RUN: python -m toy %s --emit=scf | filecheck %s
-# RUN: python -m toy %s --emit=snitch-stream | filecheck %s
 # RUN: python -m toy %s --emit=riscv | filecheck %s
 # RUN: python -m toy %s --emit=riscv-regalloc | filecheck %s
 # RUN: python -m toy %s --emit=riscv-asm | filecheck %s

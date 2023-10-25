@@ -66,18 +66,18 @@ def insert_alloc_and_dealloc(
     return alloc
 
 
-ValueRange = Sequence[SSAValue]
-_AffineForOpBodyBuilderFn: TypeAlias = Callable[[Builder, SSAValue, ValueRange], None]
+_ValueRange = Sequence[SSAValue]
+_AffineForOpBodyBuilderFn: TypeAlias = Callable[[Builder, SSAValue, _ValueRange], None]
 
 
 def build_affine_for(
     builder: Builder,
-    lb_operands: ValueRange,
+    lb_operands: _ValueRange,
     lb_map: affine.AffineMap,
-    ub_operands: ValueRange,
+    ub_operands: _ValueRange,
     ub_map: affine.AffineMap,
     step: int,
-    iter_args: ValueRange,
+    iter_args: _ValueRange,
     body_builder_fn: _AffineForOpBodyBuilderFn,
 ) -> affine.For:
     """
@@ -117,7 +117,7 @@ def build_affine_for_const(
     lb: int,
     ub: int,
     step: int,
-    iter_args: ValueRange,
+    iter_args: _ValueRange,
     body_builder_fn: _AffineForOpBodyBuilderFn,
 ) -> affine.For:
     return build_affine_for(
@@ -134,7 +134,7 @@ def build_affine_for_const(
 
 _Bounds: TypeAlias = tuple[int, ...]
 
-LoopIterationFn: TypeAlias = Callable[[Builder, ValueRange, ValueRange], SSAValue]
+LoopIterationFn: TypeAlias = Callable[[Builder, _ValueRange, _ValueRange], SSAValue]
 """
 This defines the function type used to process an iteration of a lowered loop. It takes as
 input an OpBuilder, an range of memRefOperands corresponding to the operands of the input
@@ -144,7 +144,7 @@ to store at the current index of the iteration.
 
 _BoundT = TypeVar("_BoundT")
 
-BodyBuilderFn: TypeAlias = Callable[[Builder, ValueRange], None]
+_BodyBuilderFn: TypeAlias = Callable[[Builder, _ValueRange], None]
 _LoopCreatorFn: TypeAlias = Callable[
     [Builder, _BoundT, _BoundT, int, _AffineForOpBodyBuilderFn],
     affine.For,
@@ -156,7 +156,7 @@ def build_affine_loop_nest_impl(
     lbs: Sequence[_BoundT],
     ubs: Sequence[_BoundT],
     steps: Sequence[int],
-    body_builder_fn: BodyBuilderFn,
+    body_builder_fn: _BodyBuilderFn,
     loop_creator_fn: _LoopCreatorFn[_BoundT],
 ) -> None:
     """
@@ -178,7 +178,7 @@ def build_affine_loop_nest_impl(
     e = len(lbs)
     for i in range(e):
         # Callback for creating the loop body, always creates the terminator.
-        def body(nested_builder: Builder, iv: SSAValue, iter_args: ValueRange):
+        def body(nested_builder: Builder, iv: SSAValue, iter_args: _ValueRange):
             nonlocal ivs
 
             ivs.append(iv)
@@ -250,7 +250,7 @@ def build_affine_loop_nest_const(
     lbs: Sequence[int],
     ubs: Sequence[int],
     steps: Sequence[int],
-    body_builder_fn: BodyBuilderFn,
+    body_builder_fn: _BodyBuilderFn,
 ) -> None:
     build_affine_loop_nest_impl(
         builder, lbs, ubs, steps, body_builder_fn, build_affine_loop_from_constants
@@ -262,7 +262,7 @@ def build_affine_loop_nest(
     lbs: Sequence[SSAValue],
     ubs: Sequence[SSAValue],
     steps: Sequence[int],
-    body_builder_fn: BodyBuilderFn,
+    body_builder_fn: _BodyBuilderFn,
 ) -> None:
     build_affine_loop_nest_impl(
         builder, lbs, ubs, steps, body_builder_fn, build_affine_loop_from_values
@@ -271,6 +271,7 @@ def build_affine_loop_nest(
 
 def lower_op_to_loops(
     op: toy.AddOp | toy.MulOp | toy.TransposeOp,
+    operands: _ValueRange,
     rewriter: PatternRewriter,
     process_iteration: LoopIterationFn,
 ):
@@ -289,11 +290,11 @@ def lower_op_to_loops(
     lower_bounds = tuple(0 for _ in range(rank))
     steps = tuple(1 for _ in range(rank))
 
-    def impl_loop(nested_builder: Builder, ivs: ValueRange):
+    def impl_loop(nested_builder: Builder, ivs: _ValueRange):
         # Call the processing function with the rewriter, the memref operands, and the
         # loop induction variables. This function will return the value to store at the
         # current index.
-        value_to_store = process_iteration(nested_builder, op.operands, ivs)
+        value_to_store = process_iteration(nested_builder, operands, ivs)
         store_op = affine.Store(value_to_store, alloc.memref, ivs)
         nested_builder.insert(store_op)
 
@@ -318,7 +319,7 @@ class AddOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.AddOp, rewriter: PatternRewriter):
         def body(
-            builder: Builder, memref_operands: ValueRange, loop_ivs: ValueRange
+            builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange
         ) -> SSAValue:
             # Generate loads for the element of 'lhs' and 'rhs' at the inner loop.
             loaded_lhs = builder.insert(affine.Load(op.lhs, loop_ivs))
@@ -326,14 +327,14 @@ class AddOpLowering(RewritePattern):
             new_binop = builder.insert(arith.Addf(loaded_lhs, loaded_rhs))
             return new_binop.result
 
-        lower_op_to_loops(op, rewriter, body)
+        lower_op_to_loops(op, op.operands, rewriter, body)
 
 
 class MulOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.MulOp, rewriter: PatternRewriter):
         def body(
-            builder: Builder, memref_operands: ValueRange, loop_ivs: ValueRange
+            builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange
         ) -> SSAValue:
             # Generate loads for the element of 'lhs' and 'rhs' at the inner loop.
             loaded_lhs = builder.insert(affine.Load(op.lhs, loop_ivs))
@@ -341,7 +342,7 @@ class MulOpLowering(RewritePattern):
             new_binop = builder.insert(arith.Mulf(loaded_lhs, loaded_rhs))
             return new_binop.result
 
-        lower_op_to_loops(op, rewriter, body)
+        lower_op_to_loops(op, op.operands, rewriter, body)
 
 
 class ConstantOpLowering(RewritePattern):
@@ -427,14 +428,14 @@ class TransposeOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.TransposeOp, rewriter: PatternRewriter):
         def body(
-            builder: Builder, mem_ref_operands: ValueRange, loop_ivs: ValueRange
+            builder: Builder, mem_ref_operands: _ValueRange, loop_ivs: _ValueRange
         ) -> SSAValue:
             # Transpose the elements by generating a load from the reverse indices.
             load_op = affine.Load(op.arg, tuple(reversed(loop_ivs)))
             builder.insert(load_op)
             return load_op.result
 
-        lower_op_to_loops(op, rewriter, body)
+        lower_op_to_loops(op, op.operands, rewriter, body)
 
 
 # endregion RewritePatterns

@@ -4,19 +4,17 @@ from pathlib import Path
 from xdsl.dialects.riscv import riscv_code
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
+from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.func import FuncFunctions
-from xdsl.interpreters.linalg import LinalgFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.interpreters.scf import ScfFunctions
-from xdsl.interpreters.snitch_stream import SnitchStreamFunctions
-from xdsl.interpreters.stream import StreamFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
-from .compiler import context, emulate_riscv, pass_pipeline, transform
+from .compiler import context, emulate_riscv, transform
 from .emulator.toy_accelerator_instruction_functions import (
     ToyAcceleratorInstructionFunctions,
 )
@@ -36,16 +34,7 @@ parser.add_argument(
         "toy-inline",
         "toy-infer-shapes",
         "affine",
-        "linalg",
-        "stream",
         "scf",
-        "snitch-stream",
-        "snitch",
-        "snitch-opt",
-        "snitch-regalloc",
-        "snitch-regalloc-opt",
-        "snitch-lowered",
-        "snitch-asm",
         "riscv",
         "riscv-opt",
         "riscv-regalloc",
@@ -58,10 +47,9 @@ parser.add_argument(
 )
 parser.add_argument("--ir", dest="ir", action="store_true")
 parser.add_argument("--print-op-generic", dest="print_generic", action="store_true")
-parser.add_argument("--passes", dest="print_passes", action="store_true")
 
 
-def main(path: Path, emit: str, ir: bool, print_generic: bool, print_passes: bool):
+def main(path: Path, emit: str, ir: bool, print_generic: bool):
     ctx = context()
 
     path = args.source
@@ -84,20 +72,10 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool, print_passes: boo
                 print(f"Unknown file format {path}")
                 return
 
-    asm_targets = {
-        "riscv-asm": "riscv-lowered",
-        "snitch-asm": "snitch-lowered",
-    }
-
-    asm = emit in asm_targets
+    asm = emit == "riscv-asm"
 
     if asm:
-        emit = asm_targets[emit]
-
-    if print_passes:
-        pipeline = pass_pipeline(emit)
-        print(pipeline)
-        return
+        emit = "riscv-lowered"
 
     transform(ctx, module_op, target=emit)
 
@@ -125,29 +103,18 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool, print_passes: boo
     interpreter = Interpreter(module_op)
     if emit in ("toy", "toy-opt", "toy-inline", "toy-infer-shapes"):
         interpreter.register_implementations(ToyFunctions())
-    if emit in ("affine", "linalg", "stream"):
+    if emit in ("affine"):
         interpreter.register_implementations(AffineFunctions())
-    if emit in ("linalg",):
-        interpreter.register_implementations(LinalgFunctions())
-    if emit in ("stream", "scf"):
-        interpreter.register_implementations(StreamFunctions())
-    if emit in ("snitch-stream"):
-        interpreter.register_implementations(SnitchStreamFunctions())
-    if emit in ("affine", "scf", "linalg", "stream"):
+    if emit in ("affine", "scf"):
         interpreter.register_implementations(ArithFunctions())
         interpreter.register_implementations(MemrefFunctions())
         interpreter.register_implementations(PrintfFunctions())
         interpreter.register_implementations(FuncFunctions())
     if emit == "scf":
         interpreter.register_implementations(ScfFunctions())
+        interpreter.register_implementations(BuiltinFunctions())
 
-    if emit in (
-        "snitch-stream",
-        "riscv",
-        "riscv-opt",
-        "riscv-regalloc",
-        "riscv-regalloc-opt",
-    ):
+    if emit in ("riscv", "riscv-opt", "riscv-regalloc", "riscv-regalloc-opt"):
         interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
         interpreter.register_implementations(RiscvScfFunctions())
@@ -157,4 +124,4 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool, print_passes: boo
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.source, args.emit, args.ir, args.print_generic, args.print_passes)
+    main(args.source, args.emit, args.ir, args.print_generic)
