@@ -5,6 +5,28 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "toy",
+            "type": "python",
+            "request": "launch",
+            "module": "docs.Toy.toy",
+            "justMyCode": true,
+            "args": [
+                "docs/Toy/examples/interpret.toy",
+                "--emit=snitch-asm",
+                "--ir"
+            ]
+        },
+        {
+            "name": "xdsl-run",
+            "type": "python",
+            "request": "launch",
+            "module": "xdsl.tools.xdsl_run",
+            "justMyCode": true,
+            "args": [
+                "${file}"
+            ]
+        },
+        {
             "name": "xdsl-opt",
             "type": "python",
             "request": "launch",
