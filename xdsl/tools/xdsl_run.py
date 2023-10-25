@@ -18,6 +18,7 @@ from xdsl.interpreters import (
     riscv_func,
     riscv_libc,
     scf,
+    snitch_stream,
     stream,
 )
 from xdsl.interpreters.experimental import pdl
@@ -79,6 +80,7 @@ class xDSLRunMain(CommandLineTool):
         interpreter.register_implementations(printf.PrintfFunctions())
         interpreter.register_implementations(scf.ScfFunctions())
         interpreter.register_implementations(stream.StreamFunctions())
+        interpreter.register_implementations(snitch_stream.SnitchStreamFunctions())
 
     def run(self):
         input, file_extension = self.get_input_stream()
