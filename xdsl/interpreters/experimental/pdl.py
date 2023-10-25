@@ -1,17 +1,15 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import IO, Any, ClassVar
 
-from xdsl.ir import Attribute, MLContext, TypeAttribute, OpResult, Operation, SSAValue
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-)
-from xdsl.interpreter import Interpreter, InterpreterFunctions, register_impls, impl
+from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
+from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.irdl import IRDLOperation
+from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -32,6 +30,32 @@ class PDLMatcher:
     the corresponding xDSL object.
     """
 
+    native_constraints: ClassVar[dict[str, Callable[..., bool]]] = {}
+    """
+    The functions that can be used in `pdl.apply_native_constraint`. Note that we do
+    not verify that the functions are used with the correct types.
+    """
+
+    def get_constant_or_matched_value(
+        self, ssa_val: SSAValue
+    ) -> Operation | Attribute | SSAValue:
+        """
+        Get the value that is already matched, or that is defined by a constant such as
+        the result of a constant `pdl.attribute`, or of a `pdl.type`, or of a matched
+        operation.
+        """
+        if ssa_val in self.matching_context:
+            return self.matching_context[ssa_val]
+        if isinstance(ssa_val.owner, pdl.AttributeOp):
+            if ssa_val.owner.value is None:
+                raise InterpretationError("expected constant `pdl.attribute`")
+            return ssa_val.owner.value
+        if isinstance(ssa_val.owner, pdl.TypeOp):
+            if ssa_val.owner.constantType is None:
+                raise InterpretationError("expected constant `pdl.type`")
+            return ssa_val.owner.constantType
+        raise InterpretationError("expected constant or matched value")
+
     def match_operand(
         self, ssa_val: SSAValue, pdl_op: pdl.OperandOp, xdsl_val: SSAValue
     ):
@@ -43,7 +67,7 @@ class PDLMatcher:
             assert isinstance(pdl_op.value_type.op, pdl.TypeOp)
 
             if not self.match_type(
-                pdl_op.value_type, pdl_op.value_type.op, xdsl_val.typ
+                pdl_op.value_type, pdl_op.value_type.op, xdsl_val.type
             ):
                 return False
 
@@ -111,7 +135,7 @@ class PDLMatcher:
             ), "Only handle integer types for now"
 
             if not self.match_type(
-                pdl_op.value_type, pdl_op.value_type.op, xdsl_attr.typ
+                pdl_op.value_type, pdl_op.value_type.op, xdsl_attr.type
             ):
                 return False
 
@@ -134,10 +158,10 @@ class PDLMatcher:
         for avn, av in zip(attribute_value_names, pdl_op.attribute_values):
             assert isinstance(av, OpResult)
             assert isinstance(av.op, pdl.AttributeOp)
-            if avn not in xdsl_op.attributes:
+            if (attr := xdsl_op.get_attr_or_prop(avn)) is None:
                 return False
 
-            if not self.match_attribute(av, av.op, avn, xdsl_op.attributes[avn]):
+            if not self.match_attribute(av, av.op, avn, attr):
                 return False
 
         pdl_operands = pdl_op.operand_values
@@ -168,19 +192,40 @@ class PDLMatcher:
         for pdl_result, xdsl_result in zip(pdl_results, xdsl_results):
             assert isinstance(pdl_result, OpResult)
             assert isinstance(pdl_result.op, pdl.TypeOp)
-            if not self.match_type(pdl_result, pdl_result.op, xdsl_result.typ):
+            if not self.match_type(pdl_result, pdl_result.op, xdsl_result.type):
                 return False
 
         self.matching_context[ssa_val] = xdsl_op
 
         return True
 
+    def check_native_constraints(self, pdl_op: pdl.ApplyNativeConstraintOp) -> bool:
+        args = [
+            self.get_constant_or_matched_value(operand) for operand in pdl_op.operands
+        ]
+        name = pdl_op.constraint_name.data
+        if name not in self.native_constraints:
+            raise InterpretationError(f"{name} PDL native constraint is not registered")
+        return self.native_constraints[name](*args)
+
 
 @dataclass
-class InterpreterRewrite(RewritePattern):
-    functions: PDLFunctions
+class PDLRewritePattern(RewritePattern):
+    functions: PDLRewriteFunctions
     pdl_rewrite_op: pdl.RewriteOp
     interpreter: Interpreter
+
+    def __init__(
+        self, pdl_rewrite_op: pdl.RewriteOp, ctx: MLContext, file: IO[str] | None = None
+    ):
+        pdl_pattern = pdl_rewrite_op.parent_op()
+        assert isinstance(pdl_pattern, pdl.PatternOp)
+        pdl_module = pdl_pattern.parent_op()
+        assert isinstance(pdl_module, ModuleOp)
+        self.functions = PDLRewriteFunctions(ctx)
+        self.interpreter = Interpreter(pdl_module, file=file)
+        self.interpreter.register_implementations(self.functions)
+        self.pdl_rewrite_op = pdl_rewrite_op
 
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         pdl_op_val = self.pdl_rewrite_op.root
@@ -189,37 +234,41 @@ class InterpreterRewrite(RewritePattern):
             self.pdl_rewrite_op.body is not None
         ), "TODO: handle None body op in pdl.RewriteOp"
 
-        (pdl_op,) = self.interpreter.get_values((pdl_op_val,))
+        assert isinstance(pdl_op_val, OpResult)
+        pdl_op = pdl_op_val.op
+
         assert isinstance(pdl_op, pdl.OperationOp)
         matcher = PDLMatcher()
         if not matcher.match_operation(pdl_op_val, pdl_op, xdsl_op):
             return
 
+        parent = self.pdl_rewrite_op.parent_op()
+        assert isinstance(parent, pdl.PatternOp)
+        for constraint_op in parent.walk():
+            if isinstance(constraint_op, pdl.ApplyNativeConstraintOp):
+                if not matcher.check_native_constraints(constraint_op):
+                    return
+
         self.interpreter.push_scope("rewrite")
         self.interpreter.set_values(matcher.matching_context.items())
         self.functions.rewriter = rewriter
 
-        for rewrite_impl_op in self.pdl_rewrite_op.body.ops:
-            self.interpreter.run(rewrite_impl_op)
+        self.interpreter.run_ssacfg_region(self.pdl_rewrite_op.body, ())
 
         self.interpreter.pop_scope()
 
 
 @register_impls
 @dataclass
-class PDLFunctions(InterpreterFunctions):
+class PDLRewriteFunctions(InterpreterFunctions):
     """
-    Applies the PDL pattern to all ops in the input `ModuleOp`. The rewriter
-    jumps straight to the last operation in the pattern, which is expected to
-    be a rewrite op. It creates an `AnonymousRewriter`, which runs on all
-    operations in the ModuleOp. For each operation, it determines whether the
-    operation fits the specified pattern and, if so, assigns the xDSL values
-    to the corresponding PDL SSA values, and runs the rewrite operations one by
-    one. The implementations in this class are for the RHS of the rewrite.
+    The implementations in this class are for the RHS of the rewrite. The SSA values
+    referenced within the rewrite block are guaranteed to have been matched with the
+    corresponding IR elements. The interpreter context stores the IR elements by SSA
+    values.
     """
 
     ctx: MLContext
-    module: ModuleOp
     _rewriter: PatternRewriter | None = field(default=None)
 
     @property
@@ -230,51 +279,6 @@ class PDLFunctions(InterpreterFunctions):
     @rewriter.setter
     def rewriter(self, rewriter: PatternRewriter):
         self._rewriter = rewriter
-
-    @impl(pdl.PatternOp)
-    def run_pattern(
-        self, interpreter: Interpreter, op: pdl.PatternOp, args: tuple[Any, ...]
-    ) -> tuple[Any, ...]:
-        block = op.body.block
-
-        if not block.ops:
-            raise InterpretationError("No ops in pattern")
-
-        last_op = block.last_op
-
-        if not isinstance(last_op, pdl.RewriteOp):
-            raise InterpretationError(
-                "Expected pdl.pattern to be terminated by pdl.rewrite"
-            )
-
-        for r_op in block.ops:
-            if r_op is last_op:
-                break
-            # in forward pass, the Python value is the SSA value itself
-            if len(r_op.results) != 1:
-                raise InterpretationError("PDL ops must have one result")
-            result = r_op.results[0]
-            interpreter.set_values(((result, r_op),))
-
-        interpreter.run(last_op)
-
-        return ()
-
-    @impl(pdl.RewriteOp)
-    def run_rewrite(
-        self,
-        interpreter: Interpreter,
-        pdl_rewrite_op: pdl.RewriteOp,
-        args: tuple[Any, ...],
-    ) -> tuple[Any, ...]:
-        input_module = self.module
-
-        PatternRewriteWalker(
-            InterpreterRewrite(self, pdl_rewrite_op, interpreter),
-            apply_recursively=False,
-        ).rewrite_module(input_module)
-
-        return ()
 
     @impl(pdl.OperationOp)
     def run_operation(
@@ -291,7 +295,7 @@ class PDLFunctions(InterpreterFunctions):
 
         attribute_value_names = [avn.data for avn in op.attributeValueNames.data]
 
-        # How to deal with operand_segment_sizes?
+        # How to deal with operandSegmentSizes?
         # operand_values, attribute_values, type_values = args
 
         operand_values = interpreter.get_values(op.operand_values)
@@ -308,13 +312,48 @@ class PDLFunctions(InterpreterFunctions):
         for type_value in type_values:
             assert isinstance(type_value, TypeAttribute)
 
-        attributes = dict(zip(attribute_value_names, attribute_values))
+        attributes = dict[str, Attribute]()
+        properties = dict[str, Attribute]()
+
+        # If the op is an IRDL-defined operation, get the property names.
+        if issubclass(op_type, IRDLOperation):
+            property_names = op_type.irdl_definition.properties.keys()
+        else:
+            property_names = []
+
+        # Move the attributes to the attribute or property dictionary
+        # depending on whether they are a properties or not.
+        for attribute_name, attribute_value in zip(
+            attribute_value_names, attribute_values
+        ):
+            if attribute_name in property_names:
+                properties[attribute_name] = attribute_value
+            else:
+                attributes[attribute_name] = attribute_value
 
         result_op = op_type.create(
-            operands=operand_values, result_types=type_values, attributes=attributes
+            operands=operand_values,
+            result_types=type_values,
+            attributes=attributes,
+            properties=properties,
         )
 
         return (result_op,)
+
+    @impl(pdl.ResultOp)
+    def run_result(
+        self, interpreter: Interpreter, op: pdl.ResultOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        (parent,) = args
+        assert isinstance(parent, Operation)
+        return (parent.results[op.index.value.data],)
+
+    @impl(pdl.AttributeOp)
+    def run_attribute(
+        self, interpreter: Interpreter, op: pdl.AttributeOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        assert isinstance(op.value, Attribute)
+        return (op.value,)
 
     @impl(pdl.ReplaceOp)
     def run_replace(
@@ -335,12 +374,10 @@ class PDLFunctions(InterpreterFunctions):
 
         return ()
 
-    @impl(ModuleOp)
-    def run_module(
-        self, interpreter: Interpreter, op: ModuleOp, args: tuple[Any, ...]
+    @impl(pdl.EraseOp)
+    def run_erase(
+        self, interpreter: Interpreter, op: pdl.EraseOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        ops = op.ops
-        first_op = ops.first
-        if first_op is None or not isinstance(first_op, pdl.PatternOp):
-            raise InterpretationError("Expected single pattern op in pdl module")
-        return self.run_pattern(interpreter, first_op, args)
+        (old,) = interpreter.get_values((op.op_value,))
+        self.rewriter.erase_op(old)
+        return ()

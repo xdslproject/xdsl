@@ -1,40 +1,33 @@
+from abc import ABC
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import TypeVar, Iterable, Callable, cast, ClassVar
+from typing import ClassVar, TypeVar, cast
 
-from xdsl.builder import Builder
+from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
+from xdsl.dialects.builtin import ContainerType, ShapedType
+from xdsl.dialects.experimental import dmp
+from xdsl.ir import Attribute, Block, MLContext, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
-
-from xdsl.utils.hints import isa
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
-    GreedyRewritePatternApplier,
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import Rewriter
-from xdsl.ir import (
-    BlockArgument,
-    MLContext,
-    Operation,
-    SSAValue,
-    Block,
-    Region,
-    OpResult,
-)
-from xdsl.irdl import Attribute
-from xdsl.dialects import builtin, mpi, memref, arith, scf, func, stencil
-from xdsl.dialects.experimental import dmp
-
-from xdsl.transforms.experimental.StencilShapeInference import StencilShapeInferencePass
-
 from xdsl.transforms.experimental.dmp.decompositions import (
     DomainDecompositionStrategy,
-    HorizontalSlices2D,
     GridSlice2d,
 )
+from xdsl.transforms.experimental.stencil_shape_inference import (
+    StencilShapeInferencePass,
+)
+from xdsl.utils.hints import isa
 
 _T = TypeVar("_T", bound=Attribute)
+
+_rank_dtype = builtin.i32
 
 
 @dataclass
@@ -47,7 +40,7 @@ class ChangeStoreOpSizes(RewritePattern):
             integer_attr.data == 0 for integer_attr in op.lb.array.data
         ), "lb must be 0"
         shape: tuple[int, ...] = tuple(
-            (integer_attr.data for integer_attr in op.ub.array.data)
+            integer_attr.data for integer_attr in op.ub.array.data
         )
         new_shape = self.strategy.calc_resize(shape)
         op.ub = stencil.IndexAttr.get(*new_shape)
@@ -63,43 +56,198 @@ class AddHaloExchangeOps(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
-        swap_op = dmp.HaloSwapOp.get(op.res)
-        swap_op.nodes = self.strategy.comm_layout()
+        swap_op = dmp.SwapOp.get(op.res)
+        swap_op.topo = self.strategy.comm_layout()
         rewriter.insert_op_after_matched_op(swap_op)
 
 
 @dataclass
 class LowerHaloExchangeToMpi(RewritePattern):
     init: bool
+    debug_prints: bool = False
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: dmp.HaloSwapOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         assert op.swaps is not None
-        assert op.nodes is not None
+        assert op.topo is not None
         exchanges = list(op.swaps)
 
-        assert isa(op.input_stencil.typ, memref.MemRefType[Attribute])
+        assert isinstance(op.input_stencil.type, ShapedType)
+        assert isa(op.input_stencil.type, ContainerType[Attribute])
 
         rewriter.replace_matched_op(
             list(
                 generate_mpi_calls_for(
                     op.input_stencil,
                     exchanges,
-                    op.input_stencil.typ.element_type,
-                    op.nodes,
+                    op.input_stencil.type.get_element_type(),
+                    op.topo,
                     emit_init=self.init,
+                    emit_debug=self.debug_prints,
                 )
             ),
             [],
         )
 
 
+def _generate_single_axis_calc_and_check(
+    pos_in_axis: SSAValue,
+    offset_in_axis: int,
+    axis_size: int,
+) -> tuple[list[Operation], SSAValue, SSAValue]:
+    """
+    Given a position (in SSA), aand compile time known offset/size, generate the
+    following operations:
+
+    dest = pos_in_axis + offset_in_axis
+    is_valid_axsis = (0 <= dest && dest < axis_size)
+
+    Since we know the offset at compile time, we can skip one of the calculations.
+
+    Returns the ops, and the ssa values that contain dest and is_valid_axis
+    Return is ([ops], dest, is_valid)
+    """
+    # if the offset is zero, we can skip the comparison and just return true
+    # because my_pos + 0 is always inbounds!
+    if offset_in_axis == 0:
+        return (
+            [true := arith.Constant.from_int_and_width(1, 1)],
+            pos_in_axis,
+            true.result,
+        )
+
+    # check if we are decrementing or increment the position here
+    is_decrement = offset_in_axis < 0
+    # very important that we use signed arithmetic here!
+    # find the correct comparison for
+    # is_valid_axsis = (0 <= dest && dest < axis_size)
+    # since we know if we will be incrementing or decrementing, we can skip one of the
+    # checks
+    comparison = "sge" if is_decrement else "slt"
+
+    return (
+        [
+            offset_v := arith.Constant.from_int_and_width(offset_in_axis, _rank_dtype),
+            dest := arith.Addi(pos_in_axis, offset_v),
+            # get the bound we need to check:
+            bound := arith.Constant.from_int_and_width(
+                0 if is_decrement else axis_size, _rank_dtype
+            ),
+            # comparison == true <=> we have a valid dest positon
+            cond_val := arith.Cmpi(dest, bound, comparison),
+        ],
+        dest.result,
+        cond_val.result,
+    )
+
+
+def _grid_coords_from_rank(
+    my_rank: SSAValue, grid: dmp.RankTopoAttr
+) -> tuple[list[Operation], list[SSAValue]]:
+    """
+    Takes a rank and a dmp.grid, and returns operations to calculate
+    the grid coordinates of the rank.
+    """
+    # a collection of all ops we want to return
+    ret_ops: list[Operation] = []
+    # the nodes coordinates in grid-space
+    node_pos_nd: list[SSAValue] = []
+
+    # first we translate the mpi rank into grid coordinates
+    # (reversing the row major mapping)
+    divide_by = 1
+    for size in grid.as_tuple():
+        ret_ops.extend(_div_mod(my_rank, divide_by, size))
+        divide_by *= size
+        node_pos_nd.append(ret_ops[-1].results[0])
+    return ret_ops, node_pos_nd
+
+
+def _generate_dest_rank_computation(
+    my_rank: SSAValue,
+    offsets: tuple[int, ...],
+    grid: dmp.RankTopoAttr,
+) -> tuple[list[Operation], SSAValue, SSAValue]:
+    """
+    Takes the current rank, a tuple of offsets in grid coords, and a dmp.grid
+
+    Calculates the dest rank, and comparisons if communication is in-bounds
+
+    Returns a list of ops, the dest rank, and if it's in-bounds.
+
+    Returns ([ops], dest_rank, is_in_bounds)
+    """
+    # calc grid coordinates
+    ret_ops, node_pos_nd = _grid_coords_from_rank(my_rank, grid)
+
+    # then we calculate the new coordinates:
+    # save the condition vals somewhere
+    condition_vals: list[SSAValue] = []
+    # save the grid-coordinates of the destination rank
+    dest_pos_nd: list[SSAValue] = []
+    for pos_in_axis, offset_in_axis, axis_size in zip(
+        node_pos_nd, offsets, grid.as_tuple()
+    ):
+        ops, dest, is_valid = _generate_single_axis_calc_and_check(
+            pos_in_axis, offset_in_axis, axis_size
+        )
+        ret_ops.extend(ops)
+        dest_pos_nd.append(dest)
+        condition_vals.append(is_valid)
+
+    # "and" all the condition vals
+    accumulated_cond_val: SSAValue = condition_vals[0]
+    for val in condition_vals[1:]:
+        cmp = arith.AndI(accumulated_cond_val, val)
+        ret_ops.append(cmp)
+        accumulated_cond_val = cmp.result
+
+    # calculate rank of destination node from grid coords
+
+    multiply_by = grid.as_tuple()[0]
+    carry: SSAValue = dest_pos_nd[0]
+
+    # dest rank: x * 1 + y * size[x] + z * size[x] * size[y] ...
+    for pos, size in zip(dest_pos_nd[1:], grid.as_tuple()[1:]):
+        fac = arith.Constant.from_int_and_width(multiply_by, _rank_dtype)
+        val = arith.Muli(pos, fac)
+        new_carry = arith.Addi(carry, val)
+        carry = new_carry.result
+        multiply_by *= size
+        ret_ops.extend([fac, val, new_carry])
+
+    return ret_ops, carry, accumulated_cond_val
+
+
+def _div_mod(i: SSAValue, div: int, mod: int) -> list[Operation]:
+    """
+    Given (i, div, mod), generate ops that calculate (i / div) % mod
+
+    The last returned operation has the final value as it's single result.
+    """
+    # these asserts should never trigger, but I'd rather have the compiler yell at me
+    # when something goes wrong than see a spectacular runtime crash :D
+    assert div > 0, "cannot work with negatives here!"
+    assert mod > 0, "cannot work with negatives here!"
+    # make sure we operate on an integer
+    assert isinstance(i.type, builtin.IntegerType | builtin.IndexType)
+    # we can use unsigned arithmetic here, because all we do is divide by positive
+    # numbers and modulo positive numbers
+    return [
+        div_v := arith.Constant.from_int_and_width(div, i.type),
+        div_res := arith.DivUI(i, div_v),
+        mod_v := arith.Constant.from_int_and_width(mod, i.type),
+        arith.RemUI(div_res, mod_v),
+    ]
+
+
 def generate_mpi_calls_for(
     source: SSAValue,
-    exchanges: list[dmp.HaloExchangeDecl],
+    exchanges: list[dmp.ExchangeDeclarationAttr],
     dtype: Attribute,
-    grid: dmp.NodeGrid,
+    grid: dmp.RankTopoAttr,
     emit_init: bool = True,
+    emit_debug: bool = False,
 ) -> Iterable[Operation]:
     # call mpi init (this will be hoisted to function level)
     if emit_init:
@@ -112,39 +260,28 @@ def generate_mpi_calls_for(
     # get comm rank
     rank = mpi.CommRank.get()
     # define static tag of 0
-    # TODO: what is tag?
     tag = arith.Constant.from_int_and_width(0, builtin.i32)
 
     yield from (req_cnt, reqs, rank, tag)
 
-    recv_buffers: list[tuple[dmp.HaloExchangeDecl, memref.Alloc, SSAValue]] = []
+    recv_buffers: list[tuple[dmp.ExchangeDeclarationAttr, memref.Alloc, SSAValue]] = []
 
     for i, ex in enumerate(exchanges):
-        # TODO: handle multi-d grids
-        neighbor_offset = arith.Constant.from_int_and_width(ex.neighbor[0], builtin.i32)
-        neighbor_rank = arith.Addi(rank, neighbor_offset)
-        yield from (neighbor_offset, neighbor_rank)
-
         # generate a temp buffer to store the data in
-        alloc_outbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        reduced_size = [i for i in ex.size if i != 1]
+        alloc_outbound = memref.Alloc.get(dtype, 64, reduced_size)
         alloc_outbound.memref.name_hint = f"send_buff_ex{i}"
-        alloc_inbound = memref.Alloc.get(dtype, 64, [ex.elem_count])
+        alloc_inbound = memref.Alloc.get(dtype, 64, reduced_size)
         alloc_inbound.memref.name_hint = f"recv_buff_ex{i}"
         yield from (alloc_outbound, alloc_inbound)
 
-        # boundary condition:
-        # TODO: handle non-1d layouts
-        assert len(ex.neighbor) == 1
-        bound = arith.Constant.from_int_and_width(
-            0 if ex.neighbor[0] < 0 else grid.as_tuple()[0], builtin.i32
+        # calc dest rank and check if it's in-bounds
+        ops, dest_rank, is_in_bounds = _generate_dest_rank_computation(
+            rank.rank, ex.neighbor, grid
         )
-        # comparison == true <=> we have a valid dest rank
-        comparison = "sge" if ex.neighbor[0] < 0 else "slt"
+        yield from ops
 
-        cond_val = arith.Cmpi.get(neighbor_rank, bound, comparison)
-        yield from (bound, cond_val)
-
-        recv_buffers.append((ex, alloc_inbound, cond_val.result))
+        recv_buffers.append((ex, alloc_inbound, is_in_bounds))
 
         # get two unique indices
         cst_i = arith.Constant.from_int_and_width(i, builtin.i32)
@@ -163,12 +300,17 @@ def generate_mpi_calls_for(
             unwrap_out.ptr.name_hint = f"send_buff_ex{i}_ptr"
             yield unwrap_out
 
+            if emit_debug:
+                yield printf.PrintFormatOp(
+                    f"Rank {{}}: sending {ex.source_area()} -> {{}}", rank, dest_rank
+                )
+
             # isend call
             yield mpi.Isend.get(
                 unwrap_out.ptr,
                 unwrap_out.len,
-                unwrap_out.typ,
-                neighbor_rank,
+                unwrap_out.type,
+                dest_rank,
                 tag,
                 req_send,
             )
@@ -181,22 +323,22 @@ def generate_mpi_calls_for(
             yield mpi.Irecv.get(
                 unwrap_in.ptr,
                 unwrap_in.len,
-                unwrap_in.typ,
-                neighbor_rank,
+                unwrap_in.type,
+                dest_rank,
                 tag,
                 req_recv,
             )
-            yield scf.Yield.get()
+            yield scf.Yield()
 
         def else_() -> Iterable[Operation]:
             # set the request object to MPI_REQUEST_NULL s.t. they are ignored
             # in the waitall call
             yield mpi.NullRequestOp.get(req_send)
             yield mpi.NullRequestOp.get(req_recv)
-            yield scf.Yield.get()
+            yield scf.Yield()
 
-        yield scf.If.get(
-            cond_val,
+        yield scf.If(
+            is_in_bounds,
             [],
             Region([Block(then())]),
             Region([Block(else_())]),
@@ -207,7 +349,7 @@ def generate_mpi_calls_for(
 
     # start shuffling data into the main memref again
     for ex, buffer, cond_val in recv_buffers:
-        yield scf.If.get(
+        yield scf.If(
             cond_val,
             [],
             Region(
@@ -218,94 +360,51 @@ def generate_mpi_calls_for(
                                 source,
                                 ex,
                                 buffer.memref,
-                                reverse=True,
+                                receive=True,
                             )
                         )
-                        + [scf.Yield.get()]
+                        + [
+                            printf.PrintFormatOp(
+                                f"Rank {{}} receiving from {ex.neighbor}",
+                                rank,
+                            )
+                        ]
+                        * (1 if emit_debug else 0)
+                        + [scf.Yield()]
                     )
                 ]
             ),
-            Region([Block([scf.Yield.get()])]),
+            Region([Block([scf.Yield()])]),
         )
 
 
 def generate_memcpy(
-    source: SSAValue, ex: dmp.HaloExchangeDecl, dest: SSAValue, reverse: bool = False
+    field: SSAValue,
+    ex: dmp.ExchangeDeclarationAttr,
+    buffer: SSAValue,
+    receive: bool = False,
 ) -> list[Operation]:
     """
     This function generates a memcpy routine to copy over the parts
-    specified by the `ex` from `source` into `dest`.
+    specified by the `field` from `field` into `buffer`.
 
-    If reverse=True, it instead copy from `dest` into the parts of
-    `source` as specified by `ex`
+    If receive=True, it instead copy from `buffer` into the parts of
+    `field` as specified by `ex`
 
     """
-    assert ex.dim == 2, "Cannot handle non-2d case of memcpy yet!"
+    assert isa(field.type, memref.MemRefType[Attribute])
 
-    idx = builtin.IndexType()
-
-    x0 = arith.Constant.from_int_and_width(ex.offset[0], idx)
-    x0.result.name_hint = "x0"
-    y0 = arith.Constant.from_int_and_width(ex.offset[1], idx)
-    y0.result.name_hint = "y0"
-    x_len = arith.Constant.from_int_and_width(ex.size[0], idx)
-    x_len.result.name_hint = "x_len"
-    y_len = arith.Constant.from_int_and_width(ex.size[1], idx)
-    y_len.result.name_hint = "y_len"
-    cst0 = arith.Constant.from_int_and_width(0, idx)
-    cst1 = arith.Constant.from_int_and_width(1, idx)
-
-    @Builder.implicit_region([idx, idx])
-    def loop_body(args: tuple[BlockArgument, ...]):
-        """
-        Loop body of the scf.parallel() that iterates the following domain:
-        i = (0->x_len), y = (0->y_len)
-        """
-        i, j = args
-        i.name_hint = "i"
-        j.name_hint = "j"
-
-        # x = i + x0
-        # y = i + y0
-        # TODO: proper fix this (probs in HaloDimsHelper)
-        x_ = arith.Addi(i, x0)
-        x = arith.Addi(x_, cst1)
-        y_ = arith.Addi(j, y0)
-        y = arith.Addi(y_, cst1)
-
-        x.result.name_hint = "x"
-        y.result.name_hint = "y"
-
-        # linearized_idx = (j * x_len) + i
-        dest_idx = arith.Muli(j, x_len)
-        linearized_idx = arith.Addi(dest_idx, i)
-        linearized_idx.result.name_hint = "linearized_idx"
-
-        if reverse:
-            load = memref.Load.get(dest, [linearized_idx])
-            memref.Store.get(load, source, [x, y])
-        else:
-            load = memref.Load.get(source, [x, y])
-            memref.Store.get(load, dest, [linearized_idx])
-
-        scf.Yield.get()
-
-    loop = scf.ParallelOp.get(
-        [cst0, cst0],
-        [x_len, y_len],
-        [cst1, cst1],
-        loop_body,
-        [],
+    subview = memref.Subview.from_static_parameters(
+        field, field.type, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
     )
+    if receive:
+        copy = memref.CopyOp(buffer, subview)
+    else:
+        copy = memref.CopyOp(subview, buffer)
 
     return [
-        x0,
-        y0,
-        x_len,
-        y_len,
-        cst0,
-        cst1,
-        loop,
+        subview,
+        copy,
     ]
 
 
@@ -407,13 +506,11 @@ class MpiLoopInvariantCodeMotion:
         def match(op: Operation):
             if isinstance(
                 op,
-                (
-                    memref.Alloc,
-                    mpi.CommRank,
-                    mpi.AllocateTypeOp,
-                    mpi.UnwrapMemrefOp,
-                    mpi.Init,
-                ),
+                memref.Alloc
+                | mpi.CommRank
+                | mpi.AllocateTypeOp
+                | mpi.UnwrapMemrefOp
+                | mpi.Init,
             ):
                 worklist.append(op)
 
@@ -457,10 +554,10 @@ def can_loop_invariant_code_move(op: Operation):
 
     for arg in op.operands:
         if not isinstance(arg, OpResult):
-            print("{} is not opresult".format(arg))
+            print(f"{arg} is not opresult")
             return False
         if not isinstance(arg.owner, _LOOP_INVARIANT_OPS):
-            print("{} is not loop invariant".format(arg))
+            print(f"{arg} is not loop invariant")
             return False
         if not can_loop_invariant_code_move(arg.owner):
             return False
@@ -491,7 +588,7 @@ class DmpSwapShapeInference:
     strategy: DomainDecompositionStrategy
     rewriter: Rewriter = field(default_factory=Rewriter)
 
-    def match_and_rewrite(self, op: dmp.HaloSwapOp):
+    def match_and_rewrite(self, op: dmp.SwapOp):
         core_lb: stencil.IndexAttr | None = None
         core_ub: stencil.IndexAttr | None = None
 
@@ -499,14 +596,14 @@ class DmpSwapShapeInference:
             if not isinstance(use.operation, stencil.ApplyOp):
                 continue
             assert use.operation.res
-            res_typ = cast(stencil.TempType[Attribute], use.operation.res[0].typ)
-            assert isinstance(res_typ.bounds, stencil.StencilBoundsAttr)
-            core_lb = res_typ.bounds.lb
-            core_ub = res_typ.bounds.ub
+            res_type = cast(stencil.TempType[Attribute], use.operation.res[0].type)
+            assert isinstance(res_type.bounds, stencil.StencilBoundsAttr)
+            core_lb = res_type.bounds.lb
+            core_ub = res_type.bounds.ub
             break
 
         # this shouldn't have changed since the op was created!
-        temp = op.input_stencil.typ
+        temp = op.input_stencil.type
         assert isa(temp, stencil.TempType[Attribute])
         assert isinstance(temp.bounds, stencil.StencilBoundsAttr)
         buff_lb = temp.bounds.lb
@@ -519,68 +616,77 @@ class DmpSwapShapeInference:
         assert buff_lb is not None
         assert buff_ub is not None
 
+        # drop 0 element exchanges
         op.swaps = builtin.ArrayAttr(
-            self.strategy.halo_exchange_defs(
-                dmp.HaloShapeInformation.from_index_attrs(
+            exchange
+            for exchange in self.strategy.halo_exchange_defs(
+                dmp.ShapeAttr.from_index_attrs(
                     buff_lb=buff_lb,
                     core_lb=core_lb,
                     buff_ub=buff_ub,
                     core_ub=core_ub,
                 )
             )
+            if exchange.elem_count > 0
         )
 
     def apply(self, module: builtin.ModuleOp):
         for op in module.walk():
-            if isinstance(op, dmp.HaloSwapOp):
+            if isinstance(op, dmp.SwapOp):
                 self.match_and_rewrite(op)
 
 
 @dataclass
-class DmpDecompositionPass(ModulePass):
+class DmpDecompositionPass(ModulePass, ABC):
     """
     Represents a pass that takes a strategy as input
     """
 
+
+@dataclass
+class DistributeStencilPass(DmpDecompositionPass):
+    """
+    Decompose a stencil to apply to a local domain.
+
+    This pass applies stencil shape inference!
+    """
+
+    name = "distribute-stencil"
+
     STRATEGIES: ClassVar[dict[str, type[DomainDecompositionStrategy]]] = {
-        "2d-horizontal": HorizontalSlices2D,
         "2d-grid": GridSlice2d,
     }
-
-    name = "dmp-decompose-2d"
-
-    strategy: str
 
     slices: list[int]
     """
     Number of slices to decompose the input into
     """
 
-    def get_strategy(self) -> DomainDecompositionStrategy:
-        if self.strategy not in self.STRATEGIES:
-            raise ValueError(f"Unknown strategy: {self.strategy}")
-        return self.STRATEGIES[self.strategy](self.slices)
-
-
-@dataclass
-class GlobalStencilToLocalStencil2DHorizontal(DmpDecompositionPass):
+    strategy: str
     """
-    Decompose a stencil to apply to a local domain.
+    Name of the decomposition strategy to use, see STRATEGIES property for options
+    """
 
-    This pass *replaces* stencil shape inference in a
-    pass pipeline!
+    restrict_domain: bool = True
+    """
+    Apply the domain restriction (i.e. change the stencil.apply to operate on the
+    local domain. If false, it assumes that the generated code is already local)
     """
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        strategy = self.get_strategy()
+        if self.strategy not in self.STRATEGIES:
+            raise ValueError(f"Unknown strategy: {self.strategy}")
+        strategy = self.STRATEGIES[self.strategy](self.slices)
+
+        rewrites: list[RewritePattern] = [
+            AddHaloExchangeOps(strategy),
+        ]
+
+        if self.restrict_domain:
+            rewrites.append(ChangeStoreOpSizes(strategy))
 
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    ChangeStoreOpSizes(strategy),
-                    AddHaloExchangeOps(strategy),
-                ]
-            ),
+            GreedyRewritePatternApplier(rewrites),
             apply_recursively=False,
         ).rewrite_module(op)
 
@@ -596,12 +702,15 @@ class LowerHaloToMPI(ModulePass):
 
     mpi_init: bool = True
 
+    generate_debug_prints: bool = False
+
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
                     LowerHaloExchangeToMpi(
                         self.mpi_init,
+                        self.generate_debug_prints,
                     ),
                 ]
             )

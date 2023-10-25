@@ -8,14 +8,14 @@ Each file is also splitted according to `split-input-file` if it is
 present.
 """
 
-import subprocess
-import cProfile
 import argparse
+import cProfile
 import glob
+import subprocess
 import timeit
-from typing import Iterable
-from xdsl.ir import MLContext
+from collections.abc import Iterable
 
+from xdsl.ir import MLContext
 from xdsl.parser import Parser
 
 
@@ -23,7 +23,7 @@ def parse_file(file: str, ctx: MLContext):
     """
     Parse the given file.
     """
-    parser = Parser(ctx, file, allow_unregistered_dialect=True)
+    parser = Parser(ctx, file)
     parser.parse_op()
 
 
@@ -47,7 +47,7 @@ def run_on_files(file_names: Iterable[str], mlir_path: str, ctx: MLContext):
     n_parsed_files = 0
 
     for file_name in file_names:
-        contents = open(file_name, "r").read()
+        contents = open(file_name).read()
         print("Parsing file: " + file_name)
         splitted_contents = split_mlir_file(contents)
         print(f"File has been split into {len(splitted_contents)} sub-files.")
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     file_names = list(glob.iglob(args.root_directory + "/**/*.mlir", recursive=True))
     print("Found " + str(len(file_names)) + " files to parse.")
 
-    ctx = MLContext()
+    ctx = MLContext(allow_unregistered=True)
 
     if args.profile:
         cProfile.run("run_on_files(file_names, args.mlir_path, ctx)")

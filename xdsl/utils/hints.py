@@ -1,12 +1,11 @@
+from collections.abc import Iterable
 from inspect import isclass
 from types import UnionType
 from typing import (
     Annotated,
     Any,
     Generic,
-    Iterable,
     Literal,
-    Sequence,
     TypeGuard,
     TypeVar,
     Union,
@@ -14,8 +13,8 @@ from typing import (
     get_args,
     get_origin,
 )
-from xdsl.ir import ParametrizedAttribute
 
+from xdsl.ir import ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 
 _T = TypeVar("_T")
@@ -42,6 +41,13 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
         arg_list: list[Any] = cast(list[Any], arg)
         (elem_hint,) = get_args(hint)
         return all(isa(elem, elem_hint) for elem in arg_list)
+
+    if origin is set:
+        if not isinstance(arg, set):
+            return False
+        arg_set: set[Any] = cast(set[Any], arg)
+        (elem_hint,) = get_args(hint)
+        return all(isa(elem, elem_hint) for elem in arg_set)
 
     if origin is tuple:
         if not isinstance(arg, tuple):
@@ -114,7 +120,7 @@ PropertyType = type(_Class.property)
 
 def get_type_var_from_generic_class(cls: type[Any]) -> tuple[TypeVar, ...]:
     """Return the `TypeVar` used in the class `Generic` parent."""
-    cls_orig_bases = cast(Iterable[Any], cls.__orig_bases__)  # type: ignore
+    cls_orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
     for orig_base in cls_orig_bases:
         if get_origin(orig_base) == Generic:
             return get_args(orig_base)
@@ -133,8 +139,7 @@ def get_type_var_mapping(
         raise ValueError(f"{cls} does not specialize a generic class.")
 
     # Get the generic parent
-    orig_bases = cls.__orig_bases__  # type: ignore
-    orig_bases = cast(Sequence[Any], orig_bases)
+    orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
     orig_bases = [
         orig_base for orig_base in orig_bases if get_origin(orig_base) is not Generic
     ]

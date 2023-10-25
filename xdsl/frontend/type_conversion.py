@@ -1,10 +1,16 @@
 import ast
+from dataclasses import dataclass, field
+from typing import (
+    Any,
+    TypeAlias,
+    _GenericAlias,  # pyright: ignore[reportPrivateUsage, reportGeneralTypeIssues, reportUnknownVariableType]
+)
+
 import xdsl.dialects.builtin as xdsl_builtin
 import xdsl.frontend.dialects.builtin as frontend_builtin
-
-from dataclasses import dataclass, field
-from typing import Any, Dict, _GenericAlias, Type, TypeAlias  # type: ignore
-from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
+from xdsl.frontend.dialects.builtin import (
+    _FrontendType,  # pyright: ignore[reportPrivateUsage]
+)
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.ir import Attribute
 
@@ -18,19 +24,19 @@ class TypeConverter:
     types.
     """
 
-    globals: Dict[str, Any]
+    globals: dict[str, Any]
     """
     Stores all globals in the current Python program, including imports. This is
     useful because we can lookup a class which corresponds to the type
     annotation without explicitly constructing it.
     """
 
-    name_to_xdsl_type_map: Dict[TypeName, Attribute] = field(default_factory=dict)
+    name_to_xdsl_type_map: dict[TypeName, Attribute] = field(default_factory=dict)
     """
     Map to cache xDSL types created so far to avoid repeated conversions.
     """
 
-    xdsl_to_frontend_type_map: Dict[Type[Attribute], Type[_FrontendType]] = field(
+    xdsl_to_frontend_type_map: dict[type[Attribute], type[_FrontendType]] = field(
         default_factory=dict
     )
     """
@@ -43,12 +49,12 @@ class TypeConverter:
     def __post_init__(self) -> None:
         # Cache index type because it is always used implicitly in loops and
         # many other IR constructs.
-        index = frontend_builtin._Index  # type: ignore
+        index = frontend_builtin._Index  # pyright: ignore[reportPrivateUsage]
         self._cache_type(index, xdsl_builtin.IndexType(), "index")
 
     def _cache_type(
         self,
-        frontend_type: Type[_FrontendType],
+        frontend_type: type[_FrontendType],
         xdsl_type: Attribute,
         type_name: TypeName,
     ) -> None:
@@ -133,7 +139,7 @@ class TypeConverter:
                 self.file,
                 type_hint.lineno,
                 type_hint.col_offset,
-                f"Converting subscript type hints is not supported.",
+                "Converting subscript type hints is not supported.",
             )
 
         # Type hint can also be a TypeAlias. For example, one can define

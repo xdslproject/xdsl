@@ -1,9 +1,9 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.program import FrontendProgram
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import i1, i32, i64, f16, f32, f64
+from xdsl.frontend.dialects.builtin import f16, f32, f64, i1, i32, i64
 from xdsl.frontend.exception import CodeGenerationException
+from xdsl.frontend.program import FrontendProgram
 
 p = FrontendProgram()
 with CodeContext(p):
@@ -31,27 +31,27 @@ with CodeContext(p):
     def test_shrsi_overload(a: i64, b: i64) -> i64:
         return a >> b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 0 : i64} : (i32, i32) -> i1
+    # CHECK:  arith.cmpi eq, %{{.*}}, %{{.*}} : i32
     def test_cmpi_eq_overload(a: i32, b: i32) -> i1:
         return a == b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 3 : i64} : (i64, i64) -> i1
+    # CHECK: arith.cmpi sle, %{{.*}}, %{{.*}} : i64
     def test_cmpi_le_overload(a: i64, b: i64) -> i1:
         return a <= b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 2 : i64} : (i32, i32) -> i1
+    # CHECK: arith.cmpi slt, %{{.*}}, %{{.*}} : i32
     def test_cmpi_lt_overload(a: i32, b: i32) -> i1:
         return a < b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 5 : i64} : (i64, i64) -> i1
+    # CHECK: arith.cmpi sge, %{{.*}}, %{{.*}} : i64
     def test_cmpi_ge_overload(a: i64, b: i64) -> i1:
         return a >= b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 4 : i64} : (i32, i32) -> i1
+    # CHECK: arith.cmpi sgt, %{{.*}}, %{{.*}} : i32
     def test_cmpi_gt_overload(a: i32, b: i32) -> i1:
         return a > b
 
-    # CHECK: "arith.cmpi"(%{{.*}}, %{{.*}}) {"predicate" = 1 : i64} : (i64, i64) -> i1
+    # CHECK: arith.cmpi ne, %{{.*}}, %{{.*}} : i64
     def test_cmpi_ne_overload(a: i64, b: i64) -> i1:
         return a != b
 
@@ -100,7 +100,7 @@ try:
         # CHECK: Binary operation 'FloorDiv' is not supported by type '_Float64' which does not overload '__floordiv__'.
         def test_missing_floordiv_overload_f64(a: f64, b: f64) -> f64:
             # We expect the type error here, since the function doesn't exist on f64
-            return a // b  # type: ignore
+            return a // b
 
     p.compile(desymref=False)
     print(p.textual_format())
@@ -112,7 +112,7 @@ try:
         # CHECK: Comparison operation 'In' is not supported by type '_Float64' which does not overload '__contains__'.
         def test_missing_contains_overload_f64(a: f64, b: f64) -> f64:
             # We expect the type error here, since the function doesn't exist on f64
-            return a in b  # type: ignore
+            return a in b
 
     p.compile(desymref=False)
     print(p.textual_format())

@@ -2,21 +2,30 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
+from functools import wraps
 from types import UnionType
 from typing import (
-    Callable,
     TypeVar,
     Union,
+    final,
     get_args,
     get_origin,
-    Iterable,
-    Sequence,
 )
 
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, Region, Block, BlockArgument, Attribute, SSAValue
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+)
 from xdsl.rewriter import Rewriter
+from xdsl.utils.hints import isa
 
 
 @dataclass(eq=False)
@@ -48,9 +57,15 @@ class PatternRewriter:
             return True
         if op.parent is None:
             return self.current_operation.get_toplevel_object() is not op
-        return self._can_modify_block(op.parent)
+        return self._can_modify_op_in_block(op.parent)
 
     def _can_modify_block(self, block: Block) -> bool:
+        """Check if the block can be modified by this rewriter."""
+        if block is self.current_operation.parent:
+            return True
+        return self._can_modify_op_in_block(block)
+
+    def _can_modify_op_in_block(self, block: Block) -> bool:
         """Check if the block and its children can be modified by this rewriter."""
         if block.parent is None:
             return True  # Toplevel operation of current_operation is always a ModuleOp
@@ -154,7 +169,7 @@ class PatternRewriter:
         """
         self.has_done_action = True
         if op == self.current_operation:
-            return self.erase_matched_op()
+            return self.erase_matched_op(safe_erase)
         if not self._can_modify_op(op):
             raise Exception(
                 "PatternRewriter can only erase operations that are the matched operation"
@@ -217,10 +232,10 @@ class PatternRewriter:
                 "Cannot modify blocks that are not contained in the matched operation"
             )
         self.has_done_action = True
-        arg.typ = new_type
+        arg.type = new_type
 
     def insert_block_argument(
-        self, block: Block, index: int, typ: Attribute
+        self, block: Block, index: int, arg_type: Attribute
     ) -> BlockArgument:
         """
         Insert a new block argument.
@@ -231,7 +246,7 @@ class PatternRewriter:
                 "Cannot modify blocks that are not contained in the matched operation"
             )
         self.has_done_action = True
-        return block.insert_arg(typ, index)
+        return block.insert_arg(arg_type, index)
 
     def erase_block_argument(self, arg: BlockArgument, safe_erase: bool = True) -> None:
         """
@@ -437,6 +452,141 @@ def op_type_rewrite_pattern(
     def impl(self: _RewritePatternT, op: Operation, rewriter: PatternRewriter) -> None:
         if isinstance(op, expected_type):
             func(self, op, rewriter)
+
+    return impl
+
+
+@dataclass
+class TypeConversionPattern(RewritePattern):
+    """
+    Base pattern for type conversion. It is supposed to be inherited from, then one can
+    implement `convert_type` to define the conversion.
+
+    It will convert an Operations' result types, dictionary attributes, and block arguments.
+
+    One can use `@attr_type_rewrite_pattern` on this defined method to automatically filter
+    on the Attribute type used.
+
+    This base pattern defines two flags:
+
+    - `recursive` (defaulting to False): recurse over structured attributes to convert
+      parameters.
+      e.g. a recusrive `i32` to `index` conversion will convert `vector<i32>` to
+      `vector<index>`.
+    - `ops` (defaulting to any Operation) is a tuple of Operation types on which to apply
+      the defined attribute conversion.
+    """
+
+    recursive: bool = False
+    """
+    recurse over structured attributes to convert parameters.
+    Defaults to False.
+    """
+    ops: tuple[type[Operation], ...] | None = None
+    """
+    A tuple of Operation types on which to apply the defined attribute conversion.
+    Defaults to any operation type.
+    """
+
+    @abstractmethod
+    def convert_type(self, typ: Attribute, /) -> Attribute | None:
+        """
+        The method to implement to define a TypeConversionPattern
+
+        This defines how the input Attribute should be converted.
+        It allows returning None, meaning "this attribute should not
+        be converted".
+        """
+        raise NotImplementedError()
+
+    @final
+    def _convert_type_rec(self, typ: Attribute) -> Attribute | None:
+        """
+        Provided recursion over structed/parameterized Attributes.
+        """
+        inp = typ
+        if self.recursive:
+            if isinstance(typ, ParametrizedAttribute):
+                parameters = list(
+                    self._convert_type_rec(p) or p for p in typ.parameters
+                )
+                inp = type(typ).new(parameters)
+            if isa(typ, ArrayAttr[Attribute]):
+                parameters = tuple(self._convert_type_rec(p) or p for p in typ)
+                inp = type(typ).new(parameters)
+        converted = self.convert_type(inp)
+        return converted if converted is not None else inp
+
+    @final
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
+        """
+        Pattern application implementation
+        """
+        if self.ops and not isinstance(op, self.ops):
+            return
+        new_result_types: list[Attribute] = []
+        new_attributes: dict[str, Attribute] = {}
+        new_properties: dict[str, Attribute] = {}
+        changed: bool = False
+        for result in op.results:
+            converted = self._convert_type_rec(result.type)
+            new_result_types.append(converted or result.type)
+            if converted is not None and converted != result.type:
+                changed = True
+        for name, attribute in op.attributes.items():
+            converted = self._convert_type_rec(attribute)
+            new_attributes[name] = converted or attribute
+            if converted is not None and converted != attribute:
+                changed = True
+        for name, attribute in op.properties.items():
+            converted = self._convert_type_rec(attribute)
+            new_properties[name] = converted or attribute
+            if converted is not None and converted != attribute:
+                changed = True
+        for region in op.regions:
+            for block in region.blocks:
+                for arg in block.args:
+                    converted = self.convert_type(arg.type)
+                    if converted is not None and converted != arg.type:
+                        rewriter.modify_block_argument_type(arg, converted)
+        if changed:
+            regions = [op.detach_region(r) for r in op.regions]
+            new_op = type(op).create(
+                operands=op.operands,
+                result_types=new_result_types,
+                properties=new_properties,
+                attributes=new_attributes,
+                successors=op.successors,
+                regions=regions,
+            )
+            rewriter.replace_matched_op(new_op)
+            for new, old in zip(new_op.results, op.results):
+                new.name_hint = old.name_hint
+
+
+_TypeConversionPatternT = TypeVar(
+    "_TypeConversionPatternT", bound=TypeConversionPattern
+)
+_AttributeT = TypeVar("_AttributeT", bound=Attribute)
+_ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
+
+
+def attr_type_rewrite_pattern(
+    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT]
+) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
+    """
+    This function is intended to be used as a decorator on a TypeConversionPattern
+    method. It uses type hints to match on a specific attribute type before
+    calling the decorated function.
+    """
+    params = list(inspect.signature(func).parameters.values())
+    expected_type: type[_AttributeT] = params[-1].annotation
+
+    @wraps(func)
+    def impl(self: _TypeConversionPatternT, typ: Attribute) -> Attribute | None:
+        if isa(typ, expected_type):
+            return func(self, typ)
+        return None
 
     return impl
 

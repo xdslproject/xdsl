@@ -43,47 +43,25 @@
 // CHECK-NEXT:       scf.for %arg3 = %c0_2 to %c64_4 step %c1 {
 // CHECK-NEXT:         scf.for %arg4 = %c0_3 to %c64_5 step %c1 {
 // CHECK-NEXT:           %c-1 = arith.constant -1 : index
-// CHECK-NEXT:           %c0_6 = arith.constant 0 : index
-// CHECK-NEXT:           %c0_7 = arith.constant 0 : index
 // CHECK-NEXT:           %0 = arith.addi %arg2, %c-1 : index
-// CHECK-NEXT:           %1 = arith.addi %arg3, %c0_6 : index
-// CHECK-NEXT:           %2 = arith.addi %arg4, %c0_7 : index
-// CHECK-NEXT:           %3 = memref.load %subview_1[%0, %1, %2] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:           %c1_8 = arith.constant 1 : index
-// CHECK-NEXT:           %c0_9 = arith.constant 0 : index
-// CHECK-NEXT:           %c0_10 = arith.constant 0 : index
-// CHECK-NEXT:           %4 = arith.addi %arg2, %c1_8 : index
-// CHECK-NEXT:           %5 = arith.addi %arg3, %c0_9 : index
-// CHECK-NEXT:           %6 = arith.addi %arg4, %c0_10 : index
-// CHECK-NEXT:           %7 = memref.load %subview_1[%4, %5, %6] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:           %c0_11 = arith.constant 0 : index
-// CHECK-NEXT:           %c1_12 = arith.constant 1 : index
-// CHECK-NEXT:           %c0_13 = arith.constant 0 : index
-// CHECK-NEXT:           %8 = arith.addi %arg2, %c0_11 : index
-// CHECK-NEXT:           %9 = arith.addi %arg3, %c1_12 : index
-// CHECK-NEXT:           %10 = arith.addi %arg4, %c0_13 : index
-// CHECK-NEXT:           %11 = memref.load %subview_1[%8, %9, %10] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:           %c0_14 = arith.constant 0 : index
-// CHECK-NEXT:           %c-1_15 = arith.constant -1 : index
-// CHECK-NEXT:           %c0_16 = arith.constant 0 : index
-// CHECK-NEXT:           %12 = arith.addi %arg2, %c0_14 : index
-// CHECK-NEXT:           %13 = arith.addi %arg3, %c-1_15 : index
-// CHECK-NEXT:           %14 = arith.addi %arg4, %c0_16 : index
-// CHECK-NEXT:           %15 = memref.load %subview_1[%12, %13, %14] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:           %c0_17 = arith.constant 0 : index
-// CHECK-NEXT:           %c0_18 = arith.constant 0 : index
-// CHECK-NEXT:           %c0_19 = arith.constant 0 : index
-// CHECK-NEXT:           %16 = arith.addi %arg2, %c0_17 : index
-// CHECK-NEXT:           %17 = arith.addi %arg3, %c0_18 : index
-// CHECK-NEXT:           %18 = arith.addi %arg4, %c0_19 : index
-// CHECK-NEXT:           %19 = memref.load %subview_1[%16, %17, %18] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:           %20 = arith.addf %3, %7 : f64
-// CHECK-NEXT:           %21 = arith.addf %11, %15 : f64
-// CHECK-NEXT:           %22 = arith.addf %20, %21 : f64
+// CHECK-NEXT:           %1 = memref.load %subview_1[%0, %arg3, %arg4] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:           %c1_6 = arith.constant 1 : index
+// CHECK-NEXT:           %2 = arith.addi %arg2, %c1_6 : index
+// CHECK-NEXT:           %3 = memref.load %subview_1[%2, %arg3, %arg4] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:           %c1_7 = arith.constant 1 : index
+// CHECK-NEXT:           %4 = arith.addi %arg3, %c1_7 : index
+// CHECK-NEXT:           %5 = memref.load %subview_1[%arg2, %4, %arg4] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:           %c-1_8 = arith.constant -1 : index
+// CHECK-NEXT:           %6 = arith.addi %arg3, %c-1_8 : index
+// CHECK-NEXT:           %7 = memref.load %subview_1[%arg2, %6, %arg4] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:           %8 = memref.load %subview_1[%arg2, %arg3, %arg4] : memref<72x72x72xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:           %9 = arith.addf %1, %3 : f64
+// CHECK-NEXT:           %10 = arith.addf %5, %7 : f64
+// CHECK-NEXT:           %11 = arith.addf %9, %10 : f64
 // CHECK-NEXT:           %cst = arith.constant -4.000000e+00 : f64
-// CHECK-NEXT:           %23 = arith.mulf %19, %cst : f64
-// CHECK-NEXT:           %24 = arith.addf %23, %22 : f64
-// CHECK-NEXT:           memref.store %24, %subview[%arg2, %arg3, %arg4] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:           %12 = arith.mulf %8, %cst : f64
+// CHECK-NEXT:           %13 = arith.addf %12, %11 : f64
+// CHECK-NEXT:           memref.store %13, %subview[%arg2, %arg3, %arg4] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:         }
 // CHECK-NEXT:       }
 // CHECK-NEXT:       scf.yield

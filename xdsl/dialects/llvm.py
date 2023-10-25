@@ -1,53 +1,61 @@
 from __future__ import annotations
-from typing import Sequence
+
+from collections.abc import Sequence
+from enum import Enum
+from types import EllipsisType
+from typing import Literal
 
 from xdsl.dialects.builtin import (
-    StringAttr,
-    ArrayAttr,
-    DenseArrayBase,
-    IntAttr,
-    NoneAttr,
-    IntegerType,
-    IntegerAttr,
     AnyIntegerAttr,
+    ArrayAttr,
+    ContainerType,
+    DenseArrayBase,
     IndexType,
-    UnitAttr,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    NoneAttr,
+    StringAttr,
     SymbolRefAttr,
+    UnitAttr,
     i32,
     i64,
-    ContainerType,
 )
 from xdsl.ir import (
-    Block,
-    TypeAttribute,
-    ParametrizedAttribute,
     Attribute,
+    Data,
     Dialect,
-    OpResult,
     Operation,
-    SSAValue,
+    OpResult,
+    ParametrizedAttribute,
     Region,
+    SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
+    IRDLOperation,
     Operand,
+    OptOperand,
+    OptOpResult,
     ParameterDef,
-    AnyAttr,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    VarOperand,
-    IRDLOperation,
     operand_def,
-    opt_attr_def,
+    opt_operand_def,
+    opt_prop_def,
+    opt_result_def,
+    prop_def,
     region_def,
     result_def,
     var_operand_def,
 )
-
-from xdsl.utils.exceptions import VerifyException
-
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator, SymbolOpInterface
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -86,8 +94,8 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
         printer.print_list(self.types.data, printer.print_attribute)
         printer.print(")>")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", " in LLVM struct")
         struct_name = parser.parse_optional_str_literal()
         if struct_name is None:
@@ -123,8 +131,8 @@ class LLVMPointerType(
 
         printer.print_string(">")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         if parser.parse_optional_characters("<") is None:
             return [NoneAttr(), NoneAttr()]
         type = parser.parse_optional_type()
@@ -167,8 +175,8 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         printer.print_attribute(self.type)
         printer.print_string(">")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         if parser.parse_optional_characters("<") is None:
             return [NoneAttr(), NoneAttr()]
         size = IntAttr(parser.parse_integer())
@@ -205,17 +213,24 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 
     inputs: ParameterDef[ArrayAttr[Attribute]]
     output: ParameterDef[Attribute]
+    variadic: ParameterDef[UnitAttr | NoneAttr]
 
     def __init__(
         self,
         inputs: Sequence[Attribute] | ArrayAttr[Attribute],
         output: Attribute | None = None,
+        is_variadic: bool = False,
     ) -> None:
         if not isinstance(inputs, ArrayAttr):
             inputs = ArrayAttr(inputs)
         if output is None:
             output = LLVMVoidType()
-        super().__init__([inputs, output])
+        variad_attr = UnitAttr() if is_variadic else NoneAttr()
+        super().__init__([inputs, output, variad_attr])
+
+    @property
+    def is_variadic(self) -> bool:
+        return isinstance(self.variadic, UnitAttr)
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -226,22 +241,51 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 
         printer.print(" (")
         printer.print_list(self.inputs, printer.print_attribute)
+        if self.is_variadic:
+            if self.inputs:
+                printer.print(", ")
+            printer.print("...")
+
         printer.print_string(")>")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", " in llvm.func parameters")
         if parser.parse_optional_characters("void"):
             output = LLVMVoidType()
         else:
             output = parser.parse_attribute()
 
+        # save pos before args for error message printing
+        pos = parser.pos
+
+        def _parse_attr_or_variadic() -> Attribute | EllipsisType:
+            """
+            This returns either an attribute, or Ellipsis if a
+            varargs specifier (`...`) was parsed.
+            """
+            if parser.parse_optional_characters("...") is not None:
+                return ...
+            return parser.parse_attribute()
+
         inputs = parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parser.parse_attribute
+            Parser.Delimiter.PAREN, _parse_attr_or_variadic
         )
+        is_varargs: NoneAttr | UnitAttr = NoneAttr()
+        if inputs and inputs[-1] is Ellipsis:
+            is_varargs = UnitAttr()
+            inputs = inputs[:-1]
+
+        if not isa(inputs, list[Attribute]):
+            parser.raise_error(
+                "Varargs specifier `...` must be at the end of the argument definition",
+                pos,
+                parser.pos,
+            )
+
         parser.parse_characters(">", " in llvm.func parameters")
 
-        return [ArrayAttr(inputs), output]
+        return [ArrayAttr(inputs), output, is_varargs]
 
 
 @irdl_attr_definition
@@ -260,8 +304,8 @@ class LinkageAttr(ParametrizedAttribute):
         printer.print_attribute(self.linkage)
         printer.print_string(">")
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", "llvm.linkage parameter expected")
         # The linkage string is output from xDSL as a string (and accepted by MLIR as such)
         # however it is always output from MLIR without quotes. Therefore need to determine
@@ -406,15 +450,15 @@ class GEPOp(IRDLOperation):
 
     ptr: Operand = operand_def(LLVMPointerType)
     ssa_indices: VarOperand = var_operand_def(IntegerType)
-    elem_type: Attribute | None = opt_attr_def(Attribute)
+    elem_type: Attribute | None = opt_prop_def(Attribute)
 
     result: OpResult = result_def(LLVMPointerType)
 
-    rawConstantIndices: DenseArrayBase = attr_def(DenseArrayBase)
-    inbounds: UnitAttr | None = opt_attr_def(UnitAttr)
+    rawConstantIndices: DenseArrayBase = prop_def(DenseArrayBase)
+    inbounds: UnitAttr | None = opt_prop_def(UnitAttr)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         ptr: SSAValue | Operation,
         indices: Sequence[int],
         ssa_indices: Sequence[SSAValue | Operation] | None = None,
@@ -431,18 +475,17 @@ class GEPOp(IRDLOperation):
         Take a look at `from_mixed_indices` for something without
         magic values.
         """
-        # construct default mutable argument here:
         if ssa_indices is None:
             ssa_indices = []
 
         # convert a potential Operation into an SSAValue
         ptr_val = SSAValue.get(ptr)
-        ptr_type = ptr_val.typ
+        ptr_type = ptr_val.type
 
         if not isinstance(ptr_type, LLVMPointerType):
             raise ValueError("Input must be a pointer")
 
-        attrs: dict[str, Attribute] = {
+        props: dict[str, Attribute] = {
             "rawConstantIndices": DenseArrayBase.create_dense_int_or_index(
                 i32, indices
             ),
@@ -452,13 +495,13 @@ class GEPOp(IRDLOperation):
             if pointee_type is None:
                 raise ValueError("Opaque types must have a pointee type passed")
             # opaque input ptr => opaque output ptr
-            attrs["elem_type"] = LLVMPointerType.opaque()
+            props["elem_type"] = LLVMPointerType.opaque()
 
         if inbounds:
-            attrs["inbounds"] = UnitAttr()
+            props["inbounds"] = UnitAttr()
 
-        return GEPOp.build(
-            operands=[ptr, ssa_indices], result_types=[result_type], attributes=attrs
+        super().__init__(
+            operands=[ptr, ssa_indices], result_types=[result_type], properties=props
         )
 
     @staticmethod
@@ -486,7 +529,7 @@ class GEPOp(IRDLOperation):
             else:
                 const_indices.append(GEP_USE_SSA_VAL)
                 ssa_indices.append(SSAValue.get(idx))
-        return GEPOp.get(
+        return GEPOp(
             ptr,
             const_indices,
             ssa_indices,
@@ -502,29 +545,28 @@ class AllocaOp(IRDLOperation):
 
     size: Operand = operand_def(IntegerType)
 
-    alignment: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    alignment: AnyIntegerAttr = prop_def(AnyIntegerAttr)
+    elem_type = opt_prop_def(Attribute)
 
     res: OpResult = result_def()
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         size: SSAValue | Operation,
         elem_type: Attribute,
         alignment: int = 32,
         as_untyped_ptr: bool = False,
     ):
-        attrs: dict[str, Attribute] = {
+        props: dict[str, Attribute] = {
             "alignment": IntegerAttr.from_int_and_width(alignment, 64)
         }
         if as_untyped_ptr:
             ptr_type = LLVMPointerType.opaque()
-            attrs["elem_type"] = elem_type
+            props["elem_type"] = elem_type
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
 
-        return AllocaOp.build(
-            operands=[size], attributes=attrs, result_types=[ptr_type]
-        )
+        super().__init__(operands=[size], properties=props, result_types=[ptr_type])
 
 
 @irdl_op_definition
@@ -535,13 +577,12 @@ class IntToPtrOp(IRDLOperation):
 
     output: OpResult = result_def(LLVMPointerType)
 
-    @staticmethod
-    def get(input: SSAValue | Operation, ptr_type: Attribute | None = None):
+    def __init__(self, input: SSAValue | Operation, ptr_type: Attribute | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
-        return IntToPtrOp.build(operands=[input], result_types=[ptr_type])
+        super().__init__(operands=[input], result_types=[ptr_type])
 
 
 @irdl_op_definition
@@ -552,9 +593,8 @@ class PtrToIntOp(IRDLOperation):
 
     output: OpResult = result_def(IntegerType)
 
-    @staticmethod
-    def get(arg: SSAValue | Operation, int_type: Attribute = i64):
-        return PtrToIntOp.build(operands=[arg], result_types=[int_type])
+    def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
+        super().__init__(operands=[arg], result_types=[int_type])
 
 
 @irdl_op_definition
@@ -563,21 +603,22 @@ class LoadOp(IRDLOperation):
 
     ptr: Operand = operand_def(LLVMPointerType)
 
+    ordering = opt_prop_def(IntegerAttr[IntegerType])
+
     dereferenced_value: OpResult = result_def()
 
-    @staticmethod
-    def get(ptr: SSAValue | Operation, result_type: Attribute | None = None):
+    def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
         if result_type is None:
             ptr = SSAValue.get(ptr)
-            assert isinstance(ptr.typ, LLVMPointerType)
+            assert isinstance(ptr.type, LLVMPointerType)
 
-            if isinstance(ptr.typ.type, NoneAttr):
+            if isinstance(ptr.type.type, NoneAttr):
                 raise ValueError(
                     "llvm.load requires either a result type or a typed pointer!"
                 )
-            result_type = ptr.typ.type
+            result_type = ptr.type.type
 
-        return LoadOp.build(operands=[ptr], result_types=[result_type])
+        super().__init__(operands=[ptr], result_types=[result_type])
 
 
 @irdl_op_definition
@@ -587,13 +628,13 @@ class StoreOp(IRDLOperation):
     value: Operand = operand_def()
     ptr: Operand = operand_def(LLVMPointerType)
 
-    alignment: IntegerAttr[IntegerType] | None = opt_attr_def(IntegerAttr[IntegerType])
-    ordering: IntegerAttr[IntegerType] | None = opt_attr_def(IntegerAttr[IntegerType])
-    volatile_: UnitAttr | None = opt_attr_def(UnitAttr)
-    nontemporal: UnitAttr | None = opt_attr_def(UnitAttr)
+    alignment: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
+    ordering: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
+    volatile_: UnitAttr | None = opt_prop_def(UnitAttr)
+    nontemporal: UnitAttr | None = opt_prop_def(UnitAttr)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         value: SSAValue | Operation,
         ptr: SSAValue | Operation,
         alignment: int | None = None,
@@ -601,20 +642,20 @@ class StoreOp(IRDLOperation):
         volatile: bool = False,
         nontemporal: bool = False,
     ):
-        attrs: dict[str, Attribute] = {
+        props: dict[str, Attribute] = {
             "ordering": IntegerAttr(ordering, i64),
         }
 
         if alignment is not None:
-            attrs["alignment"] = IntegerAttr[IntegerType](alignment, i64)
+            props["alignment"] = IntegerAttr[IntegerType](alignment, i64)
         if volatile:
-            attrs["volatile_"] = UnitAttr()
+            props["volatile_"] = UnitAttr()
         if nontemporal:
-            attrs["nontemporal"] = UnitAttr()
+            props["nontemporal"] = UnitAttr()
 
-        return StoreOp.build(
+        super().__init__(
             operands=[value, ptr],
-            attributes=attrs,
+            properties=props,
             result_types=[],
         )
 
@@ -625,68 +666,115 @@ class NullOp(IRDLOperation):
 
     nullptr: OpResult = result_def(LLVMPointerType)
 
-    @staticmethod
-    def get(ptr_type: LLVMPointerType | None = None):
+    def __init__(self, ptr_type: LLVMPointerType | None = None):
         if ptr_type is None:
             ptr_type = LLVMPointerType.opaque()
         assert isinstance(ptr_type, LLVMPointerType)
 
-        return NullOp.build(result_types=[ptr_type])
+        super().__init__(result_types=[ptr_type])
 
 
 @irdl_op_definition
-class LLVMExtractValue(IRDLOperation):
+class ExtractValueOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmextractvalue-mlirllvmextractvalueop
+    """
+
     name = "llvm.extractvalue"
 
     position: DenseArrayBase = attr_def(DenseArrayBase)
-    container: Operand = operand_def(AnyAttr())
+    container: Operand = operand_def(Attribute)
 
-    res: OpResult = result_def(AnyAttr())
+    res: OpResult = result_def(Attribute)
+
+    def __init__(
+        self,
+        position: DenseArrayBase,
+        container: SSAValue | Operation,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[container],
+            attributes={
+                "position": position,
+            },
+            result_types=[result_type],
+        )
 
 
 @irdl_op_definition
-class LLVMInsertValue(IRDLOperation):
+class InsertValueOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertvalue-mlirllvminsertvalueop
+    """
+
     name = "llvm.insertvalue"
 
     position: DenseArrayBase = attr_def(DenseArrayBase)
-    container: Operand = operand_def(AnyAttr())
-    value: Operand = operand_def(AnyAttr())
+    container: Operand = operand_def(Attribute)
+    value: Operand = operand_def(Attribute)
 
-    res: OpResult = result_def(AnyAttr())
+    res: OpResult = result_def(Attribute)
+
+    def __init__(
+        self,
+        position: DenseArrayBase,
+        container: SSAValue,
+        value: SSAValue,
+    ):
+        super().__init__(
+            operands=[container, value],
+            attributes={
+                "position": position,
+            },
+            result_types=[container.type],
+        )
 
 
 @irdl_op_definition
-class LLVMMLIRUndef(IRDLOperation):
+class UndefOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop
+    """
+
     name = "llvm.mlir.undef"
 
-    res: OpResult = result_def(AnyAttr())
+    res: OpResult = result_def(Attribute)
+
+    def __init__(self, result_type: Attribute):
+        super().__init__(result_types=[result_type])
 
 
 @irdl_op_definition
 class GlobalOp(IRDLOperation):
     name = "llvm.mlir.global"
 
-    global_type: Attribute = attr_def(Attribute)
-    constant: UnitAttr | None = opt_attr_def(UnitAttr)
-    sym_name: StringAttr = attr_def(StringAttr)
-    linkage: LinkageAttr = attr_def(LinkageAttr)
-    dso_local: UnitAttr | None = opt_attr_def(UnitAttr)
-    thread_local_: UnitAttr | None = opt_attr_def(UnitAttr)
-    value: Attribute | None = opt_attr_def(Attribute)
-    alignment: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
-    addr_space: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    unnamed_addr: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
-    section: StringAttr | None = opt_attr_def(StringAttr)
+    global_type: Attribute = prop_def(Attribute)
+    constant: UnitAttr | None = opt_prop_def(UnitAttr)
+    sym_name: StringAttr = prop_def(StringAttr)
+    linkage: LinkageAttr = prop_def(LinkageAttr)
+    dso_local: UnitAttr | None = opt_prop_def(UnitAttr)
+    thread_local_: UnitAttr | None = opt_prop_def(UnitAttr)
+    visibility_: IntegerAttr[IntegerType] | None = opt_prop_def(
+        IntegerAttr[IntegerType]
+    )
+    value: Attribute | None = opt_prop_def(Attribute)
+    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
+    addr_space: AnyIntegerAttr = prop_def(AnyIntegerAttr)
+    unnamed_addr: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
+    section: StringAttr | None = opt_prop_def(StringAttr)
 
     # This always needs an empty region as it is in the top level module definition
     body: Region = region_def()
 
-    @staticmethod
-    def get(
+    traits = frozenset([SymbolOpInterface()])
+
+    def __init__(
+        self,
         global_type: Attribute,
         sym_name: str | StringAttr,
         linkage: str | LinkageAttr,
-        addr_space: int,
+        addr_space: int = 0,
         constant: bool | None = None,
         dso_local: bool | None = None,
         thread_local_: bool | None = None,
@@ -701,7 +789,7 @@ class GlobalOp(IRDLOperation):
         if isinstance(linkage, str):
             linkage = LinkageAttr(linkage)
 
-        attrs: dict[str, Attribute] = {
+        props: dict[str, Attribute] = {
             "global_type": global_type,
             "sym_name": sym_name,
             "linkage": linkage,
@@ -709,57 +797,308 @@ class GlobalOp(IRDLOperation):
         }
 
         if constant is not None and constant:
-            attrs["constant"] = UnitAttr()
+            props["constant"] = UnitAttr()
 
         if dso_local is not None and dso_local:
-            attrs["dso_local"] = UnitAttr()
+            props["dso_local"] = UnitAttr()
 
         if thread_local_ is not None and thread_local_:
-            attrs["thread_local_"] = UnitAttr()
+            props["thread_local_"] = UnitAttr()
 
         if value is not None:
-            attrs["value"] = value
+            props["value"] = value
 
         if alignment is not None:
-            attrs["alignment"] = IntegerAttr(alignment, 64)
+            props["alignment"] = IntegerAttr(alignment, 64)
 
         if unnamed_addr is not None:
-            attrs["unnamed_addr"] = IntegerAttr(unnamed_addr, 64)
+            props["unnamed_addr"] = IntegerAttr(unnamed_addr, 64)
 
         if section is not None:
             if isinstance(section, str):
                 section = StringAttr(section)
-            attrs["section"] = section
+            props["section"] = section
 
-        return GlobalOp.build(attributes=attrs, regions=[Region([Block()])])
+        super().__init__(properties=props, regions=[Region([])])
 
 
 @irdl_op_definition
 class AddressOfOp(IRDLOperation):
     name = "llvm.mlir.addressof"
 
-    global_name: SymbolRefAttr = attr_def(SymbolRefAttr)
+    global_name: SymbolRefAttr = prop_def(SymbolRefAttr)
     result: OpResult = result_def(LLVMPointerType)
 
-    @staticmethod
-    def get(
-        global_name: str | StringAttr | SymbolRefAttr, result_type: LLVMPointerType
+    def __init__(
+        self,
+        global_name: str | StringAttr | SymbolRefAttr,
+        result_type: LLVMPointerType,
     ):
-        if isinstance(global_name, str):
-            global_name = StringAttr(global_name)
-        if isinstance(global_name, StringAttr):
+        if isinstance(global_name, StringAttr | str):
             global_name = SymbolRefAttr(global_name)
 
-        return AddressOfOp.build(
-            attributes={"global_name": global_name}, result_types=[result_type]
+        super().__init__(
+            properties={"global_name": global_name}, result_types=[result_type]
+        )
+
+
+LLVM_CALLING_CONVS: set[str] = {
+    "ccc",
+    "fastcc",
+    "coldcc",
+    "cc 10",
+    "cc 11",
+    "webkit_jscc",
+    "anyregcc",
+    "preserve_mostcc",
+    "preserve_allcc",
+    "cxx_fast_tlscc",
+    "tailcc",
+    "swiftcc",
+    "swifttailcc",
+    "cfguard_checkcc",
+}
+"""
+A list of all valid calling conventions understood by LLVM, see
+https://llvm.org/docs/LangRef.html#calling-conventions
+for more info.
+"""
+
+
+@irdl_attr_definition
+class CallingConventionAttr(ParametrizedAttribute):
+    """
+    LLVM Calling convention, default is ccc.
+    """
+
+    name = "llvm.cconv"
+
+    convention: ParameterDef[StringAttr]
+
+    @property
+    def cconv_name(self) -> str:
+        return self.convention.data
+
+    def __init__(self, conv: str):
+        super().__init__([StringAttr(conv)])
+
+    def _verify(self):
+        if self.cconv_name not in LLVM_CALLING_CONVS:
+            raise VerifyException(f'Invalid calling convention "{self.cconv_name}"')
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<" + self.convention.data + ">")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_characters("<")
+        for conv in LLVM_CALLING_CONVS:
+            if parser.parse_optional_characters(conv) is not None:
+                parser.parse_characters(">")
+                return [StringAttr(conv)]
+        parser.raise_error("Unknown calling convention")
+
+
+@irdl_op_definition
+class FuncOp(IRDLOperation):
+    name = "llvm.func"
+
+    body: Region = region_def()
+    sym_name: StringAttr = prop_def(StringAttr)
+    function_type: LLVMFunctionType = prop_def(LLVMFunctionType)
+    CConv: CallingConventionAttr = prop_def(CallingConventionAttr)
+    linkage: LinkageAttr = prop_def(LinkageAttr)
+    visibility_: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
+
+    def __init__(
+        self,
+        sym_name: str | StringAttr,
+        function_type: LLVMFunctionType,
+        linkage: LinkageAttr = LinkageAttr("internal"),
+        cconv: CallingConventionAttr = CallingConventionAttr("ccc"),
+        visibility: int | IntegerAttr[IntegerType] = 0,
+        body: Region | None = None,
+    ):
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+        if isinstance(visibility, int):
+            visibility = IntegerAttr.from_int_and_width(visibility, 64)
+        if body is None:
+            body = Region([])
+        super().__init__(
+            operands=[],
+            regions=[body],
+            properties={
+                "sym_name": sym_name,
+                "function_type": function_type,
+                "CConv": cconv,
+                "linkage": linkage,
+                "visibility_": visibility,
+            },
+        )
+
+
+@irdl_op_definition
+class ReturnOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmreturn-mlirllvmreturnop
+    """
+
+    name = "llvm.return"
+
+    arg: OptOperand = opt_operand_def(Attribute)
+
+    traits = frozenset((IsTerminator(),))
+
+    def __init__(self, value: Attribute | None = None):
+        super().__init__(attributes={"value": value})
+
+
+@irdl_op_definition
+class ConstantOp(IRDLOperation):
+    name = "llvm.mlir.constant"
+    result: OpResult = result_def(Attribute)
+    value: Attribute = prop_def(Attribute)
+
+    def __init__(self, value: Attribute, value_type: Attribute):
+        super().__init__(properties={"value": value}, result_types=[value_type])
+
+
+class FastMathFlag(Enum):
+    REASSOC = "reassoc"
+    NO_NANS = "nnan"
+    NO_INFS = "ninf"
+    NO_SIGNED_ZEROS = "nsz"
+    ALLOW_RECIP = "arcp"
+    ALLOW_CONTRACT = "contract"
+    APPROX_FUNC = "afn"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> set[FastMathFlag] | None:
+        if parser.parse_optional_characters("none") is not None:
+            return set[FastMathFlag]()
+        if parser.parse_optional_characters("fast") is not None:
+            return set(FastMathFlag)
+
+        for option in FastMathFlag:
+            if parser.parse_optional_characters(option.value) is not None:
+                return {option}
+
+        return None
+
+
+@irdl_attr_definition
+class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
+    name = "llvm.fastmath"
+
+    @property
+    def flags(self) -> set[FastMathFlag]:
+        """
+        Returns a copy of the fast math flags.
+        """
+        return set(self.data)
+
+    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        flags_: set[FastMathFlag]
+        match flags:
+            case "none" | None:
+                flags_ = set()
+            case "fast":
+                flags_ = set(FastMathFlag)
+            case other:
+                flags_ = set(other)
+
+        super().__init__(tuple(flags_))
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[FastMathFlag, ...]:
+        flags = FastMathFlag.try_parse(parser)
+        if flags is None:
+            return tuple()
+
+        while parser.parse_optional_punctuation(",") is not None:
+            flag = parser.expect(
+                lambda: FastMathFlag.try_parse(parser), "fastmath flag expected"
+            )
+            flags.update(flag)
+
+        return tuple(flags)
+
+    def print_parameter(self, printer: Printer):
+        flags = self.data
+        if len(flags) == 0:
+            printer.print("none")
+        elif len(flags) == len(FastMathFlag):
+            printer.print("fast")
+        else:
+            # make sure we emit flags in a consistent order
+            printer.print(
+                ",".join(flag.value for flag in FastMathFlag if flag in flags)
+            )
+
+
+@irdl_op_definition
+class CallIntrinsicOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop
+    """
+
+    name = "llvm.call_intrinsic"
+
+    fastmathFlags: FastMathAttr | None = opt_prop_def(FastMathAttr)
+    intrin: StringAttr = prop_def(StringAttr)
+    args: VarOperand = var_operand_def()
+    ress: OptOpResult = opt_result_def()
+
+    def __init__(
+        self,
+        intrin: StringAttr | str,
+        args: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+    ):
+        if isinstance(intrin, str):
+            intrin = StringAttr(intrin)
+        super().__init__(
+            operands=args,
+            result_types=(result_types,),
+            properties={
+                "intrin": intrin,
+            },
+        )
+
+
+@irdl_op_definition
+class CallOp(IRDLOperation):
+    name = "llvm.call"
+
+    args: VarOperand = var_operand_def()
+
+    callee: SymbolRefAttr = prop_def(SymbolRefAttr)
+    fastmathFlags: FastMathAttr = prop_def(FastMathAttr)
+
+    def __init__(
+        self,
+        callee: str | SymbolRefAttr | StringAttr,
+        *args: SSAValue | Operation,
+        fastmath: FastMathAttr = FastMathAttr(None),
+    ):
+        if isinstance(callee, str):
+            callee = SymbolRefAttr(callee)
+
+        super().__init__(
+            operands=[args],
+            properties={
+                "callee": callee,
+                "fastmathFlags": fastmath,
+            },
         )
 
 
 LLVM = Dialect(
     [
-        LLVMExtractValue,
-        LLVMInsertValue,
-        LLVMMLIRUndef,
+        ExtractValueOp,
+        InsertValueOp,
+        UndefOp,
         AllocaOp,
         GEPOp,
         IntToPtrOp,
@@ -768,6 +1107,11 @@ LLVM = Dialect(
         StoreOp,
         GlobalOp,
         AddressOfOp,
+        FuncOp,
+        CallOp,
+        ReturnOp,
+        ConstantOp,
+        CallIntrinsicOp,
     ],
     [
         LLVMStructType,
@@ -776,5 +1120,7 @@ LLVM = Dialect(
         LLVMVoidType,
         LLVMFunctionType,
         LinkageAttr,
+        CallingConventionAttr,
+        FastMathAttr,
     ],
 )

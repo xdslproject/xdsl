@@ -1,29 +1,50 @@
-from typing import Sequence
+from collections.abc import Sequence
+from dataclasses import dataclass
+
 import pytest
 
+from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
     AnyTensorType,
+    ArrayAttr,
+    BFloat16Type,
     ComplexType,
+    CustomErrorMessageAttrConstraint,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
+    Float16Type,
+    Float32Type,
+    Float64Type,
+    Float80Type,
+    Float128Type,
+    FloatAttr,
+    FloatData,
+    IntAttr,
     NoneAttr,
     StridedLayoutAttr,
-    i32,
-    f32,
-    FloatAttr,
-    ArrayAttr,
-    IntAttr,
-    FloatData,
     SymbolRefAttr,
+    UnrealizedConversionCastOp,
+    VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
     VectorRankConstraint,
-    VectorBaseTypeAndRankConstraint,
+    VectorType,
+    f32,
+    i32,
+    i64,
 )
-from xdsl.dialects.builtin import i32, i64, VectorType, UnrealizedConversionCastOp
-from xdsl.dialects.arith import Constant
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute
+from xdsl.irdl import AttrConstraint
 from xdsl.utils.exceptions import VerifyException
+
+
+def test_FloatType_bitwidths():
+    assert BFloat16Type().get_bitwidth == 16
+    assert Float16Type().get_bitwidth == 16
+    assert Float32Type().get_bitwidth == 32
+    assert Float64Type().get_bitwidth == 64
+    assert Float80Type().get_bitwidth == 80
+    assert Float128Type().get_bitwidth == 128
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
@@ -33,9 +54,9 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     value2 = check1.data.data[1].value.data
 
     # Ensure type conversion happened properly during attribute construction.
-    assert type(value1) == float
+    assert isinstance(value1, float)
     assert value1 == 4.0
-    assert type(value2) == float
+    assert isinstance(value2, float)
     assert value2 == 5.0
 
     t1 = FloatAttr(4.0, f32)
@@ -47,9 +68,9 @@ def test_DenseIntOrFPElementsAttr_fp_type_conversion():
     value4 = check2.data.data[1].value.data
 
     # Ensure type conversion happened properly during attribute construction.
-    assert type(value3) == float
+    assert isinstance(value3, float)
     assert value3 == 4.0
-    assert type(value4) == float
+    assert isinstance(value4, float)
     assert value4 == 5.0
 
 
@@ -222,16 +243,16 @@ memref<1x2xi32> should be of type VectorType."""
 
 def test_unrealized_conversion_cast():
     i64_constant = Constant.from_int_and_width(1, 64)
-    f32_constant = Constant.from_float_and_width(10.1, f32)
+    f32_constant = Constant(FloatAttr(10.1, f32))
 
     conv_op1 = UnrealizedConversionCastOp.get([i64_constant.results[0]], [f32])
     conv_op2 = UnrealizedConversionCastOp.get([f32_constant.results[0]], [i32])
 
-    assert conv_op1.inputs[0].typ == i64
-    assert conv_op1.outputs[0].typ == f32
+    assert conv_op1.inputs[0].type == i64
+    assert conv_op1.outputs[0].type == f32
 
-    assert conv_op2.inputs[0].typ == f32
-    assert conv_op2.outputs[0].typ == i32
+    assert conv_op2.inputs[0].type == f32
+    assert conv_op2.outputs[0].type == i32
 
 
 @pytest.mark.parametrize(
@@ -265,3 +286,32 @@ def test_dense_as_tuple():
 
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)
+
+
+def test_custom_error_message_constraint():
+    @dataclass
+    class AlwaysFails(AttrConstraint):
+        message: str
+
+        def verify(
+            self, attr: Attribute, constraint_vars: dict[str, Attribute]
+        ) -> None:
+            raise VerifyException(self.message)
+
+    inner = AlwaysFails("fail")
+
+    one = IntAttr(1)
+
+    with pytest.raises(VerifyException, match="wrapped") as e:
+        outer = CustomErrorMessageAttrConstraint(inner, "wrapped")
+        outer.verify(one, {})
+        assert hasattr(e, "__context__")
+        context = getattr(e, "__context__")
+        assert "fail" in context
+
+    with pytest.raises(VerifyException, match="wrapped #int<1>") as e:
+        outer = CustomErrorMessageAttrConstraint(inner, lambda k: f"wrapped {k}")
+        outer.verify(one, {})
+        assert hasattr(e, "__context__")
+        context = getattr(e, "__context__")
+        assert "fail" in context

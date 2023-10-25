@@ -2,23 +2,20 @@
 Rewrite patterns for lowering snitch → riscv.
 """
 
-from typing import Tuple
 from dataclasses import dataclass
-from xdsl.passes import ModulePass
 
+from xdsl.dialects import builtin, riscv, riscv_snitch, snitch
+from xdsl.dialects.builtin import IntegerAttr, i32
 from xdsl.ir import MLContext
 from xdsl.irdl import Operand
-
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    RewritePattern,
-    PatternRewriter,
-    op_type_rewrite_pattern,
-    PatternRewriteWalker,
     GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-
-from xdsl.dialects.builtin import IntegerAttr, i32
-from xdsl.dialects import snitch, riscv, builtin
 
 
 @dataclass(frozen=True)
@@ -66,7 +63,7 @@ class SnitchStreamerMemoryMap:
     # Offset of the streamer repetition configuration.
     repeat: int = 0x01
 
-    dimension: Tuple[SnitchStreamerDimension, ...] = (
+    dimension: tuple[SnitchStreamerDimension, ...] = (
         # Dimension 0
         SnitchStreamerDimension(
             0x02,  # Bound
@@ -116,9 +113,10 @@ def make_stream_set_config_ops(value: Operand, stream: Operand, baseaddr: int):
             stream,
             immediate=IntegerAttr(baseaddr << 5, i32),
         ),
-        riscv.ScfgwOp(
+        riscv_snitch.ScfgwOp(
             rs1=value,
             rs2=address,
+            rd=riscv.Registers.ZERO,
         ),
     ]
 

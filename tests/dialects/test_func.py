@@ -1,16 +1,10 @@
 import pytest
-
 from conftest import assert_print_op
-from xdsl.builder import Builder
-from xdsl.dialects.func import FuncOp, Return, Call
+
+from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects.arith import Addi, Constant
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    i32,
-    ModuleOp,
-    i64,
-    IntegerType,
-)
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32, i64
+from xdsl.dialects.func import Call, FuncOp, Return
 from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import VerifyException
 
@@ -57,12 +51,12 @@ def test_func():
 
 
 def test_func_II():
-    # Create constants `from_attr` and add them, add them in blocks, blocks in
+    # Create constants and add them, add them in blocks, blocks in
     # a region and create a function
-    a = Constant.from_attr(IntegerAttr.from_int_and_width(1, 32), i32)
-    b = Constant.from_attr(IntegerAttr.from_int_and_width(2, 32), i32)
-    c = Constant.from_attr(IntegerAttr.from_int_and_width(3, 32), i32)
-    d = Constant.from_attr(IntegerAttr.from_int_and_width(4, 32), i32)
+    a = Constant(IntegerAttr.from_int_and_width(1, 32), i32)
+    b = Constant(IntegerAttr.from_int_and_width(2, 32), i32)
+    c = Constant(IntegerAttr.from_int_and_width(3, 32), i32)
+    d = Constant(IntegerAttr.from_int_and_width(4, 32), i32)
 
     # Operation to add these constants
     e = Addi(a, b)
@@ -90,7 +84,11 @@ def test_func_II():
 
 
 def test_wrong_blockarg_types():
-    r = Region(Block.from_callable([i32], lambda *x: [Addi(x[0], x[0])]))
+    b = Block(arg_types=(i32,))
+    with ImplicitBuilder(b) as (arg0,):
+        Addi(arg0, arg0)
+        Return()
+    r = Region(b)
     f = FuncOp.from_region("f", [i32, i32], [], r)
 
     message = (
@@ -106,23 +104,23 @@ def test_func_rewriting_helpers():
     test replace_argument_type and update_function_type (implicitly)
     :return:
     """
-    func = FuncOp.from_callable(
-        "test", [i32, i32, i32], [], lambda *args: [Return.get()]
-    )
+    func = FuncOp("test", ((i32, i32, i32), ()))
+    with ImplicitBuilder(func.body):
+        Return()
 
     func.replace_argument_type(2, i64)
     assert func.function_type.inputs.data[2] is i64
-    assert func.args[2].typ is i64
+    assert func.args[2].type is i64
 
     func.replace_argument_type(func.args[0], i64)
     assert func.function_type.inputs.data[0] is i64
-    assert func.args[0].typ is i64
+    assert func.args[0].type is i64
 
     # check negaitve index
     i8 = IntegerType(8)
     func.replace_argument_type(-2, i8)
     assert func.function_type.inputs.data[1] is i8
-    assert func.args[1].typ is i8
+    assert func.args[1].type is i8
 
     with pytest.raises(IndexError):
         func.replace_argument_type(3, i64)
@@ -138,20 +136,19 @@ def test_func_rewriting_helpers():
 
 
 def test_func_get_return_op():
-    # pyright complains about lambda arg types unknown
-    # honestly don't know how to fix
-    func_w_ret = FuncOp.from_callable(
-        "test", [i32, i32, i32], [i32], lambda *args: [Return.get(args[1])]
-    )
+    func_w_ret = FuncOp("test", ((i32, i32, i32), ()))
+    with ImplicitBuilder(func_w_ret.body) as (a, _, _):
+        Return(a)
 
-    func = FuncOp.from_callable("test", [i32, i32, i32], [], lambda *args: [])
+    func = FuncOp("test", ((i32, i32, i32), ()))
 
     assert func_w_ret.get_return_op() is not None
     assert func.get_return_op() is None
 
 
 def test_callable_constructor():
-    f = FuncOp.from_callable("f", [], [], lambda *args: [])
+    f = FuncOp("f", ((i32, i32, i32), ()))
+
     assert f.sym_name.data == "f"
     assert not f.body.block.ops
 
@@ -165,11 +162,11 @@ def test_call():
     b = Constant.from_int_and_width(2, i32)
 
     # Create a block using the types of a, b
-    block0 = Block(arg_types=[a.result.typ, b.result.typ])
+    block0 = Block(arg_types=[a.result.type, b.result.type])
     # Create a Addi operation to use the args of the block
     c = Addi(block0.args[0], block0.args[1])
     # Create a return operation and add it in the block
-    ret0 = Return.get(c)
+    ret0 = Return(c)
     block0.add_ops([c, ret0])
     # Create a region with the block
     region = Region(block0)
@@ -177,26 +174,26 @@ def test_call():
     # Create a func0 that gets the block args as arguments, returns the resulting
     # type of c and has the region as body
     func0 = FuncOp.from_region(
-        "func0", [block0.args[0].typ, block0.args[1].typ], [c.result.typ], region
+        "func0", [block0.args[0].type, block0.args[1].type], [c.result.type], region
     )
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
-    call0 = Call.get(func0.sym_name.data, [a, b], [ret0.arguments[0].typ])
+    call0 = Call(func0.sym_name.data, [a, b], [ret0.arguments[0].type])
 
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, b, call0])
 
     expected = """
 "builtin.module"() ({
-  "func.func"() ({
+  "func.func"() <{"sym_name" = "func0", "function_type" = (i32, i32) -> i32}> ({
   ^0(%0 : i32, %1 : i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
-  }) {"sym_name" = "func0", "function_type" = (i32, i32) -> i32} : () -> ()
-  %3 = "arith.constant"() {"value" = 1 : i32} : () -> i32
-  %4 = "arith.constant"() {"value" = 2 : i32} : () -> i32
-  %5 = "func.call"(%3, %4) {"callee" = @func0} : (i32, i32) -> i32
+  }) : () -> ()
+  %3 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  %4 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
+  %5 = "func.call"(%3, %4) <{"callee" = @func0}> : (i32, i32) -> i32
 }) : () -> ()
 """  # noqa
     assert len(call0.operands) == 2
@@ -213,35 +210,35 @@ def test_call_II():
     a = Constant.from_int_and_width(1, i32)
 
     # Create a block using the type of a
-    block0 = Block(arg_types=[a.result.typ])
+    block0 = Block(arg_types=[a.result.type])
     # Create a Addi operation to use the args of the block
     c = Addi(block0.args[0], block0.args[0])
     # Create a return operation and add it in the block
-    ret0 = Return.get(c)
+    ret0 = Return(c)
     block0.add_ops([c, ret0])
     # Create a region with the block
     region = Region(block0)
 
     # Create a func0 that gets the block args as arguments, returns the resulting
     # type of c and has the region as body
-    func0 = FuncOp.from_region("func1", [block0.args[0].typ], [c.result.typ], region)
+    func0 = FuncOp.from_region("func1", [block0.args[0].type], [c.result.type], region)
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
-    call0 = Call.get(func0.sym_name.data, [a], [ret0.arguments[0].typ])
+    call0 = Call(func0.sym_name.data, [a], [ret0.arguments[0].type])
 
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, call0])
 
     expected = """
 "builtin.module"() ({
-  "func.func"() ({
+  "func.func"() <{"sym_name" = "func1", "function_type" = (i32) -> i32}> ({
   ^0(%0 : i32):
     %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
     "func.return"(%1) : (i32) -> ()
-  }) {"sym_name" = "func1", "function_type" = (i32) -> i32} : () -> ()
-  %2 = "arith.constant"() {"value" = 1 : i32} : () -> i32
-  %3 = "func.call"(%2) {"callee" = @func1} : (i32) -> i32
+  }) : () -> ()
+  %2 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  %3 = "func.call"(%2) <{"callee" = @func1}> : (i32) -> i32
 }) : () -> ()
 """  # noqa
     assert len(call0.operands) == 1
@@ -257,7 +254,7 @@ def test_return():
     c = Constant.from_int_and_width(3, i32)
 
     # Use these operations to create a Return operation
-    ret0 = Return.get(a, b, c)
+    ret0 = Return(a, b, c)
     assert len(ret0.operands) == 3
 
 

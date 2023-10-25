@@ -1,39 +1,49 @@
 from __future__ import annotations
+
 from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from xdsl.dialects.builtin import IndexType, IntAttr, IntegerType, StringAttr, i32
+from xdsl.dialects.builtin import (
+    DenseArrayBase,
+    IndexType,
+    IntAttr,
+    IntegerType,
+    StringAttr,
+    i32,
+)
 from xdsl.dialects.test import TestType
-
-from xdsl.utils.test_value import TestSSAValue
 from xdsl.ir import Attribute, OpResult, Region
 from xdsl.irdl import (
+    AnyAttr,
+    AttributeDef,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    BaseAttr,
     ConstraintVar,
+    IRDLOperation,
+    OpDef,
     Operand,
-    OptOpResult,
+    OperandDef,
     OptOperand,
+    OptOpResult,
     OptRegion,
-    VarOpResult,
+    PropertyDef,
+    RegionDef,
+    ResultDef,
     VarOperand,
+    VarOpResult,
     VarRegion,
     attr_def,
     irdl_op_definition,
-    OperandDef,
-    ResultDef,
-    AttributeDef,
-    AnyAttr,
-    OpDef,
-    RegionDef,
-    IRDLOperation,
     operand_def,
     opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
     opt_region_def,
     opt_result_def,
+    prop_def,
     region_def,
     result_def,
     var_operand_def,
@@ -45,6 +55,7 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
+from xdsl.utils.test_value import TestSSAValue
 
 ################################################################################
 #                              IRDL definition                                 #
@@ -55,8 +66,11 @@ from xdsl.utils.exceptions import (
 class OpDefTestOp(IRDLOperation):
     name = "test.op_def_test"
 
+    irdl_options = [AttrSizedOperandSegments()]
+
     operand: Operand = operand_def()
     result: OpResult = result_def()
+    prop: Attribute = prop_def(Attribute)
     attr: Attribute = attr_def(Attribute)
     region: Region = region_def()
 
@@ -71,8 +85,30 @@ def test_get_definition():
         "test.op_def_test",
         operands=[("operand", OperandDef(AnyAttr()))],
         results=[("result", ResultDef(AnyAttr()))],
-        attributes={"attr": AttributeDef(AnyAttr())},
+        attributes={
+            "attr": AttributeDef(AnyAttr()),
+            "operandSegmentSizes": AttributeDef(BaseAttr(DenseArrayBase)),
+        },
+        properties={"prop": PropertyDef(AnyAttr())},
         regions=[("region", RegionDef())],
+        accessor_names={"attr": ("attr", "attribute"), "prop": ("prop", "property")},
+        options=[AttrSizedOperandSegments()],
+    )
+
+
+@irdl_op_definition
+class PropOptionOp(IRDLOperation):
+    name = "test.prop_option_test"
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
+def test_property_option():
+    """Test retrieval of an IRDL definition from an operation"""
+    assert PropOptionOp.irdl_definition == OpDef(
+        "test.prop_option_test",
+        properties={"operandSegmentSizes": PropertyDef(BaseAttr(DenseArrayBase))},
+        options=[AttrSizedOperandSegments(as_property=True)],
     )
 
 
@@ -194,6 +230,22 @@ def test_constraint_var_fail_not_satisfy_constraint():
         op.verify()
 
 
+@irdl_op_definition
+class OperationWithoutProperty(IRDLOperation):
+    name = "test.op_without_prop"
+
+    prop1: Attribute = prop_def(Attribute)
+
+
+# Check that an operation cannot accept properties that are not defined
+def test_unknown_property():
+    op = OperationWithoutProperty.create(properties={"prop1": i32, "prop2": i32})
+    with pytest.raises(
+        VerifyException, match="property 'prop2' is not defined by the operation"
+    ):
+        op.verify()
+
+
 ################################################################################
 #                                Accessors                                     #
 ################################################################################
@@ -244,10 +296,10 @@ class OperandOp(IRDLOperation):
 
 def test_operand_accessors():
     """Test accessors for operands."""
-    operand1 = OpResult(i32, None, None)  # type: ignore
-    operand2 = OpResult(i32, None, None)  # type: ignore
-    operand3 = OpResult(i32, None, None)  # type: ignore
-    operand4 = OpResult(i32, None, None)  # type: ignore
+    operand1 = TestSSAValue(i32)
+    operand2 = TestSSAValue(i32)
+    operand3 = TestSSAValue(i32)
+    operand4 = TestSSAValue(i32)
 
     op = OperandOp.build(operands=[operand1, [operand2], [operand3, operand4]])
     assert op.operand is op.operands[0]
@@ -320,6 +372,158 @@ def test_attribute_setters():
 
     op.opt_attr = None
     assert op.opt_attr is None
+
+
+@irdl_op_definition
+class PropertyOp(IRDLOperation):
+    name = "test.attribute_op"
+
+    attr: StringAttr = prop_def(StringAttr)
+    opt_attr: StringAttr | None = opt_prop_def(StringAttr)
+
+
+def test_property_accessors():
+    """Test accessors for properties."""
+
+    op = PropertyOp.create(
+        properties={"attr": StringAttr("test"), "opt_attr": StringAttr("opt_test")}
+    )
+    assert op.attr is op.properties["attr"]
+    assert op.opt_attr is op.properties["opt_attr"]
+
+    op = PropertyOp.create(properties={"attr": StringAttr("test")})
+    assert op.opt_attr is None
+
+
+def test_property_setters():
+    """Test setters for properties."""
+
+    op = PropertyOp.create(properties={"attr": StringAttr("test")})
+
+    op.attr = StringAttr("new_test")
+    assert op.attr.data == "new_test"
+
+    op.opt_attr = StringAttr("new_opt_test")
+    assert op.opt_attr.data == "new_opt_test"
+
+    op.opt_attr = None
+    assert op.opt_attr is None
+
+
+################################################################################
+#                            Renamed attributes                                #
+################################################################################
+
+# These tests check that operations that have attributes with names that differ
+# from the attribute accessors can be defined.
+
+
+@irdl_op_definition
+class RenamedAttributeOp(IRDLOperation):
+    """
+    An operation that has attributes with different names than the attribute
+    accessors.
+    """
+
+    name = "test.renamed_attribute_op"
+
+    accessor: StringAttr = attr_def(StringAttr, attr_name="attr_name")
+    opt_accessor: StringAttr | None = opt_attr_def(
+        StringAttr, attr_name="opt_attr_name"
+    )
+
+
+def test_renamed_attributes_verify():
+    op = RenamedAttributeOp.create(
+        attributes={
+            "attr_name": StringAttr("test"),
+            "opt_attr_name": StringAttr("test_opt"),
+        }
+    )
+    op.verify()
+
+    op = RenamedAttributeOp.create(
+        attributes={
+            "accessor": StringAttr("test"),
+        }
+    )
+    with pytest.raises(VerifyException, match="attribute attr_name expected"):
+        op.verify()
+
+    op = RenamedAttributeOp.create(
+        attributes={
+            "attr_name": StringAttr("test"),
+            "opt_attr_name": i32,
+        }
+    )
+    with pytest.raises(VerifyException, match="i32 should be of base attribute string"):
+        op.verify()
+
+
+def test_renamed_attributes_accessors():
+    op = RenamedAttributeOp.create(
+        attributes={
+            "attr_name": StringAttr("test"),
+            "opt_attr_name": StringAttr("test_opt"),
+        }
+    )
+
+    assert op.accessor is op.attributes["attr_name"]
+    assert op.opt_accessor is op.attributes["opt_attr_name"]
+
+
+@irdl_op_definition
+class RenamedPropertyOp(IRDLOperation):
+    """
+    An operation that has properties with different names than the properties
+    accessors.
+    """
+
+    name = "test.renamed_property_op"
+
+    accessor: StringAttr = prop_def(StringAttr, prop_name="prop_name")
+    opt_accessor: StringAttr | None = opt_prop_def(
+        StringAttr, prop_name="opt_prop_name"
+    )
+
+
+def test_renamed_properties_verify():
+    op = RenamedPropertyOp.create(
+        properties={
+            "prop_name": StringAttr("test"),
+            "opt_prop_name": StringAttr("test_opt"),
+        }
+    )
+    op.verify()
+
+    op = RenamedPropertyOp.create(
+        properties={
+            "accessor": StringAttr("test"),
+        }
+    )
+    with pytest.raises(VerifyException, match="property prop_name expected"):
+        op.verify()
+
+    op = RenamedPropertyOp.create(
+        properties={
+            "prop_name": StringAttr("test"),
+            "opt_prop_name": i32,
+        }
+    )
+    with pytest.raises(VerifyException, match="i32 should be of base attribute string"):
+        op.verify()
+
+
+def test_renamed_properties_accessors():
+    op = RenamedPropertyOp.create(
+        properties={
+            "prop_name": StringAttr("test"),
+            "opt_prop_name": StringAttr("test_opt"),
+        }
+    )
+
+    assert op.accessor is op.properties["prop_name"]
+    assert op.opt_accessor is op.properties["opt_prop_name"]
 
 
 ################################################################################

@@ -1,17 +1,17 @@
 from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
-from xdsl.ir import Attribute, ParametrizedAttribute
-from xdsl.irdl import ParameterDef, irdl_attr_definition
-from xdsl.utils.hints import isa
-
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    DictionaryAttr,
+    FloatData,
     IndexType,
     IntAttr,
-    FloatData,
     IntegerAttr,
     IntegerType,
 )
+from xdsl.ir import Attribute, ParametrizedAttribute
+from xdsl.irdl import ParameterDef, irdl_attr_definition
+from xdsl.utils.hints import isa
 
 
 class Class1:
@@ -204,6 +204,52 @@ def test_tuple_hint_nested():
 
 
 ################################################################################
+# Set
+################################################################################
+
+
+def test_set_hint_empty():
+    """Test that empty set satisfy all set hints."""
+    assert isa(set(), set[int])
+    assert isa(set(), set[bool])
+    assert isa(set(), set[Class1])
+
+
+def test_set_hint_correct():
+    """
+    Test that set hints work correcly on non-empty sets of the right type.
+    """
+    assert isa({42}, set[int])
+    assert isa({0, 3, 5}, set[int])
+    assert isa({False}, set[bool])
+    assert isa({True, False}, set[bool])
+    assert isa({True, 1, "test"}, set[bool | int | str])
+    assert isa({Class1(), SubClass1()}, set[Class1])
+
+
+def test_set_hint_not_list_failure():
+    """Test that set hints work correcly on non set."""
+    assert not isa(0, set[int])
+    assert not isa(0, set[Any])
+    assert not isa(True, set[bool])
+    assert not isa(True, set[Any])
+    assert not isa("", set[Any])
+    assert not isa("", set[str])
+    assert not isa(Class1(), set[Class1])
+    assert not isa(Class1(), set[Any])
+    assert not isa([], set[dict[Any, Any]])
+    assert not isa([], set[Any])
+
+
+def test_set_hint_failure():
+    """
+    Test that set hints work correcly on non-empty sets of the wrong type.
+    """
+    assert not isa({0}, set[bool])
+    assert not isa({0, "hello"}, set[int])
+
+
+################################################################################
 # Dictionary
 ################################################################################
 
@@ -287,6 +333,16 @@ def test_generic_data():
     assert not isa(attr2, ArrayAttr[IntAttr])
     assert isa(attr2, ArrayAttr[IntAttr | FloatData])
     assert not isa(attr2, ArrayAttr[FloatData])
+
+    intattr = IntAttr(42)
+
+    assert not isa(intattr, ArrayAttr[Attribute])
+    assert not isa(intattr, DictionaryAttr)
+
+    integerattr = IntegerAttr.from_index_int_value(42)
+
+    assert not isa(integerattr, ArrayAttr[Attribute])
+    assert not isa(integerattr, DictionaryAttr)
 
 
 def test_nested_generic_data():

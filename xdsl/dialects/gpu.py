@@ -1,40 +1,63 @@
 from __future__ import annotations
-from typing import Generic, Sequence, TypeVar
 
+from collections.abc import Sequence
+from typing import Generic, TypeVar
+
+from xdsl.dialects import memref
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DenseArrayBase,
+    FunctionType,
+    IndexType,
+    IntegerAttr,
+    StringAttr,
+    SymbolRefAttr,
+    UnitAttr,
+    i32,
+)
 from xdsl.ir import (
     Attribute,
-    TypeAttribute,
-    OpResult,
-    Operation,
+    Block,
     Dialect,
+    Operation,
+    OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    IRDLOperation,
     Operand,
-    OptOpResult,
     OptOperand,
+    OptOpResult,
     ParameterDef,
     VarOperand,
     attr_def,
-    irdl_op_definition,
     irdl_attr_definition,
-    IRDLOperation,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
+    opt_result_def,
+    prop_def,
     region_def,
     result_def,
-    opt_result_def,
+    traits_def,
     var_operand_def,
 )
-from xdsl.dialects.builtin import IndexType, StringAttr, SymbolRefAttr, UnitAttr, i32
-from xdsl.dialects import memref
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent
+from xdsl.traits import (
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+    SymbolOpInterface,
+    SymbolTable,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -72,8 +95,8 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
 
     value: ParameterDef[T]
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters(
             "<",
             ": gpu attributes currently have the #gpu<name value> syntax.",
@@ -95,10 +118,10 @@ class _GPUAttr(ParametrizedAttribute, Generic[T]):
                     "and, max, min, mul, or, or xor ",
                 )
         else:
-            parser.raise_error(f"'dim' or 'all_reduce_op' expected")
+            parser.raise_error("'dim' or 'all_reduce_op' expected")
         parser.parse_characters(
             ">",
-            f". gpu attributes currently have the #gpu<name value> syntax.",
+            ". gpu attributes currently have the #gpu<name value> syntax.",
         )
         return [attrtype([StringAttr(vtok)])]
 
@@ -134,30 +157,30 @@ class AllocOp(IRDLOperation):
     dynamicSizes: VarOperand = var_operand_def(IndexType)
     symbolOperands: VarOperand = var_operand_def(IndexType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     result: OpResult = result_def(memref.MemRefType[Attribute])
     asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
 
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
-        assert isinstance(self.result.typ, memref.MemRefType)
-        typ: memref.MemRefType[Attribute] = self.result.typ
-        ndyn_typ = len([i for i in typ.shape.data if i.value.data == -1])
-        if ndyn != ndyn_typ:
+        assert isinstance(self.result.type, memref.MemRefType)
+        res_type: memref.MemRefType[Attribute] = self.result.type
+        ndyn_type = len([i for i in res_type.shape.data if i.value.data == -1])
+        if ndyn != ndyn_type:
             raise VerifyException(
-                f"Expected {ndyn_typ} dynamic sizes, got {ndyn}. All "
+                f"Expected {ndyn_type} dynamic sizes, got {ndyn}. All "
                 "dynamic sizes need to be set in the alloc operation."
             )
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         return_type: memref.MemRefType[_Element],
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         host_shared: bool = False,
         async_dependencies: Sequence[SSAValue | Operation] | None = None,
         is_async: bool = False,
-    ) -> AllocOp:
+    ):
         token_return = [AsyncTokenType()] if is_async else []
         dynamic_sizes_vals: list[SSAValue] = (
             [SSAValue.get(e) for e in dynamic_sizes] if dynamic_sizes else []
@@ -168,7 +191,7 @@ class AllocOp(IRDLOperation):
         attributes: dict[str, Attribute] = (
             {"hostShared": UnitAttr()} if host_shared else {}
         )
-        return AllocOp.build(
+        super().__init__(
             operands=[async_dependencies_vals, dynamic_sizes_vals, []],
             result_types=[return_type, token_return],
             attributes=attributes,
@@ -178,11 +201,13 @@ class AllocOp(IRDLOperation):
 @irdl_op_definition
 class AllReduceOp(IRDLOperation):
     name = "gpu.all_reduce"
-    op: AllReduceOperationAttr | None = opt_attr_def(AllReduceOperationAttr)
-    uniform: UnitAttr | None = opt_attr_def(UnitAttr)
+    op: AllReduceOperationAttr | None = opt_prop_def(AllReduceOperationAttr)
+    uniform: UnitAttr | None = opt_prop_def(UnitAttr)
     operand: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
     body: Region = region_def()
+
+    traits = frozenset([IsolatedFromAbove()])
 
     @staticmethod
     def from_op(
@@ -192,8 +217,8 @@ class AllReduceOp(IRDLOperation):
     ):
         return AllReduceOp.build(
             operands=[operand],
-            result_types=[SSAValue.get(operand).typ],
-            attributes={
+            result_types=[SSAValue.get(operand).type],
+            properties={
                 "op": op,
                 "uniform": uniform,
             },
@@ -206,16 +231,16 @@ class AllReduceOp(IRDLOperation):
     ):
         return AllReduceOp.build(
             operands=[operand],
-            result_types=[SSAValue.get(operand).typ],
-            attributes={"uniform": uniform} if uniform is not None else {},
+            result_types=[SSAValue.get(operand).type],
+            properties={"uniform": uniform} if uniform is not None else {},
             regions=[body],
         )
 
     def verify_(self) -> None:
-        if self.result.typ != self.operand.typ:
+        if self.result.type != self.operand.type:
             raise VerifyException(
-                f"Type mismatch: result type is {self.result.typ}, operand type is "
-                f"{self.operand.typ}. They must be the same type for gpu.all_reduce"
+                f"Type mismatch: result type is {self.result.type}, operand type is "
+                f"{self.operand.type}. They must be the same type for gpu.all_reduce"
             )
 
         non_empty_body = any(b.ops for b in self.body.blocks)
@@ -223,19 +248,19 @@ class AllReduceOp(IRDLOperation):
         if non_empty_body == op_attr:
             if op_attr:
                 raise VerifyException(
-                    f"gpu.all_reduce can't have both a non-empty region and an op "
+                    "gpu.all_reduce can't have both a non-empty region and an op "
                     "attribute."
                 )
             else:
                 raise VerifyException(
-                    f"gpu.all_reduce need either a non empty body or an op attribute."
+                    "gpu.all_reduce need either a non empty body or an op attribute."
                 )
         if non_empty_body:
             region_args = self.body.blocks[0].args
-            args_types = [r.typ for r in region_args]
-            if args_types != [self.result.typ, self.operand.typ]:
+            args_types = [r.type for r in region_args]
+            if args_types != [self.result.type, self.operand.type]:
                 raise VerifyException(
-                    f"Expected {[str(t) for t in [self.result.typ, self.operand.typ]]}, "
+                    f"Expected {[str(t) for t in [self.result.type, self.operand.type]]}, "
                     f"got {[str(t) for t in args_types]}. A gpu.all_reduce's body must "
                     "have two arguments matching the result type."
                 )
@@ -245,35 +270,28 @@ class AllReduceOp(IRDLOperation):
 class BarrierOp(IRDLOperation):
     name = "gpu.barrier"
 
-    @staticmethod
-    def get() -> BarrierOp:
-        return BarrierOp.build()
+    def __init__(self):
+        super().__init__()
 
 
 @irdl_op_definition
 class BlockDimOp(IRDLOperation):
     name = "gpu.block_dim"
-    dimension: DimensionAttr = attr_def(DimensionAttr)
+    dimension: DimensionAttr = prop_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get(dim: DimensionAttr) -> BlockDimOp:
-        return BlockDimOp.build(
-            result_types=[IndexType()], attributes={"dimension": dim}
-        )
+    def __init__(self, dim: DimensionAttr):
+        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
 class BlockIdOp(IRDLOperation):
     name = "gpu.block_id"
-    dimension: DimensionAttr = attr_def(DimensionAttr)
+    dimension: DimensionAttr = prop_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get(dim: DimensionAttr) -> BlockIdOp:
-        return BlockIdOp.build(
-            result_types=[IndexType()], attributes={"dimension": dim}
-        )
+    def __init__(self, dim: DimensionAttr):
+        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -287,13 +305,13 @@ class DeallocOp(IRDLOperation):
 
     asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         buffer: SSAValue | Operation,
         async_dependencies: Sequence[SSAValue | Operation] | None = None,
         is_async: bool = False,
-    ) -> DeallocOp:
-        return DeallocOp.build(
+    ):
+        super().__init__(
             operands=[async_dependencies, buffer],
             result_types=[[AsyncTokenType()] if is_async else []],
         )
@@ -304,31 +322,41 @@ class MemcpyOp(IRDLOperation):
     name = "gpu.memcpy"
 
     asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
-    src: Operand = operand_def(memref.MemRefType)
     dst: Operand = operand_def(memref.MemRefType)
+    src: Operand = operand_def(memref.MemRefType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
     asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         source: SSAValue | Operation,
         destination: SSAValue | Operation,
         async_dependencies: Sequence[SSAValue | Operation] | None = None,
         is_async: bool = False,
-    ) -> MemcpyOp:
-        return MemcpyOp.build(
-            operands=[async_dependencies, source, destination],
+    ):
+        super().__init__(
+            operands=[async_dependencies, destination, source],
             result_types=[[AsyncTokenType()] if is_async else []],
         )
 
     def verify_(self) -> None:
-        if self.src.typ != self.dst.typ:
+        if self.src.type != self.dst.type:
             raise VerifyException(
-                f"Expected {self.src.typ}, got {self.dst.typ}. gpu.memcpy source and "
+                f"Expected {self.dst.type}, got {self.src.type}. gpu.memcpy source and "
                 "destination types must match."
             )
+
+
+@irdl_op_definition
+class ModuleEndOp(IRDLOperation):
+    name = "gpu.module_end"
+
+    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ModuleOp)]))
+
+    def __init__(self):
+        super().__init__()
 
 
 @irdl_op_definition
@@ -338,40 +366,97 @@ class ModuleOp(IRDLOperation):
     body: Region = region_def("single_block")
     sym_name: StringAttr = attr_def(StringAttr)
 
-    @staticmethod
-    def get(name: SymbolRefAttr, ops: Sequence[Operation]) -> ModuleOp:
-        op = ModuleOp.build(attributes={"sym_name": name}, regions=[ops])
-        return op
+    traits = frozenset(
+        [
+            IsolatedFromAbove(),
+            SingleBlockImplicitTerminator(ModuleEndOp),
+            SymbolOpInterface(),
+            SymbolTable(),
+        ]
+    )
+
+    def __init__(self, name: SymbolRefAttr, ops: Sequence[Operation]):
+        super().__init__(attributes={"sym_name": name}, regions=[ops])
+
+
+@irdl_op_definition
+class FuncOp(IRDLOperation):
+    name = "gpu.func"
+
+    body: Region = region_def()
+    sym_name: StringAttr = attr_def(StringAttr)
+    function_type: FunctionType = prop_def(FunctionType)
+    kernel: UnitAttr | None = opt_prop_def(UnitAttr)
+    known_block_size: DenseArrayBase | None = opt_attr_def(
+        DenseArrayBase, attr_name="gpu.known_block_size"
+    )
+    known_grid_size: DenseArrayBase | None = opt_attr_def(
+        DenseArrayBase, attr_name="gpu.known_grid_size"
+    )
+
+    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface()])
+
+    def __init__(
+        self,
+        name: str,
+        function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        kernel: bool | None = None,
+        knwown_block_size: Sequence[int] | None = None,
+        knwown_grid_size: Sequence[int] | None = None,
+    ):
+        if isinstance(function_type, tuple):
+            inputs, outputs = function_type
+            function_type = FunctionType.from_lists(inputs, outputs)
+        if not isinstance(region, Region):
+            region = Region(Block(arg_types=function_type.inputs))
+        attributes: dict[str, Attribute | None] = {"sym_name": StringAttr(name)}
+        properties: dict[str, Attribute | None] = {
+            "function_type": function_type,
+        }
+        if knwown_block_size is not None:
+            attributes["gpu.known_block_size"] = ArrayAttr(
+                IntegerAttr(i, i32) for i in knwown_block_size
+            )
+        if knwown_grid_size is not None:
+            attributes["gpu.known_grid_size"] = ArrayAttr(
+                IntegerAttr(i, i32) for i in knwown_grid_size
+            )
+        if kernel:
+            properties["kernel"] = UnitAttr()
+        super().__init__(properties=properties, attributes=attributes, regions=[region])
 
     def verify_(self):
-        if not isinstance(self.body.block.last_op, ModuleEndOp):
-            raise VerifyException("gpu.module must end with gpu.module_end")
+        entry_block: Block = self.body.blocks[0]
+        function_inputs = self.function_type.inputs.data
+        block_arg_types = tuple(a.type for a in entry_block.args)
+        if function_inputs != block_arg_types:
+            raise VerifyException(
+                "Expected first entry block arguments to have the same types as the "
+                "function input types"
+            )
+        if (self.kernel is not None) and (len(self.function_type.outputs) != 0):
+            raise VerifyException("Expected void return type for kernel function")
 
 
 @irdl_op_definition
 class GlobalIdOp(IRDLOperation):
     name = "gpu.global_id"
-    dimension: DimensionAttr = attr_def(DimensionAttr)
+    dimension: DimensionAttr = prop_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get(dim: DimensionAttr) -> GlobalIdOp:
-        return GlobalIdOp.build(
-            result_types=[IndexType()], attributes={"dimension": dim}
-        )
+    def __init__(self, dim: DimensionAttr):
+        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
 class GridDimOp(IRDLOperation):
     name = "gpu.grid_dim"
-    dimension: DimensionAttr = attr_def(DimensionAttr)
+    dimension: DimensionAttr = prop_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get(dim: DimensionAttr) -> GridDimOp:
-        return GridDimOp.build(
-            result_types=[IndexType()], attributes={"dimension": dim}
-        )
+    def __init__(self, dim: DimensionAttr):
+        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -390,9 +475,22 @@ class HostRegisterOp(IRDLOperation):
 
     value: Operand = operand_def(memref.UnrankedMemrefType)
 
-    @staticmethod
-    def from_memref(memref: SSAValue | Operation):
-        return HostRegisterOp.build(operands=[SSAValue.get(memref)])
+    def __init__(self, memref: SSAValue | Operation):
+        super().__init__(operands=[SSAValue.get(memref)])
+
+
+@irdl_op_definition
+class HostUnregisterOp(IRDLOperation):
+    """
+    Unregisters a memref for access from device.
+    """
+
+    name = "gpu.host_unregister"
+
+    value: Operand = operand_def(memref.UnrankedMemrefType)
+
+    def __init__(self, memref: SSAValue | Operation):
+        super().__init__(operands=[SSAValue.get(memref)])
 
 
 @irdl_op_definition
@@ -400,9 +498,8 @@ class LaneIdOp(IRDLOperation):
     name = "gpu.lane_id"
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get() -> LaneIdOp:
-        return LaneIdOp.build(result_types=[IndexType()])
+    def __init__(self):
+        super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
@@ -418,17 +515,17 @@ class LaunchOp(IRDLOperation):
     dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
     asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
     body: Region = region_def()
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         body: Region,
         gridSize: Sequence[SSAValue | Operation],
         blockSize: Sequence[SSAValue | Operation],
         async_launch: bool = False,
         asyncDependencies: Sequence[SSAValue | Operation] | None = None,
         dynamicSharedMemorySize: SSAValue | Operation | None = None,
-    ) -> LaunchOp:
+    ):
         if len(gridSize) != 3:
             raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
@@ -446,7 +543,7 @@ class LaunchOp(IRDLOperation):
             if dynamicSharedMemorySize is None
             else [SSAValue.get(dynamicSharedMemorySize)]
         ]
-        return LaunchOp.build(
+        super().__init__(
             operands=operands,
             result_types=[[AsyncTokenType()] if async_launch else []],
             regions=[body],
@@ -456,7 +553,7 @@ class LaunchOp(IRDLOperation):
         if not any(b.ops for b in self.body.blocks):
             raise VerifyException("gpu.launch requires a non-empty body.")
         body_args = self.body.blocks[0].args
-        args_type = [a.typ for a in body_args]
+        args_type = [a.type for a in body_args]
         if args_type != [IndexType()] * 12:
             raise VerifyException(
                 f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}. "
@@ -466,12 +563,81 @@ class LaunchOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ModuleEndOp(IRDLOperation):
-    name = "gpu.module_end"
+class LaunchFuncOp(IRDLOperation):
+    """
+    Launch a kernel function on the specified grid of thread blocks. gpu.launch
+    operations are lowered to gpu.launch_func operations by outlining the kernel body
+    into a function in a dedicated module, which reflects the separate compilation
+    process. The kernel function is required to have the gpu.kernel attribute. The
+    module containing the kernel function is required to be a gpu.module. And finally,
+    the module containing the kernel module (which thus cannot be the top-level module)
+    is required to have the gpu.container_module attribute. The gpu.launch_func operation
+    has a symbol attribute named kernel to identify the fully specified kernel function
+    to launch (both the gpu.module and func).
 
-    @staticmethod
-    def get() -> ModuleEndOp:
-        return ModuleEndOp.build()
+    The gpu.launch_func supports async dependencies: the kernel does not start executing
+    until the ops producing those async dependencies have completed.
+
+    By default, the host implicitly blocks until kernel execution has completed. If
+    the async keyword is present, the host does not block but instead a !gpu.async.token
+    is returned. Other async GPU ops can take this token as dependency.
+
+    The operation requires at least the grid and block sizes along the x,y,z dimensions
+    as arguments. When a lower-dimensional kernel is required, unused sizes must be
+    explicitly set to 1.
+
+    The remaining operands are optional. The first optional operand corresponds to the
+    amount of dynamic shared memory a kernel's workgroup should be allocated; when this
+    operand is not present, a zero size is assumed.
+
+    The remaining operands if present are passed as arguments to the kernel function.
+    """
+
+    name = "gpu.launch_func"
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    gridSizeX: Operand = operand_def(IndexType)
+    gridSizeY: Operand = operand_def(IndexType)
+    gridSizeZ: Operand = operand_def(IndexType)
+    blockSizeX: Operand = operand_def(IndexType)
+    blockSizeY: Operand = operand_def(IndexType)
+    blockSizeZ: Operand = operand_def(IndexType)
+    dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
+    kernelOperands: VarOperand = var_operand_def()
+    asyncObject: OptOperand = opt_operand_def()
+
+    asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
+
+    kernel: SymbolRefAttr = prop_def(SymbolRefAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    def __init__(
+        self,
+        func: SymbolRefAttr,
+        gridSize: Sequence[SSAValue | Operation],
+        blockSize: Sequence[SSAValue | Operation],
+        kernelOperands: Sequence[SSAValue | Operation] | None = None,
+        async_launch: bool = False,
+        asyncDependencies: Sequence[SSAValue | Operation] | None = None,
+        dynamicSharedMemorySize: SSAValue | Operation | None = None,
+    ):
+        if len(gridSize) != 3:
+            raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
+        if len(blockSize) != 3:
+            raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+
+        super().__init__(
+            operands=[
+                asyncDependencies,
+                *gridSize,
+                *blockSize,
+                dynamicSharedMemorySize,
+                kernelOperands,
+                [],
+            ],
+            result_types=[[AsyncTokenType()] if async_launch else []],
+            properties={"kernel": func},
+        )
 
 
 @irdl_op_definition
@@ -479,9 +645,20 @@ class NumSubgroupsOp(IRDLOperation):
     name = "gpu.num_subgroups"
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get() -> NumSubgroupsOp:
-        return NumSubgroupsOp.build(result_types=[IndexType()])
+    def __init__(self):
+        super().__init__(result_types=[IndexType()])
+
+
+@irdl_op_definition
+class ReturnOp(IRDLOperation):
+    name = "gpu.return"
+
+    args: VarOperand = var_operand_def()
+
+    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+
+    def __init__(self, operands: Sequence[SSAValue | Operation]):
+        super().__init__(operands=[operands])
 
 
 @irdl_op_definition
@@ -489,9 +666,8 @@ class SetDefaultDeviceOp(IRDLOperation):
     name = "gpu.set_default_device"
     devIndex: Operand = operand_def(i32)
 
-    @staticmethod
-    def get(devIndex: SSAValue | Operation) -> SetDefaultDeviceOp:
-        return SetDefaultDeviceOp.build(operands=[SSAValue.get(devIndex)])
+    def __init__(self, devIndex: SSAValue | Operation):
+        super().__init__(operands=[SSAValue.get(devIndex)])
 
 
 @irdl_op_definition
@@ -499,9 +675,8 @@ class SubgroupIdOp(IRDLOperation):
     name = "gpu.subgroup_id"
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get() -> SubgroupIdOp:
-        return SubgroupIdOp.build(result_types=[IndexType()])
+    def __init__(self):
+        super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
@@ -509,41 +684,28 @@ class SubgroupSizeOp(IRDLOperation):
     name = "gpu.subgroup_size"
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get() -> SubgroupSizeOp:
-        return SubgroupSizeOp.build(result_types=[IndexType()])
+    def __init__(self):
+        super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
 class TerminatorOp(IRDLOperation):
     name = "gpu.terminator"
 
-    traits = frozenset([HasParent(LaunchOp)])
+    traits = frozenset([HasParent(LaunchOp), IsTerminator()])
 
-    @staticmethod
-    def get() -> TerminatorOp:
-        return TerminatorOp.build()
-
-    def verify_(self) -> None:
-        block = self.parent_block()
-        if block is not None:
-            if self is not block.last_op:
-                raise VerifyException(
-                    "A gpu.terminator must terminate its parent block"
-                )
+    def __init__(self):
+        super().__init__()
 
 
 @irdl_op_definition
 class ThreadIdOp(IRDLOperation):
     name = "gpu.thread_id"
-    dimension: DimensionAttr = attr_def(DimensionAttr)
+    dimension: DimensionAttr = prop_def(DimensionAttr)
     result: OpResult = result_def(IndexType)
 
-    @staticmethod
-    def get(dim: DimensionAttr) -> ThreadIdOp:
-        return ThreadIdOp.build(
-            result_types=[IndexType()], attributes={"dimension": dim}
-        )
+    def __init__(self, dim: DimensionAttr):
+        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -551,19 +713,16 @@ class YieldOp(IRDLOperation):
     name = "gpu.yield"
     values: VarOperand = var_operand_def(Attribute)
 
-    @staticmethod
-    def get(operands: Sequence[SSAValue | Operation]) -> YieldOp:
-        return YieldOp.build([operands])
+    def __init__(self, operands: Sequence[SSAValue | Operation]):
+        super().__init__(operands=[operands])
+
+    traits = frozenset([IsTerminator()])
 
     def verify_(self) -> None:
-        block = self.parent_block()
         op = self.parent_op()
-        if block is not None:
-            if self is not block.last_op:
-                raise VerifyException("A gpu.yield must terminate its parent block")
         if op is not None:
-            yield_type = [o.typ for o in self.values]
-            result_type = [r.typ for r in op.results]
+            yield_type = [o.type for o in self.values]
+            result_type = [r.type for r in op.results]
             if yield_type != result_type:
                 raise VerifyException(
                     f"Expected {[str(t) for t in result_type]}, got {[str(t) for t in yield_type]}. The gpu.yield values "
@@ -583,15 +742,19 @@ GPU = Dialect(
         BlockDimOp,
         BlockIdOp,
         DeallocOp,
+        FuncOp,
         GlobalIdOp,
         GridDimOp,
         HostRegisterOp,
+        HostUnregisterOp,
         LaneIdOp,
         LaunchOp,
+        LaunchFuncOp,
         MemcpyOp,
         ModuleOp,
         ModuleEndOp,
         NumSubgroupsOp,
+        ReturnOp,
         SetDefaultDeviceOp,
         SubgroupIdOp,
         SubgroupSizeOp,

@@ -1,6 +1,9 @@
+from io import StringIO
+
 import pytest
 
-from xdsl.dialects import llvm, builtin, arith
+from xdsl.dialects import arith, builtin, llvm
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -8,12 +11,12 @@ def test_llvm_pointer_ops():
     module = builtin.ModuleOp(
         [
             idx := arith.Constant.from_int_and_width(0, 64),
-            ptr := llvm.AllocaOp.get(idx, builtin.i32),
-            val := llvm.LoadOp.get(ptr),
-            nullptr := llvm.NullOp.get(),
-            alloc_ptr := llvm.AllocaOp.get(idx, elem_type=builtin.IndexType()),
-            llvm.LoadOp.get(alloc_ptr),
-            store := llvm.StoreOp.get(
+            ptr := llvm.AllocaOp(idx, builtin.i32),
+            val := llvm.LoadOp(ptr),
+            nullptr := llvm.NullOp(),
+            alloc_ptr := llvm.AllocaOp(idx, elem_type=builtin.IndexType()),
+            llvm.LoadOp(alloc_ptr),
+            store := llvm.StoreOp(
                 val, ptr, alignment=32, volatile=True, nontemporal=True
             ),
         ]
@@ -23,31 +26,31 @@ def test_llvm_pointer_ops():
 
     assert len(alloc_ptr.res.uses) == 1
     assert ptr.size is idx.result
-    assert isinstance(ptr.res.typ, llvm.LLVMPointerType)
-    assert ptr.res.typ.type == builtin.i32
-    assert isinstance(ptr.res.typ.addr_space, builtin.NoneAttr)
+    assert isinstance(ptr.res.type, llvm.LLVMPointerType)
+    assert ptr.res.type.type == builtin.i32
+    assert isinstance(ptr.res.type.addr_space, builtin.NoneAttr)
 
-    assert "volatile_" in store.attributes
-    assert "nontemporal" in store.attributes
-    assert "alignment" in store.attributes
-    assert "ordering" in store.attributes
+    assert "volatile_" in store.properties
+    assert "nontemporal" in store.properties
+    assert "alignment" in store.properties
+    assert "ordering" in store.properties
 
-    assert isinstance(nullptr.nullptr.typ, llvm.LLVMPointerType)
-    assert isinstance(nullptr.nullptr.typ.type, builtin.NoneAttr)
-    assert isinstance(nullptr.nullptr.typ.addr_space, builtin.NoneAttr)
+    assert isinstance(nullptr.nullptr.type, llvm.LLVMPointerType)
+    assert isinstance(nullptr.nullptr.type.type, builtin.NoneAttr)
+    assert isinstance(nullptr.nullptr.type.addr_space, builtin.NoneAttr)
 
 
 def test_llvm_ptr_to_int_to_ptr():
     idx = arith.Constant.from_int_and_width(0, 64)
-    ptr = llvm.IntToPtrOp.get(idx, ptr_type=builtin.i32)
-    int_val = llvm.PtrToIntOp.get(ptr)
+    ptr = llvm.IntToPtrOp(idx, ptr_type=builtin.i32)
+    int_val = llvm.PtrToIntOp(ptr)
 
     assert ptr.input == idx.result
-    assert isinstance(ptr.output.typ, llvm.LLVMPointerType)
-    assert ptr.output.typ.type == builtin.i32
+    assert isinstance(ptr.output.type, llvm.LLVMPointerType)
+    assert ptr.output.type.type == builtin.i32
     assert int_val.input == ptr.output
-    assert isinstance(int_val.output.typ, builtin.IntegerType)
-    assert int_val.output.typ.width.data == 64
+    assert isinstance(int_val.output.type, builtin.IntegerType)
+    assert int_val.output.type.width.data == 64
 
 
 def test_llvm_pointer_type():
@@ -64,11 +67,11 @@ def test_llvm_pointer_type():
 
 def test_llvm_getelementptr_op_invalid_construction():
     size = arith.Constant.from_int_and_width(1, 32)
-    opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
+    opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
 
     # check that passing an opaque pointer to GEP without a pointee type fails
     with pytest.raises(ValueError):
-        llvm.GEPOp.get(
+        llvm.GEPOp(
             opaque_ptr,
             indices=[1],
             result_type=llvm.LLVMPointerType.typed(builtin.i32),
@@ -76,7 +79,7 @@ def test_llvm_getelementptr_op_invalid_construction():
 
     # check that non-pointer arguments fail
     with pytest.raises(ValueError):
-        llvm.GEPOp.get(
+        llvm.GEPOp(
             size,
             indices=[1],
             result_type=llvm.LLVMPointerType.opaque(),
@@ -85,22 +88,22 @@ def test_llvm_getelementptr_op_invalid_construction():
 
 def test_llvm_getelementptr_op():
     size = arith.Constant.from_int_and_width(1, 32)
-    ptr = llvm.AllocaOp.get(size, builtin.i32)
-    ptr_typ = llvm.LLVMPointerType.typed(ptr.res.typ)
-    opaque_ptr = llvm.AllocaOp.get(size, builtin.i32, as_untyped_ptr=True)
+    ptr = llvm.AllocaOp(size, builtin.i32)
+    ptr_type = llvm.LLVMPointerType.typed(ptr.res.type)
+    opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
 
     # check that construction with static-only offsets and inbounds attr works:
     gep1 = llvm.GEPOp.from_mixed_indices(
         ptr,
         indices=[1],
-        result_type=ptr_typ,
+        result_type=ptr_type,
         inbounds=True,
     )
 
-    assert "inbounds" in gep1.attributes
-    assert gep1.result.typ == ptr_typ
+    assert "inbounds" in gep1.properties
+    assert gep1.result.type == ptr_type
     assert gep1.ptr == ptr.res
-    assert "elem_type" not in gep1.attributes
+    assert "elem_type" not in gep1.properties
     assert len(gep1.rawConstantIndices.data) == 1
     assert len(gep1.ssa_indices) == 0
 
@@ -108,18 +111,18 @@ def test_llvm_getelementptr_op():
     gep2 = llvm.GEPOp.from_mixed_indices(
         opaque_ptr,
         indices=[1],
-        result_type=ptr_typ,
+        result_type=ptr_type,
         pointee_type=builtin.i32,
     )
 
-    assert "elem_type" in gep2.attributes
-    assert "inbounds" not in gep2.attributes
-    assert gep2.result.typ == ptr_typ
+    assert "elem_type" in gep2.properties
+    assert "inbounds" not in gep2.properties
+    assert gep2.result.type == ptr_type
     assert len(gep1.rawConstantIndices.data) == 1
     assert len(gep1.ssa_indices) == 0
 
     # check GEP with mixed args
-    gep3 = llvm.GEPOp.from_mixed_indices(ptr, [1, size], ptr_typ)
+    gep3 = llvm.GEPOp.from_mixed_indices(ptr, [1, size], ptr_type)
 
     assert len(gep3.rawConstantIndices.data) == 2
     assert len(gep3.ssa_indices) == 1
@@ -146,7 +149,7 @@ def test_linkage_attr_unknown_str():
 
 
 def test_global_op():
-    global_op = llvm.GlobalOp.get(
+    global_op = llvm.GlobalOp(
         builtin.i32,
         "testsymbol",
         "internal",
@@ -176,14 +179,31 @@ def test_global_op():
 
 def test_addressof_op():
     ptr_type = llvm.LLVMPointerType.typed(builtin.i32)
-    address_of = llvm.AddressOfOp.get("test", ptr_type)
+    address_of = llvm.AddressOfOp("test", ptr_type)
 
     assert isinstance(address_of.global_name, builtin.SymbolRefAttr)
     assert address_of.global_name.root_reference.data == "test"
-    assert address_of.result.typ == ptr_type
+    assert address_of.result.type == ptr_type
 
 
 def test_implicit_void_func_return():
     func_type = llvm.LLVMFunctionType([])
 
     assert isinstance(func_type.output, llvm.LLVMVoidType)
+
+
+def test_calling_conv():
+    cconv = llvm.CallingConventionAttr("cc 11")
+    cconv.verify()
+    assert cconv.cconv_name == "cc 11"
+
+    with pytest.raises(VerifyException, match='Invalid calling convention "nooo"'):
+        llvm.CallingConventionAttr("nooo").verify()
+
+
+def test_variadic_func():
+    func_type = llvm.LLVMFunctionType([], is_variadic=True)
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_attribute(func_type)
+    assert io.getvalue() == """!llvm.func<void (...)>"""

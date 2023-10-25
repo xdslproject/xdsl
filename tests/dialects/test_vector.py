@@ -1,41 +1,39 @@
 import pytest
 
-from typing import List
-
 from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    IndexType,
     IntegerAttr,
+    IntegerType,
+    VectorType,
     i1,
     i32,
     i64,
-    IntegerType,
-    IndexType,
-    VectorType,
 )
-from xdsl.dialects.memref import MemRefType, AnyIntegerAttr
+from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.vector import (
+    FMA,
     Broadcast,
+    Createmask,
     Load,
     Maskedload,
     Maskedstore,
-    Store,
-    FMA,
     Print,
-    Createmask,
+    Store,
 )
-from xdsl.ir import OpResult
-from xdsl.irdl import Attribute
+from xdsl.ir import Attribute, OpResult
 from xdsl.utils.test_value import TestSSAValue
 
 
 def get_MemRef_SSAVal_from_element_type_and_shape(
-    referenced_type: Attribute, shape: List[int | AnyIntegerAttr]
+    referenced_type: Attribute, shape: list[int | AnyIntegerAttr]
 ) -> TestSSAValue:
     memref_type = MemRefType.from_element_type_and_shape(referenced_type, shape)
     return TestSSAValue(memref_type)
 
 
 def get_Vector_SSAVal_from_element_type_and_shape(
-    referenced_type: Attribute, shape: List[int | IntegerAttr[IndexType]]
+    referenced_type: Attribute, shape: list[int | IntegerAttr[IndexType]]
 ) -> TestSSAValue:
     vector_type = VectorType.from_element_type_and_shape(referenced_type, shape)
     return TestSSAValue(vector_type)
@@ -71,7 +69,7 @@ def test_vector_load_i32():
     load = Load.get(memref_ssa_value, [])
 
     assert type(load.results[0]) is OpResult
-    assert type(load.results[0].typ) is VectorType
+    assert type(load.results[0].type) is VectorType
     assert load.indices == ()
 
 
@@ -82,7 +80,7 @@ def test_vector_load_i32_with_dimensions():
     load = Load.get(memref_ssa_value, [index1, index2])
 
     assert type(load.results[0]) is OpResult
-    assert type(load.results[0].typ) is VectorType
+    assert type(load.results[0].type) is VectorType
     assert load.indices[0] is index1
     assert load.indices[1] is index2
 
@@ -161,7 +159,7 @@ def test_vector_broadcast():
     broadcast = Broadcast.get(index1)
 
     assert type(broadcast.results[0]) is OpResult
-    assert type(broadcast.results[0].typ) is VectorType
+    assert type(broadcast.results[0].type) is VectorType
     assert broadcast.source is index1
 
 
@@ -188,7 +186,7 @@ def test_vector_fma():
     fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value)
 
     assert type(fma.results[0]) is OpResult
-    assert type(fma.results[0].typ) is VectorType
+    assert type(fma.results[0].type) is VectorType
     assert fma.lhs is lhs_vector_ssa_value
     assert fma.rhs is rhs_vector_ssa_value
     assert fma.acc is acc_vector_ssa_value
@@ -204,7 +202,7 @@ def test_vector_fma_with_dimensions():
     fma = FMA.get(lhs_vector_ssa_value, rhs_vector_ssa_value, acc_vector_ssa_value)
 
     assert type(fma.results[0]) is OpResult
-    assert type(fma.results[0].typ) is VectorType
+    assert type(fma.results[0].type) is VectorType
     assert fma.lhs is lhs_vector_ssa_value
     assert fma.rhs is rhs_vector_ssa_value
     assert fma.acc is acc_vector_ssa_value
@@ -338,7 +336,7 @@ def test_vector_masked_load():
     )
 
     assert type(maskedload.results[0]) is OpResult
-    assert type(maskedload.results[0].typ) is VectorType
+    assert type(maskedload.results[0].type) is VectorType
     assert maskedload.indices == ()
 
 
@@ -360,7 +358,7 @@ def test_vector_masked_load_with_dimensions():
     )
 
     assert type(maskedload.results[0]) is OpResult
-    assert type(maskedload.results[0].typ) is VectorType
+    assert type(maskedload.results[0].type) is VectorType
     assert maskedload.indices[0] is index1
     assert maskedload.indices[1] is index2
 
@@ -522,7 +520,7 @@ def test_vector_create_mask():
     create_mask = Createmask.get([])
 
     assert type(create_mask.results[0]) is OpResult
-    assert type(create_mask.results[0].typ) is VectorType
+    assert type(create_mask.results[0].type) is VectorType
     assert create_mask.mask_operands == ()
 
 
@@ -533,7 +531,7 @@ def test_vector_create_mask_with_dimensions():
     create_mask = Createmask.get([index1, index2])
 
     assert type(create_mask.results[0]) is OpResult
-    assert type(create_mask.results[0].typ) is VectorType
+    assert type(create_mask.results[0].type) is VectorType
     assert create_mask.mask_operands[0] is index1
     assert create_mask.mask_operands[1] is index2
 

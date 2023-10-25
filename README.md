@@ -42,7 +42,7 @@ pip install xdsl
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions may result in problems. The supported
-MLIR version is commit `04fc02e583b06b846315904a55af9c273c8b20b9`.
+MLIR version is commit `a3f2751f782f3cdc6ba4790488ec20163a40ac37`.
 
 ## Getting Started
 
@@ -58,6 +58,9 @@ for users interested in that use case.
 - [A DSL for defining new IRs](https://xdsl.dev/xdsl/retro/notebooks/?path=irdl.ipynb)
 - [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
 
+We provide a Makefile containing a lot of common tasks, which might provide
+an overview of common actions.
+
 ## xDSL Developer Setup
 
 To contribute to the development of xDSL follow the subsequent steps.
@@ -67,7 +70,10 @@ To contribute to the development of xDSL follow the subsequent steps.
 ```bash
 git clone https://github.com/xdslproject/xdsl.git
 cd xdsl
-pip install --editable ".[extras]"
+# set up the venv and install everything
+make venv
+# activate the venv
+source venv/bin/activate
 ```
 
 ### Testing
@@ -81,9 +87,12 @@ pytest
 
 # Executes filecheck tests
 lit tests/filecheck
+
+# run all tests using makefile
+make tests
 ```
 
-### Formatting
+### Formatting and Typechecking
 
 All python code used in xDSL uses [black](https://github.com/psf/black) to
 format the code in a uniform manner.
@@ -92,16 +101,17 @@ To automate the formatting, we use pre-commit hooks from the
 [pre-commit](https://pypi.org/project/pre-commit/) package.
 
 ```bash
-# Install pre-commit version in the optional requirement files
-pip install --requirement requirements-optional.txt
-
 # Install the pre-commit on your `.git` folder
-# Be sure to run this in your virtual environment
-pre-commit install
-
-# Optionally test the hook by running it on all files
-pre-commit run --all-files
+make precommit-install
+# to run the hooks:
+make precommit
+# alternatively, running black on all staged files:
+make black  # or simply black $(git diff --staged --name-only)
 ```
+
+Furthermore, all python code must run through [pyright](https://github.com/microsoft/pyright)
+without errors. Pyright can be run on all staged files through the
+makefile using `make pyright`.
 
 ### Discussion
 

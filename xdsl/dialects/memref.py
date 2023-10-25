@@ -1,65 +1,61 @@
 from __future__ import annotations
 
-from typing import (
-    TYPE_CHECKING,
-    Iterable,
-    Sequence,
-    TypeVar,
-    Optional,
-    TypeAlias,
-    cast,
-)
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    ArrayAttr,
+    ContainerType,
+    DenseArrayBase,
     DenseIntOrFPElementsAttr,
+    IndexType,
     IntAttr,
     IntegerAttr,
-    DenseArrayBase,
-    IndexType,
+    IntegerType,
+    NoneAttr,
     ShapedType,
     StridedLayoutAttr,
-    ArrayAttr,
-    NoneAttr,
-    SymbolRefAttr,
-    i64,
     StringAttr,
+    SymbolRefAttr,
     UnitAttr,
     i32,
-    IntegerType,
-    ContainerType,
+    i64,
 )
 from xdsl.ir import (
-    TypeAttribute,
-    Operation,
-    SSAValue,
-    ParametrizedAttribute,
+    Attribute,
     Dialect,
+    Operation,
     OpResult,
+    ParametrizedAttribute,
+    SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    ParameterDef,
-    Generic,
-    Attribute,
     AnyAttr,
-    Operand,
-    VarOperand,
     AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    ParameterDef,
+    VarOperand,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     result_def,
     var_operand_def,
 )
+from xdsl.traits import SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
-    from xdsl.parser import Parser
+    from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
+
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -122,8 +118,8 @@ class MemRefType(
     ) -> MemRefType[_MemRefTypeElement]:
         return MemRefType([shape, referenced_type, layout, memory_space])
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in memref attribute")
         shape = parser.parse_attribute()
         parser.parse_punctuation(",", " between shape and element type parameters")
@@ -184,23 +180,52 @@ class Load(IRDLOperation):
     # which is subject to change
 
     def verify_(self):
-        if not isinstance(self.memref.typ, MemRefType):
+        if not isinstance(self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_typ = cast(MemRefType[Attribute], self.memref.typ)
+        memref_type = cast(MemRefType[Attribute], self.memref.type)
 
-        if memref_typ.element_type != self.res.typ:
+        if memref_type.element_type != self.res.type:
             raise Exception("expected return type to match the MemRef element type")
 
-        if self.memref.typ.get_num_dims() != len(self.indices):
+        if self.memref.type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
 
     @staticmethod
     def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
         ssa_value = SSAValue.get(ref)
-        typ = ssa_value.typ
-        typ = cast(MemRefType[Attribute], typ)
-        return Load.build(operands=[ref, indices], result_types=[typ.element_type])
+        ssa_value_type = ssa_value.type
+        ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
+        return Load.build(
+            operands=[ref, indices], result_types=[ssa_value_type.element_type]
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        unresolved_ref = parser.parse_unresolved_operand()
+        unresolved_indices = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
+        )
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        ref_type = parser.parse_attribute()
+        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
+        resolved_indices = [
+            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
+        ]
+        res = cls.get(resolved_ref, resolved_indices)
+        res.attributes.update(attributes)
+        return res
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.memref)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_operand)
+        printer.print_string("]")
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print_attribute(self.memref.type)
 
 
 @irdl_op_definition
@@ -211,15 +236,15 @@ class Store(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType)
 
     def verify_(self):
-        if not isinstance(self.memref.typ, MemRefType):
+        if not isinstance(self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_typ = cast(MemRefType[Attribute], self.memref.typ)
+        memref_type = cast(MemRefType[Attribute], self.memref.type)
 
-        if memref_typ.element_type != self.value.typ:
+        if memref_type.element_type != self.value.type:
             raise Exception("Expected value type to match the MemRef element type")
 
-        if self.memref.typ.get_num_dims() != len(self.indices):
+        if self.memref.type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")
 
     @staticmethod
@@ -229,6 +254,37 @@ class Store(IRDLOperation):
         indices: Sequence[Operation | SSAValue],
     ) -> Store:
         return Store.build(operands=[value, ref, indices])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        value = parser.parse_operand()
+        parser.parse_punctuation(",")
+        unresolved_ref = parser.parse_unresolved_operand()
+        unresolved_indices = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
+        )
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        ref_type = parser.parse_attribute()
+        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
+        resolved_indices = [
+            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
+        ]
+        res = cls.get(value, resolved_ref, resolved_indices)
+        res.attributes.update(attributes)
+        return res
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.value)
+        printer.print_string(", ")
+        printer.print(self.memref)
+        printer.print_string("[")
+        printer.print_list(self.indices, printer.print_operand)
+        printer.print_string("]")
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print_attribute(self.memref.type)
 
 
 @irdl_op_definition
@@ -241,15 +297,15 @@ class Alloc(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     def get(
         return_type: Attribute,
         alignment: int | None = None,
-        shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
+        shape: Iterable[int | AnyIntegerAttr] | None = None,
     ) -> Alloc:
         if shape is None:
             shape = [1]
@@ -274,15 +330,15 @@ class Alloca(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     def get(
         return_type: Attribute,
-        alignment: int,
-        shape: Optional[Iterable[int | AnyIntegerAttr]] = None,
+        alignment: int | AnyIntegerAttr | None = None,
+        shape: Iterable[int | AnyIntegerAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
     ) -> Alloca:
         if shape is None:
@@ -291,10 +347,15 @@ class Alloca(IRDLOperation):
         if dynamic_sizes is None:
             dynamic_sizes = []
 
+        if isinstance(alignment, int):
+            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+
         return Alloca.build(
             operands=[dynamic_sizes, []],
             result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
-            attributes={"alignment": IntegerAttr.from_int_and_width(alignment, 64)},
+            properties={
+                "alignment": alignment,
+            },
         )
 
 
@@ -312,18 +373,12 @@ class Dealloc(IRDLOperation):
 class GetGlobal(IRDLOperation):
     name = "memref.get_global"
     memref: OpResult = result_def(MemRefType[Attribute])
-
-    def verify_(self) -> None:
-        if "name" not in self.attributes:
-            raise VerifyException("GetGlobal requires a 'name' attribute")
-
-        if not isinstance(self.attributes["name"], SymbolRefAttr):
-            raise VerifyException("expected 'name' attribute to be a SymbolRefAttr")
+    name_: SymbolRefAttr = prop_def(SymbolRefAttr, prop_name="name")
 
     @staticmethod
     def get(name: str, return_type: Attribute) -> GetGlobal:
         return GetGlobal.build(
-            result_types=[return_type], attributes={"name": SymbolRefAttr(name)}
+            result_types=[return_type], properties={"name": SymbolRefAttr(name)}
         )
 
     # TODO how to verify the types, as the global might be defined in another
@@ -334,10 +389,12 @@ class GetGlobal(IRDLOperation):
 class Global(IRDLOperation):
     name = "memref.global"
 
-    sym_name: StringAttr = attr_def(StringAttr)
-    sym_visibility: StringAttr = attr_def(StringAttr)
-    type: Attribute = attr_def(Attribute)
-    initial_value: Attribute = attr_def(Attribute)
+    sym_name: StringAttr = prop_def(StringAttr)
+    sym_visibility: StringAttr = prop_def(StringAttr)
+    type: Attribute = prop_def(Attribute)
+    initial_value: Attribute = prop_def(Attribute)
+
+    traits = frozenset([SymbolOpInterface()])
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):
@@ -352,14 +409,14 @@ class Global(IRDLOperation):
     @staticmethod
     def get(
         sym_name: StringAttr,
-        typ: Attribute,
+        sym_type: Attribute,
         initial_value: Attribute,
         sym_visibility: StringAttr = StringAttr("private"),
     ) -> Global:
         return Global.build(
-            attributes={
+            properties={
                 "sym_name": sym_name,
-                "type": typ,
+                "type": sym_type,
                 "initial_value": initial_value,
                 "sym_visibility": sym_visibility,
             }
@@ -418,12 +475,12 @@ class Subview(IRDLOperation):
     offsets: VarOperand = var_operand_def(IndexType)
     sizes: VarOperand = var_operand_def(IndexType)
     strides: VarOperand = var_operand_def(IndexType)
-    static_offsets: DenseArrayBase = attr_def(DenseArrayBase)
-    static_sizes: DenseArrayBase = attr_def(DenseArrayBase)
-    static_strides: DenseArrayBase = attr_def(DenseArrayBase)
+    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
+    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
+    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
     result: OpResult = result_def(MemRefType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
     def from_static_parameters(
@@ -432,6 +489,7 @@ class Subview(IRDLOperation):
         offsets: Sequence[int],
         sizes: Sequence[int],
         strides: Sequence[int],
+        reduce_rank: bool = False,
     ) -> Subview:
         source = SSAValue.get(source)
 
@@ -453,18 +511,33 @@ class Subview(IRDLOperation):
             + source_offset
         )
 
+        if reduce_rank:
+            composed_strides = layout_strides
+            layout_strides: list[int] = []
+            result_sizes: list[int] = []
+
+            for stride, size in zip(composed_strides, sizes):
+                if size == 1:
+                    continue
+                layout_strides.append(stride)
+                result_sizes.append(size)
+
+        else:
+            result_sizes = list(sizes)
+
         layout = StridedLayoutAttr(layout_strides, layout_offset)
 
-        return_typ = MemRefType.from_element_type_and_shape(
+        return_type = MemRefType.from_element_type_and_shape(
             source_type.element_type,
-            sizes,
+            result_sizes,
             layout,
+            source_type.memory_space,
         )
 
         return Subview.build(
             operands=[source, [], [], []],
-            result_types=[return_typ],
-            attributes={
+            result_types=[return_type],
+            properties={
                 "static_offsets": DenseArrayBase.from_list(i64, offsets),
                 "static_sizes": DenseArrayBase.from_list(i64, sizes),
                 "static_strides": DenseArrayBase.from_list(i64, strides),
@@ -476,8 +549,8 @@ class Subview(IRDLOperation):
 class Cast(IRDLOperation):
     name = "memref.cast"
 
-    source: Operand = operand_def(MemRefType | UnrankedMemrefType)
-    dest: OpResult = result_def(MemRefType | UnrankedMemrefType)
+    source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    dest: OpResult = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
 
     @staticmethod
     def get(
@@ -527,35 +600,29 @@ class DmaStartOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isa(self.src.typ, MemRefType[Attribute])
-        assert isa(self.dest.typ, MemRefType[Attribute])
-        assert isa(self.tag.typ, MemRefType[IntegerType])
+        assert isa(self.src.type, MemRefType[Attribute])
+        assert isa(self.dest.type, MemRefType[Attribute])
+        assert isa(self.tag.type, MemRefType[IntegerType])
 
-        if len(self.src.typ.shape) != len(self.src_indices):
+        if len(self.src.type.shape) != len(self.src_indices):
             raise VerifyException(
-                "Expected {} source indices (because of shape of src memref)".format(
-                    len(self.src.typ.shape)
-                )
+                f"Expected {len(self.src.type.shape)} source indices (because of shape of src memref)"
             )
 
-        if len(self.dest.typ.shape) != len(self.dest_indices):
+        if len(self.dest.type.shape) != len(self.dest_indices):
             raise VerifyException(
-                "Expected {} dest indices (because of shape of dest memref)".format(
-                    len(self.dest.typ.shape)
-                )
+                f"Expected {len(self.dest.type.shape)} dest indices (because of shape of dest memref)"
             )
 
-        if len(self.tag.typ.shape) != len(self.tag_indices):
+        if len(self.tag.type.shape) != len(self.tag_indices):
             raise VerifyException(
-                "Expected {} tag indices (because of shape of tag memref)".format(
-                    len(self.tag.typ.shape)
-                )
+                f"Expected {len(self.tag.type.shape)} tag indices (because of shape of tag memref)"
             )
 
-        if self.tag.typ.element_type != i32:
+        if self.tag.type.element_type != i32:
             raise VerifyException("Expected tag to be a memref of i32")
 
-        if self.dest.typ.memory_space == self.src.typ.memory_space:
+        if self.dest.type.memory_space == self.src.type.memory_space:
             raise VerifyException("Source and dest must have different memory spaces!")
 
 
@@ -583,15 +650,37 @@ class DmaWaitOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isa(self.tag.typ, MemRefType[Attribute])
+        assert isa(self.tag.type, MemRefType[Attribute])
 
-        if len(self.tag.typ.shape) != len(self.tag_indices):
+        if len(self.tag.type.shape) != len(self.tag_indices):
             raise VerifyException(
-                f"Expected {len(self.tag.typ.shape)} tag indices because of shape of tag memref"
+                f"Expected {len(self.tag.type.shape)} tag indices because of shape of tag memref"
             )
 
-        if self.tag.typ.element_type != i32:
+        if self.tag.type.element_type != i32:
             raise VerifyException("Expected tag to be a memref of i32")
+
+
+@irdl_op_definition
+class CopyOp(IRDLOperation):
+    name = "memref.copy"
+    source: Operand = operand_def(MemRefType)
+    destination: Operand = operand_def(MemRefType)
+
+    def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
+        super().__init__(operands=[source, destination])
+
+    def verify_(self) -> None:
+        source = cast(MemRefType[Attribute], self.source.type)
+        destination = cast(MemRefType[Attribute], self.destination.type)
+        if source.get_shape() != destination.get_shape():
+            raise VerifyException(
+                "Expected source and destination to have the same shape."
+            )
+        if source.get_element_type() != destination.get_element_type():
+            raise VerifyException(
+                "Expected source and destination to have the same element type."
+            )
 
 
 MemRef = Dialect(
@@ -600,6 +689,7 @@ MemRef = Dialect(
         Store,
         Alloc,
         Alloca,
+        CopyOp,
         Dealloc,
         GetGlobal,
         Global,

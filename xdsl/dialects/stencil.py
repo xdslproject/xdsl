@@ -1,45 +1,44 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator, Sequence
+from dataclasses import dataclass
 from operator import add, lt, neg
-from typing import Sequence, TypeVar, cast, Iterable, Iterator
+from typing import Generic, TypeVar, cast
 
-from xdsl.dialects import builtin
-from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
-    IntAttr,
+from xdsl.dialects import builtin, memref
+from xdsl.dialects.builtin import AnyFloat, AnyIntegerAttr, ArrayAttr, IntAttr
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Dialect,
+    Operation,
+    OpResult,
     ParametrizedAttribute,
-    ArrayAttr,
-    AnyFloat,
+    Region,
+    SSAValue,
+    TypeAttribute,
 )
-from xdsl.dialects import memref
-
-from xdsl.ir import OpResult, SSAValue, Operation, Attribute, Dialect, TypeAttribute
 from xdsl.irdl import (
+    IRDLOperation,
+    Operand,
+    ParameterDef,
+    VarOperand,
+    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    ParameterDef,
-    Attribute,
-    Region,
-    VerifyException,
-    Generic,
-    Operand,
-    OpResult,
-    VarOperand,
-    VarOpResult,
-    Block,
-    IRDLOperation,
     operand_def,
+    opt_attr_def,
     region_def,
     result_def,
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.parser import Parser
-from xdsl.printer import Printer
-
 
 _FieldTypeElement = TypeVar("_FieldTypeElement", bound=Attribute, covariant=True)
 
@@ -50,16 +49,16 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
     array: ParameterDef[ArrayAttr[IntAttr]]
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         ints = parser.parse_comma_separated_list(
             parser.Delimiter.ANGLE, lambda: parser.parse_integer(allow_boolean=False)
         )
-        return [ArrayAttr((IntAttr(i) for i in ints))]
+        return [ArrayAttr(IntAttr(i) for i in ints)]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print(f'<{", ".join((str(e) for e in self))}>')
+        printer.print(f'<{", ".join(str(e) for e in self)}>')
 
     def verify(self) -> None:
         l = len(self)
@@ -128,12 +127,14 @@ class StencilBoundsAttr(ParametrizedAttribute):
     def _verify(self):
         if len(self.lb) != len(self.ub):
             raise VerifyException(
-                "Incoherent stencil bounds: lower and upper bounds must have the same dimensionality."
+                "Incoherent stencil bounds: lower and upper bounds must have the "
+                "same dimensionality."
             )
         for d in self.ub - self.lb:
             if d <= 0:
                 raise VerifyException(
-                    "Incoherent stencil bounds: upper bound must be strictly greater than lower bound."
+                    "Incoherent stencil bounds: upper bound must be strictly "
+                    "greater than lower bound."
                 )
 
     def __init__(self, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]):
@@ -181,8 +182,8 @@ class StencilType(
     def get_element_type(self) -> _FieldTypeElement:
         return self.element_type
 
-    @staticmethod
-    def parse_parameters(parser: Parser) -> list[Attribute]:
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         def parse_interval() -> tuple[int, int] | int:
             if parser.parse_optional_punctuation("?"):
                 return -1
@@ -196,11 +197,11 @@ class StencilType(
         parser.parse_characters("<")
         bounds = [parse_interval()]
         parser.parse_shape_delimiter()
-        typ = parser.parse_optional_type()
-        while typ is None:
+        opt_type = parser.parse_optional_type()
+        while opt_type is None:
             bounds.append(parse_interval())
             parser.parse_shape_delimiter()
-            typ = parser.parse_optional_type()
+            opt_type = parser.parse_optional_type()
         parser.parse_characters(">")
         if isa(bounds, list[tuple[int, int]]):
             bounds = StencilBoundsAttr(bounds)
@@ -209,7 +210,7 @@ class StencilType(
         else:
             parser.raise_error("stencil types can only be fully dynamic or sized.")
 
-        return [bounds, typ]
+        return [bounds, opt_type]
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
@@ -232,7 +233,7 @@ class StencilType(
         | int
         | IntAttr
         | StencilBoundsAttr,
-        typ: _FieldTypeElement,
+        element_type: _FieldTypeElement,
     ) -> None:
         """
             A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
@@ -249,7 +250,7 @@ class StencilType(
             nbounds = IntAttr(bounds)
         else:
             nbounds = bounds
-        return super().__init__([nbounds, typ])
+        return super().__init__([nbounds, element_type])
 
 
 @irdl_attr_definition
@@ -294,6 +295,88 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
+class ApplyOp(IRDLOperation):
+    """
+    This operation takes a stencil function plus parameters and applies
+    the stencil function to the output temp.
+
+    Example:
+
+      %0 = stencil.apply (%arg0=%0 : !stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64> {
+        ...
+      }
+
+    The computation bounds are defined by the bounds of the output types, which are
+    constrained to be all equals.
+    """
+
+    name = "stencil.apply"
+    args: VarOperand = var_operand_def(Attribute)
+    region: Region = region_def()
+    res: VarOpResult = var_result_def(TempType)
+
+    traits = frozenset([IsolatedFromAbove()])
+
+    @staticmethod
+    def get(
+        args: Sequence[SSAValue] | Sequence[Operation],
+        body: Block,
+        result_types: Sequence[TempType[Attribute]],
+    ):
+        assert len(result_types) > 0
+
+        return ApplyOp.build(
+            operands=[list(args)],
+            regions=[Region(body)],
+            result_types=[result_types],
+        )
+
+    def verify_(self) -> None:
+        if len(self.res) < 1:
+            raise VerifyException(
+                f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
+            )
+        res_type = cast(TempType[Attribute], self.res[0].type)
+        for other in self.res[1:]:
+            other = cast(TempType[Attribute], other.type)
+            if res_type.bounds != other.bounds:
+                raise VerifyException("Expected all output types bounds to be equals.")
+
+    def get_rank(self) -> int:
+        res_type = self.res[0].type
+        assert isa(res_type, TempType[Attribute])
+        return res_type.get_num_dims()
+
+    def get_accesses(self) -> Iterable[AccessPattern]:
+        """
+        Return the access patterns of each input.
+
+         - An offset is a tuple describing a relative access
+         - An access pattern is a class wrappoing a sequence of offsets
+         - This method returns an access pattern for each stencil
+           field of the apply operation.
+        """
+        # iterate over the block arguments
+        for arg in self.region.block.args:
+            accesses: list[tuple[int, ...]] = []
+            # walk the uses of the argument
+            for use in arg.uses:
+                # filter out all non access ops
+                if not isinstance(use.operation, AccessOp):
+                    continue
+                access: AccessOp = use.operation
+                # grab the offsets as a tuple[int, ...]
+                offsets = tuple(access.offset)
+                # account for offset_mappings:
+                if access.offset_mapping is not None:
+                    offset_mapping = tuple(x.data for x in access.offset_mapping)
+                    new_offsets = tuple(offsets[i] for i in offset_mapping)
+                    offsets = new_offsets
+                accesses.append(offsets)
+            yield AccessPattern(tuple(accesses))
+
+
+@irdl_op_definition
 class CastOp(IRDLOperation):
     """
     This operation casts dynamically shaped input fields to statically shaped fields.
@@ -314,11 +397,11 @@ class CastOp(IRDLOperation):
     ) -> CastOp:
         """ """
         field_ssa = SSAValue.get(field)
-        assert isa(field_ssa.typ, FieldType[Attribute])
+        assert isa(field_ssa.type, FieldType[Attribute])
         if res_type is None:
             res_type = FieldType(
                 bounds,
-                field_ssa.typ.element_type,
+                field_ssa.type.element_type,
             )
         return CastOp.build(
             operands=[field],
@@ -327,23 +410,23 @@ class CastOp(IRDLOperation):
 
     def verify_(self) -> None:
         # this should be fine, verify() already checks them:
-        assert isa(self.field.typ, FieldType[Attribute])
-        assert isa(self.result.typ, FieldType[Attribute])
+        assert isa(self.field.type, FieldType[Attribute])
+        assert isa(self.result.type, FieldType[Attribute])
 
-        if isinstance(self.result.typ.bounds, IntAttr):
+        if isinstance(self.result.type.bounds, IntAttr):
             raise VerifyException("Output type's size must be explicit")
 
-        if self.field.typ.element_type != self.result.typ.element_type:
+        if self.field.type.element_type != self.result.type.element_type:
             raise VerifyException(
                 "Input and output fields must have the same element types"
             )
 
-        if self.field.typ.get_num_dims() != self.result.typ.get_num_dims():
+        if self.field.type.get_num_dims() != self.result.type.get_num_dims():
             raise VerifyException("Input and output types must have the same rank")
 
         if (
-            isinstance(self.field.typ.bounds, StencilBoundsAttr)
-            and self.field.typ.bounds != self.result.typ.bounds
+            isinstance(self.field.type.bounds, StencilBoundsAttr)
+            and self.field.type.bounds != self.result.type.bounds
         ):
             raise VerifyException(
                 "If input shape is not dynamic, it must be the same as output"
@@ -362,7 +445,7 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field: Operand = operand_def(Attribute)
-    result: OpResult = result_def(FieldType | memref.MemRefType)
+    result: OpResult = result_def(FieldType[Attribute] | memref.MemRefType[Attribute])
 
     @staticmethod
     def get(
@@ -409,6 +492,13 @@ class AccessOp(IRDLOperation):
     This operation accesses a value from a stencil.temp given the specified offset.
     offset. The offset is specified relative to the current position.
 
+    The optional offset mapping will determine which offset corresponds to which
+    result dimension and is needed when we are accessing an array which has fewer
+    dimensions than the result. Dimensions are mapped from the inner loop, which is 0,
+    incrementing with each outer nested loop. e.g. in a nest of three loops, 0 would be
+    the inner loop, 1 the middle loop, and 2 the outer loop. We do not allow out of order
+    mappings.
+
     Example:
       %0 = stencil.access %temp [-1, 0, 0] : !stencil.temp<?x?x?xf64> -> f64
     """
@@ -416,25 +506,86 @@ class AccessOp(IRDLOperation):
     name = "stencil.access"
     temp: Operand = operand_def(TempType)
     offset: IndexAttr = attr_def(IndexAttr)
+    offset_mapping: ArrayAttr[IntAttr] | None = opt_attr_def(ArrayAttr[IntAttr])
     res: OpResult = result_def(Attribute)
 
+    traits = frozenset([HasParent(ApplyOp)])
+
     @staticmethod
-    def get(temp: SSAValue | Operation, offset: Sequence[int]):
-        temp_type = SSAValue.get(temp).typ
+    def get(
+        temp: SSAValue | Operation,
+        offset: Sequence[int],
+        offset_mapping: Sequence[int] | None = None,
+    ):
+        temp_type = SSAValue.get(temp).type
         assert isinstance(temp_type, TempType)
         temp_type = cast(TempType[Attribute], temp_type)
 
+        attributes: dict[str, IndexAttr | ArrayAttr[IntAttr]] = {
+            "offset": IndexAttr(
+                [
+                    ArrayAttr(IntAttr(value) for value in offset),
+                ]
+            ),
+        }
+
+        if offset_mapping is not None:
+            attributes["offset_mapping"] = ArrayAttr(
+                [IntAttr(value) for value in offset_mapping]
+            )
+
         return AccessOp.build(
             operands=[temp],
-            attributes={
-                "offset": IndexAttr(
-                    [
-                        ArrayAttr(IntAttr(value) for value in offset),
-                    ]
-                ),
-            },
+            attributes=attributes,
             result_types=[temp_type.element_type],
         )
+
+    def verify_(self) -> None:
+        apply = self.parent_op()
+        # As promised by HasParent(ApplyOp)
+        assert isinstance(apply, ApplyOp)
+
+        # TODO This should be handled by infra, having a way to verify things on ApplyOp
+        # **before** its children.
+        # cf https://github.com/xdslproject/xdsl/issues/1112
+        apply.verify_()
+
+        temp_type = self.temp.type
+        assert isa(temp_type, TempType[Attribute])
+        if temp_type.get_num_dims() != apply.get_rank():
+            if self.offset_mapping is None:
+                raise VerifyException(
+                    f"Expected stencil.access operand to be of rank {apply.get_rank()} "
+                    f"to match its parent apply, got {temp_type.get_num_dims()} without "
+                    f"explict offset mapping provided"
+                )
+
+        if self.offset_mapping is not None and len(self.offset_mapping) != len(
+            self.offset
+        ):
+            raise VerifyException(
+                f"Expected stencil.access offset mapping be of length {len(self.offset)} "
+                f"to match the provided offsets, but it is {len(self.offset_mapping)} "
+                f"instead"
+            )
+
+        if self.offset_mapping is not None:
+            prev_offset = None
+            for offset in self.offset_mapping:
+                if prev_offset is not None:
+                    if offset.data >= prev_offset:
+                        raise VerifyException(
+                            f"Offset mapping in stencil.access must be strictly "
+                            f"decreasing and unique, however {offset.data} follows "
+                            f"{prev_offset} which is disallowed"
+                        )
+                prev_offset = offset.data
+
+        if len(self.offset) != temp_type.get_num_dims():
+            raise VerifyException(
+                f"Expected offset's rank to be {temp_type.get_num_dims()} to match the "
+                f"operand's rank, got {len(self.offset)}"
+            )
 
 
 @irdl_op_definition
@@ -456,25 +607,25 @@ class LoadOp(IRDLOperation):
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
     ):
-        field_t = SSAValue.get(field).typ
-        assert isa(field_t, FieldType[Attribute])
+        field_type = SSAValue.get(field).type
+        assert isa(field_type, FieldType[Attribute])
 
         if lb is None or ub is None:
-            res_typ = TempType(field_t.get_num_dims(), field_t.element_type)
+            res_type = TempType(field_type.get_num_dims(), field_type.element_type)
         else:
-            res_typ = TempType(zip(lb, ub), field_t.element_type)
+            res_type = TempType(zip(lb, ub), field_type.element_type)
 
         return LoadOp.build(
             operands=[field],
-            result_types=[res_typ],
+            result_types=[res_type],
         )
 
     def verify_(self) -> None:
         for use in self.field.uses:
             if isa(use.operation, StoreOp):
                 raise VerifyException("Cannot Load and Store the same field!")
-        field = self.field.typ
-        temp = self.res.typ
+        field = self.field.type
+        temp = self.res.type
         assert isa(field, FieldType[Attribute])
         assert isa(temp, TempType[Attribute])
         if isinstance(field.bounds, StencilBoundsAttr) and isinstance(
@@ -499,11 +650,15 @@ class BufferOp(IRDLOperation):
     temp: Operand = operand_def(TempType)
     res: OpResult = result_def(TempType)
 
+    def __init__(self: IRDLOperation, temp: SSAValue | Operation):
+        temp = SSAValue.get(temp)
+        super().__init__(operands=[temp], result_types=[temp.type])
+
     def verify_(self) -> None:
-        if self.temp.typ != self.res.typ:
+        if self.temp.type != self.res.type:
             raise VerifyException(
-                f"Expected operand and result type to be equal, got ({self.temp.typ}) "
-                f"-> {self.res.typ}"
+                f"Expected operand and result type to be equal, got ({self.temp.type}) "
+                f"-> {self.res.type}"
             )
         if not isinstance(self.temp.owner, ApplyOp):
             raise VerifyException(
@@ -512,8 +667,8 @@ class BufferOp(IRDLOperation):
             )
         if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
             raise VerifyException(
-                f"A stencil.buffer's operand temp should only be buffered. You can use "
-                f"stencil.buffer's output instead!"
+                "A stencil.buffer's operand temp should only be buffered. You can use "
+                "stencil.buffer's output instead!"
             )
 
 
@@ -523,7 +678,7 @@ class StoreOp(IRDLOperation):
     This operation writes values to a field on a user defined range.
 
     Example:
-      stencil.store %temp to %field ([0,0,0] : [64,64,60]) : !stencil.temp<?x?x?xf64> to !stencil.field<70x70x60xf64>
+      stencil.store %temp to %field ([0,0,0] : [64,64,60]) : !stencil.temp<?x?x?xf64> to !stencil.field<70x70x60xf64>  # noqa
     """
 
     name = "stencil.store"
@@ -547,48 +702,6 @@ class StoreOp(IRDLOperation):
                 raise VerifyException("Cannot Load and Store the same field!")
             if isa(use.operation, LoadOp) and use.operation is not self:
                 raise VerifyException("Can only store once to a field!")
-
-
-@irdl_op_definition
-class ApplyOp(IRDLOperation):
-    """
-    This operation takes a stencil function plus parameters and applies
-    the stencil function to the output temp.
-
-    Example:
-
-      %0 = stencil.apply (%arg0=%0 : !stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64> {
-        ...
-      }
-    """
-
-    name = "stencil.apply"
-    args: VarOperand = var_operand_def(Attribute)
-    region: Region = region_def()
-    res: VarOpResult = var_result_def(TempType)
-
-    @staticmethod
-    def get(
-        args: Sequence[SSAValue] | Sequence[Operation],
-        body: Block,
-        result_types: Sequence[TempType[Attribute]],
-        lb: IndexAttr | None = None,
-        ub: IndexAttr | None = None,
-    ):
-        assert len(result_types) > 0
-
-        attributes = {}
-        if lb is not None:
-            attributes["lb"] = lb
-        if ub is not None:
-            attributes["ub"] = ub
-
-        return ApplyOp.build(
-            operands=[list(args)],
-            attributes=attributes,
-            regions=[Region(body)],
-            result_types=[result_types],
-        )
 
 
 @irdl_op_definition
@@ -624,9 +737,130 @@ class ReturnOp(IRDLOperation):
     name = "stencil.return"
     arg: VarOperand = var_operand_def(ResultType | AnyFloat)
 
+    traits = frozenset([HasParent(ApplyOp), IsTerminator()])
+
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):
         return ReturnOp.build(operands=[list(res)])
+
+    def verify_(self) -> None:
+        types = [
+            o.type.elem if isinstance(o.type, ResultType) else o.type for o in self.arg
+        ]
+        apply = cast(ApplyOp, self.parent_op())
+        res_types = [cast(TempType[Attribute], r.type).element_type for r in apply.res]
+        if len(types) != len(res_types):
+            raise VerifyException(
+                f"stencil.return expected {len(res_types)} operands to match the parent "
+                f"stencil.apply result types, got {len(types)}"
+            )
+        if types != res_types:
+            raise VerifyException(
+                "stencil.return expected operand types to match the parent "
+                "stencil.apply result element types."
+            )
+
+
+@dataclass(frozen=True)
+class AccessPattern:
+    """
+    Represents access patterns of a stencil apply operation.
+
+    Contains helpers to get common information about accesses such as diagonals.
+    """
+
+    offsets: tuple[tuple[int, ...], ...]
+
+    @property
+    def dims(self):
+        """
+        Dimensionality of the accesses.
+        """
+        if not self.offsets:
+            return 0
+        return len(self.offsets[0])
+
+    @property
+    def is_diagonal(self) -> bool:
+        """
+        Check if the access pattern has diagonal accesses.
+        """
+        for _ in self.get_diagonals():
+            return True
+        return False
+
+    def get_diagonals(self, degree: int = 2) -> Iterable[tuple[int, ...]]:
+        """
+        Returns all offsets that have <degree=2> or more non-zero entries.
+
+        For <degree> >= 2 this makes them diagonals.
+
+        For <degree> = 1 it returns all accesses that are nonzero.
+        """
+        for ax in self.offsets:
+            # get the number of nonzero entries in offset
+            if sum(1 if x != 0 else 0 for x in ax) >= degree:
+                yield ax
+
+    def halo_in_axis(self, axis: int) -> tuple[int, int]:
+        """
+        Returns the minimum and maximum access distance for a single axis.
+        """
+        left, right = 0, 0
+        for ax in self.offsets:
+            left = min(ax[axis], left)
+            right = max(ax[axis], right)
+        return left, right
+
+    def halos(self) -> tuple[tuple[int, int], ...]:
+        """
+        Return a tuple containing the maximum and minimum offsets in each axis.
+        E.g. ((-2, 2), (-1, 1)) represents a pattern that accesses cells at most
+        (-2, 2) away in the x-axis, and -1, 1 away in the y-axis.
+        """
+        n = self.dims
+        lefts, rights = [0] * n, [0] * n
+        for ax in self.offsets:
+            for axis in range(n):
+                lefts[axis] = min(ax[axis], lefts[axis])
+                rights[axis] = max(ax[axis], rights[axis])
+        return tuple(zip(lefts, rights))
+
+    def visual_pattern(self) -> str:
+        """
+        Returns a visual equivalent of the access pattern, only works for 1d and 2d.
+
+        Returns patterns where O signifies the center point and X represents an access.
+        E.g.:
+
+         X
+        XOX
+         X
+
+        For a 2d-4pt stencil.
+        """
+        # handle special cases:
+        if self.dims == 0:
+            return "O"
+        elif self.dims > 2:
+            return "Too many dimensions in access"
+        elif self.dims == 1:
+            halos = (self.halo_in_axis(0), (0, 0))
+        else:
+            halos = self.halos()
+        x_axis_halo, y_axis_halo = halos
+        # construct a matrix of the required size:
+        points = [
+            [" " for _ in range(y_axis_halo[1] - y_axis_halo[0] + 1)]
+            for __ in range(x_axis_halo[1] - x_axis_halo[0] + 1)
+        ]
+        # set the center point:
+        points[-x_axis_halo[0]][-y_axis_halo[0]] = "O"
+        # set each access:
+        for access in self.offsets:
+            points[access[0] - x_axis_halo[0]][access[1] - y_axis_halo[0]] = "X"
+        # construct the string:
+        return "\n".join("".join(row) for row in points)
 
 
 Stencil = Dialect(

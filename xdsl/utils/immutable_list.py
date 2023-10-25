@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Any, TypeVar, Iterable, SupportsIndex, cast, overload
+
+from collections.abc import Iterable
+from typing import Any, SupportsIndex, TypeVar, cast, overload
 
 _T = TypeVar("_T")
 _S = TypeVar("_S")
@@ -39,7 +41,7 @@ class IList(list[_T]):
             raise Exception("frozen list can not be modified")
         return super().remove(__value)
 
-    def pop(self, __index: SupportsIndex = ...) -> _T:
+    def pop(self, __index: SupportsIndex) -> _T:
         if self._frozen:
             raise Exception("frozen list can not be modified")
         return super().pop(__index)

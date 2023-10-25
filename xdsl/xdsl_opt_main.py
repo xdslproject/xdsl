@@ -1,288 +1,48 @@
 import argparse
 import sys
-import os
-
+from collections.abc import Callable, Sequence
 from io import StringIO
-
-from xdsl.ir import Dialect, MLContext
-from xdsl.parser import Parser, ParseError
-from xdsl.passes import ModulePass
-from xdsl.printer import Printer
+from typing import IO
 
 from xdsl.dialects.builtin import ModuleOp
-
+from xdsl.ir import MLContext
+from xdsl.passes import ModulePass, PipelinePass
+from xdsl.printer import Printer
+from xdsl.tools.command_line_tool import (
+    CommandLineTool,
+    get_all_passes,
+)
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.parse_pipeline import parse_pipeline
 
-from typing import IO, Dict, Callable, List, Sequence
 
-
-def get_all_dialects() -> list[tuple[str, Callable[[], Dialect]]]:
-    """Return the list of all available dialects."""
-
-    def get_affine():
-        from xdsl.dialects.affine import Affine
-
-        return Affine
-
-    def get_arith():
-        from xdsl.dialects.arith import Arith
-
-        return Arith
-
-    def get_builtin():
-        from xdsl.dialects.builtin import Builtin
-
-        return Builtin
-
-    def get_cf():
-        from xdsl.dialects.cf import Cf
-
-        return Cf
-
-    def get_cmath():
-        from xdsl.dialects.cmath import CMath
-
-        return CMath
-
-    def get_dmp():
-        from xdsl.dialects.experimental.dmp import DMP
-
-        return DMP
-
-    def get_fir():
-        from xdsl.dialects.experimental.fir import FIR
-
-        return FIR
-
-    def get_func():
-        from xdsl.dialects.func import Func
-
-        return Func
-
-    def get_gpu():
-        from xdsl.dialects.gpu import GPU
-
-        return GPU
-
-    def get_irdl():
-        from xdsl.dialects.irdl import IRDL
-
-        return IRDL
-
-    def get_llvm():
-        from xdsl.dialects.llvm import LLVM
-
-        return LLVM
-
-    def get_math():
-        from xdsl.dialects.experimental.math import Math
-
-        return Math
-
-    def get_memref():
-        from xdsl.dialects.memref import MemRef
-
-        return MemRef
-
-    def get_mpi():
-        from xdsl.dialects.mpi import MPI
-
-        return MPI
-
-    def get_pdl():
-        from xdsl.dialects.pdl import PDL
-
-        return PDL
-
-    def get_riscv():
-        from xdsl.dialects.riscv import RISCV
-
-        return RISCV
-
-    def get_riscv_func():
-        from xdsl.dialects.riscv_func import RISCV_Func
-
-        return RISCV_Func
-
-    def get_scf():
-        from xdsl.dialects.scf import Scf
-
-        return Scf
-
-    def get_snitch():
-        from xdsl.dialects.snitch import Snitch
-
-        return Snitch
-
-    def get_snitch_runtime():
-        from xdsl.dialects.snitch_runtime import SnitchRuntime
-
-        return SnitchRuntime
-
-    def get_stencil():
-        from xdsl.dialects.stencil import Stencil
-
-        return Stencil
-
-    def get_symref():
-        from xdsl.frontend.symref import Symref
-
-        return Symref
-
-    def get_test():
-        from xdsl.dialects.test import Test
-
-        return Test
-
-    def get_vector():
-        from xdsl.dialects.vector import Vector
-
-        return Vector
-
-    return [
-        ("affine", get_affine),
-        ("arith", get_arith),
-        ("builtin", get_builtin),
-        ("cf", get_cf),
-        ("cmath", get_cmath),
-        ("dmp", get_dmp),
-        ("fir", get_fir),
-        ("func", get_func),
-        ("gpu", get_gpu),
-        ("irdl", get_irdl),
-        ("llvm", get_llvm),
-        ("math", get_math),
-        ("memref", get_memref),
-        ("mpi", get_mpi),
-        ("pdl", get_pdl),
-        ("riscv", get_riscv),
-        ("riscv_func", get_riscv_func),
-        ("scf", get_scf),
-        ("snitch", get_snitch),
-        ("snrt", get_snitch_runtime),
-        ("stencil", get_stencil),
-        ("symref", get_symref),
-        ("test", get_test),
-        ("vector", get_vector),
-    ]
-
-
-def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
-    """Return the list of all available passes."""
-
-    def get_convert_stencil_to_llmlir():
-        from xdsl.transforms.experimental.ConvertStencilToLLMLIR import (
-            ConvertStencilToLLMLIRPass,
-        )
-
-        return ConvertStencilToLLMLIRPass
-
-    def get_dead_code_elimination():
-        from xdsl.transforms.dead_code_elimination import DeadCodeElimination
-
-        return DeadCodeElimination
-
-    def get_desymrefy():
-        from xdsl.frontend.passes.desymref import DesymrefyPass
-
-        return DesymrefyPass
-
-    def get_dmp_scatter_gather():
-        from xdsl.transforms.experimental.dmp.scatter_gather import (
-            DmpScatterGatherTrivialLowering,
-        )
-
-        return DmpScatterGatherTrivialLowering
-
-    def get_dmp_stencil_global_to_local():
-        from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
-            GlobalStencilToLocalStencil2DHorizontal,
-        )
-
-        return GlobalStencilToLocalStencil2DHorizontal
-
-    def get_lower_halo_to_mpi():
-        from xdsl.transforms.experimental.dmp.stencil_global_to_local import (
-            LowerHaloToMPI,
-        )
-
-        return LowerHaloToMPI
-
-    def get_lower_mpi():
-        from xdsl.transforms.lower_mpi import LowerMPIPass
-
-        return LowerMPIPass
-
-    def get_lower_riscv_func():
-        from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
-
-        return LowerRISCVFunc
-
-    def get_lower_snitch():
-        from xdsl.transforms.lower_snitch import LowerSnitchPass
-
-        return LowerSnitchPass
-
-    def get_lower_snitch_runtime():
-        from xdsl.transforms.lower_snitch_runtime import LowerSnitchRuntimePass
-
-        return LowerSnitchRuntimePass
-
-    def get_riscv_register_allocation():
-        from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-
-        return RISCVRegisterAllocation
-
-    def get_stencil_shape_inference():
-        from xdsl.transforms.experimental.StencilShapeInference import (
-            StencilShapeInferencePass,
-        )
-
-        return StencilShapeInferencePass
-
-    return [
-        ("convert-stencil-to-ll-mlir", get_convert_stencil_to_llmlir),
-        ("dce", get_dead_code_elimination),
-        ("frontend-desymrefy", get_desymrefy),
-        ("dmp-setup-and-teardown", get_dmp_scatter_gather),
-        ("dmp-decompose-2d", get_dmp_stencil_global_to_local),
-        ("dmp-to-mpi", get_lower_halo_to_mpi),
-        ("lower-mpi", get_lower_mpi),
-        ("lower-riscv-func", get_lower_riscv_func),
-        ("lower-snitch", get_lower_snitch),
-        ("lower-snrt-to-func", get_lower_snitch_runtime),
-        ("riscv-allocate-registers", get_riscv_register_allocation),
-        ("stencil-shape-inference", get_stencil_shape_inference),
-    ]
-
-
-class xDSLOptMain:
+class xDSLOptMain(CommandLineTool):
     ctx: MLContext
+
     args: argparse.Namespace
     """
     The argument parsers namespace which holds the parsed commandline
     attributes.
     """
 
-    available_frontends: Dict[str, Callable[[IO[str]], ModuleOp]]
+    available_frontends: dict[str, Callable[[IO[str]], ModuleOp]]
     """
     A mapping from file extension to a frontend that can handle this
     file type.
     """
 
-    available_passes: Dict[str, Callable[[], type[ModulePass]]]
+    available_passes: dict[str, Callable[[], type[ModulePass]]]
     """
     A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
 
-    available_targets: Dict[str, Callable[[ModuleOp, IO[str]], None]]
+    available_targets: dict[str, Callable[[ModuleOp, IO[str]], None]]
     """
     A mapping from target names to functions that serialize a ModuleOp into a
     stream.
     """
 
-    pipeline: List[ModulePass]
+    pipeline: PipelinePass
     """ The pass-pipeline to be applied. """
 
     def __init__(
@@ -304,6 +64,8 @@ class xDSLOptMain:
         arg_parser = argparse.ArgumentParser(description=description)
         self.register_all_arguments(arg_parser)
         self.args = arg_parser.parse_args(args=args)
+
+        self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
 
         self.setup_pipeline()
 
@@ -335,9 +97,7 @@ class xDSLOptMain:
 
         Add other/additional arguments by overloading this function.
         """
-        arg_parser.add_argument(
-            "input_file", type=str, nargs="?", help="path to input file"
-        )
+        super().register_all_arguments(arg_parser)
 
         targets = [name for name in self.available_targets]
         arg_parser.add_argument(
@@ -350,19 +110,6 @@ class xDSLOptMain:
             default="mlir",
         )
 
-        frontends = [name for name in self.available_frontends]
-        arg_parser.add_argument(
-            "-f",
-            "--frontend",
-            type=str,
-            required=False,
-            choices=frontends,
-            help="Frontend to be used for the input. If not set, "
-            "the xdsl frontend or the one for the file extension "
-            "is used.",
-        )
-
-        arg_parser.add_argument("--disable-verify", default=False, action="store_true")
         arg_parser.add_argument(
             "-o", "--output-file", type=str, required=False, help="path to output file"
         )
@@ -401,12 +148,6 @@ class xDSLOptMain:
         )
 
         arg_parser.add_argument(
-            "--allow-unregistered-dialect",
-            default=False,
-            action="store_true",
-            help="Allow the parsing of unregistered dialects.",
-        )
-        arg_parser.add_argument(
             "--split-input-file",
             default=False,
             action="store_true",
@@ -421,31 +162,12 @@ class xDSLOptMain:
             help="Print operations with the generic format",
         )
 
-    def register_all_dialects(self):
-        """
-        Register all dialects that can be used.
-
-        Add other/additional dialects by overloading this function.
-        """
-        for dialect_name, dialect_factory in get_all_dialects():
-            self.ctx.register_dialect(dialect_name, dialect_factory)
-
-    def register_all_frontends(self):
-        """
-        Register all frontends that can be used.
-
-        Add other/additional frontends by overloading this function.
-        """
-
-        def parse_mlir(io: IO[str]):
-            return Parser(
-                self.ctx,
-                io.read(),
-                self.get_input_name(),
-                self.args.allow_unregistered_dialect,
-            ).parse_module()
-
-        self.available_frontends["mlir"] = parse_mlir
+        arg_parser.add_argument(
+            "--print-debuginfo",
+            default=False,
+            action="store_true",
+            help="Print operations with debug info annotation, such as location.",
+        )
 
     def register_pass(self, pass_name: str, opPass: Callable[[], type[ModulePass]]):
         self.available_passes[pass_name] = opPass
@@ -468,7 +190,9 @@ class xDSLOptMain:
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
             printer = Printer(
-                stream=output, print_generic_format=self.args.print_op_generic
+                stream=output,
+                print_generic_format=self.args.print_op_generic,
+                print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
             print("\n", file=output)
@@ -481,7 +205,7 @@ class xDSLOptMain:
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
             try:
-                from xdsl.interpreters.riscv_emulator import run_riscv, RV_Debug
+                from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
             except ImportError:
                 print("Please install optional dependencies to run riscv emulation")
                 return
@@ -507,11 +231,23 @@ class xDSLOptMain:
             if p.name not in self.available_passes:
                 raise Exception(f"Unrecognized pass: {p.name}")
 
-        self.pipeline = [
-            self.available_passes[p.name]().from_pass_spec(p) for p in pipeline
-        ]
+        def callback(
+            previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
+        ) -> None:
+            if not self.args.disable_verify:
+                module.verify()
+            if self.args.print_between_passes:
+                print(f"IR after {previous_pass.name}:")
+                printer = Printer(stream=sys.stdout)
+                printer.print_op(module)
+                print("\n\n\n")
 
-    def prepare_input(self) -> tuple[List[IO[str]], str]:
+        self.pipeline = PipelinePass(
+            [self.available_passes[p.name]().from_pass_spec(p) for p in pipeline],
+            callback,
+        )
+
+    def prepare_input(self) -> tuple[list[IO[str]], str]:
         """
         Prepare input by eventually splitting it in chunks. If not set, the parser
         registered for this file extension is used.
@@ -520,15 +256,8 @@ class xDSLOptMain:
         # when using the split input flag, program is split into multiple chunks
         # it's used for split input file
 
-        chunks: List[IO[str]] = []
-        if self.args.input_file is None:
-            f = sys.stdin
-            file_extension = "mlir"
-        else:
-            f = open(self.args.input_file)
-            _, file_extension = os.path.splitext(self.args.input_file)
-            file_extension = file_extension.replace(".", "")
-
+        chunks: list[IO[str]] = []
+        f, file_extension = self.get_input_stream()
         chunks = [f]
         if self.args.split_input_file:
             chunks = [StringIO(chunk) for chunk in f.read().split("// -----")]
@@ -549,39 +278,15 @@ class xDSLOptMain:
         else:
             return open(self.args.output_file, "w")
 
-    def parse_chunk(self, chunk: IO[str], file_extension: str) -> ModuleOp | None:
-        """
-        Parse the input file by invoking the parser specified by the `parser`
-        argument. If not set, the parser registered for this file extension
-        is used.
-        """
-
-        try:
-            return self.available_frontends[file_extension](chunk)
-        except ParseError as e:
-            if self.args.parsing_diagnostics:
-                print(e)
-            else:
-                raise e
-        finally:
-            chunk.close()
-
     def apply_passes(self, prog: ModuleOp) -> bool:
         """Apply passes in order."""
         try:
             assert isinstance(prog, ModuleOp)
             if not self.args.disable_verify:
                 prog.verify()
-            for p in self.pipeline:
-                p.apply(self.ctx, prog)
-                assert isinstance(prog, ModuleOp)
-                if not self.args.disable_verify:
-                    prog.verify()
-                if self.args.print_between_passes:
-                    print(f"IR after {p.name}:")
-                    printer = Printer(stream=sys.stdout)
-                    printer.print_op(prog)
-                    print("\n\n\n")
+            self.pipeline.apply(self.ctx, prog)
+            if not self.args.disable_verify:
+                prog.verify()
         except DiagnosticException as e:
             if self.args.verify_diagnostics:
                 print(e)
@@ -598,6 +303,3 @@ class xDSLOptMain:
 
         self.available_targets[self.args.target](prog, output)
         return output.getvalue()
-
-    def get_input_name(self):
-        return self.args.input_file or "stdin"

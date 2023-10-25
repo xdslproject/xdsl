@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Annotated, Generic, Iterable, Sequence, TypeVar, cast
+from collections.abc import Iterable, Sequence
+from typing import Annotated, Generic, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyArrayAttr,
@@ -14,35 +15,36 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
-    TypeAttribute,
     OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    IRDLOperation,
     Operand,
     OptOperand,
     OptRegion,
     ParameterDef,
+    VarOperand,
+    VarOpResult,
     attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_operand_def,
     opt_region_def,
     region_def,
+    result_def,
     var_operand_def,
     var_result_def,
-    VarOperand,
-    VarOpResult,
-    irdl_attr_definition,
-    irdl_op_definition,
-    IRDLOperation,
-    result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.traits import HasParent, IsTerminator, NoTerminator, OptionalSymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -67,7 +69,7 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
             "Mismatched between the numbers of operands and types", pos, end_pos
         )
     for operand, type in zip(operands, types):
-        if operand.typ != type:
+        if operand.type != type:
             parser.raise_error(
                 "Mismatched between operands and their types", pos, end_pos
             )
@@ -78,7 +80,7 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
 def print_operands_with_types(printer: Printer, operands: Iterable[SSAValue]) -> None:
     printer.print_list(operands, printer.print)
     printer.print(" : ")
-    printer.print_list([operand.typ for operand in operands], printer.print)
+    printer.print_list([operand.type for operand in operands], printer.print)
 
 
 @irdl_attr_definition
@@ -126,29 +128,8 @@ class ApplyNativeConstraintOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_constraint"
-    # https://github.com/xdslproject/xdsl/issues/98
-    # name: StringAttr = attr_def(StringAttr)
+    constraint_name: StringAttr = attr_def(StringAttr, attr_name="name")
     args: VarOperand = var_operand_def(AnyPDLType)
-
-    @property
-    def constraint_name(self) -> StringAttr:
-        name = self.attributes.get("name", None)
-        if not isinstance(name, StringAttr):
-            raise VerifyException(
-                f"Operation {self.name} requires a StringAttr 'name' attribute"
-            )
-        return name
-
-    @constraint_name.setter
-    def constraint_name(self, name: StringAttr) -> None:
-        self.attributes["name"] = name
-
-    def verify_(self) -> None:
-        if "name" not in self.attributes:
-            raise VerifyException("ApplyNativeConstraintOp requires a 'name' attribute")
-
-        if not isinstance(self.attributes["name"], StringAttr):
-            raise VerifyException("expected 'name' attribute to be a StringAttr")
 
     def __init__(self, name: str | StringAttr, args: Sequence[SSAValue]) -> None:
         if isinstance(name, str):
@@ -177,23 +158,9 @@ class ApplyNativeRewriteOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_rewrite"
-    # https://github.com/xdslproject/xdsl/issues/98
-    # name: StringAttr = attr_def(StringAttr)
+    constraint_name: StringAttr = attr_def(StringAttr, attr_name="name")
     args: VarOperand = var_operand_def(AnyPDLType)
     res: VarOpResult = var_result_def(AnyPDLType)
-
-    @property
-    def constraint_name(self) -> StringAttr:
-        name = self.attributes.get("name", None)
-        if not isinstance(name, StringAttr):
-            raise VerifyException(
-                f"Operation {self.name} requires a StringAttr 'name' attribute"
-            )
-        return name
-
-    @constraint_name.setter
-    def constraint_name(self, name: StringAttr) -> None:
-        self.attributes["name"] = name
 
     def __init__(
         self,
@@ -413,18 +380,17 @@ class OperationOp(IRDLOperation):
             operands = parse_operands_with_types(parser)
             parser.parse_punctuation(")")
 
-        def parse_pattribute_entry() -> tuple[str, SSAValue]:
+        def parse_attribute_entry() -> tuple[str, SSAValue]:
             name = parser.parse_str_literal()
             parser.parse_punctuation("=")
             type = parser.parse_operand()
             return (name, type)
 
-        attributes = []
-        if parser.parse_optional_punctuation("{"):
-            attributes = parser.parse_comma_separated_list(
-                Parser.Delimiter.NONE, parse_pattribute_entry
-            )
-            parser.parse_punctuation("}")
+        attributes = parser.parse_optional_comma_separated_list(
+            Parser.Delimiter.BRACES, parse_attribute_entry
+        )
+        if attributes is None:
+            attributes = []
         attribute_names = [StringAttr(attr[0]) for attr in attributes]
         attribute_values = [attr[1] for attr in attributes]
 
@@ -475,11 +441,13 @@ class PatternOp(IRDLOperation):
     sym_name: StringAttr | None = opt_attr_def(StringAttr)
     body: Region = region_def()
 
+    traits = frozenset([OptionalSymbolOpInterface()])
+
     def __init__(
         self,
         benefit: int | IntegerAttr[IntegerType],
         sym_name: str | StringAttr | None,
-        body: Region | Block.BlockCallback | None = None,
+        body: Region | None = None,
     ):
         if isinstance(benefit, int):
             benefit = IntegerAttr(benefit, 16)
@@ -487,8 +455,6 @@ class PatternOp(IRDLOperation):
             sym_name = StringAttr(sym_name)
         if body is None:
             body = Region(Block())
-        elif not isinstance(body, Region):
-            body = Region(Block.from_callable([], body))
         super().__init__(
             attributes={
                 "benefit": benefit,
@@ -527,10 +493,10 @@ class RangeOp(IRDLOperation):
 
     def verify_(self) -> None:
         def get_type_or_elem_type(arg: SSAValue) -> Attribute:
-            if isa(arg.typ, RangeType[AnyPDLType]):
-                return arg.typ.element_type
+            if isa(arg.type, RangeType[AnyPDLType]):
+                return arg.type.element_type
             else:
-                return arg.typ
+                return arg.type
 
         if len(self.arguments) > 0:
             elem_type = get_type_or_elem_type(self.result)
@@ -552,10 +518,10 @@ class RangeOp(IRDLOperation):
             if len(arguments) == 0:
                 raise ValueError("Empty range constructions require a return type.")
 
-            if isa(arguments[0].typ, RangeType[AnyPDLType]):
-                result_type = RangeType(arguments[0].typ.element_type)
-            elif isa(arguments[0].typ, AnyPDLType):
-                result_type = RangeType(arguments[0].typ)
+            if isa(arguments[0].type, RangeType[AnyPDLType]):
+                result_type = RangeType(arguments[0].type.element_type)
+            elif isa(arguments[0].type, AnyPDLType):
+                result_type = RangeType(arguments[0].type)
             else:
                 raise ValueError(
                     f"Arguments of {self.name} are expected to be PDL types"
@@ -573,7 +539,7 @@ class RangeOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if len(self.arguments) == 0:
-            printer.print(" : ", self.result.typ)
+            printer.print(" : ", self.result.type)
             return
 
         print_operands_with_types(printer, self.arguments)
@@ -584,7 +550,7 @@ class ReplaceOp(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-mlirpdlreplaceop
 
-    pdl.replace` operations are used within `pdl.rewrite` regions to specify
+    `pdl.replace` operations are used within `pdl.rewrite` regions to specify
     that an input operation should be marked as replaced. The semantics of this
     operation correspond with the `replaceOp` method on a `PatternRewriter`. The
     set of replacement values can be either:
@@ -643,8 +609,8 @@ class ReplaceOp(IRDLOperation):
         parser.parse_punctuation(")")
         return ReplaceOp(root, repl_values=repl_values)
 
-    def printer(self, printer: Printer) -> None:
-        printer.print(self.op_value, " with ")
+    def print(self, printer: Printer) -> None:
+        printer.print(" ", self.op_value, " with ")
         if self.repl_operation is not None:
             printer.print(self.repl_operation)
             return
@@ -724,7 +690,7 @@ class ResultsOp(IRDLOperation):
             printer.print(" of ", self.parent_)
             return
         printer.print(
-            " ", self.index.value.data, " of ", self.parent_, " -> ", self.val.typ
+            " ", self.index.value.data, " of ", self.parent_, " -> ", self.val.type
         )
 
 
@@ -737,8 +703,7 @@ class RewriteOp(IRDLOperation):
     name = "pdl.rewrite"
     root: OptOperand = opt_operand_def(OperationType)
     # name of external rewriter function
-    # https://github.com/xdslproject/xdsl/issues/98
-    # name: StringAttr| None = opt_attr_def(StringAttr)
+    name_: StringAttr | None = opt_attr_def(StringAttr, attr_name="name")
     # parameters of external rewriter function
     external_args: VarOperand = var_operand_def(AnyPDLType)
     # body of inline rewriter function
@@ -746,18 +711,12 @@ class RewriteOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    def verify_(self) -> None:
-        if "name" in self.attributes:
-            if not isinstance(self.attributes["name"], StringAttr):
-                raise Exception("expected 'name' attribute to be a StringAttr")
+    traits = frozenset([HasParent(PatternOp), NoTerminator(), IsTerminator()])
 
     def __init__(
         self,
         root: SSAValue | None,
-        body: Region
-        | Block.BlockCallback
-        | type[Region.DEFAULT]
-        | None = Region.DEFAULT,
+        body: Region | type[Region.DEFAULT] | None = Region.DEFAULT,
         name: str | StringAttr | None = None,
         external_args: Sequence[SSAValue] = (),
     ) -> None:
@@ -778,9 +737,6 @@ class RewriteOp(IRDLOperation):
             regions.append(body)
         elif body is None:
             regions.append([])
-        else:
-            body = cast(Block.BlockCallback, body)
-            regions.append(Region(Block.from_callable([], body)))
 
         attributes: dict[str, Attribute] = {}
         if name is not None:
@@ -817,7 +773,7 @@ class RewriteOp(IRDLOperation):
             printer.print(" ", self.body)
             return
 
-        printer.print(" with ", self.attributes["name"])
+        printer.print(" with ", self.name_)
         if len(self.external_args) != 0:
             printer.print("(")
             print_operands_with_types(printer, self.external_args)

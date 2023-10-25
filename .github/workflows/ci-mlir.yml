@@ -20,11 +20,17 @@ jobs:
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      MLIR-Version: 04fc02e583b06b846315904a55af9c273c8b20b9
+      MLIR-Version: a3f2751f782f3cdc6ba4790488ec20163a40ac37
     steps:
     - uses: actions/checkout@v3
       with:
         path: xdsl
+        
+    - name: Install native dependencies
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: mesa-vulkan-drivers
+        version: 1.0
 
     - name: Python Setup
       uses: actions/setup-python@v4
@@ -83,7 +89,7 @@ jobs:
       if: steps.cache-binary.outputs.cache-hit != 'true'
       run: |
         cd llvm-project/build
-        cmake --build . --target mlir-opt
+        cmake --build . --target mlir-opt mlir-cpu-runner
 
     - name: Test with pytest and generate code coverage
       run: |
@@ -96,6 +102,7 @@ jobs:
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         lit -v tests/filecheck/ -DCOVERAGE
+        lit -v docs/Toy/examples/ -DCOVERAGE
 
     - name: Test MLIR dependent examples/tutorials
       run: |
@@ -113,10 +120,14 @@ jobs:
 
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.10'
-      uses: codecov/codecov-action@v3
+      uses: Wandalen/wretry.action@v1
       with:
-        fail_ci_if_error: true
-        verbose: true
-        directory: ${GITHUB_WORKSPACE}/../
-        files: coverage.xml
-        token: ${{ secrets.CODECOV_TOKEN }}
+        action: codecov/codecov-action@v3
+        attempt_delay: 10000
+        attempt_limit: 10
+        with: |
+          fail_ci_if_error: true
+          verbose: true
+          directory: ${GITHUB_WORKSPACE}/../
+          files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}

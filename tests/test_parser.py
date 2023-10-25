@@ -1,28 +1,31 @@
+from io import StringIO
 from typing import cast
+
 import pytest
 
-from io import StringIO
-
 from xdsl.dialects.builtin import (
-    IntAttr,
-    DictionaryAttr,
-    StringAttr,
     ArrayAttr,
     Builtin,
+    DictionaryAttr,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    StringAttr,
     SymbolRefAttr,
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.ir import MLContext, Attribute, Region, ParametrizedAttribute
+from xdsl.ir import Attribute, MLContext, ParametrizedAttribute, Region
 from xdsl.irdl import (
+    IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
-    IRDLOperation,
+    prop_def,
     region_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import ParseError
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.lexer import Token
 
 # pyright: reportPrivateUsage=false
@@ -64,7 +67,7 @@ def test_dictionary_attr_with_keyword_missing(text: str):
     ctx = MLContext()
     ctx.load_dialect(Builtin)
 
-    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() == None
+    assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() is None
 
 
 @pytest.mark.parametrize(
@@ -204,13 +207,13 @@ def test_parse_argument(
     # parse_argument
     parser = Parser(ctx, text)
     if expected is not None:
-        res = parser.parse_argument(expect_type)
+        res = parser.parse_argument(expect_type=expect_type)
         assert res is not None
         assert res.name.text[1:] == expected[0]
         assert res.type == expected[1]
     else:
         with pytest.raises(ParseError):
-            parser.parse_argument(expect_type)
+            parser.parse_argument(expect_type=expect_type)
 
 
 @pytest.mark.parametrize(
@@ -234,7 +237,7 @@ def test_parse_argument_fail(text: str, expect_type: bool):
     # parse_argument
     parser = Parser(ctx, text)
     with pytest.raises(ParseError):
-        parser.parse_argument(expect_type)
+        parser.parse_argument(expect_type=expect_type)
 
 
 @pytest.mark.parametrize(
@@ -432,8 +435,20 @@ def test_parse_comma_separated_list(
     delimiter: Parser.Delimiter, open_bracket: str, close_bracket: str
 ):
     input = open_bracket + "2, 4, 5" + close_bracket
+
     parser = Parser(MLContext(), input)
     res = parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
+    assert res == [2, 4, 5]
+
+    parser = Parser(MLContext(), input)
+    if delimiter is Parser.Delimiter.NONE:
+        res = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_integer, parser.parse_integer
+        )
+    else:
+        res = parser.parse_optional_comma_separated_list(
+            delimiter, parser.parse_integer, " in test"
+        )
     assert res == [2, 4, 5]
 
 
@@ -463,6 +478,46 @@ def test_parse_comma_separated_list_none_delimiter_empty():
         )
 
 
+def test_parse_comma_separated_list_none_delimiter_two_no_comma():
+    """Test that a list without commas will only parse the first element."""
+    parser = Parser(MLContext(), "1 2")
+    res = parser.parse_comma_separated_list(
+        Parser.Delimiter.NONE, parser.parse_integer, " in test"
+    )
+    assert res == [1]
+    assert parser.parse_optional_integer() is not None
+
+    parser = Parser(MLContext(), "1 2")
+    parser.parse_optional_undelimited_comma_separated_list(
+        parser.parse_optional_integer, parser.parse_integer
+    )
+    assert res == [1]
+    assert parser.parse_optional_integer() is not None
+
+
+@pytest.mark.parametrize(
+    "delimiter",
+    [
+        (Parser.Delimiter.PAREN),
+        (Parser.Delimiter.SQUARE),
+        (Parser.Delimiter.BRACES),
+        (Parser.Delimiter.ANGLE),
+    ],
+)
+def test_parse_optional_comma_separated_list(delimiter: Parser.Delimiter):
+    parser = Parser(MLContext(), "o")
+    res = parser.parse_optional_comma_separated_list(delimiter, parser.parse_integer)
+    assert res is None
+
+
+def test_parse_optional_undelimited_comma_separated_list_empty():
+    parser = Parser(MLContext(), "o")
+    res = parser.parse_optional_undelimited_comma_separated_list(
+        parser.parse_optional_integer, parser.parse_integer
+    )
+    assert res is None
+
+
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [
@@ -477,10 +532,14 @@ def test_parse_comma_separated_list_error_element(
 ):
     input = open_bracket + "o" + close_bracket
     parser = Parser(MLContext(), input)
-    with pytest.raises(ParseError) as e:
+    with pytest.raises(ParseError, match="Expected integer literal"):
         parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
-    assert e.value.span.text == "o"
-    assert e.value.msg == "Expected integer literal"
+
+    parser = Parser(MLContext(), input)
+    with pytest.raises(ParseError, match="Expected integer literal"):
+        parser.parse_optional_comma_separated_list(
+            delimiter, parser.parse_integer, " in test"
+        )
 
 
 @pytest.mark.parametrize(
@@ -499,6 +558,14 @@ def test_parse_comma_separated_list_error_delimiters(
     parser = Parser(MLContext(), input)
     with pytest.raises(ParseError) as e:
         parser.parse_comma_separated_list(delimiter, parser.parse_integer, " in test")
+    assert e.value.span.text == "5"
+    assert e.value.msg == "Expected '" + close_bracket + "' in test"
+
+    parser = Parser(MLContext(), input)
+    with pytest.raises(ParseError) as e:
+        parser.parse_optional_comma_separated_list(
+            delimiter, parser.parse_integer, " in test"
+        )
     assert e.value.span.text == "5"
     assert e.value.msg == "Expected '" + close_bracket + "' in test"
 
@@ -732,3 +799,42 @@ def test_parse_number_error(text: str):
     parser = Parser(MLContext(), text)
     with pytest.raises(ParseError):
         parser.parse_number()
+
+
+@irdl_op_definition
+class PropertyOp(IRDLOperation):
+    name = "test.prop_op"
+
+    first = prop_def(StringAttr)
+    second = prop_def(IntegerAttr[IntegerType])
+
+
+def test_properties_retrocompatibility():
+    # Straightforward case
+    ctx = MLContext()
+    ctx.load_op(PropertyOp)
+    parser = Parser(ctx, '"test.prop_op"() <{first = "str", second = 42}> : () -> ()')
+
+    op = parser.parse_op()
+    assert isinstance(op, PropertyOp)
+    op.verify()
+
+    # Retrocompatibility case, only target
+    parser = Parser(ctx, '"test.prop_op"() {first = "str", second = 42} : () -> ()')
+    retro_op = parser.parse_op()
+    assert isinstance(retro_op, PropertyOp)
+    retro_op.verify()
+
+    assert op.attributes == retro_op.attributes
+    assert op.properties == retro_op.properties
+
+    # We ***do not*** try to be smarter than this. If properties are present, we parse
+    # and verify as-is.
+    parser = Parser(ctx, '"test.prop_op"() <{first = "str"}> {second = 42} : () -> ()')
+    wrong_op = parser.parse_op()
+    assert list(wrong_op.properties.keys()) == ["first"]
+    assert list(wrong_op.attributes.keys()) == ["second"]
+    with pytest.raises(
+        VerifyException, match="Operation does not verify: property second expected"
+    ):
+        wrong_op.verify()

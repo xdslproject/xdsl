@@ -1,91 +1,86 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from typing import (
-    Iterable,
-    Sequence,
-    TypeVar,
-    Any,
-    Dict,
-    Optional,
-    List,
-    cast,
-    Callable,
-)
+from typing import Any, TypeVar, cast
 
-from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
-from xdsl.ir import (
-    BlockArgument,
-    TypeAttribute,
-    SSAValue,
-    Block,
-    Attribute,
-    Region,
-    Operation,
-    Data,
-    ParametrizedAttribute,
-)
-from xdsl.utils.diagnostic import Diagnostic
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
+    AffineMapAttr,
     AnyFloatAttr,
+    AnyIntegerAttr,
     AnyUnrankedTensorType,
     AnyVectorType,
+    ArrayAttr,
     BFloat16Type,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
-    Float128Type,
+    DictionaryAttr,
     Float16Type,
     Float32Type,
     Float64Type,
     Float80Type,
+    Float128Type,
     FloatAttr,
     FloatData,
+    FunctionType,
     IndexType,
+    IntAttr,
+    IntegerAttr,
     IntegerType,
+    LocationAttr,
     NoneAttr,
     OpaqueAttr,
     Signedness,
     StridedLayoutAttr,
     StringAttr,
     SymbolRefAttr,
-    IntegerAttr,
-    ArrayAttr,
-    IntAttr,
     TensorType,
     UnitAttr,
-    FunctionType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
     VectorType,
-    DictionaryAttr,
 )
+from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Data,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
+from xdsl.traits import IsTerminator
+from xdsl.utils.diagnostic import Diagnostic
 
 indentNumSpaces = 2
 
 
 @dataclass(eq=False, repr=False)
 class Printer:
-    stream: Optional[Any] = field(default=None)
+    stream: Any | None = field(default=None)
     print_generic_format: bool = field(default=False)
+    print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
     _indent: int = field(default=0, init=False)
-    _ssa_values: Dict[SSAValue, str] = field(default_factory=dict, init=False)
+    _ssa_values: dict[SSAValue, str] = field(default_factory=dict, init=False)
     """
     maps SSA Values to their "allocated" names
     """
-    _ssa_names: Dict[str, int] = field(default_factory=dict, init=False)
-    _block_names: Dict[Block, int] = field(default_factory=dict, init=False)
+    _ssa_names: dict[str, int] = field(default_factory=dict, init=False)
+    _block_names: dict[Block, int] = field(default_factory=dict, init=False)
     _next_valid_name_id: int = field(default=0, init=False)
     _next_valid_block_id: int = field(default=0, init=False)
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
-    _next_line_callback: List[Callable[[], None]] = field(
+    _next_line_callback: list[Callable[[], None]] = field(
         default_factory=list, init=False
     )
 
@@ -234,7 +229,7 @@ class Printer:
 
         self.print(f"%{name}")
 
-    def _print_operand(self, operand: SSAValue) -> None:
+    def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
     def print_block_name(self, block: Block) -> None:
@@ -243,10 +238,16 @@ class Printer:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def print_block(self, block: Block, print_block_args: bool = True) -> None:
+    def print_block(
+        self,
+        block: Block,
+        print_block_args: bool = True,
+        print_block_terminator: bool = True,
+    ) -> None:
         """
         Print a block with syntax `(<caret-ident>`(` <block-args> `)`)? ops* )`
         * If `print_block_args` is False, the label and arguments are not printed.
+        * If `print_block_terminator` is False, the block terminator is not printed.
         """
 
         if print_block_args:
@@ -260,6 +261,8 @@ class Printer:
 
         self._indent += 1
         for op in block.ops:
+            if not print_block_terminator and op.has_trait(IsTerminator):
+                continue
             self._print_new_line()
             self.print_op(op)
         self._indent -= 1
@@ -271,19 +274,23 @@ class Printer:
         """
         self.print(arg)
         if print_type:
-            self.print(" : ", arg.typ)
+            self.print(" : ", arg.type)
+            if self.print_debuginfo:
+                self.print(" loc(unknown)")
 
     def print_region(
         self,
         region: Region,
         print_entry_block_args: bool = True,
         print_empty_block: bool = True,
+        print_block_terminators: bool = True,
     ) -> None:
         """
         Print a region with syntax `{ <block>* }`
         * If `print_entry_block_args` is False, the arguments of the entry block
           are not printed.
         * If `print_empty_block` is False, empty entry blocks are not printed.
+        * If `print_block_terminators` is False, the block terminators are not printed.
         """
 
         # Empty region
@@ -297,13 +304,17 @@ class Printer:
         print_entry_block_args = (
             bool(entry_block.args) and print_entry_block_args
         ) or (not entry_block.ops and print_empty_block)
-        self.print_block(entry_block, print_block_args=print_entry_block_args)
+        self.print_block(
+            entry_block,
+            print_block_args=print_entry_block_args,
+            print_block_terminator=print_block_terminators,
+        )
         for block in region.blocks[1:]:
-            self.print_block(block)
+            self.print_block(block, print_block_terminator=print_block_terminators)
         self._print_new_line()
         self.print("}")
 
-    def print_regions(self, regions: List[Region]) -> None:
+    def print_regions(self, regions: list[Region]) -> None:
         if len(regions) == 0:
             return
 
@@ -311,16 +322,9 @@ class Printer:
         self.print_list(regions, self.print_region)
         self.print(")")
 
-    def _print_operands(self, operands: tuple[SSAValue, ...]) -> None:
-        if len(operands) == 0:
-            self.print("()")
-            return
-
+    def print_operands(self, operands: Sequence[SSAValue]) -> None:
         self.print("(")
-        self._print_operand(operands[0])
-        for operand in operands[1:]:
-            self.print(", ")
-            self._print_operand(operand)
+        self.print_list(operands, self.print_operand)
         self.print(")")
 
     def print_paramattr_parameters(
@@ -337,6 +341,10 @@ class Printer:
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
+            return
+
+        if isinstance(attribute, LocationAttr):
+            self.print("loc(unknown)")
             return
 
         if isinstance(attribute, IntegerType):
@@ -382,26 +390,29 @@ class Printer:
             attribute = cast(AnyIntegerAttr, attribute)
 
             # boolean shorthands
-            if isinstance((typ := attribute.typ), IntegerType) and typ.width.data == 1:
+            if (
+                isinstance((attr_type := attribute.type), IntegerType)
+                and attr_type.width.data == 1
+            ):
                 self.print("false" if attribute.value.data == 0 else "true")
                 return
 
             width = attribute.parameters[0]
-            typ = attribute.parameters[1]
+            attr_type = attribute.parameters[1]
             assert isinstance(width, IntAttr)
             self.print(width.data)
             self.print(" : ")
-            self.print_attribute(typ)
+            self.print_attribute(attr_type)
             return
 
         if isinstance(attribute, FloatAttr):
             value = attribute.value
-            typ = cast(
+            attr_type = cast(
                 FloatAttr[Float16Type | Float32Type | Float64Type], attribute
             ).type
-            self.print(value.data)
+            self.print(f"{value.data:.6e}")
             self.print(" : ")
-            self.print_attribute(typ)
+            self.print_attribute(attr_type)
             return
 
         # Complex types have MLIR shorthands but XDSL does not.
@@ -410,8 +421,9 @@ class Printer:
             return
 
         if isinstance(attribute, ArrayAttr):
+            attribute = cast(ArrayAttr[Attribute], attribute)
             self.print_string("[")
-            self.print_list(attribute.data, self.print_attribute)  # type: ignore
+            self.print_list(attribute.data, self.print_attribute)
             self.print_string("]")
             return
 
@@ -603,9 +615,15 @@ class Printer:
                 self.print(" : ", attribute.type)
             return
 
+        if isinstance(attribute, AffineMapAttr):
+            self.print("affine_map<")
+            self.print(attribute.data)
+            self.print(">")
+            return
+
         if isinstance(attribute, UnregisteredAttr):
             # Do not print `!` or `#` for unregistered builtin attributes
-            if attribute.attr_name.data not in ["affine_map", "affine_set"]:
+            if attribute.attr_name.data not in ["affine_set"]:
                 self.print("!" if attribute.is_type.data else "#")
             self.print(attribute.attr_name.data, attribute.value.data)
             return
@@ -616,7 +634,6 @@ class Printer:
 
         if isinstance(attribute, Data):
             self.print("<")
-            attribute = cast(Data[Any], attribute)
             attribute.print_parameter(self)
             self.print(">")
             return
@@ -626,7 +643,7 @@ class Printer:
         attribute.print_parameters(self)
         return
 
-    def print_successors(self, successors: List[Block]):
+    def print_successors(self, successors: list[Block]):
         if len(successors) == 0:
             return
         self.print(" [")
@@ -640,41 +657,73 @@ class Printer:
             self.print(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
-    def _print_op_attributes(self, attributes: Dict[str, Attribute]) -> None:
-        if len(attributes) == 0:
+    def _print_op_properties(self, properties: dict[str, Attribute]) -> None:
+        if not properties:
             return
+
+        self.print(" <{")
+        self.print_list(properties.items(), self._print_attr_string)
+        self.print("}>")
+
+    def print_op_attributes(
+        self,
+        attributes: dict[str, Attribute],
+        *,
+        reserved_attr_names: Iterable[str] = (),
+        print_keyword: bool = False,
+    ) -> None:
+        if not attributes:
+            return
+
+        if reserved_attr_names:
+            attributes = {
+                name: attr
+                for name, attr in attributes.items()
+                if name not in reserved_attr_names
+            }
+
+        if not attributes:
+            return
+
+        if print_keyword:
+            self.print(" attributes")
 
         self.print(" {")
 
-        attribute_list = list(attributes.items())
-        self.print_list(attribute_list, self._print_attr_string)
+        self.print_list(attributes.items(), self._print_attr_string)
 
         self.print("}")
 
     def print_op_with_default_format(self, op: Operation) -> None:
-        self._print_operands(op.operands)
+        self.print_operands(op.operands)
         self.print_successors(op.successors)
-
+        self._print_op_properties(op.properties)
         self.print_regions(op.regions)
-        self._print_op_attributes(op.attributes)
+        self.print_op_attributes(op.attributes)
+        self.print(" : ")
+        self.print_operation_type(op)
 
-        # Print the operation type
-        self.print(" : (")
-        self.print_list(op.operands, lambda operand: self.print_attribute(operand.typ))
+    def print_operation_type(self, op: Operation) -> None:
+        self.print("(")
+        self.print_list(op.operands, lambda operand: self.print_attribute(operand.type))
         self.print(") -> ")
         if len(op.results) == 0:
             self.print("()")
         elif len(op.results) == 1:
-            typ = op.results[0].typ
+            res_type = op.results[0].type
             # Handle ambiguous case
-            if isinstance(typ, FunctionType):
-                self.print("(", typ, ")")
+            if isinstance(res_type, FunctionType):
+                self.print("(", res_type, ")")
             else:
-                self.print(typ)
+                self.print(res_type)
         else:
             self.print("(")
-            self.print_list(op.results, lambda result: self.print_attribute(result.typ))
+            self.print_list(
+                op.results, lambda result: self.print_attribute(result.type)
+            )
             self.print(")")
+        if self.print_debuginfo:
+            self.print(" loc(unknown)")
 
     def print_op(self, op: Operation) -> None:
         begin_op_pos = self._current_column

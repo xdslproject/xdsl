@@ -1,10 +1,12 @@
 import ast
 import importlib
 import inspect
-
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Type
-from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
+
+from xdsl.frontend.dialects.builtin import (
+    _FrontendType,  # pyright: ignore[reportPrivateUsage]
+)
 from xdsl.frontend.exception import FrontendProgramException
 from xdsl.ir import Operation
 
@@ -28,7 +30,7 @@ class OpResolver:
 
     @staticmethod
     def resolve_op_overload(
-        python_op: str, frontend_type: Type[_FrontendType]
+        python_op: str, frontend_type: type[_FrontendType]
     ) -> Callable[..., Operation]:
         # First, get overloaded function.
         if not hasattr(frontend_type, python_op):

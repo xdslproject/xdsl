@@ -1,12 +1,12 @@
-from pytest import raises
+import pytest
 
 from xdsl.ir import MLContext
 from xdsl.irdl import (
     AnyAttr,
-    irdl_op_definition,
     IRDLOperation,
     VarOperand,
     VarOpResult,
+    irdl_op_definition,
     var_operand_def,
     var_result_def,
 )
@@ -26,7 +26,7 @@ def check_error(prog: str, line: int, column: int, message: str):
     ctx.load_op(UnkownOp)
 
     parser = Parser(ctx, prog)
-    with raises(ParseError, match=message) as e:
+    with pytest.raises(ParseError, match=message) as e:
         parser.parse_operation()
 
     assert e.value.span.get_line_col() == (line, column)

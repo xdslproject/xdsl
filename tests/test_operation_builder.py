@@ -2,49 +2,49 @@ from __future__ import annotations
 
 import pytest
 
-from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
 from xdsl.dialects.arith import Constant
-
+from xdsl.dialects.builtin import DenseArrayBase, StringAttr, i32
+from xdsl.dialects.test import TestTermOp
 from xdsl.ir import Block, OpResult, Region
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     AttrSizedRegionSegments,
+    AttrSizedResultSegments,
     AttrSizedSuccessorSegments,
-    OptOperand,
-    OptRegion,
+    IRDLOperation,
     Operand,
+    OptOperand,
+    OptOpResult,
+    OptRegion,
     OptSuccessor,
     Successor,
+    VarOperand,
     VarOpResult,
     VarRegion,
     VarSuccessor,
     attr_def,
     irdl_op_definition,
-    AttrSizedResultSegments,
-    VarOperand,
-    AttrSizedOperandSegments,
-    IRDLOperation,
-    OptOpResult,
+    operand_def,
     opt_attr_def,
+    opt_operand_def,
+    opt_prop_def,
     opt_region_def,
+    opt_result_def,
     opt_successor_def,
+    prop_def,
     region_def,
     result_def,
-    opt_result_def,
     successor_def,
+    var_operand_def,
     var_region_def,
     var_result_def,
-    operand_def,
-    opt_operand_def,
-    var_operand_def,
     var_successor_def,
 )
+from xdsl.traits import IsTerminator
 
-#  ____                 _ _
-# |  _ \ ___  ___ _   _| | |_
-# | |_) / _ \/ __| | | | | __|
-# |  _ <  __/\__ \ |_| | | |_
-# |_| \_\___||___/\__,_|_|\__|
-#
+################################################################################
+#                                 Results                                      #
+################################################################################
 
 
 @irdl_op_definition
@@ -57,7 +57,7 @@ class ResultOp(IRDLOperation):
 def test_result_builder():
     op = ResultOp.build(result_types=[StringAttr("")])
     op.verify()
-    assert [res.typ for res in op.results] == [StringAttr("")]
+    assert [res.type for res in op.results] == [StringAttr("")]
 
 
 def test_result_builder_exception():
@@ -79,7 +79,7 @@ def test_opt_result_builder():
     op1.verify()
     op2.verify()
     op3.verify()
-    assert [res.typ for res in op1.results] == [StringAttr("")]
+    assert [res.type for res in op1.results] == [StringAttr("")]
     assert len(op2.results) == 0
     assert len(op3.results) == 0
 
@@ -99,7 +99,7 @@ class VarResultOp(IRDLOperation):
 def test_var_result_builder():
     op = VarResultOp.build(result_types=[[StringAttr("0"), StringAttr("1")]])
     op.verify()
-    assert [res.typ for res in op.results] == [
+    assert [res.type for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
     ]
@@ -122,7 +122,7 @@ def test_two_var_result_builder():
         ]
     )
     op.verify()
-    assert [res.typ for res in op.results] == [
+    assert [res.type for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
@@ -142,7 +142,7 @@ def test_two_var_result_builder2():
         ]
     )
     op.verify()
-    assert [res.typ for res in op.results] == [
+    assert [res.type for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
@@ -172,7 +172,7 @@ def test_var_mixed_builder():
         ]
     )
     op.verify()
-    assert [res.typ for res in op.results] == [
+    assert [res.type for res in op.results] == [
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
@@ -185,13 +185,9 @@ def test_var_mixed_builder():
     ] == DenseArrayBase.from_list(i32, [2, 1, 2])
 
 
-#   ___                                 _
-#  / _ \ _ __   ___ _ __ __ _ _ __   __| |
-# | | | | '_ \ / _ \ '__/ _` | '_ \ / _` |
-# | |_| | |_) |  __/ | | (_| | | | | (_| |
-#  \___/| .__/ \___|_|  \__,_|_| |_|\__,_|
-#       |_|
-#
+################################################################################
+#                                 Operands                                     #
+################################################################################
 
 
 @irdl_op_definition
@@ -205,14 +201,14 @@ def test_operand_builder_operation():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = OperandOp.build(operands=[op1])
     op2.verify()
-    assert op2.operands == (op1.res,)
+    assert tuple(op2.operands) == (op1.res,)
 
 
 def test_operand_builder_value():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = OperandOp.build(operands=[op1.res])
     op2.verify()
-    assert op2.operands == (op1.res,)
+    assert tuple(op2.operands) == (op1.res,)
 
 
 def test_operand_builder_exception():
@@ -254,7 +250,7 @@ def test_var_operand_builder():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = VarOperandOp.build(operands=[[op1, op1]])
     op2.verify()
-    assert op2.operands == (op1.res, op1.res)
+    assert tuple(op2.operands) == (op1.res, op1.res)
 
 
 @irdl_op_definition
@@ -266,11 +262,21 @@ class TwoVarOperandOp(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments()]
 
 
+# Define a similar operation with the segment sizes as a property to test this case
+@irdl_op_definition
+class TwoVarOperandPropOp(IRDLOperation):
+    name = "test.two_var_operand_op"
+
+    res1: VarOperand = var_operand_def(StringAttr)
+    res2: VarOperand = var_operand_def(StringAttr)
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
 def test_two_var_operand_builder():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = TwoVarOperandOp.build(operands=[[op1, op1], [op1, op1]])
     op2.verify()
-    assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 2])
@@ -280,23 +286,40 @@ def test_two_var_operand_builder2():
     op1 = ResultOp.build(result_types=[StringAttr("0")])
     op2 = TwoVarOperandOp.build(operands=[[op1], [op1, op1, op1]])
     op2.verify()
-    assert op2.operands == (op1.res, op1.res, op1.res, op1.res)
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
     assert op2.attributes[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
-#      _   _   _        _ _           _
-#     / \ | |_| |_ _ __(_) |__  _   _| |_ ___
-#    / _ \| __| __| '__| | '_ \| | | | __/ _ \
-#   / ___ \ |_| |_| |  | | |_) | |_| | ||  __/
-#  /_/   \_\__|\__|_|  |_|_.__/ \__,_|\__\___|
-#
+def test_two_var_operand_prop_builder():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op2 = TwoVarOperandPropOp.build(operands=[[op1, op1], [op1, op1]])
+    op2.verify()
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
+    assert op2.properties[
+        AttrSizedOperandSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [2, 2])
+
+
+def test_two_var_operand_prop_builder2():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op2 = TwoVarOperandPropOp.build(operands=[[op1], [op1, op1, op1]])
+    op2.verify()
+    assert tuple(op2.operands) == (op1.res, op1.res, op1.res, op1.res)
+    assert op2.properties[
+        AttrSizedOperandSegments.attribute_name
+    ] == DenseArrayBase.from_list(i32, [1, 3])
+
+
+################################################################################
+#                                Attribute                                     #
+################################################################################
 
 
 @irdl_op_definition
 class AttrOp(IRDLOperation):
-    name = "test.two_var_result_op"
+    name = "test.attr_op"
     attr: StringAttr = attr_def(StringAttr)
 
 
@@ -326,13 +349,39 @@ def test_optional_attr_op_empty():
     assert op.opt_attr is None
 
 
-#  ____            _
-# |  _ \ ___  __ _(_) ___  _ __
-# | |_) / _ \/ _` | |/ _ \| '_ \
-# |  _ <  __/ (_| | | (_) | | | |
-# |_| \_\___|\__, |_|\___/|_| |_|
-#            |___/
-#
+################################################################################
+#                                 Property                                     #
+################################################################################
+
+
+@irdl_op_definition
+class PropertyOp(IRDLOperation):
+    name = "test.prop_op"
+    attr: StringAttr = prop_def(StringAttr)
+
+
+def test_prop_op():
+    op = PropertyOp.build(properties={"attr": StringAttr("0")})
+    op.verify()
+    assert op.attr == StringAttr("0")
+
+
+@irdl_op_definition
+class OptionalPropertyOp(IRDLOperation):
+    name = "test.opt_prop_op"
+
+    opt_attr: StringAttr | None = opt_prop_def(StringAttr)
+
+
+def test_optional_prop_op_empty():
+    op = OptionalPropertyOp.build()
+    op.verify()
+    assert op.opt_attr is None
+
+
+################################################################################
+#                                  Region                                      #
+################################################################################
 
 
 @irdl_op_definition
@@ -356,12 +405,12 @@ def test_region_op_blocks():
 
 
 def test_region_op_ops():
-    op1 = RegionOp.build(regions=[[Block()]])
-    op2 = RegionOp.build(regions=[[Block()]])
-    op = RegionOp.build(regions=[[op1, op2]])
+    op1 = RegionOp.build(regions=[[Block([TestTermOp.create()])]])
+    op2 = RegionOp.build(regions=[[Block([TestTermOp.create()])]])
+    op = RegionOp.build(regions=[[op1, op2, TestTermOp.create()]])
     op.verify()
     assert len(op.region.blocks) == 1
-    assert len(op.region.blocks[0].ops) == 2
+    assert len(op.region.blocks[0].ops) == 3
 
 
 def test_noop_region():
@@ -383,7 +432,7 @@ class SBRegionOp(IRDLOperation):
 
 
 def test_sbregion_one_block():
-    op = SBRegionOp.build(regions=[[Block()]])
+    op = SBRegionOp.build(regions=[[Block([TestTermOp.create()])]])
     op.verify()
     assert len(op.region.blocks) == 1
 
@@ -417,7 +466,7 @@ class OptSBRegionOp(IRDLOperation):
 
 
 def test_opt_sbregion_one_block():
-    op1 = OptSBRegionOp.build(regions=[[[Block()]]])
+    op1 = OptSBRegionOp.build(regions=[[[Block([TestTermOp.create()])]]])
     op2 = OptSBRegionOp.build(regions=[[]])
     op1.verify()
     op2.verify()
@@ -436,8 +485,8 @@ class VarRegionOp(IRDLOperation):
 def test_var_region_builder():
     op = VarRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op.verify()
-    assert len(op.regs[0].blocks) == 0  # type: ignore
-    assert len(op.regs[1].blocks) == 2  # type: ignore
+    assert len(op.regs[0].blocks) == 0
+    assert len(op.regs[1].blocks) == 2
 
 
 @irdl_op_definition
@@ -448,14 +497,14 @@ class VarSBRegionOp(IRDLOperation):
 
 
 def test_var_sbregion_one_block():
-    op1 = VarSBRegionOp.build(regions=[[[Block()]]])
+    op1 = VarSBRegionOp.build(regions=[[[Block([TestTermOp.create()])]]])
     op2 = VarSBRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op1.verify()
     op2.verify()
-    assert len(op1.regs) == 1  # type: ignore
-    assert len(op2.regs) == 2  # type: ignore
-    assert len(op2.regs[0].blocks) == 0  # type: ignore
-    assert len(op2.regs[1].blocks) == 2  # type: ignore
+    assert len(op1.regs) == 1
+    assert len(op2.regs) == 2
+    assert len(op2.regs[0].blocks) == 0
+    assert len(op2.regs[1].blocks) == 2
 
 
 @irdl_op_definition
@@ -493,12 +542,9 @@ def test_two_var_operand_builder3():
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
-#  ____
-# / ___| _   _  ___ ___ ___  ___ ___  ___  _ __
-# \___ \| | | |/ __/ __/ _ \/ __/ __|/ _ \| '__|
-#  ___) | |_| | (_| (_|  __/\__ \__ \ (_) | |
-# |____/ \__,_|\___\___\___||___/___/\___/|_|
-#
+################################################################################
+#                                Successor                                     #
+################################################################################
 
 
 @irdl_op_definition
@@ -507,14 +553,17 @@ class SuccessorOp(IRDLOperation):
 
     successor: Successor = successor_def()
 
+    traits = frozenset([IsTerminator()])
+
 
 def test_successor_op_successor():
     """Test operation from IRDL operation definition can have successors"""
     block0 = Block()
-    op = SuccessorOp.build(successors=[block0])
 
+    op = SuccessorOp.build(successors=[block0])
     block1 = Block([op])
-    _ = Region([block1])
+
+    _ = Region([block0, block1])
 
     op.verify()
     assert len(op.successors) == 1
@@ -526,6 +575,8 @@ class OptSuccessorOp(IRDLOperation):
 
     successor: OptSuccessor = opt_successor_def()
 
+    traits = frozenset([IsTerminator()])
+
 
 def test_opt_successor_builder():
     """
@@ -533,11 +584,14 @@ def test_opt_successor_builder():
     successors
     """
     block0 = Block()
-    op1 = OptSuccessorOp.build(successors=[block0])
-    op2 = OptSuccessorOp.build(successors=[None])
 
-    block1 = Block([op2, op1])
-    _ = Region([block1])
+    op1 = OptSuccessorOp.build(successors=[block0])
+    block1 = Block([op1])
+
+    op2 = OptSuccessorOp.build(successors=[None])
+    block2 = Block([op2])
+
+    _ = Region([block0, block1, block2])
 
     op1.verify()
     op2.verify()
@@ -549,6 +603,8 @@ class VarSuccessorOp(IRDLOperation):
 
     successor: VarSuccessor = var_successor_def()
 
+    traits = frozenset([IsTerminator()])
+
 
 def test_var_successor_builder():
     """
@@ -558,7 +614,7 @@ def test_var_successor_builder():
     op = VarSuccessorOp.build(successors=[[block0, block0, block0]])
 
     block1 = Block([op])
-    _ = Region([block1])
+    _ = Region([block0, block1])
 
     op.verify()
     assert len(op.successors) == 3
@@ -572,6 +628,8 @@ class TwoVarSuccessorOp(IRDLOperation):
     res2: VarSuccessor = var_successor_def()
     irdl_options = [AttrSizedSuccessorSegments()]
 
+    traits = frozenset([IsTerminator()])
+
 
 def test_two_var_successor_builder():
     """
@@ -582,10 +640,11 @@ def test_two_var_successor_builder():
     block2 = Block()
     block3 = Block()
     block4 = Block()
-    op2 = TwoVarSuccessorOp.build(successors=[[block1, block2], [block3, block4]])
 
+    op2 = TwoVarSuccessorOp.build(successors=[[block1, block2], [block3, block4]])
     block0 = Block([op2])
-    _ = Region([block0])
+
+    _ = Region([block0, block1, block2, block3, block4])
 
     op2.verify()
     assert op2.successors == [block1, block2, block3, block4]
@@ -603,10 +662,11 @@ def test_two_var_successor_builder2():
     block2 = Block()
     block3 = Block()
     block4 = Block()
-    op2 = TwoVarSuccessorOp.build(successors=[[block1], [block2, block3, block4]])
 
+    op2 = TwoVarSuccessorOp.build(successors=[[block1], [block2, block3, block4]])
     block0 = Block([op2])
-    _ = Region([block0])
+
+    _ = Region([block0, block1, block2, block3, block4])
 
     op2.verify()
     assert op2.successors == [block1, block2, block3, block4]
@@ -615,12 +675,9 @@ def test_two_var_successor_builder2():
     ] == DenseArrayBase.from_list(i32, [1, 3])
 
 
-#  __  __ _
-# |  \/  (_)___  ___
-# | |\/| | / __|/ __|
-# | |  | | \__ \ (__
-# |_|  |_|_|___/\___|
-#
+################################################################################
+#                                   Misc                                       #
+################################################################################
 
 
 def test_parent_pointers():
