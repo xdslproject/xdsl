@@ -28,6 +28,20 @@ class LowerStridePatternOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_stream.StridePatternOp, rewriter: PatternRewriter, /
     ):
+        # reference implementation:
+        # // Configure an SSR data mover for a 2D loop nest.
+        #
+        # inline void snrt_ssr_loop_2d(enum snrt_ssr_dm dm, size_t b0, size_t b1,
+        #                              size_t s0, size_t s1) {
+        #     --b0;
+        #     --b1;
+        #     write_ssr_cfg(REG_BOUNDS + 0, dm, b0);
+        #     write_ssr_cfg(REG_BOUNDS + 1, dm, b1);
+        #     size_t a = 0;
+        #     write_ssr_cfg(REG_STRIDES + 0, dm, s0 - a);
+        #     a += s0 * b0;
+        #     write_ssr_cfg(REG_STRIDES + 1, dm, s1 - a);
+        # }
         dim = len(op.ub)
         if dim != 2:
             raise NotImplementedError("Only 2d loop stride patterns are supported")
@@ -35,24 +49,23 @@ class LowerStridePatternOp(RewritePattern):
         int_0 = builtin.IntegerAttr(0, 32)
         int_1 = builtin.IntegerAttr(1, 32)
 
+        b = tuple(b.data for b in op.ub.data)
+        s = tuple(s.data for s in op.strides.data)
+
         rewriter.replace_matched_op(
             [
                 dm := riscv.LiOp(op.dm.data),
-                b0 := riscv.LiOp(op.ub.data[0].data),
-                b1 := riscv.LiOp(op.ub.data[1].data),
-                s0 := riscv.LiOp(op.strides.data[0].data),
-                s1 := riscv.LiOp(op.strides.data[1].data),
+                b0 := riscv.LiOp(b[0]),
+                b1 := riscv.LiOp(b[1]),
+                s0 := riscv.LiOp(s[0]),
+                s1 := riscv.LiOp(s[1]),
                 new_b0 := riscv.AddiOp(b0, -1),
                 new_b1 := riscv.AddiOp(b1, -1),
                 snitch.SsrSetDimensionBoundOp(dm, new_b0, int_0),
                 snitch.SsrSetDimensionBoundOp(dm, new_b1, int_1),
                 snitch.SsrSetDimensionStrideOp(dm, s0, int_0),
-                s0_b0 := riscv.MulOp(
-                    new_b0, s0, rd=riscv.IntRegisterType.unallocated()
-                ),
-                stride_1 := riscv.SubOp(
-                    s1, s0_b0, rd=riscv.IntRegisterType.unallocated()
-                ),
+                a0 := riscv.MulOp(new_b0, s0, rd=riscv.IntRegisterType.unallocated()),
+                stride_1 := riscv.SubOp(s1, a0, rd=riscv.IntRegisterType.unallocated()),
                 snitch.SsrSetDimensionStrideOp(dm, stride_1, int_1),
                 # The result is rewritten to be the dimensionality of the stream
                 # configuration, which is `dim-1`.
