@@ -234,9 +234,6 @@ SnitchStream = Dialect(
         WriteOp,
         StridedReadOp,
         StridedWriteOp,
-    ],
-    [
-        ReadableStreamType,
-        WritableStreamType,
+        StridePatternOp,
     ],
 )
