@@ -50,6 +50,19 @@ class LowerGenericOp(RewritePattern):
             # Cannot lower linalg generic op with results
             return
 
+        # Streams are exclusively readable or writable
+        # Look at block arguments in body, if an output argument is used, bail, otherwise remove it.
+
+        block = op.body.block
+        input_count = len(op.inputs)
+        output_args = block.args[input_count:]
+        if any(o.uses for o in output_args):
+            # Cannot lower inout args to stream
+            return
+
+        for o in output_args:
+            rewriter.erase_block_argument(o)
+
         ub = op.get_static_loop_ranges()
         repeat_count = prod(ub)
         ub_attr = ArrayAttr(IntAttr(b) for b in ub)
