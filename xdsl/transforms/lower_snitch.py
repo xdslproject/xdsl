@@ -4,7 +4,7 @@ Rewrite patterns for lowering snitch → riscv.
 
 from dataclasses import dataclass
 
-from xdsl.dialects import builtin, riscv, snitch
+from xdsl.dialects import builtin, riscv, riscv_snitch, snitch
 from xdsl.dialects.builtin import IntegerAttr, i32
 from xdsl.ir import MLContext
 from xdsl.irdl import Operand
@@ -113,9 +113,10 @@ def make_stream_set_config_ops(value: Operand, stream: Operand, baseaddr: int):
             stream,
             immediate=IntegerAttr(baseaddr << 5, i32),
         ),
-        riscv.ScfgwOp(
+        riscv_snitch.ScfgwOp(
             rs1=value,
             rs2=address,
+            rd=riscv.Registers.ZERO,
         ),
     ]
 

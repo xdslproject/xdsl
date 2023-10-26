@@ -3,8 +3,8 @@ from io import StringIO
 from xdsl.dialects import arith, builtin, gpu, memref, test
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i32
 from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
-from xdsl.ir.core import MLContext
-from xdsl.parser.core import Parser
+from xdsl.ir import MLContext
+from xdsl.parser import Parser
 from xdsl.utils.test_value import TestSSAValue
 
 lhs_op = test.TestOp(result_types=[IndexType()])
@@ -347,10 +347,10 @@ builtin.module attributes {gpu.container_module} {
             }
 """
     context = MLContext()
-    context.register_dialect(arith.Arith)
-    context.register_dialect(memref.MemRef)
-    context.register_dialect(builtin.Builtin)
-    context.register_dialect(gpu.GPU)
+    context.load_dialect(arith.Arith)
+    context.load_dialect(memref.MemRef)
+    context.load_dialect(builtin.Builtin)
+    context.load_dialect(gpu.GPU)
     parser = Parser(context, mlir_source)
     module = parser.parse_module()
 

@@ -1,6 +1,7 @@
 import dataclasses
 from abc import ABC, abstractmethod
-from dataclasses import Field, dataclass
+from collections.abc import Callable
+from dataclasses import Field, dataclass, field
 from types import NoneType, UnionType
 from typing import Any, ClassVar, TypeVar, Union, get_args, get_origin
 
@@ -72,21 +73,21 @@ class ModulePass(ABC):
         arg_dict = dict[str, PassArgListType | PassArgElementType | None]()
 
         # iterate over all fields of the dataclass
-        for field in fields:
+        for op_field in fields:
             # ignore the name field and everything that's not used by __init__
-            if field.name == "name" or not field.init:
+            if op_field.name == "name" or not op_field.init:
                 continue
             # check that non-optional fields are present
-            if field.name not in spec.args:
-                if _is_optional(field):
-                    arg_dict[field.name] = _get_default(field)
+            if op_field.name not in spec.args:
+                if _is_optional(op_field):
+                    arg_dict[op_field.name] = _get_default(op_field)
                     continue
-                raise ValueError(f'Pass {cls.name} requires argument "{field.name}"')
+                raise ValueError(f'Pass {cls.name} requires argument "{op_field.name}"')
 
             # convert pass arg to the correct type:
-            arg_dict[field.name] = _convert_pass_arg_to_type(
-                spec.args.pop(field.name),
-                field.type,
+            arg_dict[op_field.name] = _convert_pass_arg_to_type(
+                spec.args.pop(op_field.name),
+                op_field.type,
             )
             # we use .pop here to also remove the arg from the dict
 
@@ -101,6 +102,35 @@ class ModulePass(ABC):
 
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
+
+
+def _empty_callback(
+    previous_pass: ModulePass, module: builtin.ModuleOp, next_pass: ModulePass
+) -> None:
+    return
+
+
+@dataclass
+class PipelinePass(ModulePass):
+    passes: list[ModulePass]
+    callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] = field(
+        default=_empty_callback
+    )
+    """
+    Function called in between every pass, taking the pass that just ran, the module, and
+    the next pass.
+    """
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        if not self.passes:
+            # Early exit to avoid fetching a non-existing last pass.
+            return
+
+        for prev, next in zip(self.passes[:-1], self.passes[1:]):
+            prev.apply(ctx, op)
+            self.callback(prev, op, next)
+
+        self.passes[-1].apply(ctx, op)
 
 
 def _convert_pass_arg_to_type(

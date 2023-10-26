@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    Block,
     Dialect,
     Operation,
     OpResult,
@@ -25,7 +26,6 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.core import Block
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -45,6 +45,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser
@@ -190,7 +191,7 @@ class AllocOp(IRDLOperation):
         attributes: dict[str, Attribute] = (
             {"hostShared": UnitAttr()} if host_shared else {}
         )
-        return super().__init__(
+        super().__init__(
             operands=[async_dependencies_vals, dynamic_sizes_vals, []],
             result_types=[return_type, token_return],
             attributes=attributes,
@@ -270,7 +271,7 @@ class BarrierOp(IRDLOperation):
     name = "gpu.barrier"
 
     def __init__(self):
-        return super().__init__()
+        super().__init__()
 
 
 @irdl_op_definition
@@ -280,9 +281,7 @@ class BlockDimOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self, dim: DimensionAttr):
-        return super().__init__(
-            result_types=[IndexType()], properties={"dimension": dim}
-        )
+        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -292,9 +291,7 @@ class BlockIdOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self, dim: DimensionAttr):
-        return super().__init__(
-            result_types=[IndexType()], properties={"dimension": dim}
-        )
+        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -314,7 +311,7 @@ class DeallocOp(IRDLOperation):
         async_dependencies: Sequence[SSAValue | Operation] | None = None,
         is_async: bool = False,
     ):
-        return super().__init__(
+        super().__init__(
             operands=[async_dependencies, buffer],
             result_types=[[AsyncTokenType()] if is_async else []],
         )
@@ -339,7 +336,7 @@ class MemcpyOp(IRDLOperation):
         async_dependencies: Sequence[SSAValue | Operation] | None = None,
         is_async: bool = False,
     ):
-        return super().__init__(
+        super().__init__(
             operands=[async_dependencies, destination, source],
             result_types=[[AsyncTokenType()] if is_async else []],
         )
@@ -356,13 +353,10 @@ class MemcpyOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent(ModuleOp), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ModuleOp)]))
 
     def __init__(self):
-        return super().__init__()
+        super().__init__()
 
 
 @irdl_op_definition
@@ -452,9 +446,7 @@ class GlobalIdOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self, dim: DimensionAttr):
-        return super().__init__(
-            result_types=[IndexType()], properties={"dimension": dim}
-        )
+        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -464,9 +456,7 @@ class GridDimOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self, dim: DimensionAttr):
-        return super().__init__(
-            result_types=[IndexType()], properties={"dimension": dim}
-        )
+        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -486,7 +476,7 @@ class HostRegisterOp(IRDLOperation):
     value: Operand = operand_def(memref.UnrankedMemrefType)
 
     def __init__(self, memref: SSAValue | Operation):
-        return super().__init__(operands=[SSAValue.get(memref)])
+        super().__init__(operands=[SSAValue.get(memref)])
 
 
 @irdl_op_definition
@@ -500,7 +490,7 @@ class HostUnregisterOp(IRDLOperation):
     value: Operand = operand_def(memref.UnrankedMemrefType)
 
     def __init__(self, memref: SSAValue | Operation):
-        return super().__init__(operands=[SSAValue.get(memref)])
+        super().__init__(operands=[SSAValue.get(memref)])
 
 
 @irdl_op_definition
@@ -509,7 +499,7 @@ class LaneIdOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self):
-        return super().__init__(result_types=[IndexType()])
+        super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
@@ -553,7 +543,7 @@ class LaunchOp(IRDLOperation):
             if dynamicSharedMemorySize is None
             else [SSAValue.get(dynamicSharedMemorySize)]
         ]
-        return super().__init__(
+        super().__init__(
             operands=operands,
             result_types=[[AsyncTokenType()] if async_launch else []],
             regions=[body],
@@ -636,7 +626,7 @@ class LaunchFuncOp(IRDLOperation):
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
 
-        return super().__init__(
+        super().__init__(
             operands=[
                 asyncDependencies,
                 *gridSize,
@@ -656,7 +646,7 @@ class NumSubgroupsOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self):
-        return super().__init__(result_types=[IndexType()])
+        super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
@@ -668,7 +658,7 @@ class ReturnOp(IRDLOperation):
     traits = frozenset([IsTerminator(), HasParent(FuncOp)])
 
     def __init__(self, operands: Sequence[SSAValue | Operation]):
-        return super().__init__(operands=[operands])
+        super().__init__(operands=[operands])
 
 
 @irdl_op_definition
@@ -677,7 +667,7 @@ class SetDefaultDeviceOp(IRDLOperation):
     devIndex: Operand = operand_def(i32)
 
     def __init__(self, devIndex: SSAValue | Operation):
-        return super().__init__(operands=[SSAValue.get(devIndex)])
+        super().__init__(operands=[SSAValue.get(devIndex)])
 
 
 @irdl_op_definition
@@ -686,7 +676,7 @@ class SubgroupIdOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self):
-        return super().__init__(result_types=[IndexType()])
+        super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
@@ -695,7 +685,7 @@ class SubgroupSizeOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self):
-        return super().__init__(result_types=[IndexType()])
+        super().__init__(result_types=[IndexType()])
 
 
 @irdl_op_definition
@@ -705,7 +695,7 @@ class TerminatorOp(IRDLOperation):
     traits = frozenset([HasParent(LaunchOp), IsTerminator()])
 
     def __init__(self):
-        return super().__init__()
+        super().__init__()
 
 
 @irdl_op_definition
@@ -715,9 +705,7 @@ class ThreadIdOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self, dim: DimensionAttr):
-        return super().__init__(
-            result_types=[IndexType()], properties={"dimension": dim}
-        )
+        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -726,7 +714,7 @@ class YieldOp(IRDLOperation):
     values: VarOperand = var_operand_def(Attribute)
 
     def __init__(self, operands: Sequence[SSAValue | Operation]):
-        return super().__init__(operands=[operands])
+        super().__init__(operands=[operands])
 
     traits = frozenset([IsTerminator()])
 

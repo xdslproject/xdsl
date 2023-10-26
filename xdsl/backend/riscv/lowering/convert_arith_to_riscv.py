@@ -1,3 +1,4 @@
+import struct
 from dataclasses import dataclass
 
 from xdsl.backend.riscv.lowering.utils import (
@@ -15,7 +16,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir.core import MLContext, Operation
+from xdsl.ir import MLContext, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -63,8 +64,31 @@ class LowerArithConstant(RewritePattern):
                         UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
                     ],
                 )
+            elif isinstance(op_result_type, Float64Type):
+                # There is no way to load an immediate value to a float register directly.
+                # We have to load the bits into an integer register, store them on the
+                # stack, and load again.
+
+                # TODO: check the xlen in this lowering.
+
+                # This lowering assumes that xlen is 32 and flen is 64
+
+                lower, upper = struct.unpack(
+                    "<ii", struct.pack("<d", op.value.value.data)
+                )
+                rewriter.replace_matched_op(
+                    [
+                        sp := riscv.GetRegisterOp(riscv.Registers.SP),
+                        li_upper := riscv.LiOp(upper),
+                        riscv.SwOp(sp, li_upper, -4),
+                        li_lower := riscv.LiOp(lower),
+                        riscv.SwOp(sp, li_lower, -8),
+                        fld := riscv.FLdOp(sp, -8, rd=_FLOAT_REGISTER_TYPE),
+                        UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
+                    ],
+                )
             else:
-                raise NotImplementedError("Only 32 bit floats are supported")
+                raise NotImplementedError("Only 32 or 64 bit floats are supported")
         elif isinstance(op_result_type, IndexType) and isinstance(
             op.value, IntegerAttr
         ):

@@ -28,6 +28,7 @@ from xdsl.dialects.gpu import GPU
 from xdsl.dialects.irdl.irdl import IRDL
 from xdsl.dialects.linalg import Linalg
 from xdsl.dialects.llvm import LLVM
+from xdsl.dialects.ltl import LTL
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.pdl import PDL
@@ -35,10 +36,13 @@ from xdsl.dialects.printf import Printf
 from xdsl.dialects.riscv import RISCV
 from xdsl.dialects.riscv_func import RISCV_Func
 from xdsl.dialects.riscv_scf import RISCV_Scf
+from xdsl.dialects.riscv_snitch import RISCV_Snitch
 from xdsl.dialects.scf import Scf
+from xdsl.dialects.seq import Seq
 from xdsl.dialects.snitch import Snitch
 from xdsl.dialects.snitch_runtime import SnitchRuntime
 from xdsl.dialects.stencil import Stencil
+from xdsl.dialects.stream import Stream
 from xdsl.dialects.test import Test
 from xdsl.dialects.vector import Vector
 from xdsl.frontend.passes.desymref import DesymrefyPass
@@ -54,12 +58,12 @@ from xdsl.transforms import (
     lower_mpi,
     lower_riscv_func,
     lower_snitch,
-    lower_snitch_runtime,
     mlir_opt,
     printf_to_llvm,
     printf_to_putchar,
     reconcile_unrealized_casts,
     riscv_register_allocation,
+    riscv_scf_loop_range_folding,
 )
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
@@ -91,6 +95,7 @@ def get_all_dialects() -> list[Dialect]:
         Linalg,
         IRDL,
         LLVM,
+        LTL,
         Math,
         MemRef,
         MPI,
@@ -99,10 +104,13 @@ def get_all_dialects() -> list[Dialect]:
         RISCV,
         RISCV_Func,
         RISCV_Scf,
+        RISCV_Snitch,
         Scf,
+        Seq,
         Snitch,
         SnitchRuntime,
         Stencil,
+        Stream,
         Symref,
         Test,
         Vector,
@@ -117,18 +125,18 @@ def get_all_passes() -> list[type[ModulePass]]:
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
-        stencil_global_to_local.GlobalStencilToLocalStencil2DHorizontal,
+        stencil_global_to_local.DistributeStencilPass,
         stencil_global_to_local.LowerHaloToMPI,
         lower_affine.LowerAffinePass,
         lower_mpi.LowerMPIPass,
         lower_riscv_func.LowerRISCVFunc,
         lower_snitch.LowerSnitchPass,
-        lower_snitch_runtime.LowerSnitchRuntimePass,
         mlir_opt.MLIROptPass,
         printf_to_llvm.PrintfToLLVM,
         printf_to_putchar.PrintfToPutcharPass,
         reduce_register_pressure.RiscvReduceRegisterPressurePass,
         riscv_register_allocation.RISCVRegisterAllocation,
+        riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass,
         convert_arith_to_riscv.ConvertArithToRiscvPass,
         convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
         convert_memref_to_riscv.ConvertMemrefToRiscvPass,
@@ -212,7 +220,7 @@ class CommandLineTool:
         Add other/additional dialects by overloading this function.
         """
         for dialect in get_all_dialects():
-            self.ctx.register_dialect(dialect)
+            self.ctx.load_dialect(dialect)
 
     def register_all_frontends(self):
         """

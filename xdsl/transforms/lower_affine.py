@@ -1,5 +1,5 @@
 from xdsl.dialects import affine, arith, builtin, memref, scf
-from xdsl.ir import MLContext, SSAValue
+from xdsl.ir import MLContext, Operation, SSAValue
 from xdsl.ir.affine import AffineConstantExpr
 from xdsl.ir.affine.affine_expr import (
     AffineBinaryOpExpr,
@@ -7,7 +7,6 @@ from xdsl.ir.affine.affine_expr import (
     AffineDimExpr,
     AffineSymExpr,
 )
-from xdsl.ir.core import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

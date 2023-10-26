@@ -57,36 +57,42 @@ class MLContext:
 
     allow_unregistered: bool = field(default=False)
 
-    _registeredOps: dict[str, type[Operation]] = field(init=False, default_factory=dict)
-    _registeredAttrs: dict[str, type[Attribute]] = field(
-        init=False, default_factory=dict
-    )
+    _loaded_ops: dict[str, type[Operation]] = field(init=False, default_factory=dict)
+    _loaded_attrs: dict[str, type[Attribute]] = field(init=False, default_factory=dict)
 
-    def registered_ops(self) -> Iterable[type[Operation]]:
+    @property
+    def loaded_ops(self) -> Iterable[type[Operation]]:
         """
-        Returns all the registered operations. Not valid across mutations of this object.
+        Returns all the loaded operations. Not valid across mutations of this object.
         """
-        return self._registeredOps.values()
+        return self._loaded_ops.values()
 
-    def register_dialect(self, dialect: Dialect):
-        """Register a dialect. Operation and Attribute names should be unique"""
+    @property
+    def loaded_attrs(self) -> Iterable[type[Attribute]]:
+        """
+        Returns all the loaded attributes. Not valid across mutations of this object.
+        """
+        return self._loaded_attrs.values()
+
+    def load_dialect(self, dialect: Dialect):
+        """Load a dialect. Operation and Attribute names should be unique"""
         for op in dialect.operations:
-            self.register_op(op)
+            self.load_op(op)
 
         for attr in dialect.attributes:
-            self.register_attr(attr)
+            self.load_attr(attr)
 
-    def register_op(self, op: type[Operation]) -> None:
-        """Register an operation definition. Operation names should be unique."""
-        if op.name in self._registeredOps:
-            raise Exception(f"Operation {op.name} has already been registered")
-        self._registeredOps[op.name] = op
+    def load_op(self, op: type[Operation]) -> None:
+        """Load an operation definition. Operation names should be unique."""
+        if op.name in self._loaded_ops:
+            raise Exception(f"Operation {op.name} has already been loaded")
+        self._loaded_ops[op.name] = op
 
-    def register_attr(self, attr: type[Attribute]) -> None:
-        """Register an attribute definition. Attribute names should be unique."""
-        if attr.name in self._registeredAttrs:
-            raise Exception(f"Attribute {attr.name} has already been registered")
-        self._registeredAttrs[attr.name] = attr
+    def load_attr(self, attr: type[Attribute]) -> None:
+        """Load an attribute definition. Attribute names should be unique."""
+        if attr.name in self._loaded_attrs:
+            raise Exception(f"Attribute {attr.name} has already been loaded")
+        self._loaded_attrs[attr.name] = attr
 
     def get_optional_op(self, name: str) -> type[Operation] | None:
         """
@@ -94,13 +100,13 @@ class MLContext:
         If the operation is not registered, return None unless unregistered operations
         are allowed in the context, in which case return an UnregisteredOp.
         """
-        if name in self._registeredOps:
-            return self._registeredOps[name]
+        if name in self._loaded_ops:
+            return self._loaded_ops[name]
         if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredOp
 
             op_type = UnregisteredOp.with_name(name)
-            self._registeredOps[name] = op_type
+            self._loaded_ops[name] = op_type
             return op_type
         return None
 
@@ -127,15 +133,15 @@ class MLContext:
         additional flag is required to create an UnregisterAttr that is
         also a type.
         """
-        if name in self._registeredAttrs:
-            return self._registeredAttrs[name]
+        if name in self._loaded_attrs:
+            return self._loaded_attrs[name]
         if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredAttr
 
             attr_type = UnregisteredAttr.with_name_and_type(
                 name, create_unregistered_as_type
             )
-            self._registeredAttrs[name] = attr_type
+            self._loaded_attrs[name] = attr_type
             return attr_type
 
         return None
@@ -465,21 +471,19 @@ class ParametrizedAttribute(Attribute):
 
 @dataclass(init=False)
 class IRNode(ABC):
-    parent: IRNode | None = field(default=None, init=False, repr=False)
-
     def is_ancestor(self, op: IRNode) -> bool:
         "Returns true if the IRNode is an ancestor of another IRNode."
         if op is self:
             return True
-        if op.parent is None:
+        if (parent := op.parent_node) is None:
             return False
-        return self.is_ancestor(op.parent)
+        return self.is_ancestor(parent)
 
     def get_toplevel_object(self) -> IRNode:
         """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
+        if (parent := self.parent_node) is None:
             return self
-        return self.parent.get_toplevel_object()
+        return parent.get_toplevel_object()
 
     def is_structurally_equivalent(
         self,
@@ -487,6 +491,11 @@ class IRNode(ABC):
         context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None,
     ) -> bool:
         """Check if two IR nodes are structurally equivalent."""
+        ...
+
+    @property
+    @abstractmethod
+    def parent_node(self) -> IRNode | None:
         ...
 
     @abstractmethod
@@ -580,6 +589,10 @@ class Operation(IRNode):
     This is a static field, and is made empty by default by PyRDL if not set
     by the operation definition.
     """
+
+    @property
+    def parent_node(self) -> IRNode | None:
+        return self.parent
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
@@ -1152,7 +1165,7 @@ class Block(IRNode):
     _first_op: Operation | None = field(repr=False)
     _last_op: Operation | None = field(repr=False)
 
-    parent: Region | None
+    parent: Region | None = field(default=None, repr=False)
     """Parent region containing the block."""
 
     def __init__(
@@ -1170,6 +1183,10 @@ class Block(IRNode):
         self._last_op = None
 
         self.add_ops(ops)
+
+    @property
+    def parent_node(self) -> IRNode | None:
+        return self.parent
 
     @property
     def ops(self) -> BlockOps:
@@ -1489,6 +1506,10 @@ class Region(IRNode):
             blocks = (blocks,)
         for block in blocks:
             self.add_block(block)
+
+    @property
+    def parent_node(self) -> IRNode | None:
+        return self.parent
 
     def parent_block(self) -> Block | None:
         return self.parent.parent if self.parent else None
