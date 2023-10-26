@@ -189,7 +189,7 @@ class For(IRDLOperation):
         for i, opnd in enumerate(self.operands[:3]):
             if not isinstance(opnd.type, IndexType) and not (
                 isinstance(opnd.type, IntegerType)
-                and opnd.type.signedness == Signedness.SIGNLESS
+                and opnd.type.signedness.data == Signedness.SIGNLESS
             ):
                 raise VerifyException(
                     f"Operand #{i} must be signless integer or index, but got {opnd.type}"
