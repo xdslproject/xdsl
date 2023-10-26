@@ -132,9 +132,6 @@ class PipelinePass(ModulePass):
 
         self.passes[-1].apply(ctx, op)
 
-    def __str__(self) -> str:
-        return ",".join(p.name for p in self.passes)
-
 
 def _convert_pass_arg_to_type(
     value: PassArgListType, dest_type: Any
