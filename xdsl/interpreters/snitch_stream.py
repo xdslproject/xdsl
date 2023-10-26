@@ -112,23 +112,6 @@ class SnitchStreamFunctions(InterpreterFunctions):
         )
         return (output_stream_factory,)
 
-    @impl(snitch_stream.ReadOp)
-    def run_read(
-        self, interpreter: Interpreter, op: snitch_stream.ReadOp, args: tuple[Any, ...]
-    ) -> PythonValues:
-        (stream,) = args
-        stream: ReadableStream[Any] = stream
-        return (stream.read(),)
-
-    @impl(snitch_stream.WriteOp)
-    def run_write(
-        self, interpreter: Interpreter, op: snitch_stream.WriteOp, args: tuple[Any, ...]
-    ) -> PythonValues:
-        (stream, value) = args
-        stream: WritableStream[Any] = stream
-        stream.write(value)
-        return ()
-
     @impl_terminator(snitch_stream.YieldOp)
     def run_br(
         self, interpreter: Interpreter, op: snitch_stream.YieldOp, args: tuple[Any, ...]

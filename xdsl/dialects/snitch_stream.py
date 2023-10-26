@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
@@ -16,15 +15,12 @@ from xdsl.dialects.stream import (
 from xdsl.ir import (
     Dialect,
     Operation,
-    OpResult,
     Region,
     SSAValue,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
-    Operand,
     VarOperand,
     attr_def,
     irdl_op_definition,
@@ -33,8 +29,6 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
-from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 
 
@@ -61,70 +55,6 @@ class GenericOp(IRDLOperation):
             operands=[repeat_count, inputs, outputs],
             regions=[body],
         )
-
-
-@irdl_op_definition
-class ReadOp(IRDLOperation):
-    name = "snitch_stream.read"
-
-    T = Annotated[riscv.FloatRegisterType, ConstraintVar("T")]
-
-    stream: Operand = operand_def(ReadableStreamType[T])
-    res: OpResult = result_def(T)
-
-    def __init__(self, stream: SSAValue, result_type: riscv.FloatRegisterType):
-        super().__init__(operands=[stream], result_types=[result_type])
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ReadOp:
-        unresolved = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        type_start_pos = parser.pos
-        result_type = parser.parse_attribute()
-        if not isinstance(result_type, riscv.FloatRegisterType):
-            parser.raise_error("Expected a floating point register", type_start_pos)
-        resolved = parser.resolve_operand(unresolved, ReadableStreamType(result_type))
-        return ReadOp(resolved, result_type)
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print(self.stream)
-        printer.print_string(" : ")
-        printer.print_attribute(self.res.type)
-
-
-@irdl_op_definition
-class WriteOp(IRDLOperation):
-    name = "snitch_stream.write"
-
-    T = Annotated[riscv.FloatRegisterType, ConstraintVar("T")]
-
-    stream: Operand = operand_def(WritableStreamType[T])
-    value: Operand = operand_def(T)
-
-    def __init__(self, value: SSAValue, stream: SSAValue):
-        super().__init__(operands=[stream, value])
-
-    @classmethod
-    def parse(cls, parser: Parser) -> WriteOp:
-        unresolved_stream = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        unresolved_value = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_attribute()
-        resolved_value = parser.resolve_operand(unresolved_value, result_type)
-        resolved_stream = parser.resolve_operand(
-            unresolved_stream, ReadableStreamType(result_type)
-        )
-        return WriteOp(resolved_value, resolved_stream)
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.stream)
-        printer.print_string(", ")
-        printer.print_ssa_value(self.value)
-        printer.print_string(" : ")
-        printer.print_attribute(self.value.type)
 
 
 @irdl_op_definition
@@ -236,8 +166,6 @@ SnitchStream = Dialect(
     [
         GenericOp,
         YieldOp,
-        ReadOp,
-        WriteOp,
         StridedReadOp,
         StridedWriteOp,
         StridePatternOp,
