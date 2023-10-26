@@ -196,7 +196,6 @@ class For(IRDLOperation):
                 )
 
         # body block verification
-
         if len(self.body.block.args) == 0:
             raise VerifyException(
                 "Body block must at least have induction var as block arg"
@@ -239,9 +238,9 @@ class For(IRDLOperation):
 
     def print(self, printer: Printer):
         block = self.body.block
-        index, *iter_args = block.args
+        indvar, *iter_args = block.args
         printer.print_string(" ")
-        printer.print_ssa_value(index)
+        printer.print_ssa_value(indvar)
         printer.print_string(" = ")
         printer.print_ssa_value(self.lb)
         printer.print_string(" to ")
@@ -258,9 +257,9 @@ class For(IRDLOperation):
             printer.print_string(") -> (")
             printer.print_list((a.type for a in iter_args), printer.print_attribute)
             printer.print_string(") ")
-        if not isinstance(index.type, IndexType):
+        if not isinstance(indvar.type, IndexType):
             printer.print_string(": ")
-            printer.print_attribute(index.type)
+            printer.print_attribute(indvar.type)
             printer.print_string(" ")
         printer.print_region(
             self.body, print_entry_block_args=False, print_empty_block=False
@@ -269,7 +268,7 @@ class For(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         # Parse bounds
-        index = parser.parse_argument(expect_type=False)
+        indvar = parser.parse_argument(expect_type=False)
         parser.parse_characters("=")
         lb = parser.parse_operand()
         parser.parse_characters("to")
@@ -298,16 +297,16 @@ class For(IRDLOperation):
         )
 
         # Set induction variable type
-        index.type = lb.type
+        indvar.type = lb.type
         if parser.parse_optional_characters(":"):
-            index.type = parser.parse_type()
+            indvar.type = parser.parse_type()
 
         # Set block argument types
         for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
             iter_arg.type = iter_arg_type
 
         # Parse body
-        body = parser.parse_region((index, *iter_args))
+        body = parser.parse_region((indvar, *iter_args))
         if not body.block.ops:
             assert not iter_args, "Cannot create implicit yield with arguments"
             body.block.add_op(Yield())
