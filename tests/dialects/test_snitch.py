@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.dialects import riscv, snitch
-from xdsl.dialects.builtin import IntegerAttr, i32
+from xdsl.dialects.builtin import IntAttr
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -9,8 +9,8 @@ from xdsl.utils.test_value import TestSSAValue
 def test_csr_op():
     stream = TestSSAValue(riscv.Registers.A1)
     value = TestSSAValue(riscv.Registers.A1)
-    valid = IntegerAttr(snitch.SnitchResources.dimensions - 1, i32)
-    invalid = IntegerAttr(snitch.SnitchResources.dimensions, i32)
+    valid = IntAttr(snitch.SnitchResources.dimensions - 1)
+    invalid = IntAttr(snitch.SnitchResources.dimensions)
 
     snitch.SsrSetDimensionBoundOp(stream=stream, value=value, dimension=valid).verify()
     with pytest.raises(VerifyException):

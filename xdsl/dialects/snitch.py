@@ -11,7 +11,7 @@ that aims at generating.
 from abc import ABC
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import AnyIntegerAttr
+from xdsl.dialects.builtin import IntAttr
 from xdsl.dialects.riscv import IntRegisterType
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import IRDLOperation, Operand, attr_def, irdl_op_definition, operand_def
@@ -36,13 +36,13 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
 
     stream: Operand = operand_def(IntRegisterType)
     value: Operand = operand_def(IntRegisterType)
-    dimension: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    dimension = attr_def(IntAttr)
 
     def __init__(
         self,
         stream: Operation | SSAValue,
         value: Operation | SSAValue,
-        dimension: AnyIntegerAttr,
+        dimension: IntAttr,
     ):
         super().__init__(
             operands=[stream, value],
@@ -52,7 +52,7 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
         )
 
     def verify_(self) -> None:
-        if self.dimension.value.data >= SnitchResources.dimensions:
+        if self.dimension.data >= SnitchResources.dimensions:
             raise VerifyException(
                 f"dimension attribute out of range [0..{SnitchResources.dimensions-1}], "
                 f"Snitch supports up to {SnitchResources.dimensions} dimensions per streamer"
