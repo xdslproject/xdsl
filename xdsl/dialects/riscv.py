@@ -2546,7 +2546,7 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
         if isinstance(directive, str):
             directive = StringAttr(directive)
         if region is None:
-            region = Region()
+            region = Region(Block())
 
         super().__init__(
             regions=[region],
