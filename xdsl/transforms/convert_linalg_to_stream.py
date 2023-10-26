@@ -64,6 +64,7 @@ class LowerGenericOp(RewritePattern):
             rewriter.erase_block_argument(o)
 
         ub = op.get_static_loop_ranges()
+        rank = len(ub)
         repeat_count = prod(ub)
         ub_attr = ArrayAttr(IntAttr(b) for b in ub)
 
@@ -109,6 +110,7 @@ class LowerGenericOp(RewritePattern):
                 memref,
                 stride_pattern.pattern,
                 IntAttr(i),
+                IntAttr(rank),
             )
             for i, (memref, stride_pattern) in enumerate(
                 zip(op.inputs, stride_patterns)
@@ -119,6 +121,7 @@ class LowerGenericOp(RewritePattern):
                 memref,
                 stride_pattern.pattern,
                 IntAttr(i + len(op.inputs)),
+                IntAttr(rank),
             )
             for i, (memref, stride_pattern) in enumerate(
                 zip(op.outputs, stride_patterns[-len(op.outputs) :])

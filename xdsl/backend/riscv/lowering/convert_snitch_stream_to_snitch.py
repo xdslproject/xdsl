@@ -52,7 +52,7 @@ class LowerStridePatternOp(RewritePattern):
         b = tuple(b.data for b in op.ub.data)
         s = tuple(s.data for s in op.strides.data)
 
-        rewriter.replace_matched_op(
+        rewriter.insert_op_before_matched_op(
             [
                 b0 := riscv.LiOp(b[0]),
                 b1 := riscv.LiOp(b[1]),
@@ -66,11 +66,9 @@ class LowerStridePatternOp(RewritePattern):
                 a0 := riscv.MulOp(new_b0, s0, rd=riscv.IntRegisterType.unallocated()),
                 stride_1 := riscv.SubOp(s1, a0, rd=riscv.IntRegisterType.unallocated()),
                 snitch.SsrSetDimensionStrideOp(stride_1, op.dm, int_1),
-                # The result is rewritten to be the dimensionality of the stream
-                # configuration, which is `dim-1`.
-                riscv.LiOp(dim - 1),
-            ]
+            ],
         )
+        rewriter.erase_matched_op()
 
 
 class LowerStridedReadOp(RewritePattern):
@@ -85,14 +83,12 @@ class LowerStridedReadOp(RewritePattern):
         stream_type = cast(
             stream.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
         )
-        dim = op.pattern
-        assert isinstance(dim.owner, riscv.LiOp)
-        dim_v = dim.owner.immediate
-        assert isinstance(dim_v, builtin.IntegerAttr)
 
         rewriter.replace_matched_op(
             [
-                snitch.SsrSetDimensionSourceOp(op.pointer, op.dm, dim_v.value),
+                snitch.SsrSetDimensionSourceOp(
+                    op.pointer, op.dm, builtin.IntAttr(op.rank.data - 1)
+                ),
                 riscv.GetFloatRegisterOp(stream_type.element_type),
             ]
         )
@@ -107,14 +103,11 @@ class LowerStridedWriteOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_stream.StridedWriteOp, rewriter: PatternRewriter, /
     ):
-        dim = op.pattern
-        assert isinstance(dim.owner, riscv.LiOp)
-        dim_v = dim.owner.immediate
-        assert isinstance(dim_v, builtin.IntegerAttr)
-
         rewriter.insert_op_before_matched_op(
             [
-                snitch.SsrSetDimensionDestinationOp(op.pointer, op.dm, dim_v.value),
+                snitch.SsrSetDimensionDestinationOp(
+                    op.pointer, op.dm, builtin.IntAttr(op.rank.data - 1)
+                ),
             ]
         )
 
@@ -163,12 +156,13 @@ class ConvertSnitchStreamToSnitch(ModulePass):
     name = "convert-snitch-stream-to-snitch"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        # StridedWrite and StridePattern ops are rewritten to remove their results, so we
+        # have to first lower the ops that use the results in `stream`, and then the ops
+        # themselves.
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    LowerStridePatternOp(),
                     LowerGenericOp(),
-                    LowerYieldOp(),
                 ]
             )
         ).rewrite_module(op)
@@ -177,6 +171,14 @@ class ConvertSnitchStreamToSnitch(ModulePass):
                 [
                     LowerStridedReadOp(),
                     LowerStridedWriteOp(),
+                ]
+            )
+        ).rewrite_module(op)
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    LowerStridePatternOp(),
+                    LowerYieldOp(),
                 ]
             )
         ).rewrite_module(op)

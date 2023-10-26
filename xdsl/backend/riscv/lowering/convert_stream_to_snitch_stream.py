@@ -99,6 +99,7 @@ class LowerStridedReadOp(RewritePattern):
                 op.pattern,
                 riscv.FloatRegisterType.unallocated(),
                 op.dm,
+                op.rank,
             )
         )
 
@@ -117,6 +118,7 @@ class LowerStridedWriteOp(RewritePattern):
                 op.pattern,
                 riscv.FloatRegisterType.unallocated(),
                 op.dm,
+                op.rank,
             )
         )
 

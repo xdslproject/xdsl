@@ -180,6 +180,7 @@ class StridedReadOp(IRDLOperation):
     pattern = operand_def(StridePatternType)
     stream = result_def(ReadableStreamType[riscv.FloatRegisterType])
     dm = attr_def(IntAttr)
+    rank = attr_def(IntAttr)
 
     def __init__(
         self,
@@ -187,12 +188,14 @@ class StridedReadOp(IRDLOperation):
         pattern: SSAValue,
         register: riscv.FloatRegisterType,
         dm: IntAttr,
+        rank: IntAttr,
     ):
         super().__init__(
             operands=[pointer, pattern],
             result_types=[ReadableStreamType(register)],
             attributes={
                 "dm": dm,
+                "rank": rank,
             },
         )
 
@@ -209,6 +212,7 @@ class StridedWriteOp(IRDLOperation):
     pattern = operand_def(StridePatternType)
     stream = result_def(WritableStreamType[riscv.FloatRegisterType])
     dm = attr_def(IntAttr)
+    rank = attr_def(IntAttr)
 
     def __init__(
         self,
@@ -216,12 +220,14 @@ class StridedWriteOp(IRDLOperation):
         pattern: SSAValue,
         register: riscv.FloatRegisterType,
         dm: IntAttr,
+        rank: IntAttr,
     ):
         super().__init__(
             operands=[pointer, pattern],
             result_types=[WritableStreamType(register)],
             attributes={
                 "dm": dm,
+                "rank": rank,
             },
         )
 

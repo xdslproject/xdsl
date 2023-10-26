@@ -218,12 +218,14 @@ class StridedReadOp(IRDLOperation):
     pattern = operand_def(StridePatternType())
     stream = result_def(ReadableStreamType[T])
     dm = attr_def(IntAttr)
+    rank = attr_def(IntAttr)
 
     def __init__(
         self,
         memref: SSAValue,
         pattern: SSAValue,
         dm: IntAttr,
+        rank: IntAttr,
     ):
         assert isinstance(memref.type, MemRefType)
         memref_type = cast(MemRefType[Attribute], memref.type)
@@ -232,6 +234,7 @@ class StridedReadOp(IRDLOperation):
             result_types=[ReadableStreamType(memref_type.element_type)],
             attributes={
                 "dm": dm,
+                "rank": rank,
             },
         )
 
@@ -250,13 +253,9 @@ class StridedWriteOp(IRDLOperation):
     pattern = operand_def(StridePatternType())
     stream = result_def(WritableStreamType[T])
     dm = attr_def(IntAttr)
+    rank = attr_def(IntAttr)
 
-    def __init__(
-        self,
-        memref: SSAValue,
-        pattern: SSAValue,
-        dm: IntAttr,
-    ):
+    def __init__(self, memref: SSAValue, pattern: SSAValue, dm: IntAttr, rank: IntAttr):
         assert isinstance(memref.type, MemRefType)
         memref_type = cast(MemRefType[Attribute], memref.type)
         super().__init__(
@@ -264,6 +263,7 @@ class StridedWriteOp(IRDLOperation):
             result_types=[WritableStreamType(memref_type.element_type)],
             attributes={
                 "dm": dm,
+                "rank": rank,
             },
         )
 
