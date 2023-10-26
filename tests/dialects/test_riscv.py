@@ -241,3 +241,8 @@ def test_riscv_parse_immediate_value():
     parser = Parser(ctx, prog)
     with pytest.raises(ParseError, match="Expected immediate"):
         parser.parse_operation()
+
+
+def test_asm_section():
+    section = riscv.AssemblySectionOp("section")
+    section.verify()

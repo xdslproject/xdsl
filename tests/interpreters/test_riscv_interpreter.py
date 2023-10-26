@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import ModuleOp, i1
+from xdsl.dialects.builtin import ModuleOp, f64, i1
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.ir import Block, Region
@@ -242,6 +242,17 @@ def test_get_data():
         "one": RawPtr.new_int32([1]),
         "two_three": RawPtr.new_int32([2, 3]),
     }
+
+
+def test_cast():
+    module_op = ModuleOp([])
+    fregister = riscv.FloatRegisterType.unallocated()
+
+    riscv_functions = RiscvFunctions()
+    interpreter = Interpreter(module_op)
+    interpreter.register_implementations(riscv_functions)
+
+    assert interpreter.cast_value(fregister, f64, 42.0) == 42.0
 
 
 def test_register_contents():
