@@ -5,6 +5,8 @@ It currently implements minimal types and operations used by other dialects.
 [1] https://circt.llvm.org/docs/Dialects/HW/
 """
 
+from collections.abc import Mapping
+
 from xdsl.dialects.builtin import (
     FlatSymbolRefAttr,
     ParameterDef,
@@ -18,6 +20,12 @@ from xdsl.ir import (
 from xdsl.irdl import (
     irdl_attr_definition,
 )
+from xdsl.traits import (
+    OpTrait,
+    SymbolOpInterface,
+    SymbolTable,
+)
+from xdsl.utils.exceptions import VerifyException
 
 
 class FieldIDTypeInterface:
@@ -139,6 +147,148 @@ class InnerRefAttr(ParametrizedAttribute):
     def get_module(self) -> StringAttr:
         """Return the name of the referenced module."""
         return self.module_ref.root_reference
+
+
+class InnerSymbolTable(OpTrait):
+    """A trait for inner symbol table functionality on an operation.
+    Merges the upstream table of inner symbols and their resolutions and the op trait.
+    """
+
+    def __init__(
+        self, table: Mapping[StringAttr, InnerSymTarget] | None = None
+    ) -> None:
+        if table is None:
+            table = dict()
+        self.symbol_table = table
+        super().__init__()
+
+    @classmethod
+    def verify_region_trait(cls, op: Operation):
+        # Insist that ops with InnerSymbolTable's provide a Symbol, this is
+        # essential to how InnerRef's work.
+        if not op.has_trait(SymbolOpInterface):
+            raise VerifyException("expected operation to define a Symbol")
+
+        # InnerSymbolTable's must be directly nested within an InnerRefNamespace.
+        # NB: upstream uses InnerRefNamespaceLike
+        parent = op.parent_op()
+        if parent is None or not parent.has_trait(InnerRefNamespace):
+            raise VerifyException("InnerSymbolTable must have InnerRefNamespace parent")
+
+    def lookup(
+        self, inner_symbol_table_op: Operation, name: StringAttr
+    ) -> InnerSymTarget:
+        """Look up a symbol with the specified name, returning empty InnerSymTarget if
+        no such name exists. Names never include the @ on them."""
+        return self.symbol_table.get(name, InnerSymTarget())
+
+    def lookup_op(
+        self, inner_symbol_table_op: Operation, name: StringAttr
+    ) -> Operation | None:
+        """Look up a symbol with the specified name, returning null if no such name exists or doesn't target just an operation."""
+        result = self.lookup(inner_symbol_table_op, name)
+        if result.is_op_only():
+            result.op
+
+
+class InnerSymbolTableCollection:
+    """This class represents an InnerSymbolTable collection. Simplified from upstream
+    to remove mapping from operations to their traits."""
+
+    def __init__(self, inner_ref_ns_op: Operation | None = None) -> None:
+        self.symbol_tables: set[Operation] = set()
+        if inner_ref_ns_op is not None:
+            self.populate_and_verify_tables(inner_ref_ns_op)
+
+    def get_inner_symbol_table(self, op: Operation) -> InnerSymbolTable:
+        """Returns the InnerSymolTable trait, ensuring it is in the collection"""
+        table = op.get_trait(InnerSymbolTable)
+        if table is None:
+            raise VerifyException(f"Operation {op} should have InenrSymbolTable trait")
+        if op not in self.symbol_tables:
+            self.symbol_tables.add(op)
+        return table
+
+    def populate_and_verify_tables(self, inner_ref_ns_op: Operation):
+        """Populate tables for all InnerSymbolTable operations in the given InnerRefNamespace operation, verifying each."""
+        # Gather top-level operations that have the InnerSymbolTable trait.
+        inner_sym_table_ops = (
+            op for op in inner_ref_ns_op.walk() if op.has_trait(InnerSymbolTable)
+        )
+
+        # Construct the tables
+        for op in inner_sym_table_ops:
+            if op in self.symbol_tables:
+                raise VerifyException(
+                    f"Trying to insert the same op {op} twice in symbol tables"
+                )
+            self.symbol_tables.add(op)
+
+
+class InnerRefUserOpInterface(OpTrait):
+    """This interface describes an operation that may use a `InnerRef`. This
+    interface allows for users of inner symbols to hook into verification and
+    other inner symbol related utilities that are either costly or otherwise
+    disallowed within a traditional operation."""
+
+    def verify_inner_refs(self, op: Operation, namespace: "InnerRefNamespace"):
+        """Verify the inner ref uses held by this operation."""
+        ...
+
+
+class InnerRefNamespace(OpTrait):
+    parameters: tuple[SymbolTable, InnerSymbolTableCollection]
+
+    def __init__(
+        self, symbol_table: SymbolTable, inner_sym_tables: InnerSymbolTableCollection
+    ):
+        super().__init__([symbol_table, inner_sym_tables])
+
+    @property
+    def symbol_table(self) -> SymbolTable:
+        return self.parameters[0]
+
+    @property
+    def inner_sym_tables(self) -> InnerSymbolTableCollection:
+        return self.parameters[1]
+
+    @classmethod
+    def verify_region_trait(cls, op: Operation):
+        if not op.has_trait(SymbolTable):
+            raise VerifyException("expected operation to be a SymbolTable")
+
+        if len(op.regions) != 1:
+            raise VerifyException("expected operation to have a single region")
+        if len(op.regions[0].blocks) != 1:
+            raise VerifyException("expected operation to have a single block")
+
+        inner_sym_tables = InnerSymbolTableCollection()
+        inner_sym_tables.populate_and_verify_tables(op)
+        symbol_table = SymbolTable(op)
+        namespace = InnerRefNamespace(symbol_table, inner_sym_tables)
+
+        for inner_op in op.walk():
+            inner_ref_user_op_trait = inner_op.get_trait(InnerRefUserOpInterface)
+            if inner_ref_user_op_trait is not None:
+                inner_ref_user_op_trait.verify_inner_refs(inner_op, namespace)
+
+    def lookup(self, op: Operation, inner: InnerRefAttr) -> InnerSymTarget | None:
+        module = self.symbol_table.lookup_symbol(op, inner.get_module())
+        if module is None:
+            return None
+        if not module.has_trait(InnerSymbolTable):
+            raise VerifyException("module should implement inner symbol table")
+        table = self.inner_sym_tables.get_inner_symbol_table(module)
+        return table.lookup(module, inner.sym_name)
+
+    def lookup_op(self, op: Operation, inner: InnerRefAttr) -> Operation | None:
+        module = self.symbol_table.lookup_symbol(op, inner.get_module())
+        if module is None:
+            return None
+        if not module.has_trait(InnerSymbolTable):
+            raise VerifyException("module should implement inner symbol table")
+        table = self.inner_sym_tables.get_inner_symbol_table(module)
+        return table.lookup_op(module, inner.sym_name)
 
 
 HW = Dialect(
