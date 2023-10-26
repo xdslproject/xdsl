@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Dialect,
     Operation,
+    OpResult,
     ParametrizedAttribute,
 )
 from xdsl.irdl import (
@@ -438,6 +439,128 @@ class InnerSymAttr(ParametrizedAttribute, Iterable[InnerSymPropertiesAttr]):
                     printer.print_string(",")
                 printer.print_attribute(prop.sym_name)
             printer.print_string("]")
+
+
+class InnerSymbolOpInterface(OpTrait):
+    """
+    This interface describes an operation that may define an `inner_sym`. An
+    `inner_sym` operation resides in arbitrarily-nested regions of a region that
+    defines a `InnerSymbolTable`. Inner Symbols are different from normal
+    symbols due to MLIR symbol table resolution rules.
+
+    https://circt.llvm.org/docs/Dialects/HW/#innersymbolopinterface-innersymbol
+    """
+
+    def get_inner_name_attr(self, op: Operation) -> StringAttr | None:
+        """Returns the name of the top-level inner symbol defined by this operation, if present."""
+        inner_sym = self.get_inner_sym_attr(op)
+        if inner_sym is None:
+            return None
+        return inner_sym.get_sym_name()
+
+    def get_inner_name(self, op: Operation) -> str | None:
+        """Returns the name of the top-level inner symbol defined by this operation, if present."""
+        attr = self.get_inner_name_attr(op)
+        if attr is not None:
+            return attr.name
+
+    def set_inner_symbol(self, op: Operation, name: StringAttr):
+        """Sets the name of the top-level inner symbol defined by this operation to the specified string, dropping any symbols on fields."""
+        op.attributes["inner_sym"] = InnerSymAttr(name)
+
+    def set_inner_symbol_attr(self, op: Operation, sym: InnerSymAttr | None):
+        """Sets the inner symbols defined by this operation."""
+        if sym is not None:
+            op.attributes["inner_sym"] = sym
+        elif "inner_sym" in op.attributes:
+            del op.attributes["inner_sym"]
+
+    def get_inner_ref(self, op: Operation) -> InnerRefAttr:
+        """Returns an InnerRef to this operation's top-level inner symbol, which must be present."""
+        if (parent := op.get_parent_with_trait(InnerSymbolTable)) is None:
+            raise VerifyException
+        if (module_name := self.get_inner_name_attr(parent)) is None:
+            raise VerifyException
+        if (sym_name := self.get_inner_name_attr(op)) is None:
+            raise VerifyException
+        return InnerRefAttr(module_name, sym_name)
+
+    def get_inner_sym_attr(self, op: Operation) -> InnerSymAttr | None:
+        """Returns the InnerSymAttr representing all inner symbols defined by this operation."""
+        inner_sym = op.attributes.get("inner_sym", None)
+        if inner_sym is None:
+            return None
+        if not isinstance(inner_sym, InnerSymAttr):
+            raise VerifyException(
+                f'Operation {op.name} must have a "inner_sym" attribute of type '
+                f"`InnerSymAttr` to conform to {InnerSymbolOpInterface.__name__}"
+            )
+        return inner_sym
+
+    @classmethod
+    def supports_per_field_symbols(cls, op: Operation) -> bool:
+        """Returns whether per-field symbols are supported for this operation type."""
+        return cls.get_target_result_index(op) is not None
+
+    @classmethod
+    def get_target_result_index(cls, op: Operation) -> int | None:
+        """Returns the index of the result the innner symbol targets, if applicable. Per-field symbols are resolved into this."""
+        inner_symbol_trait = op.get_trait(InnerSymbolOpInterface)
+
+        if inner_symbol_trait is not None:
+            return inner_symbol_trait.get_target_result_index(op)
+
+    def get_target_result(self, op: Operation) -> OpResult | None:
+        """Returns the result the innner symbol targets, if applicable. Per-field symbols are resolved into this."""
+        index = InnerSymbolOpInterface.get_target_result_index(op)
+        if index is not None:
+            return op.results[index]
+
+    def verify(self, op: Operation) -> None:
+        """Check that the operation satisfies the trait requirements."""
+        inner_sym = self.get_inner_sym_attr(op)
+        if inner_sym is None:
+            return
+        if not len(inner_sym):
+            raise VerifyException("has empty list of inner symbols")
+
+        if not self.supports_per_field_symbols(op):
+            # The inner sym can only be specified on field_id=0.
+            if len(inner_sym) > 1 or not inner_sym.get_sym_name():
+                raise VerifyException("does not support per-field inner symbols")
+            return
+
+        result = self.get_target_result(op)
+        # If op supports per-field symbols, but does not have a target result, its up to the operation to verify itself.
+        # (there are no uses for this presently, but be open to this anyway.)
+        if not result:
+            return
+
+        # Ensure field_id and symbol names are unique.
+        result_type = result.type
+        if not isinstance(result_type, FieldIDTypeInterface):
+            raise VerifyException(
+                "per-field symbol support requires types implementing FieldIDTypeInterface"
+            )
+
+        max_fields = result_type.get_max_field_id()
+        indices: set[int] = set()
+        names: set[str] = set()
+        for prop in inner_sym:
+            if prop.field_id.data > max_fields:
+                raise VerifyException(
+                    f'field id:"{prop.field_id.data}" is greater than the maximum field id:"{max_fields}"'
+                )
+            if prop.field_id.data in indices:
+                raise VerifyException(
+                    f'cannot assign multiple symbol names to the field id:"{prop.field_id.data}"'
+                )
+            if prop.sym_name.data in names:
+                raise VerifyException(
+                    f'cannot reuse symbol name:"{prop.sym_name.data}"'
+                )
+            indices.add(prop.field_id.data)
+            names.add(prop.sym_name.data)
 
 
 HW = Dialect(
