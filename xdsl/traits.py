@@ -246,9 +246,7 @@ class SymbolTable(OpTrait):
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 
-        anchor: Operation | None = op
-        while anchor is not None and not anchor.has_trait(SymbolTable):
-            anchor = anchor.parent_op()
+        anchor: Operation | None = op.get_parent_with_trait(SymbolTable)
         if anchor is None:
             raise ValueError(f"Operation {op} has no SymbolTable ancestor")
         if isinstance(name, str | StringAttr):

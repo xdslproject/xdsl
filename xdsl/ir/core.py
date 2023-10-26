@@ -947,6 +947,17 @@ class Operation(IRNode):
         """
         return [t for t in cls.traits if isinstance(t, trait_type)]
 
+    def get_parent_with_trait(
+        self, trait: type[OpTraitInvT], parameters: Any = None
+    ) -> Operation | None:
+        """
+        Returns the closest surrounding parent operation with given trait.
+        """
+        op: Operation | None = self
+        while op is not None and not op.has_trait(trait, parameters):
+            op = op.parent_op()
+        return op
+
     def erase(self, safe_erase: bool = True, drop_references: bool = True) -> None:
         """
         Erase the operation, and remove all its references to other operations.

@@ -5,10 +5,13 @@ It currently implements minimal types and operations used by other dialects.
 [1] https://circt.llvm.org/docs/Dialects/HW/
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from typing import cast, overload
 
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     FlatSymbolRefAttr,
+    IntAttr,
     ParameterDef,
     StringAttr,
 )
@@ -20,6 +23,8 @@ from xdsl.ir import (
 from xdsl.irdl import (
     irdl_attr_definition,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 from xdsl.traits import (
     OpTrait,
     SymbolOpInterface,
@@ -291,9 +296,155 @@ class InnerRefNamespace(OpTrait):
         return table.lookup_op(module, inner.sym_name)
 
 
+@irdl_attr_definition
+class InnerSymPropertiesAttr(ParametrizedAttribute):
+    name = "hw.inner_sym_props"
+
+    # NB. upstream defines as “name” which clashes with Attribute.name
+    sym_name: ParameterDef[StringAttr]
+    field_id: ParameterDef[IntAttr]
+    sym_visibility: ParameterDef[StringAttr]
+
+    def __init__(
+        self,
+        sym: str | StringAttr,
+        field_id: int | IntAttr = 0,
+        sym_visibility: str | StringAttr = "public",
+    ) -> None:
+        if isinstance(sym, str):
+            sym = StringAttr(sym)
+        if isinstance(field_id, int):
+            field_id = IntAttr(field_id)
+        if isinstance(sym_visibility, str):
+            sym_visibility = StringAttr(sym_visibility)
+        super().__init__([sym, field_id, sym_visibility])
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[str, int, str]:
+        parser.parse_punctuation("<")
+        sym_name = parser.parse_identifier()
+        parser.parse_punctuation(",")
+        field_id = parser.parse_integer(allow_negative=False, allow_boolean=False)
+        parser.parse_punctuation(",")
+        sym_visibility = parser.parse_str_literal()
+        if sym_visibility not in {"public", "private", "nested"}:
+            parser.raise_error('expected "public", "private", or "nested"')
+        parser.parse_punctuation(">")
+        return (sym_name, field_id, sym_visibility)
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string("<@")
+        printer.print_string(self.sym_name.data)
+        printer.print_string(",")
+        printer.print_string(str(self.field_id.data))
+        printer.print_string(",")
+        printer.print_string(self.sym_visibility.data)
+        printer.print_string(">")
+
+    def verify(self):
+        if not self.sym_name or not self.sym_name.data:
+            raise VerifyException("inner symbol cannot have empty name")
+
+
+@irdl_attr_definition
+class InnerSymAttr(ParametrizedAttribute, Iterable[InnerSymPropertiesAttr]):
+    """Inner symbol definition
+
+    Defines the properties of an inner_sym attribute. It specifies the symbol
+    name and symbol visibility for each field ID. For any ground types,
+    there are no subfields and the field ID is 0. For aggregate types, a
+    unique field ID is assigned to each field by visiting them in a
+    depth-first pre-order. The custom assembly format ensures that for ground
+    types, only `@<sym_name>` is printed.
+    """
+
+    props: ParameterDef[ArrayAttr[InnerSymPropertiesAttr]]
+
+    @overload
+    def __init__(self) -> None:
+        # Create an empty array, represents an invalid InnerSym.
+        ...
+
+    @overload
+    def __init__(self, syms: str | StringAttr) -> None:
+        ...
+
+    @overload
+    def __init__(
+        self, syms: Sequence[InnerSymPropertiesAttr] | ArrayAttr[InnerSymPropertiesAttr]
+    ) -> None:
+        ...
+
+    def __init__(
+        self,
+        syms: str
+        | StringAttr
+        | Sequence[InnerSymPropertiesAttr]
+        | ArrayAttr[InnerSymPropertiesAttr] = [],
+    ) -> None:
+        if isinstance(syms, str | StringAttr):
+            syms = [InnerSymPropertiesAttr(syms)]
+        if not isinstance(syms, ArrayAttr):
+            syms = ArrayAttr(syms)
+        super().__init__([syms])
+
+    def get_sym_if_exists(self, field_id: int) -> StringAttr | None:
+        """Get the inner sym name for field_id, if it exists."""
+        for prop in self.props:
+            if field_id == prop.field_id:
+                return prop.sym_name
+
+    def get_sym_name(self) -> StringAttr | None:
+        """Get the inner sym name for field_id=0, if it exists."""
+        return self.get_sym_if_exists(0)
+
+    def __len__(self) -> int:
+        """Get the number of inner symbols defined."""
+        return len(self.props)
+
+    def __iter__(self) -> Iterator[InnerSymPropertiesAttr]:
+        """Iterator for all the InnerSymPropertiesAttr."""
+        return iter(self.props)
+
+    def erase(self, field_id: int) -> "InnerSymAttr":
+        """Return an InnerSymAttr with the inner symbol for the specified field_id removed."""
+        return InnerSymAttr([prop for prop in self.props if prop.field_id != field_id])
+
+    def verify(self):
+        pass
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[InnerSymPropertiesAttr, ...]:
+        data = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_attribute
+        )
+        # the type system can't ensure that the elements are of type InnerSymPropertiesAttr
+        return cast(tuple[InnerSymPropertiesAttr, ...], tuple(data))
+
+    def print_parameter(self, printer: Printer):
+        if (
+            len(self) == 1
+            and (sym_name := self.get_sym_name()) is not None
+            and self.props.data[0].sym_visibility.data == "public"
+        ):
+            printer.print_string("@")
+            printer.print_string(sym_name.data)
+        else:
+            printer.print_string("[")
+            for n, prop in enumerate(
+                sorted(self.props, key=lambda prop: prop.field_id.data)
+            ):
+                if n:
+                    printer.print_string(",")
+                printer.print_attribute(prop.sym_name)
+            printer.print_string("]")
+
+
 HW = Dialect(
     [],
     [
         InnerRefAttr,
+        InnerSymPropertiesAttr,
+        InnerSymAttr,
     ],
 )
