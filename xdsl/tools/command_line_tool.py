@@ -25,6 +25,7 @@ from xdsl.dialects.experimental.math import Math
 from xdsl.dialects.fsm import FSM
 from xdsl.dialects.func import Func
 from xdsl.dialects.gpu import GPU
+from xdsl.dialects.hw import HW
 from xdsl.dialects.irdl.irdl import IRDL
 from xdsl.dialects.linalg import Linalg
 from xdsl.dialects.llvm import LLVM
@@ -92,6 +93,7 @@ def get_all_dialects() -> list[Dialect]:
         Func,
         GPU,
         HLS,
+        HW,
         Linalg,
         IRDL,
         LLVM,
