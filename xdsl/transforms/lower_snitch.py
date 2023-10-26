@@ -126,7 +126,7 @@ class LowerSsrSetDimensionBoundOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch.SsrSetDimensionBoundOp, rewriter: PatternRewriter, /
     ):
-        dim: int = op.dimension.value.data
+        dim: int = op.dimension.data
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
@@ -143,7 +143,7 @@ class LowerSsrSetDimensionStrideOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch.SsrSetDimensionStrideOp, rewriter: PatternRewriter, /
     ):
-        dim: int = op.dimension.value.data
+        dim: int = op.dimension.data
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
@@ -160,7 +160,7 @@ class LowerSsrSetDimensionSourceOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch.SsrSetDimensionSourceOp, rewriter: PatternRewriter, /
     ):
-        dim: int = op.dimension.value.data
+        dim: int = op.dimension.data
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,
@@ -177,7 +177,7 @@ class LowerSsrSetDimensionDestinationOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch.SsrSetDimensionDestinationOp, rewriter: PatternRewriter, /
     ):
-        dim: int = op.dimension.value.data
+        dim: int = op.dimension.data
         ops = make_stream_set_config_ops(
             value=op.value,
             stream=op.stream,

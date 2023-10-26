@@ -46,8 +46,8 @@ class LowerStridePatternOp(RewritePattern):
         if dim != 2:
             raise NotImplementedError("Only 2d loop stride patterns are supported")
 
-        int_0 = builtin.IntegerAttr(0, 32)
-        int_1 = builtin.IntegerAttr(1, 32)
+        int_0 = builtin.IntAttr(0)
+        int_1 = builtin.IntAttr(1)
 
         b = tuple(b.data for b in op.ub.data)
         s = tuple(s.data for s in op.strides.data)
@@ -94,7 +94,7 @@ class LowerStridedReadOp(RewritePattern):
         rewriter.replace_matched_op(
             [
                 dm := riscv.LiOp(op.dm.data),
-                snitch.SsrSetDimensionSourceOp(dm, op.pointer, dim_v),
+                snitch.SsrSetDimensionSourceOp(dm, op.pointer, dim_v.value),
                 riscv.GetFloatRegisterOp(stream_type.element_type),
             ]
         )
@@ -117,7 +117,7 @@ class LowerStridedWriteOp(RewritePattern):
         rewriter.insert_op_before_matched_op(
             [
                 dm := riscv.LiOp(op.dm.data),
-                snitch.SsrSetDimensionDestinationOp(dm, op.pointer, dim_v),
+                snitch.SsrSetDimensionDestinationOp(dm, op.pointer, dim_v.value),
             ]
         )
 
