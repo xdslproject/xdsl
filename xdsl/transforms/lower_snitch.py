@@ -108,6 +108,14 @@ def write_ssr_config_ops(reg: int, dm: int, value: Operand) -> Iterable[Operatio
     address = dm + reg << 5
 
     This value is then passed to riscv.scfgw to perform the actual setting.
+
+    Reference implementation in the snitch runtime library:
+    ``` c
+    inline void write_ssr_cfg(uint32_t reg, uint32_t dm, uint32_t value) {
+        asm volatile("scfgwi %[value], %[dm] | %[reg]<<5\n" ::[value] "r"(value),
+                    [ dm ] "i"(dm), [ reg ] "i"(reg));
+    }
+    ```
     """
     return [
         address := riscv.LiOp(
