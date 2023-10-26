@@ -6,13 +6,14 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeAlias, TypeVar
 
-from xdsl.dialects import riscv
+from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, ModuleOp
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
     PythonValues,
     impl,
+    impl_cast,
     register_impls,
 )
 from xdsl.interpreters.comparisons import to_signed, to_unsigned
@@ -579,3 +580,12 @@ class RiscvFunctions(InterpreterFunctions):
 
         results = self.custom_instructions[instr](interpreter, op, args)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl_cast(riscv.FloatRegisterType, builtin.Float64Type)
+    def cast_float_reg_to_float(
+        self,
+        input_type: riscv.FloatRegisterType,
+        output_type: builtin.Float64Type,
+        value: Any,
+    ) -> Any:
+        return value
