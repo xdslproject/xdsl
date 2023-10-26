@@ -11,8 +11,10 @@ from xdsl.dialects.hw import (
     InnerRefAttr,
     InnerRefNamespaceTrait,
     InnerRefUserOpInterfaceTrait,
+    InnerSymAttr,
     InnerSymbolTableCollection,
     InnerSymbolTableTrait,
+    InnerSymPropertiesAttr,
     InnerSymTarget,
 )
 from xdsl.dialects.test import TestOp
@@ -278,3 +280,33 @@ def test_inner_ref_attr():
     assert (
         ref.get_module().data == "mod2"
     ), "Name of the referenced module should be returned correctly"
+
+
+def test_inner_sym_attr():
+    """
+    Test inner symbol attributes
+    """
+    invalid_sym_attr = InnerSymAttr()
+    assert (
+        invalid_sym_attr.get_sym_name() is None
+    ), "Invalid InnerSymAttr should return no name"
+
+    sym_attr = InnerSymAttr("sym")
+    assert sym_attr.get_sym_name() == StringAttr(
+        "sym"
+    ), "InnerSymAttr for “ground” type should return name"
+
+    with pytest.raises(VerifyException, match=r"inner symbol cannot have empty name"):
+        InnerSymAttr("")
+
+    aggregate_sym_attr = InnerSymAttr(
+        [
+            InnerSymPropertiesAttr("sym", 0, "public"),
+            InnerSymPropertiesAttr("other", 1, "private"),
+            InnerSymPropertiesAttr("yet_another", 2, "nested"),
+        ]
+    )
+
+    assert aggregate_sym_attr.get_sym_name() == StringAttr(
+        "sym"
+    ), "InnerSymAttr for aggregate types should return name with field ID 0"

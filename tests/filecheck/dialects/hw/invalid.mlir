@@ -21,3 +21,11 @@
 }) : () -> ()
 
 // CHECK:  Expected a module and symbol reference
+
+// -----
+
+"builtin.module"() ({
+  "test.op"() { "test" = #hw.innerSym[<@x_1,4,foo>, <@y,5,bar>] } : () -> ()
+}) : () -> ()
+
+// CHECK:  Expected "public", "private", or "nested"
