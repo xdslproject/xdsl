@@ -54,19 +54,18 @@ class LowerStridePatternOp(RewritePattern):
 
         rewriter.replace_matched_op(
             [
-                dm := riscv.LiOp(op.dm.data),
                 b0 := riscv.LiOp(b[0]),
                 b1 := riscv.LiOp(b[1]),
                 s0 := riscv.LiOp(s[0]),
                 s1 := riscv.LiOp(s[1]),
                 new_b0 := riscv.AddiOp(b0, -1),
                 new_b1 := riscv.AddiOp(b1, -1),
-                snitch.SsrSetDimensionBoundOp(dm, new_b0, int_0),
-                snitch.SsrSetDimensionBoundOp(dm, new_b1, int_1),
-                snitch.SsrSetDimensionStrideOp(dm, s0, int_0),
+                snitch.SsrSetDimensionBoundOp(new_b0, op.dm, int_0),
+                snitch.SsrSetDimensionBoundOp(new_b1, op.dm, int_1),
+                snitch.SsrSetDimensionStrideOp(s0, op.dm, int_0),
                 a0 := riscv.MulOp(new_b0, s0, rd=riscv.IntRegisterType.unallocated()),
                 stride_1 := riscv.SubOp(s1, a0, rd=riscv.IntRegisterType.unallocated()),
-                snitch.SsrSetDimensionStrideOp(dm, stride_1, int_1),
+                snitch.SsrSetDimensionStrideOp(stride_1, op.dm, int_1),
                 # The result is rewritten to be the dimensionality of the stream
                 # configuration, which is `dim-1`.
                 riscv.LiOp(dim - 1),
@@ -93,8 +92,7 @@ class LowerStridedReadOp(RewritePattern):
 
         rewriter.replace_matched_op(
             [
-                dm := riscv.LiOp(op.dm.data),
-                snitch.SsrSetDimensionSourceOp(dm, op.pointer, dim_v.value),
+                snitch.SsrSetDimensionSourceOp(op.pointer, op.dm, dim_v.value),
                 riscv.GetFloatRegisterOp(stream_type.element_type),
             ]
         )
@@ -116,8 +114,7 @@ class LowerStridedWriteOp(RewritePattern):
 
         rewriter.insert_op_before_matched_op(
             [
-                dm := riscv.LiOp(op.dm.data),
-                snitch.SsrSetDimensionDestinationOp(dm, op.pointer, dim_v.value),
+                snitch.SsrSetDimensionDestinationOp(op.pointer, op.dm, dim_v.value),
             ]
         )
 
