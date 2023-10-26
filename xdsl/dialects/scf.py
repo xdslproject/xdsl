@@ -222,8 +222,10 @@ class For(IRDLOperation):
                     f"Block arg #{i + 1} expected to be {arg.type}, but got {block_iter_args[i].type}. "
                     "Block args after the induction variable must match the loop-carried variables."
                 )
-        if len(self.body.ops) > 0 and isinstance(self.body.block.last_op, Yield):
-            yieldop = self.body.block.last_op
+        if (last_op := self.body.block.last_op) is not None and isinstance(
+            last_op, Yield
+        ):
+            yieldop = last_op
             if len(yieldop.arguments) != iter_args_num:
                 raise VerifyException(
                     f"{yieldop.name} expected {iter_args_num} args, but got {len(yieldop.arguments)}. "
