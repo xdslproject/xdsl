@@ -262,33 +262,43 @@ class RiscvFunctions(InterpreterFunctions):
 
     @staticmethod
     def get_data(module_op: ModuleOp) -> dict[str, RawPtr]:
-        data: dict[str, RawPtr] | None = None
+        data: dict[str, RawPtr] = {}
         for op in module_op.ops:
             if isinstance(op, riscv.AssemblySectionOp):
                 if op.directive.data == ".data":
-                    if data is None:
-                        data = {}
                     assert op.data is not None
                     ops = list(op.data.block.ops)
                     for label, data_op in pairs(ops):
-                        assert isinstance(label, riscv.LabelOp)
-                        assert isinstance(data_op, riscv.DirectiveOp)
-                        assert data_op.value is not None
+                        if not (
+                            isinstance(label, riscv.LabelOp)
+                            and isinstance(data_op, riscv.DirectiveOp)
+                        ):
+                            raise InterpretationError(
+                                "Interpreter assumes that data section is comprised of "
+                                "labels followed by directives"
+                            )
+                        if data_op.value is None:
+                            raise InterpretationError(
+                                "Unexpected None value in data section directive"
+                            )
+
                         match data_op.directive.data:
                             case ".word":
                                 hexs = data_op.value.data.split(",")
                                 ints = [int(hex.strip(), 16) for hex in hexs]
                                 data[label.label.data] = RawPtr.new_int32(ints)
                             case _:
-                                assert (
-                                    False
-                                ), f"Unexpected directive {data_op.directive.data}"
-        if data is None:
-            assert False, "Could not find data section"
+                                raise InterpretationError(
+                                    "Cannot interpret data directive "
+                                    f"{data_op.directive.data}"
+                                )
         return data
 
     def get_data_value(self, interpreter: Interpreter, key: str) -> Any:
-        return self.data(interpreter)[key]
+        data = self.data(interpreter)
+        if key not in data:
+            raise InterpretationError(f"No data found for key ({key})")
+        return data[key]
 
     def get_immediate_value(
         self, interpreter: Interpreter, imm: AnyIntegerAttr | riscv.LabelAttr
