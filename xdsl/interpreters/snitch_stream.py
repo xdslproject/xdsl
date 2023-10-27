@@ -1,5 +1,6 @@
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from functools import reduce
 from itertools import accumulate, product
 from operator import mul
 from typing import Any
@@ -32,6 +33,23 @@ def indexing_map_from_bounds(bounds: Sequence[int]) -> AffineMap:
             if div != 1
             else AffineExpr.dimension(0) % bound
             for bound, div in zip(bounds, divs)
+        ),
+    )
+
+
+def offset_map_from_strides(strides: Sequence[int]) -> AffineMap:
+    if not strides:
+        # Return empty map to avoid reducing over an empty sequence
+        return AffineMap(1, 0, ())
+
+    return AffineMap(
+        len(strides),
+        0,
+        (
+            reduce(
+                lambda acc, m: acc + m,
+                (AffineExpr.dimension(i) * stride for i, stride in enumerate(strides)),
+            ),
         ),
     )
 

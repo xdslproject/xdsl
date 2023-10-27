@@ -6,6 +6,7 @@ from xdsl.interpreters.snitch_stream import (
     SnitchStreamFunctions,
     StridePattern,
     indexing_map_from_bounds,
+    offset_map_from_strides,
 )
 from xdsl.ir.affine import AffineExpr, AffineMap
 
@@ -26,6 +27,17 @@ def test_indexing_map_constructor():
             AffineExpr.dimension(0).floor_div(4) % 3,
             AffineExpr.dimension(0) % 4,
         ),
+    )
+
+
+def test_offset_map_constructor():
+    assert offset_map_from_strides([]) == AffineMap(1, 0, ())
+    assert offset_map_from_strides([2]) == AffineMap.from_callable(lambda i: (i * 2,))
+    assert offset_map_from_strides([2, 1]) == AffineMap.from_callable(
+        lambda i, j: (i * 2 + j * 1,)
+    )
+    assert offset_map_from_strides([3, 2, 1]) == AffineMap.from_callable(
+        lambda i, j, k: (i * 3 + j * 2 + k * 1,)
     )
 
 
