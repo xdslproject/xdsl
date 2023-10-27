@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
+from itertools import product
 from typing import Any
 
 from xdsl.dialects import snitch_stream
@@ -15,10 +16,23 @@ from xdsl.interpreter import (
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.stream import (
     ReadableStream,
-    StridePattern,
     WritableStream,
-    strided_pointer_offset_iter,
 )
+
+
+@dataclass
+class StridePattern:
+    ub: list[int]
+    strides: list[int]
+
+
+def strided_pointer_offset_iter(strides: list[int], ub: list[int]) -> Iterator[int]:
+    indices_iter = product(*(range(b) for b in ub))
+    offsets = [
+        sum((stride * index for stride, index in zip(strides, indices)))
+        for indices in indices_iter
+    ]
+    return iter(offsets)
 
 
 @dataclass
