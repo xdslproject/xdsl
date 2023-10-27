@@ -28,7 +28,13 @@ def test_riscv_interpreter():
                 Region(
                     Block([riscv.LabelOp("label0"), riscv.DirectiveOp(".word", "2A")])
                 ),
-            )
+            ),
+            riscv.AssemblySectionOp(
+                ".data",
+                Region(
+                    Block([riscv.LabelOp("label1"), riscv.DirectiveOp(".word", "3B")])
+                ),
+            ),
         ]
     )
     register = riscv.IntRegisterType.unallocated()
@@ -41,6 +47,7 @@ def test_riscv_interpreter():
     interpreter.register_implementations(riscv_functions)
 
     assert interpreter.run_op(riscv.LiOp("label0"), ()) == (RawPtr.new_int32((42,)),)
+    assert interpreter.run_op(riscv.LiOp("label1"), ()) == (RawPtr.new_int32((59,)),)
     assert interpreter.run_op(
         riscv.MVOp(TestSSAValue(register), rd=riscv.IntRegisterType.unallocated()),
         (42,),

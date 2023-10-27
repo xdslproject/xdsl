@@ -1,7 +1,7 @@
 // RUN: xdsl-opt --split-input-file -t riscemu %s | filecheck %s
 
 builtin.module {
-  riscv.directive ".globl" "main" : () -> ()
+  riscv.directive ".globl" "main"
   riscv_func.func @main() {
     %0 = riscv.li 6 : () -> !riscv.reg<j0>
     %1 = riscv.li 7 : () -> !riscv.reg<j1>
@@ -18,7 +18,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  riscv.directive ".globl" "main" : () -> ()
+  riscv.directive ".globl" "main"
   riscv_func.func @main() {
     %0 = riscv.li 3 : () -> !riscv.reg<a0>
     %1 = riscv.li 2 : () -> !riscv.reg<a1>
