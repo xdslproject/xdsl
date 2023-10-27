@@ -101,12 +101,12 @@ class SnitchStreamFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ) -> PythonValues:
         repeat_count = args[0]
-        input_streams: tuple[ReadableStream[Any], ...] = interpreter.get_values(
-            op.inputs
-        )
-        output_streams: tuple[WritableStream[Any], ...] = interpreter.get_values(
-            op.outputs
-        )
+        input_stream_count = len(op.inputs)
+
+        input_streams: tuple[ReadableStream[Any], ...] = args[
+            1 : 1 + input_stream_count
+        ]
+        output_streams: tuple[WritableStream[Any], ...] = args[1 + input_stream_count :]
 
         for _ in range(repeat_count):
             loop_args = tuple(i.read() for i in input_streams)
