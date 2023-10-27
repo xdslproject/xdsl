@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from typing_extensions import Self
+
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -9,27 +11,37 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.stream import (
     ReadableStreamType,
-    StridePatternType,
     WritableStreamType,
 )
+from xdsl.dialects.utils import parse_return_op_like, print_return_op_like
 from xdsl.ir import (
     Dialect,
     Operation,
+    ParametrizedAttribute,
     Region,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     VarOperand,
     attr_def,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     region_def,
     result_def,
     var_operand_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
+
+
+@irdl_attr_definition
+class StridePatternType(ParametrizedAttribute, TypeAttribute):
+    name = "snitch_stream.stride_pattern_type"
 
 
 @irdl_op_definition
@@ -66,7 +78,17 @@ class YieldOp(IRDLOperation):
     traits = frozenset([IsTerminator()])
 
     def __init__(self, *operands: SSAValue | Operation) -> None:
-        super().__init__(operands=[SSAValue.get(operand) for operand in operands])
+        super().__init__(operands=[operands])
+
+    def print(self, printer: Printer):
+        print_return_op_like(printer, self.attributes, self.values)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        attrs, args = parse_return_op_like(parser)
+        op = cls(*args)
+        op.attributes.update(attrs)
+        return op
 
 
 @irdl_op_definition
@@ -169,5 +191,8 @@ SnitchStream = Dialect(
         StridedReadOp,
         StridedWriteOp,
         StridePatternOp,
+    ],
+    [
+        StridePatternType,
     ],
 )
