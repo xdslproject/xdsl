@@ -46,8 +46,8 @@ LOCK_RELEASE = 0
 
 # @irdl_attr_definition
 # class DimTupleArrayAttr():
-#    @classmethod
-#    def parse_parameter
+# 	 @classmethod
+# 	 def parse_parameter
 
 
 @irdl_attr_definition
@@ -64,12 +64,14 @@ class WireBundleAttr(Data[str]):
 
 @irdl_attr_definition
 class ObjectFIFO(ParametrizedAttribute):
-    name = "AIE.objectFifo"
+    name = "AIE.objectFifoAttr"
 
     buffer: ParameterDef[memref.MemRefType]
+    fifo_name: ParameterDef[StringAttr]
 
     @staticmethod
     def from_element_type_and_shape(
+        fifo_name: StringAttr,
         referenced_type: _MemRefTypeElement,
         shape: Iterable[int | AnyIntegerAttr],
         layout: Attribute = NoneAttr(),
@@ -79,7 +81,8 @@ class ObjectFIFO(ParametrizedAttribute):
             [
                 memref.MemRefType.from_element_type_and_shape(
                     referenced_type, shape, layout, memory_space
-                )
+                ),
+                fifo_name,
             ]
         )
 
@@ -135,11 +138,11 @@ class TileOp(IRDLOperation):
         )
 
     # def print(self, printer: Printer):
-    #    printer.print(" ")
-    #    printer.print_string("tile")
-    #    printer.print("1")
-    #    printer.print(", ")
-    #    printer.print("2"))
+    # 	 printer.print(" ")
+    # 	 printer.print_string("tile")
+    # 	 printer.print("1")
+    # 	 printer.print(", ")
+    # 	 printer.print("2"))
 
 
 @irdl_op_definition
@@ -390,52 +393,65 @@ class MemTileDMAOp(IRDLOperation):
 
 # @irdl_op_definition
 # class NextBDOp(IRDLOperation):
-#    name = "nextBd"
+# 	 name = "nextBd"
 #
-#    dest: Block
+# 	 dest: Block
 #
-#    def __init__(self, dest: Block):
-#        super().__init__(successors=[dest])
+# 	 def __init__(self, dest: Block):
+# 		 super().__init__(successors=[dest])
 
 """ # TODO objectfifotype
 @irdl_op_definition
 class ObjectFifoAcquireOp(IRDLOperation):
-    name = "objectFifo.acquire"
+	name = "objectFifo.acquire"
 
-    port: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
-    size: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
-    fifo: Operand = operand_def(
+	port: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
+	size: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+	fifo: Operand = operand_def(
 
 @irdl_op_definition
 class ObjectFifoCreateOp(IRDLOperation):
-    name = "objectFifo.createObjectFifo"
+	name = "objectFifo.createObjectFifo"
 """
 
 
 @irdl_op_definition
 class createObjectFifo(IRDLOperation):
-    name = "objectFifo.createObjectFifo"
+    # name = "objectFifo.createObjectFifo"
+    name = "AIE.objectFifo"
 
     elemNumber: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
     producerTile: Operand = operand_def(IndexType())
     consumerTile: Operand = operand_def(IndexType())
 
-    result: OpResult = result_def(ObjectFIFO)
+    created_fifo: ObjectFIFO = attr_def(ObjectFIFO)
 
     def __init__(
         self,
+        name: str,
         elemNumber: IntegerAttr[i32],
         producerTile: IndexType(),
         consumerTile: IndexType(),
         referenced_type: _MemRefTypeElement,
         shape: Iterable[int | AnyIntegerAttr],
     ):
-        object_fifo = ObjectFIFO.from_element_type_and_shape(referenced_type, shape)
-        super().__init__(
-            attributes={"elemNumber": elemNumber},
-            operands=[producerTile, consumerTile],
-            result_types=[object_fifo],
+        created_fifo = ObjectFIFO.from_element_type_and_shape(
+            name, referenced_type, shape
         )
+        super().__init__(
+            attributes={"elemNumber": elemNumber, "created_fifo": created_fifo},
+            operands=[producerTile, consumerTile],
+        )
+
+    def print(self, printer: Printer):
+        printer.print(f" @{self.attributes['created_fifo'].fifo_name.data} (")
+        printer.print_operand(self.producerTile)
+        printer.print(", {")
+        printer.print_operand(self.consumerTile)
+        printer.print("}, ")
+        printer.print_attribute(self.elemNumber)
+        printer.print(") : ")
+        printer.print(f"!AIE.objectFifo<{self.attributes['created_fifo'].buffer}>")
 
 
 @irdl_op_definition
