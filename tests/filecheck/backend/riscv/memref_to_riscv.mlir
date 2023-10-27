@@ -74,7 +74,7 @@ builtin.module {
 // CHECK-NEXT:   %x_f64_1 = builtin.unrealized_conversion_cast %x_f64 : !riscv.freg<> to f64
 // CHECK-NEXT:   riscv.assembly_section ".data" {
 // CHECK-NEXT:       riscv.label "global"
-// CHECK-NEXT:       riscv.directive ".word" "0x0,0x3ff00000,0x0,0x40000000" : () -> ()
+// CHECK-NEXT:       riscv.directive ".word" "0x0,0x3ff00000,0x0,0x40000000"
 // CHECK-NEXT:   }
 // CHECK-NEXT:   %{{.*}} riscv.li "global" : () -> !riscv.reg<>
 // CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg<> to memref<2xi32>

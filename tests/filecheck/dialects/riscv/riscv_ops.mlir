@@ -60,17 +60,17 @@
     // RV32I/RV64I: 2.5 Control Transfer Instructions
 
     // Unconditional Branch Instructions
-    riscv.jal 1 : () -> ()
-    // CHECK-NEXT: riscv.jal 1 : () -> ()
-    riscv.jal 1, !riscv.reg<> : () -> ()
-    // CHECK-NEXT: riscv.jal 1, !riscv.reg<> : () -> ()
-    riscv.jal "label" : () -> ()
-    // CHECK-NEXT: riscv.jal "label" : () -> ()
+    riscv.jal 1
+    // CHECK-NEXT: riscv.jal 1
+    riscv.jal 1, !riscv.reg<>
+    // CHECK-NEXT: riscv.jal 1, !riscv.reg<>
+    riscv.jal "label"
+    // CHECK-NEXT: riscv.jal "label"
 
-    riscv.j 1 : () -> ()
-    // CHECK-NEXT: riscv.j 1 : () -> ()
-    riscv.j "label" : () -> ()
-    // CHECK-NEXT: riscv.j "label" : () -> ()
+    riscv.j 1
+    // CHECK-NEXT: riscv.j 1
+    riscv.j "label"
+    // CHECK-NEXT: riscv.j "label"
 
     riscv.jalr %0, 1: (!riscv.reg<>) -> ()
     // CHECK-NEXT: riscv.jalr %0, 1 : (!riscv.reg<>) -> ()
@@ -180,10 +180,10 @@
     // CHECK-NEXT: riscv.ecall
     riscv.ebreak
     // CHECK-NEXT: riscv.ebreak
-    riscv.directive ".bss": () -> ()
-    // CHECK-NEXT: riscv.directive ".bss" : () -> ()
-    riscv.directive ".align" "2" : () -> ()
-    // CHECK-NEXT: riscv.directive ".align" "2" : () -> ()
+    riscv.directive ".bss"
+    // CHECK-NEXT: riscv.directive ".bss"
+    riscv.directive ".align" "2"
+    // CHECK-NEXT: riscv.directive ".align" "2"
     riscv.assembly_section ".text" attributes {"foo" = i32} {
       %nested_li = riscv.li 1 : () -> !riscv.reg<>
     }
