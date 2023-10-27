@@ -46,6 +46,12 @@ class StridePatternType(ParametrizedAttribute, TypeAttribute):
 
 @irdl_op_definition
 class GenericOp(IRDLOperation):
+    """
+    An operation that repeatedly reads from the input streams, performs the calculation in
+    the `body`, and writes the results to the output streams. The number of times that
+    this operation repeats is specified by `repeat_count`.
+    """
+
     name = "snitch_stream.generic"
 
     repeat_count = operand_def(riscv.IntRegisterType)
@@ -94,7 +100,20 @@ class YieldOp(IRDLOperation):
 @irdl_op_definition
 class StridePatternOp(IRDLOperation):
     """
-    Specifies a stream access pattern reading from a pointer sequentially.
+    Specifies a stream access pattern reading from or writing to a pointer.
+    `ub` specifies the upper bounds of the iteration variables.
+    `strides` specifies the strides in bytes of the iteration variables.
+
+    For example, to read sequentially the elements of a 2x3xf32 matrix in row-major order:
+    `ub = [2,3], strides = [12, 4]`
+
+    The index for each iteration will be calculated like this:
+    (0, 0) -> 0*12 + 0*4 = 0
+    (0, 1) -> 0*12 + 1*4 = 4
+    (0, 2) -> 0*12 + 2*4 = 8
+    (1, 0) -> 1*12 + 0*4 = 12
+    (1, 1) -> 1*12 + 1*4 = 16
+    (1, 2) -> 1*12 + 2*4 = 18
     """
 
     name = "snitch_stream.stride_pattern"
@@ -123,7 +142,7 @@ class StridePatternOp(IRDLOperation):
 @irdl_op_definition
 class StridedReadOp(IRDLOperation):
     """
-    Generates a stream reading from a memref sequentially.
+    Generates a stream reading from a pointer according to the provided pattern.
     """
 
     name = "snitch_stream.strided_read"
@@ -155,7 +174,7 @@ class StridedReadOp(IRDLOperation):
 @irdl_op_definition
 class StridedWriteOp(IRDLOperation):
     """
-    Generates a stream writing to a pointer sequentially.
+    Generates a stream writing to a pointer according to the provided pattern.
     """
 
     name = "snitch_stream.strided_write"
