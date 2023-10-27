@@ -16,6 +16,10 @@ AffineMapBuilderT = (
     | Callable[
         [AffineExpr, AffineExpr, AffineExpr, AffineExpr], tuple[AffineExprBuilderT, ...]
     ]
+    | Callable[
+        [AffineExpr, AffineExpr, AffineExpr, AffineExpr, AffineExpr],
+        tuple[AffineExprBuilderT, ...],
+    ]
 )
 
 
@@ -98,18 +102,66 @@ class AffineMap:
         )
         return AffineMap(num_dims, num_symbols, results_tuple)
 
+    def replace_dims_and_symbols(
+        self,
+        new_dims: Sequence[AffineExpr],
+        new_symbols: Sequence[AffineExpr],
+        result_num_dims: int,
+        result_num_symbols: int,
+    ) -> AffineMap:
+        """
+        This method substitutes any uses of dimensions and symbols (e.g. dim#0 with dimReplacements[0]) in subexpressions and returns the modified expression mapping.  Because this can be used to eliminate dims and symbols, the client needs to specify the number of dims and symbols in the result.
+
+        The returned map always has the same number of results.
+        """
+
+        return AffineMap(
+            result_num_dims,
+            result_num_symbols,
+            tuple(
+                expr.replace_dims_and_symbols(new_dims, new_symbols)
+                for expr in self.results
+            ),
+        )
+
     def compose(self, map: AffineMap) -> AffineMap:
-        """Compose the AffineMap with the given AffineMap."""
-        if self.num_dims != map.num_dims:
+        """
+        Returns the AffineMap resulting from composing this with map.
+
+        The resulting AffineMap has as many AffineDimExpr as map and as many AffineSymbolExpr as the concatenation of this and map (in which case the symbols of this map come first).
+
+        Prerequisites: The maps are composable, i.e. that the number of AffineDimExpr of this matches the number of results of map.
+
+        Example:
+        ```
+        map1: (d0, d1)[s0, s1] -> (d0 + 1 + s1, d1 - 1 - s0)
+        map2: (d0)[s0] -> (d0 + s0, d0 - s0)
+        map1.compose(map2): (d0)[s0, s1, s2] -> (d0 + s1 + s2 + 1, d0 - s0 - s2 - 1)
+        ```
+        """
+        if self.num_dims != len(map.results):
             raise ValueError(
-                f"Cannot compose AffineMaps with different numbers of dimensions: "
-                f"{self.num_dims} and {map.num_dims}"
+                "Cannot compose AffineMaps with mismatching dimensions and results: "
+                "self.num_dims != len(map.results) "
+                f"({self.num_dims} != {len(map.results)})"
             )
 
-        results = tuple(expr.compose(map) for expr in self.results)
+        num_dims = map.num_dims
+        num_symbols = self.num_symbols + map.num_symbols
+
+        new_dims = tuple(AffineExpr.dimension(d) for d in range(num_dims))
+        new_symbols = tuple(
+            AffineExpr.symbol(s) for s in range(self.num_symbols, num_symbols)
+        )
+
+        new_map = map.replace_dims_and_symbols(
+            new_dims, new_symbols, num_dims, num_symbols
+        )
+
+        results = tuple(expr.compose(new_map) for expr in self.results)
         return AffineMap(
-            num_dims=self.num_dims,
-            num_symbols=map.num_symbols,
+            num_dims=num_dims,
+            num_symbols=num_symbols,
             results=results,
         )
 
