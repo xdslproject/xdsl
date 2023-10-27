@@ -1,7 +1,7 @@
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import reduce
-from itertools import accumulate, product
+from itertools import accumulate
 from operator import mul
 from typing import Any
 
@@ -59,33 +59,35 @@ class StridePattern:
     ub: list[int]
     strides: list[int]
 
-
-def strided_pointer_offset_iter(strides: list[int], ub: list[int]) -> Iterator[int]:
-    indices_iter = product(*(range(b) for b in ub))
-    offsets = [
-        sum((stride * index for stride, index in zip(strides, indices)))
-        for indices in indices_iter
-    ]
-    return iter(offsets)
+    @property
+    def offset_expr(self) -> AffineExpr:
+        indexing_map = indexing_map_from_bounds(self.ub)
+        offset_map = offset_map_from_strides(self.strides)
+        result_map = offset_map.compose(indexing_map)
+        return result_map.results[0]
 
 
 @dataclass
 class StridedPointerInputStream(ReadableStream[float]):
-    offset_iter: Iterator[int]
+    offset_expr: AffineExpr
     pointer: RawPtr
+    index = -1
 
     def read(self) -> float:
-        offset = next(self.offset_iter)
+        self.index += 1
+        offset = self.offset_expr.eval((self.index,), ())
         return (self.pointer + offset).float64[0]
 
 
 @dataclass
 class StridedPointerOutputStream(WritableStream[float]):
-    offset_iter: Iterator[int]
+    index = -1
+    offset_expr: AffineExpr
     pointer: RawPtr
 
     def write(self, value: float) -> None:
-        offset = next(self.offset_iter)
+        self.index += 1
+        offset = self.offset_expr.eval((self.index,), ())
         (self.pointer + offset).float64[0] = value
 
 
@@ -138,7 +140,7 @@ class SnitchStreamFunctions(InterpreterFunctions):
         pattern: StridePattern = pattern
 
         input_stream_factory = StridedPointerInputStream(
-            strided_pointer_offset_iter(pattern.strides, pattern.ub),
+            pattern.offset_expr,
             memref,
         )
         return (input_stream_factory,)
@@ -155,7 +157,7 @@ class SnitchStreamFunctions(InterpreterFunctions):
         pattern: StridePattern = pattern
 
         output_stream_factory = StridedPointerOutputStream(
-            strided_pointer_offset_iter(pattern.strides, pattern.ub),
+            pattern.offset_expr,
             memref,
         )
         return (output_stream_factory,)
