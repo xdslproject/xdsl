@@ -41,7 +41,7 @@ from xdsl.traits import IsTerminator
 
 @irdl_attr_definition
 class StridePatternType(ParametrizedAttribute, TypeAttribute):
-    name = "stream.stride_pattern_type"
+    name = "snitch_stream.stride_pattern_type"
 
 
 @irdl_op_definition
