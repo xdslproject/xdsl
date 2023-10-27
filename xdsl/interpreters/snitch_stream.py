@@ -1,6 +1,7 @@
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from itertools import product
+from itertools import accumulate, product
+from operator import mul
 from typing import Any
 
 from xdsl.dialects import snitch_stream
@@ -18,6 +19,21 @@ from xdsl.interpreters.stream import (
     ReadableStream,
     WritableStream,
 )
+from xdsl.ir.affine import AffineExpr, AffineMap
+
+
+def indexing_map_from_bounds(bounds: Sequence[int]) -> AffineMap:
+    divs = tuple(accumulate(reversed(bounds), mul, initial=1))[-2::-1]
+    return AffineMap(
+        1,
+        0,
+        tuple(
+            AffineExpr.dimension(0).floor_div(div) % bound
+            if div != 1
+            else AffineExpr.dimension(0) % bound
+            for bound, div in zip(bounds, divs)
+        ),
+    )
 
 
 @dataclass
