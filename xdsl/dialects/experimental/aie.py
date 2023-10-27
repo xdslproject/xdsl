@@ -1,25 +1,29 @@
 from __future__ import annotations
 
-from typing import Annotated
+from collections.abc import Iterable
+from typing import Annotated, TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AnyAttr,
+    AnyIntegerAttr,
     ArrayAttr,
     Float32Type,
     IndexType,
     IntegerAttr,
     IntegerType,
+    NoneAttr,
     Region,
     Signedness,
     StringAttr,
     i32,
     i64,
 )
-from xdsl.ir import Data, Dialect, OpResult
+from xdsl.ir import Attribute, Data, Dialect, OpResult, ParametrizedAttribute
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
+    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -29,6 +33,9 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+
+_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
+
 
 i8 = IntegerType(8)
 
@@ -56,13 +63,25 @@ class WireBundleAttr(Data[str]):
 
 
 @irdl_attr_definition
-class ObjectFIFO(Data):
-    name = "objectFifo"
+class ObjectFIFO(ParametrizedAttribute):
+    name = "AIE.objectFifo"
 
-    buffer: memref.MemRefType
+    buffer: ParameterDef[memref.MemRefType]
 
-    def __init__(self, buffer: memref.MemRefType):
-        super().__init__(attributes={"buffer": buffer})
+    @staticmethod
+    def from_element_type_and_shape(
+        referenced_type: _MemRefTypeElement,
+        shape: Iterable[int | AnyIntegerAttr],
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr(),
+    ) -> ObjectFIFO[_MemRefTypeElement]:
+        return ObjectFIFO(
+            [
+                memref.MemRefType.from_element_type_and_shape(
+                    referenced_type, shape, layout, memory_space
+                )
+            ]
+        )
 
 
 @irdl_op_definition
@@ -216,10 +235,23 @@ class DebugOp(IRDLOperation):
 
 @irdl_op_definition
 class DeviceOp(IRDLOperation):
-    name = "device"
+    name = "AIE.device"
+
+    region: Region = region_def()
+
     device: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
         IntegerAttr[Annotated[IntegerType, i32]]
     )
+
+    def __init__(self, device: IntegerAttr[i32], region: Region):
+        super().__init__(attributes={"device": device}, regions=[region])
+
+    def print(self, printer: Printer):
+        printer.print("(")
+        device_str = "xcvc1902" if self.device.value.data == 0 else ""
+        printer.print(device_str)
+        printer.print(") ")
+        printer.print_region(self.region)
 
 
 @irdl_op_definition
@@ -379,17 +411,31 @@ class ObjectFifoCreateOp(IRDLOperation):
     name = "objectFifo.createObjectFifo"
 """
 
-# @irdl_op_definition
-# class createObjectFifo(IRDLOperation):
-#    name = "objectFifo.createObjectFifo"
-#
-#    elemNumber: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
-#    producerTile: Operand = IndexType()
-#    consumerTile: Operand = IndexType()
-#
-#    def __init__(self, elemNumber: IntegerAttr[i32], producerTile: IndexType(), consumerTile: IndexType(), fifo: MemRefType):
-#        object_fifo = ObjectFIFO(fifo)
-#        super().__init__(attributes={"elemNumber": elemNumber}, operands=[producerTile, consumerTile], result_types=[object_fifo])
+
+@irdl_op_definition
+class createObjectFifo(IRDLOperation):
+    name = "objectFifo.createObjectFifo"
+
+    elemNumber: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    producerTile: Operand = operand_def(IndexType())
+    consumerTile: Operand = operand_def(IndexType())
+
+    result: OpResult = result_def(ObjectFIFO)
+
+    def __init__(
+        self,
+        elemNumber: IntegerAttr[i32],
+        producerTile: IndexType(),
+        consumerTile: IndexType(),
+        referenced_type: _MemRefTypeElement,
+        shape: Iterable[int | AnyIntegerAttr],
+    ):
+        object_fifo = ObjectFIFO.from_element_type_and_shape(referenced_type, shape)
+        super().__init__(
+            attributes={"elemNumber": elemNumber},
+            operands=[producerTile, consumerTile],
+            result_types=[object_fifo],
+        )
 
 
 @irdl_op_definition
