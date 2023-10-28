@@ -63,16 +63,16 @@
     // RV32I/RV64I: 2.5 Control Transfer Instructions
 
     // Unconditional Branch Instructions
-    riscv.jal 1 : () -> ()
+    riscv.jal 1
     // CHECK-NEXT: jal 1
-    riscv.jal 1, !riscv.reg<s0> : () -> ()
+    riscv.jal 1, !riscv.reg<s0>
     // CHECK-NEXT: jal s0, 1
-    riscv.jal "label" : () -> ()
+    riscv.jal "label"
     // CHECK-NEXT: jal label
 
-    riscv.j 1, !riscv.reg<zero> : () -> ()
+    riscv.j 1, !riscv.reg<zero>
     // CHECK-NEXT: j 1
-    riscv.j "label", !riscv.reg<zero> : () -> ()
+    riscv.j "label", !riscv.reg<zero>
     // CHECK-NEXT: j label
 
     riscv.jalr %0, 1 : (!riscv.reg<zero>) -> ()
@@ -158,14 +158,14 @@
     // CHECK-NEXT: ret
   ^1(%b10 : !riscv.reg<>, %b11 : !riscv.reg<>):
 
-    riscv.directive ".align" "2" : () -> ()
+    riscv.directive ".align" "2"
     // CHECK-NEXT: .align 2
     riscv.assembly_section ".text" {
       %nested_addi = riscv.addi %1, 1 : (!riscv.reg<j1>) -> !riscv.reg<j1>
     }
     // CHECK-NEXT:  .text
     // CHECK-NEXT:  addi j1, j1, 1
-    riscv.label "label0" : () -> ()
+    riscv.label "label0"
     // CHECK-NEXT: label0:
 
 

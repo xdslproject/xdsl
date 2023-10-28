@@ -3,13 +3,13 @@
 // A test that verifies that we can emit the target assembly for Snitch, below are the
 // versions of ssum (C=A+B where all have fixed size 128xf32) .
 
-riscv.label ".text" : () -> ()
+riscv.label ".text"
 
 riscv_func.func @pres_1(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
     %zero = "riscv.get_register"() : () -> !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
     %ub = riscv.addi %zero 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
-    riscv.label ".loop_body" : () -> ()
+    riscv.label ".loop_body"
     %x_i = riscv.add %X, %i : (!riscv.reg<a0>, !riscv.reg<a3>) -> !riscv.reg<a5>
     %x = riscv.flw %x_i, 0 : (!riscv.reg<a5>) -> !riscv.freg<ft0>
     %y_i = riscv.add %Y, %i : (!riscv.reg<a1>, !riscv.reg<a3>) -> !riscv.reg<a5>
@@ -26,7 +26,7 @@ riscv_func.func @pres_2(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
     %zero = "riscv.get_register"() : () -> !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
     %ub = riscv.addi %zero 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
-    riscv.label ".loop_body" : () -> ()
+    riscv.label ".loop_body"
     %x_i = riscv.add %X, %i : (!riscv.reg<a0>, !riscv.reg<a3>) -> !riscv.reg<a5>
     %x = riscv.fld %x_i, 0 : (!riscv.reg<a5>) -> !riscv.freg<ft0>
     %y_i = riscv.add %Y, %i : (!riscv.reg<a1>, !riscv.reg<a3>) -> !riscv.reg<a5>
@@ -50,7 +50,7 @@ riscv_func.func @pres_3(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
     %zero_5 = riscv_snitch.scfgwi %Z, 898 : (!riscv.reg<a2>) -> !riscv.reg<zero>
     %zero_6 = riscv.csrrsi 1984, 1 : () -> !riscv.reg<zero>
     %i = riscv.addi %zero, 64 : (!riscv.reg<zero>) -> !riscv.reg<a0>
-    riscv.label ".loop_body" : () -> ()
+    riscv.label ".loop_body"
     %x = riscv.get_float_register() : () -> !riscv.freg<ft0>
     %y = riscv.get_float_register() : () -> !riscv.freg<ft1>
     %z = riscv.vfadd.s %x, %y : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
