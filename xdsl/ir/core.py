@@ -126,6 +126,12 @@ class MLContext:
             return op_type
         return None
 
+    def has_op(self, name: str) -> bool:
+        return name in self._loaded_ops
+
+    def has_attr(self, name: str) -> bool:
+        return name in self._loaded_attrs
+
     def get_op(self, name: str) -> type[Operation]:
         """
         Get an operation class from its name.
@@ -392,13 +398,6 @@ class Attribute(ABC):
         return res.getvalue()
 
 
-class TypeAttribute(Attribute):
-    """
-    This class is only used for printing attributes in the MLIR format,
-    inheriting this class prefix the attribute by `!` instead of `#`.
-    """
-
-
 DataElement = TypeVar("DataElement", covariant=True)
 
 AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
@@ -439,6 +438,21 @@ class Data(Generic[DataElement], Attribute, ABC):
     @abstractmethod
     def print_parameter(self, printer: Printer) -> None:
         """Print the attribute parameter."""
+
+
+class TypeAttribute(Attribute):
+    """
+    This class is only used for printing attributes in the MLIR format,
+    inheriting this class prefix the attribute by `!` instead of `#`.
+    """
+
+
+class OpaqueAttribute(Data[DataElement], ABC):
+    """
+    This class is only used for printing attributes in the MLIR opaque format,
+    inheriting this class use the `dialect<name param>` syntax rather than the
+    "pretty" `dialect.name<param>`.
+    """
 
 
 @dataclass(frozen=True)

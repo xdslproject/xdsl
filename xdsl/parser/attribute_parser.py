@@ -184,10 +184,16 @@ class AttrParser(BaseParser):
         The contents will be parsed by a user-defined parser, or by a generic parser
         if the dialect attribute/type is not registered.
         """
-        attr_def = self.ctx.get_optional_attr(
-            attr_name,
-            create_unregistered_as_type=is_type,
-        )
+        if not (attr_def := self.ctx.get_attr(attr_name)):
+            self.parse_punctuation("<")
+            if (token := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
+                opaque_attr_name = f"{attr_name}.{token.text}"
+                if not (attr_def := self.ctx.get_attr(opaque_attr_name)):
+                    attr_def = self.ctx.get_optional_attr(
+                        attr_name,
+                        create_unregistered_as_type=is_type,
+                    )
+
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
 

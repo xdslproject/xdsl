@@ -13,6 +13,7 @@ from xdsl.ir import (
     Block,
     Data,
     MLContext,
+    OpaqueAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -409,10 +410,25 @@ class Parser(AttrParser):
         The contents will be parsed by a user-defined parser, or by a generic parser
         if the dialect attribute/type is not registered.
         """
-        attr_def = self.ctx.get_optional_attr(
-            attr_name,
-            create_unregistered_as_type=is_type,
-        )
+        attr_def = None
+        if self.ctx.has_attr(attr_name):
+            attr_def = self.ctx.get_attr(attr_name)
+        else:
+            if (
+                self.parse_optional_punctuation("<")
+                and (token := self._parse_optional_token(Token.Kind.BARE_IDENT))
+                is not None
+            ):
+                opaque_attr_name = f"{attr_name}.{token.text}"
+                if self.ctx.has_attr(opaque_attr_name):
+                    attr_def = self.ctx.get_attr(opaque_attr_name)
+
+        if attr_def is None:
+            attr_def = self.ctx.get_optional_attr(
+                attr_name,
+                create_unregistered_as_type=is_type,
+            )
+
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
 
@@ -424,7 +440,9 @@ class Parser(AttrParser):
             param_list = attr_def.parse_parameters(self)
             return attr_def.new(param_list)
         if issubclass(attr_def, Data):
-            self.parse_punctuation("<")
+            if not issubclass(attr_def, OpaqueAttribute):
+                self.parse_punctuation("<")
+
             param: Any = attr_def.parse_parameter(self)
             self.parse_punctuation(">")
             return cast(Data[Any], attr_def(param))
