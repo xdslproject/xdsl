@@ -16,6 +16,10 @@ class AffineConstraintExpr:
     lhs: AffineExpr
     rhs: AffineExpr
 
+    def __post_init__(self):
+        self.lhs = self.lhs - self.rhs
+        self.rhs = AffineExpr.constant(0)
+
     def __str__(self) -> str:
         return f"{self.lhs} {self.kind.value} {self.rhs}"
 
