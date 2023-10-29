@@ -413,13 +413,13 @@ class Parser(AttrParser):
         attr_def = None
         if self.ctx.has_attr(attr_name):
             attr_def = self.ctx.get_attr(attr_name)
-        else:
+        elif (dialect := self.ctx.get_optional_dialect(attr_name)) is not None:
             if (
                 self.parse_optional_punctuation("<")
-                and (token := self._parse_optional_token(Token.Kind.BARE_IDENT))
+                and (opaque_name := self._parse_optional_token(Token.Kind.BARE_IDENT))
                 is not None
             ):
-                opaque_attr_name = f"{attr_name}.{token.text}"
+                opaque_attr_name = f"{dialect.name}.{opaque_name.text}"
                 if self.ctx.has_attr(opaque_attr_name):
                     attr_def = self.ctx.get_attr(opaque_attr_name)
 
