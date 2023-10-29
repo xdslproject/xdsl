@@ -17,7 +17,7 @@ class AffineConstraintExpr:
     rhs: AffineExpr
 
     def __str__(self) -> str:
-        return f"({self.lhs} {self.kind.value} {self.rhs})"
+        return f"{self.lhs} {self.kind.value} {self.rhs}"
 
 
 @dataclass
@@ -41,5 +41,5 @@ class AffineSet:
         # Create comma seperated list of results.
         constraints = ", ".join(str(cnstr) for cnstr in self.constraints)
         if self.num_symbols == 0:
-            return f"({dims}) -> ({constraints})"
-        return f"({dims})[{syms}] -> ({constraints})"
+            return f"({dims}) : ({constraints})"
+        return f"({dims})[{syms}] : ({constraints})"

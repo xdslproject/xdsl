@@ -7,6 +7,7 @@ from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AffineSetAttr,
     AnyFloatAttr,
     AnyIntegerAttr,
     AnyUnrankedTensorType,
@@ -617,6 +618,12 @@ class Printer:
 
         if isinstance(attribute, AffineMapAttr):
             self.print("affine_map<")
+            self.print(attribute.data)
+            self.print(">")
+            return
+
+        if isinstance(attribute, AffineSetAttr):
+            self.print("affine_set<")
             self.print(attribute.data)
             self.print(">")
             return
