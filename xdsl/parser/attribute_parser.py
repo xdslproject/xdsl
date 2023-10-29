@@ -9,6 +9,7 @@ from typing import Any, Literal, NoReturn, cast
 import xdsl.parser as affine_parser
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AffineSetAttr,
     AnyArrayAttr,
     AnyFloat,
     AnyFloatAttr,
@@ -51,6 +52,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine.affine_set import AffineSet
 from xdsl.parser.base_parser import BaseParser
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.hints import isa
@@ -571,7 +573,7 @@ class AttrParser(BaseParser):
             "dense_resource": self._parse_builtin_dense_resource_attr,
             "array": self._parse_builtin_densearray_attr,
             "affine_map": self._parse_builtin_affine_map,
-            "affine_set": self._parse_builtin_affine_attr,
+            "affine_set": self._parse_builtin_affine_set,
             "strided": self._parse_strided_layout_attr,
         }
 
@@ -687,6 +689,12 @@ class AttrParser(BaseParser):
         affine_map = self.parse_affine_map()
         self.parse_characters(">", " in affine_map attribute")
         return AffineMapAttr(affine_map)
+
+    def _parse_builtin_affine_set(self, _name: Span) -> AffineSetAttr:
+        self.parse_characters("<", " in affine_map attribute")
+        affine_set = self.parse_affine_set()
+        self.parse_characters(">", " in affine_map attribute")
+        return AffineSetAttr(affine_set)
 
     def _parse_builtin_affine_attr(self, name: Span) -> UnregisteredAttr:
         # First, retrieve the attribute definition.
@@ -1117,3 +1125,7 @@ class AttrParser(BaseParser):
     def parse_affine_map(self) -> AffineMap:
         affp = affine_parser.AffineParser(self._parser_state)
         return affp.parse_affine_map()
+
+    def parse_affine_set(self) -> AffineSet:
+        affp = affine_parser.AffineParser(self._parser_state)
+        return affp.parse_affine_set()
