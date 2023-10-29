@@ -1095,6 +1095,7 @@ class CallOp(IRDLOperation):
 
 
 LLVM = Dialect(
+    "llvm",
     [
         ExtractValueOp,
         InsertValueOp,

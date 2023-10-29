@@ -2056,6 +2056,7 @@ class ZeroBits(IRDLOperation):
 
 
 FIR = Dialect(
+    "fir",
     [
         Absent,
         Addc,

@@ -1411,6 +1411,7 @@ f128 = Float64Type()
 
 
 Builtin = Dialect(
+    "builtin",
     [
         ModuleOp,
         UnregisteredOp,
