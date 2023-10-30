@@ -5,6 +5,7 @@ from typing import Annotated, Any, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AffineSetAttr,
     AnyIntegerAttr,
     ContainerType,
     IndexType,
@@ -98,6 +99,19 @@ class For(IRDLOperation):
             attributes=attributes,
             regions=[region],
         )
+
+
+@irdl_op_definition
+class If(IRDLOperation):
+    name = "affine.if"
+
+    args = var_operand_def(IndexType)
+    res = var_result_def()
+
+    condition = attr_def(AffineSetAttr)
+
+    then_region = region_def("single_block")
+    else_region = region_def()
 
 
 @irdl_op_definition
@@ -196,6 +210,7 @@ class Yield(IRDLOperation):
 Affine = Dialect(
     [
         For,
+        If,
         Store,
         Load,
         Yield,
