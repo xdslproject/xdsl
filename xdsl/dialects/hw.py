@@ -5,6 +5,8 @@ It currently implements minimal types and operations used by other dialects.
 [1] https://circt.llvm.org/docs/Dialects/HW/
 """
 
+from dataclasses import dataclass
+
 from xdsl.dialects.builtin import (
     FlatSymbolRefAttr,
     ParameterDef,
@@ -22,6 +24,34 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+
+
+@dataclass
+class InnerSymTarget:
+    """The target of an inner symbol, the entity the symbol is a handle for."""
+
+    op: Operation | None = None
+    field_id: int = 0
+    port_idx: int | None = None
+
+    def __bool__(self):
+        # None-valued op defines an invalid target
+        return self.op is not None
+
+    def is_port(self) -> bool:
+        return self.port_idx is not None
+
+    def is_field(self) -> bool:
+        return self.field_id != 0
+
+    def is_op_only(self) -> bool:
+        return not self.is_field() and not self.is_port()
+
+    @classmethod
+    def get_target_for_subfield(
+        cls, base: "InnerSymTarget", field_id: int
+    ) -> "InnerSymTarget":
+        return cls(base.op, base.field_id + field_id, base.port_idx)
 
 
 @irdl_attr_definition
