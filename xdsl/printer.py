@@ -52,6 +52,7 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Data,
+    OpaqueSyntaxAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -645,15 +646,20 @@ class Printer:
 
         # Print dialect attributes
         self.print("!" if isinstance(attribute, TypeAttribute) else "#")
-        self.print(attribute.name)
+
+        if isinstance(attribute, OpaqueSyntaxAttribute):
+            self.print(attribute.name.replace(".", "<", 1))
+        else:
+            self.print(attribute.name)
 
         if isinstance(attribute, Data):
             attribute.print_parameter(self)
-            return
 
-        assert isinstance(attribute, ParametrizedAttribute)
+        elif isinstance(attribute, ParametrizedAttribute):
+            attribute.print_parameters(self)
 
-        attribute.print_parameters(self)
+        if isinstance(attribute, OpaqueSyntaxAttribute):
+            self.print(">")
         return
 
     def print_successors(self, successors: list[Block]):

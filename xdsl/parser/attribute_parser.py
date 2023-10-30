@@ -201,17 +201,24 @@ class AttrParser(BaseParser):
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
 
+        attr = None
         # Pass the task of parsing parameters on to the attribute/type definition
         if issubclass(attr_def, UnregisteredAttr):
             body = self._parse_unregistered_attr_body()
-            return attr_def(attr_name, is_type, body)
-        if issubclass(attr_def, ParametrizedAttribute):
+            attr = attr_def(attr_name, is_type, body)
+        elif issubclass(attr_def, ParametrizedAttribute):
             param_list = attr_def.parse_parameters(self)
-            return attr_def.new(param_list)
-        if issubclass(attr_def, Data):
+            attr = attr_def.new(param_list)
+        elif issubclass(attr_def, Data):
             param: Any = attr_def.parse_parameter(self)
-            return cast(Data[Any], attr_def(param))
-        assert False, "Attributes are either ParametrizedAttribute or Data."
+            attr = cast(Data[Any], attr_def(param))
+
+        assert attr is not None, "Attributes are either ParametrizedAttribute or Data."
+
+        if not pretty:
+            self.parse_punctuation(">")
+
+        return attr
 
     def _parse_unregistered_attr_body(self) -> str:
         """

@@ -356,21 +356,6 @@ class ErasedSSAValue(SSAValue):
         return hash(id(self))
 
 
-@dataclass
-class TypeAttribute:
-    """
-    This class should only be inherited by classes inheriting Attribute.
-    This class is only used for printing attributes in the MLIR format,
-    inheriting this class prefix the attribute by `!` instead of `#`.
-    """
-
-    def __post_init__(self):
-        if not isinstance(self, Attribute):
-            raise TypeError(
-                "TypeAttribute should only be inherited by classes inheriting Attribute"
-            )
-
-
 A = TypeVar("A", bound="Attribute")
 
 
@@ -405,6 +390,20 @@ class Attribute(ABC):
         printer = Printer(stream=res)
         printer.print_attribute(self)
         return res.getvalue()
+
+
+class TypeAttribute(Attribute):
+    """
+    This class should only be inherited by classes inheriting Attribute.
+    This class is only used for printing attributes in the MLIR format,
+    inheriting this class prefix the attribute by `!` instead of `#`.
+    """
+
+    pass
+
+
+class OpaqueSyntaxAttribute(Attribute):
+    pass
 
 
 DataElement = TypeVar("DataElement", covariant=True)

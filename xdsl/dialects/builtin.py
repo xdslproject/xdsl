@@ -291,7 +291,7 @@ class Signedness(Enum):
 
 @irdl_attr_definition
 class SignednessAttr(Data[Signedness]):
-    name = "signedness"
+    name = "builtin.signedness"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> Signedness:

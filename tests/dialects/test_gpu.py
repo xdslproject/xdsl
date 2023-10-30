@@ -3,7 +3,7 @@ from xdsl.dialects import arith, builtin, memref
 from xdsl.dialects.gpu import (
     AllocOp,
     AllReduceOp,
-    AllReduceOperationAttr,
+    AllReduceOpAttr,
     AsyncTokenType,
     BarrierOp,
     BlockDimOp,
@@ -79,13 +79,13 @@ def test_alloc():
 
 
 def test_all_reduce_operation():
-    op = AllReduceOperationAttr.from_op("add")
+    op = AllReduceOpAttr.from_op("add")
 
     assert op.data == "add"
 
 
 def test_all_reduce():
-    op = AllReduceOperationAttr.from_op("add")
+    op = AllReduceOpAttr.from_op("add")
 
     init = arith.Constant.from_int_and_width(0, builtin.IndexType())
 

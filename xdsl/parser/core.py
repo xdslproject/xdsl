@@ -328,6 +328,123 @@ class Parser(AttrParser):
         """Parse an operand with format `%<value-id>`."""
         return self.expect(self.parse_optional_operand, msg)
 
+<<<<<<< HEAD
+=======
+    def parse_type(self) -> Attribute:
+        """
+        Parse an xDSL type.
+        An xDSL type is either a builtin type, which can have various format,
+        or a dialect type, with the following format:
+            dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
+            type-name     ::= bare-id
+            dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
+                            | `(` dialect-attribute-contents+ `)`
+                            | `[` dialect-attribute-contents+ `]`
+                            | `{` dialect-attribute-contents+ `}`
+                            | [^[]<>(){}\0]+
+        """
+        return self.expect(self.parse_optional_type, "type expected")
+
+    def parse_optional_type(self) -> Attribute | None:
+        """
+        Parse an xDSL type, if present.
+        An xDSL type is either a builtin type, which can have various format,
+        or a dialect type, with the following format:
+            dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
+            type-name     ::= bare-id
+            dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
+                            | `(` dialect-attribute-contents+ `)`
+                            | `[` dialect-attribute-contents+ `]`
+                            | `{` dialect-attribute-contents+ `}`
+                            | [^[]<>(){}\0]+
+        """
+        if (
+            token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
+        ) is not None:
+            return self._parse_dialect_type_or_attribute_inner(token.text[1:], True)
+        return self._parse_optional_builtin_type()
+
+    def parse_attribute(self) -> Attribute:
+        """
+        Parse an xDSL attribute.
+        An attribute is either a builtin attribute, which can have various format,
+        or a dialect attribute, with the following format:
+            dialect-attr  ::= `!` attr-name (`<` dialect-attr-contents+ `>`)?
+            attr-name     ::= bare-id
+            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
+                            | `(` dialect-attribute-contents+ `)`
+                            | `[` dialect-attribute-contents+ `]`
+                            | `{` dialect-attribute-contents+ `}`
+                            | [^[]<>(){}\0]+
+        """
+        return self.expect(self.parse_optional_attribute, "attribute expected")
+
+    def parse_optional_attribute(self) -> Attribute | None:
+        """
+        Parse an xDSL attribute, if present.
+        An attribute is either a builtin attribute, which can have various format,
+        or a dialect attribute, with the following format:
+            dialect-attr  ::= `!` attr-name (`<` dialect-attr-contents+ `>`)?
+            attr-name     ::= bare-id
+            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
+                            | `(` dialect-attribute-contents+ `)`
+                            | `[` dialect-attribute-contents+ `]`
+                            | `{` dialect-attribute-contents+ `}`
+                            | [^[]<>(){}\0]+
+        """
+        if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
+            return self._parse_dialect_type_or_attribute_inner(token.text[1:], False)
+        return self._parse_optional_builtin_attr()
+
+    def _parse_dialect_type_or_attribute_inner(
+        self, attr_name: str, is_type: bool = True
+    ) -> Attribute:
+        """
+        Parse the contents of a dialect type or attribute, with format:
+            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
+                                    | `(` dialect-attribute-contents+ `)`
+                                    | `[` dialect-attribute-contents+ `]`
+                                    | `{` dialect-attribute-contents+ `}`
+                                    | [^[]<>(){}\0]+
+        The contents will be parsed by a user-defined parser, or by a generic parser
+        if the dialect attribute/type is not registered.
+        """
+        pretty = "." in attr_name
+        if not pretty:
+            self.parse_punctuation("<")
+            attr_name += (
+                "."
+                + self._parse_token(
+                    Token.Kind.BARE_IDENT, "Expected attribute name."
+                ).text
+            )
+        attr_def = self.ctx.get_optional_attr(
+            attr_name,
+            create_unregistered_as_type=is_type,
+        )
+        if attr_def is None:
+            self.raise_error(f"'{attr_name}' is not registered")
+
+        attr = None
+        # Pass the task of parsing parameters on to the attribute/type definition
+        if issubclass(attr_def, UnregisteredAttr):
+            body = self._parse_unregistered_attr_body()
+            attr = attr_def(attr_name, is_type, body)
+        elif issubclass(attr_def, ParametrizedAttribute):
+            param_list = attr_def.parse_parameters(self)
+            attr = attr_def.new(param_list)
+        elif issubclass(attr_def, Data):
+            param: Any = attr_def.parse_parameter(self)
+            attr = cast(Data[Any], attr_def(param))
+
+        assert attr is not None, "Attributes are either ParametrizedAttribute or Data."
+
+        if not pretty:
+            self.parse_punctuation(">")
+
+        return attr
+
+>>>>>>> 6c585f0c (Unhack GPU attributes, update filechecks.)
     def _register_ssa_definition(
         self, name: str, values: Sequence[SSAValue], span: Span
     ) -> None:
