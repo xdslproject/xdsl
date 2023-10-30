@@ -8,7 +8,6 @@ from typing import Generic, TypeVar, cast
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import AnyFloat, IntegerType, Signedness, StringAttr, i32
 from xdsl.dialects.memref import MemRefType
-from xdsl.utils.deprecation import deprecated
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -33,6 +32,7 @@ from xdsl.irdl import (
     opt_result_def,
     result_def,
 )
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.hints import isa
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
