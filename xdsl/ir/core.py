@@ -35,6 +35,8 @@ OpT = TypeVar("OpT", bound="Operation")
 class Dialect:
     """Contains the operations and attributes of a specific dialect"""
 
+    _name: str
+
     _operations: list[type[Operation]] = field(
         default_factory=list, init=True, repr=True
     )
@@ -50,6 +52,10 @@ class Dialect:
     def attributes(self) -> Iterator[type[Attribute]]:
         return iter(self._attributes)
 
+    @property
+    def name(self) -> str:
+        return self._name
+
 
 @dataclass
 class MLContext:
@@ -57,6 +63,7 @@ class MLContext:
 
     allow_unregistered: bool = field(default=False)
 
+    _loaded_dialects: dict[str, Dialect] = field(init=False, default_factory=dict)
     _loaded_ops: dict[str, type[Operation]] = field(init=False, default_factory=dict)
     _loaded_attrs: dict[str, type[Attribute]] = field(init=False, default_factory=dict)
 
@@ -74,8 +81,17 @@ class MLContext:
         """
         return self._loaded_attrs.values()
 
+    @property
+    def loaded_dialects(self) -> Iterable[Dialect]:
+        """
+        Returns all the loaded attributes. Not valid across mutations of this object.
+        """
+        return self._loaded_dialects.values()
+
     def load_dialect(self, dialect: Dialect):
         """Load a dialect. Operation and Attribute names should be unique"""
+        self._loaded_dialects[dialect.name] = dialect
+
         for op in dialect.operations:
             self.load_op(op)
 
@@ -162,6 +178,16 @@ class MLContext:
         if attr_type := self.get_optional_attr(name, create_unregistered_as_type):
             return attr_type
         raise Exception(f"Attribute {name} is not registered")
+
+    def get_dialect(self, name: str) -> Dialect:
+        if (dialect := self.get_optional_dialect(name)) is None:
+            raise Exception(f"Dialect {name} is not registered")
+        return dialect
+
+    def get_optional_dialect(self, name: str) -> Dialect | None:
+        if name in self._loaded_dialects:
+            return self._loaded_dialects[name]
+        return None
 
 
 @dataclass(frozen=True)

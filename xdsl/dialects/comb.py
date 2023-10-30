@@ -517,6 +517,7 @@ class MuxOp(IRDLOperation):
 
 
 Comb = Dialect(
+    "comb",
     [
         AddOp,
         MulOp,
@@ -537,5 +538,5 @@ Comb = Dialect(
         ConcatOp,
         ReplicateOp,
         MuxOp,
-    ]
+    ],
 )
