@@ -185,6 +185,15 @@ class AttrParser(BaseParser):
         The contents will be parsed by a user-defined parser, or by a generic parser
         if the dialect attribute/type is not registered.
         """
+        pretty = "." in attr_name
+        if not pretty:
+            self.parse_punctuation("<")
+            attr_name += (
+                "."
+                + self._parse_token(
+                    Token.Kind.BARE_IDENT, "Expected attribute name."
+                ).text
+            )
         attr_def = self.ctx.get_optional_attr(
             attr_name,
             create_unregistered_as_type=is_type,
