@@ -630,8 +630,7 @@ class Printer:
 
         if isinstance(attribute, UnregisteredAttr):
             # Do not print `!` or `#` for unregistered builtin attributes
-            if attribute.attr_name.data not in ["affine_set"]:
-                self.print("!" if attribute.is_type.data else "#")
+            self.print("!" if attribute.is_type.data else "#")
             self.print(attribute.attr_name.data, attribute.value.data)
             return
 

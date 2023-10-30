@@ -696,48 +696,6 @@ class AttrParser(BaseParser):
         self.parse_characters(">", " in affine_map attribute")
         return AffineSetAttr(affine_set)
 
-    def _parse_builtin_affine_attr(self, name: Span) -> UnregisteredAttr:
-        # First, retrieve the attribute definition.
-        # Since we do not define affine attributes, we use an unregistered
-        # attribute definition.
-        attr_def = self.ctx.get_optional_attr(
-            name.text,
-            create_unregistered_as_type=False,
-        )
-        if attr_def is None:
-            self.raise_error(f"Unknown {name.text} attribute", at_position=name)
-        assert issubclass(
-            attr_def, UnregisteredAttr
-        ), f"{name.text} was registered, but should be reserved for builtin"
-
-        # We then parse the attribute body. Affine attributes are closed by
-        # `>`, so we can wait until we see this token. We just need to make
-        # sure that we do not stop at a `>=`.
-        start_pos = self._current_token.span.start
-        end_pos = start_pos
-        self.parse_punctuation("<", f" in {name.text} attribute")
-
-        # Loop until we see the closing `>`.
-        while True:
-            token = self._consume_token()
-
-            # Check for early EOF.
-            if token.kind == Token.Kind.EOF:
-                self.raise_error(f"Expected '>' in end of {name.text} attribute")
-
-            # Check for closing `>`.
-            if token.kind == Token.Kind.GREATER:
-                # Check that there is no `=` after the `>`.
-                if self._parse_optional_token(Token.Kind.EQUAL) is None:
-                    end_pos = token.span.end
-                    break
-                self._consume_token()
-
-        contents = self.lexer.input.slice(start_pos, end_pos)
-        assert contents is not None, "Fatal error in parser"
-
-        return attr_def(name.text, False, contents)
-
     @dataclass
     class _TensorLiteralElement:
         """
