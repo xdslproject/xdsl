@@ -535,6 +535,7 @@ class HWInstanceOp(IRDLOperation):
 
 
 FSM = Dialect(
+    "fsm",
     [
         MachineOp,
         OutputOp,

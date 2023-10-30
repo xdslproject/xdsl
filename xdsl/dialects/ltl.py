@@ -69,6 +69,7 @@ class AndOp(IRDLOperation):
 
 
 LTL = Dialect(
+    "ltl",
     [
         AndOp,
     ],
