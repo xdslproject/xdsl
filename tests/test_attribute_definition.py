@@ -40,14 +40,16 @@ class BoolData(Data[bool]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> bool:
-        if parser.parse_optional_keyword("True"):
-            return True
-        if parser.parse_optional_keyword("False"):
-            return False
-        parser.raise_error("Expected True or False literal")
+        with parser.in_angle_brackets():
+            if parser.parse_optional_keyword("True"):
+                return True
+            if parser.parse_optional_keyword("False"):
+                return False
+            parser.raise_error("Expected True or False literal")
 
     def print_parameter(self, printer: Printer):
-        printer.print_string(str(self.data))
+        with printer.in_angle_brackets():
+            printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
@@ -58,10 +60,12 @@ class IntData(Data[int]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:
-        return parser.parse_integer()
+        with parser.in_angle_brackets():
+            return parser.parse_integer()
 
     def print_parameter(self, printer: Printer):
-        printer.print_string(str(self.data))
+        with printer.in_angle_brackets():
+            printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
@@ -72,7 +76,8 @@ class StringData(Data[str]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
-        return parser.parse_str_literal()
+        with parser.in_angle_brackets():
+            return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer):
         printer.print_string(self.data)
@@ -100,9 +105,10 @@ class IntListData(Data[list[int]]):
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string("[")
-        printer.print_list(self.data, lambda x: printer.print_string(str(x)))
-        printer.print_string("]")
+        with printer.in_angle_brackets():
+            printer.print_string("[")
+            printer.print_list(self.data, lambda x: printer.print_string(str(x)))
+            printer.print_string("]")
 
 
 def test_non_class_data():
@@ -457,9 +463,10 @@ class ListData(GenericData[list[A]]):
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string("[")
-        printer.print_list(self.data, printer.print_attribute)
-        printer.print_string("]")
+        with printer.in_angle_brackets():
+            printer.print_string("[")
+            printer.print_list(self.data, printer.print_attribute)
+            printer.print_string("]")
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:

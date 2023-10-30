@@ -4,6 +4,7 @@ that is inherited from the different parsers used in xDSL.
 """
 
 from collections.abc import Callable, Iterable
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from typing import NoReturn, TypeVar, overload
@@ -65,6 +66,14 @@ class BaseParser:
         at_position: Position | Span | None = None,
     ) -> NoReturn:
         ...
+
+    @contextmanager
+    def in_angle_brackets(self):
+        self.parse_punctuation("<")
+        try:
+            yield
+        finally:
+            self.parse_punctuation(">")
 
     def raise_error(
         self,

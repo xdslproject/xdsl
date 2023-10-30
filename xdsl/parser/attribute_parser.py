@@ -199,9 +199,7 @@ class AttrParser(BaseParser):
             param_list = attr_def.parse_parameters(self)
             return attr_def.new(param_list)
         if issubclass(attr_def, Data):
-            self.parse_punctuation("<")
             param: Any = attr_def.parse_parameter(self)
-            self.parse_punctuation(">")
             return cast(Data[Any], attr_def(param))
         assert False, "Attributes are either ParametrizedAttribute or Data."
 
