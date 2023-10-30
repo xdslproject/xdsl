@@ -1,0 +1,40 @@
+
+#input {
+    margin: 5;
+    border: heavy red;
+    border-title-color: green;
+    border-title-style: bold;
+    border-title-align: center;
+    box-sizing: content-box;
+}
+
+#output {
+    margin: 5;
+    border: heavy red;
+    border-title-color: green;
+    border-title-style: bold;
+    border-title-align: center;
+    box-sizing: content-box;
+
+}
+
+#sidebar {
+    dock: right;
+    width: 30;
+    height: 100%;
+    color: #0f2b41;
+    background: dodgerblue;
+}
+
+Screen {
+    background: white;
+    color: black;
+}
+
+App Static {
+    background: blue 20%;
+    height: 5;
+    margin: 2;
+    padding: 1;
+    border: wide black;
+}
