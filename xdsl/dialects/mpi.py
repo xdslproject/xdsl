@@ -839,6 +839,7 @@ class GatherOp(MPIBaseOp):
 
 
 MPI = Dialect(
+    "mpi",
     [
         Isend,
         Irecv,

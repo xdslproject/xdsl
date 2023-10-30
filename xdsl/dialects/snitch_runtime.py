@@ -610,6 +610,7 @@ class FpuFenceOp(NoOperandNoResultBaseOperation):
 
 
 SnitchRuntime = Dialect(
+    "snrt",
     [
         GlobalCoreBaseHartidOp,
         GlobalCoreIdxOp,

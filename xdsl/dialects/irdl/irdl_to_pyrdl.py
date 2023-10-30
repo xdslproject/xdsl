@@ -67,4 +67,8 @@ def convert_dialect(dialect: DialectOp) -> str:
             ops += [op.sym_name.data]
     op_list = "[" + ", ".join(ops) + "]"
     attr_list = "[" + ", ".join(attrs) + "]"
-    return res + dialect.sym_name.data + f" = Dialect({op_list}, {attr_list})"
+    return (
+        res
+        + dialect.sym_name.data
+        + f' = Dialect("{dialect.sym_name.data}", {op_list}, {attr_list})'
+    )
