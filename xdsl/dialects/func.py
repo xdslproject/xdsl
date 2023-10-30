@@ -318,4 +318,4 @@ class Return(IRDLOperation):
         return op
 
 
-Func = Dialect([FuncOp, Call, Return], [])
+Func = Dialect("func", [FuncOp, Call, Return], [])

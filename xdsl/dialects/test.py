@@ -128,4 +128,4 @@ class TestType(Data[str], TypeAttribute):
         printer.print_string_literal(self.data)
 
 
-Test = Dialect([TestOp, TestTermOp], [TestType])
+Test = Dialect("test", [TestOp, TestTermOp], [TestType])

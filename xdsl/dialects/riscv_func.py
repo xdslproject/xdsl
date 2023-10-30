@@ -266,6 +266,7 @@ class ReturnOp(IRDLOperation, riscv.RISCVInstruction):
 
 
 RISCV_Func = Dialect(
+    "riscv_func",
     [
         SyscallOp,
         CallOp,

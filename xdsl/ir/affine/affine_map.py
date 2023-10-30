@@ -124,13 +124,13 @@ class AffineMap:
             ),
         )
 
-    def compose(self, map: AffineMap) -> AffineMap:
+    def compose(self, other: AffineMap) -> AffineMap:
         """
-        Returns the AffineMap resulting from composing this with map.
+        Returns the `AffineMap` resulting from composing `self` with `other`.
 
-        The resulting AffineMap has as many AffineDimExpr as map and as many AffineSymbolExpr as the concatenation of this and map (in which case the symbols of this map come first).
+        The resulting `AffineMap` has as many `AffineDimExpr` as `other` and as many `AffineSymbolExpr` as the concatenation of `self` and `other` (in which case the symbols of `self` come first).
 
-        Prerequisites: The maps are composable, i.e. that the number of AffineDimExpr of this matches the number of results of map.
+        Prerequisites: The maps are composable, i.e. that the number of `AffineDimExpr` of `self` matches the number of results of `map`.
 
         Example:
         ```
@@ -139,22 +139,22 @@ class AffineMap:
         map1.compose(map2): (d0)[s0, s1, s2] -> (d0 + s1 + s2 + 1, d0 - s0 - s2 - 1)
         ```
         """
-        if self.num_dims != len(map.results):
+        if self.num_dims != len(other.results):
             raise ValueError(
                 "Cannot compose AffineMaps with mismatching dimensions and results: "
                 "self.num_dims != len(map.results) "
-                f"({self.num_dims} != {len(map.results)})"
+                f"({self.num_dims} != {len(other.results)})"
             )
 
-        num_dims = map.num_dims
-        num_symbols = self.num_symbols + map.num_symbols
+        num_dims = other.num_dims
+        num_symbols = self.num_symbols + other.num_symbols
 
         new_dims = tuple(AffineExpr.dimension(d) for d in range(num_dims))
         new_symbols = tuple(
             AffineExpr.symbol(s) for s in range(self.num_symbols, num_symbols)
         )
 
-        new_map = map.replace_dims_and_symbols(
+        new_map = other.replace_dims_and_symbols(
             new_dims, new_symbols, num_dims, num_symbols
         )
 

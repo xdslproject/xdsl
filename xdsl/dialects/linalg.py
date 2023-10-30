@@ -213,4 +213,4 @@ class Yield(IRDLOperation):
         return op
 
 
-Linalg = Dialect([Generic, Yield], [IteratorTypeAttr])
+Linalg = Dialect("linalg", [Generic, Yield], [IteratorTypeAttr])
