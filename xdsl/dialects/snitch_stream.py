@@ -204,6 +204,7 @@ class StridedWriteOp(IRDLOperation):
 
 
 SnitchStream = Dialect(
+    "snitch-stream",
     [
         GenericOp,
         YieldOp,
