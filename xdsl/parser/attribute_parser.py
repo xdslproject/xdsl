@@ -189,6 +189,15 @@ class AttrParser(BaseParser):
         In the case where the attribute or type is using the opaque syntax,
         the attribute or type mnemonic should have already been parsed.
         """
+        pretty = "." in attr_name
+        if not pretty:
+            self.parse_punctuation("<")
+            attr_name += (
+                "."
+                + self._parse_token(
+                    Token.Kind.BARE_IDENT, "Expected attribute name."
+                ).text
+            )
         attr_def = self.ctx.get_optional_attr(
             attr_name,
             create_unregistered_as_type=is_type,
