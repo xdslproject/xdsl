@@ -17,7 +17,7 @@ class DomainDecompositionStrategy(ABC):
 
     @abstractmethod
     def halo_exchange_defs(
-        self, dims: dmp.ShapeAttr
+        self, shape: dmp.ShapeAttr
     ) -> Iterable[dmp.ExchangeDeclarationAttr]:
         raise NotImplementedError("SlicingStrategy must implement halo_exchange_defs!")
 
