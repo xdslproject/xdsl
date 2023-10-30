@@ -281,6 +281,7 @@ class FrepYieldOp(IRDLOperation, RISCVOp):
 # endregion
 
 RISCV_Snitch = Dialect(
+    "riscv_snitch",
     [
         ScfgwOp,
         ScfgwiOp,

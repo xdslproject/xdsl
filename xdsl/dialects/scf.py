@@ -532,6 +532,7 @@ class Condition(IRDLOperation):
 
 
 Scf = Dialect(
+    "scf",
     [
         If,
         For,

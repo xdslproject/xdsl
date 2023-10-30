@@ -707,6 +707,15 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
             printer.print_attribute(self.rd)
         return {"immediate", "rd"}
 
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
+
 
 class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
@@ -2460,6 +2469,15 @@ class LabelOp(IRDLOperation, RISCVOp):
         printer.print_string_literal(self.label.data)
         return {"label"}
 
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
+
 
 @irdl_op_definition
 class DirectiveOp(IRDLOperation, RISCVOp):
@@ -2517,6 +2535,15 @@ class DirectiveOp(IRDLOperation, RISCVOp):
             printer.print(" ")
             printer.print_string_literal(self.value.data)
         return {"directive", "value"}
+
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
 
 
 @irdl_op_definition
@@ -3528,6 +3555,7 @@ def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAt
 
 
 RISCV = Dialect(
+    "riscv",
     [
         AddiOp,
         SltiOp,
