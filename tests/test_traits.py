@@ -469,9 +469,9 @@ def test_insert_symbol_if_not_exists():
     trait = op.get_trait(SymbolTable)
     assert trait is not None
 
-    assert trait.insert_symbol_if_not_exists(op, symbol.clone()) is False
+    assert trait.insert_or_update(op, symbol.clone()) is symbol
     assert len(op.reg.ops) == 2
 
-    assert trait.insert_symbol_if_not_exists(op, symbol2) is True
+    assert trait.insert_or_update(op, symbol2) is None
     assert len(op.reg.ops) == 3
     assert symbol2 in list(op.reg.ops)

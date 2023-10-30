@@ -265,7 +265,18 @@ class SymbolTable(OpTrait):
         return None
 
     @staticmethod
-    def insert_symbol_if_not_exists(symbol_table_op: Operation, symbol_op: Operation):
+    def insert_or_update(
+        symbol_table_op: Operation, symbol_op: Operation
+    ) -> Operation | None:
+        """
+        This takes a symbol_table_op and a symbol_op. It looks if another operation
+        inside symbol_table_op already defines symbol_ops symbol. If another operation
+        is found, it replaces that operation with symbol_op. Otherwise, symbol_op is
+        inserted at the end of symbol_table_op.
+
+        This method returns the operation that was replaced or None if no operation
+        was replaced.
+        """
         trait = symbol_op.get_trait(SymbolOpInterface)
 
         if trait is None:
@@ -283,11 +294,17 @@ class SymbolTable(OpTrait):
         if tbl_trait is None:
             raise ValueError("Passed symbol_table_op does not have a SymbolTable trait")
 
-        if tbl_trait.lookup_symbol(symbol_table_op, symbol_name) is None:
-            symbol_table_op.regions[0].blocks[0].add_op(symbol_op)
-            return True
+        defined_symbol = tbl_trait.lookup_symbol(symbol_table_op, symbol_name)
 
-        return False
+        if defined_symbol is None:
+            symbol_table_op.regions[0].blocks[0].add_op(symbol_op)
+            return None
+        else:
+            parent = defined_symbol.parent
+            assert parent is not None
+            parent.insert_op_after(symbol_op, defined_symbol)
+            parent.detach_op(defined_symbol)
+            return defined_symbol
 
 
 class SymbolOpInterface(OpTrait):
