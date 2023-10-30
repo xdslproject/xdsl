@@ -266,7 +266,7 @@ FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
 
 @irdl_attr_definition
 class IntAttr(Data[int]):
-    name = "int"
+    name = "builtin.int"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:

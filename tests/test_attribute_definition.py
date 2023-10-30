@@ -216,7 +216,7 @@ def test_union_constraint_right():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#bool_or_int<#int<42>>"
+    assert stream.getvalue() == "#bool_or_int<#builtin.int<42>>"
 
 
 def test_union_constraint_fail():
@@ -254,7 +254,7 @@ def test_annotated_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#positive_int<#int<42>>"
+    assert stream.getvalue() == "#positive_int<#builtin.int<42>>"
 
 
 def test_annotated_constraint_fail():
@@ -284,7 +284,7 @@ def test_typevar_attribute_int():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#int_or_bool_generic<#int<42>>"
+    assert stream.getvalue() == "#int_or_bool_generic<#builtin.int<42>>"
 
 
 def test_typevar_attribute_bool():
@@ -316,7 +316,7 @@ def test_param_attr_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#param_constr<#int_or_bool_generic<#int<42>>>"
+    assert stream.getvalue() == "#param_constr<#int_or_bool_generic<#builtin.int<42>>>"
 
 
 def test_param_attr_constraint_fail():
@@ -348,7 +348,10 @@ def test_nested_generic_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#nested_param_wrapper<#int_or_bool_generic<#int<42>>>"
+    assert (
+        stream.getvalue()
+        == "#nested_param_wrapper<#int_or_bool_generic<#builtin.int<42>>>"
+    )
 
 
 def test_nested_generic_constraint_fail():
@@ -380,7 +383,7 @@ def test_nested_param_attr_constraint():
     p.print_attribute(attr)
     assert (
         stream.getvalue()
-        == "#nested_param_constr<#nested_param_wrapper<#int_or_bool_generic<#int<42>>>>"
+        == "#nested_param_constr<#nested_param_wrapper<#int_or_bool_generic<#builtin.int<42>>>>"
     )
 
 
