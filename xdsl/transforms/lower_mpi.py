@@ -760,9 +760,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
 
         # for each func found, add a FuncOp to the top of the module.
         for name, types in funcs_to_emit.items():
-            SymbolTable.insert_symbol_if_not_exists(
-                module, func.FuncOp.external(name, *types)
-            )
+            SymbolTable.insert_or_update(module, func.FuncOp.external(name, *types))
 
 
 class LowerNullRequestOp(_MPIToLLVMRewriteBase):

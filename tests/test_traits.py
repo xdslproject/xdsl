@@ -449,7 +449,7 @@ def test_lazy_parent():
     assert op.traits == frozenset([HasParent(TestOp)])
 
 
-def test_insert_symbol_if_not_exists():
+def test_insert_or_update():
     @irdl_op_definition
     class SymbolTableOp(IRDLOperation):
         name = "test.symbol_table"
