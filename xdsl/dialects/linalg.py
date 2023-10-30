@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from enum import Enum
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyShapedType,
@@ -11,6 +13,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StringAttr,
 )
+from xdsl.dialects.utils import parse_return_op_like, print_return_op_like
 from xdsl.ir import Attribute, Data, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
@@ -26,7 +29,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 
@@ -42,6 +45,21 @@ class IteratorType(Enum):
 @irdl_attr_definition
 class IteratorTypeAttr(Data[IteratorType]):
     name = "linalg.iterator_type"
+
+    @classmethod
+    @property
+    def parallel(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.PARALLEL)
+
+    @classmethod
+    @property
+    def reduction(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.REDUCTION)
+
+    @classmethod
+    @property
+    def window(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.WINDOW)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> IteratorType:
@@ -182,7 +200,17 @@ class Yield(IRDLOperation):
     traits = frozenset([IsTerminator()])
 
     def __init__(self, *operands: SSAValue | Operation) -> None:
-        super().__init__(operands=[SSAValue.get(operand) for operand in operands])
+        super().__init__(operands=[operands])
+
+    def print(self, printer: Printer):
+        print_return_op_like(printer, self.attributes, self.values)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        attrs, args = parse_return_op_like(parser)
+        op = cls(*args)
+        op.attributes.update(attrs)
+        return op
 
 
 Linalg = Dialect([Generic, Yield], [IteratorTypeAttr])

@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import ModuleOp, i1
+from xdsl.dialects.builtin import ModuleOp, f64, i1
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.ir import Block, Region
@@ -28,7 +28,13 @@ def test_riscv_interpreter():
                 Region(
                     Block([riscv.LabelOp("label0"), riscv.DirectiveOp(".word", "2A")])
                 ),
-            )
+            ),
+            riscv.AssemblySectionOp(
+                ".data",
+                Region(
+                    Block([riscv.LabelOp("label1"), riscv.DirectiveOp(".word", "3B")])
+                ),
+            ),
         ]
     )
     register = riscv.IntRegisterType.unallocated()
@@ -41,6 +47,7 @@ def test_riscv_interpreter():
     interpreter.register_implementations(riscv_functions)
 
     assert interpreter.run_op(riscv.LiOp("label0"), ()) == (RawPtr.new_int32((42,)),)
+    assert interpreter.run_op(riscv.LiOp("label1"), ()) == (RawPtr.new_int32((59,)),)
     assert interpreter.run_op(
         riscv.MVOp(TestSSAValue(register), rd=riscv.IntRegisterType.unallocated()),
         (42,),
@@ -154,6 +161,10 @@ def test_riscv_interpreter():
         ),
         (3.0, 4.0),
     ) == (0.75,)
+    assert interpreter.run_op(
+        riscv.FMVOp(TestSSAValue(register), rd=riscv.FloatRegisterType.unallocated()),
+        (42.0,),
+    ) == (42.0,)
 
     # same behaviour as riscemu currently, but incorrect
     # the top line is the one that should pass, the other is the same as riscemu
@@ -231,6 +242,17 @@ def test_get_data():
         "one": RawPtr.new_int32([1]),
         "two_three": RawPtr.new_int32([2, 3]),
     }
+
+
+def test_cast():
+    module_op = ModuleOp([])
+    fregister = riscv.FloatRegisterType.unallocated()
+
+    riscv_functions = RiscvFunctions()
+    interpreter = Interpreter(module_op)
+    interpreter.register_implementations(riscv_functions)
+
+    assert interpreter.cast_value(fregister, f64, 42.0) == 42.0
 
 
 def test_register_contents():

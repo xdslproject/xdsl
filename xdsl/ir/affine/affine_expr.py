@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -58,7 +59,7 @@ class AffineExpr:
 
         raise ValueError("Unreachable")
 
-    def eval(self, dims: list[int], symbols: list[int]) -> int:
+    def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> int:
         """Evaluate the affine expression with the given dimension and symbol values."""
         if isinstance(self, AffineConstantExpr):
             return self.value

@@ -57,22 +57,22 @@
     // CHECK-NEXT: sub j2, j2, j1
     %sra = riscv.sra %2, %1 : (!riscv.reg<j2>, !riscv.reg<j1>) -> !riscv.reg<j2>
     // CHECK-NEXT: sra j2, j2, j1
-    riscv.nop : () -> ()
+    riscv.nop
     // CHECK-NEXT: nop
 
     // RV32I/RV64I: 2.5 Control Transfer Instructions
 
     // Unconditional Branch Instructions
-    riscv.jal 1 : () -> ()
+    riscv.jal 1
     // CHECK-NEXT: jal 1
-    riscv.jal 1, !riscv.reg<s0> : () -> ()
+    riscv.jal 1, !riscv.reg<s0>
     // CHECK-NEXT: jal s0, 1
-    riscv.jal "label" : () -> ()
+    riscv.jal "label"
     // CHECK-NEXT: jal label
 
-    riscv.j 1, !riscv.reg<zero> : () -> ()
+    riscv.j 1, !riscv.reg<zero>
     // CHECK-NEXT: j 1
-    riscv.j "label", !riscv.reg<zero> : () -> ()
+    riscv.j "label", !riscv.reg<zero>
     // CHECK-NEXT: j label
 
     riscv.jalr %0, 1 : (!riscv.reg<zero>) -> ()
@@ -82,7 +82,7 @@
     riscv.jalr %0 "label" : (!riscv.reg<zero>) -> ()
     // CHECK-NEXT: jalr zero, label
 
-    riscv.ret : () -> ()
+    riscv.ret
     // CHECK-NEXT: ret
   ^0(%b00 : !riscv.reg<>, %b01 : !riscv.reg<>):
 
@@ -150,22 +150,22 @@
     %li = riscv.li 1: () -> !riscv.reg<j0>
     // CHECK-NEXT: li j0, 1
     // Environment Call and Breakpoints
-    riscv.ecall : () -> ()
+    riscv.ecall
     // CHECK-NEXT: ecall
-    riscv.ebreak : () -> ()
+    riscv.ebreak
     // CHECK-NEXT: ebreak
-    riscv.ret : () -> ()
+    riscv.ret
     // CHECK-NEXT: ret
   ^1(%b10 : !riscv.reg<>, %b11 : !riscv.reg<>):
 
-    riscv.directive ".align" "2" : () -> ()
+    riscv.directive ".align" "2"
     // CHECK-NEXT: .align 2
     riscv.assembly_section ".text" {
       %nested_addi = riscv.addi %1, 1 : (!riscv.reg<j1>) -> !riscv.reg<j1>
     }
     // CHECK-NEXT:  .text
     // CHECK-NEXT:  addi j1, j1, 1
-    riscv.label "label0" : () -> ()
+    riscv.label "label0"
     // CHECK-NEXT: label0:
 
 
@@ -176,17 +176,17 @@
 
     // RISC-V Extensions
 
-    riscv.frep_outer %0, 0, 0 ({
+    riscv_snitch.frep_outer %0, 0, 0 ({
       %add_o = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
     }) : (!riscv.reg<zero>) -> ()
 
-    // CHECK:          frep.outer zero, 1, 0, 0
+    // CHECK:          frep.o zero, 1, 0, 0
     // CHECK-NEXT:     add  j2, zero, j1
 
-    riscv.frep_inner %0, 0, 0 ({
+    riscv_snitch.frep_inner %0, 0, 0 ({
       %add_i = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
     }) : (!riscv.reg<zero>) -> ()
-    // CHECK:          frep.inner zero, 1, 0, 0
+    // CHECK:          frep.i zero, 1, 0, 0
     // CHECK-NEXT:     add  j2, zero, j1
 
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0

@@ -2,17 +2,18 @@ from __future__ import annotations
 
 import itertools
 import struct
-from collections.abc import Callable, Iterator, MutableSequence, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeAlias, TypeVar
 
-from xdsl.dialects import riscv
+from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, ModuleOp
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
     PythonValues,
     impl,
+    impl_cast,
     register_impls,
 )
 from xdsl.interpreters.comparisons import to_signed, to_unsigned
@@ -133,7 +134,7 @@ class TypedPtr(Generic[_T]):
     def get_list(self, count: int) -> list[_T]:
         return self.raw.get_list(self.format, count)
 
-    def __getitem__(self, index: int) -> _T | MutableSequence[_T]:
+    def __getitem__(self, index: int) -> _T:
         return (self.raw + index * self.size).get(self.format)
 
     def __setitem__(self, index: int, value: _T):
@@ -261,32 +262,43 @@ class RiscvFunctions(InterpreterFunctions):
 
     @staticmethod
     def get_data(module_op: ModuleOp) -> dict[str, RawPtr]:
+        data: dict[str, RawPtr] = {}
         for op in module_op.ops:
             if isinstance(op, riscv.AssemblySectionOp):
                 if op.directive.data == ".data":
-                    data: dict[str, RawPtr] = {}
-
                     assert op.data is not None
                     ops = list(op.data.block.ops)
                     for label, data_op in pairs(ops):
-                        assert isinstance(label, riscv.LabelOp)
-                        assert isinstance(data_op, riscv.DirectiveOp)
-                        assert data_op.value is not None
+                        if not (
+                            isinstance(label, riscv.LabelOp)
+                            and isinstance(data_op, riscv.DirectiveOp)
+                        ):
+                            raise InterpretationError(
+                                "Interpreter assumes that data section is comprised of "
+                                "labels followed by directives"
+                            )
+                        if data_op.value is None:
+                            raise InterpretationError(
+                                "Unexpected None value in data section directive"
+                            )
+
                         match data_op.directive.data:
                             case ".word":
                                 hexs = data_op.value.data.split(",")
                                 ints = [int(hex.strip(), 16) for hex in hexs]
                                 data[label.label.data] = RawPtr.new_int32(ints)
                             case _:
-                                assert (
-                                    False
-                                ), f"Unexpected directive {data_op.directive.data}"
-                    return data
-        else:
-            assert False, "Could not find data section"
+                                raise InterpretationError(
+                                    "Cannot interpret data directive "
+                                    f"{data_op.directive.data}"
+                                )
+        return data
 
     def get_data_value(self, interpreter: Interpreter, key: str) -> Any:
-        return self.data(interpreter)[key]
+        data = self.data(interpreter)
+        if key not in data:
+            raise InterpretationError(f"No data found for key ({key})")
+        return data[key]
 
     def get_immediate_value(
         self, interpreter: Interpreter, imm: AnyIntegerAttr | riscv.LabelAttr
@@ -453,6 +465,17 @@ class RiscvFunctions(InterpreterFunctions):
         results = ((args[0] + offset).float32[0],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.FMVOp)
+    def run_fmv(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMVOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = args
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     # endregion
 
     # region D extension
@@ -568,3 +591,12 @@ class RiscvFunctions(InterpreterFunctions):
 
         results = self.custom_instructions[instr](interpreter, op, args)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl_cast(riscv.FloatRegisterType, builtin.Float64Type)
+    def cast_float_reg_to_float(
+        self,
+        input_type: riscv.FloatRegisterType,
+        output_type: builtin.Float64Type,
+        value: Any,
+    ) -> Any:
+        return value

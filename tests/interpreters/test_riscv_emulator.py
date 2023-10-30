@@ -13,13 +13,15 @@ pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv  # noqa: E402
 
 ctx = MLContext()
-ctx.register_dialect(riscv.RISCV)
+ctx.load_dialect(riscv.RISCV)
 
 
 def test_simple():
     @ModuleOp
     @Builder.implicit_region
     def module():
+        riscv.DirectiveOp(".globl", "main")
+
         @Builder.implicit_region
         def body():
             six = riscv.LiOp(6).rd
@@ -30,6 +32,7 @@ def test_simple():
             riscv.CustomAssemblyInstructionOp(
                 "print", inputs=[forty_two], result_types=[]
             )
+            riscv.ReturnOp()
 
         riscv_func.FuncOp("main", body, ((), ()))
 
@@ -45,13 +48,15 @@ def test_simple():
         unlimited_regs=True,
         verbosity=1,
     )
-    assert "42\n" == stream.getvalue()
+    assert stream.getvalue() == "42\n"
 
 
 def test_multiply_add():
     @ModuleOp
     @Builder.implicit_region
     def module():
+        riscv.DirectiveOp(".globl", "main")
+
         @Builder.implicit_region
         def main():
             riscv.LiOp(3, rd=riscv.Registers.A0)
@@ -163,8 +168,4 @@ def test_multiply_add():
         unlimited_regs=True,
         verbosity=1,
     )
-    assert (
-        stream.getvalue()
-        == """7
-"""
-    )
+    assert stream.getvalue() == "7\n"

@@ -1,6 +1,6 @@
 from typing import cast
 
-from xdsl.dialects import riscv
+from xdsl.dialects import riscv, riscv_snitch
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
@@ -127,6 +127,24 @@ class AddImmediateZero(RewritePattern):
         if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+
+
+class AddImmediateConstant(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AddiOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(li := op.rs1.owner, riscv.LiOp)
+            and isinstance(imm := li.immediate, IntegerAttr)
+            and isinstance(op.immediate, IntegerAttr)
+        ):
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(
+                riscv.LiOp(
+                    imm.value.data + op.immediate.value.data,
+                    rd=rd,
+                    comment=op.comment,
+                )
+            )
 
 
 class SubImmediates(RewritePattern):
@@ -336,18 +354,51 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
             )
 
 
+class BitwiseAndByZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AndOp, rewriter: PatternRewriter):
+        """
+        rewrite pattern to optimize bitwise and by 0
+        x & 0 = 0
+        """
+
+        # check if the first operand is 0
+        if (
+            isinstance(op.rs1.owner, riscv.LiOp)
+            and isinstance(op.rs1.owner.immediate, IntegerAttr)
+            and op.rs1.owner.immediate.value.data == 0
+        ):
+            # if the first operand is 0, set the destination to 0
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+
+        # check if the second operand is 0
+        if (
+            isinstance(op.rs2.owner, riscv.LiOp)
+            and isinstance(op.rs2.owner.immediate, IntegerAttr)
+            and op.rs2.owner.immediate.value.data == 0
+        ):
+            # if the second operand is 0, set the destination to 0
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+
+
 class ScfgwOpUsingImmediate(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.ScfgwOp, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(
+        self, op: riscv_snitch.ScfgwOp, rewriter: PatternRewriter
+    ) -> None:
         if (
             isinstance(op.rs2, OpResult)
             and isinstance(op.rs2.op, riscv.LiOp)
             and isinstance(op.rs2.op.immediate, IntegerAttr)
         ):
+            rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(
-                riscv.ScfgwiOp(
+                riscv_snitch.ScfgwiOp(
                     op.rs1,
                     op.rs2.op.immediate.value.data,
+                    rd=rd,
                     comment=op.comment,
                 ),
             )

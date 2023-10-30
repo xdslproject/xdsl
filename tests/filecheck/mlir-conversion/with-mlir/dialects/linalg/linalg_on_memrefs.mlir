@@ -7,7 +7,7 @@
     %1 = "memref.alloc"() {alignment = 64 : i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<1x256xf32>
     "linalg.generic"(%0, %1) ({
     ^bb0(%arg3: f32, %arg4: f32):
-      "linalg.yield"(%arg3) : (f32) -> ()
+      linalg.yield %arg3 : f32
     }) {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], operandSegmentSizes = array<i32: 1, 1>} : (f32, memref<1x256xf32>) -> ()
     "linalg.generic"(%arg0, %arg1, %1) ({
     ^bb0(%arg3: f32, %arg4: f32, %arg5: f32):

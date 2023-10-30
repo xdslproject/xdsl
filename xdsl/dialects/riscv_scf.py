@@ -27,6 +27,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -42,10 +43,7 @@ class YieldOp(IRDLOperation):
 
     arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ForOp, WhileOp)]))
 
     def __init__(self, *operands: SSAValue | Operation):
         super().__init__(operands=[[SSAValue.get(operand) for operand in operands]])

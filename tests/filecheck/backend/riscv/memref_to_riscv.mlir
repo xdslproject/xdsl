@@ -8,6 +8,8 @@ builtin.module {
     %x_i32 = "memref.load"(%m_i32, %c) {"nontemporal" = false} : (memref<3xi32>, index) -> (i32)
     "memref.store"(%v_f64, %m_f64, %r, %c) {"nontemporal" = false} : (f64, memref<3x2xf64>, index, index) -> ()
     %x_f64 = "memref.load"(%m_f64, %r, %c) {"nontemporal" = false} : (memref<3x2xf64>, index, index) -> (f64)
+    "memref.global"() {"sym_name" = "global", "type" = memref<2x3xf64>, "initial_value" = dense<[1, 2]> : tensor<2xi32>, "sym_visibility" = "public"} : () -> ()
+    %global = "memref.get_global"() {"name" = @global} : () -> memref<2xi32>
 }
 
 // CHECK:      builtin.module {
@@ -70,6 +72,12 @@ builtin.module {
 // CHECK-NEXT:   %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:   %x_f64 = riscv.fld %{{.*}}, 0 {"comment" = "load double from memref of shape (3, 2)"} : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-NEXT:   %x_f64_1 = builtin.unrealized_conversion_cast %x_f64 : !riscv.freg<> to f64
+// CHECK-NEXT:   riscv.assembly_section ".data" {
+// CHECK-NEXT:       riscv.label "global"
+// CHECK-NEXT:       riscv.directive ".word" "0x0,0x3ff00000,0x0,0x40000000"
+// CHECK-NEXT:   }
+// CHECK-NEXT:   %{{.*}} riscv.li "global" : () -> !riscv.reg<>
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg<> to memref<2xi32>
 // CHECK-NEXT: }
 
 // -----

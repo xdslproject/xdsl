@@ -34,8 +34,14 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
 )
-from xdsl.traits import OptionalSymbolOpInterface, SymbolOpInterface, SymbolTable
+from xdsl.traits import (
+    HasParent,
+    OptionalSymbolOpInterface,
+    SymbolOpInterface,
+    SymbolTable,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -423,6 +429,24 @@ def test_symbol_table(SymbolOp: type[PropSymbolOp | SymbolOp]):
 
     assert SymbolTable.lookup_symbol(op, "name") is None
     assert SymbolTable.lookup_symbol(op, SymbolRefAttr("nested", ["name"])) is symbol
+
+
+@irdl_op_definition
+class HasLazyParentOp(IRDLOperation):
+    """An operation with traits that are defined "lazily"."""
+
+    name = "test.has_lazy_parent"
+
+    traits = traits_def(lambda: frozenset([HasParent(TestOp)]))
+
+
+def test_lazy_parent():
+    """Test the trait infrastructure for an operation that defines a trait "lazily"."""
+    op = HasLazyParentOp.create()
+    assert len(op.get_traits_of_type(HasParent)) != 0
+    assert op.get_traits_of_type(HasParent)[0].parameters == (TestOp,)
+    assert op.has_trait(HasParent, (TestOp,))
+    assert op.traits == frozenset([HasParent(TestOp)])
 
 
 def test_insert_symbol_if_not_exists():

@@ -27,12 +27,13 @@ class ParsingState:
 
     operands: list[UnresolvedOperand | None]
     operand_types: list[Attribute | None]
+    result_types: list[Attribute | None]
     attributes: dict[str, Attribute]
 
     def __init__(self, op_def: OpDef):
-        if op_def.results or op_def.attributes or op_def.regions or op_def.successors:
+        if op_def.attributes or op_def.regions or op_def.successors:
             raise NotImplementedError(
-                "Operation definitions with results, attributes, regions, "
+                "Operation definitions with attributes, regions, "
                 "or successors are not yet supported"
             )
         for _, operand in (*op_def.operands, *op_def.results):
@@ -43,6 +44,7 @@ class ParsingState:
                 )
         self.operands = [None] * len(op_def.operands)
         self.operand_types = [None] * len(op_def.operands)
+        self.result_types = [None] * len(op_def.results)
         self.attributes = {}
 
 
@@ -104,11 +106,17 @@ class FormatProgram:
         operand_types = state.operand_types
         assert isa(operand_types, list[Attribute])
 
+        # Ensure that all result types are parsed
+        result_types = state.result_types
+        assert isa(state.result_types, list[Attribute])
+
         # Resolve all operands
         operands = parser.resolve_operands(
             unresolved_operands, operand_types, parser.pos
         )
-        return op_type.build(operands=operands, attributes=state.attributes)
+        return op_type.build(
+            result_types=result_types, operands=operands, attributes=state.attributes
+        )
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """
@@ -159,10 +167,11 @@ class AttrDictDirective(FormatDirective):
         state.attributes = res
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if op.attributes:
-            if self.with_keyword:
-                printer.print(" attributes")
-            printer.print_op_attributes(op.attributes)
+        if not op.attributes:
+            return
+        if self.with_keyword:
+            printer.print(" attributes")
+        printer.print_op_attributes(op.attributes)
         state.last_was_punctuation = False
         state.should_emit_space = False
 
@@ -196,7 +205,7 @@ class OperandVariable(FormatDirective):
 class OperandTypeDirective(FormatDirective):
     """
     An operand variable type directive, with the following format:
-      operand-directive ::= type
+      operand-type-directive ::= type(percent-ident)
     The directive will request a space to be printed right after.
     """
 
@@ -213,6 +222,58 @@ class OperandTypeDirective(FormatDirective):
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
         printer.print_attribute(op.operands[self.index].type)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+@dataclass(frozen=True)
+class ResultVariable(FormatDirective):
+    """
+    An result variable, with the following format:
+      result-directive ::= percent-ident
+    This directive can not be used for parsing and printing directly, as result
+    parsing is not handled by the custom operation parser.
+    """
+
+    name: str
+    """The result name. This is only used for error message reporting."""
+    index: int
+    """Index of the result definition."""
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        assert (
+            "Result variables cannot be used directly to parse/print in "
+            "declarative formats."
+        )
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        assert (
+            "Result variables cannot be used directly to parse/print in "
+            "declarative formats."
+        )
+
+
+@dataclass(frozen=True)
+class ResultTypeDirective(FormatDirective):
+    """
+    A result variable type directive, with the following format:
+      result-type-directive ::= type(percent-ident)
+    The directive will request a space to be printed right after.
+    """
+
+    name: str
+    """The result name. This is only used for error message reporting."""
+    index: int
+    """Index of the result definition."""
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        type = parser.parse_type()
+        state.result_types[self.index] = type
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_attribute(op.results[self.index].type)
         state.last_was_punctuation = False
         state.should_emit_space = True
 
