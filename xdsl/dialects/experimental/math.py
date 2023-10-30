@@ -1018,6 +1018,7 @@ class TruncOp(IRDLOperation):
 
 
 Math = Dialect(
+    "math",
     [
         AbsFOp,
         AbsIOp,
@@ -1051,5 +1052,5 @@ Math = Dialect(
         TanOp,
         TanhOp,
         TruncOp,
-    ]
+    ],
 )

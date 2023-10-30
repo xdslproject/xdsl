@@ -152,6 +152,7 @@ class SsrDisable(IRDLOperation):
 
 
 Snitch = Dialect(
+    "snitch",
     [
         SsrSetDimensionBoundOp,
         SsrSetDimensionStrideOp,

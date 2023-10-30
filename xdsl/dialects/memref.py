@@ -684,6 +684,7 @@ class CopyOp(IRDLOperation):
 
 
 MemRef = Dialect(
+    "memref",
     [
         Load,
         Store,

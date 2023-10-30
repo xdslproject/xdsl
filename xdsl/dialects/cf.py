@@ -99,6 +99,7 @@ class ConditionalBranch(IRDLOperation):
 
 
 Cf = Dialect(
+    "cf",
     [
         Assert,
         Branch,

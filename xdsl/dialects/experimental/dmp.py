@@ -429,6 +429,7 @@ class SwapOp(IRDLOperation):
 
 
 DMP = Dialect(
+    "dmp",
     [
         SwapOp,
     ],

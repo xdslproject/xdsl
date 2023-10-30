@@ -121,6 +121,7 @@ class WriteOp(IRDLOperation):
 
 
 Stream = Dialect(
+    "stream",
     [
         ReadOp,
         WriteOp,
