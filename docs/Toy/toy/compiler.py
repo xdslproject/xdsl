@@ -24,7 +24,6 @@ from xdsl.dialects import (
     scf,
 )
 from xdsl.dialects.builtin import Builtin, ModuleOp
-from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
@@ -35,7 +34,6 @@ from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
 
 from .dialects import toy
-from .emulator.toy_accelerator_instructions import ToyAccelerator
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
@@ -168,4 +166,8 @@ def compile(program: str) -> str:
 
 
 def emulate_riscv(program: str):
+    from xdsl.interpreters.riscv_emulator import run_riscv
+
+    from .emulator.toy_accelerator_instructions import ToyAccelerator
+
     run_riscv(program, extensions=[ToyAccelerator], unlimited_regs=True, verbosity=0)
