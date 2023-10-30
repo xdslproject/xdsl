@@ -29,7 +29,12 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+    ensure_terminator,
+)
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
@@ -264,7 +269,10 @@ class For(IRDLOperation):
             printer.print_attribute(indvar.type)
             printer.print_string(" ")
         printer.print_region(
-            self.body, print_entry_block_args=False, print_empty_block=False
+            self.body,
+            print_entry_block_args=False,
+            print_empty_block=False,
+            print_block_terminators=bool(iter_args),
         )
 
     @classmethod
@@ -309,11 +317,14 @@ class For(IRDLOperation):
 
         # Parse body
         body = parser.parse_region((indvar, *iter_args))
-        if not body.block.ops:
-            assert not iter_args, "Cannot create implicit yield with arguments"
-            body.block.add_op(Yield())
 
-        return For(lb, ub, step, iter_arg_operands, body)
+        for_op = For(lb, ub, step, iter_arg_operands, body)
+
+        if not iter_args:
+            for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):
+                ensure_terminator(for_op, trait)
+
+        return for_op
 
 
 @irdl_op_definition
