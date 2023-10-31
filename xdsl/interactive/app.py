@@ -76,6 +76,7 @@ class InputApp(App[None]):
         self.query_one(SelectionList).border_title = "Choose a pass to be applied."
         """self.query_one(Pretty).border_title = "Selected pass(es)" """
         self.query_one("#output-container").border_title = "Output"
+        self.execute()
 
     # def on_key(self, event: events.Key) -> None:
     #     self.query_one(RichLog).write(event)
