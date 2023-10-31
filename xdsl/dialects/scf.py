@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from typing_extensions import Self
+from typing import Annotated
 
-from xdsl.dialects.arith import signlessIntegerLike
 from xdsl.dialects.builtin import IndexType, IntegerType, Signedness
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -13,6 +13,7 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
+    ConstraintVar,
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -129,9 +130,11 @@ class If(IRDLOperation):
 class For(IRDLOperation):
     name = "scf.for"
 
-    lb: Operand = operand_def(signlessIntegerLike)
-    ub: Operand = operand_def(signlessIntegerLike)
-    step: Operand = operand_def(signlessIntegerLike)
+    T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
+
+    lb: Operand = operand_def(T)
+    ub: Operand = operand_def(T)
+    step: Operand = operand_def(T)
 
     iter_args: VarOperand = var_operand_def(AnyAttr())
 

@@ -20,14 +20,14 @@
   }) : (index, index, index) -> ()
 }) : () -> ()
 
-// CHECK: Expected induction var to be same type as bounds and step
+// CHECK: operand at position 0 does not verify
 
 // -----
 
 "builtin.module"() ({
   %lbi = "test.op"() : () -> si32
   %x:2 = "test.op"() : () -> (index, index) // ub, step
-// CHECK: Operand #0 must be signless integer or index, but got si32
+// CHECK: operand at position 1 does not verify
   "scf.for"(%lbi, %x#0, %x#1) ({
   ^0(%iv : index):
     "scf.yield"() : () -> ()
