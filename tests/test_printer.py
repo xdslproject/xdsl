@@ -637,7 +637,7 @@ def test_missing_custom_format():
 
 @irdl_attr_definition
 class CustomFormatAttr(ParametrizedAttribute):
-    name = "custom"
+    name = "test.custom"
 
     attr: ParameterDef[IntAttr]
 
@@ -668,13 +668,13 @@ def test_custom_format_attr():
     """
     prog = """\
 "builtin.module"() ({
-  "any"() {"attr" = #custom<zero>} : () -> ()
+  "any"() {"attr" = #test.custom<zero>} : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  "any"() {"attr" = #custom<zero>} : () -> ()
+  "any"() {"attr" = #test.custom<zero>} : () -> ()
 }) : () -> ()"""
 
     ctx = MLContext()

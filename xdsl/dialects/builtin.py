@@ -1116,7 +1116,7 @@ class OpaqueAttr(ParametrizedAttribute):
 class StridedLayoutAttr(ParametrizedAttribute):
     """
     An attribute representing a strided layout of a shaped type.
-    See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
+    See https://mlir.llvm.org/docs/Dialects/Builtin/#test.stridedlayoutattr
 
     Contrary to MLIR, we represent dynamic offsets and strides with
     `NoneAttr`, and we do not restrict offsets and strides to 64-bits
