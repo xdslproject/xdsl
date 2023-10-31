@@ -691,7 +691,7 @@ class AttrParser(BaseParser):
         return AffineMapAttr(affine_map)
 
     def _parse_builtin_affine_set(self, _name: Span) -> AffineSetAttr:
-        self.parse_characters("<", " in affine_map attribute")
+        self.parse_characters("<", " in affine_set attribute")
         affine_set = self.parse_affine_set()
         self.parse_characters(">", " in affine_map attribute")
         return AffineSetAttr(affine_set)
