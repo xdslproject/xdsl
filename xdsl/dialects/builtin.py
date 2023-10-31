@@ -340,6 +340,12 @@ i32 = IntegerType(32)
 i1 = IntegerType(1)
 
 
+SignlessIntegerConstraint = ParamAttrConstraint(
+    IntegerType, [IntAttr, SignednessAttr(Signedness.SIGNLESS)]
+)
+"""IntegerType constrained to be signless."""
+
+
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute):
     name = "unit"

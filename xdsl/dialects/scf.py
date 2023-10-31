@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated
 
 from typing_extensions import Self
+from typing import Annotated
 
-from xdsl.dialects.builtin import IndexType, IntegerType, Signedness
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerType,
+    SignlessIntegerConstraint,
+)
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_assignment,
@@ -13,9 +17,10 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
+    AnyOf,
+    ConstraintVar,
     AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
     Operand,
     VarOperand,
@@ -130,7 +135,9 @@ class If(IRDLOperation):
 class For(IRDLOperation):
     name = "scf.for"
 
-    T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
+    T = Annotated[
+        Attribute, AnyOf([IndexType, SignlessIntegerConstraint]), ConstraintVar("T")
+    ]
 
     lb: Operand = operand_def(T)
     ub: Operand = operand_def(T)
@@ -173,16 +180,6 @@ class For(IRDLOperation):
         return For(lb, ub, step, iter_args, body)
 
     def verify_(self):
-        # op region verification
-        for i, opnd in enumerate(self.operands[:3]):
-            if not isinstance(opnd.type, IndexType) and not (
-                isinstance(opnd.type, IntegerType)
-                and opnd.type.signedness.data == Signedness.SIGNLESS
-            ):
-                raise VerifyException(
-                    f"Operand #{i} must be signless integer or index, but got {opnd.type}"
-                )
-
         # body block verification
         if len(self.body.block.args) == 0:
             raise VerifyException(
