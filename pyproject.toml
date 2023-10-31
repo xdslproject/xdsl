@@ -57,4 +57,8 @@ target-version = "py310"
 max-complexity = 10
 
 [tool.black]
-exlude = "_version.py|versioneer.py"
+exclude = """
+/(__pycache__|.asv|venv|build|tests/filecheck)/
+|versioneer.py$
+|xdsl/_version.py$
+"""
