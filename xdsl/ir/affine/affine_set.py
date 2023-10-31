@@ -16,9 +16,16 @@ class AffineConstraintExpr:
     lhs: AffineExpr
     rhs: AffineExpr
 
-    def __init__(self, kind: AffineConstraintKind, lhs: AffineExpr, rhs: AffineExpr, *, canonicalize: bool = True):
+    def __init__(
+        self,
+        kind: AffineConstraintKind,
+        lhs: AffineExpr,
+        rhs: AffineExpr,
+        *,
+        canonicalize: bool = True,
+    ):
         if canonicalize:
-            lhs = self.lhs - self.rhs
+            lhs = lhs - rhs
             rhs = AffineExpr.constant(0)
         self.kind = kind
         self.lhs = lhs
