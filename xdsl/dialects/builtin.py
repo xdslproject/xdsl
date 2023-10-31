@@ -1168,7 +1168,7 @@ class AffineMapAttr(Data[AffineMap]):
 
 @irdl_attr_definition
 class AffineSetAttr(Data[AffineSet]):
-    """An Attribute containing an AffineMap object."""
+    """An attribute containing an AffineSet object."""
 
     name = "affine_set"
 
