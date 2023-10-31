@@ -126,7 +126,7 @@ class AffineParser(BaseParser):
 
         return self.parse_comma_separated_list(self.Delimiter.PAREN, parse_expr)
 
-    # TODO: Extend to semi-affine maps
+    # TODO: Extend to semi-affine maps; see https://github.com/xdslproject/xdsl/issues/1087
     def _parse_affine_constraint(
         self, dims: list[str], syms: list[str]
     ) -> AffineConstraintExpr:
