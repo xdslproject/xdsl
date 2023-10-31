@@ -80,7 +80,8 @@ class StringData(Data[str]):
             return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer):
-        printer.print_string(self.data)
+        with printer.in_angle_brackets():
+            printer.print_string(self.data)
 
 
 def test_simple_data():
