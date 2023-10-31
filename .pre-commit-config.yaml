@@ -19,3 +19,4 @@ repos:
     rev: 23.3.0
     hooks:
     -   id: black
+        args: [ --config pyproject.toml ]
