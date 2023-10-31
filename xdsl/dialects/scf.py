@@ -189,44 +189,61 @@ class For(IRDLOperation):
         return For(lb, ub, step, iter_args, body)
 
     def verify_(self):
-        if (len(self.iter_args) + 1) != len(self.body.block.args):
+        # op region verification
+        for i, opnd in enumerate(self.operands[:3]):
+            if not isinstance(opnd.type, IndexType):
+                raise VerifyException(
+                    f"Operand #{i} must be index, but got {opnd.type}"
+                )
+
+        # body block verification
+        if len(self.body.block.args) == 0:
             raise VerifyException(
-                f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
-                f"{len(self.body.block.args)}. The body must have the induction "
-                f"variable and loop-carried variables as arguments."
+                "Body block must at least have induction var as block arg"
             )
-        if self.body.block.args and (iter_var := self.body.block.args[0]):
-            if not isinstance(iter_var.type, IndexType):
+
+        indvar, *block_iter_args = self.body.block.args
+        block_iter_args_num = len(block_iter_args)
+        iter_args = self.iter_args
+        iter_args_num = len(self.iter_args)
+
+        for i, opnd in enumerate(self.operands[:3]):
+            if opnd.type != indvar.type:
                 raise VerifyException(
-                    f"The first block argument of the body is of type {iter_var.type}"
-                    " instead of index"
+                    "Expected induction var to be same type as bounds and step"
                 )
-        for idx, arg in enumerate(self.iter_args):
-            if self.body.block.args[idx + 1].type != arg.type:
+        if iter_args_num + 1 != block_iter_args_num + 1:
+            raise VerifyException(
+                f"Expected {iter_args_num + 1} args, but got {block_iter_args_num + 1}. "
+                "Body block must have induction and loop-carried variables as args."
+            )
+        for i, arg in enumerate(iter_args):
+            if block_iter_args[i].type != arg.type:
                 raise VerifyException(
-                    f"Block arguments with wrong type, expected {arg.type}, "
-                    f"got {self.body.block.args[idx].type}. Arguments after the "
-                    f"induction variable must match the carried variables."
+                    f"Block arg #{i + 1} expected to be {arg.type}, but got {block_iter_args[i].type}. "
+                    "Block args after the induction variable must match the loop-carried variables."
                 )
-        if len(self.body.ops) > 0 and isinstance(self.body.block.last_op, Yield):
-            yieldop = self.body.block.last_op
-            if len(yieldop.arguments) != len(self.iter_args):
+        if (last_op := self.body.block.last_op) is not None and isinstance(
+            last_op, Yield
+        ):
+            yieldop = last_op
+            if len(yieldop.arguments) != iter_args_num:
                 raise VerifyException(
-                    f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
-                    f"The scf.for must yield its carried variables."
+                    f"{yieldop.name} expected {iter_args_num} args, but got {len(yieldop.arguments)}. "
+                    f"The {self.name} must yield its loop-carried variables."
                 )
-            for idx, arg in enumerate(yieldop.arguments):
-                if self.iter_args[idx].type != arg.type:
+            for i, arg in enumerate(yieldop.arguments):
+                if iter_args[i].type != arg.type:
                     raise VerifyException(
-                        f"Expected {self.iter_args[idx].type}, got {arg.type}. The "
-                        f"scf.for's scf.yield must match carried variables types."
+                        f"Expected yield arg #{i} to be {iter_args[i].type}, but got {arg.type}. "
+                        f"{yieldop.name} of {self.name} must match loop-carried variable types."
                     )
 
     def print(self, printer: Printer):
         block = self.body.block
-        index, *iter_args = block.args
+        indvar, *iter_args = block.args
         printer.print_string(" ")
-        printer.print_ssa_value(index)
+        printer.print_ssa_value(indvar)
         printer.print_string(" = ")
         printer.print_ssa_value(self.lb)
         printer.print_string(" to ")
@@ -253,7 +270,7 @@ class For(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         # Parse bounds
-        index = parser.parse_argument(expect_type=False)
+        indvar = parser.parse_argument(expect_type=False)
         parser.parse_characters("=")
         lb = parser.parse_operand()
         parser.parse_characters("to")
@@ -282,12 +299,12 @@ class For(IRDLOperation):
         )
 
         # Set block argument types
-        index.type = lb.type
+        indvar.type = lb.type
         for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
             iter_arg.type = iter_arg_type
 
         # Parse body
-        body = parser.parse_region((index, *iter_args))
+        body = parser.parse_region((indvar, *iter_args))
 
         for_op = For(lb, ub, step, iter_arg_operands, body)
 
