@@ -37,8 +37,7 @@ class AffineSet:
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.
-        dims = ["d" + str(i) for i in range(self.num_dims)]
-        dims = ", ".join(dims)
+        dims = ", ".join("d" + str(i) for i in range(self.num_dims))
         # Create comma seperated list of symbols.
         syms = ["s" + str(i) for i in range(self.num_symbols)]
         syms = ", ".join(syms)
