@@ -7,11 +7,12 @@ from textual.widgets import Button, Label, SelectionList, TextArea
 
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
+from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
 
-def transform_input(input_text: str) -> str:
+def transform_input(input_text: str, passes: list[type[ModulePass]]) -> str:
     try:
         ctx = MLContext(True)
         for dialect in get_all_dialects():
@@ -19,6 +20,9 @@ def transform_input(input_text: str) -> str:
 
         parser = Parser(ctx, input_text)
         module = parser.parse_module()
+
+        pipeline = PipelinePass([p() for p in passes])
+        pipeline.apply(ctx, module)
 
         output_stream = StringIO()
         Printer(output_stream).print(module)
@@ -48,8 +52,8 @@ class InputApp(App[None]):
 
     def compose(self) -> ComposeResult:
         list_of_passes = get_all_passes()
-        selections = [(value.name, value.name) for value in list_of_passes]
-        my_selection_list: SelectionList[str] = SelectionList(
+        selections = [(value.name, value) for value in list_of_passes]
+        my_selection_list: SelectionList[type[ModulePass]] = SelectionList(
             *selections, id="passes_list"
         )
         yield Label("", id="selected_passes")
@@ -65,11 +69,15 @@ class InputApp(App[None]):
         )
         """yield Horizontal(Button("Generate"))"""
 
+    def selected_module_passes(self) -> list[type[ModulePass]]:
+        return self.query_one(SelectionList[type[ModulePass]]).selected
+
     @on(SelectionList.SelectedChanged)
     def update_selected_view(self) -> None:
-        new_passes = ",".join(self.query_one(SelectionList[str]).selected)
+        new_passes = ",".join(p.name for p in self.selected_module_passes())
         new_label = f"xdsl-opt -p {new_passes}"
         self.query_one(Label).update(new_label)
+        self.execute()
 
     def on_mount(self) -> None:
         self.query_one("#input", TextArea).border_title = "Input"
@@ -85,8 +93,10 @@ class InputApp(App[None]):
         if input is None:
             input = self.query_one("#input", TextArea)
 
+        passes = self.selected_module_passes()
+
         input_text = input.text
-        output_text = transform_input(input_text)
+        output_text = transform_input(input_text, passes)
         output = self.query_one("#output", TextArea)
         output.load_text(output_text)
 
