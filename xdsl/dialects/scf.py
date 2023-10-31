@@ -199,7 +199,7 @@ class For(IRDLOperation):
         # body block verification
         if len(self.body.block.args) == 0:
             raise VerifyException(
-                "Body block must at least have induction var as block arg"
+                "Body block must have induction var as first block arg"
             )
 
         indvar, *block_iter_args = self.body.block.args
