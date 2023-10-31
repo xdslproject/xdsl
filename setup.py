@@ -58,32 +58,9 @@ for mreqs, mode in zip(
     extras_require[mode] = opt_reqs
 
 setup(
-    name="xdsl",
     version=versioneer.get_version(),
     cmdclass=cast(Mapping[str, type[Command]], versioneer.get_cmdclass()),
-    description="xDSL",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    entry_points={
-        "console_scripts": [
-            "xdsl-opt = xdsl.tools.xdsl_opt:main",
-            "irdl-to-pyrdl = xdsl.tools.irdl_to_pyrdl:main",
-            "xdsl-run = xdsl.tools.xdsl_run:main",
-        ]
-    },
-    project_urls={
-        "Source Code": "https://github.com/xdslproject/xdsl",
-        "Issue Tracker": "https://github.com/xdslproject/xdsl/issues",
-    },
-    url="https://xdsl.dev/",
-    platforms=["Linux", "Mac OS-X", "Unix"],
-    test_suite="pytest",
-    author="Mathieu Fehr",
-    author_email="mathieu.fehr@ed.ac.uk",
-    license="MIT",
     packages=find_packages(),
-    package_data={"xdsl": ["py.typed"]},
     install_requires=reqs,
     extras_require=extras_require,
-    zip_safe=False,
 )
