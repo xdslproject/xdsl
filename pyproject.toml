@@ -55,3 +55,6 @@ target-version = "py310"
 
 [tool.ruff.mccabe]
 max-complexity = 10
+
+[tool.black]
+exlude = "_version.py|versioneer.py"
