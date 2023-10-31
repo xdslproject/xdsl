@@ -9,10 +9,9 @@ from typing_extensions import Self
 
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
 from xdsl.dialects.utils import (
+    AbstractYieldOperation,
     parse_assignment,
-    parse_return_op_like,
     print_assignment,
-    print_return_op_like,
 )
 from xdsl.ir import Attribute, Dialect
 from xdsl.irdl import (
@@ -38,25 +37,10 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class YieldOp(IRDLOperation):
+class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
-    arguments: VarOperand = var_operand_def(RISCVRegisterType)
-
     traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ForOp, WhileOp)]))
-
-    def __init__(self, *operands: SSAValue | Operation):
-        super().__init__(operands=[[SSAValue.get(operand) for operand in operands]])
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.arguments)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs, args = parse_return_op_like(parser)
-        op = cls(*args)
-        op.attributes.update(attrs)
-        return op
 
 
 @irdl_op_definition
