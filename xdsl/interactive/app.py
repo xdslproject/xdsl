@@ -3,11 +3,10 @@ from io import StringIO
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal
-from textual.widgets import Button, Pretty, SelectionList, TextArea
+from textual.widgets import Button, Label, SelectionList, TextArea
 
 from xdsl.ir.core import MLContext
 from xdsl.parser.core import Parser
-from xdsl.passes import ModulePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
@@ -28,26 +27,10 @@ def transform_input(input_text: str) -> str:
         return str(e)
 
 
+# used to prevent being able to change the Output Text Area
 class OutputTextArea(TextArea):
-    """A subclass of TextArea with parenthesis-closing functionality."""
-
     async def _on_key(self, event: events.Key) -> None:
         event.prevent_default()
-
-
-"""
-def run_terminal_command(command):
-    try:
-        result = subprocess.run(command, shell=True, check=True,
-                                text=True, capture_output=True)
-        # Output from the terminal command
-        output = result.stdout
-        return output
-    except subprocess.CalledProcessError as e:
-        # If the command exits with a non-zero status code, it will raise an exception.
-        print(f"Error: {e}")
-        return None
-"""
 
 
 class InputApp(App[None]):
@@ -65,11 +48,11 @@ class InputApp(App[None]):
 
     def compose(self) -> ComposeResult:
         list_of_passes = get_all_passes()
-        selections = [(value.name, value) for value in list_of_passes]
-        my_selection_list: SelectionList[type[ModulePass]] = SelectionList(
+        selections = [(value.name, value.name) for value in list_of_passes]
+        my_selection_list: SelectionList[str] = SelectionList(
             *selections, id="passes_list"
         )
-        yield Pretty([], id="selected_passes")
+        yield Label("", id="selected_passes")
 
         yield my_selection_list
         yield Horizontal(
@@ -84,7 +67,9 @@ class InputApp(App[None]):
 
     @on(SelectionList.SelectedChanged)
     def update_selected_view(self) -> None:
-        self.query_one(Pretty).update(self.query_one(SelectionList).selected)
+        new_passes = ",".join(self.query_one(SelectionList[str]).selected)
+        new_label = f"xdsl-opt -p {new_passes}"
+        self.query_one(Label).update(new_label)
 
     def on_mount(self) -> None:
         self.query_one("#input", TextArea).border_title = "Input"
@@ -106,7 +91,28 @@ class InputApp(App[None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.exit(str(event.button))
 
-    """
+
+if __name__ == "__main__":
+    path = "bla.mlir"
+    with open(path) as f:
+        text = f.read()
+    app = InputApp(text)
+    app.run()
+
+"""
+def run_terminal_command(command):
+    try:
+        result = subprocess.run(command, shell=True, check=True,
+                                text=True, capture_output=True)
+        # Output from the terminal command
+        output = result.stdout
+        return output
+    except subprocess.CalledProcessError as e:
+        # If the command exits with a non-zero status code, it will raise an exception.
+        print(f"Error: {e}")
+        return None
+
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         # Define a variable to keep track of the current file number
         file_number = 1
@@ -131,12 +137,4 @@ class InputApp(App[None]):
 
         output_lbl = self.query_one("#output", Label)
         output_lbl.update(output)  # pyright: ignore[reportGeneralTypeIssues]
-    """
-
-
-if __name__ == "__main__":
-    path = "bla.mlir"
-    with open(path) as f:
-        text = f.read()
-    app = InputApp(text)
-    app.run()
+"""

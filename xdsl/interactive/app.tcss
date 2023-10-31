@@ -11,7 +11,7 @@
     box-sizing: content-box;
     width: 100%;
     height: 100%;
-    overflow: auto auto;
+    # overflow: auto auto;
 }
 
 #output-container {
@@ -21,13 +21,12 @@
     border-title-style: bold;
     border-title-align: center;
     height: 100%;
-    overflow: auto auto;
-    align: center bottom;
+    # overflow: auto auto;
 }
 
 #passes_list {
     margin: 1 1 0 1;
-    border: solid $accent;
+    border: heavy $accent;
     border-title-color: green;
     border-title-style: bold;
     border-title-align: center;
