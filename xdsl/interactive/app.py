@@ -1,13 +1,9 @@
 from io import StringIO
 
+from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal
-from textual.widgets import (
-    Button,
-    Label,
-    SelectionList,
-    TextArea,
-)
+from textual.widgets import Button, Pretty, SelectionList, TextArea
 
 from xdsl.ir.core import MLContext
 from xdsl.parser.core import Parser
@@ -30,6 +26,13 @@ def transform_input(input_text: str) -> str:
         return output_stream.getvalue()
     except Exception as e:
         return str(e)
+
+
+class OutputTextArea(TextArea):
+    """A subclass of TextArea with parenthesis-closing functionality."""
+
+    async def _on_key(self, event: events.Key) -> None:
+        event.prevent_default()
 
 
 """
@@ -66,22 +69,22 @@ class InputApp(App[None]):
         my_selection_list: SelectionList[type[ModulePass]] = SelectionList(
             *selections, id="passes_list"
         )
-        """yield Pretty([], id="selected_passes")"""
+        yield Pretty([], id="selected_passes")
 
         yield my_selection_list
         yield Horizontal(
             TextArea(self.text, id="input"),
-            Container(Label(self.text, id="output"), id="output-container"),
+            Container(
+                OutputTextArea(self.text, id="output"),
+                id="output-container",
+            ),
             id="input_output",
         )
         """yield Horizontal(Button("Generate"))"""
 
-    """
-    @on(Mount)
     @on(SelectionList.SelectedChanged)
     def update_selected_view(self) -> None:
         self.query_one(Pretty).update(self.query_one(SelectionList).selected)
-    """
 
     def on_mount(self) -> None:
         self.query_one("#input", TextArea).border_title = "Input"
@@ -92,12 +95,13 @@ class InputApp(App[None]):
     # def on_key(self, event: events.Key) -> None:
     #     self.query_one(RichLog).write(event)
 
-    def on_text_area_changed(self, event: TextArea.Changed):
+    @on(TextArea.Changed, "#input")
+    def on_input_changed(self, event: TextArea.Changed):
         input_text = event.text_area.text
         output_text = transform_input(input_text)
 
-        output = self.query_one("#output", Label)
-        output.update(output_text)
+        output = self.query_one("#output", TextArea)
+        output.load_text(output_text)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.exit(str(event.button))
