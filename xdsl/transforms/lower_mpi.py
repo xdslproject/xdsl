@@ -622,7 +622,7 @@ class LowerMpiUnwrapMemrefOp(_MPIToLLVMRewriteBase):
         return [
             *extract_ptr_ops,
             *count_ops,
-            dtype := mpi.GetDtypeOp.get(elem_type),
+            dtype := mpi.GetDtypeOp(elem_type),
         ], [ptr.results[0], count_ssa_val, dtype.result]
 
 
