@@ -5,29 +5,33 @@
     border-title-color: green;
     border-title-style: bold;
     border-title-align: center;
-    box-sizing: content-box;
-    align: center top;
 }
 
 #output {
+    box-sizing: content-box;
+    width: 100%;
+    height: 100%;
+    overflow: auto auto;
+}
+
+#output-container {
     margin: 1;
     border: heavy red;
     border-title-color: green;
     border-title-style: bold;
     border-title-align: center;
-    box-sizing: content-box;
-    width: 100%;
+    height: 100%;
     overflow: auto auto;
     align: center bottom;
 }
 
 #passes_list {
-    padding: 1;
+    margin: 1 1 0 1;
     border: solid $accent;
     border-title-color: green;
     border-title-style: bold;
     border-title-align: center;
-    width: 70%;
+    width: 100%;
     height: 20%;
     align: center middle;
 
@@ -51,14 +55,4 @@ Screen {
     margin: 1 1;
     height: 3;
     width: 3;
-}
-
-#input_output{
-    layout: horizontal;
-    height: auto;
-}
-
-#list_and_input_output{
-    layout: vertical;
-    height: auto;
 }

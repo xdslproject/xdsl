@@ -1,7 +1,7 @@
 from io import StringIO
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, VerticalScroll
+from textual.containers import Container, Horizontal
 from textual.widgets import (
     Button,
     Label,
@@ -68,14 +68,11 @@ class InputApp(App[None]):
         )
         """yield Pretty([], id="selected_passes")"""
 
-        yield Container(
-            my_selection_list,
-            Container(
-                TextArea(self.text, id="input"),
-                VerticalScroll(Label(self.text, id="output")),
-                id="input_output",
-            ),
-            id="list_and_input_output",
+        yield my_selection_list
+        yield Horizontal(
+            TextArea(self.text, id="input"),
+            Container(Label(self.text, id="output"), id="output-container"),
+            id="input_output",
         )
         """yield Horizontal(Button("Generate"))"""
 
@@ -90,7 +87,7 @@ class InputApp(App[None]):
         self.query_one("#input", TextArea).border_title = "Input"
         self.query_one(SelectionList).border_title = "Choose a pass to be applied."
         """self.query_one(Pretty).border_title = "Selected pass(es)" """
-        self.query_one("#output", Label).border_title = "Output"
+        self.query_one("#output-container").border_title = "Output"
 
     # def on_key(self, event: events.Key) -> None:
     #     self.query_one(RichLog).write(event)
