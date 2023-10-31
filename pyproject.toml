@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
+build-backend = "setuptools.build_meta"
 
 [tool.pyright]
 reportImportCycles = false
@@ -79,3 +80,10 @@ python_files = ["tests/*test_*.py", "docs/*test_*.py"]
 python_classes = "Test_*"
 python_functions = "test_*"
 addopts = ["--durations=20", "--maxfail=5"]
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "xdsl/_version.py"
+versionfile_build = "xdsl/_version.py"
+tag_prefix = "v"
