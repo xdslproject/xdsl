@@ -163,6 +163,7 @@ class HLSExtractStencilValue(IRDLOperation):
 
 
 HLS = Dialect(
+    "hls",
     [
         PragmaPipeline,
         PragmaUnroll,

@@ -520,6 +520,7 @@ class CastOp(IRDLOperation):
 
 
 Toy = Dialect(
+    "toy",
     [
         ConstantOp,
         AddOp,

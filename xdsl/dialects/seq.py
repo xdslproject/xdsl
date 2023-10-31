@@ -78,6 +78,7 @@ class ClockDivider(IRDLOperation):
 
 
 Seq = Dialect(
+    "seq",
     [
         ClockDivider,
     ],

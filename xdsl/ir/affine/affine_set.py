@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from xdsl.ir.affine.affine_expr import AffineExpr
+from xdsl.ir.affine import AffineExpr
 
 
 class AffineConstraintKind(Enum):
@@ -16,9 +16,20 @@ class AffineConstraintExpr:
     lhs: AffineExpr
     rhs: AffineExpr
 
-    def __post_init__(self):
-        self.lhs = self.lhs - self.rhs
-        self.rhs = AffineExpr.constant(0)
+    def __init__(
+        self,
+        kind: AffineConstraintKind,
+        lhs: AffineExpr,
+        rhs: AffineExpr,
+        *,
+        canonicalize: bool = True,
+    ):
+        if canonicalize:
+            lhs = lhs - rhs
+            rhs = AffineExpr.constant(0)
+        self.kind = kind
+        self.lhs = lhs
+        self.rhs = rhs
 
     def __str__(self) -> str:
         return f"{self.lhs} {self.kind.value} {self.rhs}"
@@ -37,8 +48,7 @@ class AffineSet:
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.
-        dims = ["d" + str(i) for i in range(self.num_dims)]
-        dims = ", ".join(dims)
+        dims = ", ".join("d" + str(i) for i in range(self.num_dims))
         # Create comma seperated list of symbols.
         syms = ["s" + str(i) for i in range(self.num_symbols)]
         syms = ", ".join(syms)

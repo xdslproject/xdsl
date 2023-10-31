@@ -51,8 +51,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
-from xdsl.ir.affine import AffineMap
-from xdsl.ir.affine.affine_set import AffineSet
+from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.parser.base_parser import BaseParser
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.hints import isa
@@ -691,9 +690,9 @@ class AttrParser(BaseParser):
         return AffineMapAttr(affine_map)
 
     def _parse_builtin_affine_set(self, _name: Span) -> AffineSetAttr:
-        self.parse_characters("<", " in affine_map attribute")
+        self.parse_characters("<", " in affine_set attribute")
         affine_set = self.parse_affine_set()
-        self.parse_characters(">", " in affine_map attribute")
+        self.parse_characters(">", " in affine_set attribute")
         return AffineSetAttr(affine_set)
 
     @dataclass

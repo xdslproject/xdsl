@@ -14,8 +14,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.ir.affine.affine_expr import AffineExpr
-from xdsl.ir.affine.affine_map import AffineMap
+from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
     ConstraintVar,
@@ -208,6 +207,7 @@ class Yield(IRDLOperation):
 
 
 Affine = Dialect(
+    "affine",
     [
         For,
         If,

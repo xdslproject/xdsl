@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from xdsl.ir.affine import AffineExpr, AffineMap
-from xdsl.ir.affine.affine_set import (
+from xdsl.ir.affine import (
     AffineConstraintExpr,
     AffineConstraintKind,
+    AffineExpr,
+    AffineMap,
     AffineSet,
 )
 from xdsl.parser.base_parser import BaseParser, ParserState
@@ -126,7 +127,7 @@ class AffineParser(BaseParser):
 
         return self.parse_comma_separated_list(self.Delimiter.PAREN, parse_expr)
 
-    # TODO: Extend to semi-affine maps
+    # TODO: Extend to semi-affine maps; see https://github.com/xdslproject/xdsl/issues/1087
     def _parse_affine_constraint(
         self, dims: list[str], syms: list[str]
     ) -> AffineConstraintExpr:

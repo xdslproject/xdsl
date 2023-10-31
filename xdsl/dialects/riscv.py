@@ -3555,6 +3555,7 @@ def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAt
 
 
 RISCV = Dialect(
+    "riscv",
     [
         AddiOp,
         SltiOp,

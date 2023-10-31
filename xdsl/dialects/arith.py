@@ -831,6 +831,7 @@ class ExtUIOp(IRDLOperation):
 
 
 Arith = Dialect(
+    "arith",
     [
         Constant,
         # Integer-like

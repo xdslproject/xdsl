@@ -32,8 +32,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.affine import AffineMap
-from xdsl.ir.affine.affine_set import AffineSet
+from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
@@ -1168,7 +1167,7 @@ class AffineMapAttr(Data[AffineMap]):
 
 @irdl_attr_definition
 class AffineSetAttr(Data[AffineSet]):
-    """An Attribute containing an AffineMap object."""
+    """An attribute containing an AffineSet object."""
 
     name = "affine_set"
 
@@ -1426,6 +1425,7 @@ f128 = Float64Type()
 
 
 Builtin = Dialect(
+    "builtin",
     [
         ModuleOp,
         UnregisteredOp,
