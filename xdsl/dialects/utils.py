@@ -97,6 +97,11 @@ def parse_return_op_like(
 
 
 class AbstractYieldOperation(Generic[AttributeInvT], IRDLOperation):
+    """
+    A base class for yielding operations to inherit, provides the standard custom syntax
+    and a definition of the `arguments` variadic operand.
+    """
+
     arguments = var_operand_def(AttributeInvT)
 
     def __init__(self, *operands: SSAValue | Operation):
