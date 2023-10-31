@@ -4,7 +4,8 @@ from collections.abc import Sequence
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import IndexType, IntegerType
+from xdsl.dialects.arith import signlessIntegerLike
+from xdsl.dialects.builtin import IndexType, IntegerType, Signedness
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_assignment,
@@ -128,9 +129,9 @@ class If(IRDLOperation):
 class For(IRDLOperation):
     name = "scf.for"
 
-    lb: Operand = operand_def(IndexType)
-    ub: Operand = operand_def(IndexType)
-    step: Operand = operand_def(IndexType)
+    lb: Operand = operand_def(signlessIntegerLike)
+    ub: Operand = operand_def(signlessIntegerLike)
+    step: Operand = operand_def(signlessIntegerLike)
 
     iter_args: VarOperand = var_operand_def(AnyAttr())
 
@@ -171,9 +172,12 @@ class For(IRDLOperation):
     def verify_(self):
         # op region verification
         for i, opnd in enumerate(self.operands[:3]):
-            if not isinstance(opnd.type, IndexType):
+            if not isinstance(opnd.type, IndexType) and not (
+                isinstance(opnd.type, IntegerType)
+                and opnd.type.signedness.data == Signedness.SIGNLESS
+            ):
                 raise VerifyException(
-                    f"Operand #{i} must be index, but got {opnd.type}"
+                    f"Operand #{i} must be signless integer or index, but got {opnd.type}"
                 )
 
         # body block verification
@@ -240,6 +244,10 @@ class For(IRDLOperation):
             printer.print_string(") -> (")
             printer.print_list((a.type for a in iter_args), printer.print_attribute)
             printer.print_string(") ")
+        if not isinstance(indvar.type, IndexType):
+            printer.print_string(": ")
+            printer.print_attribute(indvar.type)
+            printer.print_string(" ")
         printer.print_region(
             self.body,
             print_entry_block_args=False,
@@ -278,8 +286,12 @@ class For(IRDLOperation):
             iter_arg_unresolved_operands, iter_arg_types, pos
         )
 
-        # Set block argument types
+        # Set induction variable type
         indvar.type = lb.type
+        if parser.parse_optional_characters(":"):
+            indvar.type = parser.parse_type()
+
+        # Set block argument types
         for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
             iter_arg.type = iter_arg_type
 
