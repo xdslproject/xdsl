@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Annotated
 
 from typing_extensions import Self
-from typing import Annotated
 
 from xdsl.dialects.builtin import (
     IndexType,
@@ -17,10 +17,10 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
-    AnyOf,
-    ConstraintVar,
     AnyAttr,
+    AnyOf,
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     VarOperand,
