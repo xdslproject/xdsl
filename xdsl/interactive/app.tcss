@@ -1,20 +1,35 @@
 
 #input {
-    margin: 5;
+    margin: 1;
     border: heavy red;
     border-title-color: green;
     border-title-style: bold;
     border-title-align: center;
     box-sizing: content-box;
+    align: center top;
 }
 
 #output {
-    margin: 5;
+    margin: 1;
     border: heavy red;
     border-title-color: green;
     border-title-style: bold;
     border-title-align: center;
     box-sizing: content-box;
+    width: 100%;
+    overflow: auto auto;
+    align: center bottom;
+}
+
+#passes {
+    padding: 1;
+    border: solid $accent;
+    border-title-color: green;
+    border-title-style: bold;
+    border-title-align: center;
+    width: 70%;
+    height: 20%;
+    align: center middle;
 
 }
 
@@ -37,4 +52,10 @@ App Static {
     margin: 2;
     padding: 1;
     border: wide black;
+}
+
+#generate {
+    margin: 1 1;
+    height: 3;
+    width: 3;
 }
