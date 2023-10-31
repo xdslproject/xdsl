@@ -270,6 +270,7 @@ class ConditionOp(IRDLOperation):
 
 
 RISCV_Scf = Dialect(
+    "riscv_scf",
     [
         YieldOp,
         ForOp,
