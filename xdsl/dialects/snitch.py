@@ -11,7 +11,7 @@ that aims at generating.
 from abc import ABC
 from dataclasses import dataclass
 
-from xdsl.dialects.builtin import AnyIntegerAttr
+from xdsl.dialects.builtin import IntAttr
 from xdsl.dialects.riscv import IntRegisterType
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import IRDLOperation, Operand, attr_def, irdl_op_definition, operand_def
@@ -34,25 +34,26 @@ class SsrSetDimensionConfigOperation(IRDLOperation, ABC):
     configuration value for a specific dimension handled by a streamer.
     """
 
-    stream: Operand = operand_def(IntRegisterType)
     value: Operand = operand_def(IntRegisterType)
-    dimension: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    dm = attr_def(IntAttr)
+    dimension = attr_def(IntAttr)
 
     def __init__(
         self,
-        stream: Operation | SSAValue,
         value: Operation | SSAValue,
-        dimension: AnyIntegerAttr,
+        dm: IntAttr,
+        dimension: IntAttr,
     ):
         super().__init__(
-            operands=[stream, value],
+            operands=[value],
             attributes={
+                "dm": dm,
                 "dimension": dimension,
             },
         )
 
     def verify_(self) -> None:
-        if self.dimension.value.data >= SnitchResources.dimensions:
+        if self.dimension.data >= SnitchResources.dimensions:
             raise VerifyException(
                 f"dimension attribute out of range [0..{SnitchResources.dimensions-1}], "
                 f"Snitch supports up to {SnitchResources.dimensions} dimensions per streamer"
@@ -65,11 +66,16 @@ class SsrSetStreamConfigOperation(IRDLOperation, ABC):
     configuration value for a streamer.
     """
 
-    stream: Operand = operand_def(IntRegisterType)
     value: Operand = operand_def(IntRegisterType)
+    dm = attr_def(IntAttr)
 
-    def __init__(self, stream: Operation | SSAValue, value: Operation | SSAValue):
-        super().__init__(operands=[stream, value])
+    def __init__(self, value: Operation | SSAValue, dm: IntAttr):
+        super().__init__(
+            operands=[value],
+            attributes={
+                "dm": dm,
+            },
+        )
 
 
 @irdl_op_definition
@@ -146,6 +152,7 @@ class SsrDisable(IRDLOperation):
 
 
 Snitch = Dialect(
+    "snitch",
     [
         SsrSetDimensionBoundOp,
         SsrSetDimensionStrideOp,

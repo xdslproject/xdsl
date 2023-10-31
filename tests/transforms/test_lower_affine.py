@@ -2,9 +2,8 @@ import pytest
 
 from xdsl.dialects import arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr
-from xdsl.ir.affine import AffineExpr
-from xdsl.ir.affine.affine_expr import AffineBinaryOpExpr, AffineBinaryOpKind
-from xdsl.ir.core import Operation, SSAValue
+from xdsl.ir import Operation, SSAValue
+from xdsl.ir.affine import AffineBinaryOpExpr, AffineBinaryOpKind, AffineExpr
 from xdsl.transforms.lower_affine import affine_expr_ops
 from xdsl.utils.test_value import TestSSAValue
 

@@ -206,20 +206,25 @@ class Load(IRDLOperation):
         unresolved_indices = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_unresolved_operand
         )
+        attributes = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         ref_type = parser.parse_attribute()
         resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
         resolved_indices = [
             parser.resolve_operand(index, IndexType()) for index in unresolved_indices
         ]
-        return cls.get(resolved_ref, resolved_indices)
+        res = cls.get(resolved_ref, resolved_indices)
+        res.attributes.update(attributes)
+        return res
 
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print(self.memref)
         printer.print_string("[")
         printer.print_list(self.indices, printer.print_operand)
-        printer.print_string("] : ")
+        printer.print_string("]")
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
         printer.print_attribute(self.memref.type)
 
 
@@ -258,13 +263,16 @@ class Store(IRDLOperation):
         unresolved_indices = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, parser.parse_unresolved_operand
         )
+        attributes = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         ref_type = parser.parse_attribute()
         resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
         resolved_indices = [
             parser.resolve_operand(index, IndexType()) for index in unresolved_indices
         ]
-        return cls.get(value, resolved_ref, resolved_indices)
+        res = cls.get(value, resolved_ref, resolved_indices)
+        res.attributes.update(attributes)
+        return res
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -273,7 +281,9 @@ class Store(IRDLOperation):
         printer.print(self.memref)
         printer.print_string("[")
         printer.print_list(self.indices, printer.print_operand)
-        printer.print_string("] : ")
+        printer.print_string("]")
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
         printer.print_attribute(self.memref.type)
 
 
@@ -674,6 +684,7 @@ class CopyOp(IRDLOperation):
 
 
 MemRef = Dialect(
+    "memref",
     [
         Load,
         Store,

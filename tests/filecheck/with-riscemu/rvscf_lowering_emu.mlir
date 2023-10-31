@@ -13,7 +13,7 @@ builtin.module {
     %8 = riscv.mv %4 : (!riscv.reg<a3>) -> !riscv.reg<a0>
     riscv.custom_assembly_instruction %4 {"instruction_name" = "print"} : (!riscv.reg<a3>) -> ()
     riscv.li 93 : () -> !riscv.reg<a7>
-    riscv.ecall : () -> ()
+    riscv.ecall
     riscv_func.return
   }
 }

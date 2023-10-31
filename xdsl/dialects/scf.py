@@ -22,12 +22,18 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+    ensure_terminator,
+)
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
@@ -76,10 +82,9 @@ class Yield(IRDLOperation):
     name = "scf.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(
+        lambda: frozenset([IsTerminator(), HasParent(For, If, ParallelOp, While)])
+    )
 
     def __init__(self, *operands: SSAValue | Operation):
         super().__init__(operands=[operands])
@@ -239,7 +244,10 @@ class For(IRDLOperation):
             printer.print_list((a.type for a in iter_args), printer.print_attribute)
             printer.print_string(") ")
         printer.print_region(
-            self.body, print_entry_block_args=False, print_empty_block=False
+            self.body,
+            print_entry_block_args=False,
+            print_empty_block=False,
+            print_block_terminators=bool(iter_args),
         )
 
     @classmethod
@@ -280,11 +288,14 @@ class For(IRDLOperation):
 
         # Parse body
         body = parser.parse_region((index, *iter_args))
-        if not body.block.ops:
-            assert not iter_args, "Cannot create implicit yield with arguments"
-            body.block.add_op(Yield())
 
-        return For(lb, ub, step, iter_arg_operands, body)
+        for_op = For(lb, ub, step, iter_arg_operands, body)
+
+        if not iter_args:
+            for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):
+                ensure_terminator(for_op, trait)
+
+        return for_op
 
 
 @irdl_op_definition
@@ -521,6 +532,7 @@ class Condition(IRDLOperation):
 
 
 Scf = Dialect(
+    "scf",
     [
         If,
         For,

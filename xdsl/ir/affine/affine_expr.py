@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -36,19 +37,42 @@ class AffineExpr:
         return AffineSymExpr(position)
 
     def compose(self, map: AffineMap) -> AffineExpr:
-        """Compose the affine expression with the given affine map."""
-        if map.num_symbols != 0:
-            raise NotImplementedError("AffineMap with symbol not supported yet")
+        """
+        Compose with an AffineMap.
 
+        Returns the composition of this AffineExpr with map.
+
+        Prerequisites: this and map are composable, i.e. that the number of AffineDimExpr of this is smaller than the number of results of map. If a result of a map does not have a corresponding AffineDimExpr, that result simply does not appear in the produced AffineExpr.
+
+        Example:
+        ```
+        expr: d0 + d2
+        map: (d0, d1, d2)[s0, s1] -> (d0 + s1, d1 + s0, d0 + d1 + d2)
+        returned expr: d0 * 2 + d1 + d2 + s1
+        ```
+        """
+        return self.replace_dims_and_symbols(map.results, ())
+
+    def replace_dims_and_symbols(
+        self, new_dims: Sequence[AffineExpr], new_symbols: Sequence[AffineExpr]
+    ) -> AffineExpr:
+        """Replace the symbols and indices in this map with the ones provided."""
         if isinstance(self, AffineConstantExpr):
             return self
 
-        if isinstance(self, AffineDimExpr) or isinstance(self, AffineSymExpr):
-            return map.results[self.position]
+        if isinstance(self, AffineDimExpr):
+            if self.position >= len(new_dims):
+                return self
+            return new_dims[self.position]
+
+        if isinstance(self, AffineSymExpr):
+            if self.position >= len(new_symbols):
+                return self
+            return new_symbols[self.position]
 
         if isinstance(self, AffineBinaryOpExpr):
-            lhs = self.lhs.compose(map)
-            rhs = self.rhs.compose(map)
+            lhs = self.lhs.replace_dims_and_symbols(new_dims, new_symbols)
+            rhs = self.rhs.replace_dims_and_symbols(new_dims, new_symbols)
 
             return AffineBinaryOpExpr(
                 lhs=lhs,
@@ -58,7 +82,7 @@ class AffineExpr:
 
         raise ValueError("Unreachable")
 
-    def eval(self, dims: list[int], symbols: list[int]) -> int:
+    def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> int:
         """Evaluate the affine expression with the given dimension and symbol values."""
         if isinstance(self, AffineConstantExpr):
             return self.value
