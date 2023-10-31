@@ -21,7 +21,7 @@
     align: center bottom;
 }
 
-#passes {
+#passes_list {
     padding: 1;
     border: solid $accent;
     border-title-color: green;
@@ -46,16 +46,19 @@ Screen {
     color: black;
 }
 
-App Static {
-    background: blue 20%;
-    height: 5;
-    margin: 2;
-    padding: 1;
-    border: wide black;
-}
 
 #generate {
     margin: 1 1;
     height: 3;
     width: 3;
+}
+
+#input_output{
+    layout: horizontal;
+    height: auto;
+}
+
+#list_and_input_output{
+    layout: vertical;
+    height: auto;
 }

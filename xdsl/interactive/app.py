@@ -1,25 +1,19 @@
 from io import StringIO
 
-from textual import events, on
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, VerticalScroll
-from textual.events import Mount
+from textual.containers import Container, VerticalScroll
 from textual.widgets import (
     Button,
-    Footer,
-    Header,
     Label,
-    Pretty,
-    RichLog,
     SelectionList,
-    Static,
     TextArea,
 )
 
 from xdsl.ir.core import MLContext
 from xdsl.parser.core import Parser
+from xdsl.passes import ModulePass
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import get_all_dialects
+from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
 
 def transform_input(input_text: str) -> str:
@@ -59,7 +53,6 @@ class InputApp(App[None]):
     CSS_PATH = "app.tcss"
 
     text: str
-    x = 0
 
     def __init__(self, text: str | None = None):
         if text is None:
@@ -68,34 +61,39 @@ class InputApp(App[None]):
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield TextArea(self.text, id="input")
-        yield Container(VerticalScroll(Label(self.text, id="output")))
-        yield Static("Tree", id="sidebar")
-        yield Header()
-        yield SelectionList[str](
-            ("Pass 1", "-canonicalize"),
-            ("Pass 2", "-print-ir"),
-            ("Pass 3", "-cse"),
-            ("Pass 4", "-remove-dead-values"),
-            id="passes",
+        list_of_passes = get_all_passes()
+        selections = [(value.name, value) for value in list_of_passes]
+        my_selection_list: SelectionList[type[ModulePass]] = SelectionList(
+            *selections, id="passes_list"
         )
-        yield Pretty([], id="passes_list")
-        yield Footer()
-        yield Horizontal(Button("Generate"))
+        """yield Pretty([], id="selected_passes")"""
 
+        yield Container(
+            my_selection_list,
+            Container(
+                TextArea(self.text, id="input"),
+                VerticalScroll(Label(self.text, id="output")),
+                id="input_output",
+            ),
+            id="list_and_input_output",
+        )
+        """yield Horizontal(Button("Generate"))"""
+
+    """
     @on(Mount)
     @on(SelectionList.SelectedChanged)
     def update_selected_view(self) -> None:
         self.query_one(Pretty).update(self.query_one(SelectionList).selected)
+    """
 
     def on_mount(self) -> None:
         self.query_one("#input", TextArea).border_title = "Input"
-        self.query_one(SelectionList).border_title = "Choose a pass to be performed."
-        self.query_one(Pretty).border_title = "Selected pass(es)"
+        self.query_one(SelectionList).border_title = "Choose a pass to be applied."
+        """self.query_one(Pretty).border_title = "Selected pass(es)" """
         self.query_one("#output", Label).border_title = "Output"
 
-    def on_key(self, event: events.Key) -> None:
-        self.query_one(RichLog).write(event)
+    # def on_key(self, event: events.Key) -> None:
+    #     self.query_one(RichLog).write(event)
 
     def on_text_area_changed(self, event: TextArea.Changed):
         input_text = event.text_area.text
