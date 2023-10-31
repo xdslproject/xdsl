@@ -38,10 +38,9 @@ class OutputTextArea(TextArea):
 
 
 class InputApp(App[None]):
-    """Experimental App."""
+    """Experimental App"""
 
     CSS_PATH = "app.tcss"
-
     text: str
 
     def __init__(self, text: str | None = None):
@@ -56,9 +55,9 @@ class InputApp(App[None]):
         my_selection_list: SelectionList[type[ModulePass]] = SelectionList(
             *selections, id="passes_list"
         )
+        yield my_selection_list
         yield Label("", id="selected_passes")
 
-        yield my_selection_list
         yield Horizontal(
             TextArea(self.text, id="input"),
             Container(
@@ -67,6 +66,7 @@ class InputApp(App[None]):
             ),
             id="input_output",
         )
+        yield Horizontal(Button("Clear Input"), id="clear input")
         """yield Horizontal(Button("Generate"))"""
 
     def selected_module_passes(self) -> list[type[ModulePass]]:
@@ -74,16 +74,18 @@ class InputApp(App[None]):
 
     @on(SelectionList.SelectedChanged)
     def update_selected_view(self) -> None:
-        new_passes = ",".join(p.name for p in self.selected_module_passes())
+        new_passes = ", ".join(p.name for p in self.selected_module_passes())
         new_label = f"xdsl-opt -p {new_passes}"
         self.query_one(Label).update(new_label)
         self.execute()
 
     def on_mount(self) -> None:
-        self.query_one("#input", TextArea).border_title = "Input"
-        self.query_one(SelectionList).border_title = "Choose a pass to be applied."
+        self.query_one("#input", TextArea).border_title = "Input xDSL IR"
+        self.query_one(
+            SelectionList
+        ).border_title = "Choose pass or multiple passes to be applied."
         """self.query_one(Pretty).border_title = "Selected pass(es)" """
-        self.query_one("#output-container").border_title = "Output"
+        self.query_one("#output-container").border_title = "Output xDSL IR"
         self.execute()
 
     # def on_key(self, event: events.Key) -> None:
@@ -105,7 +107,8 @@ class InputApp(App[None]):
         self.execute(event.text_area)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.exit(str(event.button))
+        input = self.query_one("#input", TextArea)
+        input.clear()
 
 
 if __name__ == "__main__":
@@ -127,6 +130,7 @@ def run_terminal_command(command):
         # If the command exits with a non-zero status code, it will raise an exception.
         print(f"Error: {e}")
         return None
+
 
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
