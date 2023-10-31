@@ -5,8 +5,8 @@ from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal
 from textual.widgets import Button, Label, SelectionList, TextArea
 
-from xdsl.ir.core import MLContext
-from xdsl.parser.core import Parser
+from xdsl.ir import MLContext
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
@@ -15,7 +15,7 @@ def transform_input(input_text: str) -> str:
     try:
         ctx = MLContext(True)
         for dialect in get_all_dialects():
-            ctx.register_dialect(dialect)
+            ctx.load_dialect(dialect)
 
         parser = Parser(ctx, input_text)
         module = parser.parse_module()
