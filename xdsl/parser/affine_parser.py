@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from xdsl.ir.affine import AffineExpr, AffineMap
-from xdsl.ir.affine.affine_set import (
+from xdsl.ir.affine import (
     AffineConstraintExpr,
     AffineConstraintKind,
+    AffineExpr,
+    AffineMap,
     AffineSet,
 )
 from xdsl.parser.base_parser import BaseParser, ParserState

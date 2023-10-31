@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from xdsl.ir.affine.affine_expr import AffineExpr
+from xdsl.ir.affine import AffineExpr
 
 
 class AffineConstraintKind(Enum):

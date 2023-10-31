@@ -32,8 +32,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.affine import AffineMap
-from xdsl.ir.affine.affine_set import AffineSet
+from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
     AllOf,
     AnyAttr,

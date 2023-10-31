@@ -51,8 +51,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
-from xdsl.ir.affine import AffineMap
-from xdsl.ir.affine.affine_set import AffineSet
+from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.parser.base_parser import BaseParser
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.hints import isa
