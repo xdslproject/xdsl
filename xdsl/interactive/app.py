@@ -58,7 +58,7 @@ class InputApp(App[None]):
         yield Horizontal(
             TextArea(self.text, id="input"),
             Container(
-                OutputTextArea(self.text, id="output"),
+                OutputTextArea("No output", id="output"),
                 id="output-container",
             ),
             id="input_output",
@@ -80,20 +80,25 @@ class InputApp(App[None]):
     # def on_key(self, event: events.Key) -> None:
     #     self.query_one(RichLog).write(event)
 
-    @on(TextArea.Changed, "#input")
-    def on_input_changed(self, event: TextArea.Changed):
-        input_text = event.text_area.text
-        output_text = transform_input(input_text)
+    def execute(self, input: TextArea | None = None):
+        if input is None:
+            input = self.query_one("#input", TextArea)
 
+        input_text = input.text
+        output_text = transform_input(input_text)
         output = self.query_one("#output", TextArea)
         output.load_text(output_text)
+
+    @on(TextArea.Changed, "#input")
+    def on_input_changed(self, event: TextArea.Changed):
+        self.execute(event.text_area)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.exit(str(event.button))
 
 
 if __name__ == "__main__":
-    path = "bla.mlir"
+    path = "tests/filecheck/backend/riscv/canonicalize.mlir"
     with open(path) as f:
         text = f.read()
     app = InputApp(text)
