@@ -161,6 +161,25 @@ def test_riscv_interpreter():
         ),
         (3.0, 4.0),
     ) == (0.75,)
+
+    assert interpreter.run_op(
+        riscv.FMinDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (1, 2),
+    ) == (1,)
+
+    assert interpreter.run_op(
+        riscv.FMaxDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (1, 2),
+    ) == (2,)
+
     assert interpreter.run_op(
         riscv.FMVOp(TestSSAValue(register), rd=riscv.FloatRegisterType.unallocated()),
         (42.0,),

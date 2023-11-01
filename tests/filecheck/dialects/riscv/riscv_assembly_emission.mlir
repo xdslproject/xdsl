@@ -265,6 +265,10 @@
     // CHECK-NEXT: fmul.d j8, j5, j6
     %fdiv_d = riscv.fdiv.d %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
     // CHECK-NEXT: fdiv.d j8, j5, j6
+    %fmin_d = riscv.fmin.d %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fmin.d j8, j5, j6
+    %fmax_d = riscv.fmax.d %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fmax.d j8, j5, j6
 
     // Vector Ops
     %vfadd_s = riscv.vfadd.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
