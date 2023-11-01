@@ -173,6 +173,21 @@ class AttrParser(BaseParser):
         return dict(attrs)
 
     def _parse_dialect_type_or_attribute_inner(
+        self, attr_def: type[Attribute], is_type: bool
+    ):
+        if issubclass(attr_def, UnregisteredAttr):
+            body = self._parse_unregistered_attr_body()
+            return attr_def(attr_def.name, is_type, body)
+        elif issubclass(attr_def, ParametrizedAttribute):
+            param_list = attr_def.parse_parameters(self)
+            return attr_def.new(param_list)
+        elif issubclass(attr_def, Data):
+            param: Any = attr_def.parse_parameter(self)
+            return cast(Data[Any], attr_def(param))
+        else:
+            raise TypeError("Attributes are either ParametrizedAttribute or Data.")
+
+    def _parse_dialect_type_or_attribute(
         self, attr_name: str, is_type: bool = True
     ) -> Attribute:
         """
@@ -201,19 +216,7 @@ class AttrParser(BaseParser):
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
 
-        attr = None
-        # Pass the task of parsing parameters on to the attribute/type definition
-        if issubclass(attr_def, UnregisteredAttr):
-            body = self._parse_unregistered_attr_body()
-            attr = attr_def(attr_name, is_type, body)
-        elif issubclass(attr_def, ParametrizedAttribute):
-            param_list = attr_def.parse_parameters(self)
-            attr = attr_def.new(param_list)
-        elif issubclass(attr_def, Data):
-            param: Any = attr_def.parse_parameter(self)
-            attr = cast(Data[Any], attr_def(param))
-
-        assert attr is not None, "Attributes are either ParametrizedAttribute or Data."
+        attr = self._parse_dialect_type_or_attribute_inner(attr_def, is_type)
 
         if not pretty:
             self.parse_punctuation(">")
