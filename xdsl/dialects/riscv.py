@@ -3463,7 +3463,7 @@ class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
     https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.d.w
     """
 
-    name = "riscv.fcvt.s.w"
+    name = "riscv.fcvt.d.w"
 
 
 @irdl_op_definition
