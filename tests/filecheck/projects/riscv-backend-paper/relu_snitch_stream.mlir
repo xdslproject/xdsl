@@ -24,8 +24,8 @@ builtin.module {
       %stride_pattern = "snitch_stream.stride_pattern"() {"ub" = [#int<2>, #int<3>], "strides" = [#int<24>, #int<8>], "dm" = #int<31>} : () -> !snitch_stream.stride_pattern_type
       %a_stream = "snitch_stream.strided_read"(%A, %stride_pattern) {"dm" = #int<0>, "rank" = #int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.readable<!riscv.freg<ft0>>
       %b_stream = "snitch_stream.strided_write"(%B, %stride_pattern) {"dm" = #int<1>, "rank" = #int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.writable<!riscv.freg<ft1>>
-      %B6 = riscv.li 6 : () -> !riscv.reg<>
-      "snitch_stream.generic"(%B6, %a_stream, %b_stream) <{"operandSegmentSizes" = array<i32: 1, 1, 1>}> ({
+      %c6 = riscv.li 6 : () -> !riscv.reg<>
+      "snitch_stream.generic"(%c6, %a_stream, %b_stream) <{"operandSegmentSizes" = array<i32: 1, 1, 1>}> ({
       ^0(%a : !riscv.freg<ft0>):
         %res = riscv.fmax.d %a, %zero_3 : (!riscv.freg<ft0>, !riscv.freg<>) -> !riscv.freg<ft1>
         snitch_stream.yield %res : !riscv.freg<ft1>
@@ -48,5 +48,4 @@ builtin.module {
   }
 }
 
-// [[1.0, -1.0, 0.0], [2.0, -2.0, 0.0]]
 // CHECK: [[1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]
