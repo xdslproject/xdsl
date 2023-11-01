@@ -1,5 +1,7 @@
 from collections.abc import Sequence
-from typing import cast
+from typing import Generic, cast
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     DictionaryAttr,
@@ -7,7 +9,8 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
 )
-from xdsl.ir import Attribute, BlockArgument, Operation, Region, SSAValue
+from xdsl.ir import Attribute, AttributeInvT, BlockArgument, Operation, Region, SSAValue
+from xdsl.irdl import IRDLOperation, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.hints import isa
@@ -91,6 +94,28 @@ def parse_return_op_like(
         args = ()
 
     return attrs, args
+
+
+class AbstractYieldOperation(Generic[AttributeInvT], IRDLOperation):
+    """
+    A base class for yielding operations to inherit, provides the standard custom syntax
+    and a definition of the `arguments` variadic operand.
+    """
+
+    arguments = var_operand_def(AttributeInvT)
+
+    def __init__(self, *operands: SSAValue | Operation):
+        super().__init__(operands=[operands])
+
+    def print(self, printer: Printer):
+        print_return_op_like(printer, self.attributes, self.arguments)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        attrs, args = parse_return_op_like(parser)
+        op = cls(*args)
+        op.attributes.update(attrs)
+        return op
 
 
 def print_func_op_like(
