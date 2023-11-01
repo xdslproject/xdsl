@@ -63,23 +63,25 @@ class IteratorTypeAttr(Data[IteratorType]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> IteratorType:
-        if parser.parse_optional_keyword("parallel") is not None:
-            return IteratorType.PARALLEL
-        if parser.parse_optional_keyword("reduction") is not None:
-            return IteratorType.REDUCTION
-        if parser.parse_optional_keyword("window") is not None:
-            return IteratorType.WINDOW
-        parser.raise_error("`parallel`, `reduction` or `window` expected")
+        with parser.in_angle_brackets():
+            if parser.parse_optional_keyword("parallel") is not None:
+                return IteratorType.PARALLEL
+            if parser.parse_optional_keyword("reduction") is not None:
+                return IteratorType.REDUCTION
+            if parser.parse_optional_keyword("window") is not None:
+                return IteratorType.WINDOW
+            parser.raise_error("`parallel`, `reduction` or `window` expected")
 
     def print_parameter(self, printer: Printer) -> None:
-        data = self.data
-        match data:
-            case IteratorType.PARALLEL:
-                printer.print_string("parallel")
-            case IteratorType.REDUCTION:
-                printer.print_string("reduction")
-            case IteratorType.WINDOW:
-                printer.print_string("window")
+        with printer.in_angle_brackets():
+            data = self.data
+            match data:
+                case IteratorType.PARALLEL:
+                    printer.print_string("parallel")
+                case IteratorType.REDUCTION:
+                    printer.print_string("reduction")
+                case IteratorType.WINDOW:
+                    printer.print_string("window")
 
 
 @irdl_op_definition
