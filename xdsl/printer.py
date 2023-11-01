@@ -7,6 +7,7 @@ from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AffineSetAttr,
     AnyFloatAttr,
     AnyIntegerAttr,
     AnyUnrankedTensorType,
@@ -621,10 +622,15 @@ class Printer:
             self.print(">")
             return
 
+        if isinstance(attribute, AffineSetAttr):
+            self.print("affine_set<")
+            self.print(attribute.data)
+            self.print(">")
+            return
+
         if isinstance(attribute, UnregisteredAttr):
             # Do not print `!` or `#` for unregistered builtin attributes
-            if attribute.attr_name.data not in ["affine_set"]:
-                self.print("!" if attribute.is_type.data else "#")
+            self.print("!" if attribute.is_type.data else "#")
             self.print(attribute.attr_name.data, attribute.value.data)
             return
 

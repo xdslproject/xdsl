@@ -3,7 +3,7 @@ import pytest
 from xdsl.dialects.affine import For, Yield
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, IntegerType
 from xdsl.ir import Attribute, Block, Region
-from xdsl.ir.affine.affine_expr import AffineExpr
+from xdsl.ir.affine import AffineExpr
 
 
 def test_simple_for():
