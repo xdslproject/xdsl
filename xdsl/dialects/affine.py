@@ -31,6 +31,24 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
+
+
+@irdl_op_definition
+class Apply(IRDLOperation):
+    name = "affine.apply"
+
+    mapOperands = var_operand_def(IndexType)
+    map = attr_def(AffineMapAttr)
+    result = result_def(IndexType)
+
+    def verify_(self) -> None:
+        if len(self.mapOperands) != self.map.data.num_dims + self.map.data.num_symbols:
+            raise VerifyException(
+                "affine.apply expects as many operands as its map's dimensions and symbols."
+            )
+        if len(self.map.data.results) != 1:
+            raise VerifyException("affine.apply expects a unidimensional map.")
 
 
 @irdl_op_definition
