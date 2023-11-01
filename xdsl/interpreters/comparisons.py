@@ -19,7 +19,7 @@
 
     We follow LLVM and MLIR in having a concept of signless integers:
 
-    https://mlir.llvm.org/docs/Rationale/Rationale/#builtin.integer-signedness-semantics
+    https://mlir.llvm.org/docs/Rationale/Rationale/#integer-signedness-semantics
 
     The main idea is to not have the signedness be a property of the type of the value,
     and rather be a property of the operation. That means that a signless value can be
