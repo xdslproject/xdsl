@@ -89,16 +89,21 @@ class InputApp(App[None]):
 
         # Horizontal(SelectedList, Label) - Container to align the layout of the pass options + displaying selected passes
         with Horizontal(id="selected_passes_and_list_horizontal"):
-            yield my_selection_list  # SelectedList with the pass options
             # Label displaying the passes that have been selected
-            yield ScrollableContainer(Label(""), id="selected_passes")
+            with Horizontal(id="selection_list_and_button"):
+                yield my_selection_list  # SelectedList with the pass options
+                with Horizontal(id="clear_selection_list"):
+                    yield Button("Clear Passes", id="clear_selection_list_button")
+            yield ScrollableContainer(
+                Label("", id="selected_passes_label"), id="selected_passes"
+            )
         with Horizontal(id="input_output"):
             with Vertical(id="input_and_button"):
                 yield TextArea(self.text, id="input")  # TextArea with the Input IR
                 with Horizontal(
                     id="clear_input"
                 ):  # Horizontal(Button) used to Clear Input TextArea
-                    yield Button("Clear Input")
+                    yield Button("Clear Input", id="clear_input_button")
             # Container(OutputTextArea) to show Output IR (a TextArea class that has been extended)
             with Container(id="output_container"):
                 yield OutputTextArea("No output", id="output")
@@ -142,7 +147,6 @@ class InputApp(App[None]):
         self.execute()
 
     # On App Mount, add titles + execute()
-
     def on_mount(self) -> None:
         self.query_one("#input_and_button").border_title = "Input xDSL IR"
         self.query_one(
@@ -170,9 +174,18 @@ class InputApp(App[None]):
         self.execute(event.text_area)
 
     # When the "Clear Input" button is pressed, the input IR TextArea is cleared
+    @on(Button.Pressed, "#clear_input_button")
     def on_button_pressed(self, event: Button.Pressed) -> None:
         input = self.query_one("#input", TextArea)
         input.clear()
+
+    # When the "Clear Passes" button is preseed, the SelectionList is cleared
+    @on(Button.Pressed, "#clear_selection_list_button")
+    def on_clear_selection_list_button_pressed(self, event: Button.Pressed) -> None:
+        passes_selection_list = self.query_one("#passes_selection_list", SelectionList)
+        selected_passes = self.query_one("#selected_passes_label", Label)
+        passes_selection_list.deselect_all()
+        selected_passes.update("")
 
 
 if __name__ == "__main__":
