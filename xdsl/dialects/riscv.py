@@ -3454,6 +3454,19 @@ class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
+class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+    """
+    Converts a 32-bit signed integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.
+
+    x[rd] = sext(s32_{f64}(f[rs1]))
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.d.w
+    """
+
+    name = "riscv.fcvt.s.w"
+
+
+@irdl_op_definition
 class FLdOp(RdRsImmFloatOperation):
     """
     Load a double-precision value from memory into floating-point register rd.
@@ -3691,6 +3704,7 @@ RISCV = Dialect(
         FDivDOp,
         FMinDOp,
         FMaxDOp,
+        FCvtDWOp,
         FLdOp,
         FSdOp,
         VFAddSOp,
