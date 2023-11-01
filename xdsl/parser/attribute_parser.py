@@ -92,7 +92,7 @@ class AttrParser(BaseParser):
         if (
             token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
         ) is not None:
-            return self._parse_dialect_type_or_attribute_inner(token.text[1:], True)
+            return self._parse_dialect_type_or_attribute(token.text[1:], True)
         return self._parse_optional_builtin_type()
 
     def parse_type(self) -> Attribute:
@@ -124,7 +124,7 @@ class AttrParser(BaseParser):
                             | [^[]<>(){}\0]+
         """
         if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
-            return self._parse_dialect_type_or_attribute_inner(token.text[1:], False)
+            return self._parse_dialect_type_or_attribute(token.text[1:], False)
         return self._parse_optional_builtin_attr()
 
     def parse_attribute(self) -> Attribute:
@@ -172,12 +172,18 @@ class AttrParser(BaseParser):
             return dict()
         return dict(attrs)
 
-    def _parse_dialect_type_or_attribute_inner(
-        self, attr_def: type[Attribute], is_type: bool
+    def _parse_dialect_type_or_attribute_body(
+        self, attr_name: str, is_type: bool, is_opaque: bool
     ):
+        attr_def = self.ctx.get_optional_attr(
+            attr_name,
+            create_unregistered_as_type=is_type,
+        )
+        if attr_def is None:
+            self.raise_error(f"'{attr_name}' is not registered")
         if issubclass(attr_def, UnregisteredAttr):
             body = self._parse_unregistered_attr_body()
-            return attr_def(attr_def.name, is_type, body)
+            return attr_def(attr_name, is_type, is_opaque, body)
         elif issubclass(attr_def, ParametrizedAttribute):
             param_list = attr_def.parse_parameters(self)
             return attr_def.new(param_list)
@@ -188,7 +194,7 @@ class AttrParser(BaseParser):
             raise TypeError("Attributes are either ParametrizedAttribute or Data.")
 
     def _parse_dialect_type_or_attribute(
-        self, attr_name: str, is_type: bool = True
+        self, attr_or_dialect_name: str, is_type: bool = True
     ) -> Attribute:
         """
         Parse the contents of a dialect type or attribute, with format:
@@ -200,25 +206,22 @@ class AttrParser(BaseParser):
         The contents will be parsed by a user-defined parser, or by a generic parser
         if the dialect attribute/type is not registered.
         """
-        pretty = "." in attr_name
-        if not pretty:
+        is_opaque = "." not in attr_or_dialect_name
+        if is_opaque:
             self.parse_punctuation("<")
-            attr_name += (
+            attr_or_dialect_name += (
                 "."
                 + self._parse_token(
                     Token.Kind.BARE_IDENT, "Expected attribute name."
                 ).text
             )
-        attr_def = self.ctx.get_optional_attr(
-            attr_name,
-            create_unregistered_as_type=is_type,
+
+        attr = self._parse_dialect_type_or_attribute_body(
+            attr_or_dialect_name, is_type, is_opaque
         )
-        if attr_def is None:
-            self.raise_error(f"'{attr_name}' is not registered")
 
-        attr = self._parse_dialect_type_or_attribute_inner(attr_def, is_type)
-
-        if not pretty:
+        if is_opaque:
+            # print("parsed opaque ", attr)
             self.parse_punctuation(">")
 
         return attr

@@ -1315,6 +1315,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 
     attr_name: ParameterDef[StringAttr]
     is_type: ParameterDef[IntAttr]
+    is_opaque: ParameterDef[IntAttr]
     value: ParameterDef[StringAttr]
     """
     This parameter is non-null is the attribute is a type, and null otherwise.
@@ -1324,15 +1325,18 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
         self,
         attr_name: str | StringAttr,
         is_type: bool | IntAttr,
+        is_opaque: bool | IntAttr,
         value: str | StringAttr,
     ):
         if isinstance(attr_name, str):
             attr_name = StringAttr(attr_name)
         if isinstance(is_type, bool):
             is_type = IntAttr(int(is_type))
+        if isinstance(is_opaque, bool):
+            is_opaque = IntAttr(int(is_opaque))
         if isinstance(value, str):
             value = StringAttr(value)
-        super().__init__([attr_name, is_type, value])
+        super().__init__([attr_name, is_type, is_opaque, value])
 
     @classmethod
     def with_name_and_type(cls, name: str, is_type: bool) -> type[UnregisteredAttr]:
