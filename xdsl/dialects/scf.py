@@ -6,10 +6,9 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import IndexType, IntegerType
 from xdsl.dialects.utils import (
+    AbstractYieldOperation,
     parse_assignment,
-    parse_return_op_like,
     print_assignment,
-    print_return_op_like,
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
@@ -78,31 +77,12 @@ class While(IRDLOperation):
 
 
 @irdl_op_definition
-class Yield(IRDLOperation):
+class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
-    arguments: VarOperand = var_operand_def(AnyAttr())
 
     traits = traits_def(
         lambda: frozenset([IsTerminator(), HasParent(For, If, ParallelOp, While)])
     )
-
-    def __init__(self, *operands: SSAValue | Operation):
-        super().__init__(operands=[operands])
-
-    @staticmethod
-    @deprecated("use Yield() instead!")
-    def get(*operands: SSAValue | Operation) -> Yield:
-        return Yield(*operands)
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.arguments)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs, args = parse_return_op_like(parser)
-        op = Yield(*args)
-        op.attributes.update(attrs)
-        return op
 
 
 @irdl_op_definition
