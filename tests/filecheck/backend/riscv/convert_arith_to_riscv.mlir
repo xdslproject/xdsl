@@ -101,7 +101,10 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.fdiv.s %lhsf32_1, %rhsf32_1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     %negf32 = "arith.negf"(%rhsf32) : (f32) -> f32
     // CHECK-NEXT: %{{.*}} = riscv.fsgnjn.s %rhsf32_1, %rhsf32_1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-
+    %minf32 = "arith.minf"(%lhsf32, %rhsf32) : (f32, f32) -> f32
+    // CHECK-NEXT: %{{.*}} = riscv.fmin.s %lhsf32_1, %rhsf32_1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %maxf32 = "arith.maxf"(%lhsf32, %rhsf32) : (f32, f32) -> f32
+    // CHECK-NEXT: %{{.*}} = riscv.fmax.s %lhsf32_1, %rhsf32_1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
     %addf64 = "arith.addf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
     // CHECK-NEXT: %{{.*}} = riscv.fadd.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
@@ -111,6 +114,10 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.fmul.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     %divf64 = "arith.divf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
     // CHECK-NEXT: %{{.*}} = riscv.fdiv.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %minf64 = "arith.minf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fmin.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %maxf64 = "arith.maxf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fmax.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
     %sitofp = "arith.sitofp"(%lhsi32) : (i32) -> f32
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %lhsi32 : (!riscv.reg<>) -> !riscv.freg<>
