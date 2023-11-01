@@ -372,6 +372,8 @@ class Attribute(ABC):
 
     def __post_init__(self):
         self._verify()
+        if not isinstance(self, Data | ParametrizedAttribute):
+            raise TypeError("Attributes should only be Data or ParameterizedAttribute")
 
     def _verify(self):
         self.verify()

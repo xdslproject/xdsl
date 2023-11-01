@@ -27,6 +27,19 @@ from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 
+
+def test_wrong_attribute_type():
+    with pytest.raises(
+        TypeError,
+        match="Class AbstractAttribute should either be a subclass of 'Data' or 'ParametrizedAttribute'",
+    ):
+
+        @irdl_attr_definition
+        class AbstractAttribute(Attribute):
+            name = "test.wrong"
+            pass
+
+
 ################################################################################
 # Data attributes
 ################################################################################
