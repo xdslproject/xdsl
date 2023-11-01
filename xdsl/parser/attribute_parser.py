@@ -221,7 +221,6 @@ class AttrParser(BaseParser):
         )
 
         if is_opaque:
-            # print("parsed opaque ", attr)
             self.parse_punctuation(">")
 
         return attr
