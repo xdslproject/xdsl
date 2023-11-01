@@ -10,6 +10,7 @@ from xdsl.backend.riscv.lowering import (
     convert_func_to_riscv_func,
     convert_memref_to_riscv,
     convert_scf_to_riscv_scf,
+    convert_snitch_stream_to_snitch,
     reduce_register_pressure,
 )
 from xdsl.dialects.affine import Affine
@@ -124,6 +125,7 @@ def get_all_passes() -> list[type[ModulePass]]:
     return [
         canonicalize.CanonicalizePass,
         canonicalize_dmp.CanonicalizeDmpPass,
+        convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
