@@ -82,10 +82,9 @@ class AllReduceOpAttr(
     def parse_parameter(
         cls, parser: AttrParser
     ) -> Literal["add", "and", "max", "min", "mul", "or", "xor"]:
-        for kw in ("add", "and", "max", "min", "mul", "or", "xor"):
-            val = parser.parse_optional_keyword(kw)
-            if val in ("add", "and", "max", "min", "mul", "or", "xor"):
-                return val
+        val = parser.parse_identifier()
+        if val in ("add", "and", "max", "min", "mul", "or", "xor"):
+            return val
         parser.raise_error("Expected add, and, max, min, mul, or, or xor.")
 
 
@@ -97,14 +96,11 @@ class DimensionAttr(Data[Literal["x", "y", "z"]], OpaqueSyntaxAttribute):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> Literal["x", "y", "z"]:
-        for kw in ("x", "y", "z"):
-            val = parser.parse_optional_keyword(kw)
-            if val in ("x", "y", "z"):
-                return val
+        val = parser.parse_identifier()
+        if val in ("x", "y", "z"):
+            return val
         parser.raise_error("Expected x, y or z.")
 
-
-_Element = TypeVar("_Element", bound=Attribute, covariant=True)
 
 _Element = TypeVar("_Element", bound=Attribute, covariant=True)
 
@@ -690,10 +686,6 @@ class YieldOp(IRDLOperation):
                 )
 
 
-# _GPUAttr has to be registered instead of DimensionAttr and AllReduceOpAttr here.
-# This is a hack to fit MLIR's syntax in xDSL's way of parsing attributes, without making GPU builtin.
-# Hopefully MLIR will parse it in a more xDSL-friendly way soon, so all that can be factored in proper xDSL
-# atrributes.
 GPU = Dialect(
     "gpu",
     [

@@ -69,7 +69,7 @@ should be used for this index.
 @irdl_attr_definition
 class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#test.structure-types
+    https://mlir.llvm.org/docs/Dialects/LLVM/#structure-types
     """
 
     name = "llvm.struct"
