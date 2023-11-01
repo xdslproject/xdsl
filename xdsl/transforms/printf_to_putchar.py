@@ -226,8 +226,7 @@ class PrintfToPutcharPass(ModulePass):
             # This has to happen first, since mlir_itoa
             # contains some references to printf.print_char
             # Add function implementation for mlir_itoa if it isn't there already
-            if SymbolTable.lookup_symbol(op, "mlir_itoa") is None:
-                op.body.block.add_ops([get_mlir_itoa()])
+            SymbolTable.insert_or_update(op, get_mlir_itoa())
         # Check if there are any printchars
         contains_printchar = any(
             isinstance(op_in_module, PrintCharOp) for op_in_module in op.walk()
@@ -239,5 +238,5 @@ class PrintfToPutcharPass(ModulePass):
             )
             print_char_walker.rewrite_module(op)
             # Add external putchar reference if not already there
-            if SymbolTable.lookup_symbol(op, "putchar") is None:
-                op.body.block.add_ops([func.FuncOp.external("putchar", [i32], [i32])])
+            func_op = func.FuncOp.external("putchar", [i32], [i32])
+            SymbolTable.insert_or_update(op, func_op)
