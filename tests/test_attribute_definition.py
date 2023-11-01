@@ -35,7 +35,7 @@ def test_wrong_attribute_type():
     ):
 
         @irdl_attr_definition
-        class AbstractAttribute(Attribute):
+        class AbstractAttribute(Attribute):  # pyright: ignore[reportUnusedClass]
             name = "test.wrong"
             pass
 
