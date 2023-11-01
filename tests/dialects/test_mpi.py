@@ -9,16 +9,16 @@ def test_mpi_baseop():
     """
     alloc0 = memref.Alloc.get(f64, 32, [100, 14, 14])
     dest = Constant.from_int_and_width(1, i32)
-    unwrap = mpi.UnwrapMemrefOp.get(alloc0)
-    req_vec = mpi.AllocateTypeOp.get(mpi.RequestType, dest)
-    req_obj = mpi.VectorGetOp.get(req_vec, dest)
+    unwrap = mpi.UnwrapMemrefOp(alloc0)
+    req_vec = mpi.AllocateTypeOp(mpi.RequestType, dest)
+    req_obj = mpi.VectorGetOp(req_vec, dest)
     tag = Constant.from_int_and_width(1, i32)
-    send = mpi.Isend.get(unwrap.ptr, unwrap.len, unwrap.type, dest, tag, req_obj)
-    wait = mpi.Wait.get(send.request, ignore_status=False)
-    recv = mpi.Irecv.get(unwrap.ptr, unwrap.len, unwrap.type, dest, tag, req_obj)
-    test_res = mpi.Test.get(recv.request)
+    send = mpi.Isend(unwrap.ptr, unwrap.len, unwrap.type, dest, tag, req_obj)
+    wait = mpi.Wait(send.request, ignore_status=False)
+    recv = mpi.Irecv(unwrap.ptr, unwrap.len, unwrap.type, dest, tag, req_obj)
+    test_res = mpi.Test(recv.request)
     assert wait.status is not None
-    source = mpi.GetStatusField.get(wait.status, mpi.StatusTypeField.MPI_SOURCE)
+    source = mpi.GetStatusField(wait.status, mpi.StatusTypeField.MPI_SOURCE)
 
     assert unwrap.ref == alloc0.memref
     assert send.buffer == unwrap.ptr

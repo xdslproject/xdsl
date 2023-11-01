@@ -32,7 +32,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
@@ -1165,6 +1165,20 @@ class AffineMapAttr(Data[AffineMap]):
         return AffineMapAttr(AffineMap.constant_map(value))
 
 
+@irdl_attr_definition
+class AffineSetAttr(Data[AffineSet]):
+    """An attribute containing an AffineSet object."""
+
+    name = "affine_set"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> AffineSet:
+        return parser.parse_affine_set()
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f"{self.data}")
+
+
 @irdl_op_definition
 class UnrealizedConversionCastOp(IRDLOperation):
     name = "builtin.unrealized_conversion_cast"
@@ -1411,6 +1425,7 @@ f128 = Float64Type()
 
 
 Builtin = Dialect(
+    "builtin",
     [
         ModuleOp,
         UnregisteredOp,
@@ -1451,5 +1466,6 @@ Builtin = Dialect(
         TensorType,
         UnrankedTensorType,
         AffineMapAttr,
+        AffineSetAttr,
     ],
 )

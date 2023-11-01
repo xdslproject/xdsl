@@ -24,6 +24,22 @@ from xdsl.ir.affine import AffineExpr, AffineMap
 
 
 def indexing_map_from_bounds(bounds: Sequence[int]) -> AffineMap:
+    """
+    Given a set of upper bounds of the nested loop, creates a map that represents the
+    values of the loop iterators.
+
+    e.g.:
+    ```
+    for i in range(2):
+        for j in range(3):
+            print(i, j) # -> (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)
+
+    map = indexing_map_from_bounds([2, 3])
+
+    for k in range(6):
+        print(map.eval(k)) # -> (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)
+    ```
+    """
     divs = tuple(accumulate(reversed(bounds), mul, initial=1))[-2::-1]
     return AffineMap(
         1,
@@ -38,6 +54,29 @@ def indexing_map_from_bounds(bounds: Sequence[int]) -> AffineMap:
 
 
 def offset_map_from_strides(strides: Sequence[int]) -> AffineMap:
+    """
+    Given a set of offsets for each bound of the nested loop, creates a map that
+    represents the offset from the base_ptr that the stream will fetch.
+
+    e.g.:
+    ```
+    my_list = [1, 2, 3, 4, 5, 6]
+    strides = [3, 1]
+    for i in range(2):
+        for j in range(3):
+            k = i * 3 + j
+            el = my_list[k]
+            print(el) # -> 1, 2, 3, 4, 5, 6
+
+    map = offset_map_from_strides([3, 1])
+
+    for i in range(2):
+        for j in range(3):
+            k = map.eval(i, j)
+            el = my_list[k]
+            print(el) # -> 1, 2, 3, 4, 5, 6
+    ```
+    """
     if not strides:
         # Return empty map to avoid reducing over an empty sequence
         return AffineMap(1, 0, ())
@@ -61,6 +100,10 @@ class StridePattern:
 
     @property
     def offset_expr(self) -> AffineExpr:
+        """
+        Creates the map that represents the offset that the stream will read from or write
+        to at register access "i".
+        """
         indexing_map = indexing_map_from_bounds(self.ub)
         offset_map = offset_map_from_strides(self.strides)
         result_map = offset_map.compose(indexing_map)

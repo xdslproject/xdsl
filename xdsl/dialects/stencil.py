@@ -864,6 +864,7 @@ class AccessPattern:
 
 
 Stencil = Dialect(
+    "stencil",
     [
         CastOp,
         ExternalLoadOp,

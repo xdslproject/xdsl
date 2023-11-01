@@ -269,6 +269,7 @@ class StridedWriteOp(IRDLOperation):
 
 
 Stream = Dialect(
+    "stream",
     [
         GenericOp,
         YieldOp,

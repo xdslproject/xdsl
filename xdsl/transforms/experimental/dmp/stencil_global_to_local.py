@@ -256,9 +256,9 @@ def generate_mpi_calls_for(
     # we need two request objects per exchange
     # one for the send, one for the recv
     req_cnt = arith.Constant.from_int_and_width(len(exchanges) * 2, builtin.i32)
-    reqs = mpi.AllocateTypeOp.get(mpi.RequestType, req_cnt)
+    reqs = mpi.AllocateTypeOp(mpi.RequestType, req_cnt)
     # get comm rank
-    rank = mpi.CommRank.get()
+    rank = mpi.CommRank()
     # define static tag of 0
     tag = arith.Constant.from_int_and_width(0, builtin.i32)
 
@@ -288,15 +288,15 @@ def generate_mpi_calls_for(
         cst_in = arith.Constant.from_int_and_width(i + len(exchanges), builtin.i32)
         yield from (cst_i, cst_in)
         # from these indices, get request objects
-        req_send = mpi.VectorGetOp.get(reqs, cst_i)
-        req_recv = mpi.VectorGetOp.get(reqs, cst_in)
+        req_send = mpi.VectorGetOp(reqs, cst_i)
+        req_recv = mpi.VectorGetOp(reqs, cst_in)
         yield from (req_send, req_recv)
 
         def then() -> Iterable[Operation]:
             # copy source area to outbound buffer
             yield from generate_memcpy(source, ex.source_area(), alloc_outbound.memref)
             # get ptr, count, dtype
-            unwrap_out = mpi.UnwrapMemrefOp.get(alloc_outbound)
+            unwrap_out = mpi.UnwrapMemrefOp(alloc_outbound)
             unwrap_out.ptr.name_hint = f"send_buff_ex{i}_ptr"
             yield unwrap_out
 
@@ -306,7 +306,7 @@ def generate_mpi_calls_for(
                 )
 
             # isend call
-            yield mpi.Isend.get(
+            yield mpi.Isend(
                 unwrap_out.ptr,
                 unwrap_out.len,
                 unwrap_out.type,
@@ -316,11 +316,11 @@ def generate_mpi_calls_for(
             )
 
             # get ptr for receive buffer
-            unwrap_in = mpi.UnwrapMemrefOp.get(alloc_inbound)
+            unwrap_in = mpi.UnwrapMemrefOp(alloc_inbound)
             unwrap_in.ptr.name_hint = f"recv_buff_ex{i}_ptr"
             yield unwrap_in
             # Irecv call
-            yield mpi.Irecv.get(
+            yield mpi.Irecv(
                 unwrap_in.ptr,
                 unwrap_in.len,
                 unwrap_in.type,
@@ -333,8 +333,8 @@ def generate_mpi_calls_for(
         def else_() -> Iterable[Operation]:
             # set the request object to MPI_REQUEST_NULL s.t. they are ignored
             # in the waitall call
-            yield mpi.NullRequestOp.get(req_send)
-            yield mpi.NullRequestOp.get(req_recv)
+            yield mpi.NullRequestOp(req_send)
+            yield mpi.NullRequestOp(req_recv)
             yield scf.Yield()
 
         yield scf.If(

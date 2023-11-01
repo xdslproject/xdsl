@@ -9,8 +9,7 @@ from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.linalg import LinalgFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir import Block, Region
-from xdsl.ir.affine.affine_expr import AffineExpr
-from xdsl.ir.affine.affine_map import AffineMap
+from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.utils.test_value import TestSSAValue
 
 

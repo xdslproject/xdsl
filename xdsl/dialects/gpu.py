@@ -735,6 +735,7 @@ class YieldOp(IRDLOperation):
 # Hopefully MLIR will parse it in a more xDSL-friendly way soon, so all that can be factored in proper xDSL
 # atrributes.
 GPU = Dialect(
+    "gpu",
     [
         AllocOp,
         AllReduceOp,
