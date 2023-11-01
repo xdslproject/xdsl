@@ -76,6 +76,7 @@ class InnerRefAttr(ParametrizedAttribute):
 
 
 HW = Dialect(
+    "hw",
     [],
     [
         InnerRefAttr,
