@@ -735,8 +735,6 @@ class AttrParser(BaseParser):
                 )
             if not isinstance(self.value, bool | int):
                 parser.raise_error("Expected integer value", at_position=self.span)
-            if self.is_negative:
-                return -int(self.value)
             return int(self.value)
 
         def to_float(self, parser: AttrParser) -> float:
@@ -744,8 +742,6 @@ class AttrParser(BaseParser):
             Convert the element to a float value. Raises an error if the type
             is compatible.
             """
-            if self.is_negative:
-                return -float(self.value)
             return float(self.value)
 
         def to_type(self, parser: AttrParser, type: AnyFloat | IntegerType | IndexType):
@@ -778,9 +774,7 @@ class AttrParser(BaseParser):
             return self._TensorLiteralElement(False, False, token.span)
 
         # checking for negation
-        is_negative = False
-        if self._parse_optional_token(Token.Kind.MINUS) is not None:
-            is_negative = True
+        minus_token = self._parse_optional_token(Token.Kind.MINUS)
 
         # Integer and float case
         if self._current_token.kind == Token.Kind.FLOAT_LIT:
@@ -792,9 +786,15 @@ class AttrParser(BaseParser):
         else:
             self.raise_error("Expected either a float, integer, or complex literal")
 
-        if is_negative:
+        if minus_token is None:
+            is_negative = False
+            span = token.span
+        else:
+            is_negative = True
             value = -value
-        return self._TensorLiteralElement(is_negative, value, token.span)
+            span = Span(minus_token.span.start, token.span.end, token.span.input)
+
+        return self._TensorLiteralElement(is_negative, value, span)
 
     def _parse_tensor_literal(
         self,
