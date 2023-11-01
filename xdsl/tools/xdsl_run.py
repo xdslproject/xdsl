@@ -79,8 +79,8 @@ class xDSLRunMain(CommandLineTool):
         interpreter.register_implementations(arith.ArithFunctions())
         interpreter.register_implementations(printf.PrintfFunctions())
         interpreter.register_implementations(scf.ScfFunctions())
-        interpreter.register_implementations(stream.StreamFunctions())
         interpreter.register_implementations(snitch_stream.SnitchStreamFunctions())
+        interpreter.register_implementations(stream.StreamFunctions())
 
     def run(self):
         input, file_extension = self.get_input_stream()

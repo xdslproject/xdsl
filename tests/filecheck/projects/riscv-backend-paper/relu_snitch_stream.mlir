@@ -15,8 +15,6 @@ builtin.module {
     riscv_func.func @main() {
       %A = riscv.li "a" : () -> !riscv.reg<>
       %B = riscv.li "b" : () -> !riscv.reg<>
-      %A_memref = builtin.unrealized_conversion_cast %A : !riscv.reg<> to memref<2x3xf64>
-      printf.print_format "{}", %A_memref : memref<2x3xf64>
       %zero = riscv.get_register : () -> !riscv.reg<sp>
       %zero_1 = riscv.li 0 : () -> !riscv.reg<>
       riscv.sw %zero, %zero_1, -4 : (!riscv.reg<sp>, !riscv.reg<>) -> ()
@@ -26,18 +24,29 @@ builtin.module {
       %stride_pattern = "snitch_stream.stride_pattern"() {"ub" = [#int<2>, #int<3>], "strides" = [#int<24>, #int<8>], "dm" = #int<31>} : () -> !snitch_stream.stride_pattern_type
       %a_stream = "snitch_stream.strided_read"(%A, %stride_pattern) {"dm" = #int<0>, "rank" = #int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.readable<!riscv.freg<ft0>>
       %b_stream = "snitch_stream.strided_write"(%B, %stride_pattern) {"dm" = #int<1>, "rank" = #int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.writable<!riscv.freg<ft1>>
-      %c6 = riscv.li 6 : () -> !riscv.reg<>
-      "snitch_stream.generic"(%c6, %a_stream, %b_stream) <{"operandSegmentSizes" = array<i32: 1, 1, 1>}> ({
+      %B6 = riscv.li 6 : () -> !riscv.reg<>
+      "snitch_stream.generic"(%B6, %a_stream, %b_stream) <{"operandSegmentSizes" = array<i32: 1, 1, 1>}> ({
       ^0(%a : !riscv.freg<ft0>):
         %res = riscv.fmax.d %a, %zero_3 : (!riscv.freg<ft0>, !riscv.freg<>) -> !riscv.freg<ft1>
         snitch_stream.yield %res : !riscv.freg<ft1>
       }) : (!riscv.reg<>, !stream.readable<!riscv.freg<ft0>>, !stream.writable<!riscv.freg<ft1>>) -> ()
-      %B_memref = builtin.unrealized_conversion_cast %B : !riscv.reg<> to memref<2x3xf64>
-      printf.print_format "{}", %B_memref : memref<2x3xf64>
+      %v0 = riscv.fld %B, 0 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v0_1 = builtin.unrealized_conversion_cast %v0 : !riscv.freg<> to f64
+      %v1 = riscv.fld %B, 8 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v1_1 = builtin.unrealized_conversion_cast %v1 : !riscv.freg<> to f64
+      %v2 = riscv.fld %B, 16 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v2_1 = builtin.unrealized_conversion_cast %v2 : !riscv.freg<> to f64
+      %v3 = riscv.fld %B, 24 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v3_1 = builtin.unrealized_conversion_cast %v3 : !riscv.freg<> to f64
+      %v4 = riscv.fld %B, 32 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v4_1 = builtin.unrealized_conversion_cast %v4 : !riscv.freg<> to f64
+      %v5 = riscv.fld %B, 40 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v5_1 = builtin.unrealized_conversion_cast %v5 : !riscv.freg<> to f64
+      printf.print_format "[[{}, {}, {}], [{}, {}, {}]]", %v0_1 : f64, %v1_1 : f64, %v2_1 : f64, %v3_1 : f64, %v4_1 : f64, %v5_1 : f64
       riscv_func.return
     }
   }
 }
 
-// CHECK: [[1.0, -1.0, 0.0], [2.0, -2.0, 0.0]]
+// [[1.0, -1.0, 0.0], [2.0, -2.0, 0.0]]
 // CHECK: [[1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]
