@@ -14,5 +14,15 @@
                 "${file}"
             ]
         },
+        {
+            "name": "xdsl-run",
+            "type": "python",
+            "request": "launch",
+            "module": "xdsl.tools.xdsl_run",
+            "justMyCode": true,
+            "args": [
+                "${file}"
+            ]
+        },
     ]
 }
