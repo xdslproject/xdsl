@@ -3435,6 +3435,8 @@ class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
     name = "riscv.fmin.d"
 
+    traits = frozenset((Pure(),))
+
 
 @irdl_op_definition
 class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
@@ -3447,6 +3449,8 @@ class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
     """
 
     name = "riscv.fmax.d"
+
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
