@@ -15,6 +15,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
 
 
@@ -759,10 +760,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
 
         # for each func found, add a FuncOp to the top of the module.
         for name, types in funcs_to_emit.items():
-            arg, res = types
-            rewriter.insert_op_at_end(
-                func.FuncOp.external(name, arg, res), module.body.block
-            )
+            SymbolTable.insert_or_update(module, func.FuncOp.external(name, *types))
 
 
 class LowerNullRequestOp(_MPIToLLVMRewriteBase):

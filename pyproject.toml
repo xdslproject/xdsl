@@ -1,5 +1,31 @@
+[project]
+name = "xdsl"
+description = "xDSL"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT License" }
+authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
+classifiers = ["Programming Language :: Python :: 3"]
+dynamic = ["version", "dependencies"]
+
+[project.urls]
+Homepage = "https://xdsl.dev/"
+"Source Code" = "https://github.com/xdslproject/xdsl"
+"Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
+
+[project.scripts]
+xdsl-opt = "xdsl.tools.xdsl_opt:main"
+irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
+xdsl-run = "xdsl.tools.xdsl_run:main"
+
+[tool.setuptools]
+platforms = ["Linux", "Mac OS-X", "Unix"]
+zip-safe = false
+package-data = { "xdsl" = ["py.typed"] }
+
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
+build-backend = "setuptools.build_meta"
 
 [tool.pyright]
 reportImportCycles = false
@@ -58,3 +84,34 @@ target-version = "py310"
 
 [tool.ruff.mccabe]
 max-complexity = 10
+
+[tool.black]
+# When updating this list, please update `.pre-commit-config.yaml`
+exclude = """
+/(__pycache__|.asv|venv|build|tests/filecheck)/
+|versioneer.py$
+|xdsl/_version.py$
+"""
+
+[tool.flake8]
+max-line-length = 90
+ignore = "F403,E226,E731,E275,W503,F405,E722,E741,W504,W605,E402"
+exclude = [".github"]
+
+[tool.flake8_nb]
+max-line-length = 90
+ignore = "F403,E226,E731,E275,W503,F405,E722,E741,W504,W605,E402"
+exclude = [".github"]
+
+[tool.pytest.ini_options]
+python_files = ["tests/*test_*.py", "docs/*test_*.py"]
+python_classes = "Test_*"
+python_functions = "test_*"
+addopts = ["--durations=20", "--maxfail=5"]
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "xdsl/_version.py"
+versionfile_build = "xdsl/_version.py"
+tag_prefix = "v"

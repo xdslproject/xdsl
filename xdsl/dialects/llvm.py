@@ -1012,29 +1012,31 @@ class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> tuple[FastMathFlag, ...]:
-        flags = FastMathFlag.try_parse(parser)
-        if flags is None:
-            return tuple()
+        with parser.in_angle_brackets():
+            flags = FastMathFlag.try_parse(parser)
+            if flags is None:
+                return tuple()
 
-        while parser.parse_optional_punctuation(",") is not None:
-            flag = parser.expect(
-                lambda: FastMathFlag.try_parse(parser), "fastmath flag expected"
-            )
-            flags.update(flag)
+            while parser.parse_optional_punctuation(",") is not None:
+                flag = parser.expect(
+                    lambda: FastMathFlag.try_parse(parser), "fastmath flag expected"
+                )
+                flags.update(flag)
 
-        return tuple(flags)
+            return tuple(flags)
 
     def print_parameter(self, printer: Printer):
-        flags = self.data
-        if len(flags) == 0:
-            printer.print("none")
-        elif len(flags) == len(FastMathFlag):
-            printer.print("fast")
-        else:
-            # make sure we emit flags in a consistent order
-            printer.print(
-                ",".join(flag.value for flag in FastMathFlag if flag in flags)
-            )
+        with printer.in_angle_brackets():
+            flags = self.data
+            if len(flags) == 0:
+                printer.print("none")
+            elif len(flags) == len(FastMathFlag):
+                printer.print("fast")
+            else:
+                # make sure we emit flags in a consistent order
+                printer.print(
+                    ",".join(flag.value for flag in FastMathFlag if flag in flags)
+                )
 
 
 @irdl_op_definition
