@@ -1,4 +1,3 @@
-// XFAIL: *
 // RUN: xdsl-opt %s --allow-unregistered-dialect | xdsl-opt --allow-unregistered-dialect  | filecheck %s
 
 "builtin.module"() ({
