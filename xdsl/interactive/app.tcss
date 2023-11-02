@@ -22,7 +22,51 @@
     margin: 1 1 1 1;
 }
 
-# Horizontal( SelectionList, Horizontal(Button) )
+
+# Button
+#undo_condense_button{
+}
+
+# Horizontal(Button)
+#undo_condense{
+    height: 3;
+    overflow-x: auto;
+    margin: 1 1 1 1;
+}
+
+# Button
+#copy_query_button{
+}
+
+# Horizontal(Button)
+#copy_query{
+    height: 3;
+    overflow-x: auto;
+    margin: 1 1 1 1;
+}
+
+
+# Button
+#condense_pass_list_button{
+    margin: 0 0;
+}
+
+# Horizontal(Button)
+#condense_pass_list{
+    height: 3;
+    overflow-x: auto;
+    margin: 1 1 1 1;
+}
+
+
+
+# Vertical(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) )
+#buttons_and_selection_list{
+    layout: vertical;
+    overflow-x: auto;
+}
+
+# Horizontal( SelectionList, Vertical(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) ) ))
 #selection_list_and_button{
     margin: 1;
     border-title-color: green;
@@ -41,9 +85,12 @@
     border: blue;
     width: 100%;
     height: 100%;
+    border-title-color: green;
+    border-title-style: bold;
+    border-title-align: center;
 }
 
-# Horizontal( Horizontal( SelectionList, Horizontal(Button)), ScrollableContainer(Label) )
+# Horizontal( Horizontal( SelectionList, Vertical(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) ) )), ScrollableContainer(Label) )
 #selected_passes_and_list_horizontal{
     height: 100%;
     layout: grid;
@@ -78,15 +125,25 @@
 }
 
 # OutputTextArea
-#output {
-    box-sizing: content-box;
-    width: 100%;
-    height: 100%;
-    background: black;
-    # overflow: auto auto;
+#output{
+#     box-sizing: content-box;
+#     width: 100%;
+#     height: 80%;
+#     background: black;
+#     overflow: auto auto;
 }
 
-# Container(OutputTextArea)
+# Button
+#copy_output_button{
+}
+
+# Horizontal(Button)
+#copy_output{
+    height: 3;
+    overflow-x: auto;
+}
+
+# Container(OutputTextArea, Horizontal(Button) )
 #output_container {
     margin: 1;
     border: heavy red;
@@ -94,10 +151,11 @@
     border-title-style: bold;
     border-title-align: center;
     background: black;
+    layout: vertical;
     # overflow: auto auto;
 }
 
-# Horizontal( Vertical( TextArea, Horizontal(Button) )  , Container(OutputTextArea) )
+# Horizontal( Vertical( TextArea, Horizontal(Button) )  , Container( OutputTextArea, Horizontal(Button) ) )
 #input_output{
     height: 100%;
 }
