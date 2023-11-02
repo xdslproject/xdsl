@@ -29,7 +29,9 @@ jobs:
       run: |
         pip install --upgrade pip
     - name: Install the package locally
-      run: pip install -e ".[extras]"
+      run: |
+        pip install -r requirements.txt
+        pip install -e ".[extras]"
     - name: Run examples/tutorials
       run: |
         # mlir_interoperation.ipynb is dependent on MLIR, and is tested in the MLIR-enabled workflow.
