@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from enum import Enum
 
-from typing_extensions import Self
-
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyShapedType,
@@ -13,8 +11,10 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StringAttr,
 )
-from xdsl.dialects.utils import parse_return_op_like, print_return_op_like
-from xdsl.ir import Attribute, Data, Dialect, Operation, Region, SSAValue
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+)
+from xdsl.ir import Attribute, Data, Dialect, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -29,7 +29,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 
@@ -63,23 +63,25 @@ class IteratorTypeAttr(Data[IteratorType]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> IteratorType:
-        if parser.parse_optional_keyword("parallel") is not None:
-            return IteratorType.PARALLEL
-        if parser.parse_optional_keyword("reduction") is not None:
-            return IteratorType.REDUCTION
-        if parser.parse_optional_keyword("window") is not None:
-            return IteratorType.WINDOW
-        parser.raise_error("`parallel`, `reduction` or `window` expected")
+        with parser.in_angle_brackets():
+            if parser.parse_optional_keyword("parallel") is not None:
+                return IteratorType.PARALLEL
+            if parser.parse_optional_keyword("reduction") is not None:
+                return IteratorType.REDUCTION
+            if parser.parse_optional_keyword("window") is not None:
+                return IteratorType.WINDOW
+            parser.raise_error("`parallel`, `reduction` or `window` expected")
 
     def print_parameter(self, printer: Printer) -> None:
-        data = self.data
-        match data:
-            case IteratorType.PARALLEL:
-                printer.print_string("parallel")
-            case IteratorType.REDUCTION:
-                printer.print_string("reduction")
-            case IteratorType.WINDOW:
-                printer.print_string("window")
+        with printer.in_angle_brackets():
+            data = self.data
+            match data:
+                case IteratorType.PARALLEL:
+                    printer.print_string("parallel")
+                case IteratorType.REDUCTION:
+                    printer.print_string("reduction")
+                case IteratorType.WINDOW:
+                    printer.print_string("window")
 
 
 @irdl_op_definition
@@ -192,25 +194,10 @@ class Generic(IRDLOperation):
 
 
 @irdl_op_definition
-class Yield(IRDLOperation):
+class YieldOp(AbstractYieldOperation[Attribute]):
     name = "linalg.yield"
-
-    values: VarOperand = var_operand_def()
 
     traits = frozenset([IsTerminator()])
 
-    def __init__(self, *operands: SSAValue | Operation) -> None:
-        super().__init__(operands=[operands])
 
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.values)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs, args = parse_return_op_like(parser)
-        op = cls(*args)
-        op.attributes.update(attrs)
-        return op
-
-
-Linalg = Dialect("linalg", [Generic, Yield], [IteratorTypeAttr])
+Linalg = Dialect("linalg", [Generic, YieldOp], [IteratorTypeAttr])

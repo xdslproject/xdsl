@@ -84,15 +84,17 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
-        name = parser.parse_optional_identifier()
-        if name is None:
-            return ""
-        if not name.startswith("j"):
-            assert name in cls.abi_index_by_name(), f"{name}"
-        return name
+        with parser.in_angle_brackets():
+            name = parser.parse_optional_identifier()
+            if name is None:
+                return ""
+            if not name.startswith("j"):
+                assert name in cls.abi_index_by_name(), f"{name}"
+            return name
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(self.data)
+        with printer.in_angle_brackets():
+            printer.print_string(self.data)
 
     def verify(self) -> None:
         name = self.data
@@ -353,10 +355,12 @@ class LabelAttr(Data[str]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
-        return parser.parse_str_literal()
+        with parser.in_angle_brackets():
+            return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string_literal(self.data)
+        with printer.in_angle_brackets():
+            printer.print_string_literal(self.data)
 
 
 class RISCVOp(Operation, ABC):
@@ -3420,6 +3424,32 @@ class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
+class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Write the smaller of double precision data in rs1 and rs2 to rd.
+
+    f[rd] = min(f[rs1], f[rs2])
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmin-d
+    """
+
+    name = "riscv.fmin.d"
+
+
+@irdl_op_definition
+class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Write the larger of single precision data in rs1 and rs2 to rd.
+
+    f[rd] = max(f[rs1], f[rs2])
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmax-d
+    """
+
+    name = "riscv.fmax.d"
+
+
+@irdl_op_definition
 class FLdOp(RdRsImmFloatOperation):
     """
     Load a double-precision value from memory into floating-point register rd.
@@ -3655,6 +3685,8 @@ RISCV = Dialect(
         FSubDOp,
         FMulDOp,
         FDivDOp,
+        FMinDOp,
+        FMaxDOp,
         FLdOp,
         FSdOp,
         VFAddSOp,

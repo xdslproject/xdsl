@@ -43,6 +43,9 @@ target-version = "py310"
 "xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
 "xdsl.ir.core".msg = "Use xdsl.ir instead."
 "xdsl.irdl.irdl".msg = "Use xdsl.irdl instead"
+"xdsl.ir.affine.affine_expr".msg = "Use xdsl.ir.affine instead"
+"xdsl.ir.affine.affine_map".msg = "Use xdsl.ir.affine instead"
+"xdsl.ir.affine.affine_set".msg = "Use xdsl.ir.affine instead"
 
 
 [tool.ruff.per-file-ignores]

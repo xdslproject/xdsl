@@ -10,6 +10,7 @@ from xdsl.backend.riscv.lowering import (
     convert_func_to_riscv_func,
     convert_memref_to_riscv,
     convert_scf_to_riscv_scf,
+    convert_snitch_stream_to_snitch,
     reduce_register_pressure,
 )
 from xdsl.dialects.affine import Affine
@@ -25,6 +26,7 @@ from xdsl.dialects.experimental.math import Math
 from xdsl.dialects.fsm import FSM
 from xdsl.dialects.func import Func
 from xdsl.dialects.gpu import GPU
+from xdsl.dialects.hw import HW
 from xdsl.dialects.irdl.irdl import IRDL
 from xdsl.dialects.linalg import Linalg
 from xdsl.dialects.llvm import LLVM
@@ -93,6 +95,7 @@ def get_all_dialects() -> list[Dialect]:
         Func,
         GPU,
         HLS,
+        HW,
         Linalg,
         IRDL,
         LLVM,
@@ -124,6 +127,7 @@ def get_all_passes() -> list[type[ModulePass]]:
     return [
         canonicalize.CanonicalizePass,
         canonicalize_dmp.CanonicalizeDmpPass,
+        convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,

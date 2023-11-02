@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.ir.affine import (
+    AffineConstraintExpr,
+    AffineConstraintKind,
+    AffineExpr,
+    AffineMap,
+    AffineSet,
+)
 from xdsl.parser.base_parser import BaseParser, ParserState
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Token
@@ -121,6 +127,46 @@ class AffineParser(BaseParser):
 
         return self.parse_comma_separated_list(self.Delimiter.PAREN, parse_expr)
 
+    # TODO: Extend to semi-affine maps; see https://github.com/xdslproject/xdsl/issues/1087
+    def _parse_affine_constraint(
+        self, dims: list[str], syms: list[str]
+    ) -> AffineConstraintExpr:
+        """
+        affine-expr ::= `(` affine-expr `)`
+                      | `-`? integer-literal
+                      | bare-id
+                      | `-`affine-expr
+                      | `-`? integer-literal `*` affine-expr
+                      | affine-expr `ceildiv` integer-literal
+                      | affine-expr `floordiv` integer-literal
+                      | affine-expr `mod` integer-literal
+                      | affine-expr `+` affine-expr
+                      | affine-expr `-` affine-expr
+        """
+        lhs = self._parse_affine_expr(dims, syms)
+        op = self._consume_token().text + self._consume_token().text
+        if op not in set(k.value for k in AffineConstraintKind):
+            self.raise_error(
+                f"Expected one of {', '.join(f'`{k.value}`' for k in AffineConstraintKind)}, got {op}."
+            )
+        op = AffineConstraintKind(op)
+        rhs = self._parse_affine_expr(dims, syms)
+
+        return AffineConstraintExpr(op, lhs, rhs)
+
+    def _parse_multi_affine_constaint(
+        self, dims: list[str], syms: list[str]
+    ) -> list[AffineConstraintExpr]:
+        """
+        multi-affine-expr ::= `(` `)`
+                                | `(` affine-expr (`,` affine-expr)* `)`
+        """
+
+        def parse_constraint() -> AffineConstraintExpr:
+            return self._parse_affine_constraint(dims, syms)
+
+        return self.parse_comma_separated_list(self.Delimiter.PAREN, parse_constraint)
+
     def _parse_affine_space(self) -> tuple[list[str], list[str]]:
         """
         dims ::= `(` ssa-use-list? `)`
@@ -154,3 +200,17 @@ class AffineParser(BaseParser):
         exprs = self._parse_multi_affine_expr(dims, syms)
         # Create map and return.
         return AffineMap(len(dims), len(syms), tuple(exprs))
+
+    def parse_affine_set(self) -> AffineSet:
+        """
+        affine-map
+           ::= affine-space `:` `(` (affine-constraint)* `)`
+        """
+        # Parse affine space
+        dims, syms = self._parse_affine_space()
+        # Parse : delimiter
+        self._parse_token(Token.Kind.COLON, "Expected `:`")
+        # Parse list of affine expressions
+        constraints = self._parse_multi_affine_constaint(dims, syms)
+        # Create map and return.
+        return AffineSet(len(dims), len(syms), tuple(constraints))

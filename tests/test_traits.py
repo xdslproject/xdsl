@@ -447,3 +447,31 @@ def test_lazy_parent():
     assert op.get_traits_of_type(HasParent)[0].parameters == (TestOp,)
     assert op.has_trait(HasParent, (TestOp,))
     assert op.traits == frozenset([HasParent(TestOp)])
+
+
+def test_insert_or_update():
+    @irdl_op_definition
+    class SymbolTableOp(IRDLOperation):
+        name = "test.symbol_table"
+
+        reg = region_def()
+
+        traits = frozenset([SymbolTable()])
+
+    # Check a flat happy case, with symbol lookup
+    symbol = SymbolOp("name")
+    symbol2 = SymbolOp("name2")
+    terminator = test.TestTermOp()
+
+    op = SymbolTableOp(regions=[Region(Block([symbol, terminator]))])
+    op.verify()
+
+    trait = op.get_trait(SymbolTable)
+    assert trait is not None
+
+    assert trait.insert_or_update(op, symbol.clone()) is symbol
+    assert len(op.reg.ops) == 2
+
+    assert trait.insert_or_update(op, symbol2) is None
+    assert len(op.reg.ops) == 3
+    assert symbol2 in list(op.reg.ops)

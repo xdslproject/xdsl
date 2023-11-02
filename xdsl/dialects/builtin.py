@@ -32,7 +32,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
@@ -130,12 +130,13 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
-        data = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_attribute
-        )
-        # the type system can't ensure that the elements are of type _ArrayAttrT
-        result = cast(tuple[AttributeCovT, ...], tuple(data))
-        return result
+        with parser.in_angle_brackets():
+            data = parser.parse_comma_separated_list(
+                parser.Delimiter.SQUARE, parser.parse_attribute
+            )
+            # the type system can't ensure that the elements are of type _ArrayAttrT
+            result = cast(tuple[AttributeCovT, ...], tuple(data))
+            return result
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
@@ -177,7 +178,8 @@ class StringAttr(Data[str]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
-        return parser.parse_str_literal()
+        with parser.in_angle_brackets():
+            return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f'"{self.data}"')
@@ -268,11 +270,13 @@ class IntAttr(Data[int]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:
-        data = parser.parse_integer()
-        return data
+        with parser.in_angle_brackets():
+            data = parser.parse_integer()
+            return data
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f"{self.data}")
+        with printer.in_angle_brackets():
+            printer.print_string(f"{self.data}")
 
 
 class Signedness(Enum):
@@ -291,24 +295,26 @@ class SignednessAttr(Data[Signedness]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> Signedness:
-        if parser.parse_optional_keyword("signless") is not None:
-            return Signedness.SIGNLESS
-        if parser.parse_optional_keyword("signed") is not None:
-            return Signedness.SIGNED
-        if parser.parse_optional_keyword("unsigned") is not None:
-            return Signedness.UNSIGNED
-        parser.raise_error("`signless`, `signed`, or `unsigned` expected")
+        with parser.in_angle_brackets():
+            if parser.parse_optional_keyword("signless") is not None:
+                return Signedness.SIGNLESS
+            if parser.parse_optional_keyword("signed") is not None:
+                return Signedness.SIGNED
+            if parser.parse_optional_keyword("unsigned") is not None:
+                return Signedness.UNSIGNED
+            parser.raise_error("`signless`, `signed`, or `unsigned` expected")
 
     def print_parameter(self, printer: Printer) -> None:
-        data = self.data
-        if data == Signedness.SIGNLESS:
-            printer.print_string("signless")
-        elif data == Signedness.SIGNED:
-            printer.print_string("signed")
-        elif data == Signedness.UNSIGNED:
-            printer.print_string("unsigned")
-        else:
-            raise ValueError(f"Invalid signedness {data}")
+        with printer.in_angle_brackets():
+            data = self.data
+            if data == Signedness.SIGNLESS:
+                printer.print_string("signless")
+            elif data == Signedness.SIGNED:
+                printer.print_string("signed")
+            elif data == Signedness.UNSIGNED:
+                printer.print_string("unsigned")
+            else:
+                raise ValueError(f"Invalid signedness {data}")
 
 
 @irdl_attr_definition
@@ -494,7 +500,8 @@ class FloatData(Data[float]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> float:
-        return float(parser.parse_number())
+        with parser.in_angle_brackets():
+            return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
@@ -1154,8 +1161,9 @@ class AffineMapAttr(Data[AffineMap]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> AffineMap:
-        data = parser.parse_affine_map()
-        return data
+        with parser.in_angle_brackets():
+            data = parser.parse_affine_map()
+            return data
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
@@ -1163,6 +1171,20 @@ class AffineMapAttr(Data[AffineMap]):
     @staticmethod
     def constant_map(value: int) -> AffineMapAttr:
         return AffineMapAttr(AffineMap.constant_map(value))
+
+
+@irdl_attr_definition
+class AffineSetAttr(Data[AffineSet]):
+    """An attribute containing an AffineSet object."""
+
+    name = "affine_set"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> AffineSet:
+        return parser.parse_affine_set()
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f"{self.data}")
 
 
 @irdl_op_definition
@@ -1452,5 +1474,6 @@ Builtin = Dialect(
         TensorType,
         UnrankedTensorType,
         AffineMapAttr,
+        AffineSetAttr,
     ],
 )
