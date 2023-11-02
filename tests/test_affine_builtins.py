@@ -2,8 +2,7 @@ import re
 
 import pytest
 
-from xdsl.ir.affine import AffineExpr, AffineMap
-from xdsl.ir.affine.affine_expr import AffineBinaryOpExpr, AffineBinaryOpKind
+from xdsl.ir.affine import AffineBinaryOpExpr, AffineBinaryOpKind, AffineExpr, AffineMap
 
 
 def test_simple_map():
