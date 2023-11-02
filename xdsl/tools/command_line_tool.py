@@ -11,7 +11,6 @@ from xdsl.backend.riscv.lowering import (
     convert_memref_to_riscv,
     convert_scf_to_riscv_scf,
     convert_snitch_stream_to_snitch,
-    convert_snitch_stream_to_snitch_runtime,
     convert_stream_to_snitch_stream,
     reduce_register_pressure,
 )
@@ -132,7 +131,6 @@ def get_all_passes() -> list[type[ModulePass]]:
         canonicalize.CanonicalizePass,
         canonicalize_dmp.CanonicalizeDmpPass,
         convert_linalg_to_stream.ConvertLinalgToStreamPass,
-        convert_snitch_stream_to_snitch_runtime.ConvertSnitchStreamToSnitchRuntime,
         convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         convert_stream_to_snitch_stream.ConvertStreamToSnitchStreamPass,

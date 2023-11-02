@@ -146,7 +146,7 @@ class LowerGenericOp(RewritePattern):
 
 class LowerYieldOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.Yield, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: linalg.YieldOp, rewriter: PatternRewriter):
         rewriter.replace_matched_op(stream.YieldOp(*op.operands))
 
 
