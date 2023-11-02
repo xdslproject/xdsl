@@ -332,7 +332,7 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
             data = IntAttr(data)
         if isinstance(signedness, Signedness):
             signedness = SignednessAttr(signedness)
-        super().__init__([data, signedness])
+        super().__init__(tuple([data, signedness]))
 
 
 i64 = IntegerType(64)
@@ -392,7 +392,7 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
             value = IntAttr(value)
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
-        super().__init__([value, value_type])
+        super().__init__(tuple([value, value_type]))
 
     @staticmethod
     def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:

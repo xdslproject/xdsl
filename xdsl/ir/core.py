@@ -453,10 +453,10 @@ class Data(Generic[DataElement], Attribute, ABC):
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
-    parameters: list[Attribute] = field(default_factory=list)
+    parameters: tuple[Attribute] = field(default_factory=tuple)
 
     @classmethod
-    def new(cls: type[Self], params: Sequence[Attribute]) -> Self:
+    def new(cls: type[Self], params: Sequence[Attribute,...]) -> Self:
         """
         Create a new `ParametrizedAttribute` given its parameters.
 
@@ -470,7 +470,7 @@ class ParametrizedAttribute(Attribute):
 
         # Call the __init__ of ParametrizedAttribute, which will set the
         # parameters field.
-        ParametrizedAttribute.__init__(attr, list(params))
+        ParametrizedAttribute.__init__(attr, tuple(params))
         return attr
 
     @classmethod
