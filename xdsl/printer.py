@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AffineSetAttr,
     AnyFloatAttr,
     AnyIntegerAttr,
     AnyUnrankedTensorType,
@@ -83,6 +85,14 @@ class Printer:
     _next_line_callback: list[Callable[[], None]] = field(
         default_factory=list, init=False
     )
+
+    @contextmanager
+    def in_angle_brackets(self):
+        self.print_string("<")
+        try:
+            yield
+        finally:
+            self.print_string(">")
 
     def print(self, *argv: Any) -> None:
         for arg in argv:
@@ -621,10 +631,15 @@ class Printer:
             self.print(">")
             return
 
+        if isinstance(attribute, AffineSetAttr):
+            self.print("affine_set<")
+            self.print(attribute.data)
+            self.print(">")
+            return
+
         if isinstance(attribute, UnregisteredAttr):
             # Do not print `!` or `#` for unregistered builtin attributes
-            if attribute.attr_name.data not in ["affine_set"]:
-                self.print("!" if attribute.is_type.data else "#")
+            self.print("!" if attribute.is_type.data else "#")
             self.print(attribute.attr_name.data, attribute.value.data)
             return
 
@@ -633,9 +648,7 @@ class Printer:
         self.print(attribute.name)
 
         if isinstance(attribute, Data):
-            self.print("<")
             attribute.print_parameter(self)
-            self.print(">")
             return
 
         assert isinstance(attribute, ParametrizedAttribute)
