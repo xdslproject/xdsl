@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable, Iterator
 
 from xdsl.dialects.builtin import ArrayAttr, StringAttr, IntegerAttr, IntAttr, i64, IntegerType, IndexType, AnyFloat, \
-    AnyFloatAttr
+    AnyFloatAttr, FunctionType
 from xdsl.ir import TypeAttribute, Dialect, AttributeCovT
 from xdsl.irdl import *
 from xdsl.parser import AttrParser
@@ -89,6 +89,9 @@ class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT
     def __iter__(self) -> Iterator[AttributeCovT]:
         return iter(self.data)
 
+    def without(self, val:AttributeCovT):
+        return SetAttr(self.data.difference([val]))
+
 
 @irdl_attr_definition
 class MemberAttr(ParametrizedAttribute):
@@ -118,6 +121,14 @@ class MemberAttr(ParametrizedAttribute):
         printer.print(self.structName.data)
         printer.print(":")
         printer.print(self.memberName.data)
+
+    @classmethod
+    def internal_print_members(cls, members: SetAttr[MemberAttr], printer: Printer) -> None:
+        printer.print("{")
+        m_values = list(members.data)
+        sorted_m_values = [m_values[i] for s, i in sorted([(str(s), i) for i, s in enumerate(m_values)])]
+        printer.print_list(sorted_m_values, lambda v: v.internal_print_parameters(printer))
+        printer.print("}")
 
 @irdl_attr_definition
 class DimensionAttr(ParametrizedAttribute):
@@ -202,11 +213,7 @@ class ElementAttr(ParametrizedAttribute):
 
     def internal_print_parameters(self, printer: Printer) -> None:
         printer.print("(")
-        printer.print("{")
-        m_values = list(self.member_specifiers.data)
-        sorted_m_values = [m_values[i] for s, i in sorted([(str(s), i) for i, s in enumerate(m_values)])]
-        printer.print_list(sorted_m_values, lambda v: v.internal_print_parameters(printer))
-        printer.print("}")
+        MemberAttr.internal_print_members(self.member_specifiers, printer)
         printer.print(",")
 
         d_values = list(self.dimensions.data)
@@ -216,6 +223,11 @@ class ElementAttr(ParametrizedAttribute):
             printer.print("->")
         printer.print(self.base_type)
         printer.print(")")
+
+    def verify(self) -> None:
+        dim_names = [dim.dimensionName for dim in self.dimensions]
+        if len(dim_names) != len(set(dim_names)):
+            raise VerifyException("Dimensions in an dlt.element must not have repeated dimension names.")
 
     def __lt__(self, other):
         assert isinstance(other, ElementAttr)
@@ -265,6 +277,23 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
         if len(elems) != len(set(elems)):
             raise VerifyException("Each element in the type must have a unique sets of memberSpecifiers")
 
+    def selectMember(self, member: MemberAttr) -> TypeType:
+        elems = [elem for elem in self.elements if member in elem.member_specifiers.data]
+        new_elems = []
+        for elem in elems:
+            set = elem.member_specifiers.without(member)
+            new_elem = ElementAttr(tuple([set, elem.dimensions, elem.base_type]))
+            new_elems.append(new_elem)
+        return TypeType(new_elems)
+
+    def selectDimension(self, dimension_name: StringAttr) -> TypeType:
+        elems = [elem for elem in self.elements if any(dimension_name == dim.dimensionName for dim in elem.dimensions)]
+        new_elems = []
+        for elem in elems:
+            set = SetAttr([dim for dim in elem.dimensions.data if dim.dimensionName != dimension_name])
+            new_elem = ElementAttr(tuple([elem.member_specifiers, set, elem.base_type]))
+            new_elems.append(new_elem)
+        return TypeType(new_elems)
 
 
 
@@ -334,7 +363,7 @@ class PrimitiveOp(IRDLOperation):
 @irdl_op_definition
 class ConstOp(IRDLOperation):
     name = "dlt.const"
-    value: AnyFloatAttr | IntegerAttr= attr_def(AnyFloatAttr | IntegerAttr)
+    value: AnyFloatAttr | IntegerAttr = attr_def(AnyFloatAttr | IntegerAttr)
     res: OpResult = result_def(TypeType)
 
 #TODO
@@ -375,6 +404,86 @@ class IndexAffineOp(IRDLOperation):
 
 
 @irdl_op_definition
+class SelectOp(IRDLOperation):
+    name = "dlt.select"
+    tree: OperandDef = operand_def(TypeType)
+    dimensions: AttributeDef = attr_def(ArrayAttr[StringAttr])
+    members: AttributeDef = attr_def(SetAttr[MemberAttr])
+    values: VarOperand = var_operand_def(IndexType)
+
+    res: OpResult = result_def(TypeType)
+
+    @classmethod
+    def parse(cls: type[SelectOp], parser: Parser) -> SelectOp:
+        # dlt.select{root:e, node:x}(A:0, B:10) from %1
+        ms = parser.parse_comma_separated_list(
+            parser.Delimiter.BRACES, lambda: MemberAttr(tuple(MemberAttr.internal_parse_parameters(parser)))
+        )
+        members = SetAttr(ms)
+        def parseDim() -> tuple[StringAttr, SSAValue]:
+            ident = parser.parse_identifier()
+            parser.parse_punctuation(":")
+            operand = parser.parse_operand()
+            dim_name = StringAttr(ident)
+            return (dim_name, operand)
+        dims = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parseDim)
+        dim_names, dim_operands = zip(*dims)
+        dimensions = ArrayAttr(dim_names)
+        parser.parse_keyword("from")
+        tree = parser.parse_operand()
+
+        if parser.parse_optional_punctuation(":"):
+            parser.parse_punctuation("(")
+            tree_type = parser.parse_type()
+            if tree.type != tree_type:
+                parser.raise_error(f"Type given: {tree_type} does not match expected: {tree.type}")
+            parser.parse_punctuation(")")
+            parser.parse_punctuation("->")
+            res_type = parser.parse_type()
+            res_type_clac = SelectOp.calculateResultType(tree.type, members, dimensions)
+            if res_type != res_type_clac:
+                parser.raise_error(f"parsed type {res_type} does not match expected type f{res_type_clac}")
+        else:
+            res_type = SelectOp.calculateResultType(tree.type, members, dimensions)
+
+        selectOp = SelectOp(operands=[tree, dim_operands], attributes={"dimensions":dimensions, "members":members}, result_types=[res_type])
+        return selectOp
+
+    @classmethod
+    def calculateResultType(cls, input_type: TypeType, members: Iterable[MemberAttr], dimension_names: Iterable[StringAttr]) -> TypeType:
+        current_type = input_type
+        for m in members:
+            current_type = current_type.selectMember(m)
+        for d in dimension_names:
+            current_type = current_type.selectDimension(d)
+        return current_type
+
+
+    def print(self, printer: Printer):
+        MemberAttr.internal_print_members(self.members, printer)
+        def print_d_v(dv: tuple[StringAttr, SSAValue]):
+            d, v = dv
+            printer.print(d.data)
+            printer.print(":")
+            printer.print(v)
+        printer.print("(")
+        printer.print_list(zip(self.dimensions, self.values), print_d_v)
+        printer.print(")")
+        printer.print(" from ")
+        printer.print(self.tree)
+        printer.print(" : ")
+        printer.print("(")
+        printer.print(self.tree.type)
+        printer.print(")")
+        printer.print(" -> ")
+        printer.print(self.res.type)
+        # super().print(printer)
+
+
+#TODO
+
+
+@irdl_op_definition
 class GetOp(IRDLOperation):
     name = "dlt.get"
 #TODO
@@ -408,7 +517,11 @@ DLT = Dialect("DLT",
         ConstOp,
         DenseOp,
         UnpackedCoordinateFormatOp,
-        IndexAffineOp
+        IndexAffineOp,
+        SelectOp,
+        GetOp,
+        IterateOp,
+        InitOp
     ],
     [#attrs
         SetAttr,
