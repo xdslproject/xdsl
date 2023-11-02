@@ -643,11 +643,14 @@ class Printer:
             self.print("!" if attribute.is_type.data else "#")
             if attribute.is_opaque.data:
                 self.print(attribute.attr_name.data.replace(".", "<", 1))
+                self.print(attribute.value.data)
+                self.print(">")
             else:
                 self.print(attribute.attr_name.data)
-            self.print(attribute.value.data)
-            if attribute.is_opaque:
-                self.print(">")
+                if attribute.value.data:
+                    self.print("<")
+                    self.print(attribute.value.data)
+                    self.print(">")
             return
 
         # Print dialect attributes
