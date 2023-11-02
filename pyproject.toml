@@ -1,3 +1,28 @@
+[project]
+name = "xdsl"
+description = "xDSL"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT License" }
+authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
+classifiers = ["Programming Language :: Python :: 3"]
+dynamic = ["version", "dependencies"]
+
+[project.urls]
+Homepage = "https://xdsl.dev/"
+"Source Code" = "https://github.com/xdslproject/xdsl"
+"Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
+
+[project.scripts]
+xdsl-opt = "xdsl.tools.xdsl_opt:main"
+irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
+xdsl-run = "xdsl.tools.xdsl_run:main"
+
+[tool.setuptools]
+platforms = ["Linux", "Mac OS-X", "Unix"]
+zip-safe = false
+package-data = { "xdsl" = ["py.typed"] }
+
 [build-system]
 requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
 build-backend = "setuptools.build_meta"
