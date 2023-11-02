@@ -59,7 +59,7 @@ for mreqs, mode in zip(
 
 setup(
     name="xdsl",
-    version=cast(str, versioneer.get_version()),
+    version=versioneer.get_version(),
     cmdclass=cast(Mapping[str, type[Command]], versioneer.get_cmdclass()),
     description="xDSL",
     long_description=long_description,

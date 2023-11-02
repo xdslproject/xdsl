@@ -58,3 +58,11 @@ target-version = "py310"
 
 [tool.ruff.mccabe]
 max-complexity = 10
+
+[tool.black]
+# When updating this list, please update `.pre-commit-config.yaml`
+exclude = """
+/(__pycache__|.asv|venv|build|tests/filecheck)/
+|versioneer.py$
+|xdsl/_version.py$
+"""

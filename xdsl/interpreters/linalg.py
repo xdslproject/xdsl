@@ -58,8 +58,8 @@ class LinalgFunctions(InterpreterFunctions):
 
         return ()
 
-    @impl_terminator(linalg.Yield)
+    @impl_terminator(linalg.YieldOp)
     def run_yield(
-        self, interpreter: Interpreter, op: linalg.Yield, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.YieldOp, args: tuple[Any, ...]
     ):
         return ReturnedValues(args), ()
