@@ -4,6 +4,7 @@ import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from enum import StrEnum
 from io import StringIO
 from itertools import chain
 from typing import (
@@ -14,6 +15,9 @@ from typing import (
     NoReturn,
     Protocol,
     TypeVar,
+    cast,
+    final,
+    get_args,
     overload,
 )
 
@@ -454,6 +458,33 @@ class Data(Generic[DataElement], Attribute, ABC):
     @abstractmethod
     def print_parameter(self, printer: Printer) -> None:
         """Print the attribute parameter."""
+
+
+EnumType = TypeVar("EnumType", bound=StrEnum)
+
+
+class EnumAttribute(Data[EnumType]):
+    @final
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(" ", self.data.value)
+
+    @final
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> EnumType:
+        enum_type = cast(
+            type[Generic], next(c for c in cls.__orig_bases__ if len(get_args(c)) > 0)
+        )
+        enum_type = cast(type[EnumType], enum_type.__args__[0])
+
+        val = parser.parse_identifier()
+        if val in enum_type.__members__.values():
+            return enum_type(val)
+        enum_values = list(enum_type)
+        if len(enum_values) == 1:
+            parser.raise_error(f"Expected `{enum_values[0]}`.")
+        parser.raise_error(
+            f"Expected `{'`, `'.join(enum_values[:-1])}` or `{enum_values[-1]}`."
+        )
 
 
 @dataclass(frozen=True)
