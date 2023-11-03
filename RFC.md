@@ -204,7 +204,7 @@ memref.store %null_req %request[%c0] : memref<2x!mpi.request>
 
 MPI communicators are at the heart of many HPC programs. They give rise to interesting structures and allow to abstract away complexity in selecting communication partners as well as providing guaranteed separation for library code. We introduce the `!mpi.comm` type to model communicators. As an example, here is how we imagine `MPI_Comm_split` and `MPI_Comm_dup` to work:
 
-```
+```mlir
 %comm_world = mpi.comm_world : !mpi.comm
 
 %split = mpi.comm_split %comm_world by %color, %key : (!mpi.comm, i32, i32) -> !mpi.comm
@@ -282,7 +282,7 @@ TODO
 
 In order to handle MPI Status, we would introduce an optional result value of type `!mpi.status`. The `MPI_Status` is defined to be a struct with at least three fields (`MPI_SOURCE`, `MPI_TAG` and `MPI_ERROR`). Additionally, one can get the number of elements sent the from a status object using the `MPI_Get_count` function. We provide an accessor operation for these fields and additional operations for `MPI_Get_count`.
 
-```
+```mlir
 %status = mpi.send (%ref, %rank, %tag) : (memref<100xf32>, i32, i32) -> !mpi.status
 
 // access struct members:
@@ -416,7 +416,7 @@ We slightly prefer supporting to multiple libraries instead of an MLIR runtime, 
 
 Almost all MPI functions return error codes (C `int`) (which are often ignored). We propose to add an optional result to all operations that can return error codes. This result value will be of type `!mpi.retval`, that can be queried against various error codes:
 
-```
+```mlir
 %err = mpi.send ...
 
 // Check if returned value is MPI_SUCCESS
