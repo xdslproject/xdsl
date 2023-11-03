@@ -272,7 +272,7 @@ class AttrParser(BaseParser):
             start_pos = self.pos
         end_pos: Position = start_pos
 
-        symbols_stack = []
+        symbols_stack: list[Token.Kind] = []
         parentheses = {
             Token.Kind.GREATER: Token.Kind.LESS,
             Token.Kind.R_PAREN: Token.Kind.L_PAREN,
