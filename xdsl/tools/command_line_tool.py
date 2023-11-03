@@ -67,6 +67,7 @@ from xdsl.transforms import (
     reconcile_unrealized_casts,
     riscv_register_allocation,
     riscv_scf_loop_range_folding,
+    snitch_register_allocation,
 )
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
@@ -143,6 +144,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         reduce_register_pressure.RiscvReduceRegisterPressurePass,
         riscv_register_allocation.RISCVRegisterAllocation,
         riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass,
+        snitch_register_allocation.SnitchRegisterAllocation,
         convert_arith_to_riscv.ConvertArithToRiscvPass,
         convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
         convert_memref_to_riscv.ConvertMemrefToRiscvPass,
