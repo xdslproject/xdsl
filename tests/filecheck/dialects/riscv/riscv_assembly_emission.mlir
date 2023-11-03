@@ -270,6 +270,11 @@
     %fmax_d = riscv.fmax.d %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
     // CHECK-NEXT: fmax.d j8, j5, j6
 
+    %fcvt_d_w = riscv.fcvt.d.w %1 : (!riscv.reg<j1>) -> !riscv.freg<j5>
+    // CHECK-NEXT: fcvt.d.w j5, j1
+    %fcvt_d_wu = riscv.fcvt.d.wu %1 : (!riscv.reg<j1>) -> !riscv.freg<j5>
+    // CHECK-NEXT: fcvt.d.wu j5, j1
+
     // Vector Ops
     %vfadd_s = riscv.vfadd.s %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
     // CHECK-NEXT: vfadd.s j8, j5, j6

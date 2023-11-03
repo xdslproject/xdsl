@@ -290,6 +290,11 @@
     %fmax_d = riscv.fmax.d %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.fmax.d %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
+    %fcvt_d_w = riscv.fcvt.d.w %0 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fcvt.d.w %{{.*}} : (!riscv.reg<>) -> !riscv.freg<>
+    %fcvt_d_wu = riscv.fcvt.d.wu %0 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fcvt.d.wu %{{.*}} : (!riscv.reg<>) -> !riscv.freg<>
+
     // Terminate block
     riscv_func.return
   }
@@ -415,6 +420,8 @@
 // CHECK-GENERIC-NEXT:     %vfmul_s = "riscv.vfmul.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fmin_d = "riscv.fmin.d"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fmax_d = "riscv.fmax.d"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT: %{{.*}} = "riscv.fcvt.d.w"(%{{.*}}) : (!riscv.reg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT: %{{.*}} = "riscv.fcvt.d.wu"(%{{.*}}) : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

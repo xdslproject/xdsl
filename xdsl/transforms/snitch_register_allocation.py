@@ -14,6 +14,12 @@ from xdsl.pattern_rewriter import (
 
 
 class AllocateSnitchStridedStreamRegisters(RewritePattern):
+    """
+    Allocates the register used by the stream as the one specified by the `dm`
+    (data mover) attribute. Must be called before allocating the registers in the
+    `snitch_stream.generic` body.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
@@ -30,6 +36,11 @@ class AllocateSnitchStridedStreamRegisters(RewritePattern):
 
 
 class AllocateSnitchGenericRegisters(RewritePattern):
+    """
+    Allocates the registers in the body of a `snitch_stream.generic` operation by assigning
+    them to the ones specified by the streams.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: snitch_stream.GenericOp, rewriter: PatternRewriter, /

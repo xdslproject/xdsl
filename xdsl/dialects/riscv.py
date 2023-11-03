@@ -3460,10 +3460,27 @@ class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
 
     x[rd] = sext(s32_{f64}(f[rs1]))
 
-    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt.d.w
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-w
     """
 
     name = "riscv.fcvt.d.w"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FCvtDWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+    """
+    Converts a 32-bit unsigned integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.
+
+    f[rd] = f64_{u32}(x[rs1])
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-wu
+    """
+
+    name = "riscv.fcvt.d.wu"
+
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -3705,6 +3722,7 @@ RISCV = Dialect(
         FMinDOp,
         FMaxDOp,
         FCvtDWOp,
+        FCvtDWuOp,
         FLdOp,
         FSdOp,
         VFAddSOp,
