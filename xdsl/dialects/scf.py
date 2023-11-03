@@ -169,13 +169,6 @@ class For(IRDLOperation):
         return For(lb, ub, step, iter_args, body)
 
     def verify_(self):
-        # op region verification
-        for i, opnd in enumerate(self.operands[:3]):
-            if not isinstance(opnd.type, IndexType):
-                raise VerifyException(
-                    f"Operand #{i} must be index, but got {opnd.type}"
-                )
-
         # body block verification
         if len(self.body.block.args) == 0:
             raise VerifyException(
