@@ -3424,6 +3424,66 @@ class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
+class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Write the smaller of double precision data in rs1 and rs2 to rd.
+
+    f[rd] = min(f[rs1], f[rs2])
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmin-d
+    """
+
+    name = "riscv.fmin.d"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+    """
+    Write the larger of single precision data in rs1 and rs2 to rd.
+
+    f[rd] = max(f[rs1], f[rs2])
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmax-d
+    """
+
+    name = "riscv.fmax.d"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+    """
+    Converts a 32-bit signed integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.
+
+    x[rd] = sext(s32_{f64}(f[rs1]))
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-w
+    """
+
+    name = "riscv.fcvt.d.w"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FCvtDWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+    """
+    Converts a 32-bit unsigned integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.
+
+    f[rd] = f64_{u32}(x[rs1])
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-wu
+    """
+
+    name = "riscv.fcvt.d.wu"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
 class FLdOp(RdRsImmFloatOperation):
     """
     Load a double-precision value from memory into floating-point register rd.
@@ -3659,6 +3719,10 @@ RISCV = Dialect(
         FSubDOp,
         FMulDOp,
         FDivDOp,
+        FMinDOp,
+        FMaxDOp,
+        FCvtDWOp,
+        FCvtDWuOp,
         FLdOp,
         FSdOp,
         VFAddSOp,
