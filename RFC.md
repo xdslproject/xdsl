@@ -1,16 +1,10 @@
 # MPI Dialect: RFC
 
-This dialect models the Message Passing Interface (MPI), version 4.0. It is meant
-to serve as a targetable dialect, that can be lowered to multiple MPI implementations
-and hide differences in ABI. The dialect models the functions of the MPI
-specification as close to 1:1 as possible while preserving SSA value semantics where it
-makes sense, and uses `memref` types instead of bare pointers.
+This dialect models the Message Passing Interface (MPI), version 4.0. It is meant to serve as an interface dialect that is targeted by higher-level dialects. The MPI dialect itself can be lowered to multiple MPI implementations and hide differences in ABI. The dialect models the functions of the MPI specification as close to 1:1 as possible while preserving SSA value semantics where it makes sense, and uses `memref` types instead of bare pointers.
 
-For an in-depth documentation of the MPI library interface, please refer to official documentation
-such as the [OpenMPI online documentation](https://www.open-mpi.org/doc/current/).
+For an in-depth documentation of the MPI library interface, please refer to official documentation such as the [OpenMPI online documentation](https://www.open-mpi.org/doc/current/). Relevant parts of the documentation are linked throughout this RFC.
 
 This RFC does not cover all of the MPI specification, it will instead focus on the following feature sets:
-
 
 | Feature | State | Comment |
 |---------|-------|-----------|
@@ -22,10 +16,15 @@ This RFC does not cover all of the MPI specification, it will instead focus on t
 | MPI Error codes | Example IR | |
 | Handling MPI Status | Example IR| |
 
-Note that MPI has 7 different send modes, this RFC will only cover the two most commonly used (Blocking and Nonblocking).
+According to [A large-scale study of MPI usage in open-source HPC applications](https://dl.acm.org/doi/10.1145/3295500.3356176), a small subset of all MPI calls make up the majority of MPI uses. The subset presented in this RFC provides good coverage of large parts of real-world HPC MPI usecases. This does not mean however, that features absent from this RFC are excluded from the MPI dialect. Additionally, features outlined in this RFC are not necessarily planned to be added to the dialect in the near future. It is instead intended to explore and show the decisions made while modelling MPI as an MLIR dialect and to verify that they make sense and are able to represent real HPC programs.
+
+A collection of open questions is posed at the bottom of this RFC.
 
 # Blocking  Communication
 
+These are the simplest building blocks of MPI, our initial PR contains a simple
+synchronous send/receive, init, finalise, and an operation to obtain
+the processes rank:
 
 ```mlir
 func.func @mpi_test(%ref : memref<100xf32>) -> () {
@@ -33,9 +32,9 @@ func.func @mpi_test(%ref : memref<100xf32>) -> () {
 
     %rank = mpi.comm_rank : i32
 
-    mpi.send (%ref, %rank, %tag) : memref<100xf32>, i32, i32
+    mpi.send(%ref, %rank, %tag) : memref<100xf32>, i32, i32
 
-    mpi.recv (%ref, %rank, %tag) : memref<100xf32>, i32, i32
+    mpi.recv(%ref, %rank, %tag) : memref<100xf32>, i32, i32
 
     mpi.finalize
 
@@ -43,124 +42,15 @@ func.func @mpi_test(%ref : memref<100xf32>) -> () {
 }
 ```
 
-Here is the detailed operation definitions:
-### `mpi.comm_rank` (mpi::CommRankOp)
+For a more detailed look at this initial set of operations see 
+[the PR](https://github.com/llvm/llvm-project/pull/68892) which provides the output of `mlir-tblgen -gen-dialect-doc`.
 
-_Get the current rank, equivalent to `MPI_Comm_rank(MPI_COMM_WORLD, &rank)`_.
+The decision to model MPIs pointer+size+type as MLIR `memref`s was made because we felt that the dialect would fit better into the existing ecosystem of MLIR dialects.
+# Non-blocking Communication
 
+For non-blocking communication, a new datatype `!mpi.request`  is introduced. This is directly equivalent to the `MPI_Request` type defined by MPI.
 
-Syntax:
-
-```
-operation ::= `mpi.comm_rank` attr-dict `:` type($result)
-```
-
-Communicators other than `MPI_COMM_WORLD` are not supprted for now.
-Inspecting the functions return value (error code) is also not supported.
-
-#### Results:
-
-| Result | Description |
-| :----: | ----------- |
-| `result` | 32-bit signless integer
-
-
-### `mpi.finalize` (mpi::FinalizeOp)
-
-_Finalize the MPI library, equivalent to `MPI_Finalize()`_
-
-
-Syntax:
-
-```
-operation ::= `mpi.finalize` attr-dict
-```
-
-This function cleans up the MPI state. Afterwards, no MPI methods may be invoked
-(excpet for MPI_Get_version, MPI_Initialized, and MPI_Finalized).
-Notably, MPI_Init cannot be called again in the same program.
-
-Inspecting the functions return value (error code) is not supported.
-
-
-### `mpi.init` (mpi::InitOp)
-
-_Initialize the MPI library, equivalent to `MPI_Init(NULL, NULL)`_
-
-
-Syntax:
-
-```
-operation ::= `mpi.init` attr-dict
-```
-
-This operation must preceed most MPI calls (except for very few exceptions,
-please consult with the MPI specification on these).
-
-Passing &argc, &argv is not supported currently.
-Inspecting the functions return value (error code) is also not supported.
-
-
-### `mpi.recv` (mpi::RecvOp)
-
-_Equivalent to `MPI_Recv(ptr, size, dtype, dest, tag, MPI_COMM_WORLD, MPI_STATUS_IGNORE)`_
-
-
-Syntax:
-
-```
-operation ::= `mpi.recv` attr-dict $ref `:` type($ref) `,` $tag `:` type($tag) `,` $rank `:` type($rank)
-```
-
-MPI_Recv performs a blocking receive of `size` elements of type `dtype` from rank `dest`.
-The `tag` value and communicator enables the library to determine the matching of
-multiple sends and receives between the same ranks.
-
-Communicators other than `MPI_COMM_WORLD` are not supprted for now.
-The MPI_Status is set to `MPI_STATUS_IGNORE`, as the status object is not yet ported to MLIR.
-Inspecting the functions return value (error code) is also not supported.
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-| `ref` | memref of any type values
-| `tag` | 32-bit signless integer
-| `rank` | 32-bit signless integer
-
-
-### `mpi.send` (mpi::SendOp)
-
-_Equivalent to `MPI_Send(ptr, size, dtype, dest, tag, MPI_COMM_WORLD)`_
-
-
-Syntax:
-
-```
-operation ::= `mpi.send` attr-dict $ref `:` type($ref) `,` $tag `:` type($tag) `,` $rank `:` type($rank)
-```
-
-MPI_Send performs a blocking send of `size` elements of type `dtype` to rank `dest`.
-The `tag` value and communicator enables the library to determine the matching of
-multiple sends and receives between the same ranks.
-
-Communicators other than `MPI_COMM_WORLD` are not supprted for now.
-Inspecting the functions return value (error code) is also not supported.
-
-#### Operands:
-
-| Operand | Description |
-| :-----: | ----------- |
-| `ref` | memref of any type values
-| `tag` | 32-bit signless integer
-| `rank` | 32-bit signless integer
-
-
-# Nonblocking Communication
-
-For nonblocking communication, a new datatype `!mpi.request`  is introduced. This is directly equivalent to the `MPI_Request` type defined by MPI.
-
-Since MPI_Requests are mutable objects that are always passed by reference, we decide to model them inside memrefs and pass them as memref+index. This is consistent with how they are most often used in actual HPC programs (i.e. a stack-allocated array of `MPI_Request` objects).
+Since `MPI_Request`s are mutable objects that are always passed by reference, we decide to model them in memrefs and pass them as memref+index. This is consistent with how they are most often used in actual HPC programs (i.e. a stack-allocated array of `MPI_Request` objects).
 
 With this, the nonblocking version of the blocking example above looks like this:
 
@@ -170,17 +60,17 @@ func.func @mpi_test(%ref : memref<100xf32>) -> () {
 
     %rank = mpi.comm_rank : i32
 
-	%requests = memref.alloca() : memref<2x!mpi.request>
+    %requests = memref.alloca() : memref<2x!mpi.request>
 
     mpi.isend (%ref, %rank, %rank) as %requests[0] : memref<100xf32>, i32, i32, memref<2x!mpi.request>
 
     mpi.irecv (%ref, %rank, %rank) as %requests[1] : memref<100xf32>, i32, i32, memref<2x!mpi.request>
 
-	// either waiting on a single one:
-	%status = mpi.wait %requests[0] : memref<2x!mpi.request> -> !mpi.status
+    // either waiting on a single one:
+    %status = mpi.wait %requests[0] : memref<2x!mpi.request> -> !mpi.status
 
-	// issue a waitall for all requests
-	mpi.waitall %requests : memref<2x!mpi.request>
+    // issue a waitall for all requests
+    mpi.waitall %requests : memref<2x!mpi.request>
 
     mpi.finalize
 
@@ -188,7 +78,7 @@ func.func @mpi_test(%ref : memref<100xf32>) -> () {
 }
 ```
 
-Implementing [MPI_Wait](https://www.open-mpi.org/doc/v4.1/man3/MPI_Wait.3.php), [MPI_Waitany](https://www.open-mpi.org/doc/v4.1/man3/MPI_Waitany.3.php), [MPI_Test](https://www.open-mpi.org/doc/v4.1/man3/MPI_Test.3.php), or [MPI_Testany](https://www.open-mpi.org/doc/v4.1/man3/MPI_Testany.3.php) would be straightforward when modelled this way. 
+Implementing [MPI_Wait](https://www.open-mpi.org/doc/v4.1/man3/MPI_Wait.3.php), [MPI_Waitany](https://www.open-mpi.org/doc/v4.1/man3/MPI_Waitany.3.php), [MPI_Test](https://www.open-mpi.org/doc/v4.1/man3/MPI_Test.3.php), or [MPI_Testany](https://www.open-mpi.org/doc/v4.1/man3/MPI_Testany.3.php) would be straightforward when modelled this way.
 
 ### `MPI_REQUEST_NULL`:
 
@@ -274,9 +164,84 @@ This uses [MPI_Cartdim_get](https://www-lb.open-mpi.org/doc/v4.1/man3/MPI_Cartdi
 
 We hope that this illustrates that the concept of MPI Communicators can be broadly mapped to MLIR in a consistent fashion.
 
-# Collectives
+One can see that mapping `MPI_Group` operations can be done in an analogous fashion to topologies.
 
-TODO
+# Collectives / Operations
+
+The easiest case of an [MPI_Allreduce](https://www-lb.open-mpi.org/doc/v4.1/man3/MPI_Allreduce.3.php) using `MPI_SUM` can be modelled like this:
+
+```mlir
+%sum = mpi.op sum : !mpi.op
+%outref = memref.alloc() : !memref<100xf32>
+
+mpi.allreduce %ref with %sum into %outref on %my_comm : memref<100xf32>
+
+// with MPI_IN_PLACE, replace `into` $dest with `in_place`
+mpi.allreduce %ref with %sum in_place on %my_comm : memref<100xf32>
+```
+
+A simple [MPI_Reduce](https://www-lb.open-mpi.org/doc/v4.1/man3/MPI_Reduce.3.php) poses an additional challenge, as the result buffer is only written to on rank 0, meaning we would
+not want to allocate a full memref on each rank. Our idea is to allow unsized memref arguments on the destination.
+
+```mlir
+%rank = mpi.comm_rank %my_comm : i32
+%root = arith.constant 0 : i32
+%is_root = arith.cmpi eq, %rank, %root : i32
+
+// allocate memref only on root rank
+%dest = scf.if %is_root -> (memref<?xf32>) {
+    %ref = memref.alloc() : memref<100xf32>
+    %unsized = memref.cast %ref : memref<100xf32> to memref<?xf32>
+    scf.yield %unsized : memref<?xf32>
+} else {
+    %ref_empty = memref.alloc() : memref<0xf32>
+    %unsized_empty = memref.cast %ref_empty : memref<0xf32> to memref<?xf32>
+    scf.yield %unsized_empty : memref<?xf32>
+}
+
+mpi.reduce %data with %sum into %dest rank %rank on %my_comm : memref<100xf32>, !mpi.op, memref<?xf32>, i32, !mpi.comm
+
+// in-place
+mpi.reduce %data with %sum in_place rank %rank on %my_comm : memref<100xf32>, !mpi.op, i32, !mpi.comm
+
+scf.if %is_root {
+    %sized = memref.cast %dest : memref<?xf32> to memref<100xf32>
+    // use data
+}
+```
+
+The conditional allocation could be provided in a helper operation:
+
+```mlir
+%dest_ref = mpi.allocate_on_rank %my_rank, %rank, memref<100xf32> -> memref<?xf32>
+```
+
+Defining custom `MPI_Op`s using [MPI_Op_create](https://www-lb.open-mpi.org/doc/v4.1/man3/MPI_Op_create.3.php):
+
+```mlir
+// generates an operator with validity for a single datatype:
+func.func @mpi_custom_op (%in: memref<?xf32>, %inout: memref<?xf32>) {
+    // runtime assert could be inserted into this function
+    // compute operator
+}
+
+%commute = arith.constant 1: i32
+
+%custom_op = mpi.op_create @mpi_custom_op, %commute : i32 -> !mpi.op
+```
+
+MPI requires the following format for user supplied functions:
+
+```C
+typedef void MPI_User_function(
+    void *invec, 
+    void *inoutvec,
+    int *len,
+    MPI_Datatype *datatype
+);
+```
+
+Modelling and inspecting `MPI_Datatype` at runtime as part of a custom op is currently not part of this RFC, but could be added if it is actually needed.
 
 # Handling `MPI_Status`
 
@@ -290,36 +255,38 @@ In order to handle MPI Status, we would introduce an optional result value of ty
 %tag = mpi.status_get_field %status[MPI_TAG] : !mpi.status -> i32
 %err = mpi.status_get_field %status[MPI_ERROR] : !mpi.status -> !mpi.retval
 
+// using the MPI_Get_count function to access get the element count:
 %count = mpi.get_count %status : !mpi.status -> i32
 ```
 
-# Lowering
+# Lowering and Differences in ABI
 
 This part gets into the ABI differences between implementation. We highly recommend the paper on [MPI Application Binary Interface Standardization](https://arxiv.org/pdf/2308.11214.pdf) as a primer for this section.
 
-We have implemented an example showing off how we lower our initial patch to both MPICH and OpenMPI style ABIs (using xDSL for quick prototyping). We hope that the mess below is enough argument in favour of introducing the MPI dialect abstraction:
+We have implemented an example showing off how we lower our initial patch to both MPICH and OpenMPI style ABIs (using xDSL for quick prototyping). We target the llvm dialect directly because we need access to low-level concepts like pointers, structs, etc. We hope that the messy output below is enough argument in favour of introducing the MPI dialect abstraction:
 
 ```mlir
-// RUN: xdsl-opt %s | xdsl-opt -p "lower-mpi{vendor=mpich}"| filecheck %s --check-prefix=MPICH  
-// RUN: xdsl-opt %s | xdsl-opt -p "lower-mpi{vendor=ompi}" | filecheck %s --check-prefix=OMPI  
-  
-"builtin.module"() ({  
-	func.func @mpi_example(%ref : memref<100xf32>, %dest : i32, %tag : i32) {  
-		mpi.init  
-		  
-		%rank = mpi.comm.rank : i32  
-		  
-		"mpi.send"(%ref, %dest, %tag) : (memref<100xf32>, i32, i32) -> ()  
-		  
-		"mpi.recv"(%ref, %dest, %tag) : (memref<100xf32>, i32, i32) -> ()  
-		  
-		mpi.finalize  
-		  
-		func.return  
-	}  
-}) : () -> ()  
+// RUN: xdsl-opt %s | xdsl-opt -p "lower-mpi{vendor=mpich}"| filecheck %s --check-prefix=MPICH
+// RUN: xdsl-opt %s | xdsl-opt -p "lower-mpi{vendor=ompi}" | filecheck %s --check-prefix=OMPI
 
-// Loweing to OpenMPI's opaque struct pointers:
+"builtin.module"() ({
+    func.func @mpi_example(%ref : memref<100xf32>, %dest : i32, %tag : i32) {
+        mpi.init
+
+        %rank = mpi.comm.rank : i32
+
+        "mpi.send"(%ref, %dest, %tag) : (memref<100xf32>, i32, i32) -> ()
+
+        "mpi.recv"(%ref, %dest, %tag) : (memref<100xf32>, i32, i32) -> ()
+
+        mpi.finalize
+
+        func.return
+    }
+}) : () -> ()
+
+
+// Lowering to OpenMPI's opaque struct pointers:
 
 // OMPI:      builtin.module {
 // OMPI-NEXT:   func.func @mpi_example(%ref : memref<100xf32>, %dest : i32, %tag : i32) {
@@ -367,8 +334,6 @@ We have implemented an example showing off how we lower our initial patch to bot
 
 // Lowering to MPICHs integer constants:
 
-
-
 // MPICH:      builtin.module {
 // MPICH-NEXT:   func.func @mpi_example(%ref : memref<100xf32>, %dest : i32, %tag : i32) {
 // MPICH-NEXT:     %0 = "llvm.mlir.null"() : () -> !llvm.ptr
@@ -410,8 +375,7 @@ We have implemented an example showing off how we lower our initial patch to bot
 
 ```
 
-We slightly prefer supporting to multiple libraries instead of an MLIR runtime, but don't want to rule out anything yet. The ABI standardisation efforts put forth by Hammond et al. hint at a more unified landscape in the future.
-
+We slightly prefer supporting to multiple implementations through a toggle in the lowering instead of an MLIR runtime but don't want to rule out anything yet. The ABI standardisation efforts put forth by Hammond et al. hint at a more unified landscape in the future.
 # MPI Error Codes
 
 Almost all MPI functions return error codes (C `int`) (which are often ignored). We propose to add an optional result to all operations that can return error codes. This result value will be of type `!mpi.retval`, that can be queried against various error codes:
@@ -423,7 +387,7 @@ Almost all MPI functions return error codes (C `int`) (which are often ignored).
 %is_success = mpi.retval_check %err = MPI_SUCCESS : !mpi.retval -> i1
 %is_err_in_stat = mpi.retval_check %err = MPI_ERR_IN_STATUS : !mpi.retval -> i1
 
-// in order to check gainst other classes of errors, one must first call 
+// in order to check gainst other classes of errors, one must first call
 // MPI_Error_class
 %err_class = mpi.error_class %err : !mpi.retval -> !mpi.retval
 
@@ -433,3 +397,15 @@ Almost all MPI functions return error codes (C `int`) (which are often ignored).
 
 *Note:*
  - We could also model `!mpi.retval` as `i32` if we wanted to. Although all the MPI error classes and codes are library dependent, so modelling it as int may not be that helpful anyways.
+
+# Open Questions:
+
+## Operation Naming
+
+We make use of a pretty standard translation from MPI names to MLIR operation names and types, where the first `_` is replaced by `.` and everything is lowercased. That way `MPI_Comm_rank` becomes `mpi.comm_rank`. We also introduce some operations that are needed due to MLIR abstraction (e.g. `mpi.retval_check`). We could prefix them similar to how it's done in the LLVM dialect to become `mpi.mlir.retval_check`.
+
+## Supporting more MPI Datatypes
+
+The current version can support many kinds of memref layouts in arguments by mapping them to MPI strided datatypes.
+MPI is able to express even more datatypes like heterogeneous arrays and structs. This is however not explored as part of this
+RFC.
