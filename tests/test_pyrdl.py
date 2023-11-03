@@ -43,10 +43,12 @@ class IntData(Data[int]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:
-        return parser.parse_integer()
+        with parser.in_angle_brackets():
+            return parser.parse_integer()
 
     def print_parameter(self, printer: Printer):
-        printer.print_string(str(self.data))
+        with printer.in_angle_brackets():
+            printer.print_string(str(self.data))
 
 
 @irdl_attr_definition

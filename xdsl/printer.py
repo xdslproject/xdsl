@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, TypeVar, cast
 
@@ -84,6 +85,14 @@ class Printer:
     _next_line_callback: list[Callable[[], None]] = field(
         default_factory=list, init=False
     )
+
+    @contextmanager
+    def in_angle_brackets(self):
+        self.print_string("<")
+        try:
+            yield
+        finally:
+            self.print_string(">")
 
     def print(self, *argv: Any) -> None:
         for arg in argv:
@@ -639,9 +648,7 @@ class Printer:
         self.print(attribute.name)
 
         if isinstance(attribute, Data):
-            self.print("<")
             attribute.print_parameter(self)
-            self.print(">")
             return
 
         assert isinstance(attribute, ParametrizedAttribute)
