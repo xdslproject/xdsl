@@ -466,9 +466,43 @@ EnumType = TypeVar("EnumType", bound=StrEnum)
 
 
 class EnumAttribute(Data[EnumType]):
+    """
+    Core helper for Enum Attributes. Takes a StrEnum type parameter, and defines
+    parsing/printing automatically from its values, restricted to be parsable as
+    identifiers.
+
+    example:
+    ```python
+    class MyEnum(Enum):
+        First = auto()
+        Second = auto()
+
+    class MyEnumAttribute(EnumAttribute[MyEnum], OpaqueSyntaxAttribute):
+        name = "example.my_enum"
+    ```
+    Is enough to use this attribute, having a textual representation
+    of `example<my_enum first>` and ``example<my_enum second>``
+
+    """
+
     enum_type: ClassVar[type[StrEnum]]
 
     def __init_subclass__(cls) -> None:
+        """
+        This hook first checks two constraints, enforced to keep the implementation
+        reasonable, until more complex usecases appears. It then store the Enum type
+        used by the subclass to use in parsing/printing.
+
+        The constraints are:
+
+        - Only direct, specialized inheritance is allowed. That is, using a subclass
+        of EnumAttribute as a base class is *not supported*.
+          This simplifies type-hacking code and I don't see it being too restrictive
+          anytime soon.
+        - The StrEnum values must all be parsable as identifier. This is to keep the
+        parsing code simple and efficient. This restriction is easier to lift, but I
+        didn't yet meet an example use case where it matters, so I'm keeping it simple.
+        """
         orig_bases = getattr(cls, "__orig_bases__")
         enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
         enum_type = get_args(enumattr)[0]
