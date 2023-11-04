@@ -470,10 +470,10 @@ class EnumAttribute(Data[EnumType]):
 
     def __init_subclass__(cls) -> None:
         orig_bases = getattr(cls, "__orig_bases__")
-        enumattr = next((b for b in orig_bases if get_origin(b) is EnumAttribute), None)
-        if enumattr is None:
-            raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
+        enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
         enum_type = get_args(enumattr)[0]
+        if isinstance(enum_type, TypeVar):
+            raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
 
         for v in enum_type:
             if lexer.Lexer.bare_identifier_suffix_regex.fullmatch(v) is None:

@@ -5,13 +5,20 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum, auto
 from io import StringIO
 from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
 
 import pytest
 
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
-from xdsl.ir import Attribute, Data, ParametrizedAttribute
+from xdsl.ir import (
+    Attribute,
+    Data,
+    EnumAttribute,
+    OpaqueSyntaxAttribute,
+    ParametrizedAttribute,
+)
 from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
@@ -132,6 +139,53 @@ def test_non_class_data():
     p = Printer(stream=stream)
     p.print_attribute(attr)
     assert stream.getvalue() == "#test.int_list<[0, 1, 42]>"
+
+
+class TestEnum(StrEnum):
+    Yes = auto()
+    No = auto()
+
+
+class TestNonIdentifierEnum(StrEnum):
+    Spaced = "left right"
+
+
+@irdl_attr_definition
+class EnumData(EnumAttribute[TestEnum], OpaqueSyntaxAttribute):
+    name = "test.enum"
+
+
+def test_enum_attribute():
+    """Test the definition of an EnumAttribute."""
+    attr = EnumData(TestEnum.No)
+    stream = StringIO()
+    p = Printer(stream=stream)
+    p.print_attribute(attr)
+    assert stream.getvalue() == "#test<enum no>"
+
+
+def test_indirect_enum_guard():
+    EnumType = TypeVar("EnumType", bound=StrEnum)
+    with pytest.raises(
+        TypeError, match="Only direct inheritance from EnumAttribute is allowed."
+    ):
+
+        class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
+            EnumAttribute[EnumType]
+        ):
+            name = "test.indirect_enum"
+
+
+def test_identifier_enum_guard():
+    with pytest.raises(
+        ValueError,
+        match="All StrEnum values of an EnumAttribute must be parsable as an identifer.",
+    ):
+
+        class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
+            EnumAttribute[TestNonIdentifierEnum]
+        ):
+            name = "test.non_identifier_enum"
 
 
 ################################################################################
