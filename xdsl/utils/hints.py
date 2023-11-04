@@ -122,7 +122,7 @@ def get_type_var_from_generic_class(cls: type[Any]) -> tuple[TypeVar, ...]:
     """Return the `TypeVar` used in the class `Generic` parent."""
     cls_orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
     for orig_base in cls_orig_bases:
-        if get_origin(orig_base) == Generic:
+        if (o := get_origin(orig_base)) is not None and issubclass(o, Generic):
             return get_args(orig_base)
     raise ValueError(f"{cls} class does not have a `Generic` parent.")
 
