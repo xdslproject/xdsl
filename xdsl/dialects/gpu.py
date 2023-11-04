@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from enum import StrEnum, auto
+from enum import auto
 from typing import TypeVar
 
 from xdsl.dialects import memref
@@ -27,6 +27,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Region,
     SSAValue,
+    StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (

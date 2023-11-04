@@ -5,7 +5,7 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum, auto
+from enum import auto
 from io import StringIO
 from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
 
@@ -18,6 +18,7 @@ from xdsl.ir import (
     EnumAttribute,
     OpaqueSyntaxAttribute,
     ParametrizedAttribute,
+    StrEnum,
 )
 from xdsl.irdl import (
     AnyAttr,
