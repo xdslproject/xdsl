@@ -5,13 +5,14 @@ import pytest
 from xdsl.utils.hints import get_type_var_mapping
 
 T = TypeVar("T")
+R = TypeVar("R")
 
 
 class GenericBase(Generic[T]):
     pass
 
 
-class GenericSubclassOfGenericBase(GenericBase[T]):
+class GenericSubclassOfGenericBase(GenericBase[R]):
     pass
 
 
@@ -26,8 +27,9 @@ class SpecificSubclassOfGenericSubclass(GenericSubclassOfGenericBase[int]):
 @pytest.mark.parametrize(
     "specialized_type, type_var_mapping",
     [
-        (IntThing, (GenThing, {T: int})),
-        (IntThingy, (GenThingy, {T: int})),
+        (SpecificSubclassOfGenericBase, (GenericBase, {T: int})),
+        (SpecificSubclassOfGenericSubclass, (GenericSubclassOfGenericBase, {R: int})),
+        (GenericSubclassOfGenericBase[int], (GenericBase, {T: int})),
     ],  # pyright: ignore [reportUnknownArgumentType]
 )
 def test_type_var_mapping(

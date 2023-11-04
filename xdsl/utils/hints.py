@@ -1,3 +1,4 @@
+import typing
 from collections.abc import Iterable
 from inspect import isclass
 from types import UnionType
@@ -134,12 +135,18 @@ def get_type_var_mapping(
     Given a class that specializes a generic class, return the generic class and
     the mapping from the generic class type variables to the specialized arguments.
     """
+    if (
+        type(cls)
+        is typing._GenericAlias  # pyright: ignore[reportUnknownMemberType, reportGeneralTypeIssues]
+    ):
+        orig_bases = getattr(get_origin(cls), "__orig_bases__")
 
-    if not issubclass(cls, Generic):
-        raise ValueError(f"{cls} does not specialize a generic class.")
+    else:
+        if not issubclass(cls, Generic):
+            raise ValueError(f"{cls} does not specialize a generic class.")
 
-    # Get the generic parent
-    orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
+        # Get the generic parent
+        orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
     orig_bases = [
         orig_base for orig_base in orig_bases if get_origin(orig_base) is not Generic
     ]
@@ -156,7 +163,13 @@ def get_type_var_mapping(
 
     # Get the generic operation, and its specialized type parameters.
     generic_parent: type[Any] = get_origin(orig_bases[0])
-    specialized_args = get_args(orig_bases[0])
+    if (
+        type(cls)
+        is typing._GenericAlias  # pyright: ignore[reportUnknownMemberType, reportGeneralTypeIssues]
+    ):
+        specialized_args = get_args(cls)
+    else:
+        specialized_args = get_args(orig_bases[0])
 
     # Get the `TypeVar` used in the generic parent
     generic_args = get_type_var_from_generic_class(generic_parent)
