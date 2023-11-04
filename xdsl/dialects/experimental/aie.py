@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
-    ModuleOp,
     NoneAttr,
     Region,
     Signedness,
@@ -31,7 +30,6 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    prop_def,
     region_def,
     result_def,
 )
@@ -48,6 +46,9 @@ CASCADE_SIZE = 384
 
 LOCK_ACQUIRE = 1
 LOCK_RELEASE = 0
+
+PRODUCE_PORT = 0
+CONSUME_PORT = 1
 
 # @irdl_attr_definition
 # class DimTupleArrayAttr():
@@ -103,7 +104,7 @@ class ObjectFIFOSubview(ParametrizedAttribute):
         return ObjectFIFOSubview(
             [
                 memref.MemRefType.from_element_type_and_shape(
-                    object_fifo.buffer.referenced_type,
+                    object_fifo.buffer.element_type,
                     shape,
                     object_fifo.buffer.layout,
                     object_fifo.buffer.memory_space,
@@ -204,6 +205,12 @@ class CoreOp(IRDLOperation):
             result_types=[IndexType()],
         )
 
+    def print(self, printer: Printer):
+        printer.print(" (")
+        printer.print_operand(self.tile)
+        printer.print(") ")
+        printer.print_region(self.region)
+
 
 """
 @irdl_op_definition
@@ -263,6 +270,7 @@ class DeviceOp(IRDLOperation):
     device: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
         IntegerAttr[Annotated[IntegerType, i32]]
     )
+    traits = frozenset([SymbolTable()])
 
     def __init__(self, device: IntegerAttr[i32], region: Region):
         super().__init__(attributes={"device": device}, regions=[region])
@@ -427,35 +435,68 @@ class ObjectFifoAcquireOp(IRDLOperation):
         IntegerAttr[Annotated[IntegerType, i32]]
     )
     size: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
-    object_fifo: FlatSymbolRefAttr = prop_def(FlatSymbolRefAttr)
+    object_fifo: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr)
 
-    result: OpResult = result_def(i32)
+    result: OpResult = result_def(ObjectFIFOSubview)
 
     def __init__(
         self,
         port: IntegerAttr[i32],
         size: IntegerAttr[i32],
         object_fifo: str | SymbolRefAttr,
+        device: DeviceOp,
     ):
         if isinstance(object_fifo, str):
-            object_fifo = StringAttr(object_fifo)
+            object_fifo = SymbolRefAttr(object_fifo)
+
+        lookup = SymbolTable.lookup_symbol(device, "of")
+        result_subview = ObjectFIFOSubview.from_element_type_and_shape(
+            lookup.object_fifo, lookup.object_fifo.buffer.shape
+        )
         super().__init__(
-            attributes={"port": port, "size": size},
-            properties={"object_fifo": object_fifo},
-            result_types=[i32],
+            attributes={"port": port, "size": size, "object_fifo": object_fifo},
+            result_types=[result_subview],
         )
 
     def print(self, printer: Printer):
-        port = "Produce" if self.port == 0 else "Consume"
+        port = "Produce" if self.port.value.data == PRODUCE_PORT else "Consume"
         op = self.parent_op()
-        while not isinstance(op, ModuleOp):
+        while not isinstance(op, DeviceOp):
             op = op.parent_op()
 
-        print("TYPE (module?): ", type(op))
-        printer.print(f" @{self.object_fifo.data} (", port, ", ", self.size, ")")
-        print("FIFO_DATA: ", self.object_fifo.data)
-        lookup = SymbolTable.lookup_symbol(op, SymbolRefAttr("of", ["object_fifo"]))
-        print(f"LOOKUP: {lookup}")
+        printer.print(
+            f" @{self.object_fifo.data} (", port, ", ", self.size.value.data, ") : "
+        )
+        lookup = SymbolTable.lookup_symbol(op, "of")
+        printer.print("!AIE.objectFifoSubview<", lookup.object_fifo.buffer, ">")
+
+
+@irdl_op_definition
+class ObjectFIFOSubviewAccessOp(IRDLOperation):
+    name = "AIE.objectFifo.subview.access"
+
+    index: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    subview: Operand = operand_def(ObjectFIFOSubview)
+    output: OpResult = result_def(memref.MemRefType)
+
+    def __init__(self, index: IntegerAttr[i32], subview: ObjectFIFOSubview):
+        result_type = memref.MemRefType.from_element_type_and_shape(
+            subview.result.type.buffer.element_type, subview.result.type.buffer.shape
+        )
+        super().__init__(
+            attributes={"index": index}, operands=[subview], result_types=[result_type]
+        )
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.subview)
+        printer.print("[", self.index.value.data, "] : ")
+        printer.print(
+            "!AIE.objectFifoSubview<",
+            self.subview.type.buffer,
+            "> -> ",
+            self.subview.type.buffer,
+        )
 
 
 @irdl_op_definition
@@ -465,7 +506,7 @@ class createObjectFifo(IRDLOperation):
     elemNumber: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
     producerTile: Operand = operand_def(IndexType())
     consumerTile: Operand = operand_def(IndexType())
-    sym_name: StringAttr = prop_def(StringAttr)
+    sym_name: StringAttr = attr_def(StringAttr)
     object_fifo: ObjectFIFO = attr_def(ObjectFIFO)
 
     traits = frozenset([SymbolOpInterface()])
@@ -481,8 +522,11 @@ class createObjectFifo(IRDLOperation):
     ):
         object_fifo = ObjectFIFO.from_element_type_and_shape(referenced_type, shape)
         super().__init__(
-            attributes={"elemNumber": elemNumber, "object_fifo": object_fifo},
-            properties={"sym_name": StringAttr(name)},
+            attributes={
+                "elemNumber": elemNumber,
+                "object_fifo": object_fifo,
+                "sym_name": StringAttr(name),
+            },
             operands=[producerTile, consumerTile],
         )
 
@@ -494,9 +538,47 @@ class createObjectFifo(IRDLOperation):
             self.producerTile,
             ", {",
             self.consumerTile,
-            "}) : !AIE.objectFIFO<",
+            "}, ",
+        )
+        printer.print_attribute(self.elemNumber)
+
+        printer.print(
+            ") : !AIE.objectFifo<",
             self.object_fifo.buffer,
             ">",
+        )
+
+
+@irdl_op_definition
+class ObjectFIFOReleaseOp(IRDLOperation):
+    name = "AIE.objectFifo.release"
+
+    port: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(IntegerAttr[i32])
+    size: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    object_fifo: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr)
+
+    def __init__(
+        self,
+        port: IntegerAttr[i32],
+        size: IntegerAttr[i32],
+        object_fifo: str | SymbolRefAttr,
+    ):
+        if isinstance(object_fifo, str):
+            object_fifo = SymbolRefAttr(object_fifo)
+
+        super().__init__(
+            attributes={"port": port, "size": size, "object_fifo": object_fifo}
+        )
+
+    def print(self, printer: Printer):
+        printer.print(
+            " @",
+            self.object_fifo.data,
+            " (",
+            "Produce" if self.port.value.data == PRODUCE_PORT else "Consume",
+            ", ",
+            self.size.value.data,
+            ")",
         )
 
 
