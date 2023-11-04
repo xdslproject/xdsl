@@ -488,7 +488,7 @@ class EnumAttribute(Data[EnumType]):
 
     example:
     ```python
-    class MyEnum(Enum):
+    class MyEnum(StrEnum):
         First = auto()
         Second = auto()
 
