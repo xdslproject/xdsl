@@ -25,7 +25,10 @@ class IntThingy(GenThingy[int]):
 
 @pytest.mark.parametrize(
     "specialized_type, type_var_mapping",
-    [(IntThing, (GenThing, {T: int})), (IntThingy, (GenThingy, {T: int}))],
+    [
+        (IntThing, (GenThing, {T: int})),
+        (IntThingy, (GenThingy, {T: int})),
+    ],  # pyright: ignore [reportUnknownArgumentType]
 )
 def test_type_var_mapping(
     specialized_type: type, type_var_mapping: tuple[type, dict[TypeVar, type]]
