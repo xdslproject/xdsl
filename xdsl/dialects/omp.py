@@ -44,19 +44,16 @@ class OrderKind(StrEnum):
 @irdl_attr_definition
 class ScheduleKindAttr(EnumAttribute[ScheduleKind], OpaqueSyntaxAttribute):
     name = "omp.schedulekind"
-    pass
 
 
 @irdl_attr_definition
 class ScheduleModifierAttr(EnumAttribute[ScheduleModifier], OpaqueSyntaxAttribute):
     name = "omp.sched_mod"
-    pass
 
 
 @irdl_attr_definition
 class OrderKindAttr(EnumAttribute[OrderKind], OpaqueSyntaxAttribute):
     name = "omp.orderkind"
-    pass
 
 
 @irdl_op_definition
