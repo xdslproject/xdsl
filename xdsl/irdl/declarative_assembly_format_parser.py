@@ -54,7 +54,7 @@ class FormatLexer(Lexer):
         return super().lex()
 
     # Authorize `-` in bare identifier
-    _bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.\-]*")
+    bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.\-]*")
 
 
 class ParsingContext(Enum):

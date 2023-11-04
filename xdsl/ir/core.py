@@ -18,12 +18,14 @@ from typing import (
     cast,
     final,
     get_args,
+    get_origin,
     overload,
 )
 
 from typing_extensions import Self
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
+from xdsl.utils import lexer
 from xdsl.utils.exceptions import VerifyException
 
 # Used for cyclic dependencies in type hints
@@ -464,6 +466,23 @@ EnumType = TypeVar("EnumType", bound=StrEnum)
 
 
 class EnumAttribute(Data[EnumType]):
+    enum_type: ClassVar[type[StrEnum]]
+
+    def __init_subclass__(cls) -> None:
+        orig_bases = getattr(cls, "__orig_bases__")
+        enumattr = next((b for b in orig_bases if get_origin(b) is EnumAttribute), None)
+        if enumattr is None:
+            raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
+        enum_type = get_args(enumattr)[0]
+
+        for v in enum_type:
+            if lexer.Lexer.bare_identifier_suffix_regex.fullmatch(v) is None:
+                raise ValueError(
+                    "All StrEnum values of an EnumAttribute must be parsable as an identifer."
+                )
+
+        cls.enum_type = enum_type
+
     @final
     def print_parameter(self, printer: Printer) -> None:
         printer.print(" ", self.data.value)
@@ -471,14 +490,11 @@ class EnumAttribute(Data[EnumType]):
     @final
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
-        enum_type = cast(
-            type[Generic], next(c for c in cls.__orig_bases__ if len(get_args(c)) > 0)
-        )
-        enum_type = cast(type[EnumType], enum_type.__args__[0])
+        enum_type = cls.enum_type
 
         val = parser.parse_identifier()
         if val in enum_type.__members__.values():
-            return enum_type(val)
+            return cast(EnumType, enum_type(val))
         enum_values = list(enum_type)
         if len(enum_values) == 1:
             parser.raise_error(f"Expected `{enum_values[0]}`.")
