@@ -7,19 +7,19 @@ from xdsl.utils.hints import get_type_var_mapping
 T = TypeVar("T")
 
 
-class GenThing(Generic[T]):
+class GenericBase(Generic[T]):
     pass
 
 
-class GenThingy(GenThing[T]):
+class GenericSubclassOfGenericBase(GenericBase[T]):
     pass
 
 
-class IntThing(GenThing[int]):
+class SpecificSubclassOfGenericBase(GenericBase[int]):
     pass
 
 
-class IntThingy(GenThingy[int]):
+class SpecificSubclassOfGenericSubclass(GenericSubclassOfGenericBase[int]):
     pass
 
 
