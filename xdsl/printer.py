@@ -591,14 +591,16 @@ class Printer:
         if isinstance(attribute, MemRefType):
             attribute = cast(MemRefType[Attribute], attribute)
             self.print("memref<")
-            self.print_list(
-                attribute.shape.data,
-                lambda x: self.print(x.value.data)
-                if x.value.data != -1
-                else self.print("?"),
-                "x",
-            )
-            self.print("x", attribute.element_type)
+            if len(attribute.shape.data) > 0:
+                self.print_list(
+                    attribute.shape.data,
+                    lambda x: self.print(x.value.data)
+                    if x.value.data != -1
+                    else self.print("?"),
+                    "x",
+                )
+                self.print("x")
+            self.print(attribute.element_type)
             if not isinstance(attribute.layout, NoneAttr):
                 self.print(", ", attribute.layout)
             if not isinstance(attribute.memory_space, NoneAttr):
