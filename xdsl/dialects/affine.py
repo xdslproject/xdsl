@@ -25,6 +25,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    prop_def,
     region_def,
     result_def,
     var_operand_def,
@@ -39,7 +40,7 @@ class Apply(IRDLOperation):
     name = "affine.apply"
 
     mapOperands = var_operand_def(IndexType)
-    map = attr_def(AffineMapAttr)
+    map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
 
     def verify_(self) -> None:
@@ -227,6 +228,7 @@ class Yield(IRDLOperation):
 Affine = Dialect(
     "affine",
     [
+        Apply,
         For,
         If,
         Store,
