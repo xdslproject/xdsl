@@ -18,6 +18,8 @@ from xdsl.dialects.arith import (
     ExtFOp,
     ExtSIOp,
     ExtUIOp,
+    FastMathFlagsAttr,
+    FloatingPointLikeBinaryOp,
     FloorDivSI,
     FPToSIOp,
     IndexCastOp,
@@ -111,10 +113,16 @@ class Test_float_arith_construction:
         "func",
         [Addf, Subf, Mulf, Divf, Maxf, Minf],
     )
-    def test_arith_ops(self, func: type[BinaryOperation[_BinOpArgT]]):
-        op = func(self.a, self.b)
+    @pytest.mark.parametrize(
+        "flags", [FastMathFlagsAttr("none"), FastMathFlagsAttr("fast"), None]
+    )
+    def test_arith_ops(
+        self, func: type[FloatingPointLikeBinaryOp], flags: FastMathFlagsAttr | None
+    ):
+        op = func(self.a, self.b, flags)
         assert op.operands[0].owner is self.a
         assert op.operands[1].owner is self.b
+        assert op.fastmath == flags
 
 
 def test_select_op():
