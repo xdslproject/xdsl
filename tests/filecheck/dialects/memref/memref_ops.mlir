@@ -1,6 +1,12 @@
 // RUN: XDSL_ROUNDTRIP
 
 builtin.module {
+  func.func @memref_alloca_scope() {
+    "memref.alloca_scope"() ({
+      "memref.alloca_scope.return"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
   "memref.global"() {"sym_name" = "g", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
   func.func private @memref_test() {
     %0 = "memref.get_global"() {"name" = @g} : () -> memref<1xindex>
@@ -22,6 +28,12 @@ builtin.module {
 }
 
 // CHECK-NEXT: builtin.module {
+// CHECK-NEXT:    func.func @memref_alloca_scope() {
+// CHECK-NEXT:      "memref.alloca_scope"() ({
+// CHECK-NEXT:        "memref.alloca_scope.return"() : () -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
 // CHECK-NEXT:   "memref.global"() <{"sym_name" = "g", "sym_visibility" = "public", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ()
 // CHECK-NEXT:   func.func private @memref_test() {
 // CHECK-NEXT:     %{{.*}} = "memref.get_global"() <{"name" = @g}> : () -> memref<1xindex>
