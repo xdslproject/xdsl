@@ -84,6 +84,37 @@ class WsLoopOp(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
 
+class ProcBindKindEnum(StrEnum):
+    Primary = auto()
+    Master = auto()
+    Close = auto()
+    Spread = auto()
+
+
+class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], OpaqueSyntaxAttribute):
+    name = "omp.procbindkind"
+
+
+@irdl_op_definition
+class ParallelOp(IRDLOperation):
+    name = "omp.parallel"
+
+    if_expr_var = opt_operand_def(IntegerType(1))
+    num_threads_var = opt_operand_def(IntegerType | IndexType)
+    allocate_vars = var_operand_def()
+    allocators_vars = var_operand_def()
+    # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
+    # Relatively shallow interface with just `getElementType`
+    reduction_vars = var_operand_def()
+
+    region = region_def()
+
+    reductions = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    proc_bind_val = opt_prop_def(ProcBindKindAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
 @irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
     name = "omp.yield"
@@ -91,15 +122,25 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = frozenset([IsTerminator()])
 
 
+@irdl_op_definition
+class TerminatorOp(IRDLOperation):
+    name = "omp.terminator"
+
+    traits = frozenset([IsTerminator()])
+
+
 OMP = Dialect(
     "omp",
     [
+        ParallelOp,
+        TerminatorOp,
         WsLoopOp,
         YieldOp,
     ],
     [
+        OrderKindAttr,
+        ProcBindKindAttr,
         ScheduleKindAttr,
         ScheduleModifierAttr,
-        OrderKindAttr,
     ],
 )

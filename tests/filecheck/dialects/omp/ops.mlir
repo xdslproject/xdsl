@@ -1,6 +1,24 @@
 // RUN: XDSL_ROUNDTRIP
 
 builtin.module {
+  func.func @omp_parallel(%arg0 : memref<1xi32>, %arg1 : i1, %arg2 : i32) {
+    "omp.parallel"(%arg1, %arg2, %arg0, %arg0) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 1, 0>, "proc_bind_val" = #omp.procbindkind spread}> ({
+      "omp.parallel"(%arg2, %arg0, %arg0) <{"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 0>}> ({
+        "omp.terminator"() : () -> ()
+      }) : (i32, memref<1xi32>, memref<1xi32>) -> ()
+      "omp.parallel"(%arg1, %arg0, %arg0) <{"operandSegmentSizes" = array<i32: 1, 0, 1, 1, 0>}> ({
+        "omp.terminator"() : () -> ()
+      }) : (i1, memref<1xi32>, memref<1xi32>) -> ()
+      "omp.parallel"(%arg1, %arg2) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0, 0>}> ({
+        "omp.terminator"() : () -> ()
+      }) : (i1, i32) -> ()
+      "omp.terminator"() : () -> ()
+    }) : (i1, i32, memref<1xi32>, memref<1xi32>) -> ()
+    "omp.parallel"(%arg0, %arg0) <{"operandSegmentSizes" = array<i32: 0, 0, 1, 1, 0>}> ({
+      "omp.terminator"() : () -> ()
+    }) : (memref<1xi32>, memref<1xi32>) -> ()
+    func.return
+  }
   func.func @omp_ordered(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
     "omp.wsloop"(%arg0, %arg1, %arg2) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0, 0, 0>, "ordered_val" = 0 : i64}> ({
     ^0(%arg7 : i32):
@@ -81,6 +99,24 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
+// CHECK-NEXT:    func.func @omp_parallel(%{{.*}} : memref<1xi32>, %{{.*}} : i1, %{{.*}} : i32) {
+// CHECK-NEXT:      "omp.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 1, 0>, "proc_bind_val" = #omp<procbindkind spread>}> ({
+// CHECK-NEXT:        "omp.parallel"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 0>}> ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : (i32, memref<1xi32>, memref<1xi32>) -> ()
+// CHECK-NEXT:        "omp.parallel"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 0, 1, 1, 0>}> ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : (i1, memref<1xi32>, memref<1xi32>) -> ()
+// CHECK-NEXT:        "omp.parallel"(%{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 0, 0, 0>}> ({
+// CHECK-NEXT:          "omp.terminator"() : () -> ()
+// CHECK-NEXT:        }) : (i1, i32) -> ()
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : (i1, i32, memref<1xi32>, memref<1xi32>) -> ()
+// CHECK-NEXT:      "omp.parallel"(%{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 0, 0, 1, 1, 0>}> ({
+// CHECK-NEXT:        "omp.terminator"() : () -> ()
+// CHECK-NEXT:      }) : (memref<1xi32>, memref<1xi32>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_ordered(%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i64, %{{.*}} : i64, %{{.*}} : i64, %{{.*}} : i64) {
 // CHECK-NEXT:      "omp.wsloop"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0, 0, 0>, "ordered_val" = 0 : i64}> ({
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : i32):
