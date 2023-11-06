@@ -480,7 +480,7 @@ class EnumAttribute(Data[EnumType]):
     class MyEnumAttribute(EnumAttribute[MyEnum], OpaqueSyntaxAttribute):
         name = "example.my_enum"
     ```
-    Is enough to use this attribute, having a textual representation
+    To use this attribute suffices to have a textual representation
     of `example<my_enum first>` and ``example<my_enum second>``
 
     """
