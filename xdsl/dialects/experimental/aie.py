@@ -63,8 +63,8 @@ i1 = IntegerType(1)
 
 # @irdl_attr_definition
 # class DimTupleArrayAttr():
-#    @classmethod
-#    def parse_parameter
+# 	 @classmethod
+# 	 def parse_parameter
 
 
 @irdl_attr_definition
@@ -309,7 +309,7 @@ class DMAStartOp(IRDLOperation):
     channelIndex: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
     dest: Block = successor_def()
     chain: Block = successor_def()
-    # result: OpResult  = result_def(i1)
+    # result: OpResult	= result_def(i1)
 
     traits = frozenset([IsTerminator()])
 
@@ -373,10 +373,23 @@ class end(IRDLOperation):
 
 @irdl_op_definition
 class ExternalBufferOp(IRDLOperation):
-    name = "external_buffer"
+    name = "AIE.external_buffer"
 
-    def __init__(self):
-        super().__init__(result_types=[memref.MemRefType])
+    sym_name: StringAttr = attr_def(StringAttr)
+    buffer: OpResult = result_def(memref.MemRefType)
+
+    def __init__(
+        self,
+        sym_name: str,
+        shape: ArrayAttr[AnyIntegerAttr],
+        element_type: _MemRefTypeElement,
+    ):
+        super().__init__(
+            attributes={"sym_name": StringAttr(sym_name)},
+            result_types=[
+                memref.MemRefType.from_element_type_and_shape(element_type, shape)
+            ],
+        )
 
 
 @irdl_op_definition
@@ -551,7 +564,7 @@ class ObjectFifoAcquireOp(IRDLOperation):
         if isinstance(object_fifo, str):
             object_fifo = SymbolRefAttr(object_fifo)
 
-        lookup = SymbolTable.lookup_symbol(device, "of")
+        lookup = SymbolTable.lookup_symbol(device, object_fifo)
         result_subview = ObjectFIFOSubview.from_element_type_and_shape(
             lookup.object_fifo, lookup.object_fifo.buffer.shape
         )
@@ -569,8 +582,41 @@ class ObjectFifoAcquireOp(IRDLOperation):
         printer.print(
             f" @{self.object_fifo.data} (", port, ", ", self.size.value.data, ") : "
         )
-        lookup = SymbolTable.lookup_symbol(op, "of")
+        lookup = SymbolTable.lookup_symbol(op, self.object_fifo)
         printer.print("!AIE.objectFifoSubview<", lookup.object_fifo.buffer, ">")
+
+
+@irdl_op_definition
+class ObjectFifoRegisterExternalBuffersOp(IRDLOperation):
+    name = "AIE.objectFifo.registerExternalBuffers"
+
+    tile: Operand = operand_def(IndexType())
+    externalBuffers: Operand = operand_def(memref.MemRefType)
+    object_fifo: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr)
+
+    def __init__(
+        self,
+        tile: IndexType(),
+        externalBuffers: memref.MemrefType,
+        object_fifo: str | SymbolRefAttr,
+    ):
+        if isinstance(object_fifo, str):
+            object_fifo = SymbolRefAttr(object_fifo)
+
+        super().__init__(
+            operands=[tile, externalBuffers], attributes={"object_fifo": object_fifo}
+        )
+
+    def print(self, printer: Printer):
+        printer.print(
+            f" @{self.object_fifo.data} (",
+            self.tile,
+            ", {",
+            self.externalBuffers,
+            "}) : (",
+            self.externalBuffers.type,
+            ")",
+        )
 
 
 @irdl_op_definition
