@@ -16,30 +16,13 @@ from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.reactive import reactive
 from textual.widgets import Footer, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
-from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects
-
-
-def transform_input(input_text: str) -> builtin.ModuleOp:
-    """
-    Function that takes the input IR, the list of passes to be applied, and applies the passes to the IR.
-    Returns the module (after pass is applied).
-    """
-    ctx = MLContext(True)
-    for dialect in get_all_dialects():
-        ctx.load_dialect(dialect)
-
-    parser = Parser(ctx, input_text)
-    module = parser.parse_module()
-
-    return module
 
 
 class OutputTextArea(TextArea):
@@ -56,8 +39,6 @@ class InputApp(App[None]):
     """
 
     CSS_PATH = "app.tcss"
-
-    output_ir = reactive("")
 
     BINDINGS = [
         ("d", "toggle_dark", "Toggle dark mode"),
@@ -94,11 +75,16 @@ class InputApp(App[None]):
                 output_text_area.theme = "my_cool_theme"
         yield Footer()
 
-    def compute_output_ir(self) -> None:
+    def update_output(self) -> None:
         input_text = self.query_one("#input", TextArea).text
 
         try:
-            module = transform_input(input_text)
+            ctx = MLContext(True)
+            for dialect in get_all_dialects():
+                ctx.load_dialect(dialect)
+
+            parser = Parser(ctx, input_text)
+            module = parser.parse_module()
 
             output_stream = StringIO()
             Printer(output_stream).print(module)
@@ -106,11 +92,10 @@ class InputApp(App[None]):
         except Exception as e:
             output_text = str(e)
 
-        output_ir = output_text
-        self.query_one("#output", TextArea).load_text(output_ir)
+        self.query_one("#output", TextArea).load_text(output_text)
 
     def on_mount(self) -> None:
-        """On App Mount, add titles + execute()"""
+        """On App Mount, add titles"""
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
 
@@ -124,8 +109,8 @@ class InputApp(App[None]):
 
     @on(TextArea.Changed, "#input")
     def on_input_changed(self, event: TextArea.Changed):
-        """When the input TextArea changes, call exectue function"""
-        self.compute_output_ir()
+        """When the input TextArea changes, call execute function"""
+        self.update_output()
 
 
 if __name__ == "__main__":
