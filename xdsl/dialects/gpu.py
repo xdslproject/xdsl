@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Generic, TypeVar
+from typing import Literal, TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
@@ -18,7 +18,9 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Block,
+    Data,
     Dialect,
+    OpaqueSyntaxAttribute,
     Operation,
     OpResult,
     ParametrizedAttribute,
@@ -66,85 +68,39 @@ class AsyncTokenType(ParametrizedAttribute, TypeAttribute):
     name = "gpu.async.token"
 
 
-@irdl_attr_definition
-class _AllReduceOperationAttr(ParametrizedAttribute):
-    name = "all_reduce_op"
+class AllReduceOpAttr(
+    Data[Literal["add", "and", "max", "min", "mul", "or", "xor"]], OpaqueSyntaxAttribute
+):
+    name = "gpu.all_reduce_op"
 
     param: ParameterDef[StringAttr]
 
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print(f"all_reduce_op {self.param.data}")
-
-
-@irdl_attr_definition
-class _DimensionAttr(ParametrizedAttribute):
-    name = "dim"
-
-    param: ParameterDef[StringAttr]
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print(f"dim {self.param.data}")
-
-
-T = TypeVar("T", bound=_AllReduceOperationAttr | _DimensionAttr, covariant=True)
-
-
-@irdl_attr_definition
-class _GPUAttr(ParametrizedAttribute, Generic[T]):
-    name = "gpu"
-
-    value: ParameterDef[T]
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(f" {self.data}")
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters(
-            "<",
-            ": gpu attributes currently have the #gpu<name value> syntax.",
-        )
-        if parser.parse_optional_keyword("dim"):
-            attrtype = _DimensionAttr
-            vtok = parser.parse_optional_identifier()
-            if vtok not in ["x", "y", "z"]:
-                parser.raise_error(
-                    f"Unexpected dim {vtok}. A gpu dim can only be x, y, or z",
-                )
-
-        elif parser.parse_optional_keyword("all_reduce_op"):
-            attrtype = _AllReduceOperationAttr
-            vtok = parser.parse_optional_identifier()
-            if vtok not in ["add", "and", "max", "min", "mul", "or", "xor"]:
-                parser.raise_error(
-                    f"Unexpected op {vtok}. A gpu all_reduce_op can only be add, "
-                    "and, max, min, mul, or, or xor ",
-                )
-        else:
-            parser.raise_error("'dim' or 'all_reduce_op' expected")
-        parser.parse_characters(
-            ">",
-            ". gpu attributes currently have the #gpu<name value> syntax.",
-        )
-        return [attrtype([StringAttr(vtok)])]
-
-    @staticmethod
-    def from_op(value: str) -> AllReduceOperationAttr:
-        return AllReduceOperationAttr([_AllReduceOperationAttr([StringAttr(value)])])
-
-    @property
-    def data(self) -> str:
-        return self.value.param.data
-
-    @staticmethod
-    def from_dimension(value: str) -> DimensionAttr:
-        return DimensionAttr([_DimensionAttr([StringAttr(value)])])
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<")
-        self.value.print_parameters(printer)
-        printer.print_string(">")
+    def parse_parameter(
+        cls, parser: AttrParser
+    ) -> Literal["add", "and", "max", "min", "mul", "or", "xor"]:
+        val = parser.parse_identifier()
+        if val in ("add", "and", "max", "min", "mul", "or", "xor"):
+            return val
+        parser.raise_error("Expected add, and, max, min, mul, or, or xor.")
 
 
-DimensionAttr = _GPUAttr[_DimensionAttr]
-AllReduceOperationAttr = _GPUAttr[_AllReduceOperationAttr]
+class DimensionAttr(Data[Literal["x", "y", "z"]], OpaqueSyntaxAttribute):
+    name = "gpu.dim"
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(f" {self.data}")
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> Literal["x", "y", "z"]:
+        val = parser.parse_identifier()
+        if val in ("x", "y", "z"):
+            return val
+        parser.raise_error("Expected x, y or z.")
+
 
 _Element = TypeVar("_Element", bound=Attribute, covariant=True)
 
@@ -201,7 +157,7 @@ class AllocOp(IRDLOperation):
 @irdl_op_definition
 class AllReduceOp(IRDLOperation):
     name = "gpu.all_reduce"
-    op: AllReduceOperationAttr | None = opt_prop_def(AllReduceOperationAttr)
+    op: AllReduceOpAttr | None = opt_prop_def(AllReduceOpAttr)
     uniform: UnitAttr | None = opt_prop_def(UnitAttr)
     operand: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
@@ -211,7 +167,7 @@ class AllReduceOp(IRDLOperation):
 
     @staticmethod
     def from_op(
-        op: AllReduceOperationAttr,
+        op: AllReduceOpAttr,
         operand: SSAValue | Operation,
         uniform: UnitAttr | None = None,
     ):
@@ -730,10 +686,6 @@ class YieldOp(IRDLOperation):
                 )
 
 
-# _GPUAttr has to be registered instead of DimensionAttr and AllReduceOperationAttr here.
-# This is a hack to fit MLIR's syntax in xDSL's way of parsing attributes, without making GPU builtin.
-# Hopefully MLIR will parse it in a more xDSL-friendly way soon, so all that can be factored in proper xDSL
-# atrributes.
 GPU = Dialect(
     "gpu",
     [
@@ -763,5 +715,5 @@ GPU = Dialect(
         ThreadIdOp,
         YieldOp,
     ],
-    [_GPUAttr],
+    [AllReduceOpAttr, DimensionAttr],
 )

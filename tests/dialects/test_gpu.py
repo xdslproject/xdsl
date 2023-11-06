@@ -3,7 +3,7 @@ from xdsl.dialects import arith, builtin, memref
 from xdsl.dialects.gpu import (
     AllocOp,
     AllReduceOp,
-    AllReduceOperationAttr,
+    AllReduceOpAttr,
     AsyncTokenType,
     BarrierOp,
     BlockDimOp,
@@ -34,7 +34,7 @@ from xdsl.ir import Block, Operation, Region, SSAValue
 
 
 def test_dimension():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr("x")
 
     assert dim.data == "x"
 
@@ -79,13 +79,13 @@ def test_alloc():
 
 
 def test_all_reduce_operation():
-    op = AllReduceOperationAttr.from_op("add")
+    op = AllReduceOpAttr("add")
 
     assert op.data == "add"
 
 
 def test_all_reduce():
-    op = AllReduceOperationAttr.from_op("add")
+    op = AllReduceOpAttr("add")
 
     init = arith.Constant.from_int_and_width(0, builtin.IndexType())
 
@@ -120,7 +120,7 @@ def test_barrier():
 
 
 def test_block_dim():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr("x")
 
     block_dim = BlockDimOp(dim)
 
@@ -129,7 +129,7 @@ def test_block_dim():
 
 
 def test_block_id():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr("x")
 
     block_id = BlockIdOp(dim)
 
@@ -181,7 +181,7 @@ def test_gpu_module_end():
 
 
 def test_global_id():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr("x")
 
     global_id = GlobalIdOp(dim)
 
@@ -190,7 +190,7 @@ def test_global_id():
 
 
 def test_grid_dim():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr("x")
 
     grid_dim = GridDimOp(dim)
 
@@ -395,7 +395,7 @@ def test_subgroup_size():
 
 
 def test_thread_id():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr("x")
 
     thread_id = ThreadIdOp(dim)
 
