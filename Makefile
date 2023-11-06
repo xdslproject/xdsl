@@ -18,11 +18,10 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 .PHONY: coverage coverage-tests coverage-filecheck-tests coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
-venv: requirements-optional.txt requirements.txt
+venv: requirements.txt
 	python3 -m venv ${VENV_DIR}
 	. ${VENV_DIR}/bin/activate
-	python3 -m pip --require-virtualenv install -r requirements-optional.txt -r requirements.txt
-	python3 -m pip --require-virtualenv install -e ".[extras]"
+	python3 -m pip --require-virtualenv install -r requirements.txt
 
 # remove all caches and the venv
 clean:
