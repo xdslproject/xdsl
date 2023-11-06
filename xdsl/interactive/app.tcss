@@ -2,9 +2,9 @@
 # SelectionList (my_selection_list)
 #passes_selection_list { 
     margin: 0 0 0 0;
-    border: heavy $accent;
+    border: heavy $warning-lighten-1;
+    # border: heavy $accent;
     border-title-color: $primary;
-    border-title-style: bold;
     border-title-align: center;
     width: 80%;
     height: 90%;
@@ -69,7 +69,7 @@
 # Horizontal( SelectionList, VerticalScroll(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) ) ))
 #selection_list_and_button{
     margin: 1;
-    border-title-color: $primary;
+    # border-title-color: $primary;
     border-title-style: bold;
     border-title-align: center;
     layout: horizontal;
@@ -82,11 +82,10 @@
 # ScrollableContainer(Label)
 #selected_passes {
     margin: 1 1 0 0;
-    border: blue;
+    border: heavy $warning-lighten-1;
+    border-title-color: $primary;
     width: 100%;
     height: 100%;
-    border-title-color: $primary;
-    border-title-style: bold;
     border-title-align: center;
 }
 
@@ -97,7 +96,6 @@
     grid-size: 2 1;
     grid-columns: 75% 25%;
 }
-
 
 # TextArea
 #input{
@@ -116,11 +114,9 @@
 # Vertical( TextArea, Horizontal(Button) )
 #input_and_button {
     margin: 1;
-    border: heavy $secondary;
+    border: heavy $warning-lighten-1;
     border-title-color: $primary;
-    border-title-style: bold;
     border-title-align: center;
-    background: $secondary-background;
     # overflow: auto auto;
 }
 
@@ -137,17 +133,14 @@
     height: 3;
     overflow-x: auto;
     text-opacity: 60%;
-
 }
 
 # Container(OutputTextArea, Horizontal(Button) )
 #output_container {
     margin: 1;
-    border: heavy $secondary;
+    border: heavy $warning-lighten-1;
     border-title-color: $primary;
-    border-title-style: bold;
     border-title-align: center;
-    background: $secondary-background;
     layout: vertical;
     # overflow: auto auto;
 }
@@ -159,7 +152,6 @@
 
 
 Screen {
-    background: $primary-background;
     layout: grid;
     grid-size: 1;
     grid-rows: 45% 65%;

@@ -15,10 +15,12 @@ from io import StringIO
 
 # pyright: ignore[reportMissingTypeStubs, reportGeneralTypeIssues]
 from pyclip import copy as pyclip_copy
+from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical, VerticalScroll
 from textual.widgets import Button, Footer, Label, SelectionList, TextArea
+from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
@@ -92,12 +94,27 @@ class InputApp(App[None]):
         and sort the list in alphabetical order.
         """
 
+        my_theme = TextAreaTheme(
+            name="my_cool_theme",
+            # Basic styles such as background, cursor, selection, gutter, etc...
+            base_style=Style(bgcolor="white"),
+            # `syntax_styles` is for syntax highlighting.
+            # It maps tokens parsed from the document to Rich styles.
+            syntax_styles={
+                "string": Style(color="red"),
+                "comment": Style(color="magenta"),
+            },
+        )
+
         list_of_passes = get_all_passes()
         selections = [(value.name, value) for value in list_of_passes]
         selections.sort()
         my_selection_list: SelectionList[type[ModulePass]] = SelectionList(
             *selections, id="passes_selection_list"
         )
+
+        text_area = TextArea(self.text, id="input")
+        output_text_area = OutputTextArea("No output", id="output")
 
         with Horizontal(id="selected_passes_and_list_horizontal"):
             with Horizontal(id="selection_list_and_button"):
@@ -116,11 +133,15 @@ class InputApp(App[None]):
             )
         with Horizontal(id="input_output"):
             with Vertical(id="input_and_button"):
-                yield TextArea(self.text, id="input")
+                yield text_area
+                text_area.register_theme(my_theme)
+                text_area.theme = "my_cool_theme"
                 with Horizontal(id="clear_input"):
                     yield Button("Clear Input", id="clear_input_button")
             with Vertical(id="output_container"):
-                yield OutputTextArea("No output", id="output")
+                yield output_text_area
+                output_text_area.register_theme(my_theme)
+                output_text_area.theme = "my_cool_theme"
                 with Horizontal(id="copy_output"):
                     yield Button("Copy Output", id="copy_output_button")
         yield Footer()
