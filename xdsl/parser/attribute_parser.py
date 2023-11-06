@@ -179,6 +179,16 @@ class AttrParser(BaseParser):
         is_opaque: bool,
         starting_opaque_pos: Position | None,
     ):
+        """
+        Parse the contents of an attribute or type, with syntax:
+            dialect-attr-contents ::= `<` dialect-attr-contents+ `>`
+                                    | `(` dialect-attr-contents+ `)`
+                                    | `[` dialect-attr-contents+ `]`
+                                    | `{` dialect-attr-contents+ `}`
+                                    | [^[]<>(){}\0]+
+        In the case where the attribute or type is using the opaque syntax,
+        the attribute or type mnemonic should have already been parsed.
+        """
         attr_def = self.ctx.get_optional_attr(
             attr_name,
             create_unregistered_as_type=is_type,
@@ -209,13 +219,18 @@ class AttrParser(BaseParser):
     ) -> Attribute:
         """
         Parse the contents of a dialect type or attribute, with format:
-            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
-                                    | `(` dialect-attribute-contents+ `)`
-                                    | `[` dialect-attribute-contents+ `]`
-                                    | `{` dialect-attribute-contents+ `}`
+            dialect-attr-contents ::= `<` dialect-attr-contents+ `>`
+                                    | `(` dialect-attr-contents+ `)`
+                                    | `[` dialect-attr-contents+ `]`
+                                    | `{` dialect-attr-contents+ `}`
                                     | [^[]<>(){}\0]+
         The contents will be parsed by a user-defined parser, or by a generic parser
         if the dialect attribute/type is not registered.
+
+        In the case that the type or attribute is using the opaque syntax (where the
+        identifier parsed is the dialect name), this function will parse the opaque
+        attribute with the following format:
+            opaque-attr-contents ::= `<` bare-ident dialect-attr-contents+ `>`
         """
         is_opaque = "." not in attr_or_dialect_name
         starting_opaque_pos = None
