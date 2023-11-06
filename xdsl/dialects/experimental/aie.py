@@ -177,7 +177,7 @@ class TileOp(IRDLOperation):
 
 @irdl_op_definition
 class ConnectOp(IRDLOperation):
-    name = "connect"
+    name = "AIE.connect"
     sourceBundle: WireBundleAttr = attr_def(WireBundleAttr)
     sourceChannel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
     destBundle: WireBundleAttr = attr_def(WireBundleAttr)
@@ -197,6 +197,19 @@ class ConnectOp(IRDLOperation):
                 "destBundle": destBundle,
                 "destChannel": destChannel,
             }
+        )
+
+    def print(self, printer: Printer):
+        printer.print(
+            "<",
+            self.sourceBundle.data,
+            ": ",
+            self.sourceChannel.value.data,
+            ", ",
+            self.destBundle.data,
+            ": ",
+            self.destChannel.value.data,
+            ">",
         )
 
 
@@ -843,12 +856,20 @@ class ShimSwitchBoxOp(IRDLOperation):
 
 @irdl_op_definition
 class SwitchboxOp(IRDLOperation):
-    name = "switchbox"
+    name = "AIE.switchbox"
 
     tile: Operand = operand_def(IndexType())
+    region: Region = region_def()
+    result: OpResult = result_def(IndexType())
 
-    def __init__(self, tile: IndexType()):
-        super().__init__(self, operands=[tile], result_types=[tile])
+    def __init__(self, tile: IndexType(), region: Region):
+        super().__init__(operands=[tile], regions=[region], result_types=[IndexType()])
+
+    def print(self, printer: Printer):
+        printer.print("(")
+        printer.print_operand(self.tile)
+        printer.print(") ")
+        printer.print_region(self.region)
 
 
 @irdl_op_definition
