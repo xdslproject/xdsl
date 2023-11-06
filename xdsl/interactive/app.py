@@ -96,10 +96,7 @@ class InputApp(App[None]):
 
         my_theme = TextAreaTheme(
             name="my_cool_theme",
-            # Basic styles such as background, cursor, selection, gutter, etc...
             base_style=Style(bgcolor="white"),
-            # `syntax_styles` is for syntax highlighting.
-            # It maps tokens parsed from the document to Rich styles.
             syntax_styles={
                 "string": Style(color="red"),
                 "comment": Style(color="magenta"),
