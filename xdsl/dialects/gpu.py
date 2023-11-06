@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal, TypeVar
+from enum import auto
+from typing import TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
@@ -18,14 +19,15 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Block,
-    Data,
     Dialect,
+    EnumAttribute,
     OpaqueSyntaxAttribute,
     Operation,
     OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
+    StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -34,7 +36,6 @@ from xdsl.irdl import (
     Operand,
     OptOperand,
     OptOpResult,
-    ParameterDef,
     VarOperand,
     attr_def,
     irdl_attr_definition,
@@ -50,8 +51,6 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import AttrParser
-from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
@@ -68,38 +67,28 @@ class AsyncTokenType(ParametrizedAttribute, TypeAttribute):
     name = "gpu.async.token"
 
 
-class AllReduceOpAttr(
-    Data[Literal["add", "and", "max", "min", "mul", "or", "xor"]], OpaqueSyntaxAttribute
-):
+class AllReduceOpEnum(StrEnum):
+    Add = auto()
+    And = auto()
+    Max = auto()
+    Min = auto()
+    Mul = auto()
+    Or = auto()
+    Xor = auto()
+
+
+class DimensionEnum(StrEnum):
+    X = auto()
+    Y = auto()
+    Z = auto()
+
+
+class AllReduceOpAttr(EnumAttribute[AllReduceOpEnum], OpaqueSyntaxAttribute):
     name = "gpu.all_reduce_op"
 
-    param: ParameterDef[StringAttr]
 
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print(f" {self.data}")
-
-    @classmethod
-    def parse_parameter(
-        cls, parser: AttrParser
-    ) -> Literal["add", "and", "max", "min", "mul", "or", "xor"]:
-        val = parser.parse_identifier()
-        if val in ("add", "and", "max", "min", "mul", "or", "xor"):
-            return val
-        parser.raise_error("Expected add, and, max, min, mul, or, or xor.")
-
-
-class DimensionAttr(Data[Literal["x", "y", "z"]], OpaqueSyntaxAttribute):
+class DimensionAttr(EnumAttribute[DimensionEnum], OpaqueSyntaxAttribute):
     name = "gpu.dim"
-
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print(f" {self.data}")
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> Literal["x", "y", "z"]:
-        val = parser.parse_identifier()
-        if val in ("x", "y", "z"):
-            return val
-        parser.raise_error("Expected x, y or z.")
 
 
 _Element = TypeVar("_Element", bound=Attribute, covariant=True)
