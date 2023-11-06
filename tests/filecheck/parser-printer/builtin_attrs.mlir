@@ -190,6 +190,12 @@
   // CHECK: memref<2xf32>
 
   "func.func"() ({}) {function_type = () -> (),
+                      memref = memref<f32>,
+                      sym_name = "scalar_memref"} : () -> ()
+
+  // CHECK: memref<f32> 
+
+  "func.func"() ({}) {function_type = () -> (),
                       memref = memref<2x?xf32>,
                       sym_name = "semidynamic_memref"} : () -> ()
 
