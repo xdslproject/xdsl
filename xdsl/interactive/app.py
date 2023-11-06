@@ -56,18 +56,13 @@ class InputApp(App[None]):
     """
 
     CSS_PATH = "app.tcss"
-    text: str
 
     output_ir = reactive("")
 
-    BINDINGS = [("d", "toggle_dark", "Toggle dark mode"), ("q", "quit_app", "Quit")]
-
-    def __init__(self, text: str | None = None):
-        """Initialization function"""
-        if text is None:
-            text = ""
-        self.text = text
-        super().__init__()
+    BINDINGS = [
+        ("d", "toggle_dark", "Toggle dark mode"),
+        ("q", "quit_app", "Quit"),
+    ]
 
     def compose(self) -> ComposeResult:
         """
@@ -85,7 +80,7 @@ class InputApp(App[None]):
             },
         )
 
-        text_area = TextArea(self.text, id="input")
+        text_area = TextArea(id="input")
         output_text_area = OutputTextArea("No output", id="output")
 
         with Horizontal(id="input_output"):
@@ -100,9 +95,8 @@ class InputApp(App[None]):
         yield Footer()
 
     def compute_output_ir(self) -> None:
-        input = self.query_one("#input", TextArea)
+        input_text = self.query_one("#input", TextArea).text
 
-        input_text = input.text
         try:
             module = transform_input(input_text)
 
@@ -131,7 +125,6 @@ class InputApp(App[None]):
     @on(TextArea.Changed, "#input")
     def on_input_changed(self, event: TextArea.Changed):
         """When the input TextArea changes, call exectue function"""
-        # self.execute(event.text_area)
         self.compute_output_ir()
 
 
