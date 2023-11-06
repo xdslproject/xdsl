@@ -92,5 +92,14 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 
 
 OMP = Dialect(
-    "omp", [WsLoopOp, YieldOp], [ScheduleKindAttr, ScheduleModifierAttr, OrderKindAttr]
+    "omp",
+    [
+        WsLoopOp,
+        YieldOp,
+    ],
+    [
+        ScheduleKindAttr,
+        ScheduleModifierAttr,
+        OrderKindAttr,
+    ],
 )
