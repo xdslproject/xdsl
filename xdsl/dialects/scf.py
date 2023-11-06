@@ -170,7 +170,7 @@ class For(IRDLOperation):
 
     def verify_(self):
         # body block verification
-        if len(self.body.block.args) == 0:
+        if not self.body.block.args:
             raise VerifyException(
                 "Body block must have induction var as first block arg"
             )
@@ -180,7 +180,7 @@ class For(IRDLOperation):
         iter_args = self.iter_args
         iter_args_num = len(self.iter_args)
 
-        for i, opnd in enumerate(self.operands[:3]):
+        for opnd in (self.lb, self.ub, self.step):
             if opnd.type != indvar.type:
                 raise VerifyException(
                     "Expected induction var to be same type as bounds and step"
