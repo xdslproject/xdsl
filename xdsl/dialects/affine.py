@@ -228,7 +228,7 @@ class Yield(IRDLOperation):
 Affine = Dialect(
     "affine",
     [
-        Apply,
+        ApplyOp,
         For,
         If,
         Store,
