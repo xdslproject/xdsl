@@ -70,20 +70,31 @@ class For(IRDLOperation):
     # gh issue: https://github.com/xdslproject/xdsl/issues/1149
 
     def verify_(self) -> None:
-        if len(self.operands) != len(self.results):
-            raise Exception("Expected the same amount of operands and results")
-
-        operand_types = [SSAValue.get(op).type for op in self.operands]
-        if operand_types != [res.type for res in self.results]:
-            raise Exception(
-                "Expected all operands and result pairs to have matching types"
+        if (
+            len(self.operands)
+            != len(self.results)
+            + self.lower_bound.data.num_dims
+            + self.upper_bound.data.num_dims
+            + self.lower_bound.data.num_symbols
+            + self.upper_bound.data.num_symbols
+        ):
+            raise VerifyException(
+                "Expected as many operands as results, lower bound args and upper bound args."
             )
 
+        iter_types = [op.type for op in self.operands[-len(self.results) :]]
+        if iter_types != [res.type for res in self.results]:
+            raise VerifyException(
+                "Expected all operands and result pairs to have matching types"
+            )
+        if any(op.type != IndexType() for op in self.operands[: -len(self.results)]):
+            raise VerifyException("Expected all bounds arguments types to be index")
+
         entry_block: Block = self.body.blocks[0]
-        block_arg_types = [IndexType()] + operand_types
+        block_arg_types = [IndexType()] + iter_types
         arg_types = [arg.type for arg in entry_block.args]
         if block_arg_types != arg_types:
-            raise Exception(
+            raise VerifyException(
                 "Expected BlockArguments to have the same types as the operands"
             )
 
