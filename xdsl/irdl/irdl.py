@@ -2262,7 +2262,7 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
                 dict(cls.__dict__),
             )
         )
-    raise Exception(
+    raise TypeError(
         f"Class {cls.__name__} should either be a subclass of 'Data' or "
         "'ParametrizedAttribute'"
     )
