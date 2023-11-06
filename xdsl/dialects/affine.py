@@ -46,7 +46,7 @@ class ApplyOp(IRDLOperation):
     def verify_(self) -> None:
         if len(self.mapOperands) != self.map.data.num_dims + self.map.data.num_symbols:
             raise VerifyException(
-                "affine.apply expects as many operands as its map's dimensions and symbols."
+                f"{self.name} expects {self.map.data.num_dims + self.map.data.num_symbols} operands, but got {len(self.mapOperands)}. The number of map operands must match the sum of the dimensions and symbols of its map."
             )
         if len(self.map.data.results) != 1:
             raise VerifyException("affine.apply expects a unidimensional map.")
