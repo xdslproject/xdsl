@@ -36,7 +36,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class Apply(IRDLOperation):
+class ApplyOp(IRDLOperation):
     name = "affine.apply"
 
     mapOperands = var_operand_def(IndexType)
