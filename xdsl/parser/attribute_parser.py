@@ -173,8 +173,22 @@ class AttrParser(BaseParser):
         return dict(attrs)
 
     def _parse_dialect_type_or_attribute_body(
-        self, attr_name: str, is_type: bool, is_opaque: bool
+        self,
+        attr_name: str,
+        is_type: bool,
+        is_opaque: bool,
+        starting_opaque_pos: Position | None,
     ):
+        """
+        Parse the contents of an attribute or type, with syntax:
+            dialect-attr-contents ::= `<` dialect-attr-contents+ `>`
+                                    | `(` dialect-attr-contents+ `)`
+                                    | `[` dialect-attr-contents+ `]`
+                                    | `{` dialect-attr-contents+ `}`
+                                    | [^[]<>(){}\0]+
+        In the case where the attribute or type is using the opaque syntax,
+        the attribute or type mnemonic should have already been parsed.
+        """
         attr_def = self.ctx.get_optional_attr(
             attr_name,
             create_unregistered_as_type=is_type,
@@ -182,8 +196,15 @@ class AttrParser(BaseParser):
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
         if issubclass(attr_def, UnregisteredAttr):
-            body = self._parse_unregistered_attr_body()
-            return attr_def(attr_name, is_type, is_opaque, body)
+            if not is_opaque:
+                if self.parse_optional_punctuation("<") is None:
+                    return attr_def(attr_name, is_type, is_opaque, "")
+            body = self._parse_unregistered_attr_body(starting_opaque_pos)
+            attr = attr_def(attr_name, is_type, is_opaque, body)
+            if not is_opaque:
+                self.parse_punctuation(">")
+            return attr
+
         elif issubclass(attr_def, ParametrizedAttribute):
             param_list = attr_def.parse_parameters(self)
             return attr_def.new(param_list)
@@ -198,26 +219,32 @@ class AttrParser(BaseParser):
     ) -> Attribute:
         """
         Parse the contents of a dialect type or attribute, with format:
-            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
-                                    | `(` dialect-attribute-contents+ `)`
-                                    | `[` dialect-attribute-contents+ `]`
-                                    | `{` dialect-attribute-contents+ `}`
+            dialect-attr-contents ::= `<` dialect-attr-contents+ `>`
+                                    | `(` dialect-attr-contents+ `)`
+                                    | `[` dialect-attr-contents+ `]`
+                                    | `{` dialect-attr-contents+ `}`
                                     | [^[]<>(){}\0]+
         The contents will be parsed by a user-defined parser, or by a generic parser
         if the dialect attribute/type is not registered.
+
+        In the case that the type or attribute is using the opaque syntax (where the
+        identifier parsed is the dialect name), this function will parse the opaque
+        attribute with the following format:
+            opaque-attr-contents ::= `<` bare-ident dialect-attr-contents+ `>`
         """
         is_opaque = "." not in attr_or_dialect_name
+        starting_opaque_pos = None
         if is_opaque:
             self.parse_punctuation("<")
-            attr_or_dialect_name += (
-                "."
-                + self._parse_token(
-                    Token.Kind.BARE_IDENT, "Expected attribute name."
-                ).text
+            attr_name_token = self._parse_token(
+                Token.Kind.BARE_IDENT, "Expected attribute name."
             )
+            starting_opaque_pos = attr_name_token.span.end
+
+            attr_or_dialect_name += "." + attr_name_token.text
 
         attr = self._parse_dialect_type_or_attribute_body(
-            attr_or_dialect_name, is_type, is_opaque
+            attr_or_dialect_name, is_type, is_opaque, starting_opaque_pos
         )
 
         if is_opaque:
@@ -225,19 +252,18 @@ class AttrParser(BaseParser):
 
         return attr
 
-    def _parse_unregistered_attr_body(self) -> str:
+    def _parse_unregistered_attr_body(self, start_pos: Position | None) -> str:
         """
         Parse the body of an unregistered attribute, which is a balanced
         string for `<`, `(`, `[`, `{`, and may contain string literals.
+        The body ends when no parentheses are opened, and an `>` is encountered.
         """
-        start_token = self._parse_optional_token(Token.Kind.LESS)
-        if start_token is None:
-            return ""
 
-        start_pos = start_token.span.start
+        if start_pos is None:
+            start_pos = self.pos
         end_pos: Position = start_pos
 
-        symbols_stack = [Token.Kind.LESS]
+        symbols_stack: list[Token.Kind] = []
         parentheses = {
             Token.Kind.GREATER: Token.Kind.LESS,
             Token.Kind.R_PAREN: Token.Kind.L_PAREN,
@@ -259,17 +285,31 @@ class AttrParser(BaseParser):
                 continue
 
             # Closing a parenthesis
-            if (token := self._parse_optional_token_in(parentheses.keys())) is not None:
+            if (token := self._current_token).kind in parentheses.keys():
                 closing = parentheses[token.kind]
+
+                # If we don't have any open parenthesis, either we end the parsing if
+                # the parenthesis is a `>`, or we raise an error.
+                if len(symbols_stack) == 0:
+                    if token.kind == Token.Kind.GREATER:
+                        end_pos = self.pos
+                        break
+                    self.raise_error(
+                        "Unexpected closing parenthesis "
+                        f"{parentheses_names[token.kind]} in attribute body!",
+                        self._current_token.span,
+                    )
+
+                # If we have an open parenthesis, check that we are closing it
+                # with the right parenthesis kind.
                 if symbols_stack[-1] != closing:
                     self.raise_error(
-                        f"Mismatched {parentheses_names[token.kind]} in attribute body!",
+                        "Unexpected closing parenthesis "
+                        f"{parentheses_names[token.kind]} in attribute body! {symbols_stack}",
                         self._current_token.span,
                     )
                 symbols_stack.pop()
-                if len(symbols_stack) == 0:
-                    end_pos = token.span.end
-                    break
+                self._consume_token()
                 continue
 
             # Checking for unexpected EOF

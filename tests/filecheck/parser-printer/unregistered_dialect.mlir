@@ -1,10 +1,9 @@
-// XFAIL: *
 // RUN: xdsl-opt %s --allow-unregistered-dialect | xdsl-opt --allow-unregistered-dialect  | filecheck %s
 
 "builtin.module"() ({
 
   %0 = "region_op"() ({
-    %y = "op_with_res"() {otherattr = #unknowndialect.unknown_attr<b2 ...2 [] <<>>>} : () -> (i32)
+    %x = "op_with_res"() {otherattr = #unknowndialect.unknown_attr<b2 ...2 [] <<>>>} : () -> (i32)
     %y = "op_with_res"() {otherattr = #unknowndialect<b2 ...2 [] <<>>>} : () -> (i32)
     %z = "op_with_operands"(%y, %y) : (i32, i32) -> !unknowndialect.unknown_type<{[<()>]}>
     "op"() {ab = !unknowndialect.unknown_singleton_type} : () -> ()
