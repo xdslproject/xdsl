@@ -490,7 +490,7 @@ class EnumAttribute(Data[EnumType]):
     def __init_subclass__(cls) -> None:
         """
         This hook first checks two constraints, enforced to keep the implementation
-        reasonable, until more complex usecases appears. It then store the Enum type
+        reasonable, until more complex use cases appear. It then stores the Enum type
         used by the subclass to use in parsing/printing.
 
         The constraints are:
@@ -499,9 +499,9 @@ class EnumAttribute(Data[EnumType]):
         of EnumAttribute as a base class is *not supported*.
           This simplifies type-hacking code and I don't see it being too restrictive
           anytime soon.
-        - The StrEnum values must all be parsable as identifier. This is to keep the
+        - The StrEnum values must all be parsable as identifiers. This is to keep the
         parsing code simple and efficient. This restriction is easier to lift, but I
-        didn't yet meet an example use case where it matters, so I'm keeping it simple.
+        haven't yet met an example use case where it matters, so I'm keeping it simple.
         """
         orig_bases = getattr(cls, "__orig_bases__")
         enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
