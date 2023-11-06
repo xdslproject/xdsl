@@ -591,7 +591,7 @@ class Printer:
         if isinstance(attribute, MemRefType):
             attribute = cast(MemRefType[Attribute], attribute)
             self.print("memref<")
-            if len(attribute.shape.data) > 0:
+            if attribute.shape.data:
                 self.print_list(
                     attribute.shape.data,
                     lambda x: self.print(x.value.data)
