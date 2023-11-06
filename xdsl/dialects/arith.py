@@ -214,6 +214,40 @@ SignlessIntegerBinaryOp = BinaryOperation[Annotated[Attribute, signlessIntegerLi
 class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
     fastmath = opt_prop_def(FastMathFlagsAttr)
 
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        flags: FastMathFlagsAttr | None = None,
+        result_type: Attribute | None = None,
+    ):
+        super().__init__(operand1, operand2, result_type)
+        self.fastmath = flags
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        rhs = parser.parse_unresolved_operand()
+        flags = FastMathFlagsAttr("none")
+        if parser.parse_optional_keyword("fastmath") is not None:
+            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
+        return cls(lhs, rhs, flags, result_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print(", ")
+        printer.print_ssa_value(self.rhs)
+        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+            printer.print(" fastmath")
+            self.fastmath.print_parameter(printer)
+        printer.print(" : ")
+        printer.print_attribute(self.result.type)
+
 
 FloatingPointLikeBinaryOp = BinaryOperationWithFastMath[
     Annotated[Attribute, floatingPointLike]
