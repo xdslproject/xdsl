@@ -17,8 +17,8 @@ from io import StringIO
 from pyclip import copy as pyclip_copy
 from textual import events, on
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, ScrollableContainer, Vertical
-from textual.widgets import Button, Label, SelectionList, TextArea
+from textual.containers import Horizontal, ScrollableContainer, Vertical, VerticalScroll
+from textual.widgets import Button, Footer, Label, SelectionList, TextArea
 
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
@@ -33,8 +33,10 @@ pyclip_copy: Callable[[str], None] = pyclip_copy
 def transform_input(
     input_text: str, passes: list[type[ModulePass]]
 ) -> builtin.ModuleOp:
-    # Function that takes the input IR, the list of passes to be applied, and applies the passes to the IR.
-    # Returns the module (after pass is applied).
+    """
+    Function that takes the input IR, the list of passes to be applied, and applies the passes to the IR.
+    Returns the module (after pass is applied).
+    """
     ctx = MLContext(True)
     for dialect in get_all_dialects():
         ctx.load_dialect(dialect)
@@ -51,7 +53,7 @@ def transform_input(
 def check_if_pass_changes_IR(
     input: builtin.ModuleOp, ctx: MLContext, one_pass: ModulePass
 ) -> bool:
-    # Used to check if a pass has had an effect on the IR (i.e. has changed the IR)
+    """Used to check if a pass has had an effect on the IR (i.e. has changed the IR)"""
     cloned_module = input.clone()
     cloned_ctx = ctx.clone()
     one_pass.apply(cloned_ctx, cloned_module)
@@ -59,30 +61,37 @@ def check_if_pass_changes_IR(
 
 
 class OutputTextArea(TextArea):
-    # Used to prevent users from being able to change/alter the Output TextArea
+    """Used to prevent users from being able to change/alter the Output TextArea"""
+
     async def _on_key(self, event: events.Key) -> None:
         event.prevent_default()
 
 
 class InputApp(App[None]):
-    # Class buildling the Interactive Compilation App. Uses Textual Python to construct reactive variables on the App, Event,
-    # Widget classes etc. The UI is derived from those values as they change.
+    """
+    Class buildling the Interactive Compilation App. Uses Textual Python to construct reactive variables on the App, Event,
+    Widget classes etc. The UI is derived from those values as they change.
+    """
 
     CSS_PATH = "app.tcss"
     text: str
 
+    BINDINGS = [("d", "toggle_dark", "Toggle dark mode"), ("q", "quit_app", "Quit")]
+
     def __init__(self, text: str | None = None):
-        # Initialization function
+        """Initialization function"""
         if text is None:
             text = ""
         self.text = text
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        # Creates the required widgets, events, etc.
+        """
+        Creates the required widgets, events, etc.
+        Get the list of xDSL passes, add them to an array in "Selection" format (so it can be added to a Selection List)
+        and sort the list in alphabetical order.
+        """
 
-        # Get the list of xDSL passes, add them to an array in "Selection" format (so it can be added to a Selection List)
-        # and sort the list in alphabetical order.
         list_of_passes = get_all_passes()
         selections = [(value.name, value) for value in list_of_passes]
         selections.sort()
@@ -93,7 +102,7 @@ class InputApp(App[None]):
         with Horizontal(id="selected_passes_and_list_horizontal"):
             with Horizontal(id="selection_list_and_button"):
                 yield my_selection_list
-                with Vertical(id="buttons_and_selection_list"):
+                with VerticalScroll(id="buttons_and_selection_list"):
                     with Horizontal(id="clear_selection_list"):
                         yield Button("Clear Passes", id="clear_selection_list_button")
                     with Horizontal(id="condense_pass_list"):
@@ -114,19 +123,22 @@ class InputApp(App[None]):
                 yield OutputTextArea("No output", id="output")
                 with Horizontal(id="copy_output"):
                     yield Button("Copy Output", id="copy_output_button")
+        yield Footer()
 
     @property
     def module_passes_selection_list(self) -> SelectionList[type[ModulePass]]:
         return self.query_one(SelectionList[type[ModulePass]])
 
     def selected_module_passes(self) -> list[type[ModulePass]]:
-        # Returns the list of user selected passes
+        """Returns the list of user selected passes"""
         return self.module_passes_selection_list.selected
 
     @on(SelectionList.SelectedChanged)
     def update_selected_view(self) -> None:
-        # When the SelectionList (pass options) changes (i.e. a pass was selected or deselected), update the label to show
-        # the query, and then call the execute() function, which applies the selected passes to the input and displays the output
+        """
+        When the SelectionList (pass options) changes (i.e. a pass was selected or deselected), update the label to show
+        the query, and then call the execute() function, which applies the selected passes to the input and displays the output
+        """
         new_passes = "\n" + (", " + "\n").join(
             p.name for p in self.selected_module_passes()
         )
@@ -135,7 +147,7 @@ class InputApp(App[None]):
         self.execute()
 
     def on_mount(self) -> None:
-        # On App Mount, add titles + execute()
+        """On App Mount, add titles + execute()"""
         self.query_one("#input_and_button").border_title = "Input xDSL IR"
         self.query_one(
             SelectionList
@@ -145,8 +157,10 @@ class InputApp(App[None]):
         self.execute()
 
     def execute(self, input: TextArea | None = None):
-        # Function that gathers input IR and selected list of passes, calls transform_input() - which returns the module. The output
-        # stream is then printed and loaded to the output TextArea. (Applies the selected passes to the input IR and displays the output)
+        """
+        Function that gathers input IR and selected list of passes, calls transform_input() - which returns the module. The output
+        stream is then printed and loaded to the output TextArea. (Applies the selected passes to the input IR and displays the output)
+        """
         if input is None:
             input = self.query_one("#input", TextArea)
 
@@ -165,35 +179,43 @@ class InputApp(App[None]):
         output = self.query_one("#output", TextArea)
         output.load_text(output_text)
 
+    def action_toggle_dark(self) -> None:
+        """An action to toggle dark mode."""
+        self.dark = not self.dark
+
+    def action_quit_app(self) -> None:
+        """An action to quit the app."""
+        self.exit()
+
     @on(TextArea.Changed, "#input")
     def on_input_changed(self, event: TextArea.Changed):
-        # When the input TextArea changes, call exectue function
+        """When the input TextArea changes, call exectue function"""
         self.execute(event.text_area)
 
     @on(Button.Pressed, "#clear_input_button")
     def on_clear_input_button_pressed(self, event: Button.Pressed) -> None:
-        # When the "Clear Input" button is pressed, the input IR TextArea is cleared
+        """When the "Clear Input" button is pressed, the input IR TextArea is cleared"""
         input = self.query_one("#input", TextArea)
         input.clear()
 
     @on(Button.Pressed, "#copy_output_button")
     def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
-        # When the "Copy Output" button is pressed, the output IR TextArea is copied
+        """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
         output = self.query_one("#output", TextArea)
         pyclip_copy(output.text)
 
     @on(Button.Pressed, "#clear_selection_list_button")
     def on_clear_selection_list_button_pressed(self, event: Button.Pressed) -> None:
-        # When the "Clear Passes" button is preseed, the SelectionList is cleared
+        """When the "Clear Passes" button is preseed, the SelectionList is cleared"""
         passes_selection_list = self.query_one("#passes_selection_list", SelectionList)
         selected_passes = self.query_one("#selected_passes_label", Label)
         passes_selection_list.deselect_all()
         self.execute()
         selected_passes.update("")
 
-    # When the "Copy Query" button is preseed, the selected passes/query is copied
     @on(Button.Pressed, "#copy_query_button")
     def on_copy_query_button_pressed(self, event: Button.Pressed) -> None:
+        """When the "Copy Query" button is preseed, the selected passes/query is copied"""
         selected_passes = "\n" + (", " + "\n").join(
             p.name for p in self.selected_module_passes()
         )
@@ -202,7 +224,9 @@ class InputApp(App[None]):
 
     @on(Button.Pressed, "#condense_pass_list_button")
     def on_condense_button_pressed(self, event: Button.Pressed) -> None:
-        # When the "Condense" button is preseed, the SelectionList is filtered to contain only passes that structurally change the IR
+        """
+        When the "Condense" button is preseed, the SelectionList is filtered to contain only passes that structurally change the IR
+        """
         input = self.query_one("#input", TextArea).text
         if not input:
             return
@@ -237,7 +261,10 @@ class InputApp(App[None]):
 
     @on(Button.Pressed, "#undo_condense_button")
     def on_undo_condense_button_pressed(self, event: Button.Pressed) -> None:
-        # When the "Undo Condense" button is preseed, the SelectionList is returned to its original state (i.e. containing all the passes)
+        """
+        When the "Undo Condense" button is preseed, the SelectionList is returned to its original state
+        (i.e. containing all the passes)
+        """
         self.module_passes_selection_list.clear_options()
         passes = get_all_passes()
         selections = [(value.name, value) for value in passes]

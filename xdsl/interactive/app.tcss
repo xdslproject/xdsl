@@ -3,7 +3,7 @@
 #passes_selection_list { 
     margin: 0 0 0 0;
     border: heavy $accent;
-    border-title-color: green;
+    border-title-color: $primary;
     border-title-style: bold;
     border-title-align: center;
     width: 80%;
@@ -60,16 +60,16 @@
 
 
 
-# Vertical(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) )
+# VerticalScroll(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) )
 #buttons_and_selection_list{
     layout: vertical;
     overflow-x: auto;
 }
 
-# Horizontal( SelectionList, Vertical(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) ) ))
+# Horizontal( SelectionList, VerticalScroll(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) ) ))
 #selection_list_and_button{
     margin: 1;
-    border-title-color: green;
+    border-title-color: $primary;
     border-title-style: bold;
     border-title-align: center;
     layout: horizontal;
@@ -85,7 +85,7 @@
     border: blue;
     width: 100%;
     height: 100%;
-    border-title-color: green;
+    border-title-color: $primary;
     border-title-style: bold;
     border-title-align: center;
 }
@@ -116,21 +116,16 @@
 # Vertical( TextArea, Horizontal(Button) )
 #input_and_button {
     margin: 1;
-    border: heavy red;
-    border-title-color: green;
+    border: heavy $secondary;
+    border-title-color: $primary;
     border-title-style: bold;
     border-title-align: center;
-    background: black;
+    background: $secondary-background;
     # overflow: auto auto;
 }
 
 # OutputTextArea
 #output{
-#     box-sizing: content-box;
-#     width: 100%;
-#     height: 80%;
-#     background: black;
-#     overflow: auto auto;
 }
 
 # Button
@@ -141,16 +136,18 @@
 #copy_output{
     height: 3;
     overflow-x: auto;
+    text-opacity: 60%;
+
 }
 
 # Container(OutputTextArea, Horizontal(Button) )
 #output_container {
     margin: 1;
-    border: heavy red;
-    border-title-color: green;
+    border: heavy $secondary;
+    border-title-color: $primary;
     border-title-style: bold;
     border-title-align: center;
-    background: black;
+    background: $secondary-background;
     layout: vertical;
     # overflow: auto auto;
 }
@@ -160,9 +157,9 @@
     height: 100%;
 }
 
+
 Screen {
-    background: white;
-    color: black;
+    background: $primary-background;
     layout: grid;
     grid-size: 1;
     grid-rows: 45% 65%;
