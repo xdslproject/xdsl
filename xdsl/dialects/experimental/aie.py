@@ -8,6 +8,8 @@ from xdsl.dialects.builtin import (
     AnyAttr,
     AnyIntegerAttr,
     ArrayAttr,
+    Block,
+    FlatSymbolRefAttr,
     Float32Type,
     IndexType,
     IntegerAttr,
@@ -16,6 +18,7 @@ from xdsl.dialects.builtin import (
     Region,
     Signedness,
     StringAttr,
+    SymbolRefAttr,
     i32,
     i64,
 )
@@ -28,11 +31,14 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
     region_def,
     result_def,
+    successor_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator, SymbolOpInterface, SymbolTable
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
 
@@ -43,6 +49,17 @@ CASCADE_SIZE = 384
 
 LOCK_ACQUIRE = 1
 LOCK_RELEASE = 0
+
+PRODUCE_PORT = 0
+CONSUME_PORT = 1
+
+BLOCKING = 1
+NONBLOCKING = 0
+
+MM2S = 0
+S2MM = 1
+
+i1 = IntegerType(1)
 
 # @irdl_attr_definition
 # class DimTupleArrayAttr():
@@ -83,6 +100,29 @@ class ObjectFIFO(ParametrizedAttribute):
                     referenced_type, shape, layout, memory_space
                 ),
                 fifo_name,
+            ]
+        )
+
+
+@irdl_attr_definition
+class ObjectFIFOSubview(ParametrizedAttribute):
+    name = "AIE.objectFifoSubview"
+
+    buffer: ParameterDef[memref.MemRefType]
+
+    @staticmethod
+    def from_element_type_and_shape(
+        object_fifo: ObjectFIFO,
+        shape: Iterable[int | AnyIntegerAttr],
+    ) -> ObjectFIFOSubview[_MemRefTypeElement]:
+        return ObjectFIFOSubview(
+            [
+                memref.MemRefType.from_element_type_and_shape(
+                    object_fifo.buffer.element_type,
+                    shape,
+                    object_fifo.buffer.layout,
+                    object_fifo.buffer.memory_space,
+                )
             ]
         )
 
@@ -137,17 +177,10 @@ class TileOp(IRDLOperation):
             attributes={"col": col, "row": row}, result_types=[IndexType()]
         )
 
-    # def print(self, printer: Printer):
-    # 	 printer.print(" ")
-    # 	 printer.print_string("tile")
-    # 	 printer.print("1")
-    # 	 printer.print(", ")
-    # 	 printer.print("2"))
-
 
 @irdl_op_definition
 class ConnectOp(IRDLOperation):
-    name = "connect"
+    name = "AIE.connect"
     sourceBundle: WireBundleAttr = attr_def(WireBundleAttr)
     sourceChannel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
     destBundle: WireBundleAttr = attr_def(WireBundleAttr)
@@ -169,6 +202,19 @@ class ConnectOp(IRDLOperation):
             }
         )
 
+    def print(self, printer: Printer):
+        printer.print(
+            "<",
+            self.sourceBundle.data,
+            ": ",
+            self.sourceChannel.value.data,
+            ", ",
+            self.destBundle.data,
+            ": ",
+            self.destChannel.value.data,
+            ">",
+        )
+
 
 @irdl_op_definition
 class CoreOp(IRDLOperation):
@@ -186,22 +232,67 @@ class CoreOp(IRDLOperation):
             result_types=[IndexType()],
         )
 
+    def print(self, printer: Printer):
+        printer.print(" (")
+        printer.print_operand(self.tile)
+        printer.print(") ")
+        printer.print_region(self.region)
 
-"""
+
 @irdl_op_definition
 class DMABDOp(IRDLOperation):
-	name = "dmaBd"
-	offset : IntegerAttr[i32] = attr_def(IntegerAttr[i32])
-	length : IntegerAttr[i32] = attr_def(IntegerAttr[i32])
-	AB : IntegerAttr[i32] = attr_def(IntegerAttr[i32])
-	dimensions : IntegerAttr[i32] = attr_def(IntegerAttr[i32])
-	buffer : Operand = operand_def(BufferOp)
-"""
+    name = "AIE.dmaBd"
+    offset: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    length: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    AB: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    buffer: Operand = operand_def(memref.MemRefType)
+    dimensions: IntegerAttr[i32] = opt_attr_def(
+        IntegerAttr[i32]
+    )  # TODO: this should be implemented as a DimTupleArrayAttr: check https://xilinx.github.io/mlir-aie/AIEDialect.html
+
+    def __init__(
+        self,
+        offset: IntegerAttr[i32],
+        length: IntegerAttr[i32],
+        AB: IntegerAttr[i32],
+        dimensions: None | IntegerAttr[i32],
+        buffer: memref.MemRefType,
+    ):
+        if dimensions is None:
+            super().__init__(
+                attributes={"offset": offset, "length": length, "AB": AB},
+                operands=[buffer],
+            )
+        else:
+            super().__init__(
+                attributes={
+                    "offset": offset,
+                    "length": length,
+                    "AB": AB,
+                    "dimensions": dimensions,
+                },
+                operands=[buffer],
+            )
+
+    def print(self, printer: Printer):
+        printer.print("(<")
+        printer.print_operand(self.buffer)
+        printer.print(
+            ": ",
+            self.buffer.type,
+            ", ",
+            self.offset.value.data,
+            ", ",
+            self.length.value.data,
+            ">, ",
+            self.AB.value.data,
+            ")",
+        )
 
 
 @irdl_op_definition
 class DMABDPACKETOp(IRDLOperation):
-    name = "dmaBdPacket"
+    name = "AIE.dmaBdPacket"
     packet_type: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
     packet_id: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
 
@@ -214,17 +305,37 @@ class DMABDPACKETOp(IRDLOperation):
 # TODO: add successor basic blocks
 @irdl_op_definition
 class DMAStartOp(IRDLOperation):
-    name = "dmaStart"
+    name = "AIE.dmaStart"
     channelDir: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
         IntegerAttr[Annotated[IntegerType, i32]]
     )
     channelIndex: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    dest: Block = successor_def()
+    chain: Block = successor_def()
+    # result: OpResult  = result_def(i1)
 
-    def __init__(self, channelDir: IntegerAttr[i32], channelIndex: IntegerAttr[i32]):
+    traits = frozenset([IsTerminator()])
+
+    def __init__(
+        self,
+        channelDir: IntegerAttr[i32],
+        channelIndex: IntegerAttr[i32],
+        dest: Block,
+        chain: Block,
+    ):
         super().__init__(
             attributes={"channelDir": channelDir, "channelIndex": channelIndex},
-            result_types=[i32],
+            successors=[dest, chain],
+            # result_types=[i1]
         )
+
+    def print(self, printer: Printer):
+        direction = "MM2S" if self.channelDir.value.data == 0 else "S2MM"
+        printer.print("(", direction, ", ", self.channelIndex.value.data, ", ")
+        printer.print_block_name(self.dest)
+        printer.print(", ")
+        printer.print_block_name(self.chain)
+        printer.print(")")
 
 
 @irdl_op_definition
@@ -245,6 +356,7 @@ class DeviceOp(IRDLOperation):
     device: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
         IntegerAttr[Annotated[IntegerType, i32]]
     )
+    traits = frozenset([SymbolTable()])
 
     def __init__(self, device: IntegerAttr[i32], region: Region):
         super().__init__(attributes={"device": device}, regions=[region])
@@ -272,7 +384,7 @@ class ExternalBufferOp(IRDLOperation):
 
 @irdl_op_definition
 class FlowOp(IRDLOperation):
-    name = "flow"
+    name = "AIE.flow"
 
     sourceBundle: WireBundleAttr = attr_def(WireBundleAttr)
     sourceChannel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
@@ -298,6 +410,23 @@ class FlowOp(IRDLOperation):
                 "destChannel": destChannel,
             },
             operands=[source, dest],
+        )
+
+    def print(self, printer: Printer):
+        printer.print(
+            "(",
+            self.source,
+            ", ",
+            self.sourceBundle.data,
+            ": ",
+            self.sourceChannel.value.data,
+            ", ",
+            self.dest,
+            ", ",
+            self.destBundle.data,
+            ": ",
+            self.destChannel.value.data,
+            ")",
         )
 
 
@@ -373,17 +502,19 @@ class MasterSetOp(IRDLOperation):
 
 @irdl_op_definition
 class MemOp(IRDLOperation):
-    name = "mem"
+    name = "AIE.mem"
 
     tile: Operand = operand_def(IndexType())
+    region: Region = region_def()
+    result: OpResult = result_def(IndexType())
 
-    def __init__(self, tile: IndexType()):
-        super().__init__(operands=[tile], result_types=[IndexType()])
+    def __init__(self, tile: IndexType(), region: Region):
+        super().__init__(operands=[tile], result_types=[IndexType()], regions=[region])
 
 
 @irdl_op_definition
 class MemTileDMAOp(IRDLOperation):
-    name = "memTileDMA"
+    name = "AIE.memTileDMA"
 
     tile: Operand = operand_def(IndexType())
 
@@ -391,40 +522,99 @@ class MemTileDMAOp(IRDLOperation):
         super().__init__(operands=[tile], result_types=[IndexType()])
 
 
-# @irdl_op_definition
-# class NextBDOp(IRDLOperation):
-# 	 name = "nextBd"
-#
-# 	 dest: Block
-#
-# 	 def __init__(self, dest: Block):
-# 		 super().__init__(successors=[dest])
+@irdl_op_definition
+class NextBDOp(IRDLOperation):
+    name = "AIE.nextBd"
 
-""" # TODO objectfifotype
+    dest: Block = successor_def()
+
+    def __init__(self, dest: Block):
+        super().__init__(successors=[dest])
+
+
 @irdl_op_definition
 class ObjectFifoAcquireOp(IRDLOperation):
-	name = "objectFifo.acquire"
+    name = "AIE.objectFifo.acquire"
 
-	port: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
-	size: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
-	fifo: Operand = operand_def(
+    port: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
+        IntegerAttr[Annotated[IntegerType, i32]]
+    )
+    size: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    object_fifo: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr)
+
+    result: OpResult = result_def(ObjectFIFOSubview)
+
+    def __init__(
+        self,
+        port: IntegerAttr[i32],
+        size: IntegerAttr[i32],
+        object_fifo: str | SymbolRefAttr,
+        device: DeviceOp,
+    ):
+        if isinstance(object_fifo, str):
+            object_fifo = SymbolRefAttr(object_fifo)
+
+        lookup = SymbolTable.lookup_symbol(device, "of")
+        result_subview = ObjectFIFOSubview.from_element_type_and_shape(
+            lookup.object_fifo, lookup.object_fifo.buffer.shape
+        )
+        super().__init__(
+            attributes={"port": port, "size": size, "object_fifo": object_fifo},
+            result_types=[result_subview],
+        )
+
+    def print(self, printer: Printer):
+        port = "Produce" if self.port.value.data == PRODUCE_PORT else "Consume"
+        op = self.parent_op()
+        while not isinstance(op, DeviceOp):
+            op = op.parent_op()
+
+        printer.print(
+            f" @{self.object_fifo.data} (", port, ", ", self.size.value.data, ") : "
+        )
+        lookup = SymbolTable.lookup_symbol(op, "of")
+        printer.print("!AIE.objectFifoSubview<", lookup.object_fifo.buffer, ">")
+
 
 @irdl_op_definition
-class ObjectFifoCreateOp(IRDLOperation):
-	name = "objectFifo.createObjectFifo"
-"""
+class ObjectFIFOSubviewAccessOp(IRDLOperation):
+    name = "AIE.objectFifo.subview.access"
+
+    index: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    subview: Operand = operand_def(ObjectFIFOSubview)
+    output: OpResult = result_def(memref.MemRefType)
+
+    def __init__(self, index: IntegerAttr[i32], subview: ObjectFIFOSubview):
+        result_type = memref.MemRefType.from_element_type_and_shape(
+            subview.result.type.buffer.element_type, subview.result.type.buffer.shape
+        )
+        super().__init__(
+            attributes={"index": index}, operands=[subview], result_types=[result_type]
+        )
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.subview)
+        printer.print("[", self.index.value.data, "] : ")
+        printer.print(
+            "!AIE.objectFifoSubview<",
+            self.subview.type.buffer,
+            "> -> ",
+            self.subview.type.buffer,
+        )
 
 
 @irdl_op_definition
 class createObjectFifo(IRDLOperation):
-    # name = "objectFifo.createObjectFifo"
     name = "AIE.objectFifo"
 
     elemNumber: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
     producerTile: Operand = operand_def(IndexType())
     consumerTile: Operand = operand_def(IndexType())
+    sym_name: StringAttr = attr_def(StringAttr)
+    object_fifo: ObjectFIFO = attr_def(ObjectFIFO)
 
-    created_fifo: ObjectFIFO = attr_def(ObjectFIFO)
+    traits = frozenset([SymbolOpInterface()])
 
     def __init__(
         self,
@@ -434,9 +624,67 @@ class createObjectFifo(IRDLOperation):
         consumerTile: IndexType(),
         referenced_type: _MemRefTypeElement,
         shape: Iterable[int | AnyIntegerAttr],
+        name: str,
     ):
-        created_fifo = ObjectFIFO.from_element_type_and_shape(
-            name, referenced_type, shape
+        object_fifo = ObjectFIFO.from_element_type_and_shape(referenced_type, shape)
+        super().__init__(
+            attributes={
+                "elemNumber": elemNumber,
+                "object_fifo": object_fifo,
+                "sym_name": StringAttr(name),
+            },
+            operands=[producerTile, consumerTile],
+        )
+
+    def print(self, printer: Printer):
+        printer.print(
+            " @",
+            self.sym_name.data,
+            "(",
+            self.producerTile,
+            ", {",
+            self.consumerTile,
+            "}, ",
+        )
+        printer.print_attribute(self.elemNumber)
+
+        printer.print(
+            ") : !AIE.objectFifo<",
+            self.object_fifo.buffer,
+            ">",
+        )
+
+
+@irdl_op_definition
+class ObjectFIFOReleaseOp(IRDLOperation):
+    name = "AIE.objectFifo.release"
+
+    port: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(IntegerAttr[i32])
+    size: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
+    object_fifo: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr)
+
+    def __init__(
+        self,
+        port: IntegerAttr[i32],
+        size: IntegerAttr[i32],
+        object_fifo: str | SymbolRefAttr,
+    ):
+        if isinstance(object_fifo, str):
+            object_fifo = SymbolRefAttr(object_fifo)
+
+        super().__init__(
+            attributes={"port": port, "size": size, "object_fifo": object_fifo}
+        )
+
+    def print(self, printer: Printer):
+        printer.print(
+            " @",
+            self.object_fifo.data,
+            " (",
+            "Produce" if self.port.value.data == PRODUCE_PORT else "Consume",
+            ", ",
+            self.size.value.data,
+            ")",
         )
         super().__init__(
             attributes={"elemNumber": elemNumber, "created_fifo": created_fifo},
@@ -626,12 +874,20 @@ class ShimSwitchBoxOp(IRDLOperation):
 
 @irdl_op_definition
 class SwitchboxOp(IRDLOperation):
-    name = "switchbox"
+    name = "AIE.switchbox"
 
     tile: Operand = operand_def(IndexType())
+    region: Region = region_def()
+    result: OpResult = result_def(IndexType())
 
-    def __init__(self, tile: IndexType()):
-        super().__init__(self, operands=[tile], result_types=[tile])
+    def __init__(self, tile: IndexType(), region: Region):
+        super().__init__(operands=[tile], regions=[region], result_types=[IndexType()])
+
+    def print(self, printer: Printer):
+        printer.print("(")
+        printer.print_operand(self.tile)
+        printer.print(") ")
+        printer.print_region(self.region)
 
 
 @irdl_op_definition
@@ -674,7 +930,7 @@ class UseLockOp(IRDLOperation):
 
 @irdl_op_definition
 class WireOp(IRDLOperation):
-    name = "wire"
+    name = "AIE.wire"
 
     sourceBundle: WireBundleAttr = attr_def(WireBundleAttr)
     destBundle: WireBundleAttr = attr_def(WireBundleAttr)
