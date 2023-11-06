@@ -148,6 +148,12 @@ class TestEnum(StrEnum):
 
 
 class TestNonIdentifierEnum(StrEnum):
+    """
+    The value defined by this StrEnum is not parsable as an identifier, because of the
+    contained space.
+    While valid as a StrEnum, it is thus invalid to use it in an EnumAttribute.
+    """
+
     Spaced = "left right"
 
 
