@@ -134,6 +134,13 @@
   // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[[0.000000e+00], [1.000000e+00]]> : tensor<2x1xf64>
 
   "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<> : tensor<1x23x0x4xi32>,
+                      value2 = dense<[[-0.0], [-1.0]]> : tensor<2x1xf64>,
+                      sym_name = "dense_negative_attr"} : () -> ()
+
+  // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[[-0.000000e+00], [-1.000000e+00]]> : tensor<2x1xf64>
+
+  "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<12> : tensor<2x3xi32>,
                       sym_name = "dense_trivial_attr"} : () -> ()
 
@@ -228,12 +235,6 @@
   "func.func"() ({}) {function_type = () -> (),
                       type_attr = index,
                       sym_name = "index_type"} : () -> ()
-
-  // CHECK: "type_attr" = index
-
-  "func.func"() ({}) {function_type = () -> (),
-                      type_attr = !index,
-                      sym_name = "index_type_prefix"} : () -> ()
 
   // CHECK: "type_attr" = index
 

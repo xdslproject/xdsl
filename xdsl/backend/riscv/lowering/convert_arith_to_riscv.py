@@ -298,6 +298,8 @@ lower_arith_addf = LowerBinaryFloatOp(arith.Addf, riscv.FAddSOp, riscv.FAddDOp)
 lower_arith_subf = LowerBinaryFloatOp(arith.Subf, riscv.FSubSOp, riscv.FSubDOp)
 lower_arith_mulf = LowerBinaryFloatOp(arith.Mulf, riscv.FMulSOp, riscv.FMulDOp)
 lower_arith_divf = LowerBinaryFloatOp(arith.Divf, riscv.FDivSOp, riscv.FDivDOp)
+lower_arith_minf = LowerBinaryFloatOp(arith.Minf, riscv.FMinSOp, riscv.FMinDOp)
+lower_arith_maxf = LowerBinaryFloatOp(arith.Maxf, riscv.FMaxSOp, riscv.FMaxDOp)
 
 
 class LowerArithNegf(RewritePattern):
@@ -314,18 +316,6 @@ class LowerArithNegf(RewritePattern):
                 UnrealizedConversionCastOp.get((negf.rd,), (op.result.type,)),
             )
         )
-
-
-class LowerArithMinfOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Minf, rewriter: PatternRewriter) -> None:
-        raise NotImplementedError("Minf is not supported")
-
-
-class LowerArithMaxfOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.Maxf, rewriter: PatternRewriter) -> None:
-        raise NotImplementedError("Maxf is not supported")
 
 
 class LowerArithCmpf(RewritePattern):
@@ -500,8 +490,8 @@ class ConvertArithToRiscvPass(ModulePass):
                     LowerArithSelect(),
                     LowerArithExtFOp(),
                     LowerArithTruncFOp(),
-                    LowerArithMinfOp(),
-                    LowerArithMaxfOp(),
+                    lower_arith_minf,
+                    lower_arith_maxf,
                 ]
             ),
             apply_recursively=False,

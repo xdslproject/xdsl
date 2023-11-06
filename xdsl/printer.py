@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, TypeVar, cast
 
@@ -51,6 +52,7 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Data,
+    OpaqueSyntaxAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -84,6 +86,14 @@ class Printer:
     _next_line_callback: list[Callable[[], None]] = field(
         default_factory=list, init=False
     )
+
+    @contextmanager
+    def in_angle_brackets(self):
+        self.print_string("<")
+        try:
+            yield
+        finally:
+            self.print_string(">")
 
     def print(self, *argv: Any) -> None:
         for arg in argv:
@@ -631,22 +641,34 @@ class Printer:
         if isinstance(attribute, UnregisteredAttr):
             # Do not print `!` or `#` for unregistered builtin attributes
             self.print("!" if attribute.is_type.data else "#")
-            self.print(attribute.attr_name.data, attribute.value.data)
+            if attribute.is_opaque.data:
+                self.print(attribute.attr_name.data.replace(".", "<", 1))
+                self.print(attribute.value.data)
+                self.print(">")
+            else:
+                self.print(attribute.attr_name.data)
+                if attribute.value.data:
+                    self.print("<")
+                    self.print(attribute.value.data)
+                    self.print(">")
             return
 
         # Print dialect attributes
         self.print("!" if isinstance(attribute, TypeAttribute) else "#")
-        self.print(attribute.name)
+
+        if isinstance(attribute, OpaqueSyntaxAttribute):
+            self.print(attribute.name.replace(".", "<", 1))
+        else:
+            self.print(attribute.name)
 
         if isinstance(attribute, Data):
-            self.print("<")
             attribute.print_parameter(self)
+
+        elif isinstance(attribute, ParametrizedAttribute):
+            attribute.print_parameters(self)
+
+        if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(">")
-            return
-
-        assert isinstance(attribute, ParametrizedAttribute)
-
-        attribute.print_parameters(self)
         return
 
     def print_successors(self, successors: list[Block]):

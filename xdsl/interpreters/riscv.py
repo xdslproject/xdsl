@@ -524,6 +524,28 @@ class RiscvFunctions(InterpreterFunctions):
         results = (args[0] / args[1],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.FMinDOp)
+    def run_fmin_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMinDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (min(args[0], args[1]),)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.FMaxDOp)
+    def run_fmax_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMaxDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (max(args[0], args[1]),)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.FSdOp)
     def run_fsd(
         self,

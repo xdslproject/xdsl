@@ -24,7 +24,7 @@ def test_unimplemented_inputs():
         op = linalg.Generic(
             (TestSSAValue(IntegerType(1)),),
             (),
-            Region(Block([linalg.Yield()])),
+            Region(Block([linalg.YieldOp()])),
             (),
             (linalg.IteratorTypeAttr(linalg.IteratorType.REDUCTION),),
         )
@@ -38,7 +38,7 @@ def test_unimplemented_inputs():
         op = linalg.Generic(
             (),
             (),
-            Region(Block([linalg.Yield()])),
+            Region(Block([linalg.YieldOp()])),
             (),
             (),
             library_call=StringAttr("hello"),
@@ -82,7 +82,7 @@ def test_linalg_generic():
 
     with ImplicitBuilder(op.body) as (a, b):
         c = arith.Muli(a, b).result
-        linalg.Yield(c)
+        linalg.YieldOp(c)
 
     a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
     b = ShapedArray([1, 4, 2, 5, 3, 6], [3, 2])
