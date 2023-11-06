@@ -25,12 +25,31 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    prop_def,
     region_def,
     result_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
+
+
+@irdl_op_definition
+class ApplyOp(IRDLOperation):
+    name = "affine.apply"
+
+    mapOperands = var_operand_def(IndexType)
+    map = prop_def(AffineMapAttr)
+    result = result_def(IndexType)
+
+    def verify_(self) -> None:
+        if len(self.mapOperands) != self.map.data.num_dims + self.map.data.num_symbols:
+            raise VerifyException(
+                f"{self.name} expects {self.map.data.num_dims + self.map.data.num_symbols} operands, but got {len(self.mapOperands)}. The number of map operands must match the sum of the dimensions and symbols of its map."
+            )
+        if len(self.map.data.results) != 1:
+            raise VerifyException("affine.apply expects a unidimensional map.")
 
 
 @irdl_op_definition
@@ -209,6 +228,7 @@ class Yield(IRDLOperation):
 Affine = Dialect(
     "affine",
     [
+        ApplyOp,
         For,
         If,
         Store,
