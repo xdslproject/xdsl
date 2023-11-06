@@ -23,6 +23,13 @@
       %next_value = "test.op"() : () -> !test.type<"int">
       "affine.yield"(%next_value) : (!test.type<"int">) -> ()
     }) {"lower_bound" = affine_map<() -> (-10)>, "upper_bound" = affine_map<() -> (10)>, "step" = 1 : index} : (!test.type<"int">) -> (!test.type<"int">)
+    %00 = "test.op"() : () -> index
+    %N = "test.op"() : () -> index
+    %res2 = "affine.for"(%00, %N, %init_value) ({
+    ^1(%i : index, %step_value : !test.type<"int">):
+      %next_value = "test.op"() : () -> !test.type<"int">
+      "affine.yield"(%next_value) : (!test.type<"int">) -> ()
+    }) {"lower_bound" = affine_map<(d0) -> (d0)>, "upper_bound" = affine_map<()[s0] -> (s0)>, "step" = 1 : index} : (index, index, !test.type<"int">) -> (!test.type<"int">)
 
     // CHECK:      %res = "affine.for"(%{{.*}}) ({
     // CHECK-NEXT: ^1(%{{.*}} : index, %{{.*}} : !test.type<"int">):
