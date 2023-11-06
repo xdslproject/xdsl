@@ -1,118 +1,11 @@
 
-# SelectionList (my_selection_list)
-#passes_selection_list { 
-    margin: 0 0 0 0;
-    border: heavy $warning-lighten-1;
-    # border: heavy $accent;
-    border-title-color: $primary;
-    border-title-align: center;
-    width: 80%;
-    height: 90%;
-    align: center middle;
-}
-
-# Button
-#clear_selection_list_button{
-}
-
-# Horizontal(Button)
-#clear_selection_list{
-    height: 3;
-    overflow-x: auto;
-    margin: 1 1 1 1;
-}
-
-
-# Button
-#undo_condense_button{
-}
-
-# Horizontal(Button)
-#undo_condense{
-    height: 3;
-    overflow-x: auto;
-    margin: 1 1 1 1;
-}
-
-# Button
-#copy_query_button{
-}
-
-# Horizontal(Button)
-#copy_query{
-    height: 3;
-    overflow-x: auto;
-    margin: 1 1 1 1;
-}
-
-
-# Button
-#condense_pass_list_button{
-    margin: 0 0;
-}
-
-# Horizontal(Button)
-#condense_pass_list{
-    height: 3;
-    overflow-x: auto;
-    margin: 1 1 1 1;
-}
-
-
-
-# VerticalScroll(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) )
-#buttons_and_selection_list{
-    layout: vertical;
-    overflow-x: auto;
-}
-
-# Horizontal( SelectionList, VerticalScroll(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) ) ))
-#selection_list_and_button{
-    margin: 1;
-    # border-title-color: $primary;
-    border-title-style: bold;
-    border-title-align: center;
-    layout: horizontal;
-}
-
-# Label
-#selected_passes_label {
-
-}
-# ScrollableContainer(Label)
-#selected_passes {
-    margin: 1 1 0 0;
-    border: heavy $warning-lighten-1;
-    border-title-color: $primary;
-    width: 100%;
-    height: 100%;
-    border-title-align: center;
-}
-
-# Horizontal( Horizontal( SelectionList, Vertical(Horizontal(Button), Horizontal(Button), Horizontal(Button), Horizontal(Button) ) )), ScrollableContainer(Label) )
-#selected_passes_and_list_horizontal{
-    height: 100%;
-    layout: grid;
-    grid-size: 2 1;
-    grid-columns: 75% 25%;
-}
-
 # TextArea
 #input{
 }
 
-# Button
-#clear_input_button{
-}
 
-# Horizontal(Button)
-#clear_input{
-    height: 3;
-    overflow-x: auto;
-}
-
-# Vertical( TextArea, Horizontal(Button) )
-#input_and_button {
+# Vertical(TextArea)
+#input_container {
     margin: 1;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
@@ -124,18 +17,7 @@
 #output{
 }
 
-# Button
-#copy_output_button{
-}
-
-# Horizontal(Button)
-#copy_output{
-    height: 3;
-    overflow-x: auto;
-    text-opacity: 60%;
-}
-
-# Container(OutputTextArea, Horizontal(Button) )
+# Vertical(OutputTextArea)
 #output_container {
     margin: 1;
     border: heavy $warning-lighten-1;
@@ -145,11 +27,10 @@
     # overflow: auto auto;
 }
 
-# Horizontal( Vertical( TextArea, Horizontal(Button) )  , Container( OutputTextArea, Horizontal(Button) ) )
+# Horizontal(Vertical(OutputTextArea), Vertical(OutputTextArea))
 #input_output{
     height: 100%;
 }
-
 
 Screen {
     layout: grid;
