@@ -20,7 +20,7 @@
   }) : (index, index, index) -> ()
 }) : () -> ()
 
-// CHECK: operand at position 0 does not verify
+// CHECK: Expected induction var to be same type as bounds and step
 
 // -----
 
