@@ -36,7 +36,17 @@
 #input{
 }
 
-# Vertical(TextArea)
+# Button
+#clear_input_button{
+}
+
+# Horizontal(Button)
+#clear_input{
+    height: 3;
+    overflow-x: auto;
+}
+
+# Vertical(TextArea, Horizontal(Button))
 #input_container {
     margin: 1;
     border: heavy $warning-lighten-1;
@@ -51,18 +61,29 @@
     layout: vertical;
 }
 
-# Vertical(OutputTextArea)
+# Button
+#copy_output_button{
+}
+
+# Horizontal(Button)
+#copy_output{
+    height: 3;
+    overflow-x: auto;
+    text-opacity: 60%;
+}
+
+# Container(OutputTextArea, Horizontal(Button))
 #output_container {
     margin: 1;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
     border-title-align: center;
-    # layout: vertical;
+    layout: vertical;
     # overflow: auto auto;
 
 }
 
-# Horizontal(Vertical(OutputTextArea), Vertical(OutputTextArea))
+# Horizontal( Vertical( TextArea, Horizontal(Button) )  , Container( OutputTextArea, Horizontal(Button) ) )
 #input_output{
 }
 

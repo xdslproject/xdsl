@@ -9,15 +9,17 @@ box).
 
 This app is still under construction.
 """
-
+from collections.abc import Callable
 from io import StringIO
 
+# pyright: ignore[reportMissingTypeStubs, reportGeneralTypeIssues]
+from pyclip import copy as pyclip_copy
 from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
-from textual.widgets import Footer, Label, SelectionList, TextArea
+from textual.widgets import Button, Footer, Label, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
@@ -26,6 +28,8 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+
+pyclip_copy: Callable[[str], None] = pyclip_copy
 
 
 class OutputTextArea(TextArea):
@@ -99,8 +103,12 @@ class InputApp(App[None]):
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
+                with Horizontal(id="clear_input"):
+                    yield Button("Clear Input", id="clear_input_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
+                with Horizontal(id="copy_output"):
+                    yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
     @on(SelectionList.SelectedChanged)
@@ -174,6 +182,17 @@ class InputApp(App[None]):
     def action_quit_app(self) -> None:
         """An action to quit the app."""
         self.exit()
+
+    @on(Button.Pressed, "#clear_input_button")
+    def on_clear_input_button_pressed(self, event: Button.Pressed) -> None:
+        """When the "Clear Input" button is pressed, the input IR TextArea is cleared and the current_module is updated"""
+        self.input_text_area.clear()
+        self.update_current_module()
+
+    @on(Button.Pressed, "#copy_output_button")
+    def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
+        """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
+        pyclip_copy(self.output_text_area.text)
 
 
 if __name__ == "__main__":

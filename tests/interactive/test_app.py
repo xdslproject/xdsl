@@ -66,3 +66,21 @@ async def test_input():
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
+
+
+# async def test_passes():
+#     """Test selected passes."""
+#     app = InputApp()
+#     async with app.run_test() as pilot:
+
+
+async def test_buttons():
+    """Test pressing keys has the desired result."""
+    app = InputApp()
+    async with app.run_test() as pilot:
+        # Test clicking the "red" button
+        await pilot.click("#clear_input_button")
+        assert app.current_module is None
+
+        # app.input_text_area.insert("dkjfd")
+        # await pilot.click("#copy_output_button")
