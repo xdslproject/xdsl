@@ -67,6 +67,11 @@ i1 = IntegerType(1)
 # 	 def parse_parameter
 
 
+# Hexadecimal values must be formatted with a lowercase '0x' preceeding the number
+def format_hex(value: int):
+    return hex(value).upper().replace("X", "x")
+
+
 @irdl_attr_definition
 class WireBundleAttr(Data[str]):
     name = "wire_bundle"
@@ -296,6 +301,15 @@ class DMABDPACKETOp(IRDLOperation):
     def __init__(self, packet_type: IntegerAttr[i32], packet_id: IntegerAttr[i32]):
         super().__init__(
             attributes={"packet_type": packet_type, "packet_id": packet_id}
+        )
+
+    def print(self, printer: Printer):
+        printer.print(
+            "(",
+            format_hex(self.packet_type.value.data),
+            ", ",
+            format_hex(self.packet_id.value.data),
+            ")",
         )
 
 
@@ -742,7 +756,7 @@ class PLIOOp(IRDLOperation):
 
 @irdl_op_definition
 class PacketDestOp(IRDLOperation):
-    name = "packet_dest"
+    name = "AIE.packet_dest"
 
     bundle: WireBundleAttr = attr_def(WireBundleAttr)
     channel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
@@ -756,15 +770,25 @@ class PacketDestOp(IRDLOperation):
             attributes={"bundle": bundle, "channel": channel}, operands=[tile]
         )
 
+    def print(self, printer: Printer):
+        printer.print(
+            "<", self.tile, ", ", self.bundle.data, " : ", self.channel.value.data, ">"
+        )
+
 
 @irdl_op_definition
 class PacketFlowOp(IRDLOperation):
-    name = "packet_flow"
+    name = "AIE.packet_flow"
 
     ID: IntegerAttr[i8] = attr_def(IntegerAttr[i8])
+    region: Region = region_def()
 
-    def __init__(self, ID: IntegerAttr[i8]):
-        super().__init__(attributes={"ID": ID})
+    def __init__(self, ID: IntegerAttr[i8], region: Region):
+        super().__init__(attributes={"ID": ID}, regions=[region])
+
+    def print(self, printer: Printer):
+        printer.print("(", format_hex(self.ID.value.data), ") ")
+        printer.print_region(self.region)
 
 
 @irdl_op_definition
@@ -797,7 +821,7 @@ class PacketRulesOp(IRDLOperation):
 
 @irdl_op_definition
 class PacketSourceOp(IRDLOperation):
-    name = "packet_source"
+    name = "AIE.packet_source"
 
     bundle: WireBundleAttr = attr_def(WireBundleAttr)
     channel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
@@ -808,6 +832,11 @@ class PacketSourceOp(IRDLOperation):
     ):
         super().__init__(
             attributes={"bundle": bundle, "channel": channel}, operands=[tile]
+        )
+
+    def print(self, printer: Printer):
+        printer.print(
+            "<", self.tile, ", ", self.bundle.data, " : ", self.channel.value.data, ">"
         )
 
 
