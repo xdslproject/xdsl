@@ -47,6 +47,16 @@ class InputApp(App[None]):
         ("q", "quit_app", "Quit"),
     ]
 
+    # defines a theme for the Input/Output TextArea's
+    _DEFAULT_THEME = TextAreaTheme(
+        name="my_theme_design",
+        base_style=Style(bgcolor="white"),
+        syntax_styles={
+            "string": Style(color="red"),
+            "comment": Style(color="magenta"),
+        },
+    )
+
     current_module: reactive[ModuleOp | Exception | None] = reactive(None)
     """
     Reactive variable used to save the current state of the modified Input TextArea (i.e. is the Output TextArea)
@@ -61,22 +71,6 @@ class InputApp(App[None]):
         Get the list of xDSL passes, add them to an array in "Selection" format (so it can be added to a Selection List)
         and sort the list in alphabetical order.
         """
-
-        # defines a theme for the Input/Output TextArea's
-        my_theme = TextAreaTheme(
-            name="my_theme_design",
-            base_style=Style(bgcolor="white"),
-            syntax_styles={
-                "string": Style(color="red"),
-                "comment": Style(color="magenta"),
-            },
-        )
-
-        # register's the theme for the Input/Output TextArea's
-        self.input_text_area.register_theme(my_theme)
-        self.input_text_area.theme = "my_theme_design"
-        self.output_text_area.register_theme(my_theme)
-        self.output_text_area.theme = "my_theme_design"
 
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
@@ -122,7 +116,13 @@ class InputApp(App[None]):
         self.output_text_area.load_text(output_text)
 
     def on_mount(self) -> None:
-        """On App Mount, add titles"""
+        # register's the theme for the Input/Output TextArea's
+        self.input_text_area.register_theme(InputApp._DEFAULT_THEME)
+        self.output_text_area.register_theme(InputApp._DEFAULT_THEME)
+        self.input_text_area.theme = "my_theme_design"
+        self.output_text_area.theme = "my_theme_design"
+
+        """Configure widgets in this application before it is first shown."""
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
 
@@ -136,5 +136,5 @@ class InputApp(App[None]):
 
 
 if __name__ == "__main__":
-    app = InputApp(None)
+    app = InputApp()
     app.run()

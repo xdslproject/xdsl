@@ -1,21 +1,10 @@
 
-# TextArea
-#input{
-}
-
 # Vertical(TextArea)
 #input_container {
     margin: 1;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
     border-title-align: center;
-    # layout: vertical;
-    # overflow: auto auto;
-}
-
-# OutputTextArea
-#output{
-    layout: vertical;
 }
 
 # Vertical(OutputTextArea)
@@ -24,17 +13,4 @@
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
     border-title-align: center;
-    # layout: vertical;
-    # overflow: auto auto;
-
 }
-
-# Horizontal(Vertical(OutputTextArea), Vertical(OutputTextArea))
-#input_output{
-}
-
-Screen {
-    # layout: grid;
-    # grid-size: 1;
-    # grid-rows: 45% 65%;
-} 
