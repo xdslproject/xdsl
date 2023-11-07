@@ -47,10 +47,13 @@ class InputApp(App[None]):
         ("q", "quit_app", "Quit"),
     ]
 
+    current_module: reactive[ModuleOp | Exception | None] = reactive(None)
     """
     Reactive variable used to save the current state of the modified Input TextArea (i.e. is the Output TextArea)
     """
-    current_module: reactive[ModuleOp | Exception | None] = reactive(None)
+
+    input_text_area = TextArea(id="input")
+    output_text_area = OutputTextArea(id="output")
 
     def compose(self) -> ComposeResult:
         """
@@ -58,9 +61,6 @@ class InputApp(App[None]):
         Get the list of xDSL passes, add them to an array in "Selection" format (so it can be added to a Selection List)
         and sort the list in alphabetical order.
         """
-        # defines the Input/Output TextArea's
-        input_text_area = TextArea(id="input")
-        output_text_area = OutputTextArea(id="output")
 
         # defines a theme for the Input/Output TextArea's
         my_theme = TextAreaTheme(
@@ -73,16 +73,16 @@ class InputApp(App[None]):
         )
 
         # register's the theme for the Input/Output TextArea's
-        input_text_area.register_theme(my_theme)
-        input_text_area.theme = "my_theme_design"
-        output_text_area.register_theme(my_theme)
-        output_text_area.theme = "my_theme_design"
+        self.input_text_area.register_theme(my_theme)
+        self.input_text_area.theme = "my_theme_design"
+        self.output_text_area.register_theme(my_theme)
+        self.output_text_area.theme = "my_theme_design"
 
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
-                yield input_text_area
+                yield self.input_text_area
             with Vertical(id="output_container"):
-                yield output_text_area
+                yield self.output_text_area
         yield Footer()
 
     @on(TextArea.Changed, "#input")
@@ -91,7 +91,7 @@ class InputApp(App[None]):
         Function called when the Input TextArea is cahnged. This function parses the Input IR and updates
         the current_module reactive variable.
         """
-        input_text = self.query_one("#input", TextArea).text
+        input_text = self.input_text_area.text
         try:
             ctx = MLContext(True)
             for dialect in get_all_dialects():
@@ -119,7 +119,7 @@ class InputApp(App[None]):
                 Printer(output_stream).print(self.current_module)
                 output_text = output_stream.getvalue()
 
-        self.query_one("#output", TextArea).load_text(output_text)
+        self.output_text_area.load_text(output_text)
 
     def on_mount(self) -> None:
         """On App Mount, add titles"""
