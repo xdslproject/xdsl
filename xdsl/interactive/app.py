@@ -15,16 +15,17 @@ from io import StringIO
 from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
-from textual.widgets import Footer, TextArea
+from textual.widgets import Footer, Label, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
+from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import get_all_dialects
+from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
 
 class OutputTextArea(TextArea):
@@ -55,6 +56,16 @@ class InputApp(App[None]):
     input_text_area = TextArea(id="input")
     output_text_area = OutputTextArea(id="output")
 
+    list_of_passes = get_all_passes()
+    """Contains the list of xDSL passes."""
+
+    # aids in the construction of the seleciton list containing all the passes
+    selections = [(value.name, value) for value in list_of_passes]
+    selections.sort()
+    passes_selection_list: SelectionList[type[ModulePass]] = SelectionList(
+        *selections, id="passes_selection_list"
+    )
+
     def compose(self) -> ComposeResult:
         """
         Creates the required widgets, events, etc.
@@ -78,6 +89,13 @@ class InputApp(App[None]):
         self.output_text_area.register_theme(my_theme)
         self.output_text_area.theme = "my_theme_design"
 
+        # construct the seleciton list containing all the passes and the label displaying the selected passes
+        with Horizontal(id="selected_passes_and_list_horizontal"):
+            yield self.passes_selection_list
+            with ScrollableContainer(id="selected_passes"):
+                yield Label("", id="selected_passes_label")
+
+        # construct the input and output TextArea's
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
@@ -85,19 +103,38 @@ class InputApp(App[None]):
                 yield self.output_text_area
         yield Footer()
 
+    @on(SelectionList.SelectedChanged)
+    def update_selected_view(self) -> None:
+        """
+        When the SelectionList (pass options) changes (i.e. a pass was selected or deselected), update the label to show
+        the query, and then call the update_current_module() function, which applies the selected passes to the input and displays the output
+        """
+        new_passes = "\n" + (", " + "\n").join(
+            p.name for p in self.passes_selection_list.selected
+        )
+        new_label = f"xdsl-opt -p {new_passes}"
+        self.query_one(Label).update(new_label)
+        self.update_current_module()
+
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
-        Function called when the Input TextArea is cahnged. This function parses the Input IR and updates
+        Function called when the Input TextArea is changed. This function parses the Input IR, applies selected passes and updates
         the current_module reactive variable.
         """
         input_text = self.input_text_area.text
+        selected_passes = self.passes_selection_list.selected
+
         try:
             ctx = MLContext(True)
             for dialect in get_all_dialects():
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
+
+            pipeline = PipelinePass([p() for p in selected_passes])
+            pipeline.apply(ctx, module)
+
             self.current_module = module
         except Exception as e:
             self.current_module = e
@@ -125,6 +162,10 @@ class InputApp(App[None]):
         """On App Mount, add titles"""
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
+        self.query_one(
+            "#passes_selection_list"
+        ).border_title = "Choose a pass or multiple passes to be applied."
+        self.query_one("#selected_passes").border_title = "Selected passes/query"
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
