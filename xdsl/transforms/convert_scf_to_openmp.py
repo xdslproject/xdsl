@@ -1,7 +1,8 @@
 from typing import cast
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import builtin, memref, omp, scf
+from xdsl.dialects import memref, omp, scf
+from xdsl.dialects.builtin import IndexType, ModuleOp
 from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -16,8 +17,7 @@ from xdsl.pattern_rewriter import (
 class ConvertYield(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.Yield, rewriter: PatternRewriter, /):
-        if len(op.operands) > 0:
-            # TODO
+        if not isinstance(op.parent_op(), omp.WsLoopOp):
             return
         rewriter.replace_matched_op(omp.YieldOp(*op.operands))
 
@@ -28,6 +28,7 @@ class ConvertParallel(RewritePattern):
         if len(op.initVals) > 0:
             # TODO
             return
+        block = op.body.detach_block(0)
         parallel = omp.ParallelOp(
             regions=[Region(Block())],
             operands=[[], [], [], [], []],
@@ -43,11 +44,11 @@ class ConvertParallel(RewritePattern):
                     [],
                     [],
                 ],
-                regions=[Region(Block())],
+                regions=[Region(Block(arg_types=[IndexType()] * len(block.args)))],
             )
-            with ImplicitBuilder(wsloop.body):
+            with ImplicitBuilder(wsloop.body.block):
                 alloca_scope = memref.AllocaScopeOp(
-                    result_types=[[]], regions=[op.detach_region(op.body)]
+                    result_types=[[]], regions=[Region(block)]
                 )
 
             omp.TerminatorOp()
@@ -72,7 +73,7 @@ class ConvertParallel(RewritePattern):
 class ConvertScfToOpenMPPass(ModulePass):
     name = "convert-scf-to-openpm"
 
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+    def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier([ConvertYield(), ConvertParallel()])
         ).rewrite_module(op)

@@ -103,4 +103,20 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
+  func.func @reduction1(%arg0_1 : index, %arg1_1 : index, %arg2_1 : index, %arg3_1 : index, %arg4_1 : index) {
+    %0 = arith.constant 1 : index
+    %1 = arith.constant 0.000000e+00 : f32
+    %2 = "scf.parallel"(%arg0_1, %arg1_1, %arg2_1, %arg3_1, %arg4_1, %0, %1) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 1>}> ({
+    ^5(%arg5_1 : index, %arg6_1 : index):
+      %3 = arith.constant 1.000000e+00 : f32
+      "scf.reduce"(%3) ({
+      ^6(%arg7_1 : f32, %arg8 : f32):
+        %4 = arith.addf %arg7_1, %arg8 : f32
+        "scf.reduce.return"(%4) : (f32) -> ()
+      }) : (f32) -> ()
+      scf.yield
+    }) : (index, index, index, index, index, index, f32) -> f32
+    func.return
+  }
+
 }
