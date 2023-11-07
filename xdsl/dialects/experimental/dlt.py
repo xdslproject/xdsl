@@ -1,15 +1,25 @@
+"""
+Data Layout Trees 'DLT' is a dialect / DSL for specifying the data-layout of multiple tensors in a unified tree
+structure. The objective is to provide access to named tensors by named dimensions such that the actual layout can be
+modified at compile time without changing the code that uses the tensors. This then allows us to have complex layouts
+that combine structures with members, dense dimensions, and compressed/sparse layouts as well as affine transformations
+on dimensions, masking. From a normalised description of the data that needs to exist (and potentially knowledge about
+redundancy / structured sparsity) a physically layout can be produced. Then with rewrite rules that preserve soundness
+(that all values that must be stored are stored) we can modify the structure automatically to produce a large search
+space of different physical layouts to then find more optimal solutions that produce more efficient code.
+"""
+
 from __future__ import annotations
 
 from typing import Iterable, Iterator
 
-from xdsl.dialects.builtin import ArrayAttr, StringAttr, IntegerAttr, IntAttr, i64, IntegerType, IndexType, AnyFloat, \
-    AnyFloatAttr, FunctionType
+from xdsl.dialects.builtin import ArrayAttr, StringAttr, IntegerAttr, i64, IntegerType, IndexType, AnyFloat, \
+    AnyFloatAttr
 from xdsl.ir import TypeAttribute, Dialect, AttributeCovT
 from xdsl.irdl import *
 from xdsl.parser import AttrParser
 from xdsl.traits import IsTerminator, HasParent
 from xdsl.utils.hints import isa
-
 
 @dataclass
 class SetOfConstraint(AttrConstraint):
@@ -32,6 +42,9 @@ class SetOfConstraint(AttrConstraint):
 
 @irdl_attr_definition
 class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT]):
+    """Based on ArrayAttr but for sets. Used for when the order shouldn't matter. By Default putting duplicate values in
+    raises an error as it is expected that duplicates should not be in the input for well-formed code.
+    This implementation requires that Attributes contained within are hashable which is not necessarily true. """
     name = "dlt.set"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
@@ -46,8 +59,6 @@ class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT
     def from_duplicates(cls, param: Iterable[AttributeCovT]) -> SetAttr[AttributeCovT]:
         return SetAttr(set(param))
 
-
-
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> frozenset[AttributeCovT, ...]:
         data = parser.parse_comma_separated_list(
@@ -58,6 +69,7 @@ class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT
         return result
 
     def print_parameter(self, printer: Printer) -> None:
+        """We sort the elements by their str() value just to maintain determinism of output"""
         printer.print_string("{")
         values = list(self.data)
         sorted_values = [values[i] for s,i in sorted([(str(s),i) for i,s in enumerate(values)])]
@@ -91,6 +103,7 @@ class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT
 
     def without(self, val:AttributeCovT):
         return SetAttr(self.data.difference([val]))
+
 
 
 @irdl_attr_definition
@@ -296,6 +309,11 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
         return TypeType(new_elems)
 
 
+@irdl_attr_definition
+class PtrType(ParametrizedAttribute, TypeAttribute):
+    name = "dlt.ptr"
+    layout: ParameterDef[TypeType]
+
 
 @irdl_attr_definition
 class IndexRangeType(ParametrizedAttribute, TypeAttribute):
@@ -477,10 +495,7 @@ class SelectOp(IRDLOperation):
         printer.print(")")
         printer.print(" -> ")
         printer.print(self.res.type)
-        # super().print(printer)
 
-
-#TODO
 
 
 @irdl_op_definition
@@ -503,6 +518,10 @@ class InitOp(IRDLOperation):
     name = "dlt.init"
 #TODO
 
+@irdl_op_definition
+class AssertLayoutOp(IRDLOperation):
+    name = "dlt.assert"
+#TODO
 
 
 

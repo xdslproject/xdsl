@@ -1,3 +1,33 @@
+"""
+Dagstuhl Tensor Language 'DTL' is a native Python embedded DSL for writing tensor contractions in a data-layout and
+schedule agnostic way. It is loosely based on Einstein notation but uses deindexing to allow for purely expression based
+notation without assignment statements. The core principals are that Tensor Expressions can be seen as functions from
+indices over vector spaces to tensor shapes. A tensor expression type has the form  A:R10, B:R20 -> <R5, R15> where
+and B are indices over R10 and R20 respectively forming the arguments, and if values for those indices are provided to
+the expression the result will be a 2-Tensor whose shape is defined by the vector spaces R5 and R15.
+Code for a matrix multiplication in DTL can look like:
+
+i,j,k = Index(‘i’),Index(‘j’),Index(‘k’)
+R10 = RealVectorSpace(10)
+Q,S = UnknownSizeVectorSpace(‘Q’), UnknownSizeVectorSpace(‘S’)
+A,B = TensorVariable(Q*R10, ‘A’), TensorVariable(R10*S, ‘B’)
+output = (A[i,j] * B[j,k]).sum(j).forall(i,k)
+#if we don't use syntactic sugar the above line becomes:
+output = MulBinOp(A.bind({i:Q, j:R10}).index([i,j]).bind({k:S}), B.bind({j:R10, k:S}).index([j,k]).bind({i:Q})).sum(j).deindex((i,k))
+
+Here we see that we can define indices, vector spaces, and tensor variables, and then operate on them to perform our
+calculation. Binding a index to a vector space for a given expression puts that mapping into the arguments of the tensor
+function type denoting that this expression 'lives inside' the iteration space of formed by the vector spaces. Indexing
+then applies bound indices on to the shape such that the result shape looses their respective dimensions, here resulting
+in a scalar <> shape. For scalar multiplication we assert that the left and right sub-expressions must have the same
+arguments - they must have the same iteration spaces - so we have to bind k and i to left and right sides respectively.
+Next we can sum over the j index to produce the sum of the multiplications at each value in the R10 vector space
+[0...10). Then we deindex, which produces a tensor shape, removing the corresponding indices from the arguments of it's
+sub-expression. Tensor shapes can also include tuple structures of tensors such that multiple expressions can be
+operated on together and so custom (non-linear) operations on multiple tensors at a time are supportable.
+
+"""
+
 from __future__ import annotations
 
 import builtins
