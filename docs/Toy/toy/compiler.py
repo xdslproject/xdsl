@@ -24,7 +24,6 @@ from xdsl.dialects import (
     scf,
 )
 from xdsl.dialects.builtin import Builtin, ModuleOp
-from xdsl.interpreters.riscv_emulator import run_riscv
 from xdsl.ir import MLContext
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
@@ -32,9 +31,9 @@ from xdsl.transforms.lower_affine import LowerAffinePass
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
+from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
 
 from .dialects import toy
-from .emulator.toy_accelerator_instructions import ToyAccelerator
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
@@ -47,16 +46,16 @@ from .rewrites.shape_inference import ShapeInferencePass
 
 def context() -> MLContext:
     ctx = MLContext()
-    ctx.register_dialect(affine.Affine)
-    ctx.register_dialect(arith.Arith)
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(func.Func)
-    ctx.register_dialect(memref.MemRef)
-    ctx.register_dialect(printf.Printf)
-    ctx.register_dialect(riscv_func.RISCV_Func)
-    ctx.register_dialect(riscv.RISCV)
-    ctx.register_dialect(scf.Scf)
-    ctx.register_dialect(toy.Toy)
+    ctx.load_dialect(affine.Affine)
+    ctx.load_dialect(arith.Arith)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(func.Func)
+    ctx.load_dialect(memref.MemRef)
+    ctx.load_dialect(printf.Printf)
+    ctx.load_dialect(riscv_func.RISCV_Func)
+    ctx.load_dialect(riscv.RISCV)
+    ctx.load_dialect(scf.Scf)
+    ctx.load_dialect(toy.Toy)
     return ctx
 
 
@@ -120,6 +119,8 @@ def transform(
     # Perform optimizations that don't depend on register allocation
     # e.g. constant folding
     CanonicalizePass().apply(ctx, module_op)
+    RiscvScfLoopRangeFoldingPass().apply(ctx, module_op)
+    CanonicalizePass().apply(ctx, module_op)
     RiscvReduceRegisterPressurePass().apply(ctx, module_op)
 
     module_op.verify()
@@ -165,4 +166,8 @@ def compile(program: str) -> str:
 
 
 def emulate_riscv(program: str):
+    from xdsl.interpreters.riscv_emulator import run_riscv
+
+    from .emulator.toy_accelerator_instructions import ToyAccelerator
+
     run_riscv(program, extensions=[ToyAccelerator], unlimited_regs=True, verbosity=0)

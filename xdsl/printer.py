@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AffineSetAttr,
     AnyFloatAttr,
     AnyIntegerAttr,
     AnyUnrankedTensorType,
@@ -50,12 +52,14 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Data,
+    OpaqueSyntaxAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
     SSAValue,
     TypeAttribute,
 )
+from xdsl.traits import IsTerminator
 from xdsl.utils.diagnostic import Diagnostic
 
 indentNumSpaces = 2
@@ -82,6 +86,14 @@ class Printer:
     _next_line_callback: list[Callable[[], None]] = field(
         default_factory=list, init=False
     )
+
+    @contextmanager
+    def in_angle_brackets(self):
+        self.print_string("<")
+        try:
+            yield
+        finally:
+            self.print_string(">")
 
     def print(self, *argv: Any) -> None:
         for arg in argv:
@@ -237,10 +249,16 @@ class Printer:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def print_block(self, block: Block, print_block_args: bool = True) -> None:
+    def print_block(
+        self,
+        block: Block,
+        print_block_args: bool = True,
+        print_block_terminator: bool = True,
+    ) -> None:
         """
         Print a block with syntax `(<caret-ident>`(` <block-args> `)`)? ops* )`
         * If `print_block_args` is False, the label and arguments are not printed.
+        * If `print_block_terminator` is False, the block terminator is not printed.
         """
 
         if print_block_args:
@@ -254,6 +272,8 @@ class Printer:
 
         self._indent += 1
         for op in block.ops:
+            if not print_block_terminator and op.has_trait(IsTerminator):
+                continue
             self._print_new_line()
             self.print_op(op)
         self._indent -= 1
@@ -274,12 +294,14 @@ class Printer:
         region: Region,
         print_entry_block_args: bool = True,
         print_empty_block: bool = True,
+        print_block_terminators: bool = True,
     ) -> None:
         """
         Print a region with syntax `{ <block>* }`
         * If `print_entry_block_args` is False, the arguments of the entry block
           are not printed.
         * If `print_empty_block` is False, empty entry blocks are not printed.
+        * If `print_block_terminators` is False, the block terminators are not printed.
         """
 
         # Empty region
@@ -293,9 +315,13 @@ class Printer:
         print_entry_block_args = (
             bool(entry_block.args) and print_entry_block_args
         ) or (not entry_block.ops and print_empty_block)
-        self.print_block(entry_block, print_block_args=print_entry_block_args)
+        self.print_block(
+            entry_block,
+            print_block_args=print_entry_block_args,
+            print_block_terminator=print_block_terminators,
+        )
         for block in region.blocks[1:]:
-            self.print_block(block)
+            self.print_block(block, print_block_terminator=print_block_terminators)
         self._print_new_line()
         self.print("}")
 
@@ -566,14 +592,16 @@ class Printer:
         if isinstance(attribute, MemRefType):
             attribute = cast(MemRefType[Attribute], attribute)
             self.print("memref<")
-            self.print_list(
-                attribute.shape.data,
-                lambda x: self.print(x.value.data)
-                if x.value.data != -1
-                else self.print("?"),
-                "x",
-            )
-            self.print("x", attribute.element_type)
+            if attribute.shape.data:
+                self.print_list(
+                    attribute.shape.data,
+                    lambda x: self.print(x.value.data)
+                    if x.value.data != -1
+                    else self.print("?"),
+                    "x",
+                )
+                self.print("x")
+            self.print(attribute.element_type)
             if not isinstance(attribute.layout, NoneAttr):
                 self.print(", ", attribute.layout)
             if not isinstance(attribute.memory_space, NoneAttr):
@@ -606,26 +634,43 @@ class Printer:
             self.print(">")
             return
 
+        if isinstance(attribute, AffineSetAttr):
+            self.print("affine_set<")
+            self.print(attribute.data)
+            self.print(">")
+            return
+
         if isinstance(attribute, UnregisteredAttr):
             # Do not print `!` or `#` for unregistered builtin attributes
-            if attribute.attr_name.data not in ["affine_set"]:
-                self.print("!" if attribute.is_type.data else "#")
-            self.print(attribute.attr_name.data, attribute.value.data)
+            self.print("!" if attribute.is_type.data else "#")
+            if attribute.is_opaque.data:
+                self.print(attribute.attr_name.data.replace(".", "<", 1))
+                self.print(attribute.value.data)
+                self.print(">")
+            else:
+                self.print(attribute.attr_name.data)
+                if attribute.value.data:
+                    self.print("<")
+                    self.print(attribute.value.data)
+                    self.print(">")
             return
 
         # Print dialect attributes
         self.print("!" if isinstance(attribute, TypeAttribute) else "#")
-        self.print(attribute.name)
+
+        if isinstance(attribute, OpaqueSyntaxAttribute):
+            self.print(attribute.name.replace(".", "<", 1))
+        else:
+            self.print(attribute.name)
 
         if isinstance(attribute, Data):
-            self.print("<")
             attribute.print_parameter(self)
+
+        elif isinstance(attribute, ParametrizedAttribute):
+            attribute.print_parameters(self)
+
+        if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(">")
-            return
-
-        assert isinstance(attribute, ParametrizedAttribute)
-
-        attribute.print_parameters(self)
         return
 
     def print_successors(self, successors: list[Block]):

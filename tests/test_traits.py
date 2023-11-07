@@ -31,10 +31,13 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_region_def,
+    prop_def,
     region_def,
     result_def,
+    traits_def,
 )
 from xdsl.traits import (
+    HasParent,
     OptionalSymbolOpInterface,
     SymbolOpInterface,
     SymbolTable,
@@ -336,7 +339,32 @@ def test_optional_symbol_op_interface():
     assert interface.get_sym_attr_name(symbol) == StringAttr("main")
 
 
-def test_symbol_table():
+@irdl_op_definition
+class SymbolOp(IRDLOperation):
+    name = "test.symbol"
+
+    sym_name = attr_def(StringAttr)
+
+    traits = frozenset([SymbolOpInterface()])
+
+    def __init__(self, name: str):
+        return super().__init__(attributes={"sym_name": StringAttr(name)})
+
+
+@irdl_op_definition
+class PropSymbolOp(IRDLOperation):
+    name = "test.symbol"
+
+    sym_name = prop_def(StringAttr)
+
+    traits = frozenset([SymbolOpInterface()])
+
+    def __init__(self, name: str):
+        return super().__init__(properties={"sym_name": StringAttr(name)})
+
+
+@pytest.mark.parametrize("SymbolOp", (SymbolOp, PropSymbolOp))
+def test_symbol_table(SymbolOp: type[PropSymbolOp | SymbolOp]):
     # Some helper classes
     @irdl_op_definition
     class SymbolTableOp(IRDLOperation):
@@ -348,14 +376,6 @@ def test_symbol_table():
         two = opt_region_def()
 
         traits = frozenset([SymbolTable(), OptionalSymbolOpInterface()])
-
-    @irdl_op_definition
-    class SymbolOp(IRDLOperation):
-        name = "test.symbol"
-
-        sym_name = attr_def(StringAttr)
-
-        traits = frozenset([SymbolOpInterface()])
 
     # Check that having a single region is verified
     op = SymbolTableOp(regions=[Region(), Region()])
@@ -377,8 +397,8 @@ def test_symbol_table():
     terminator = test.TestTermOp()
 
     # Check that symbol uniqueness is verified
-    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
-    dup_symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    symbol = SymbolOp("name")
+    dup_symbol = SymbolOp("name")
     op = SymbolTableOp(
         regions=[Region(Block([symbol, dup_symbol, terminator.clone()])), []]
     )
@@ -389,7 +409,7 @@ def test_symbol_table():
         op.verify()
 
     # Check a flat happy case, with symbol lookup
-    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    symbol = SymbolOp("name")
 
     op = SymbolTableOp(regions=[Region(Block([symbol, terminator.clone()])), []])
     op.verify()
@@ -398,7 +418,7 @@ def test_symbol_table():
     assert SymbolTable.lookup_symbol(op, "that_other_name") is None
 
     # Check a nested happy case, with symbol lookup
-    symbol = SymbolOp(attributes={"sym_name": StringAttr("name")})
+    symbol = SymbolOp("name")
 
     nested = SymbolTableOp(
         regions=[Region(Block([symbol, terminator.clone()])), []],
@@ -409,3 +429,49 @@ def test_symbol_table():
 
     assert SymbolTable.lookup_symbol(op, "name") is None
     assert SymbolTable.lookup_symbol(op, SymbolRefAttr("nested", ["name"])) is symbol
+
+
+@irdl_op_definition
+class HasLazyParentOp(IRDLOperation):
+    """An operation with traits that are defined "lazily"."""
+
+    name = "test.has_lazy_parent"
+
+    traits = traits_def(lambda: frozenset([HasParent(TestOp)]))
+
+
+def test_lazy_parent():
+    """Test the trait infrastructure for an operation that defines a trait "lazily"."""
+    op = HasLazyParentOp.create()
+    assert len(op.get_traits_of_type(HasParent)) != 0
+    assert op.get_traits_of_type(HasParent)[0].parameters == (TestOp,)
+    assert op.has_trait(HasParent, (TestOp,))
+    assert op.traits == frozenset([HasParent(TestOp)])
+
+
+def test_insert_or_update():
+    @irdl_op_definition
+    class SymbolTableOp(IRDLOperation):
+        name = "test.symbol_table"
+
+        reg = region_def()
+
+        traits = frozenset([SymbolTable()])
+
+    # Check a flat happy case, with symbol lookup
+    symbol = SymbolOp("name")
+    symbol2 = SymbolOp("name2")
+    terminator = test.TestTermOp()
+
+    op = SymbolTableOp(regions=[Region(Block([symbol, terminator]))])
+    op.verify()
+
+    trait = op.get_trait(SymbolTable)
+    assert trait is not None
+
+    assert trait.insert_or_update(op, symbol.clone()) is symbol
+    assert len(op.reg.ops) == 2
+
+    assert trait.insert_or_update(op, symbol2) is None
+    assert len(op.reg.ops) == 3
+    assert symbol2 in list(op.reg.ops)

@@ -3,8 +3,8 @@ from io import StringIO
 from xdsl.dialects import arith, builtin, gpu, memref, test
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i32
 from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
-from xdsl.ir.core import MLContext
-from xdsl.parser.core import Parser
+from xdsl.ir import MLContext
+from xdsl.parser import Parser
 from xdsl.utils.test_value import TestSSAValue
 
 lhs_op = test.TestOp(result_types=[IndexType()])
@@ -14,7 +14,7 @@ rhs_op = test.TestOp(result_types=[IndexType()])
 def test_gpu_global_id():
     file = StringIO("")
 
-    global_id_x = gpu.GlobalIdOp(gpu.DimensionAttr.from_dimension("x"))
+    global_id_x = gpu.GlobalIdOp(gpu.DimensionAttr(gpu.DimensionEnum.X))
 
     printer = WGSLPrinter()
     printer.print(global_id_x, file)
@@ -25,7 +25,7 @@ def test_gpu_global_id():
 def test_gpu_thread_id():
     file = StringIO("")
 
-    thread_id_x = gpu.ThreadIdOp(gpu.DimensionAttr.from_dimension("x"))
+    thread_id_x = gpu.ThreadIdOp(gpu.DimensionAttr(gpu.DimensionEnum.X))
 
     printer = WGSLPrinter()
     printer.print(thread_id_x, file)
@@ -36,7 +36,7 @@ def test_gpu_thread_id():
 def test_gpu_block_id():
     file = StringIO("")
 
-    block_id_x = gpu.BlockIdOp(gpu.DimensionAttr.from_dimension("x"))
+    block_id_x = gpu.BlockIdOp(gpu.DimensionAttr(gpu.DimensionEnum.X))
 
     printer = WGSLPrinter()
     printer.print(block_id_x, file)
@@ -47,7 +47,7 @@ def test_gpu_block_id():
 def test_gpu_grid_dim():
     file = StringIO("")
 
-    num_workgroups = gpu.GridDimOp(gpu.DimensionAttr.from_dimension("x"))
+    num_workgroups = gpu.GridDimOp(gpu.DimensionAttr(gpu.DimensionEnum.X))
 
     printer = WGSLPrinter()
     printer.print(num_workgroups, file)
@@ -347,10 +347,10 @@ builtin.module attributes {gpu.container_module} {
             }
 """
     context = MLContext()
-    context.register_dialect(arith.Arith)
-    context.register_dialect(memref.MemRef)
-    context.register_dialect(builtin.Builtin)
-    context.register_dialect(gpu.GPU)
+    context.load_dialect(arith.Arith)
+    context.load_dialect(memref.MemRef)
+    context.load_dialect(builtin.Builtin)
+    context.load_dialect(gpu.GPU)
     parser = Parser(context, mlir_source)
     module = parser.parse_module()
 

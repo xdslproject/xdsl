@@ -2,11 +2,12 @@
 Rewrite patterns for lowering snitch → riscv.
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
-from xdsl.dialects import builtin, riscv, snitch
+from xdsl.dialects import builtin, riscv, riscv_snitch, snitch
 from xdsl.dialects.builtin import IntegerAttr, i32
-from xdsl.ir import MLContext
+from xdsl.ir import MLContext, Operation
 from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -95,27 +96,35 @@ class SnitchStreamerMemoryMap:
     )
 
 
-def make_stream_set_config_ops(value: Operand, stream: Operand, baseaddr: int):
+def write_ssr_config_ops(reg: int, dm: int, value: Operand) -> Iterable[Operation]:
     """
     Return the list of riscv operations needed to set a specific SSR configuration
-    parameter located at 'baseaddr' to a specific 'value' for a specific data mover
-    identified by 'stream'.
+    parameter located at 'reg' to a specific 'value' for a specific data mover
+    identified by 'dm'.
 
     To compute the actual address of the memory-mapped configuration parameter,
     we have to compute:
 
-    address = stream + baseaddr << 5
+    address = dm + reg << 5
 
     This value is then passed to riscv.scfgw to perform the actual setting.
+
+    Reference implementation in the snitch runtime library:
+    ``` c
+    inline void write_ssr_cfg(uint32_t reg, uint32_t dm, uint32_t value) {
+        asm volatile("scfgwi %[value], %[dm] | %[reg]<<5\n" ::[value] "r"(value),
+                    [ dm ] "i"(dm), [ reg ] "i"(reg));
+    }
+    ```
     """
     return [
-        address := riscv.AddiOp(
-            stream,
-            immediate=IntegerAttr(baseaddr << 5, i32),
+        address := riscv.LiOp(
+            immediate=IntegerAttr(dm | reg << 5, i32),
         ),
-        riscv.ScfgwOp(
+        riscv_snitch.ScfgwOp(
             rs1=value,
             rs2=address,
+            rd=riscv.Registers.ZERO,
         ),
     ]
 
@@ -125,11 +134,11 @@ class LowerSsrSetDimensionBoundOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch.SsrSetDimensionBoundOp, rewriter: PatternRewriter, /
     ):
-        dim: int = op.dimension.value.data
-        ops = make_stream_set_config_ops(
+        dim: int = op.dimension.data
+        ops = write_ssr_config_ops(
+            dm=op.dm.data,
+            reg=SnitchStreamerMemoryMap.dimension[dim].bound,
             value=op.value,
-            stream=op.stream,
-            baseaddr=SnitchStreamerMemoryMap.dimension[dim].bound,
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -142,11 +151,11 @@ class LowerSsrSetDimensionStrideOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch.SsrSetDimensionStrideOp, rewriter: PatternRewriter, /
     ):
-        dim: int = op.dimension.value.data
-        ops = make_stream_set_config_ops(
+        dim: int = op.dimension.data
+        ops = write_ssr_config_ops(
+            dm=op.dm.data,
+            reg=SnitchStreamerMemoryMap.dimension[dim].stride,
             value=op.value,
-            stream=op.stream,
-            baseaddr=SnitchStreamerMemoryMap.dimension[dim].stride,
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -159,11 +168,11 @@ class LowerSsrSetDimensionSourceOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch.SsrSetDimensionSourceOp, rewriter: PatternRewriter, /
     ):
-        dim: int = op.dimension.value.data
-        ops = make_stream_set_config_ops(
+        dim: int = op.dimension.data
+        ops = write_ssr_config_ops(
+            dm=op.dm.data,
+            reg=SnitchStreamerMemoryMap.dimension[dim].source,
             value=op.value,
-            stream=op.stream,
-            baseaddr=SnitchStreamerMemoryMap.dimension[dim].source,
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -176,11 +185,11 @@ class LowerSsrSetDimensionDestinationOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch.SsrSetDimensionDestinationOp, rewriter: PatternRewriter, /
     ):
-        dim: int = op.dimension.value.data
-        ops = make_stream_set_config_ops(
+        dim: int = op.dimension.data
+        ops = write_ssr_config_ops(
+            dm=op.dm.data,
+            reg=SnitchStreamerMemoryMap.dimension[dim].destination,
             value=op.value,
-            stream=op.stream,
-            baseaddr=SnitchStreamerMemoryMap.dimension[dim].destination,
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -193,10 +202,10 @@ class LowerSsrSetStreamRepetitionOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch.SsrSetStreamRepetitionOp, rewriter: PatternRewriter, /
     ):
-        ops = make_stream_set_config_ops(
+        ops = write_ssr_config_ops(
+            dm=op.dm.data,
+            reg=SnitchStreamerMemoryMap.repeat,
             value=op.value,
-            stream=op.stream,
-            baseaddr=SnitchStreamerMemoryMap.repeat,
         )
         rewriter.replace_matched_op(
             [*ops],

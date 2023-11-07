@@ -5,6 +5,8 @@
   "test.op"() {attrs = [
                   #arith.fastmath<reassoc>,
                   // CHECK: #arith.fastmath<reassoc>
+                  #arith<fastmath<reassoc>>,
+                  // CHECK-SAME: #arith.fastmath<reassoc>
                   #arith.fastmath<nnan>,
                   // CHECK-SAME: #arith.fastmath<nnan>
                   #arith.fastmath<ninf>,

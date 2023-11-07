@@ -15,9 +15,9 @@ def rewrite_and_compare(
     prog: str, expected_prog: str, transformation: Callable[[ModuleOp, Rewriter], None]
 ):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(test.Test)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(test.Test)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
@@ -33,7 +33,7 @@ def test_operation_deletion():
 
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 5 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
 }) : () -> ()
 """
 
@@ -54,14 +54,14 @@ def test_operation_deletion():
 def test_replace_op_one_op():
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 43 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()
 """
@@ -79,14 +79,14 @@ def test_replace_op_one_op():
 def test_replace_op_multiple_op():
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
   %2 = "arith.addi"(%1, %1) : (i32, i32) -> i32
 }) : () -> ()
@@ -107,7 +107,7 @@ def test_replace_op_multiple_op():
 def test_replace_op_new_results():
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
   %2 = "arith.muli"(%1, %1) : (i32, i32) -> i32
 }) : () -> ()
@@ -115,7 +115,7 @@ def test_replace_op_new_results():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
   %1 = "arith.muli"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()
 """
@@ -235,7 +235,7 @@ def test_insert_block():
     """Test the insertion of a block in a region."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
+  %0 = "arith.constant"() <{"value" = true}> : () -> i1
 }) : () -> ()
 """
 
@@ -243,7 +243,7 @@ def test_insert_block():
 "builtin.module"() ({
 ^0:
 ^1:
-  %0 = "arith.constant"() {"value" = true} : () -> i1
+  %0 = "arith.constant"() <{"value" = true}> : () -> i1
 }) : () -> ()
 """
 
@@ -257,13 +257,13 @@ def test_insert_block2():
     """Test the insertion of a block in a region."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
+  %0 = "arith.constant"() <{"value" = true}> : () -> i1
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
+  %0 = "arith.constant"() <{"value" = true}> : () -> i1
 ^0:
 }) : () -> ()
 """
@@ -278,7 +278,7 @@ def test_insert_block_before():
     """Test the insertion of a block before another block."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
+  %0 = "arith.constant"() <{"value" = true}> : () -> i1
 }) : () -> ()
 """
 
@@ -286,7 +286,7 @@ def test_insert_block_before():
 "builtin.module"() ({
 ^0:
 ^1:
-  %0 = "arith.constant"() {"value" = true} : () -> i1
+  %0 = "arith.constant"() <{"value" = true}> : () -> i1
 }) : () -> ()
 """
 
@@ -300,7 +300,7 @@ def test_insert_block_after():
     """Test the insertion of a block after another block."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
+  %0 = "arith.constant"() <{"value" = true}> : () -> i1
 }) : () -> ()
 
 
@@ -308,7 +308,7 @@ def test_insert_block_after():
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = true} : () -> i1
+  %0 = "arith.constant"() <{"value" = true}> : () -> i1
 ^0:
 }) : () -> ()
 """
@@ -323,14 +323,14 @@ def test_insert_op_before():
     """Test the insertion of an operation before another operation."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 43 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 34 : i64} : () -> i64
-  %1 = "arith.constant"() {"value" = 43 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 34 : i64}> : () -> i64
+  %1 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
 }) : () -> ()
 """
 
@@ -347,14 +347,14 @@ def test_insert_op_after():
     """Test the insertion of an operation after another operation."""
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 43 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 43 : i32} : () -> i32
-  %1 = "arith.constant"() {"value" = 34 : i64} : () -> i64
+  %0 = "arith.constant"() <{"value" = 43 : i32}> : () -> i32
+  %1 = "arith.constant"() <{"value" = 34 : i64}> : () -> i64
 }) : () -> ()
 """
 
@@ -371,14 +371,14 @@ def test_preserve_naming_single_op():
     """Test the preservation of names of SSAValues"""
     prog = """\
 "builtin.module"() ({
-  %i = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %i = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%i, %i) : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %i = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %i = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   %0 = "arith.addi"(%i, %i) : (i32, i32) -> i32
 }) : () -> ()
 """
@@ -397,14 +397,14 @@ def test_preserve_naming_multiple_ops():
     """Test the preservation of names of SSAValues for transformations to multiple ops"""
     prog = """\
 "builtin.module"() ({
-  %i = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %i = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%i, %i) : (i32, i32) -> i32
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  %i = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %i = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   %i_1 = "arith.addi"(%i, %i) : (i32, i32) -> i32
   %0 = "arith.addi"(%i_1, %i_1) : (i32, i32) -> i32
 }) : () -> ()
@@ -449,7 +449,7 @@ def test_no_result_rewriter():
 def test_erase_op():
     prog = """\
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
 }) : () -> ()
 """

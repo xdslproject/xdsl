@@ -31,12 +31,11 @@ class AbsFOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> AbsFOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         operand = SSAValue.get(operand)
-        return AbsFOp.build(
+        return super().__init__(
             attributes={"fastmath": fastmath},
             operands=[operand],
             result_types=[operand.type],
@@ -60,10 +59,9 @@ class AbsIOp(IRDLOperation):
     operand: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
-    @staticmethod
-    def get(operand: Operation | SSAValue) -> AbsIOp:
+    def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
-        return AbsIOp.build(operands=[operand], result_types=[operand.type])
+        return super().__init__(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -95,18 +93,17 @@ class Atan2Op(IRDLOperation):
     rhs: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         lhs: Operation | SSAValue,
         rhs: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
-    ) -> Atan2Op:
+    ):
         attributes = {"fastmath": fastmath}
-
-        lhs = SSAValue.get(lhs)
-        rhs = SSAValue.get(rhs)
-        return Atan2Op.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
+        return super().__init__(
+            attributes=attributes,
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
         )
 
 
@@ -131,12 +128,11 @@ class AtanOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> AtanOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         operand = SSAValue.get(operand)
-        return AtanOp.build(
+        return super().__init__(
             attributes={"fastmath": fastmath},
             operands=[operand],
             result_types=[operand.type],
@@ -163,10 +159,9 @@ class CbrtOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> CbrtOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
@@ -196,12 +191,11 @@ class CeilOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> CeilOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         operand = SSAValue.get(operand)
-        return CeilOp.build(
+        return super().__init__(
             attributes={"fastmath": fastmath},
             operands=[operand],
             result_types=[operand.type],
@@ -231,18 +225,18 @@ class CopySignOp(IRDLOperation):
     rhs: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         lhs: Operation | SSAValue,
         rhs: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
-    ) -> CopySignOp:
+    ):
         attributes = {"fastmath": fastmath}
 
-        lhs = SSAValue.get(lhs)
-        rhs = SSAValue.get(rhs)
-        return CopySignOp.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
+        return super().__init__(
+            attributes=attributes,
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
         )
 
 
@@ -267,14 +261,13 @@ class CosOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> CosOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return CosOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -295,12 +288,9 @@ class CountLeadingZerosOp(IRDLOperation):
     operand: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
-    @staticmethod
-    def get(operand: Operation | SSAValue) -> CountLeadingZerosOp:
+    def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
-        return CountLeadingZerosOp.build(
-            operands=[operand], result_types=[operand.type]
-        )
+        return super().__init__(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -319,12 +309,9 @@ class CountTrailingZerosOp(IRDLOperation):
     operand: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
-    @staticmethod
-    def get(operand: Operation | SSAValue) -> CountTrailingZerosOp:
+    def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
-        return CountTrailingZerosOp.build(
-            operands=[operand], result_types=[operand.type]
-        )
+        return super().__init__(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -343,10 +330,9 @@ class CtPopOp(IRDLOperation):
     operand: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
-    @staticmethod
-    def get(operand: Operation | SSAValue) -> CtPopOp:
+    def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
-        return CtPopOp.build(operands=[operand], result_types=[operand.type])
+        return super().__init__(operands=[operand], result_types=[operand.type])
 
 
 @irdl_op_definition
@@ -370,14 +356,13 @@ class ErfOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> ErfOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return ErfOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -403,14 +388,13 @@ class Exp2Op(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> Exp2Op:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return Exp2Op.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -438,14 +422,13 @@ class ExpM1Op(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> ExpM1Op:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return ExpM1Op.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -471,14 +454,13 @@ class ExpOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> ExpOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return ExpOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -513,18 +495,18 @@ class FPowIOp(IRDLOperation):
     rhs: Operand = operand_def(IntegerType)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         lhs: Operation | SSAValue,
         rhs: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
-    ) -> FPowIOp:
+    ):
         attributes = {"fastmath": fastmath}
 
-        lhs = SSAValue.get(lhs)
-        rhs = SSAValue.get(rhs)
-        return FPowIOp.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
+        return super().__init__(
+            attributes=attributes,
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
         )
 
 
@@ -549,14 +531,13 @@ class FloorOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> FloorOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return FloorOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -589,20 +570,19 @@ class FmaOp(IRDLOperation):
     c: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         a: Operation | SSAValue,
         b: Operation | SSAValue,
         c: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
-    ) -> FmaOp:
+    ):
         attributes = {"fastmath": fastmath}
 
-        a = SSAValue.get(a)
-        b = SSAValue.get(b)
-        c = SSAValue.get(c)
-        return FmaOp.build(
-            attributes=attributes, operands=[a, b, c], result_types=[a.type]
+        return super().__init__(
+            attributes=attributes,
+            operands=[a, b, c],
+            result_types=[SSAValue.get(a).type],
         )
 
 
@@ -626,11 +606,10 @@ class IPowIOp(IRDLOperation):
     rhs: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
-    @staticmethod
-    def get(lhs: Operation | SSAValue, rhs: Operation | SSAValue) -> IPowIOp:
+    def __init__(self, lhs: Operation | SSAValue, rhs: Operation | SSAValue):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
-        return IPowIOp.build(operands=[lhs, rhs], result_types=[lhs.type])
+        return super().__init__(operands=[lhs, rhs], result_types=[lhs.type])
 
 
 @irdl_op_definition
@@ -651,14 +630,13 @@ class Log10Op(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> Log10Op:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return Log10Op.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -683,14 +661,13 @@ class Log1pOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> Log1pOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return Log1pOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -713,14 +690,13 @@ class Log2Op(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> Log2Op:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return Log2Op.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -743,14 +719,13 @@ class LogOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> LogOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return LogOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -777,18 +752,18 @@ class PowFOp(IRDLOperation):
     rhs: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         lhs: Operation | SSAValue,
         rhs: Operation | SSAValue,
         fastmath: FastMathFlagsAttr | None = None,
-    ) -> PowFOp:
+    ):
         attributes = {"fastmath": fastmath}
 
-        lhs = SSAValue.get(lhs)
-        rhs = SSAValue.get(rhs)
-        return PowFOp.build(
-            attributes=attributes, operands=[lhs, rhs], result_types=[lhs.type]
+        return super().__init__(
+            attributes=attributes,
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
         )
 
 
@@ -816,14 +791,13 @@ class RoundEvenOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> RoundEvenOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return RoundEvenOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -852,14 +826,13 @@ class RoundOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> RoundOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return RoundOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -881,14 +854,13 @@ class RsqrtOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> RsqrtOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return RsqrtOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -914,14 +886,13 @@ class SinOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> SinOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return SinOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -943,14 +914,13 @@ class SqrtOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> SqrtOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return SqrtOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -973,14 +943,13 @@ class TanOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> TanOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return TanOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -1003,14 +972,13 @@ class TanhOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> TanhOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return TanhOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
@@ -1038,19 +1006,19 @@ class TruncOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
-    @staticmethod
-    def get(
-        operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
-    ) -> TruncOp:
+    def __init__(
+        self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
+    ):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return TruncOp.build(
+        return super().__init__(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
 
 Math = Dialect(
+    "math",
     [
         AbsFOp,
         AbsIOp,
@@ -1084,5 +1052,5 @@ Math = Dialect(
         TanOp,
         TanhOp,
         TruncOp,
-    ]
+    ],
 )

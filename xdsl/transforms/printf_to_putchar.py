@@ -90,12 +90,12 @@ def get_mlir_itoa():
         with ImplicitBuilder(before_block) as (running_integer, digits):
             # Stop when you reach zero
             is_zero = arith.Cmpi(running_integer, zero, "ne")
-            scf.Condition.get(is_zero, running_integer, digits)
+            scf.Condition(is_zero, running_integer, digits)
         with ImplicitBuilder(after_block) as (running_integer, previous_digits):
             ten = arith.Constant.from_int_and_width(10, 32)
             new_integer = arith.DivUI(running_integer, ten)
             digits = arith.Addi(previous_digits, one)
-            scf.Yield.get(new_integer, digits)
+            scf.Yield(new_integer, digits)
 
         return while_loop.results[1]
 
@@ -118,17 +118,17 @@ def get_mlir_itoa():
         is_negative = arith.Cmpi(integer, zero, "slt")
 
         # Either way get the absolute value of the number
-        absolute_value = scf.If.get(
+        absolute_value = scf.If(
             is_negative, [i32], [is_negative_block], [is_positive_block]
         )
         # If the value is negative, print the minus sign, return abs value
         with ImplicitBuilder(is_negative_block):
             PrintCharOp.from_constant_char("-")
             negative_input = arith.Subi(zero, integer)
-            scf.Yield.get(negative_input)
+            scf.Yield(negative_input)
         # If the value is positive, just return value itself as abs value
         with ImplicitBuilder(is_positive_block):
-            scf.Yield.get(integer)
+            scf.Yield(integer)
 
         return absolute_value.results[0]
 
@@ -147,7 +147,7 @@ def get_mlir_itoa():
         loop_body = Block(arg_types=(IndexType(),))
 
         # Print all from most significant to least
-        for_loop = scf.For.get(zero_index, digits_index, one_index, (), loop_body)
+        for_loop = scf.For(zero_index, digits_index, one_index, (), loop_body)
         with ImplicitBuilder(loop_body) as (index_var,):
             one = arith.Constant.from_int_and_width(1, i32)
             size_minus_one = arith.Subi(digits, one)
@@ -155,14 +155,14 @@ def get_mlir_itoa():
             position = arith.Subi(size_minus_one, index_var_int)
             # digit = (num // (10**pos)) % 10
             ten = arith.Constant.from_int_and_width(10, i32)
-            i_0 = math.IPowIOp(operands=(ten, position), result_types=(i32,))
+            i_0 = math.IPowIOp(ten, position)
             i_1 = arith.DivUI(absolute_value, i_0)
             digit = arith.RemUI(i_1, ten)
             ascii_offset = arith.Constant.from_int_and_width(ord("0"), i32)
             char = arith.Addi(digit, ascii_offset)
             char_i8 = arith.TruncIOp(char, i8)
             PrintCharOp(char_i8)
-            scf.Yield.get()
+            scf.Yield()
         return for_loop
 
     # Beginning of mlir_itoa declaration
@@ -183,7 +183,7 @@ def get_mlir_itoa():
         is_zero_block = Block()
         is_not_zero_block = Block()
         is_zero = arith.Cmpi(integer, zero, "eq")
-        scf.If.get(
+        scf.If(
             is_zero,
             [],
             [is_zero_block],
@@ -192,7 +192,7 @@ def get_mlir_itoa():
         # If the value is zero, just print one zero
         with ImplicitBuilder(is_zero_block):
             PrintCharOp.from_constant_char("0")
-            scf.Yield.get()
+            scf.Yield()
         # Otherwise continue with itoa
         with ImplicitBuilder(is_not_zero_block):
             # Print minus sign if negative and return absolute value
@@ -201,7 +201,7 @@ def get_mlir_itoa():
             digits = get_number_of_digits(absolute_value)
             print_digits(digits, absolute_value)
             # Yield from is_not_zero_block
-            scf.Yield.get()
+            scf.Yield()
         # Return from itoa function
         func.Return()
 
@@ -226,8 +226,7 @@ class PrintfToPutcharPass(ModulePass):
             # This has to happen first, since mlir_itoa
             # contains some references to printf.print_char
             # Add function implementation for mlir_itoa if it isn't there already
-            if SymbolTable.lookup_symbol(op, "mlir_itoa") is None:
-                op.body.block.add_ops([get_mlir_itoa()])
+            SymbolTable.insert_or_update(op, get_mlir_itoa())
         # Check if there are any printchars
         contains_printchar = any(
             isinstance(op_in_module, PrintCharOp) for op_in_module in op.walk()
@@ -239,5 +238,5 @@ class PrintfToPutcharPass(ModulePass):
             )
             print_char_walker.rewrite_module(op)
             # Add external putchar reference if not already there
-            if SymbolTable.lookup_symbol(op, "putchar") is None:
-                op.body.block.add_ops([func.FuncOp.external("putchar", [i32], [i32])])
+            func_op = func.FuncOp.external("putchar", [i32], [i32])
+            SymbolTable.insert_or_update(op, func_op)

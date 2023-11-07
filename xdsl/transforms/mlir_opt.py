@@ -5,7 +5,7 @@ from io import StringIO
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
-from xdsl.parser.core import Parser
+from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.printer import Printer

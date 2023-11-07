@@ -7,10 +7,16 @@ from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
+    BFloat16Type,
     ComplexType,
     CustomErrorMessageAttrConstraint,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
+    Float16Type,
+    Float32Type,
+    Float64Type,
+    Float80Type,
+    Float128Type,
     FloatAttr,
     FloatData,
     IntAttr,
@@ -28,8 +34,17 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute
-from xdsl.irdl.irdl import AttrConstraint
+from xdsl.irdl import AttrConstraint
 from xdsl.utils.exceptions import VerifyException
+
+
+def test_FloatType_bitwidths():
+    assert BFloat16Type().get_bitwidth == 16
+    assert Float16Type().get_bitwidth == 16
+    assert Float32Type().get_bitwidth == 32
+    assert Float64Type().get_bitwidth == 64
+    assert Float80Type().get_bitwidth == 80
+    assert Float128Type().get_bitwidth == 128
 
 
 def test_DenseIntOrFPElementsAttr_fp_type_conversion():
@@ -294,7 +309,7 @@ def test_custom_error_message_constraint():
         context = getattr(e, "__context__")
         assert "fail" in context
 
-    with pytest.raises(VerifyException, match="wrapped #int<1>") as e:
+    with pytest.raises(VerifyException, match="wrapped #builtin.int<1>") as e:
         outer = CustomErrorMessageAttrConstraint(inner, lambda k: f"wrapped {k}")
         outer.verify(one, {})
         assert hasattr(e, "__context__")

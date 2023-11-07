@@ -4,7 +4,6 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import (
     affine,
@@ -12,12 +11,14 @@ from xdsl.interpreters import (
     builtin,
     cf,
     func,
+    linalg,
     memref,
     printf,
     riscv,
     riscv_func,
     riscv_libc,
     scf,
+    snitch_stream,
 )
 from xdsl.interpreters.experimental import pdl
 from xdsl.ir import MLContext
@@ -51,16 +52,23 @@ class xDSLRunMain(CommandLineTool):
             action="store_true",
             help="Enable the WGPU JIT-compilation interpreter.",
         )
+        arg_parser.add_argument(
+            "--verbose",
+            default=False,
+            action="store_true",
+            help="Print resulting Python values.",
+        )
         return super().register_all_arguments(arg_parser)
 
-    def register_implementations(self, interpreter: Interpreter, module: ModuleOp):
+    def register_implementations(self, interpreter: Interpreter):
         interpreter.register_implementations(func.FuncFunctions())
         interpreter.register_implementations(cf.CfFunctions())
-        interpreter.register_implementations(riscv.RiscvFunctions(module))
+        interpreter.register_implementations(riscv.RiscvFunctions())
         interpreter.register_implementations(riscv_func.RiscvFuncFunctions())
         interpreter.register_implementations(riscv_libc.RiscvLibcFunctions())
         interpreter.register_implementations(pdl.PDLRewriteFunctions(self.ctx))
         interpreter.register_implementations(affine.AffineFunctions())
+        interpreter.register_implementations(linalg.LinalgFunctions())
         interpreter.register_implementations(memref.MemrefFunctions())
         if self.args.wgpu:
             from xdsl.interpreters.experimental import wgpu
@@ -70,6 +78,7 @@ class xDSLRunMain(CommandLineTool):
         interpreter.register_implementations(arith.ArithFunctions())
         interpreter.register_implementations(printf.PrintfFunctions())
         interpreter.register_implementations(scf.ScfFunctions())
+        interpreter.register_implementations(snitch_stream.SnitchStreamFunctions())
 
     def run(self):
         input, file_extension = self.get_input_stream()
@@ -78,9 +87,10 @@ class xDSLRunMain(CommandLineTool):
             if module is not None:
                 module.verify()
                 interpreter = Interpreter(module)
-                self.register_implementations(interpreter, module)
+                self.register_implementations(interpreter)
                 result = interpreter.call_op("main", ())
-                print(f"result: {result}")
+                if self.args.verbose:
+                    print(f"result: {result}")
         finally:
             if input is not sys.stdin:
                 input.close()

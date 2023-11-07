@@ -5,13 +5,21 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import auto
 from io import StringIO
 from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
 
 import pytest
 
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
-from xdsl.ir import Attribute, Data, ParametrizedAttribute
+from xdsl.ir import (
+    Attribute,
+    Data,
+    EnumAttribute,
+    OpaqueSyntaxAttribute,
+    ParametrizedAttribute,
+    StrEnum,
+)
 from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
@@ -27,6 +35,19 @@ from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 
+
+def test_wrong_attribute_type():
+    with pytest.raises(
+        TypeError,
+        match="Class AbstractAttribute should either be a subclass of 'Data' or 'ParametrizedAttribute'",
+    ):
+
+        @irdl_attr_definition
+        class AbstractAttribute(Attribute):  # pyright: ignore[reportUnusedClass]
+            name = "test.wrong"
+            pass
+
+
 ################################################################################
 # Data attributes
 ################################################################################
@@ -36,46 +57,52 @@ from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
 class BoolData(Data[bool]):
     """An attribute holding a boolean value."""
 
-    name = "bool"
+    name = "test.bool"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> bool:
-        if parser.parse_optional_keyword("True"):
-            return True
-        if parser.parse_optional_keyword("False"):
-            return False
-        parser.raise_error("Expected True or False literal")
+        with parser.in_angle_brackets():
+            if parser.parse_optional_keyword("True"):
+                return True
+            if parser.parse_optional_keyword("False"):
+                return False
+            parser.raise_error("Expected True or False literal")
 
     def print_parameter(self, printer: Printer):
-        printer.print_string(str(self.data))
+        with printer.in_angle_brackets():
+            printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
 class IntData(Data[int]):
     """An attribute holding an integer value."""
 
-    name = "int"
+    name = "test.int"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:
-        return parser.parse_integer()
+        with parser.in_angle_brackets():
+            return parser.parse_integer()
 
     def print_parameter(self, printer: Printer):
-        printer.print_string(str(self.data))
+        with printer.in_angle_brackets():
+            printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
 class StringData(Data[str]):
     """An attribute holding a string value."""
 
-    name = "str"
+    name = "test.str"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
-        return parser.parse_str_literal()
+        with parser.in_angle_brackets():
+            return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer):
-        printer.print_string(self.data)
+        with printer.in_angle_brackets():
+            printer.print_string(self.data)
 
 
 def test_simple_data():
@@ -84,7 +111,7 @@ def test_simple_data():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(b)
-    assert stream.getvalue() == "#bool<True>"
+    assert stream.getvalue() == "#test.bool<True>"
 
 
 @irdl_attr_definition
@@ -93,16 +120,17 @@ class IntListData(Data[list[int]]):
     An attribute holding a list of integers.
     """
 
-    name = "int_list"
+    name = "test.int_list"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> list[int]:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string("[")
-        printer.print_list(self.data, lambda x: printer.print_string(str(x)))
-        printer.print_string("]")
+        with printer.in_angle_brackets():
+            printer.print_string("[")
+            printer.print_list(self.data, lambda x: printer.print_string(str(x)))
+            printer.print_string("]")
 
 
 def test_non_class_data():
@@ -111,7 +139,60 @@ def test_non_class_data():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#int_list<[0, 1, 42]>"
+    assert stream.getvalue() == "#test.int_list<[0, 1, 42]>"
+
+
+class TestEnum(StrEnum):
+    Yes = auto()
+    No = auto()
+
+
+class TestNonIdentifierEnum(StrEnum):
+    """
+    The value defined by this StrEnum is not parsable as an identifier, because of the
+    contained space.
+    While valid as a StrEnum, it is thus invalid to use it in an EnumAttribute.
+    """
+
+    Spaced = "left right"
+
+
+@irdl_attr_definition
+class EnumData(EnumAttribute[TestEnum], OpaqueSyntaxAttribute):
+    name = "test.enum"
+
+
+def test_enum_attribute():
+    """Test the definition of an EnumAttribute."""
+    attr = EnumData(TestEnum.No)
+    stream = StringIO()
+    p = Printer(stream=stream)
+    p.print_attribute(attr)
+    assert stream.getvalue() == "#test<enum no>"
+
+
+def test_indirect_enum_guard():
+    EnumType = TypeVar("EnumType", bound=StrEnum)
+    with pytest.raises(
+        TypeError, match="Only direct inheritance from EnumAttribute is allowed."
+    ):
+
+        class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
+            EnumAttribute[EnumType]
+        ):
+            name = "test.indirect_enum"
+
+
+def test_identifier_enum_guard():
+    with pytest.raises(
+        ValueError,
+        match="All StrEnum values of an EnumAttribute must be parsable as an identifer.",
+    ):
+
+        class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
+            EnumAttribute[TestNonIdentifierEnum]
+        ):
+            name = "test.non_identifier_enum"
 
 
 ################################################################################
@@ -161,7 +242,7 @@ def test_signless_integer_attr():
 
 @irdl_attr_definition
 class BoolWrapperAttr(ParametrizedAttribute):
-    name = "bool_wrapper"
+    name = "test.bool_wrapper"
 
     param: ParameterDef[BoolData]
 
@@ -172,14 +253,14 @@ def test_bose_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#bool_wrapper<#bool<True>>"
+    assert stream.getvalue() == "#test.bool_wrapper<#test.bool<True>>"
 
 
 def test_base_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(Exception) as e:
         BoolWrapperAttr([StringData("foo")])
-    assert e.value.args[0] == "#str<foo> should be of base attribute bool"
+    assert e.value.args[0] == "#test.str<foo> should be of base attribute test.bool"
 
 
 ################################################################################
@@ -189,7 +270,7 @@ def test_base_constraint_fail():
 
 @irdl_attr_definition
 class BoolOrIntParamAttr(ParametrizedAttribute):
-    name = "bool_or_int"
+    name = "test.bool_or_int"
 
     param: ParameterDef[BoolData | IntData]
 
@@ -200,7 +281,7 @@ def test_union_constraint_left():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#bool_or_int<#bool<True>>"
+    assert stream.getvalue() == "#test.bool_or_int<#test.bool<True>>"
 
 
 def test_union_constraint_right():
@@ -209,14 +290,14 @@ def test_union_constraint_right():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#bool_or_int<#int<42>>"
+    assert stream.getvalue() == "#test.bool_or_int<#test.int<42>>"
 
 
 def test_union_constraint_fail():
     """Test the verifier of a union constraint."""
     with pytest.raises(Exception) as e:
         BoolOrIntParamAttr([StringData("foo")])
-    assert e.value.args[0] == "Unexpected attribute #str<foo>"
+    assert e.value.args[0] == "Unexpected attribute #test.str<foo>"
 
 
 ################################################################################
@@ -236,7 +317,7 @@ class PositiveIntConstr(AttrConstraint):
 
 @irdl_attr_definition
 class PositiveIntAttr(ParametrizedAttribute):
-    name = "positive_int"
+    name = "test.positive_int"
 
     param: ParameterDef[Annotated[IntData, PositiveIntConstr()]]
 
@@ -247,7 +328,7 @@ def test_annotated_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#positive_int<#int<42>>"
+    assert stream.getvalue() == "#test.positive_int<#test.int<42>>"
 
 
 def test_annotated_constraint_fail():
@@ -266,7 +347,7 @@ _T = TypeVar("_T", bound=BoolData | IntData)
 
 @irdl_attr_definition
 class ParamWrapperAttr(Generic[_T], ParametrizedAttribute):
-    name = "int_or_bool_generic"
+    name = "test.int_or_bool_generic"
 
     param: ParameterDef[_T]
 
@@ -277,7 +358,7 @@ def test_typevar_attribute_int():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#int_or_bool_generic<#int<42>>"
+    assert stream.getvalue() == "#test.int_or_bool_generic<#test.int<42>>"
 
 
 def test_typevar_attribute_bool():
@@ -286,19 +367,19 @@ def test_typevar_attribute_bool():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#int_or_bool_generic<#bool<True>>"
+    assert stream.getvalue() == "#test.int_or_bool_generic<#test.bool<True>>"
 
 
 def test_typevar_attribute_fail():
     """Test that the verifier of an generic attribute can fail."""
     with pytest.raises(Exception) as e:
         ParamWrapperAttr([StringData("foo")])
-    assert e.value.args[0] == "Unexpected attribute #str<foo>"
+    assert e.value.args[0] == "Unexpected attribute #test.str<foo>"
 
 
 @irdl_attr_definition
 class ParamConstrAttr(ParametrizedAttribute):
-    name = "param_constr"
+    name = "test.param_constr"
 
     param: ParameterDef[ParamWrapperAttr[IntData]]
 
@@ -309,7 +390,10 @@ def test_param_attr_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#param_constr<#int_or_bool_generic<#int<42>>>"
+    assert (
+        stream.getvalue()
+        == "#test.param_constr<#test.int_or_bool_generic<#test.int<42>>>"
+    )
 
 
 def test_param_attr_constraint_fail():
@@ -319,7 +403,7 @@ def test_param_attr_constraint_fail():
     """
     with pytest.raises(Exception) as e:
         ParamConstrAttr([ParamWrapperAttr([BoolData(True)])])
-    assert e.value.args[0] == "#bool<True> should be of base attribute int"
+    assert e.value.args[0] == "#test.bool<True> should be of base attribute test.int"
 
 
 _U = TypeVar("_U", bound=IntData)
@@ -327,7 +411,7 @@ _U = TypeVar("_U", bound=IntData)
 
 @irdl_attr_definition
 class NestedParamWrapperAttr(Generic[_U], ParametrizedAttribute):
-    name = "nested_param_wrapper"
+    name = "test.nested_param_wrapper"
 
     param: ParameterDef[ParamWrapperAttr[_U]]
 
@@ -341,7 +425,10 @@ def test_nested_generic_constraint():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#nested_param_wrapper<#int_or_bool_generic<#int<42>>>"
+    assert (
+        stream.getvalue()
+        == "#test.nested_param_wrapper<#test.int_or_bool_generic<#test.int<42>>>"
+    )
 
 
 def test_nested_generic_constraint_fail():
@@ -351,12 +438,12 @@ def test_nested_generic_constraint_fail():
     """
     with pytest.raises(Exception) as e:
         NestedParamWrapperAttr([ParamWrapperAttr([BoolData(True)])])
-    assert e.value.args[0] == "#bool<True> should be of base attribute int"
+    assert e.value.args[0] == "#test.bool<True> should be of base attribute test.int"
 
 
 @irdl_attr_definition
 class NestedParamConstrAttr(ParametrizedAttribute):
-    name = "nested_param_constr"
+    name = "test.nested_param_constr"
 
     param: ParameterDef[NestedParamWrapperAttr[Annotated[IntData, PositiveIntConstr()]]]
 
@@ -373,7 +460,7 @@ def test_nested_param_attr_constraint():
     p.print_attribute(attr)
     assert (
         stream.getvalue()
-        == "#nested_param_constr<#nested_param_wrapper<#int_or_bool_generic<#int<42>>>>"
+        == "#test.nested_param_constr<#test.nested_param_wrapper<#test.int_or_bool_generic<#test.int<42>>>>"
     )
 
 
@@ -397,7 +484,7 @@ _MissingGenericDataData = TypeVar("_MissingGenericDataData")
 
 @irdl_attr_definition
 class MissingGenericDataData(Data[_MissingGenericDataData]):
-    name = "missing_genericdata"
+    name = "test.missing_genericdata"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> _MissingGenericDataData:
@@ -411,7 +498,7 @@ class MissingGenericDataData(Data[_MissingGenericDataData]):
 
 
 class MissingGenericDataDataWrapper(ParametrizedAttribute):
-    name = "missing_genericdata_wrapper"
+    name = "test.missing_genericdata_wrapper"
 
     param: ParameterDef[MissingGenericDataData[int]]
 
@@ -424,7 +511,7 @@ def test_data_with_generic_missing_generic_data_failure():
     with pytest.raises(Exception) as e:
         irdl_attr_definition(MissingGenericDataDataWrapper)
     assert e.value.args[0] == (
-        "Generic `Data` type 'missing_genericdata' cannot be converted to "
+        "Generic `Data` type 'test.missing_genericdata' cannot be converted to "
         "an attribute constraint. Consider making it inherit from "
         "`GenericData` instead of `Data`."
     )
@@ -450,16 +537,17 @@ class DataListAttr(AttrConstraint):
 
 @irdl_attr_definition
 class ListData(GenericData[list[A]]):
-    name = "list"
+    name = "test.list"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> list[A]:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string("[")
-        printer.print_list(self.data, printer.print_attribute)
-        printer.print_string("]")
+        with printer.in_angle_brackets():
+            printer.print_string("[")
+            printer.print_list(self.data, printer.print_attribute)
+            printer.print_string("]")
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
@@ -491,12 +579,15 @@ class Test_generic_data_verifier:
         stream = StringIO()
         p = Printer(stream=stream)
         p.print_attribute(attr)
-        assert stream.getvalue() == "#list<[#bool<True>, #list<[#bool<False>]>]>"
+        assert (
+            stream.getvalue()
+            == "#test.list<[#test.bool<True>, #test.list<[#test.bool<False>]>]>"
+        )
 
 
 @irdl_attr_definition
 class ListDataWrapper(ParametrizedAttribute):
-    name = "list_wrapper"
+    name = "test.list_wrapper"
 
     val: ParameterDef[ListData[BoolData]]
 
@@ -509,7 +600,10 @@ def test_generic_data_wrapper_verifier():
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
-    assert stream.getvalue() == "#list_wrapper<#list<[#bool<True>, #bool<False>]>>"
+    assert (
+        stream.getvalue()
+        == "#test.list_wrapper<#test.list<[#test.bool<True>, #test.bool<False>]>>"
+    )
 
 
 def test_generic_data_wrapper_verifier_failure():
@@ -519,12 +613,19 @@ def test_generic_data_wrapper_verifier_failure():
     """
     with pytest.raises(VerifyException) as e:
         ListDataWrapper([ListData([BoolData(True), ListData([BoolData(False)])])])
-    assert e.value.args[0] == "#list<[#bool<False>]> should be of base attribute bool"
+    assert (
+        e.value.args[0]
+        == "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
+    )
+    assert (
+        e.value.args[0]
+        == "#test.list<[#test.bool<False>]> should be of base attribute test.bool"
+    )
 
 
 @irdl_attr_definition
 class ListDataNoGenericsWrapper(ParametrizedAttribute):
-    name = "list_no_generics_wrapper"
+    name = "test.list_no_generics_wrapper"
 
     val: ParameterDef[AnyListData]
 
@@ -541,7 +642,7 @@ def test_generic_data_no_generics_wrapper_verifier():
     p.print_attribute(attr)
     assert (
         stream.getvalue()
-        == "#list_no_generics_wrapper<#list<[#bool<True>, #list<[#bool<False>]>]>>"
+        == "#test.list_no_generics_wrapper<#test.list<[#test.bool<True>, #test.list<[#test.bool<False>]>]>>"
     )
 
 

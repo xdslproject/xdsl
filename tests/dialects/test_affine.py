@@ -3,7 +3,8 @@ import pytest
 from xdsl.dialects.affine import For, Yield
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, IntegerType
 from xdsl.ir import Attribute, Block, Region
-from xdsl.ir.affine.affine_expr import AffineExpr
+from xdsl.ir.affine import AffineExpr
+from xdsl.utils.exceptions import VerifyException
 
 
 def test_simple_for():
@@ -24,9 +25,11 @@ def test_for_mismatch_operands_results_counts():
         attributes=attributes,
         result_types=[IndexType()],
     )
-    with pytest.raises(Exception) as e:
+    with pytest.raises(
+        VerifyException,
+        match="Expected as many operands as results, lower bound args and upper bound args.",
+    ):
         f.verify()
-    assert e.value.args[0] == "Expected the same amount of operands and results"
 
 
 def test_for_mismatch_operands_results_types():
@@ -43,12 +46,11 @@ def test_for_mismatch_operands_results_types():
         attributes=attributes,
         result_types=[IndexType()],
     )
-    with pytest.raises(Exception) as e:
+    with pytest.raises(
+        VerifyException,
+        match="Expected all operands and result pairs to have matching types",
+    ):
         f.verify()
-    assert (
-        e.value.args[0]
-        == "Expected all operands and result pairs to have matching types"
-    )
 
 
 def test_for_mismatch_blockargs():
@@ -65,12 +67,11 @@ def test_for_mismatch_blockargs():
         attributes=attributes,
         result_types=[IndexType()],
     )
-    with pytest.raises(Exception) as e:
+    with pytest.raises(
+        VerifyException,
+        match="Expected BlockArguments to have the same types as the operands",
+    ):
         f.verify()
-    assert (
-        e.value.args[0]
-        == "Expected BlockArguments to have the same types as the operands"
-    )
 
 
 def test_yield():
