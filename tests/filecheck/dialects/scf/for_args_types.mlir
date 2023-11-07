@@ -20,4 +20,4 @@
   }) : (index, index, index) -> ()
 }) : () -> ()
 
-// CHECK: The first block argument of the body is of type !test.type<"int"> instead of index
+// CHECK: Expected induction var to be same type as bounds and step
