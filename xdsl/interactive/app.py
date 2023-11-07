@@ -16,9 +16,11 @@ from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
+from textual.reactive import reactive
 from textual.widgets import Footer, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -45,15 +47,24 @@ class InputApp(App[None]):
         ("q", "quit_app", "Quit"),
     ]
 
+    """
+    Reactive variable used to save the current state of the modified Input TextArea (i.e. is the Output TextArea)
+    """
+    current_module: reactive[ModuleOp | Exception | None] = reactive(None)
+
     def compose(self) -> ComposeResult:
         """
         Creates the required widgets, events, etc.
         Get the list of xDSL passes, add them to an array in "Selection" format (so it can be added to a Selection List)
         and sort the list in alphabetical order.
         """
+        # defines the Input/Output TextArea's
+        input_text_area = TextArea(id="input")
+        output_text_area = OutputTextArea(id="output")
 
+        # defines a theme for the Input/Output TextArea's
         my_theme = TextAreaTheme(
-            name="my_cool_theme",
+            name="my_theme_design",
             base_style=Style(bgcolor="white"),
             syntax_styles={
                 "string": Style(color="red"),
@@ -61,36 +72,52 @@ class InputApp(App[None]):
             },
         )
 
-        text_area = TextArea(id="input")
-        output_text_area = OutputTextArea("No output", id="output")
+        # register's the theme for the Input/Output TextArea's
+        input_text_area.register_theme(my_theme)
+        input_text_area.theme = "my_theme_design"
+        output_text_area.register_theme(my_theme)
+        output_text_area.theme = "my_theme_design"
 
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
-                yield text_area
-                text_area.register_theme(my_theme)
-                text_area.theme = "my_cool_theme"
+                yield input_text_area
             with Vertical(id="output_container"):
                 yield output_text_area
-                output_text_area.register_theme(my_theme)
-                output_text_area.theme = "my_cool_theme"
         yield Footer()
 
-    def update_output(self) -> None:
+    @on(TextArea.Changed, "#input")
+    def update_current_module(self) -> None:
+        """
+        Function called when the Input TextArea is cahnged. This function parses the Input IR and updates
+        the current_module reactive variable.
+        """
         input_text = self.query_one("#input", TextArea).text
-
         try:
             ctx = MLContext(True)
             for dialect in get_all_dialects():
                 ctx.load_dialect(dialect)
-
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-
-            output_stream = StringIO()
-            Printer(output_stream).print(module)
-            output_text = output_stream.getvalue()
+            self.current_module = module
         except Exception as e:
-            output_text = str(e)
+            self.current_module = e
+
+    def watch_current_module(self):
+        """
+        Function called when the current_module reactive variable is updated. This function updates
+        the Output TextArea.
+        """
+        match self.current_module:
+            case None:
+                output_text = "No input"
+            case Exception() as e:
+                output_stream = StringIO()
+                Printer(output_stream).print(e)
+                output_text = output_stream.getvalue()
+            case ModuleOp():
+                output_stream = StringIO()
+                Printer(output_stream).print(self.current_module)
+                output_text = output_stream.getvalue()
 
         self.query_one("#output", TextArea).load_text(output_text)
 
@@ -106,11 +133,6 @@ class InputApp(App[None]):
     def action_quit_app(self) -> None:
         """An action to quit the app."""
         self.exit()
-
-    @on(TextArea.Changed, "#input")
-    def on_input_changed(self, event: TextArea.Changed):
-        """When the input TextArea changes, call execute function"""
-        self.update_output()
 
 
 if __name__ == "__main__":
