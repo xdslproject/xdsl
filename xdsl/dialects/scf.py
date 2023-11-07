@@ -6,9 +6,9 @@ from typing import Annotated
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    AnySignlessIntegerOrIndexType,
     IndexType,
     IntegerType,
-    SignlessIntegerConstraint,
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -18,7 +18,6 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
@@ -135,9 +134,7 @@ class If(IRDLOperation):
 class For(IRDLOperation):
     name = "scf.for"
 
-    T = Annotated[
-        Attribute, AnyOf([IndexType, SignlessIntegerConstraint]), ConstraintVar("T")
-    ]
+    T = Annotated[AnySignlessIntegerOrIndexType, ConstraintVar("T")]
 
     lb: Operand = operand_def(T)
     ub: Operand = operand_def(T)

@@ -36,6 +36,7 @@ from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyOf,
     AttrConstraint,
     GenericData,
     IRDLOperation,
@@ -343,7 +344,10 @@ i1 = IntegerType(1)
 SignlessIntegerConstraint = ParamAttrConstraint(
     IntegerType, [IntAttr, SignednessAttr(Signedness.SIGNLESS)]
 )
-"""IntegerType constrained to be signless."""
+"""Type constraint for signless IntegerType."""
+
+AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstraint]
+"""Type alias constrained to signless IntegerType."""
 
 
 @irdl_attr_definition
@@ -369,6 +373,11 @@ class IndexType(ParametrizedAttribute):
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
+
+AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
+    Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
+]
+"""Type alias constrained to IndexType or signless IntegerType."""
 
 
 @irdl_attr_definition
