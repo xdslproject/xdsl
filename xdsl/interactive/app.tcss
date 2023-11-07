@@ -5,10 +5,48 @@
     # border: heavy $accent;
     border-title-color: $primary;
     border-title-align: center;
-    width: 100%;
-    height: 100%;
+    width: 80%;
+    height: 90%;
     align: center middle;
 }
+
+# Button
+#clear_selection_list_button{
+}
+
+# Horizontal(Button)
+#clear_selection_list{
+    height: 3;
+    overflow-x: auto;
+    margin: 1 1 1 1;
+}
+
+# Button
+#copy_query_button{
+}
+
+# Horizontal(Button)
+#copy_query{
+    height: 3;
+    overflow-x: auto;
+    margin: 1 1 1 1;
+}
+
+# VerticalScroll(Horizontal(Button), Horizontal(Button))
+#buttons_and_selection_list{
+    layout: vertical;
+    overflow-x: auto;
+}
+
+# Horizontal(SelectionList, VerticalScroll(Horizontal(Button), Horizontal(Button))))
+#selection_list_and_button{
+    margin: 1;
+    # border-title-color: $primary;
+    border-title-style: bold;
+    border-title-align: center;
+    layout: horizontal;
+}
+
 
 # Label
 #selected_passes_label {
@@ -19,8 +57,7 @@
     margin: 1 1 1 1;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
-    width: 100%;
-    height: 100%;
+    grid-columns: 75% 25%;
     border-title-align: center;
 }
 

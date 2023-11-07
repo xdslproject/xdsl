@@ -17,7 +17,7 @@ from pyclip import copy as pyclip_copy
 from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, ScrollableContainer, Vertical
+from textual.containers import Horizontal, ScrollableContainer, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.widgets import Button, Footer, Label, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
@@ -95,7 +95,13 @@ class InputApp(App[None]):
 
         # construct the seleciton list containing all the passes and the label displaying the selected passes
         with Horizontal(id="selected_passes_and_list_horizontal"):
-            yield self.passes_selection_list
+            with Horizontal(id="selection_list_and_button"):
+                yield self.passes_selection_list
+                with VerticalScroll(id="buttons_and_selection_list"):
+                    with Horizontal(id="clear_selection_list"):
+                        yield Button("Clear Passes", id="clear_selection_list_button")
+                    with Horizontal(id="copy_query"):
+                        yield Button("Copy Query", id="copy_query_button")
             with ScrollableContainer(id="selected_passes"):
                 yield Label("", id="selected_passes_label")
 
@@ -193,6 +199,18 @@ class InputApp(App[None]):
     def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
         """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
         pyclip_copy(self.output_text_area.text)
+
+    @on(Button.Pressed, "#clear_selection_list_button")
+    def on_clear_selection_list_button_pressed(self, event: Button.Pressed) -> None:
+        """When the "Clear Passes" button is preseed, the SelectionList is cleared"""
+        self.passes_selection_list.deselect_all()
+        self.update_selected_view()
+
+    @on(Button.Pressed, "#copy_query_button")
+    def on_copy_query_button_pressed(self, event: Button.Pressed) -> None:
+        """When the "Copy Query" button is preseed, the selected passes/query is copied"""
+        query = f"xdsl-opt -p {self.passes_selection_list.selected}"
+        pyclip_copy(query)
 
 
 if __name__ == "__main__":
