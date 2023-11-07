@@ -309,7 +309,7 @@ def test_custom_error_message_constraint():
         context = getattr(e, "__context__")
         assert "fail" in context
 
-    with pytest.raises(VerifyException, match="wrapped #int<1>") as e:
+    with pytest.raises(VerifyException, match="wrapped #builtin.int<1>") as e:
         outer = CustomErrorMessageAttrConstraint(inner, lambda k: f"wrapped {k}")
         outer.verify(one, {})
         assert hasattr(e, "__context__")
