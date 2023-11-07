@@ -35,6 +35,7 @@ from xdsl.irdl import (
     region_def,
     result_def,
     successor_def,
+    var_operand_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -667,7 +668,7 @@ class createObjectFifo(IRDLOperation):
 
     elemNumber: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
     producerTile: Operand = operand_def(IndexType())
-    consumerTile: Operand = operand_def(IndexType())
+    consumerTile: Operand = var_operand_def(IndexType())
     sym_name: StringAttr = attr_def(StringAttr)
     object_fifo: ObjectFIFO = attr_def(ObjectFIFO)
 
@@ -693,15 +694,11 @@ class createObjectFifo(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print(
-            " @",
-            self.sym_name.data,
-            "(",
-            self.producerTile,
-            ", {",
-            self.consumerTile,
-            "}, ",
-        )
+        printer.print(" @", self.sym_name.data, "(", self.producerTile, ", {")
+        for i in range(len(self.consumerTile) - 1):
+            printer.print(self.consumerTile[i], ", ")
+
+        printer.print(self.consumerTile[-1], "}, ")
         printer.print_attribute(self.elemNumber)
 
         printer.print(
