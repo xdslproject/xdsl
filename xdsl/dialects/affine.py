@@ -7,10 +7,14 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyIntegerAttr,
+    ArrayAttr,
     ContainerType,
+    DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
+    IntegerType,
     ShapedType,
+    StringAttr,
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
@@ -147,6 +151,24 @@ class If(IRDLOperation):
 
     then_region = region_def("single_block")
     else_region = region_def()
+
+
+@irdl_op_definition
+class ParallelOp(IRDLOperation):
+    name = "affine.parallel"
+
+    map_operands = var_operand_def(IndexType)
+
+    reductions = attr_def(ArrayAttr[StringAttr])
+    lowerBoundsMap = attr_def(AffineMapAttr)
+    lowerBoundsGroups = attr_def(DenseIntOrFPElementsAttr)
+    upperBoundsMap = attr_def(AffineMapAttr)
+    upperBoundsGroups = attr_def(DenseIntOrFPElementsAttr)
+    steps = attr_def(ArrayAttr[IntegerType])
+
+    res = var_result_def()
+
+    body = region_def("single_block")
 
 
 @irdl_op_definition
