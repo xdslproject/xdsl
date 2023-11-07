@@ -17,20 +17,12 @@ from xdsl.pattern_rewriter import (
 @dataclass(frozen=True)
 class MpichLibraryInfo:
     """
-    This object is meant to capture characteristics of a specific MPI implementations.
+    This object holds magic values of MPICH-style MPI implementations.
 
-    It holds magic values, sizes of structs, field offsets and much more.
+    It holds magic values, sizes of structs, field offsets and more.
 
     We need these as we currently cannot load these library headers into the programs we want to lower,
     therefore we need to generate our own external stubs and load magic values directly.
-
-    This way of doing it is inherently fragile, but we don't know of any better way.
-    We plan to include a C file that automagically extracts all this information from MPI headers.
-    You can see the current C file used in this PR: https://github.com/xdslproject/xdsl/pull/526
-    You can see the status of OpenMPI support here: https://github.com/xdslproject/xdsl/issues/523
-
-    These defaults have been extracted from MPICH 3.3a2. We would highly suggest
-    running the mpi-info.c file yourself with your version of the library!
     """
 
     # MPI_Datatype
@@ -103,14 +95,24 @@ class MPITargetInfo(ABC):
 
     @abstractmethod
     def materialize_type(self, type: Attribute) -> tuple[list[Operation], SSAValue]:
+        """
+        Converts an MLIR type to an MPI_Datatype constant.
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def globals_to_add(self) -> Iterable[Operation]:
+        """
+        Provides a list of global symbols to inject into the module.
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def materialize_named_constant(self, name: str) -> tuple[list[Operation], SSAValue]:
+        """
+        Takes the name of an MPI named symbol and returns a series of operations that
+        instantiates the constant.
+        """
         raise NotImplementedError()
 
 
