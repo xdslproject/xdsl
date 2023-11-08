@@ -114,10 +114,10 @@ class InputApp(App[None]):
         """Configure widgets in this application before it is first shown."""
 
         # register's the theme for the Input/Output TextArea's
-        self.input_text_area.theme = "my_theme_design"
-        self.output_text_area.theme = "my_theme_design"
         self.input_text_area.register_theme(InputApp._DEFAULT_THEME)
         self.output_text_area.register_theme(InputApp._DEFAULT_THEME)
+        self.input_text_area.theme = "my_theme_design"
+        self.output_text_area.theme = "my_theme_design"
 
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
