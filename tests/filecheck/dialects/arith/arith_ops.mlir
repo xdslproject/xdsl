@@ -129,6 +129,12 @@
   // CHECK-NEXT: %divf = arith.divf %lhsf32, %rhsf32 : f32
   // CHECK-NEXT: %divf_vector = arith.divf %lhsvec, %rhsvec : vector<4xf32>
 
+  %faddf = arith.addf %lhsf32, %rhsf32 fastmath<fast> : f32
+  %faddf_vector = arith.addf %lhsvec, %rhsvec fastmath<fast> : vector<4xf32>
+
+  // CHECK-NEXT: %faddf = arith.addf %lhsf32, %rhsf32 fastmath<fast> : f32
+  // CHECK-NEXT: %faddf_vector = arith.addf %lhsvec, %rhsvec fastmath<fast> : vector<4xf32>
+
   %negf = "arith.negf"(%lhsf32) : (f32) -> f32
 
   // CHECK-NEXT: %negf = arith.negf %lhsf32 : f32
