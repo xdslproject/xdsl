@@ -8,8 +8,9 @@ Run `terminal -m xdsl.interactive.app:InputApp --def` to run in development mode
 from collections.abc import Callable
 from io import StringIO
 
-# pyright: ignore[reportMissingTypeStubs, reportGeneralTypeIssues]
-from pyclip import copy as pyclip_copy
+from pyclip import (  # pyright: ignore[reportMissingTypeStubs]
+    copy as pyclip_copy,  # pyright: ignore[reportGeneralTypeIssues]
+)
 from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
@@ -57,7 +58,7 @@ class InputApp(App[None]):
         },
     )
 
-    current_module: reactive[ModuleOp | Exception | None] = reactive(None)
+    current_module = reactive[ModuleOp | Exception | None](None)
     """
     Reactive variable used to save the current state of the modified Input TextArea (i.e. is the Output TextArea)
     """
@@ -68,12 +69,11 @@ class InputApp(App[None]):
     list_of_passes = get_all_passes()
     """Contains the list of xDSL passes."""
 
-    # aids in the construction of the seleciton list containing all the passes
-    selections = [(value.name, value) for value in list_of_passes]
-    selections.sort()
     passes_selection_list: SelectionList[type[ModulePass]] = SelectionList(
-        *selections, id="passes_selection_list"
+        id="passes_selection_list"
     )
+
+    query_label = Label("", id="selected_passes_label")
 
     def compose(self) -> ComposeResult:
         """
@@ -92,7 +92,7 @@ class InputApp(App[None]):
                     with Horizontal(id="copy_query"):
                         yield Button("Copy Query", id="copy_query_button")
             with ScrollableContainer(id="selected_passes"):
-                yield Label("", id="selected_passes_label")
+                yield self.query_label
 
         # construct the input and output TextArea's
         with Horizontal(id="input_output"):
@@ -122,7 +122,7 @@ class InputApp(App[None]):
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
-        Function called when the Input TextArea is changed. This function parses the Input IR, applies selected passes and updates
+        Function called when the Input TextArea is changed or a pass is selected/unselected. This function parses the Input IR, applies selected passes and updates
         the current_module reactive variable.
         """
         input_text = self.input_text_area.text
@@ -177,6 +177,13 @@ class InputApp(App[None]):
         ).border_title = "Choose a pass or multiple passes to be applied."
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
+        # aids in the construction of the seleciton list containing all the passes
+        selections = [(value.name, value) for value in self.list_of_passes]
+        selections.sort()
+        self.passes_selection_list.add_options(  # pyright: ignore[reportUnknownMemberType]
+            selections
+        )
+
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
         self.dark = not self.dark
@@ -205,7 +212,10 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#copy_query_button")
     def on_copy_query_button_pressed(self, event: Button.Pressed) -> None:
         """When the "Copy Query" button is preseed, the selected passes/query is copied"""
-        query = f"xdsl-opt -p {self.passes_selection_list.selected}"
+        selected_passes = "\n" + (", " + "\n").join(
+            p.name for p in self.passes_selection_list.selected
+        )
+        query = f"xdsl-opt -p {selected_passes}"
         pyclip_copy(query)
 
 
