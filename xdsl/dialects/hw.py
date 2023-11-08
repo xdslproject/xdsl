@@ -28,14 +28,17 @@ from xdsl.printer import Printer
 
 @dataclass
 class InnerSymTarget:
-    """The target of an inner symbol, the entity the symbol is a handle for."""
+    """The target of an inner symbol, the entity the symbol is a handle for.
+
+    A None operation defines an invalid target, which is returned from InnerSymbolTable.lookup()
+    when no matching operation is found. An invalid target is falsey when constrained to bool.
+    """
 
     op: Operation | None = None
     field_id: int = 0
     port_idx: int | None = None
 
     def __bool__(self):
-        # None-valued op defines an invalid target
         return self.op is not None
 
     def is_port(self) -> bool:
@@ -51,6 +54,10 @@ class InnerSymTarget:
     def get_target_for_subfield(
         cls, base: "InnerSymTarget", field_id: int
     ) -> "InnerSymTarget":
+        """
+        Return a target to the specified field within the given base.
+        `field_id` is relative to the specified base target.
+        """
         return cls(base.op, base.field_id + field_id, base.port_idx)
 
 
