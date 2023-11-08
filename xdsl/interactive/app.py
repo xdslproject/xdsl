@@ -131,6 +131,9 @@ class InputApp(App[None]):
         self.exit()
 
 
+def main():
+    return InputApp().run()
+
+
 if __name__ == "__main__":
-    app = InputApp()
-    app.run()
+    main()
