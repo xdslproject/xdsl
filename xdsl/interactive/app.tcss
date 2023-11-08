@@ -1,0 +1,16 @@
+
+# Vertical(TextArea)
+#input_container {
+    margin: 1;
+    border: heavy $warning-lighten-1;
+    border-title-color: $primary;
+    border-title-align: center;
+}
+
+# Vertical(OutputTextArea)
+#output_container {
+    margin: 1;
+    border: heavy $warning-lighten-1;
+    border-title-color: $primary;
+    border-title-align: center;
+}
