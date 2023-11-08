@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Annotated, TypeVar
+from typing import Annotated
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.memref import _MemRefTypeElement
 from xdsl.ir import Attribute, Data, Dialect, OpResult, ParametrizedAttribute
 from xdsl.irdl import (
     IRDLOperation,
@@ -41,9 +42,6 @@ from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, SymbolOpInterface, SymbolTable
 
-_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
-
-
 i8 = IntegerType(8)
 
 CASCADE_SIZE = 384
@@ -62,11 +60,6 @@ S2MM = 1
 
 i1 = IntegerType(1)
 
-# @irdl_attr_definition
-# class DimTupleArrayAttr():
-# 	 @classmethod
-# 	 def parse_parameter
-
 
 # Hexadecimal values must be formatted with a lowercase '0x' preceeding the number
 def format_hex(value: int):
@@ -75,7 +68,7 @@ def format_hex(value: int):
 
 @irdl_attr_definition
 class WireBundleAttr(Data[str]):
-    name = "wire_bundle"
+    name = "AIE.wire_bundle"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
@@ -132,7 +125,7 @@ class ObjectFIFOSubview(ParametrizedAttribute):
 
 @irdl_op_definition
 class AMSelOp(IRDLOperation):
-    name = "amsel"
+    name = "AIE.amsel"
     arbiterID: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
     msel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
     result: OpResult = result_def(IndexType())
@@ -225,11 +218,18 @@ class CoreOp(IRDLOperation):
     stackSize: IntegerAttr[i32] = attr_def(IntegerAttr)
     tile: Operand = operand_def(IndexType())
     region: Region = region_def()
+    link_with: StringAttr = opt_attr_def(StringAttr)
     result: OpResult = result_def(IndexType())
 
-    def __init__(self, stackSize: IntegerAttr[i32], tile: IndexType(), region: Region):
+    def __init__(
+        self,
+        stackSize: IntegerAttr[i32],
+        tile: IndexType(),
+        region: Region,
+        link_with: StringAttr | None = None,
+    ):
         super().__init__(
-            attributes={"stackSize": stackSize},
+            attributes={"stackSize": stackSize, "link_with": link_with},
             operands=[tile],
             regions=[region],
             result_types=[IndexType()],
@@ -240,6 +240,8 @@ class CoreOp(IRDLOperation):
         printer.print_operand(self.tile)
         printer.print(") ")
         printer.print_region(self.region)
+        if self.link_with is not None:
+            printer.print(' { link_with="', self.link_with, '" }')
 
 
 @irdl_op_definition
@@ -352,7 +354,7 @@ class DMAStartOp(IRDLOperation):
 
 @irdl_op_definition
 class DebugOp(IRDLOperation):
-    name = "debug"
+    name = "AIE.debug"
     arg: Operand = operand_def(AnyAttr())
 
     def __init__(self, arg: AnyAttr()):
@@ -379,11 +381,6 @@ class DeviceOp(IRDLOperation):
         printer.print(device_str)
         printer.print(") ")
         printer.print_region(self.region)
-
-
-@irdl_op_definition
-class end(IRDLOperation):
-    name = "end"
 
 
 @irdl_op_definition
@@ -465,7 +462,7 @@ class GetCascadeOp(IRDLOperation):
 
 @irdl_op_definition
 class GetStreamOp(IRDLOperation):
-    name = "getStream"
+    name = "AIE.getStream"
 
     channel: Operand = operand_def(i32)
 
@@ -506,7 +503,7 @@ class LockOp(IRDLOperation):
 
 @irdl_op_definition
 class MasterSetOp(IRDLOperation):
-    name = "masterset"
+    name = "AIE.masterset"
 
     destBundle: WireBundleAttr = attr_def(WireBundleAttr)
     destChannel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
@@ -743,7 +740,7 @@ class ObjectFIFOReleaseOp(IRDLOperation):
 
 @irdl_op_definition
 class PLIOOp(IRDLOperation):
-    name = "plio"
+    name = "AIE.plio"
 
     col: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
 
@@ -790,7 +787,7 @@ class PacketFlowOp(IRDLOperation):
 
 @irdl_op_definition
 class PacketRuleOp(IRDLOperation):
-    name = "rule"
+    name = "AIE.rule"
 
     mask: IntegerAttr[i8] = attr_def(IntegerAttr[i8])
     value: IntegerAttr[i8] = attr_def(IntegerAttr[i8])
@@ -805,7 +802,7 @@ class PacketRuleOp(IRDLOperation):
 
 @irdl_op_definition
 class PacketRulesOp(IRDLOperation):
-    name = "packetrules"
+    name = "AIE.packetrules"
 
     sourceBundle: WireBundleAttr = attr_def(WireBundleAttr)
     sourceChannel: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
@@ -839,7 +836,7 @@ class PacketSourceOp(IRDLOperation):
 
 @irdl_op_definition
 class putCascade(IRDLOperation):
-    name = "putCascade"
+    name = "AIE.putCascade"
 
     cascadeValue: Operand = operand_def(IntegerType(CASCADE_SIZE))
 
@@ -849,7 +846,7 @@ class putCascade(IRDLOperation):
 
 @irdl_op_definition
 class putStream(IRDLOperation):
-    name = "putStream"
+    name = "AIE.putStream"
 
     channel: Operand = operand_def(i32)
     streamValue: Operand = operand_def(
@@ -870,7 +867,7 @@ class putStream(IRDLOperation):
 
 @irdl_op_definition
 class ShimDMAAllocationOp(IRDLOperation):
-    name = "shimDMAAllocation"
+    name = "AIE.shimDMAAllocation"
 
     sym_name: StringAttr = attr_def(StringAttr)
     channelDir: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
@@ -898,7 +895,7 @@ class ShimDMAAllocationOp(IRDLOperation):
 
 @irdl_op_definition
 class ShimDMAOp(IRDLOperation):
-    name = "shimDMA"
+    name = "AIE.shimDMA"
 
     tile: Operand = operand_def(IndexType())
 
@@ -908,7 +905,7 @@ class ShimDMAOp(IRDLOperation):
 
 @irdl_op_definition
 class ShimMuxOp(IRDLOperation):
-    name = "shimmux"
+    name = "AIE.shimmux"
 
     tile: Operand = operand_def(IndexType())
 
@@ -918,7 +915,7 @@ class ShimMuxOp(IRDLOperation):
 
 @irdl_op_definition
 class ShimSwitchBoxOp(IRDLOperation):
-    name = "shimswitchbox"
+    name = "AIE.shimswitchbox"
 
     col: IntegerAttr[i32] = attr_def(IntegerAttr[i32])
 
@@ -1012,4 +1009,48 @@ class EndOp(IRDLOperation):
         super().__init__()
 
 
-AIE = Dialect([AMSelOp, BufferOp, TileOp, ConnectOp, CoreOp, DMAStartOp], [])
+AIE = Dialect(
+    [
+        ObjectFIFOSubview,
+        AMSelOp,
+        BufferOp,
+        TileOp,
+        ConnectOp,
+        CoreOp,
+        DMABDOp,
+        DMABDPACKETOp,
+        DMAStartOp,
+        DebugOp,
+        DeviceOp,
+        ExternalBufferOp,
+        FlowOp,
+        GetCascadeOp,
+        GetStreamOp,
+        LockOp,
+        MasterSetOp,
+        MemOp,
+        MemTileDMAOp,
+        NextBDOp,
+        ObjectFifoAcquireOp,
+        ObjectFifoRegisterExternalBuffersOp,
+        ObjectFIFOSubviewAccessOp,
+        createObjectFifo,
+        ObjectFIFOReleaseOp,
+        PLIOOp,
+        PacketDestOp,
+        PacketFlowOp,
+        PacketRuleOp,
+        PacketRulesOp,
+        PacketSourceOp,
+        putCascade,
+        putStream,
+        ShimDMAOp,
+        ShimMuxOp,
+        ShimSwitchBoxOp,
+        SwitchboxOp,
+        UseLockOp,
+        WireOp,
+        EndOp,
+    ],
+    [WireBundleAttr, ObjectFIFO, ObjectFIFOSubview],
+)
