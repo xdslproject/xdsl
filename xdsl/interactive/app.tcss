@@ -89,13 +89,6 @@
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
     border-title-align: center;
-    # layout: vertical;
-    # overflow: auto auto;
-}
-
-# OutputTextArea
-#output{
-    layout: vertical;
 }
 
 # Button
