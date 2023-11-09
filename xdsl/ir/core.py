@@ -70,9 +70,9 @@ class MLContext:
     def clone(self) -> MLContext:
         return MLContext(
             self.allow_unregistered,
-            self._loaded_dialects,
-            self._loaded_ops,
-            self._loaded_attrs,
+            self._loaded_dialects.copy(),
+            self._loaded_ops.copy(),
+            self._loaded_attrs.copy(),
         )
 
     @property
@@ -567,7 +567,8 @@ class OpOperands(Sequence[SSAValue]):
         operands[idx].remove_use(Use(self._op, idx))
         operand.add_use(Use(self._op, idx))
         new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
-        self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
+        # pyright: ignore[reportPrivateUsage]
+        self._op._operands = new_operands
 
     def __iter__(self) -> Iterator[SSAValue]:
         return iter(self._op._operands)  # pyright: ignore[reportPrivateUsage]
@@ -1319,7 +1320,8 @@ class Block(IRNode):
         self._attach_op(new_op)
 
         next_op = existing_op.next_op
-        existing_op._insert_next_op(new_op)  # pyright: ignore[reportPrivateUsage]
+        # pyright: ignore[reportPrivateUsage]
+        existing_op._insert_next_op(new_op)
         if next_op is None:
             # No `next_op`, means `prev_op` is the last op in the block.
             self._last_op = new_op
@@ -1337,7 +1339,8 @@ class Block(IRNode):
         self._attach_op(new_op)
 
         prev_op = existing_op.prev_op
-        existing_op._insert_prev_op(new_op)  # pyright: ignore[reportPrivateUsage]
+        # pyright: ignore[reportPrivateUsage]
+        existing_op._insert_prev_op(new_op)
         if prev_op is None:
             # No `prev_op`, means `next_op` is the first op in the block.
             self._first_op = new_op
