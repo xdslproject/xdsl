@@ -173,9 +173,7 @@ async def test_interactive():
 
             # assert that the curent_module and test_module's are structurally equivalent
             assert isinstance(app.current_module and test_module, ModuleOp | Exception)
-            if isinstance(app.current_module, ModuleOp) and isinstance(
-                test_module, ModuleOp
-            ):
+            if isinstance(test_module, ModuleOp):
                 assert app.current_module.is_structurally_equivalent(test_module)
 
             # test "Clear Passes" button works
@@ -208,9 +206,7 @@ async def test_interactive():
             # assert that the curent_module and test_module's are structurally equivalent
             await pilot.pause()
             assert isinstance(app.current_module and test_module, ModuleOp)
-            if isinstance(app.current_module, ModuleOp) and isinstance(
-                test_module, ModuleOp
-            ):
+            if isinstance(test_module, ModuleOp):
                 assert app.current_module.is_structurally_equivalent(test_module)
 
                 # assert that the input and output text area's are equal
@@ -279,7 +275,6 @@ async def test_interactive():
 #         if isinstance(app.current_module, ModuleOp):
 #             assert app.current_module.is_structurally_equivalent(
 #                 expected_module)
-
 
 # @pytest.mark.asyncio()
 # async def test_passes():
