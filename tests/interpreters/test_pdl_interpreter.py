@@ -1,4 +1,5 @@
 from io import StringIO
+from typing import Any, cast
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, pdl, test
@@ -143,9 +144,11 @@ class AddZero(RewritePattern):
         if not isinstance(op.rhs.op, arith.Constant):
             return
         rhs = op.rhs.op
-        if not isinstance(rhs.value, IntegerAttr):
+        rhs_value = rhs.value
+        if not isinstance(rhs_value, IntegerAttr):
             return
-        if rhs.value.value.data != 0:
+        rhs_value = cast(IntegerAttr[Any], rhs_value)
+        if rhs_value.value.data != 0:
             return
         rewriter.replace_matched_op([], new_results=[op.lhs])
 
@@ -458,10 +461,11 @@ def test_native_constraint():
         op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
     )
 
+    def my_constraint(attr: Any, size: Any) -> bool:
+        return isinstance(attr, StringAttr) and len(attr.data) == 4
+
     ctx = MLContext()
-    PDLMatcher.native_constraints["even_length_string"] = (
-        lambda attr: isinstance(attr, StringAttr) and len(attr.data) == 4
-    )
+    PDLMatcher.native_constraints["even_length_string"] = my_constraint
 
     pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
 
@@ -510,12 +514,15 @@ def test_native_constraint_constant_parameter():
         op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
     )
 
+    def my_constraint(attr: Any, size: Any) -> bool:
+        return (
+            isinstance(attr, StringAttr)
+            and isinstance(size, IntegerAttr)
+            and len(attr.data) == size.value.data
+        )
+
     ctx = MLContext()
-    PDLMatcher.native_constraints["length_string"] = (
-        lambda attr, size: isinstance(attr, StringAttr)
-        and isinstance(size, IntegerAttr)
-        and len(attr.data) == size.value.data
-    )
+    PDLMatcher.native_constraints["length_string"] = my_constraint
 
     pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
 
