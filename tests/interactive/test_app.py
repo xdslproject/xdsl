@@ -87,6 +87,8 @@ async def test_buttons():
         }
         """
         )
+        await pilot.pause()
+        assert app.input_text_area.text != ""
         await pilot.click("#clear_input_button")
         # assert that the curent_module and test_module's are structurally equivalent
         await pilot.pause()
