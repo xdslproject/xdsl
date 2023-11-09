@@ -1,42 +1,48 @@
 # RUN: python %s | filecheck %s
 
-from typing import Literal, Tuple
-from xdsl.frontend.program import FrontendProgram
+
 from xdsl.frontend.context import CodeContext
-from xdsl.frontend.dialects.builtin import i1, i32, i64, ui32, ui64, si32, si64, index, f16, f32, f64
+from xdsl.frontend.dialects.builtin import (
+    f16,
+    f32,
+    f64,
+    i1,
+    i32,
+    i64,
+    index,
+    si32,
+    si64,
+    ui32,
+    ui64,
+)
+from xdsl.frontend.program import FrontendProgram
 
 p = FrontendProgram()
 with CodeContext(p):
-    #      CHECK: func.func() ["sym_name" = "bool"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !i1)
+    # CHECK: @bool(%{{.*}} : i1)
     def bool(x: i1):
-        pass
+        return
 
-    #      CHECK: func.func() ["sym_name" = "signless"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !i32, %{{.*}} : !i64)
+    # CHECK: @signless(%{{.*}} : i32, %{{.*}} : i64)
     def signless(x: i32, y: i64):
-        pass
+        return
 
-    #      CHECK: func.func() ["sym_name" = "unsigned"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !ui32, %{{.*}} : !ui64)
+    # CHECK: @unsigned(%{{.*}} : ui32, %{{.*}} : ui64)
     def unsigned(x: ui32, y: ui64):
-        pass
+        return
 
-    #      CHECK: func.func() ["sym_name" = "signed"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !si32, %{{.*}} : !si64)
+    # CHECK: @signed(%{{.*}} : si32, %{{.*}} : si64)
     def signed(x: si32, y: si64):
-        pass
+        return
 
-    #      CHECK: func.func() ["sym_name" = "indexed"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !index)
+    # CHECK: @indexed(%{{.*}} : index)
     def indexed(x: index):
-        pass
+        return
 
-    #      CHECK: func.func() ["sym_name" = "fp"
-    # CHECK-NEXT: ^{{.*}}(%{{.*}} : !f16, %{{.*}} : !f32, %{{.*}} : !f64)
+    # CHECK: @fp(%{{.*}} : f16, %{{.*}} : f32, %{{.*}} : f64)
     def fp(x: f16, y: f32, z: f64):
-        pass
+        return
 
 
 p.compile(desymref=False)
-print(p.xdsl())
+print(p.textual_format())

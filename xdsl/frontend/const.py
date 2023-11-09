@@ -1,5 +1,4 @@
 import ast
-
 from typing import Generic, TypeVar
 
 _T = TypeVar("_T")
@@ -27,10 +26,19 @@ class Const(Generic[_T]):
         e: Const[i16] = b + 2       # i16 constant, equal to 5
     ```
     """
+
     pass
 
 
 def is_constant(node: ast.expr) -> bool:
     """Returns `True` if the AST node is a Const type."""
-    return isinstance(node, ast.Subscript) and isinstance(
-        node.value, ast.Name) and node.value.id == Const.__name__
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == Const.__name__
+    )
+
+
+def is_constant_stmt(node: ast.stmt) -> bool:
+    """Returns `True` if the AST statement is a Const expression."""
+    return isinstance(node, ast.AnnAssign) and is_constant(node.annotation)

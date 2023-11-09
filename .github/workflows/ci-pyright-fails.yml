@@ -10,8 +10,6 @@ on:
     branches:
       - main
   pull_request:
-    branches:
-      - main
 
 jobs:
   build:
@@ -19,6 +17,9 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10", "3.11"]
+
+    env:
+      PYRIGHT_VERSION: 1.0
 
     steps:
       - uses: actions/checkout@v3
@@ -30,8 +31,12 @@ jobs:
         run: |
           pip install --upgrade pip
       - name: Install the package locally
-        run: pip install -e .[extras]
+        run: pip install -r requirements.txt
+      - name: retrieve pyright version
+        run: | # get pyright version from requirements optional file:
+          VER=$(sed -n 's/^.*pyright==\s*\(\S*\).*$/\1/p' requirements.txt)
+          echo "PYRIGHT_VERSION=$VER" >> $GITHUB_ENV
       - name: Pyright
         uses: jakebailey/pyright-action@v1
         with:
-          extra-args: -p pyright-ci.json
+          version: ${{env.PYRIGHT_VERSION}}

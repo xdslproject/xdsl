@@ -11,11 +11,11 @@ def block(*params: Any):
         def bb0(x: int):
             y: int = x + 2
             bb1(y)
-        
+
         @block
         def bb1(z: int):
             return z
-        
+
         # Entry-point.
         bb0(a)
     ```
@@ -28,5 +28,8 @@ def block(*params: Any):
 
 
 def is_block(node: ast.FunctionDef) -> bool:
-    return len(node.decorator_list) == 1 and isinstance(
-        name := node.decorator_list[0], ast.Name) and name.id == "block"
+    return (
+        len(node.decorator_list) == 1
+        and isinstance(name := node.decorator_list[0], ast.Name)
+        and name.id == "block"
+    )

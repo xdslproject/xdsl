@@ -1,4 +1,5 @@
 import pytest
+
 from xdsl.utils.immutable_list import IList
 
 
@@ -83,7 +84,7 @@ def test_clear():
     i, j, k = 1, 2, 3
     list: IList[int] = IList([i, j, k])
     list.clear()
-    assert list == IList([])
+    assert list == IList(())
 
 
 def test_clear_frozen():

@@ -1,9 +1,9 @@
 from xdsl.ir import MLContext
-from xdsl.parser import Parser, Source
+from xdsl.parser import Parser
 
 import xdsl.dialects.pdl as pdl
 from xdsl.dialects.builtin import Builtin
-from xdsl.passes.pdl_analysis import pdl_analysis_pass
+from xdsl.transforms.pdl_analysis import pdl_analysis_pass
 
 
 def test_pdl_pass():
@@ -23,10 +23,10 @@ def test_pdl_pass():
 """
 
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(pdl.PDL)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(pdl.PDL)
 
-    parser = Parser(ctx=ctx, prog=test, source=Source.MLIR)
+    parser = Parser(ctx=ctx, input=test)
     _module = parser.parse_module()
 
     pdl_analysis_pass(ctx, _module)

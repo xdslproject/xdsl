@@ -3,10 +3,11 @@
 # This script updates the meta.yaml file used by Pyodide to bundle and use xDSL
 # Takes the .yaml file and the xDSL directory as arguments
 
-import yaml
-import sys
-import os
 import hashlib
+import os
+import sys
+
+import yaml
 
 meta_yaml_path = sys.argv[1]
 xdsl_directory = sys.argv[2]
@@ -25,9 +26,6 @@ with open(xdsl_sdist, "rb") as sdist:
         sha256_hash.update(byte_block)
 
 # Make it build the local xDSL, not the PyPi release. The pyodide build still requires the SHA256 sum.
-yaml_doc["source"] = {
-    "url": f"file://{xdsl_sdist}",
-    "sha256": sha256_hash.hexdigest()
-}
+yaml_doc["source"] = {"url": f"file://{xdsl_sdist}", "sha256": sha256_hash.hexdigest()}
 with open(meta_yaml_path, "w") as f:
     yaml.dump(yaml_doc, f)

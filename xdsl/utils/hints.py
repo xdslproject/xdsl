@@ -1,9 +1,20 @@
+from collections.abc import Iterable
 from inspect import isclass
 from types import UnionType
-from typing import (Annotated, Any, TypeGuard, TypeVar, Union, cast, get_args,
-                    get_origin)
-from xdsl.ir import ParametrizedAttribute
+from typing import (
+    Annotated,
+    Any,
+    Generic,
+    Literal,
+    TypeGuard,
+    TypeVar,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+)
 
+from xdsl.ir import ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 
 _T = TypeVar("_T")
@@ -28,8 +39,27 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
         if not isinstance(arg, list):
             return False
         arg_list: list[Any] = cast(list[Any], arg)
-        elem_hint, = get_args(hint)
+        (elem_hint,) = get_args(hint)
         return all(isa(elem, elem_hint) for elem in arg_list)
+
+    if origin is set:
+        if not isinstance(arg, set):
+            return False
+        arg_set: set[Any] = cast(set[Any], arg)
+        (elem_hint,) = get_args(hint)
+        return all(isa(elem, elem_hint) for elem in arg_set)
+
+    if origin is tuple:
+        if not isinstance(arg, tuple):
+            return False
+        elem_hints = get_args(hint)
+        arg_tuple: tuple[Any, ...] = cast(tuple[Any, ...], arg)
+        if len(elem_hints) == 2 and elem_hints[1] is ...:
+            return all(isa(elem, elem_hints[0]) for elem in arg_tuple)
+        else:
+            return len(elem_hints) == len(arg_tuple) and all(
+                isa(elem, hint) for elem, hint in zip(arg_tuple, elem_hints)
+            )
 
     if origin is dict:
         if not isinstance(arg, dict):
@@ -38,17 +68,21 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
         key_hint, value_hint = get_args(hint)
         return all(
             isa(key, key_hint) and isa(value, value_hint)
-            for key, value in arg_dict.items())
+            for key, value in arg_dict.items()
+        )
 
     if origin in [Union, UnionType]:
         return any(isa(arg, union_arg) for union_arg in get_args(hint))
 
+    if origin is Literal:
+        return arg in get_args(hint)
+
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
-    if (origin is not None) and issubclass(
-            origin, GenericData | ParametrizedAttribute):
+
+    if (origin is not None) and issubclass(origin, GenericData | ParametrizedAttribute):
         constraint = irdl_to_attr_constraint(hint)
         try:
-            constraint.verify(arg)
+            constraint.verify(arg, {})
             return True
         except VerifyException:
             return False
@@ -75,7 +109,6 @@ annotated_type = type(Annotated[int, 0])
 
 
 class _Class:
-
     @property
     def property(self):
         pass
@@ -83,3 +116,56 @@ class _Class:
 
 PropertyType = type(_Class.property)
 """The type of a property method."""
+
+
+def get_type_var_from_generic_class(cls: type[Any]) -> tuple[TypeVar, ...]:
+    """Return the `TypeVar` used in the class `Generic` parent."""
+    cls_orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
+    for orig_base in cls_orig_bases:
+        if get_origin(orig_base) == Generic:
+            return get_args(orig_base)
+    raise ValueError(f"{cls} class does not have a `Generic` parent.")
+
+
+def get_type_var_mapping(
+    cls: type[Any],
+) -> tuple[type[Any], dict[TypeVar, Any]]:
+    """
+    Given a class that specializes a generic class, return the generic class and
+    the mapping from the generic class type variables to the specialized arguments.
+    """
+
+    if not issubclass(cls, Generic):
+        raise ValueError(f"{cls} does not specialize a generic class.")
+
+    # Get the generic parent
+    orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
+    orig_bases = [
+        orig_base for orig_base in orig_bases if get_origin(orig_base) is not Generic
+    ]
+    # Do not handle more than one generic parent in the mro.
+    # It is possible to handle more than one generic parent, but
+    # the mapping of type variables will be more complex, especially for
+    # generic parents inheriting from other generic parents.
+    if len(orig_bases) != 1:
+        raise ValueError(
+            "Class cannot have more than one generic class in its mro. This "
+            "restriction may be lifted in the future.",
+            orig_bases,
+        )
+
+    # Get the generic operation, and its specialized type parameters.
+    generic_parent: type[Any] = get_origin(orig_bases[0])
+    specialized_args = get_args(orig_bases[0])
+
+    # Get the `TypeVar` used in the generic parent
+    generic_args = get_type_var_from_generic_class(generic_parent)
+
+    if len(generic_args) != len(specialized_args):
+        raise ValueError(
+            f"Generic class {generic_parent} class has {len(generic_args)} "
+            f"parameters, but {cls} specialize {len(specialized_args)} of them."
+        )
+
+    type_var_mapping = dict(zip(generic_args, specialized_args))
+    return generic_parent, type_var_mapping

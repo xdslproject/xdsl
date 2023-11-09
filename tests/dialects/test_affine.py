@@ -1,67 +1,77 @@
 import pytest
 
 from xdsl.dialects.affine import For, Yield
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
-from xdsl.ir import Region, OpResult, Block
+from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr, IntegerType
+from xdsl.ir import Attribute, Block, Region
+from xdsl.ir.affine import AffineExpr
+from xdsl.utils.exceptions import VerifyException
 
 
 def test_simple_for():
-    f = For.from_callable([], 0, 5, lambda x: [])
-    assert f.lower_bound.value.data == 0
-    assert f.upper_bound.value.data == 5
+    f = For.from_region([], [], 0, 5, Region())
+    assert f.lower_bound.data.results == (AffineExpr.constant(0),)
+    assert f.upper_bound.data.results == (AffineExpr.constant(5),)
 
 
 def test_for_mismatch_operands_results_counts():
-    attributes = {
-        "lower_bound": IntegerAttr.from_index_int_value(0),
-        "upper_bound": IntegerAttr.from_index_int_value(5),
-        "step": IntegerAttr.from_index_int_value(1)
+    attributes: dict[str, Attribute] = {
+        "lower_bound": AffineMapAttr.constant_map(0),
+        "upper_bound": AffineMapAttr.constant_map(5),
+        "step": IntegerAttr.from_index_int_value(1),
     }
-    f = For.create(operands=[],
-                   regions=[Region.from_block_list([])],
-                   attributes=attributes,
-                   result_types=[IndexType])
-    with pytest.raises(Exception) as e:
+    f = For.create(
+        operands=[],
+        regions=[Region()],
+        attributes=attributes,
+        result_types=[IndexType()],
+    )
+    with pytest.raises(
+        VerifyException,
+        match="Expected as many operands as results, lower bound args and upper bound args.",
+    ):
         f.verify()
-    assert e.value.args[
-        0] == "Expected the same amount of operands and results"
 
 
 def test_for_mismatch_operands_results_types():
-    attributes = {
-        "lower_bound": IntegerAttr.from_index_int_value(0),
-        "upper_bound": IntegerAttr.from_index_int_value(5),
-        "step": IntegerAttr.from_index_int_value(1)
+    attributes: dict[str, Attribute] = {
+        "lower_bound": AffineMapAttr.constant_map(0),
+        "upper_bound": AffineMapAttr.constant_map(5),
+        "step": IntegerAttr.from_index_int_value(1),
     }
-    inp = OpResult(IntegerType(32), [], [])
-    f = For.create(operands=[inp],
-                   regions=[Region.from_block_list([])],
-                   attributes=attributes,
-                   result_types=[IndexType])
-    with pytest.raises(Exception) as e:
+    b = Block(arg_types=(IntegerType(32),))
+    inp = b.args[0]
+    f = For.create(
+        operands=[inp],
+        regions=[Region()],
+        attributes=attributes,
+        result_types=[IndexType()],
+    )
+    with pytest.raises(
+        VerifyException,
+        match="Expected all operands and result pairs to have matching types",
+    ):
         f.verify()
-    assert e.value.args[
-        0] == "Expected all operands and result pairs to have matching types"
 
 
 def test_for_mismatch_blockargs():
-    attributes = {
-        "lower_bound": IntegerAttr.from_index_int_value(0),
-        "upper_bound": IntegerAttr.from_index_int_value(5),
-        "step": IntegerAttr.from_index_int_value(1)
+    attributes: dict[str, Attribute] = {
+        "lower_bound": AffineMapAttr.constant_map(0),
+        "upper_bound": AffineMapAttr.constant_map(5),
+        "step": IntegerAttr.from_index_int_value(1),
     }
-    inp = OpResult(IndexType, [], [])
-    f = For.create(operands=[inp],
-                   regions=[
-                       Region.from_block_list(
-                           [Block.from_callable([], lambda: [])])
-                   ],
-                   attributes=attributes,
-                   result_types=[IndexType])
-    with pytest.raises(Exception) as e:
+    b = Block(arg_types=(IndexType(),))
+    inp = b.args[0]
+    f = For.create(
+        operands=[inp],
+        regions=[Region(Block([Yield.get()]))],
+        attributes=attributes,
+        result_types=[IndexType()],
+    )
+    with pytest.raises(
+        VerifyException,
+        match="Expected BlockArguments to have the same types as the operands",
+    ):
         f.verify()
-    assert e.value.args[
-        0] == "Expected BlockArguments to have the same types as the operands"
 
 
 def test_yield():

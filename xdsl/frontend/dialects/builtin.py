@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import xdsl.dialects.builtin as builtin
+from collections.abc import Callable
+from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
-from typing import Any, Callable, Generic, TypeAlias, TypeVar, Literal
+import xdsl.dialects.builtin as builtin
 from xdsl.dialects.builtin import Signedness
 
 
@@ -33,72 +34,98 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
         return builtin.IntegerType
 
     def __add__(
-            self,
-            other: _Integer[_Width,
-                            _Signedness]) -> _Integer[_Width, _Signedness]:
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import addi
-        return addi(self, other)  # type: ignore
+
+        return addi(
+            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+        )
 
     def __and__(
-            self,
-            other: _Integer[_Width,
-                            _Signedness]) -> _Integer[_Width, _Signedness]:
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import andi
-        return andi(self, other)  # type: ignore
+
+        return andi(
+            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+        )
 
     def __lshift__(
-            self,
-            other: _Integer[_Width,
-                            _Signedness]) -> _Integer[_Width, _Signedness]:
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import shli
-        return shli(self, other)  # type: ignore
+
+        return shli(
+            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+        )
 
     def __mul__(
-            self,
-            other: _Integer[_Width,
-                            _Signedness]) -> _Integer[_Width, _Signedness]:
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import muli
-        return muli(self, other)  # type: ignore
+
+        return muli(
+            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+        )
 
     def __rshift__(
-            self,
-            other: _Integer[_Width,
-                            _Signedness]) -> _Integer[_Width, _Signedness]:
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import shrsi
-        return shrsi(self, other)  # type: ignore
+
+        return shrsi(
+            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+        )
 
     def __sub__(
-            self,
-            other: _Integer[_Width,
-                            _Signedness]) -> _Integer[_Width, _Signedness]:
+        self, other: _Integer[_Width, _Signedness]
+    ) -> _Integer[_Width, _Signedness]:
         from xdsl.frontend.dialects.arith import subi
-        return subi(self, other)  # type: ignore
 
-    def __eq__(  # type: ignore
-            self, other: _Integer[_Width, _Signedness]) -> i1:
+        return subi(
+            self,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+            other,  # pyright: ignore[reportGeneralTypeIssues, reportUnknownVariableType]
+        )
+
+    def __eq__(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, other: _Integer[_Width, _Signedness]
+    ) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "eq")  # type: ignore
+
+        return cmpi(self, other, "eq")  # pyright: ignore[reportGeneralTypeIssues]
 
     def __ge__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "sge")  # type: ignore
+
+        return cmpi(self, other, "sge")  # pyright: ignore[reportGeneralTypeIssues]
 
     def __gt__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "sgt")  # type: ignore
+
+        return cmpi(self, other, "sgt")  # pyright: ignore[reportGeneralTypeIssues]
 
     def __le__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "sle")  # type: ignore
+
+        return cmpi(self, other, "sle")  # pyright: ignore[reportGeneralTypeIssues]
 
     def __lt__(self, other: _Integer[_Width, _Signedness]) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "slt")  # type: ignore
 
-    def __ne__(  # type: ignore
-            self, other: _Integer[_Width, _Signedness]) -> i1:
+        return cmpi(self, other, "slt")  # pyright: ignore[reportGeneralTypeIssues]
+
+    def __ne__(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, other: _Integer[_Width, _Signedness]
+    ) -> i1:
         from xdsl.frontend.dialects.arith import cmpi
-        return cmpi(self, other, "ne")  # type: ignore
+
+        return cmpi(self, other, "ne")  # pyright: ignore[reportGeneralTypeIssues]
 
 
 # Type aliases for signless integers.
@@ -141,14 +168,17 @@ class _Float16(_FrontendType):
 
     def __add__(self, other: f16) -> f16:
         from xdsl.frontend.dialects.arith import addf
+
         return addf(self, other)
 
     def __sub__(self, other: f16) -> f16:
         from xdsl.frontend.dialects.arith import subf
+
         return subf(self, other)
 
     def __mul__(self, other: f16) -> f16:
         from xdsl.frontend.dialects.arith import mulf
+
         return mulf(self, other)
 
 
@@ -164,14 +194,17 @@ class _Float32(_FrontendType):
 
     def __add__(self, other: f32) -> f32:
         from xdsl.frontend.dialects.arith import addf
+
         return addf(self, other)
 
     def __sub__(self, other: f32) -> f32:
         from xdsl.frontend.dialects.arith import subf
+
         return subf(self, other)
 
     def __mul__(self, other: f32) -> f32:
         from xdsl.frontend.dialects.arith import mulf
+
         return mulf(self, other)
 
 
@@ -187,14 +220,17 @@ class _Float64(_FrontendType):
 
     def __add__(self, other: f64) -> f64:
         from xdsl.frontend.dialects.arith import addf
+
         return addf(self, other)
 
     def __sub__(self, other: f64) -> f64:
         from xdsl.frontend.dialects.arith import subf
+
         return subf(self, other)
 
     def __mul__(self, other: f64) -> f64:
         from xdsl.frontend.dialects.arith import mulf
+
         return mulf(self, other)
 
 

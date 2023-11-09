@@ -1,12 +1,13 @@
 import ast
-
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import Any, Dict, List
+from typing import Any
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.code_generation import CodeGeneration
 from xdsl.frontend.exception import FrontendProgramException
+from xdsl.frontend.passes.desymref import Desymrefier
+from xdsl.frontend.python_code_check import FunctionMap
 from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.printer import Printer
 
@@ -18,10 +19,13 @@ class FrontendProgram:
     program can be compiled and translated to xDSL or MLIR.
     """
 
-    stmts: List[ast.stmt] | None = field(default=None)
-    """AST nodes stored for compilation to xDSL."""
+    stmts: list[ast.stmt] | None = field(default=None)
+    """Input AST nodes."""
 
-    globals: Dict[str, Any] | None = field(default=None)
+    functions_and_blocks: FunctionMap | None = field(default=None)
+    """Processed AST nodes stored for code generation."""
+
+    globals: dict[str, Any] | None = field(default=None)
     """Global information for this program, including all the imports."""
 
     xdsl_program: ModuleOp | None = field(default=None)
@@ -32,8 +36,7 @@ class FrontendProgram:
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
-            msg = \
-                """
+            msg = """
 Cannot compile program without the code context. Try to use:
     p = FrontendProgram()
     with CodeContext(p):
@@ -47,11 +50,12 @@ Cannot compile program without the code context. Try to use:
         # `CodeContext`.
         self._check_can_compile()
         assert self.globals is not None
-        assert self.stmts is not None
+        assert self.functions_and_blocks is not None
 
         type_converter = TypeConverter(self.globals)
         self.xdsl_program = CodeGeneration.run_with_type_converter(
-            type_converter, self.stmts, self.file)
+            type_converter, self.functions_and_blocks, self.file
+        )
         self.xdsl_program.verify()
 
         # Optionally run desymrefication pass to produce actual SSA.
@@ -60,17 +64,13 @@ Cannot compile program without the code context. Try to use:
 
     def desymref(self) -> None:
         """Desymrefy the generated xDSL."""
-
-        # TODO: Land desymref in the next patch.
-        raise FrontendProgramException(
-            "Running desymref pass is not supported.")
-
+        assert self.xdsl_program is not None
+        Desymrefier().desymrefy(self.xdsl_program)
         self.xdsl_program.verify()
 
     def _check_can_print(self):
         if self.xdsl_program is None:
-            msg = \
-                """
+            msg = """
 Cannot print the program IR without compiling it first. Make sure to use:
     p = FrontendProgram()
     with CodeContext(p):
@@ -78,17 +78,11 @@ Cannot print the program IR without compiling it first. Make sure to use:
     p.compile()"""
             raise FrontendProgramException(msg)
 
-    def _print(self, target: Printer.Target) -> str:
+    def textual_format(self) -> str:
         self._check_can_print()
         assert self.xdsl_program is not None
 
         file = StringIO("")
-        printer = Printer(stream=file, target=target)
+        printer = Printer(stream=file)
         printer.print_op(self.xdsl_program)
         return file.getvalue().strip()
-
-    def mlir(self) -> str:
-        return self._print(Printer.Target.MLIR)
-
-    def xdsl(self) -> str:
-        return self._print(Printer.Target.XDSL)

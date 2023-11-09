@@ -1,49 +1,113 @@
-from xdsl.dialects.builtin import AnyArrayAttr, StringAttr
-from xdsl.dialects.irdl import DialectOp, OperationOp, OperandsOp, ResultsOp, TypeOp
-from xdsl.ir import Region
+import pytest
+
+from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, i32
+from xdsl.dialects.irdl import (
+    AllOfOp,
+    AnyOfOp,
+    AnyOp,
+    AttributeOp,
+    AttributeType,
+    DialectOp,
+    IsOp,
+    OperandsOp,
+    OperationOp,
+    ParametersOp,
+    ParametricOp,
+    ResultsOp,
+    TypeOp,
+)
+from xdsl.ir import Block, Region
+from xdsl.utils.test_value import TestSSAValue
 
 
-def test_dialect_accessors():
+@pytest.mark.parametrize("op_type", [DialectOp, TypeOp, AttributeOp, OperationOp])
+def test_named_region_op_init(
+    op_type: type[DialectOp | TypeOp | AttributeOp | OperationOp],
+):
     """
-    Create a dialect with some operations and types, and check that we can
-    retrieve the list of operations, or the list of types.
+    Test __init__ of DialectOp, TypeOp, AttributeOp, OperationOp.
     """
-    type1 = TypeOp.create(attributes={"name": StringAttr("type1")},
-                          regions=[Region()])
-    type2 = TypeOp.create(attributes={"name": StringAttr("type2")},
-                          regions=[Region()])
-    op1 = OperationOp.create(attributes={"name": StringAttr("op1")},
-                             regions=[Region()])
-    op2 = OperationOp.create(attributes={"name": StringAttr("op2")},
-                             regions=[Region()])
-    dialect = DialectOp.create(
-        attributes={"name": StringAttr("test")},
-        regions=[Region.from_operation_list([type1, type2, op1, op2])])
+    op = op_type("cmath", Region(Block()))
+    op2 = op_type(StringAttr("cmath"), Region(Block()))
+    op3 = op_type.create(
+        attributes={"sym_name": StringAttr("cmath")}, regions=[Region(Block())]
+    )
 
-    assert dialect.get_op_defs() == [op1, op2]
-    assert dialect.get_type_defs() == [type1, type2]
+    assert op.is_structurally_equivalent(op2)
+    assert op2.is_structurally_equivalent(op3)
+
+    assert op.sym_name == StringAttr("cmath")
+    assert len(op.body.blocks) == 1
 
 
-def test_operation_accessors():
+@pytest.mark.parametrize("op_type", [ParametersOp, OperandsOp, ResultsOp])
+def test_parameters_init(op_type: type[ParametersOp | OperandsOp | ResultsOp]):
     """
-    Create an operation, and check that we can retrieve the operands and
-    results definition.
+    Test __init__ of ParametersOp, OperandsOp, ResultsOp.
     """
 
-    operands = OperandsOp.create(attributes={"params": AnyArrayAttr([])})
-    results = ResultsOp.create(attributes={"params": AnyArrayAttr([])})
+    val1 = TestSSAValue(AttributeType())
+    val2 = TestSSAValue(AttributeType())
+    op = op_type([val1, val2])
+    op2 = op_type.create(operands=[val1, val2])
 
-    # Check it on an operation that has operands and results
-    op = OperationOp.create(
-        attributes={"name": StringAttr("op")},
-        regions=[Region.from_operation_list([operands, results])])
+    assert op.is_structurally_equivalent(op2)
 
-    assert op.get_operands() is operands
-    assert op.get_results() is results
+    assert op.args == (val1, val2)
 
-    # Check it on an operation that has no operands and results
-    empty_op = OperationOp.create(attributes={"name": StringAttr("op")},
-                                  regions=[Region.from_operation_list([])])
 
-    assert empty_op.get_operands() is None
-    assert empty_op.get_results() is None
+def test_is_init():
+    """Test __init__ of IsOp."""
+    op = IsOp(i32)
+    op2 = IsOp.create(attributes={"expected": i32}, result_types=[AttributeType()])
+
+    assert op.is_structurally_equivalent(op2)
+
+    assert op.expected == i32
+    assert op.output.type == AttributeType()
+
+
+def test_parametric_init():
+    """Test __init__ of ParametricOp."""
+    val1 = TestSSAValue(AttributeType())
+    val2 = TestSSAValue(AttributeType())
+
+    op = ParametricOp("complex", [val1, val2])
+    op2 = ParametricOp(StringAttr("complex"), [val1, val2])
+    op3 = ParametricOp(SymbolRefAttr("complex"), [val1, val2])
+    op4 = ParametricOp.create(
+        attributes={"base_type": SymbolRefAttr("complex")},
+        operands=[val1, val2],
+        result_types=[AttributeType()],
+    )
+
+    assert op.is_structurally_equivalent(op2)
+    assert op2.is_structurally_equivalent(op3)
+    assert op3.is_structurally_equivalent(op4)
+
+    assert op.base_type == SymbolRefAttr("complex")
+    assert op.args == (val1, val2)
+    assert op.output.type == AttributeType()
+
+
+def test_any_init():
+    """Test __init__ of AnyOp."""
+    op = AnyOp()
+    op2 = AnyOp.create(result_types=[AttributeType()])
+
+    assert op.is_structurally_equivalent(op2)
+    assert op.output.type == AttributeType()
+
+
+@pytest.mark.parametrize("op_type", [AllOfOp, AnyOfOp])
+def test_any_all_of_init(op_type: type[AllOfOp | AnyOfOp]):
+    """Test __init__ of AnyOf and AllOf."""
+    val1 = TestSSAValue(AttributeType())
+    val2 = TestSSAValue(AttributeType())
+    op = op_type((val1, val2))
+    op2 = op_type.create(operands=[val1, val2], result_types=[AttributeType()])
+
+    assert op.is_structurally_equivalent(op2)
+
+    assert op.args == (val1, val2)
+    assert op.output.type == AttributeType()

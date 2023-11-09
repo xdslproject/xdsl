@@ -1,10 +1,17 @@
-from typing import Any, Generic, TypeAlias, TypeVar
+from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DictionaryAttr,
+    FloatData,
+    IndexType,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+)
 from xdsl.ir import Attribute, ParametrizedAttribute
 from xdsl.irdl import ParameterDef, irdl_attr_definition
 from xdsl.utils.hints import isa
-
-from xdsl.dialects.builtin import ArrayAttr, IndexType, IntAttr, FloatData, IntegerAttr, IntegerType
 
 
 class Class1:
@@ -135,6 +142,114 @@ def test_list_hint_nested():
 
 
 ################################################################################
+# Tuple
+################################################################################
+
+
+def test_tuple_hint_empty():
+    """Test that empty tuple satisfy all tuple hints."""
+    assert isa(tuple(), tuple[int, ...])
+    assert isa(tuple(), tuple[bool, ...])
+    assert isa(tuple(), tuple[Class1, ...])
+
+
+def test_tuple_hint_correct():
+    """
+    Test that tuple hints work correcly on non-empty tuples of the right type.
+    """
+    assert isa((42,), tuple[int])
+    assert isa((0, 3, 5), tuple[int, int, int])
+    assert isa((False,), tuple[bool])
+    assert isa((True, False), tuple[bool, ...])
+    assert isa((True, 1, "test"), tuple[bool, int, str])
+    assert isa((Class1(), SubClass1()), tuple[Class1, ...])
+
+
+def test_tuple_hint_not_list_failure():
+    """Test that tuple hints work correcly on non tuple."""
+    assert not isa(0, tuple[int])
+    assert not isa(0, tuple[Any])
+    assert not isa(True, tuple[bool])
+    assert not isa(True, tuple[Any])
+    assert not isa("", tuple[Any])
+    assert not isa("", tuple[str])
+    assert not isa(Class1(), tuple[Class1])
+    assert not isa(Class1(), tuple[Any])
+    assert not isa({}, tuple[dict[Any, Any]])
+    assert not isa({}, tuple[Any])
+
+
+def test_tuple_hint_failure():
+    """
+    Test that tuple hints work correcly on non-empty tuples of the wrong type.
+    """
+    assert not isa((0,), tuple[bool])
+    assert not isa((0, True), tuple[bool, bool])
+    assert not isa((0, True), tuple[int])
+    assert not isa((True, 0), tuple[bool, bool])
+    assert not isa((True, False, True, 0), tuple[bool, ...])
+    assert not isa((Class2(),), tuple[Class1])
+
+
+def test_tuple_hint_nested():
+    """
+    Test that we can check nested tuple hints.
+    """
+    assert isa(((),), tuple[tuple[int, ...]])
+    assert isa(((0,),), tuple[tuple[int]])
+    assert isa((0, (1, 2)), tuple[int, tuple[int, int]])
+    assert isa(((0, 1), (2, 3), (4, 5)), tuple[tuple[int, int], ...])
+    assert not isa(((0, 1), (2, 3), (4, "5")), tuple[tuple[int, int], ...])
+    assert not isa(((0, 1), (2, 3), (4, "5")), tuple[tuple[int, ...], ...])
+
+
+################################################################################
+# Set
+################################################################################
+
+
+def test_set_hint_empty():
+    """Test that empty set satisfy all set hints."""
+    assert isa(set(), set[int])
+    assert isa(set(), set[bool])
+    assert isa(set(), set[Class1])
+
+
+def test_set_hint_correct():
+    """
+    Test that set hints work correcly on non-empty sets of the right type.
+    """
+    assert isa({42}, set[int])
+    assert isa({0, 3, 5}, set[int])
+    assert isa({False}, set[bool])
+    assert isa({True, False}, set[bool])
+    assert isa({True, 1, "test"}, set[bool | int | str])
+    assert isa({Class1(), SubClass1()}, set[Class1])
+
+
+def test_set_hint_not_list_failure():
+    """Test that set hints work correcly on non set."""
+    assert not isa(0, set[int])
+    assert not isa(0, set[Any])
+    assert not isa(True, set[bool])
+    assert not isa(True, set[Any])
+    assert not isa("", set[Any])
+    assert not isa("", set[str])
+    assert not isa(Class1(), set[Class1])
+    assert not isa(Class1(), set[Any])
+    assert not isa([], set[dict[Any, Any]])
+    assert not isa([], set[Any])
+
+
+def test_set_hint_failure():
+    """
+    Test that set hints work correcly on non-empty sets of the wrong type.
+    """
+    assert not isa({0}, set[bool])
+    assert not isa({0, "hello"}, set[int])
+
+
+################################################################################
 # Dictionary
 ################################################################################
 
@@ -219,6 +334,16 @@ def test_generic_data():
     assert isa(attr2, ArrayAttr[IntAttr | FloatData])
     assert not isa(attr2, ArrayAttr[FloatData])
 
+    intattr = IntAttr(42)
+
+    assert not isa(intattr, ArrayAttr[Attribute])
+    assert not isa(intattr, DictionaryAttr)
+
+    integerattr = IntegerAttr.from_index_int_value(42)
+
+    assert not isa(integerattr, ArrayAttr[Attribute])
+    assert not isa(integerattr, DictionaryAttr)
+
 
 def test_nested_generic_data():
     attr = ArrayAttr([IntegerAttr.from_index_int_value(0)])
@@ -250,3 +375,23 @@ def test_parametrized_attribute():
     assert isa(attr, MyParamAttr[IntAttr])
     assert isa(attr, MyParamAttr[IntAttr | FloatData])
     assert not isa(attr, MyParamAttr[FloatData])
+
+
+################################################################################
+# Literal
+################################################################################
+
+
+def test_literal():
+    assert isa("string", Literal["string"])
+    assert isa("string", Literal["string", "another string"])
+    assert isa("another string", Literal["string", "another string"])
+    assert not isa("not this string", Literal["string", "another string"])
+
+    assert isa(1, Literal[1])
+    assert isa(1, Literal[1, 2])
+    assert isa(2, Literal[1, 2])
+    assert not isa(3, Literal[1, 2])
+
+    assert not isa(1, Literal["1"])
+    assert not isa("1", Literal[1])

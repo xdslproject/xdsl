@@ -1,65 +1,60 @@
-from typing import Annotated
-
-from pytest import raises
+import pytest
 
 from xdsl.ir import MLContext
-from xdsl.irdl import AnyAttr, irdl_op_definition, Operation, VarOperand, VarOpResult
-from xdsl.parser import XDSLParser
+from xdsl.irdl import (
+    AnyAttr,
+    IRDLOperation,
+    VarOperand,
+    VarOpResult,
+    irdl_op_definition,
+    var_operand_def,
+    var_result_def,
+)
+from xdsl.parser import Parser
 from xdsl.utils.exceptions import ParseError
 
 
 @irdl_op_definition
-class UnkownOp(Operation):
+class UnkownOp(IRDLOperation):
     name = "unknown"
-    ops: Annotated[VarOperand, AnyAttr()]
-    res: Annotated[VarOpResult, AnyAttr()]
+    ops: VarOperand = var_operand_def(AnyAttr())
+    res: VarOpResult = var_result_def(AnyAttr())
 
 
 def check_error(prog: str, line: int, column: int, message: str):
     ctx = MLContext()
-    ctx.register_op(UnkownOp)
+    ctx.load_op(UnkownOp)
 
-    parser = XDSLParser(ctx, prog)
-    with raises(ParseError) as e:
+    parser = Parser(ctx, prog)
+    with pytest.raises(ParseError, match=message) as e:
         parser.parse_operation()
 
-    assert e.value.span
-
-    for err in e.value.history.iterate():
-        if message in err.error.msg:
-            assert err.error.span.get_line_col() == (line, column)
-            break
-    else:
-        assert False, "'{}' not found in an error message {}!".format(
-            message, e.value.args)
+    assert e.value.span.get_line_col() == (line, column)
 
 
 def test_parser_missing_equal():
     """Test a missing equal sign error."""
     ctx = MLContext()
-    ctx.register_op(UnkownOp)
+    ctx.load_op(UnkownOp)
 
-    prog = \
+    prog = """
+"unknown"() ({
+  %0 "unknown"() : () -> !i32
+}) : () -> ()
 """
-unknown() {
-  %0 : !i32 unknown()
-}
-"""
-    check_error(prog, 3, 12,
-                "Operation definitions expect an `=` after op-result-list!")
+    check_error(prog, 3, 5, "Expected '=' after operation result list")
 
 
 def test_parser_redefined_value():
     """Test an SSA value redefinition error."""
     ctx = MLContext()
-    ctx.register_op(UnkownOp)
+    ctx.load_op(UnkownOp)
 
-    prog = \
-"""
-unknown() {
-  %val : !i32 = unknown()
-  %val : !i32 = unknown()
-}
+    prog = """
+"unknown"() ({
+  %val = "unknown"() : () -> i32
+  %val = "unknown"() : () -> i32
+}) : () -> ()
 """
     check_error(prog, 4, 2, "SSA value %val is already defined")
 
@@ -67,26 +62,11 @@ unknown() {
 def test_parser_missing_operation_name():
     """Test a missing operation name error."""
     ctx = MLContext()
-    ctx.register_op(UnkownOp)
+    ctx.load_op(UnkownOp)
 
-    prog = \
+    prog = """
+"unknown"() ({
+  %val =
+}) : () -> ()
 """
-unknown() {
-  %val : !i32 = 
-}
-"""
-    check_error(prog, 4, 0, "Expected an operation name here")
-
-
-def test_parser_malformed_type():
-    """Test a missing type error."""
-    ctx = MLContext()
-    ctx.register_op(UnkownOp)
-
-    prog = \
-"""
-unknown() {
-  %val : i32 = unknown()
-}
-"""
-    check_error(prog, 3, 9, "Expected type of value-id here!")
+    check_error(prog, 4, 0, "operation name expected")

@@ -1,14 +1,18 @@
 from __future__ import annotations
-from typing import TypeVar, Iterable, SupportsIndex, List
 
-_T = TypeVar('_T')
+from collections.abc import Iterable
+from typing import Any, SupportsIndex, TypeVar, cast, overload
+
+_T = TypeVar("_T")
+_S = TypeVar("_S")
 
 
-class IList(List[_T]):
+class IList(list[_T]):
     """
-    A list that can be frozen. Once frozen, it can not be modified. 
+    A list that can be frozen. Once frozen, it can not be modified.
     In comparison to FrozenList this supports pattern matching.
     """
+
     _frozen: bool = False
 
     def freeze(self):
@@ -37,7 +41,7 @@ class IList(List[_T]):
             raise Exception("frozen list can not be modified")
         return super().remove(__value)
 
-    def pop(self, __index: SupportsIndex = ...) -> _T:
+    def pop(self, __index: SupportsIndex) -> _T:
         if self._frozen:
             raise Exception("frozen list can not be modified")
         return super().pop(__index)
@@ -47,25 +51,43 @@ class IList(List[_T]):
             raise Exception("frozen list can not be modified")
         return super().clear()
 
+    @overload
     def __setitem__(self, __index: SupportsIndex, __object: _T) -> None:
+        ...
+
+    @overload
+    def __setitem__(self, __index: slice, __object: Iterable[_T]) -> None:
+        ...
+
+    def __setitem__(
+        self, __index: SupportsIndex | slice, __object: _T | Iterable[_T]
+    ) -> None:
         if self._frozen:
             raise Exception("frozen list can not be modified")
-        return super().__setitem__(__index, __object)
+        if isinstance(__index, slice):
+            o = cast(list[_T], __object)
+            return super().__setitem__(__index, o)
+        else:
+            o = cast(_T, __object)
+            return super().__setitem__(__index, o)
 
     def __delitem__(self, __index: SupportsIndex | slice) -> None:
         if self._frozen:
             raise Exception("frozen list can not be modified")
         return super().__delitem__(__index)
 
-    def __add__(self, __x: Iterable[_T]) -> IList[_T]:
-        return IList(super().__add__(__x))  # type: ignore
+    def __add__(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, __x: Iterable[_S]
+    ) -> IList[_T | _S]:
+        return IList(super().__add__(list(__x)))
 
     def __iadd__(self, __x: Iterable[_T]):
         if self._frozen:
             raise Exception("frozen list can not be modified")
-        return super().__iadd__(__x)  # type: ignore
+        return super().__iadd__(__x)
 
     def __eq__(self, __o: object) -> bool:
         if isinstance(__o, IList):
-            return super().__eq__(__o)  # type: ignore
+            other = cast(IList[Any], __o)
+            return super().__eq__(other)
         return False

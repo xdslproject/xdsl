@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import ast
-from sys import _getframe  # type: ignore
-from typing import Any, Callable, Generic, Literal, Tuple, TypeAlias, TypeVar
+from collections.abc import Callable
+from sys import _getframe  # pyright: ignore[reportPrivateUsage]
+from typing import Any, Generic, Literal, TypeAlias, TypeVar
+
 import pytest
 
-from xdsl.frontend.dialects.builtin import _FrontendType  # type: ignore
+from xdsl.frontend.dialects.builtin import (
+    _FrontendType,  # pyright: ignore[reportPrivateUsage]
+)
 from xdsl.frontend.exception import CodeGenerationException
 from xdsl.frontend.type_conversion import TypeConverter
 from xdsl.ir import ParametrizedAttribute
@@ -18,7 +22,6 @@ class A(ParametrizedAttribute):
 
 
 class _A(_FrontendType):
-
     @staticmethod
     def to_xdsl() -> Callable[..., Any]:
         return A
@@ -41,7 +44,6 @@ class D(ParametrizedAttribute):
 
 
 class _D(Generic[T], _FrontendType):
-
     @staticmethod
     def to_xdsl() -> Callable[..., Any]:
         return D
@@ -50,9 +52,9 @@ class _D(Generic[T], _FrontendType):
 a: TypeAlias = _A
 b: TypeAlias = _B
 c2: TypeAlias = _C[Literal[2]]
-d12: TypeAlias = _D[Tuple[Literal[1], Literal[2]]]
+d12: TypeAlias = _D[tuple[Literal[1], Literal[2]]]
 
-globals = _getframe(0).f_globals
+globals: dict[str, Any] = _getframe(0).f_globals
 
 
 def test_raises_exception_on_unknown_type():
@@ -70,7 +72,9 @@ def test_raises_exception_on_non_frontend_type_I():
 
     with pytest.raises(CodeGenerationException) as err:
         type_converter.convert_type_hint(type_hint)
-    assert err.value.msg == "Unknown type hint for type 'b' inside 'ast.Name' expression."
+    assert (
+        err.value.msg == "Unknown type hint for type 'b' inside 'ast.Name' expression."
+    )
 
 
 def test_raises_exception_on_non_frontend_type_II():
@@ -88,7 +92,10 @@ def test_raises_exception_on_nontrivial_generics():
 
     with pytest.raises(CodeGenerationException) as err:
         type_converter.convert_type_hint(type_hint)
-    assert err.value.msg == "Expected 1 type argument for generic type 'd12', got 2 type arguments instead."
+    assert (
+        err.value.msg
+        == "Expected 1 type argument for generic type 'd12', got 2 type arguments instead."
+    )
 
 
 def test_type_conversion_caches_type():

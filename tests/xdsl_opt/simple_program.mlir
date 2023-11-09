@@ -1,0 +1,3 @@
+builtin.module {
+  "test.op"() : () -> ()
+}
