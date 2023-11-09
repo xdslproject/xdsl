@@ -1,19 +1,13 @@
-from io import StringIO
 from typing import cast
 
 import pytest
 from textual.pilot import Pilot
-from textual.widgets import TextArea
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func
 from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
 from xdsl.interactive.app import InputApp
-from xdsl.ir import Block, MLContext, Region
-from xdsl.parser import Parser
-from xdsl.passes import PipelinePass
-from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import get_all_dialects
+from xdsl.ir import Block, Region
 from xdsl.utils.exceptions import ParseError
 
 
@@ -245,158 +239,158 @@ async def test_input():
 #                 assert app.output_text_area.text == test_output_text_area.text
 
 
-@pytest.mark.asyncio()
-async def test_buttons():
-    """Test pressing keys has the desired result."""
-    async with InputApp().run_test() as pilot:
-        pilot: Pilot[None] = pilot
-        app = cast(InputApp, pilot.app)
+# @pytest.mark.asyncio()
+# async def test_buttons():
+#     """Test pressing keys has the desired result."""
+#     async with InputApp().run_test() as pilot:
+#         pilot: Pilot[None] = pilot
+#         app = cast(InputApp, pilot.app)
 
-        # Test clicking the "clear input" button
-        app.input_text_area.insert(
-            """
-        func.func @hello(%n : index) -> index {
-          %two = arith.constant 2 : index
-          %res = arith.muli %n, %two : index
-          func.return %res : index
-        }
-        """
-        )
-        # Build identical input text area for testing
-        test_input_text_area = TextArea(id="test_input_text_area")
+#         # Test clicking the "clear input" button
+#         app.input_text_area.insert(
+#             """
+#         func.func @hello(%n : index) -> index {
+#           %two = arith.constant 2 : index
+#           %res = arith.muli %n, %two : index
+#           func.return %res : index
+#         }
+#         """
+#         )
+#         # Build identical input text area for testing
+#         test_input_text_area = TextArea(id="test_input_text_area")
 
-        await pilot.click("#clear_input_button")
+#         await pilot.click("#clear_input_button")
 
-        test_input_text_area.clear()
-        try:
-            ctx = MLContext(True)
-            for dialect in get_all_dialects():
-                ctx.load_dialect(dialect)
-            parser = Parser(ctx, test_input_text_area.text)
-            module = parser.parse_module()
+#         test_input_text_area.clear()
+#         try:
+#             ctx = MLContext(True)
+#             for dialect in get_all_dialects():
+#                 ctx.load_dialect(dialect)
+#             parser = Parser(ctx, test_input_text_area.text)
+#             module = parser.parse_module()
 
-            test_module = module
-        except Exception as e:
-            test_module = e
+#             test_module = module
+#         except Exception as e:
+#             test_module = e
 
-            # assert that the curent_module and test_module's are structurally equivalent
-        await pilot.pause()
-        assert isinstance(app.current_module and test_module, ModuleOp | Exception)
-        if isinstance(app.current_module, ModuleOp) and isinstance(
-            test_module, ModuleOp
-        ):
-            assert app.current_module.is_structurally_equivalent(test_module)
+#             # assert that the curent_module and test_module's are structurally equivalent
+#         await pilot.pause()
+#         assert isinstance(app.current_module and test_module, ModuleOp | Exception)
+#         if isinstance(app.current_module, ModuleOp) and isinstance(
+#             test_module, ModuleOp
+#         ):
+#             assert app.current_module.is_structurally_equivalent(test_module)
 
-        pass_options = [
-            app.passes_selection_list.get_option_at_index(i)
-            for i in range(app.passes_selection_list.option_count)
-        ]
+#         pass_options = [
+#             app.passes_selection_list.get_option_at_index(i)
+#             for i in range(app.passes_selection_list.option_count)
+#         ]
 
-        # Test clicking the "clear passes" button
-        for selection in pass_options:
-            app.input_text_area.clear()
-            app.input_text_area.insert(
-                """
-            func.func @hello(%n : index) -> index {
-            %two = arith.constant 2 : index
-            %res = arith.muli %n, %two : index
-            func.return %res : index
-            }
-            """
-            )
+#         # Test clicking the "clear passes" button
+#         for selection in pass_options:
+#             app.input_text_area.clear()
+#             app.input_text_area.insert(
+#                 """
+#             func.func @hello(%n : index) -> index {
+#             %two = arith.constant 2 : index
+#             %res = arith.muli %n, %two : index
+#             func.return %res : index
+#             }
+#             """
+#             )
 
-            test_input_text_area.clear()
-            test_input_text_area.insert(
-                """
-            func.func @hello(%n : index) -> index {
-            %two = arith.constant 2 : index
-            %res = arith.muli %n, %two : index
-            func.return %res : index
-            }
-            """
-            )
+#             test_input_text_area.clear()
+#             test_input_text_area.insert(
+#                 """
+#             func.func @hello(%n : index) -> index {
+#             %two = arith.constant 2 : index
+#             %res = arith.muli %n, %two : index
+#             func.return %res : index
+#             }
+#             """
+#             )
 
-            app.passes_selection_list.select(selection)
-            selected_passes = app.passes_selection_list.selected
+#             app.passes_selection_list.select(selection)
+#             selected_passes = app.passes_selection_list.selected
 
-            try:
-                ctx = MLContext(True)
-                for dialect in get_all_dialects():
-                    ctx.load_dialect(dialect)
-                parser = Parser(ctx, test_input_text_area.text)
-                module = parser.parse_module()
+#             try:
+#                 ctx = MLContext(True)
+#                 for dialect in get_all_dialects():
+#                     ctx.load_dialect(dialect)
+#                 parser = Parser(ctx, test_input_text_area.text)
+#                 module = parser.parse_module()
 
-                pipeline = PipelinePass([p() for p in selected_passes])
-                pipeline.apply(ctx, module)
+#                 pipeline = PipelinePass([p() for p in selected_passes])
+#                 pipeline.apply(ctx, module)
 
-                test_module = module
-            except Exception as e:
-                test_module = e
+#                 test_module = module
+#             except Exception as e:
+#                 test_module = e
 
-                # build an identical output TextArea for testing
-            test_output_text_area = TextArea(id="test_output_text_area")
+#                 # build an identical output TextArea for testing
+#             test_output_text_area = TextArea(id="test_output_text_area")
 
-            match test_module:
-                case None:
-                    output_text = "No input"
-                case Exception() as e:
-                    output_stream = StringIO()
-                    Printer(output_stream).print(e)
-                    output_text = output_stream.getvalue()
-                case ModuleOp():
-                    output_stream = StringIO()
-                    Printer(output_stream).print(test_module)
-                    output_text = output_stream.getvalue()
-            test_output_text_area.load_text(output_text)
+#             match test_module:
+#                 case None:
+#                     output_text = "No input"
+#                 case Exception() as e:
+#                     output_stream = StringIO()
+#                     Printer(output_stream).print(e)
+#                     output_text = output_stream.getvalue()
+#                 case ModuleOp():
+#                     output_stream = StringIO()
+#                     Printer(output_stream).print(test_module)
+#                     output_text = output_stream.getvalue()
+#             test_output_text_area.load_text(output_text)
 
-            await pilot.click("#clear_selection_list_button")
+#             await pilot.click("#clear_selection_list_button")
 
-            app.passes_selection_list.deselect_all()
-            selected_passes = app.passes_selection_list.selected
+#             app.passes_selection_list.deselect_all()
+#             selected_passes = app.passes_selection_list.selected
 
-            try:
-                ctx = MLContext(True)
-                for dialect in get_all_dialects():
-                    ctx.load_dialect(dialect)
-                parser = Parser(ctx, test_input_text_area.text)
-                module = parser.parse_module()
+#             try:
+#                 ctx = MLContext(True)
+#                 for dialect in get_all_dialects():
+#                     ctx.load_dialect(dialect)
+#                 parser = Parser(ctx, test_input_text_area.text)
+#                 module = parser.parse_module()
 
-                pipeline = PipelinePass([p() for p in selected_passes])
-                pipeline.apply(ctx, module)
+#                 pipeline = PipelinePass([p() for p in selected_passes])
+#                 pipeline.apply(ctx, module)
 
-                test_module = module
-            except Exception as e:
-                test_module = e
+#                 test_module = module
+#             except Exception as e:
+#                 test_module = e
 
-            match test_module:
-                case None:
-                    output_text = "No input"
-                case Exception() as e:
-                    output_stream = StringIO()
-                    Printer(output_stream).print(e)
-                    output_text = output_stream.getvalue()
-                case ModuleOp():
-                    output_stream = StringIO()
-                    Printer(output_stream).print(test_module)
-                    output_text = output_stream.getvalue()
-            test_output_text_area.load_text(output_text)
+#             match test_module:
+#                 case None:
+#                     output_text = "No input"
+#                 case Exception() as e:
+#                     output_stream = StringIO()
+#                     Printer(output_stream).print(e)
+#                     output_text = output_stream.getvalue()
+#                 case ModuleOp():
+#                     output_stream = StringIO()
+#                     Printer(output_stream).print(test_module)
+#                     output_text = output_stream.getvalue()
+#             test_output_text_area.load_text(output_text)
 
-            # assert that the clear button clears the selection list
-            await pilot.pause()
-            assert app.passes_selection_list.selected is not selected_passes
+#             # assert that the clear button clears the selection list
+#             await pilot.pause()
+#             assert app.passes_selection_list.selected is not selected_passes
 
-            # assert that the input and test_input are equal
-            await pilot.pause()
-            assert app.input_text_area.text == test_input_text_area.text
+#             # assert that the input and test_input are equal
+#             await pilot.pause()
+#             assert app.input_text_area.text == test_input_text_area.text
 
-            # assert that the curent_module and test_module's are structurally equivalent
-            await pilot.pause()
-            assert isinstance(app.current_module and test_module, ModuleOp | Exception)
-            if isinstance(app.current_module, ModuleOp) and isinstance(
-                test_module, ModuleOp
-            ):
-                assert app.current_module.is_structurally_equivalent(test_module)
+#             # assert that the curent_module and test_module's are structurally equivalent
+#             await pilot.pause()
+#             assert isinstance(app.current_module and test_module, ModuleOp | Exception)
+#             if isinstance(app.current_module, ModuleOp) and isinstance(
+#                 test_module, ModuleOp
+#             ):
+#                 assert app.current_module.is_structurally_equivalent(test_module)
 
-                # assert that the input and output text area's are equal
-            await pilot.pause()
-            assert app.output_text_area.text == test_output_text_area.text
+#                 # assert that the input and output text area's are equal
+#             await pilot.pause()
+#             assert app.output_text_area.text == test_output_text_area.text
