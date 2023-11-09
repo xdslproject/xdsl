@@ -17,7 +17,7 @@ from textual.widgets import Button, Footer, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.interactive._pasteboard import pyclip_copy
+from ._pasteboard import pyclip_copy
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.printer import Printer
