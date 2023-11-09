@@ -84,15 +84,15 @@ class InputApp(App[None]):
 
         # construct the seleciton list containing all the passes and the label displaying the selected passes
         with Horizontal(id="selected_passes_and_list_horizontal"):
+            yield self.passes_selection_list
             with Horizontal(id="selection_list_and_button"):
-                yield self.passes_selection_list
                 with VerticalScroll(id="buttons_and_selection_list"):
                     with Horizontal(id="clear_selection_list"):
                         yield Button("Clear Passes", id="clear_selection_list_button")
                     with Horizontal(id="copy_query"):
                         yield Button("Copy Query", id="copy_query_button")
-            with ScrollableContainer(id="selected_passes"):
-                yield self.query_label
+                with ScrollableContainer(id="selected_passes"):
+                    yield self.query_label
 
         # construct the input and output TextArea's
         with Horizontal(id="input_output"):

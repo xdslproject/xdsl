@@ -1,12 +1,12 @@
 # SelectionList
 #passes_selection_list { 
-    margin: 1 1 1 1;
+    margin: 1 0 0 1;
     border: heavy $warning-lighten-1;
     # border: heavy $accent;
     border-title-color: $primary;
     border-title-align: center;
-    width: 80%;
-    height: 90%;
+    width: 100%;
+    height: 100%;
     align: center middle;
 }
 
@@ -34,19 +34,9 @@
 
 # VerticalScroll(Horizontal(Button), Horizontal(Button))
 #buttons_and_selection_list{
-    layout: vertical;
-    overflow-x: auto;
+    overflow: hidden;
+    margin: 1 0 0 1;
 }
-
-# Horizontal(SelectionList, VerticalScroll(Horizontal(Button), Horizontal(Button))))
-#selection_list_and_button{
-    margin: 1;
-    # border-title-color: $primary;
-    border-title-style: bold;
-    border-title-align: center;
-    layout: horizontal;
-}
-
 
 # Label
 #selected_passes_label {
@@ -57,16 +47,38 @@
     margin: 1 1 1 1;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
-    grid-columns: 75% 25%;
     border-title-align: center;
+    width: 100%;
+    height: 100%;
 }
 
-# Horizontal( SelectionList, ScrollableContainer(Label) )
+# Horizontal(VerticalScroll (Horizontal(Button), Horizontal(Button))) , ScrollableContainer(Label))
+#selection_list_and_button{
+    # border-title-color: $primary;
+    # border-title-style: bold;
+    # border-title-align: center;
+    layout: grid;
+    grid-size: 2 1;
+    grid-columns: 35% 65%;
+    width: 100%;
+    height: 100%;
+
+}
+
+
+
+# Horizontal(SelectionList, Horizontal)
 #selected_passes_and_list_horizontal{
     height: 100%;
+    width: 100%;
+    # layout: grid;
+    # grid-size: 2 1;
+    # grid-columns: 75% 25%;
     layout: grid;
     grid-size: 2 1;
     grid-columns: 50% 50%;
+    align-horizontal: center;
+
 }
 
 # TextArea
