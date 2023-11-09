@@ -6,14 +6,8 @@ Execute `xdsl-gui` in your terminal to run it.
 Run `terminal -m xdsl.interactive.app:InputApp --def` to run in development mode. Please be sure to install `textual-dev` to run this command.
 """
 
-from collections.abc import Callable
 from io import StringIO
 
-from pyclip import (
-    copy as pyclip_copy,
-)
-
-# pyright: ignore[reportMissingTypeStubs, reportGeneralTypeIssues]
 from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
@@ -23,12 +17,11 @@ from textual.widgets import Button, Footer, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.interactive._pasteboard import pyclip_copy
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects
-
-pyclip_copy: Callable[[str], None] = pyclip_copy
 
 
 class OutputTextArea(TextArea):
