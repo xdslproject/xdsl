@@ -17,7 +17,7 @@
 # Horizontal(Button)
 #clear_selection_list{
     height: 3;
-    overflow-x: auto;
+    text-opacity: 60%;
     margin: 1 1 1 1;
 }
 
@@ -28,7 +28,7 @@
 # Horizontal(Button)
 #copy_query{
     height: 3;
-    overflow-x: auto;
+    text-opacity: 60%;
     margin: 1 1 1 1;
 }
 
@@ -62,7 +62,6 @@
     grid-columns: 35% 65%;
     width: 100%;
     height: 100%;
-
 }
 
 
@@ -83,6 +82,7 @@
 
 # TextArea
 #input{
+    overflow: auto;
 }
 
 # Button
@@ -92,15 +92,16 @@
 # Horizontal(Button)
 #clear_input{
     height: 3;
-    overflow-x: auto;
+    text-opacity: 60%;
 }
 
 # Vertical(TextArea, Horizontal(Button))
 #input_container {
-    margin: 1;
+    layout: vertical;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
     border-title-align: center;
+    margin: 0 1 2 1;
 }
 
 # Button
@@ -110,27 +111,28 @@
 # Horizontal(Button)
 #copy_output{
     height: 3;
-    overflow-x: auto;
     text-opacity: 60%;
 }
 
-# Container(OutputTextArea, Horizontal(Button))
+# Vertical(OutputTextArea, Horizontal(Button))
 #output_container {
-    margin: 1;
+    layout: vertical;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
     border-title-align: center;
-    layout: vertical;
-    # overflow: auto auto;
-
+    margin: 0 1 2 1;
 }
 
-# Horizontal( Vertical( TextArea, Horizontal(Button) )  , Container( OutputTextArea, Horizontal(Button) ) )
+# Horizontal( Vertical( TextArea, Horizontal(Button) )  , Vertical( OutputTextArea, Horizontal(Button) ) )
 #input_output{
 }
 
 Screen {
     layout: grid;
+    padding: 1;
     grid-size: 1;
     grid-rows: 45% 65%;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
 } 
