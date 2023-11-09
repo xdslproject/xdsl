@@ -1,7 +1,6 @@
 from typing import cast
 
 import pytest
-from textual.pilot import Pilot
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func
@@ -15,7 +14,6 @@ from xdsl.utils.exceptions import ParseError
 async def test_input():
     """Test pressing keys has the desired result."""
     async with InputApp().run_test() as pilot:
-        pilot: Pilot[None] = pilot
         app = cast(InputApp, pilot.app)
 
         # Test no input
@@ -77,7 +75,6 @@ async def test_input():
 async def test_buttons():
     """Test pressing keys has the desired result."""
     async with InputApp().run_test() as pilot:
-        pilot: Pilot[None] = pilot
         app = cast(InputApp, pilot.app)
 
         # Test clicking the "clear input" button
