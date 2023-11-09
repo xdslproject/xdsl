@@ -383,6 +383,35 @@ class BitwiseAndByZero(RewritePattern):
             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
 
 
+class BitwiseOrByZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter):
+        """
+        rewrite pattern to optimize bitwise or by 0
+        x | 0 = x
+        """
+
+        # check if the first operand is 0
+        if (
+            isinstance(op.rs1.owner, riscv.LiOp)
+            and isinstance(op.rs1.owner.immediate, IntegerAttr)
+            and op.rs1.owner.immediate.value.data == 0
+        ):
+            # if the first operand is 0, set the destination to the other operand
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+
+        # check if the second operand is 0
+        if (
+            isinstance(op.rs2.owner, riscv.LiOp)
+            and isinstance(op.rs2.owner.immediate, IntegerAttr)
+            and op.rs2.owner.immediate.value.data == 0
+        ):
+            # if the second operand is 0, set the destination to the other operand
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+
+
 class ScfgwOpUsingImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(

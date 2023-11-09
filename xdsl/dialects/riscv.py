@@ -1695,6 +1695,14 @@ class AndOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     traits = frozenset((BitwiseAndHasCanonicalizationPatternsTrait(),))
 
 
+class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import BitwiseOrByZero
+
+        return (BitwiseOrByZero(),)
+
+
 @irdl_op_definition
 class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
@@ -1706,6 +1714,8 @@ class OrOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.or"
+
+    traits = frozenset((BitwiseOrHasCanonicalizationPatternsTrait(),))
 
 
 @irdl_op_definition
