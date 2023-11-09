@@ -2,7 +2,8 @@
 # Horizontal(Button)
 #clear_input{
     height: 3;
-    overflow-x: auto;
+    overflow: hidden;
+    text-opacity: 60%;
 }
 
 # Vertical(TextArea, Horizontal(Button))
