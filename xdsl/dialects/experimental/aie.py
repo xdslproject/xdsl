@@ -53,6 +53,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, SymbolOpInterface, SymbolTable
+from xdsl.utils.exceptions import VerifyException
 
 i8 = IntegerType(8)
 
@@ -69,11 +70,6 @@ NONBLOCKING = 0
 
 MM2S = 0
 S2MM = 1
-
-
-# Hexadecimal values must be formatted with a lowercase '0x' preceeding the number
-def format_hex(value: int):
-    return hex(value).upper().replace("X", "x")
 
 
 @irdl_attr_definition
@@ -136,8 +132,8 @@ class ObjectFIFOSubview(ParametrizedAttribute):
 @irdl_op_definition
 class AMSelOp(IRDLOperation):
     name = "AIE.amsel"
-    arbiterID = attr_def(IntegerAttr[i32])
-    msel = attr_def(IntegerAttr[i32])
+    arbiterID = attr_def(AnyIntegerAttr)
+    msel = attr_def(AnyIntegerAttr)
     result = result_def(IndexType())
 
     def __init__(self, arbiterID: IntegerAttr[i32], msel: IntegerAttr[i32]):
@@ -145,6 +141,16 @@ class AMSelOp(IRDLOperation):
             attributes={"arbiterID": arbiterID, "msel": msel},
             result_types=[IndexType()],
         )
+
+    def verify_(self) -> None:
+        if self.arbiterID.type != IntegerType(8):
+            raise VerifyException("arbiterID has to be an 8-bit signless integer")
+        if self.arbiterID.value.data < 0 or self.arbiterID.value.data > 5:
+            raise VerifyException("arbiterID has to be in the range [0-5].")
+        if self.msel.type != IntegerType(8):
+            raise VerifyException("msel has to be an 8-bit signless integer")
+        if self.msel.value.data < 0 or self.arbiterID.value.data > 3:
+            raise VerifyException("msel has to be in the range [0-3].")
 
 
 @irdl_op_definition
@@ -188,17 +194,21 @@ class TileOp(IRDLOperation):
 class ConnectOp(IRDLOperation):
     name = "AIE.connect"
     sourceBundle = attr_def(WireBundleAttr)
-    sourceChannel = attr_def(IntegerAttr[i32])
+    sourceChannel = attr_def(AnyIntegerAttr)
     destBundle = attr_def(WireBundleAttr)
-    destChannel = attr_def(IntegerAttr[i32])
+    destChannel = attr_def(AnyIntegerAttr)
 
     def __init__(
         self,
         sourceBundle: WireBundleAttr,
-        sourceChannel: IntegerAttr[i32],
+        sourceChannel: int | AnyIntegerAttr,
         destBundle: WireBundleAttr,
-        destChannel: IntegerAttr[i32],
+        destChannel: int | AnyIntegerAttr,
     ):
+        if isinstance(sourceChannel, int):
+            sourceChannel = IntegerAttr(sourceChannel, IntegerType(8))
+        if isinstance(destChannel, int):
+            destChannel = IntegerAttr(destChannel, IntegerType(8))
         super().__init__(
             attributes={
                 "sourceBundle": sourceBundle,
@@ -220,6 +230,17 @@ class ConnectOp(IRDLOperation):
             self.destChannel.value.data,
             ">",
         )
+
+    def verify_(self) -> None:
+        print(self.sourceChannel.value.data)
+        if self.sourceChannel.type != i32:
+            raise VerifyException("sourceChannel has to be a 32-bit signless integer")
+        if self.sourceChannel.value.data < 0:
+            raise VerifyException("sourceChannel has to be equal or greater than 0")
+        if self.destChannel.type != i32:
+            raise VerifyException("destChannel has to be a 32-bit signless integer")
+        if self.destChannel.value.data < 0:
+            raise VerifyException("destChannel has to be equal or greater than 0")
 
 
 @irdl_op_definition
@@ -319,9 +340,9 @@ class DMABDPACKETOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print(
             "(",
-            format_hex(self.packet_type.value.data),
+            f"0x{self.packet_type.value.data:X}",
             ", ",
-            format_hex(self.packet_id.value.data),
+            f"0x{self.packet_id.value.data:X}",
             ")",
         )
 
@@ -783,7 +804,7 @@ class PacketFlowOp(IRDLOperation):
         super().__init__(attributes={"ID": ID}, regions=[region])
 
     def print(self, printer: Printer):
-        printer.print("(", format_hex(self.ID.value.data), ") ")
+        printer.print("(", f"0x{self.ID.value.data:X}", ") ")
         printer.print_region(self.region)
 
 
