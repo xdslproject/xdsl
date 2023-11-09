@@ -1,5 +1,11 @@
 
-# Vertical(TextArea)
+# Horizontal(Button)
+#clear_input{
+    height: 3;
+    overflow-x: auto;
+}
+
+# Vertical(TextArea, Horizontal(Button))
 #input_container {
     margin: 1;
     border: heavy $warning-lighten-1;

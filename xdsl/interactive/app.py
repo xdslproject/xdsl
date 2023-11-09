@@ -13,7 +13,7 @@ from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widgets import Footer, TextArea
+from textual.widgets import Button, Footer, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
@@ -52,7 +52,7 @@ class InputApp(App[None]):
         },
     )
 
-    current_module: reactive[ModuleOp | Exception | None] = reactive(None)
+    current_module = reactive[ModuleOp | Exception | None](None)
     """
     Reactive variable used to save the current state of the modified Input TextArea (i.e. is the Output TextArea)
     """
@@ -70,6 +70,8 @@ class InputApp(App[None]):
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
+                with Horizontal(id="clear_input"):
+                    yield Button("Clear Input", id="clear_input_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
         yield Footer()
@@ -129,6 +131,11 @@ class InputApp(App[None]):
     def action_quit_app(self) -> None:
         """An action to quit the app."""
         self.exit()
+
+    @on(Button.Pressed, "#clear_input_button")
+    def on_clear_input_button_pressed(self, event: Button.Pressed) -> None:
+        """When the "Clear Input" button is pressed, the input IR TextArea is cleared and the current_module is updated"""
+        self.input_text_area.clear()
 
 
 def main():

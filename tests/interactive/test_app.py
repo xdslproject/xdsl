@@ -1,4 +1,7 @@
+from typing import cast
+
 import pytest
+from textual.pilot import Pilot
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func
@@ -11,8 +14,10 @@ from xdsl.utils.exceptions import ParseError
 @pytest.mark.asyncio()
 async def test_input():
     """Test pressing keys has the desired result."""
-    app = InputApp()
-    async with app.run_test() as pilot:  # pyright: ignore
+    async with InputApp().run_test() as pilot:
+        pilot: Pilot[None] = pilot
+        app = cast(InputApp, pilot.app)
+
         # Test no input
         assert app.output_text_area.text == "No input"
         assert app.current_module is None
@@ -66,3 +71,26 @@ async def test_input():
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
+
+
+@pytest.mark.asyncio()
+async def test_buttons():
+    """Test pressing keys has the desired result."""
+    async with InputApp().run_test() as pilot:
+        pilot: Pilot[None] = pilot
+        app = cast(InputApp, pilot.app)
+
+        # Test clicking the "clear input" button
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
+        )
+        await pilot.click("#clear_input_button")
+        # assert that the curent_module and test_module's are structurally equivalent
+        await pilot.pause()
+        assert app.input_text_area.text == ""
