@@ -6,8 +6,14 @@ Execute `xdsl-gui` in your terminal to run it.
 Run `terminal -m xdsl.interactive.app:InputApp --def` to run in development mode. Please be sure to install `textual-dev` to run this command.
 """
 
+from collections.abc import Callable
 from io import StringIO
 
+from pyclip import (
+    copy as pyclip_copy,
+)
+
+# pyright: ignore[reportMissingTypeStubs, reportGeneralTypeIssues]
 from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
@@ -21,6 +27,8 @@ from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects
+
+pyclip_copy: Callable[[str], None] = pyclip_copy
 
 
 class OutputTextArea(TextArea):
@@ -74,6 +82,8 @@ class InputApp(App[None]):
                     yield Button("Clear Input", id="clear_input_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
+                with Horizontal(id="copy_output"):
+                    yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
     @on(TextArea.Changed, "#input")
@@ -136,6 +146,11 @@ class InputApp(App[None]):
     def on_clear_input_button_pressed(self, event: Button.Pressed) -> None:
         """When the "Clear Input" button is pressed, the input IR TextArea is cleared and the current_module is updated"""
         self.input_text_area.clear()
+
+    @on(Button.Pressed, "#copy_output_button")
+    def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
+        """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
+        pyclip_copy(self.output_text_area.text)
 
 
 def main():

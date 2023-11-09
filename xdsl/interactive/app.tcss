@@ -2,7 +2,8 @@
 # Horizontal(Button)
 #clear_input{
     height: 3;
-    overflow-x: auto;
+    overflow: hidden;
+    text-opacity: 60%;
 }
 
 # Vertical(TextArea, Horizontal(Button))
@@ -13,7 +14,14 @@
     border-title-align: center;
 }
 
-# Vertical(OutputTextArea)
+# Horizontal(Button)
+#copy_output{
+    height: 3;
+    overflow: hidden;
+    text-opacity: 60%;
+}
+
+# Vertical(OutputTextArea, Horizontal(Button))
 #output_container {
     margin: 1;
     border: heavy $warning-lighten-1;
