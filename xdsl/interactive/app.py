@@ -159,7 +159,8 @@ class InputApp(App[None]):
                 Printer(output_stream).print(self.current_module)
                 output_text = output_stream.getvalue()
 
-        self.output_text_area.load_text(output_text)
+        self.output_text_area.clear()
+        self.output_text_area.insert(output_text)
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
@@ -196,7 +197,7 @@ class InputApp(App[None]):
     def on_clear_input_button_pressed(self, event: Button.Pressed) -> None:
         """When the "Clear Input" button is pressed, the input IR TextArea is cleared and the current_module is updated"""
         self.input_text_area.clear()
-        self.update_current_module()
+        # self.update_current_module()
 
     @on(Button.Pressed, "#copy_output_button")
     def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
