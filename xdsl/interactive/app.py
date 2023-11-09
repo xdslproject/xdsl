@@ -13,15 +13,16 @@ from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widgets import Button, Footer, TextArea
+from textual.widgets import Button, Footer, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive._pasteboard import pyclip_copy
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
+from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import get_all_dialects
+from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
 
 class OutputTextArea(TextArea):
@@ -61,12 +62,21 @@ class InputApp(App[None]):
     input_text_area = TextArea(id="input")
     output_text_area = OutputTextArea(id="output")
 
+    list_of_passes = get_all_passes()
+    """Contains the list of xDSL passes."""
+
+    passes_selection_list: SelectionList[type[ModulePass]] = SelectionList(
+        id="passes_selection_list"
+    )
+
     def compose(self) -> ComposeResult:
         """
         Creates the required widgets, events, etc.
         Get the list of xDSL passes, add them to an array in "Selection" format (so it can be added to a Selection List)
         and sort the list in alphabetical order.
         """
+
+        yield self.passes_selection_list
 
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
@@ -79,19 +89,32 @@ class InputApp(App[None]):
                     yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
+    @on(SelectionList.SelectedChanged)
+    def update_selected_view(self) -> None:
+        """
+        When the SelectionList (pass options) changes (i.e. a pass was selected or deselected), update the label to show
+        the query, and then call the update_current_module() function, which applies the selected passes to the input and displays the output
+        """
+        self.update_current_module()
+
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
-        Function called when the Input TextArea is cahnged. This function parses the Input IR and updates
-        the current_module reactive variable.
+        Function called when the Input TextArea is changed or a pass is selected/
+        unselected. This function parses the Input IR, applies selected passes and
+        updates
         """
         input_text = self.input_text_area.text
+        selected_passes = self.passes_selection_list.selected
+
         try:
             ctx = MLContext(True)
             for dialect in get_all_dialects():
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
+            pipeline = PipelinePass([p() for p in selected_passes])
+            pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:
             self.current_module = e
@@ -126,6 +149,16 @@ class InputApp(App[None]):
 
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
+        self.query_one(
+            "#passes_selection_list"
+        ).border_title = "Choose a pass or multiplepasses to be applied."
+
+        # aids in the construction of the seleciton list containing all the passes
+        selections = [(value.name, value) for value in self.list_of_passes]
+        selections.sort()
+        self.passes_selection_list.add_options(  # pyright: ignore[reportUnknownMemberType]
+            selections
+        )
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
