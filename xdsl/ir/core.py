@@ -1319,8 +1319,7 @@ class Block(IRNode):
         self._attach_op(new_op)
 
         next_op = existing_op.next_op
-        # pyright: ignore[reportPrivateUsage]
-        existing_op._insert_next_op(new_op)
+        existing_op._insert_next_op(new_op)  # pyright: ignore[reportPrivateUsage]
         if next_op is None:
             # No `next_op`, means `prev_op` is the last op in the block.
             self._last_op = new_op
@@ -1338,8 +1337,7 @@ class Block(IRNode):
         self._attach_op(new_op)
 
         prev_op = existing_op.prev_op
-        # pyright: ignore[reportPrivateUsage]
-        existing_op._insert_prev_op(new_op)
+        existing_op._insert_prev_op(new_op)  # pyright: ignore[reportPrivateUsage]
         if prev_op is None:
             # No `prev_op`, means `next_op` is the first op in the block.
             self._first_op = new_op
