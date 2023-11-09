@@ -182,15 +182,16 @@ class Load(IRDLOperation):
     # which is subject to change
 
     def verify_(self):
-        if not isinstance(self.memref.type, MemRefType):
+        memref_type = self.memref.type
+        if not isinstance(memref_type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_type = cast(MemRefType[Attribute], self.memref.type)
+        memref_type = cast(MemRefType[Attribute], memref_type)
 
         if memref_type.element_type != self.res.type:
             raise Exception("expected return type to match the MemRef element type")
 
-        if self.memref.type.get_num_dims() != len(self.indices):
+        if memref_type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
 
     @staticmethod
@@ -238,15 +239,16 @@ class Store(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType)
 
     def verify_(self):
-        if not isinstance(self.memref.type, MemRefType):
+        memref_type = self.memref.type
+        if not isinstance(memref_type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_type = cast(MemRefType[Attribute], self.memref.type)
+        memref_type = cast(MemRefType[Attribute], memref_type)
 
         if memref_type.element_type != self.value.type:
             raise Exception("Expected value type to match the MemRef element type")
 
-        if self.memref.type.get_num_dims() != len(self.indices):
+        if memref_type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")
 
     @staticmethod
