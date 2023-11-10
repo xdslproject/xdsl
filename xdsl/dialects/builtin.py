@@ -1222,7 +1222,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
             parser.parse_type,
         )
         attributes = parser.parse_optional_attr_dict()
-        return UnrealizedConversionCastOp(
+        return cls(
             operands=[inputs], result_types=[output_types], attributes=attributes
         )
 

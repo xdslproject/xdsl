@@ -279,7 +279,7 @@ class For(IRDLOperation):
         # Parse body
         body = parser.parse_region((indvar, *iter_args))
 
-        for_op = For(lb, ub, step, iter_arg_operands, body)
+        for_op = cls(lb, ub, step, iter_arg_operands, body)
 
         if not iter_args:
             for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):

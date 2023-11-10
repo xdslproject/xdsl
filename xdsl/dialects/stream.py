@@ -65,8 +65,8 @@ class ReadOp(IRDLOperation):
 
     def __init__(self, stream: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
-            assert isinstance(stream.type, ReadableStreamType)
-            stream_type = cast(ReadableStreamType[Attribute], stream.type)
+            assert isinstance(stream_type := stream.type, ReadableStreamType)
+            stream_type = cast(ReadableStreamType[Attribute], stream_type)
             result_type = stream_type.element_type
         super().__init__(operands=[stream], result_types=[result_type])
 
