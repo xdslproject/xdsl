@@ -194,14 +194,14 @@ class Load(IRDLOperation):
         if memref_type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
 
-    @staticmethod
-    def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
+    @classmethod
+    def get(
+        cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
+    ) -> Self:
         ssa_value = SSAValue.get(ref)
         ssa_value_type = ssa_value.type
         ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
-        return Load.build(
-            operands=[ref, indices], result_types=[ssa_value_type.element_type]
-        )
+        return cls(operands=[ref, indices], result_types=[ssa_value_type.element_type])
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -251,13 +251,14 @@ class Store(IRDLOperation):
         if memref_type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")
 
-    @staticmethod
+    @classmethod
     def get(
+        cls,
         value: Operation | SSAValue,
         ref: Operation | SSAValue,
         indices: Sequence[Operation | SSAValue],
-    ) -> Store:
-        return Store.build(operands=[value, ref, indices])
+    ) -> Self:
+        return cls(operands=[value, ref, indices])
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
