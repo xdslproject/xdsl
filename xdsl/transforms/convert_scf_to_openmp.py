@@ -117,7 +117,7 @@ class ConvertScfToOpenMPPass(ModulePass):
     Thus selecting a chunk size without a schedule will use the static schedule.
     """
 
-    name = "convert-scf-to-openpm"
+    name = "convert-scf-to-openmp"
 
     collapse: int | None = None
     nested: bool = False
