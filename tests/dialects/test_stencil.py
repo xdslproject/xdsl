@@ -398,10 +398,10 @@ def test_stencil_load():
 
     load = LoadOp.get(result_type_val1)
 
-    assert isinstance(load.field.type, FieldType)
-    assert load.field.type == field_type
-    assert len(load.field.type.get_shape()) == 2
-    assert isinstance(load.field.type.bounds, StencilBoundsAttr)
+    assert isinstance(load_field_type := load.field.type, FieldType)
+    assert load_field_type == field_type
+    assert len(load_field_type.get_shape()) == 2
+    assert isinstance(load_field_type.bounds, StencilBoundsAttr)
     assert isa(load.res.type, TempType[Attribute])
     assert isa(load.res.type.bounds, IntAttr)
     assert load.res.type.bounds.data == 2
@@ -507,12 +507,12 @@ def test_stencil_store():
     store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, lb, ub)
 
     assert isinstance(store, StoreOp)
-    assert isinstance(store.field.type, FieldType)
-    assert store.field.type == field_type
-    assert isinstance(store.temp.type, TempType)
-    assert store.temp.type == temp_type
-    assert len(store.field.type.get_shape()) == 2
-    assert len(store.temp.type.get_shape()) == 2
+    assert isinstance(store_field_type := store.field.type, FieldType)
+    assert store_field_type == field_type
+    assert isinstance(store_temp_type := store.temp.type, TempType)
+    assert store_temp_type == temp_type
+    assert len(store_field_type.get_shape()) == 2
+    assert len(store_temp_type.get_shape()) == 2
     assert store.lb is lb
     assert store.ub is ub
 
