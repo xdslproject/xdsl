@@ -73,14 +73,6 @@ async def test_input():
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
 
-
-@pytest.mark.asyncio()
-async def test_buttons_and_passes():
-    """Test pressing keys has the desired result."""
-    async with InputApp().run_test() as pilot:
-        pilot: Pilot[None] = pilot
-        app = cast(InputApp, pilot.app)
-
         # Test clicking the "clear input" button
         app.input_text_area.insert(
             """
@@ -109,37 +101,30 @@ async def test_buttons_and_passes():
         }
         """
         )
-        await pilot.pause()
-        assert (
-            app.input_text_area.text
-            == """
-        func.func @hello(%n : index) -> index {
-          %two = arith.constant 2 : index
-          %res = arith.muli %n, %two : index
-          func.return %res : index
-        }
-        """
-        )
-        await pilot.pause()
-        assert (
-            app.output_text_area.text
-            == """builtin.module {
-  func.func @hello(%n : index) -> index {
-    %two = arith.constant 2 : index
-    %res = arith.muli %n, %two : index
-    func.return %res : index
-  }
-}
-"""
-        )
         # Select a pass
         app.passes_selection_list.select(
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass
         )
 
         await pilot.pause()
-        assert app.output_text_area != app.input_text_area
-        assert str(app.current_module) != "No input"
+        assert (
+            str(app.current_module)
+            == """builtin.module {
+  riscv.assembly_section ".text" {
+    riscv.directive ".globl" "hello"
+    riscv.directive ".p2align" "2"
+    riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
+      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg<>
+      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg<> to index
+      %two = arith.constant 2 : index
+      %res = arith.muli %n_1, %two : index
+      %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg<>
+      %2 = riscv.mv %1 : (!riscv.reg<>) -> !riscv.reg<a0>
+      riscv_func.return %2 : !riscv.reg<a0>
+    }
+  }
+}"""
+        )
         assert (
             app.output_text_area.text
             == """builtin.module {
@@ -156,5 +141,6 @@ async def test_buttons_and_passes():
       riscv_func.return %2 : !riscv.reg<a0>
     }
   }
-}\n"""
+}
+"""
         )
