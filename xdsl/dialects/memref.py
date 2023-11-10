@@ -239,8 +239,7 @@ class Store(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType)
 
     def verify_(self):
-        memref_type = self.memref.type
-        if not isinstance(memref_type, MemRefType):
+        if not isinstance(memref_type := self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
         memref_type = cast(MemRefType[Attribute], memref_type)

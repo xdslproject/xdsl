@@ -36,8 +36,9 @@ class LowerArithConstant(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter) -> None:
         op_result_type = op.result.type
-        op_val = op.value
-        if isinstance(op_result_type, IntegerType) and isinstance(op_val, IntegerAttr):
+        if isinstance(op_result_type, IntegerType) and isinstance(
+            op_val := op.value, IntegerAttr
+        ):
             if op_result_type.width.data <= 32:
                 rewriter.replace_matched_op(
                     [
@@ -49,7 +50,7 @@ class LowerArithConstant(RewritePattern):
                 )
             else:
                 raise NotImplementedError("Only 32 bit integers are supported for now")
-        elif isinstance(op_val, FloatAttr):
+        elif isinstance(op_val := op.value, FloatAttr):
             if isinstance(op_result_type, Float32Type):
                 rewriter.replace_matched_op(
                     [
@@ -88,7 +89,9 @@ class LowerArithConstant(RewritePattern):
                 )
             else:
                 raise NotImplementedError("Only 32 or 64 bit floats are supported")
-        elif isinstance(op_result_type, IndexType) and isinstance(op_val, IntegerAttr):
+        elif isinstance(op_result_type, IndexType) and isinstance(
+            op_val := op.value, IntegerAttr
+        ):
             rewriter.replace_matched_op(
                 [
                     constant := riscv.LiOp(op_val.value.data),
