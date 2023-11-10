@@ -10,6 +10,13 @@
     align: center middle;
 }
 
+# Horizontal(Button)
+#copy_query{
+    height: 3;
+    overflow: hidden;
+    margin: 1 1 1 1;
+}
+
 # ScrollableContainer(Label)
 #selected_passes {
     margin: 1 1 0 1;
@@ -22,12 +29,12 @@
 }
 
 
-# Horizontal( SelectionList, ScrollableContainer(Label) )
+# Horizontal( SelectionList, Horizontal(Button), ScrollableContainer(Label) )
 #selected_passes_and_list_horizontal{
     height: 100%;
     layout: grid;
-    grid-size: 2 1;
-    grid-columns: 50% 50%;
+    grid-size: 3 1;
+    grid-columns: 50% 10% 40%;
 }
 
 # Horizontal(Button)

@@ -81,6 +81,8 @@ class InputApp(App[None]):
 
         with Horizontal(id="selected_passes_and_list_horizontal"):
             yield self.passes_selection_list
+            with Horizontal(id="copy_query"):
+                yield Button("Copy Query", id="copy_query_button")
             with ScrollableContainer(id="selected_passes"):
                 yield self.query_label
 
@@ -194,6 +196,15 @@ class InputApp(App[None]):
     def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
         """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
         pyclip_copy(self.output_text_area.text)
+
+    @on(Button.Pressed, "#copy_query_button")
+    def on_copy_query_button_pressed(self, event: Button.Pressed) -> None:
+        """When the "Copy Query" button is preseed, the selected passes/query is copied"""
+        selected_passes = "\n" + (", " + "\n").join(
+            p.name for p in self.passes_selection_list.selected
+        )
+        query = f"xdsl-opt -p {selected_passes}"
+        pyclip_copy(query)
 
 
 def main():
