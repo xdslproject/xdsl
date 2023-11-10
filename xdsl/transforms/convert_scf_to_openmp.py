@@ -88,7 +88,7 @@ class ConvertParallel(RewritePattern):
             new_ops = [loop.body.block.detach_op(o) for o in loop.body.block.ops]
             new_ops.pop()
         scope.scope.block.insert_ops_before(new_ops, scope_terminator)
-        # rewriter.insert_op_before(new_ops scope_terminator)
+
         rewriter.replace_matched_op(parallel)
 
 
