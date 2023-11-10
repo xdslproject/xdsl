@@ -1,4 +1,8 @@
 // RUN: xdsl-opt -p convert-scf-to-openpm %s | filecheck %s
+// RUN: xdsl-opt -p "convert-scf-to-openpm{nested=true}" %s | filecheck %s --check-prefix NESTED
+// RUN: xdsl-opt -p "convert-scf-to-openpm{collapse=1}" %s | filecheck %s --check-prefix COLLAPSE
+// RUN: xdsl-opt -p "convert-scf-to-openpm{schedule=dynamic}" %s | filecheck %s --check-prefix DYNAMIC
+// RUN: xdsl-opt -p "convert-scf-to-openpm{chunk=4}" %s | filecheck %s --check-prefix CHUNK
 
 builtin.module {
   func.func @parallel(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : index, %arg4 : index, %arg5 : index) {
@@ -25,6 +29,56 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
+// COLLAPSE:         func.func @parallel(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
+// COLLAPSE-NEXT:      "omp.parallel"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0, 0>}> ({
+// COLLAPSE-NEXT:        "omp.wsloop"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0, 0, 0>}> ({
+// COLLAPSE-NEXT:        ^{{.*}}(%{{.*}} : index):
+// COLLAPSE-NEXT:          "memref.alloca_scope"() ({
+// COLLAPSE-NEXT:            "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
+// COLLAPSE-NEXT:            ^{{.*}}(%{{.*}} : index):
+// COLLAPSE-NEXT:              "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
+// COLLAPSE-NEXT:              scf.yield
+// COLLAPSE-NEXT:            }) : (index, index, index) -> ()
+// COLLAPSE-NEXT:            "memref.alloca_scope.return"() : () -> ()
+// COLLAPSE-NEXT:          }) : () -> ()
+// COLLAPSE-NEXT:          omp.yield
+// COLLAPSE-NEXT:        }) : (index, index, index) -> ()
+// COLLAPSE-NEXT:        "omp.terminator"() : () -> ()
+// COLLAPSE-NEXT:      }) : () -> ()
+// COLLAPSE-NEXT:      func.return
+// COLLAPSE-NEXT:    }
+
+// DYNAMIC:         func.func @parallel(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
+// DYNAMIC-NEXT:      "omp.parallel"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0, 0>}> ({
+// DYNAMIC-NEXT:        "omp.wsloop"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0, 0, 0, 0>, "schedule_val" = #omp<schedulekind dynamic>}> ({
+// DYNAMIC-NEXT:        ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
+// DYNAMIC-NEXT:          "memref.alloca_scope"() ({
+// DYNAMIC-NEXT:            "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
+// DYNAMIC-NEXT:            "memref.alloca_scope.return"() : () -> ()
+// DYNAMIC-NEXT:          }) : () -> ()
+// DYNAMIC-NEXT:          omp.yield
+// DYNAMIC-NEXT:        }) : (index, index, index, index, index, index) -> ()
+// DYNAMIC-NEXT:        "omp.terminator"() : () -> ()
+// DYNAMIC-NEXT:      }) : () -> ()
+// DYNAMIC-NEXT:      func.return
+// DYNAMIC-NEXT:    }
+
+// CHUNK:         func.func @parallel(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
+// CHUNK-NEXT:      "omp.parallel"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0, 0>}> ({
+// CHUNK-NEXT:        %{{.*}} = arith.constant 4 : index
+// CHUNK-NEXT:        "omp.wsloop"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0, 0, 0, 1>, "schedule_val" = #omp<schedulekind static>}> ({
+// CHUNK-NEXT:        ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
+// CHUNK-NEXT:          "memref.alloca_scope"() ({
+// CHUNK-NEXT:            "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
+// CHUNK-NEXT:            "memref.alloca_scope.return"() : () -> ()
+// CHUNK-NEXT:          }) : () -> ()
+// CHUNK-NEXT:          omp.yield
+// CHUNK-NEXT:        }) : (index, index, index, index, index, index, index) -> ()
+// CHUNK-NEXT:        "omp.terminator"() : () -> ()
+// CHUNK-NEXT:      }) : () -> ()
+// CHUNK-NEXT:      func.return
+// CHUNK-NEXT:    }
+
   func.func @nested_loops(%arg0_1 : index, %arg1_1 : index, %arg2_1 : index, %arg3_1 : index, %arg4_1 : index, %arg5_1 : index) {
     "scf.parallel"(%arg0_1, %arg2_1, %arg4_1) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
     ^1(%arg6_1 : index):
@@ -38,22 +92,16 @@ builtin.module {
     func.return
   }
 
-// CHECK:         func.func @nested_loops(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
+// CHECK-NEXT:    func.func @nested_loops(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
 // CHECK-NEXT:      "omp.parallel"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0, 0>}> ({
 // CHECK-NEXT:        "omp.wsloop"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0, 0, 0>}> ({
 // CHECK-NEXT:        ^{{.*}}(%{{.*}} : index):
 // CHECK-NEXT:          "memref.alloca_scope"() ({
-// CHECK-NEXT:            "omp.parallel"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0, 0>}> ({
-// CHECK-NEXT:              "omp.wsloop"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0, 0, 0>}> ({
-// CHECK-NEXT:              ^{{.*}}(%{{.*}} : index):
-// CHECK-NEXT:                "memref.alloca_scope"() ({
-// CHECK-NEXT:                  "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
-// CHECK-NEXT:                  "memref.alloca_scope.return"() : () -> ()
-// CHECK-NEXT:                }) : () -> ()
-// CHECK-NEXT:                omp.yield
-// CHECK-NEXT:              }) : (index, index, index) -> ()
-// CHECK-NEXT:              "omp.terminator"() : () -> ()
-// CHECK-NEXT:            }) : () -> ()
+// CHECK-NEXT:            "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
+// CHECK-NEXT:            ^{{.*}}(%{{.*}} : index):
+// CHECK-NEXT:              "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
+// CHECK-NEXT:              scf.yield
+// CHECK-NEXT:            }) : (index, index, index) -> ()
 // CHECK-NEXT:            "memref.alloca_scope.return"() : () -> ()
 // CHECK-NEXT:          }) : () -> ()
 // CHECK-NEXT:          omp.yield
@@ -62,6 +110,31 @@ builtin.module {
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
+
+// NESTED:         func.func @nested_loops(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
+// NESTED-NEXT:      "omp.parallel"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0, 0>}> ({
+// NESTED-NEXT:        "omp.wsloop"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0, 0, 0>}> ({
+// NESTED-NEXT:        ^{{.*}}(%{{.*}} : index):
+// NESTED-NEXT:          "memref.alloca_scope"() ({
+// NESTED-NEXT:            "omp.parallel"() <{"operandSegmentSizes" = array<i32: 0, 0, 0, 0, 0>}> ({
+// NESTED-NEXT:              "omp.wsloop"(%{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0, 0, 0>}> ({
+// NESTED-NEXT:              ^{{.*}}(%{{.*}} : index):
+// NESTED-NEXT:                "memref.alloca_scope"() ({
+// NESTED-NEXT:                  "test.op"(%{{.*}}, %{{.*}}) : (index, index) -> ()
+// NESTED-NEXT:                  "memref.alloca_scope.return"() : () -> ()
+// NESTED-NEXT:                }) : () -> ()
+// NESTED-NEXT:                omp.yield
+// NESTED-NEXT:              }) : (index, index, index) -> ()
+// NESTED-NEXT:              "omp.terminator"() : () -> ()
+// NESTED-NEXT:            }) : () -> ()
+// NESTED-NEXT:            "memref.alloca_scope.return"() : () -> ()
+// NESTED-NEXT:          }) : () -> ()
+// NESTED-NEXT:          omp.yield
+// NESTED-NEXT:        }) : (index, index, index) -> ()
+// NESTED-NEXT:        "omp.terminator"() : () -> ()
+// NESTED-NEXT:      }) : () -> ()
+// NESTED-NEXT:      func.return
+// NESTED-NEXT:    }
 
   func.func @adjacent_loops(%arg0_2 : index, %arg1_2 : index, %arg2_2 : index, %arg3_2 : index, %arg4_2 : index, %arg5_2 : index) {
     "scf.parallel"(%arg0_2, %arg2_2, %arg4_2) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
