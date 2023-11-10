@@ -1,6 +1,6 @@
 # SelectionList
 #passes_selection_list {
-    margin: 1 0 0 1;
+    margin: 1 1 0 1;
     border: heavy $warning-lighten-1;
     # border: heavy $accent;
     border-title-color: $primary;
@@ -12,7 +12,7 @@
 
 # ScrollableContainer(Label)
 #selected_passes {
-    margin: 1 0 0 1;
+    margin: 1 1 0 1;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
     # grid-columns: 75% 25%;
