@@ -65,7 +65,7 @@ class InputApp(App[None]):
     input_text_area = TextArea(id="input")
     output_text_area = OutputTextArea(id="output")
 
-    list_of_passes = get_all_passes()
+    list_of_passes = tuple(get_all_passes())
     """Contains the list of xDSL passes."""
 
     passes_selection_list: SelectionList[type[ModulePass]] = SelectionList(
