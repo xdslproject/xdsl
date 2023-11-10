@@ -25,7 +25,7 @@ class ConvertParallel(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, loop: scf.ParallelOp, rewriter: PatternRewriter, /):
         if len(loop.initVals) > 0:
-            # TODO
+            # TODO Implement reduction, see https://github.com/xdslproject/xdsl/issues/1776
             return
 
         collapse = self.collapse
@@ -96,6 +96,7 @@ class ConvertParallel(RewritePattern):
 class ConvertScfToOpenMPPass(ModulePass):
     """
     Convert `scf.parallel` loops to `omp.wsloop` constructs for parallel execution.
+    It currently does not support reduction.
 
     Arguments (all optional):
 
