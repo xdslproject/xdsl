@@ -187,6 +187,8 @@ class InputApp(App[None]):
     def on_clear_input_button_pressed(self, event: Button.Pressed) -> None:
         """When the "Clear Input" button is pressed, the input IR TextArea is cleared and the current_module is updated"""
         self.input_text_area.clear()
+        # clear the label displaying the query
+        self.query_label.update("")
 
     @on(Button.Pressed, "#copy_output_button")
     def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
