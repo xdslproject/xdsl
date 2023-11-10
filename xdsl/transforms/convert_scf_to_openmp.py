@@ -102,6 +102,28 @@ class ConvertParallel(RewritePattern):
 
 @dataclass
 class ConvertScfToOpenMPPass(ModulePass):
+    """
+    Convert `scf.parallel` loops to `omp.wsloop` constructs for parallel execution.
+
+    Arguments (all optional):
+
+    - collapse : int: specify a positive number of loops to collapse. By default, the
+    full dimensionality of converted parallel loops is collapsed. This argument
+    allows to take a 2D loop and only OMPize the first dimension, for example.
+
+    - nested: bool: Set this to true to convert nested parallel loops. This is
+    rarely a good idea, and is disabled by default. Note that setting it to true mimics
+    MLIR's convert-scf-to-openmp.
+
+    - schedule: {"static", "dynamic", "auto"}: Set the schedule used by the OMP loop.
+    By default, none is set, leaving the decision to MLIR's omp lowering. At the time
+    of writing, this means static.
+
+    - chunk: int: Set the chunk size used by the OMP loop. By default, none is set.
+    Note that the OMP dialect does not support setting a chunk size without a schedule;
+    Thus selecting a chunk size without a schedule will use the static schedule.
+    """
+
     name = "convert-scf-to-openpm"
 
     collapse: int | None = None
