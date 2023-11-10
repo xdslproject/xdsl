@@ -92,12 +92,19 @@ async def test_buttons_and_passes():
         }
         """
         )
+
+        # select a pass
+        app.passes_selection_list.select(
+            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass
+        )
+
         # press clear input button
         await pilot.click("#clear_input_button")
 
         # assert that the curent_module and test_module's are structurally equivalent
         await pilot.pause()
         assert app.input_text_area.text == ""
+        assert app.passes_selection_list.selected == []
 
         # Testing a pass
         app.input_text_area.insert(
