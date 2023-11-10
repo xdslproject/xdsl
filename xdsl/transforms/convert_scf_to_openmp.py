@@ -15,14 +15,6 @@ from xdsl.pattern_rewriter import (
 )
 
 
-class ConvertYield(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: scf.Yield, rewriter: PatternRewriter, /):
-        if not isinstance(op.parent_op(), omp.WsLoopOp):
-            return
-        rewriter.replace_matched_op(omp.YieldOp(*op.operands))
-
-
 @dataclass
 class ConvertParallel(RewritePattern):
     collapse: int | None
@@ -135,7 +127,6 @@ class ConvertScfToOpenMPPass(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertYield(),
                     ConvertParallel(
                         self.collapse, self.nested, self.schedule, self.chunk
                     ),
