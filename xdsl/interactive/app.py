@@ -3,7 +3,8 @@ An interactive command-line tool to explore compilation pipeline construction.
 
 Execute `xdsl-gui` in your terminal to run it.
 
-Run `terminal -m xdsl.interactive.app:InputApp --def` to run in development mode. Please be sure to install `textual-dev` to run this command.
+Run `terminal -m xdsl.interactive.app:InputApp --def` to run in development mode. Please
+be sure to install `textual-dev` to run this command.
 """
 
 from io import StringIO
@@ -17,12 +18,13 @@ from textual.widgets import Button, Footer, Label, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.interactive._pasteboard import pyclip_copy
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+
+from ._pasteboard import pyclip_copy
 
 
 class OutputTextArea(TextArea):
@@ -56,7 +58,8 @@ class InputApp(App[None]):
 
     current_module = reactive[ModuleOp | Exception | None](None)
     """
-    Reactive variable used to save the current state of the modified Input TextArea (i.e. is the Output TextArea)
+    Reactive variable used to save the current state of the modified Input TextArea
+    (i.e. is the Output TextArea)
     """
 
     input_text_area = TextArea(id="input")
@@ -75,7 +78,8 @@ class InputApp(App[None]):
     def compose(self) -> ComposeResult:
         """
         Creates the required widgets, events, etc.
-        Get the list of xDSL passes, add them to an array in "Selection" format (so it can be added to a Selection List)
+        Get the list of xDSL passes, add them to an array in "Selection" format (so it
+        can be added to a Selection List)
         and sort the list in alphabetical order.
         """
 
@@ -121,8 +125,8 @@ class InputApp(App[None]):
 
     def watch_current_module(self):
         """
-        Function called when the current_module reactive variable is updated. This function updates
-        the Output TextArea.
+        Function called when the current_module reactive variable is updated. This
+        function updates the Output TextArea.
         """
         match self.current_module:
             case None:
@@ -169,8 +173,8 @@ class InputApp(App[None]):
         self.exit()
 
     @on(Button.Pressed, "#clear_input_button")
-    def on_clear_input_button_pressed(self, event: Button.Pressed) -> None:
-        """When the "Clear Input" button is pressed, the input IR TextArea is cleared and the current_module is updated"""
+    def clear_input(self, event: Button.Pressed) -> None:
+        """Input TextArea is cleared when "Clear Input" button is pressed"""
         self.input_text_area.clear()
 
     @on(Button.Pressed, "#copy_output_button")
