@@ -13,7 +13,7 @@ from xdsl.utils.exceptions import ParseError
 
 
 @pytest.mark.asyncio()
-async def tests_interactive():
+async def tests_input():
     """Test pressing keys has the desired result."""
     async with InputApp().run_test() as pilot:
         pilot: Pilot[None] = pilot
