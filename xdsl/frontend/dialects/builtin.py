@@ -149,7 +149,7 @@ class _Index(_FrontendType):
 
     @staticmethod
     def to_xdsl() -> Callable[..., Any]:
-        return builtin.IndexType
+        return lambda: builtin.IndexType
 
 
 # Type alias for index type.
@@ -164,7 +164,7 @@ class _Float16(_FrontendType):
 
     @staticmethod
     def to_xdsl() -> Callable[..., Any]:
-        return builtin.Float16Type
+        return lambda: builtin.Float16Type
 
     def __add__(self, other: f16) -> f16:
         from xdsl.frontend.dialects.arith import addf
@@ -190,7 +190,7 @@ class _Float32(_FrontendType):
 
     @staticmethod
     def to_xdsl() -> Callable[..., Any]:
-        return builtin.Float32Type
+        return lambda: builtin.Float32Type
 
     def __add__(self, other: f32) -> f32:
         from xdsl.frontend.dialects.arith import addf
@@ -216,7 +216,7 @@ class _Float64(_FrontendType):
 
     @staticmethod
     def to_xdsl() -> Callable[..., Any]:
-        return builtin.Float64Type
+        return lambda: builtin.Float64Type
 
     def __add__(self, other: f64) -> f64:
         from xdsl.frontend.dialects.arith import addf
