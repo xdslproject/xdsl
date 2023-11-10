@@ -69,9 +69,17 @@ class MLContext:
 
     allow_unregistered: bool = field(default=False)
 
-    _loaded_dialects: dict[str, Dialect] = field(init=False, default_factory=dict)
-    _loaded_ops: dict[str, type[Operation]] = field(init=False, default_factory=dict)
-    _loaded_attrs: dict[str, type[Attribute]] = field(init=False, default_factory=dict)
+    _loaded_dialects: dict[str, Dialect] = field(default_factory=dict)
+    _loaded_ops: dict[str, type[Operation]] = field(default_factory=dict)
+    _loaded_attrs: dict[str, type[Attribute]] = field(default_factory=dict)
+
+    def clone(self) -> MLContext:
+        return MLContext(
+            self.allow_unregistered,
+            self._loaded_dialects.copy(),
+            self._loaded_ops.copy(),
+            self._loaded_attrs.copy(),
+        )
 
     @property
     def loaded_ops(self) -> Iterable[type[Operation]]:
