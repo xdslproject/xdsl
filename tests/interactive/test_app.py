@@ -11,7 +11,7 @@ from xdsl.utils.exceptions import ParseError
 
 
 @pytest.mark.asyncio()
-async def test_input():
+async def test_input_and_buttons():
     """Test pressing keys has the desired result."""
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
@@ -70,14 +70,8 @@ async def test_input():
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
 
-
-@pytest.mark.asyncio()
-async def test_buttons():
-    """Test pressing keys has the desired result."""
-    async with InputApp().run_test() as pilot:
-        app = cast(InputApp, pilot.app)
-
         # Test clicking the "clear input" button
+        app.input_text_area.clear()
         app.input_text_area.insert(
             """
         func.func @hello(%n : index) -> index {
@@ -88,7 +82,16 @@ async def test_buttons():
         """
         )
         await pilot.pause()
-        assert app.input_text_area.text != ""
+        assert (
+            app.input_text_area.text
+            == """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
+        )
         await pilot.click("#clear_input_button")
         # assert that the curent_module and test_module's are structurally equivalent
         await pilot.pause()
