@@ -119,6 +119,8 @@ class InputApp(App[None]):
         except Exception as e:
             self.current_module = e
 
+        self.watch_current_module()
+
     def watch_current_module(self):
         """
         Function called when the current_module reactive variable is updated. This function updates
