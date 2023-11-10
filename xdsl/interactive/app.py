@@ -119,7 +119,7 @@ class InputApp(App[None]):
         """
         Function called when the Input TextArea is changed or a pass is selected/
         unselected. This function parses the Input IR, applies selected passes and
-        updates
+        updates the Output TextArea.
         """
         input_text = self.input_text_area.text
         selected_passes = self.passes_selection_list.selected
@@ -135,8 +135,6 @@ class InputApp(App[None]):
             self.current_module = module
         except Exception as e:
             self.current_module = e
-
-        self.watch_current_module()
 
     def watch_current_module(self):
         """
@@ -174,8 +172,7 @@ class InputApp(App[None]):
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
         # aids in the construction of the seleciton list containing all the passes
-        selections = [(value.name, value) for value in self.list_of_passes]
-        selections.sort()
+        selections = sorted((value.name, value) for value in self.list_of_passes)
         self.passes_selection_list.add_options(  # pyright: ignore[reportUnknownMemberType]
             selections
         )
@@ -192,8 +189,6 @@ class InputApp(App[None]):
     def on_clear_input_button_pressed(self, event: Button.Pressed) -> None:
         """When the "Clear Input" button is pressed, the input IR TextArea is cleared and the current_module is updated"""
         self.input_text_area.clear()
-        # clear the label displaying the query
-        self.query_label.update("")
 
     @on(Button.Pressed, "#copy_output_button")
     def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
