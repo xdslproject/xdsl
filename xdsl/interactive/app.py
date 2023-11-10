@@ -26,6 +26,9 @@ from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
 from ._pasteboard import pyclip_copy
 
+available_passes = tuple(get_all_passes())
+"""Contains the list of xDSL passes."""
+
 
 class OutputTextArea(TextArea):
     """Used to prevent users from being able to change/alter the Output TextArea"""
@@ -64,9 +67,6 @@ class InputApp(App[None]):
 
     input_text_area = TextArea(id="input")
     output_text_area = OutputTextArea(id="output")
-
-    list_of_passes = get_all_passes()
-    """Contains the list of xDSL passes."""
 
     query_label = Label("", id="selected_passes_label")
     """Display's user selected passes"""
@@ -161,7 +161,7 @@ class InputApp(App[None]):
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
         # aids in the construction of the seleciton list containing all the passes
-        selections = sorted((value.name, value) for value in self.list_of_passes)
+        selections = sorted((value.name, value) for value in available_passes)
         self.passes_selection_list.add_options(  # pyright: ignore[reportUnknownMemberType]
             selections
         )
