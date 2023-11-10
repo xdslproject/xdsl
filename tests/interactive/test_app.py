@@ -92,18 +92,12 @@ async def test_buttons_and_passes():
         """
         )
 
-        # select a pass
-        app.passes_selection_list.select(
-            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass
-        )
-
         # press clear input button
         await pilot.click("#clear_input_button")
 
         # assert that the curent_module and test_module's are structurally equivalent
         await pilot.pause()
         assert app.input_text_area.text == ""
-        assert app.passes_selection_list.selected == []
 
         # Testing a pass
         app.input_text_area.insert(
@@ -116,8 +110,28 @@ async def test_buttons_and_passes():
         """
         )
         await pilot.pause()
-        assert app.input_text_area != ""
-
+        assert (
+            app.input_text_area.text
+            == """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
+        )
+        await pilot.pause()
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : index) -> index {
+    %two = arith.constant 2 : index
+    %res = arith.muli %n, %two : index
+    func.return %res : index
+  }
+}
+"""
+        )
         # Select a pass
         app.passes_selection_list.select(
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass
@@ -126,7 +140,6 @@ async def test_buttons_and_passes():
         await pilot.pause()
         assert app.output_text_area != app.input_text_area
         assert str(app.current_module) != "No input"
-        await pilot.pause()
         assert (
             app.output_text_area.text
             == """builtin.module {
@@ -143,6 +156,5 @@ async def test_buttons_and_passes():
       riscv_func.return %2 : !riscv.reg<a0>
     }
   }
-}
-"""
+}\n"""
         )
