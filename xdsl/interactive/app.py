@@ -11,7 +11,7 @@ from io import StringIO
 from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, ScrollableContainer, Vertical
+from textual.containers import Horizontal, ScrollableContainer, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.widgets import Button, Footer, Label, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
@@ -81,8 +81,11 @@ class InputApp(App[None]):
 
         with Horizontal(id="selected_passes_and_list_horizontal"):
             yield self.passes_selection_list
-            with Horizontal(id="copy_query"):
-                yield Button("Copy Query", id="copy_query_button")
+            with VerticalScroll(id="buttons_and_selection_list"):
+                with Horizontal(id="clear_selection_list"):
+                    yield Button("Clear Passes", id="clear_selection_list_button")
+                with Horizontal(id="copy_query"):
+                    yield Button("Copy Query", id="copy_query_button")
             with ScrollableContainer(id="selected_passes"):
                 yield self.query_label
 
@@ -109,8 +112,8 @@ class InputApp(App[None]):
         )
         new_label = f"xdsl-opt -p {new_passes}"
         self.query_one(Label).update(new_label)
-        self.update_current_module()
 
+    @on(SelectionList.SelectedChanged)
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
@@ -196,6 +199,11 @@ class InputApp(App[None]):
     def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
         """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
         pyclip_copy(self.output_text_area.text)
+
+    @on(Button.Pressed, "#clear_selection_list_button")
+    def on_clear_selection_list_button_pressed(self, event: Button.Pressed) -> None:
+        """When the "Clear Passes" button is preseed, the SelectionList is cleared"""
+        self.passes_selection_list.deselect_all()
 
     @on(Button.Pressed, "#copy_query_button")
     def on_copy_query_button_pressed(self, event: Button.Pressed) -> None:
