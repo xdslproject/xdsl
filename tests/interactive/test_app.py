@@ -13,7 +13,7 @@ from xdsl.utils.exceptions import ParseError
 
 
 @pytest.mark.asyncio()
-async def tests_input():
+async def test_input():
     """Test pressing keys has the desired result."""
     async with InputApp().run_test() as pilot:
         pilot: Pilot[None] = pilot
@@ -70,7 +70,6 @@ async def tests_input():
                 res = arith.Muli(n, two)
                 func.Return(res)
 
-        await pilot.pause()
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
 

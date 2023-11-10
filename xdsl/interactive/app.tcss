@@ -2,7 +2,6 @@
 #passes_selection_list {
     margin: 1 1 1 1;
     border: heavy $warning-lighten-1;
-    # border: heavy $accent;
     border-title-color: $primary;
     border-title-align: center;
     width: 100%;
@@ -24,7 +23,6 @@
     border-title-color: $primary;
     border-title-align: center;
 }
-
 
 # Horizontal(Button)
 #copy_output{
