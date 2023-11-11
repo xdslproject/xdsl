@@ -185,7 +185,7 @@ class InputApp(App[None]):
         pyclip_copy(self.output_text_area.text)
 
     @on(Button.Pressed, "#copy_query_button")
-    def on_copy_query_button_pressed(self, event: Button.Pressed) -> None:
+    def copy_query(self, event: Button.Pressed) -> None:
         """When the "Copy Query" button is preseed, the selected passes/query is copied"""
         selected_passes = "\n" + (", " + "\n").join(
             p.name for p in self.passes_selection_list.selected
