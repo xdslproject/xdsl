@@ -170,7 +170,7 @@ class InputApp(App[None]):
         self.input_text_area.clear()
 
     @on(Button.Pressed, "#copy_output_button")
-    def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
+    def copy_output(self, event: Button.Pressed) -> None:
         """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
         pyclip_copy(self.output_text_area.text)
 
