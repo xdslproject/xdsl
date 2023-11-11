@@ -4,7 +4,8 @@ from itertools import chain
 from ordered_set import OrderedSet
 
 from xdsl.backend.riscv.register_queue import RegisterQueue
-from xdsl.dialects import riscv_func, riscv_scf
+from xdsl.dialects import riscv_func, riscv_scf, snitch_stream
+from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
 from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
@@ -29,6 +30,16 @@ def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
                     allocated.add(param.type)
 
     return allocated
+
+
+def _uses_snitch_stream(func: riscv_func.FuncOp) -> bool:
+    """Utility method to detect use of read/write ops of the `snitch_stream` dialect."""
+
+    for op in func.walk():
+        if isinstance(op, snitch_stream.StridedReadOp | snitch_stream.StridedWriteOp):
+            return True
+
+    return False
 
 
 class RegisterAllocator(abc.ABC):
@@ -73,6 +84,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
 
     exclude_preallocated: bool = True
+    exclude_snitch_reserved: bool = True
 
     def __init__(self) -> None:
         self.available_registers = RegisterQueue()
@@ -188,17 +200,22 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."
             )
 
+        preallocated: set[RISCVRegisterType] = set()
+
         if self.exclude_preallocated:
-            preallocated = gather_allocated(func)
+            preallocated |= gather_allocated(func)
 
-            for pa_reg in preallocated:
-                if isinstance(pa_reg, IntRegisterType | FloatRegisterType):
-                    self.available_registers.reserved_registers.add(pa_reg)
+        if self.exclude_snitch_reserved and _uses_snitch_stream(func):
+            preallocated |= get_snitch_reserved()
 
-                if pa_reg in self.available_registers.available_int_registers:
-                    self.available_registers.available_int_registers.remove(pa_reg)
-                if pa_reg in self.available_registers.available_float_registers:
-                    self.available_registers.available_float_registers.remove(pa_reg)
+        for pa_reg in preallocated:
+            if isinstance(pa_reg, IntRegisterType | FloatRegisterType):
+                self.available_registers.reserved_registers.add(pa_reg)
+
+            if pa_reg in self.available_registers.available_int_registers:
+                self.available_registers.available_int_registers.remove(pa_reg)
+            if pa_reg in self.available_registers.available_float_registers:
+                self.available_registers.available_float_registers.remove(pa_reg)
 
         block = func.body.block
 
