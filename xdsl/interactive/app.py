@@ -195,7 +195,7 @@ class InputApp(App[None]):
         self.input_text_area.clear()
 
     @on(Button.Pressed, "#copy_output_button")
-    def on_copy_output_button_pressed(self, event: Button.Pressed) -> None:
+    def copy_output(self, event: Button.Pressed) -> None:
         """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
         pyclip_copy(self.output_text_area.text)
 
@@ -205,7 +205,7 @@ class InputApp(App[None]):
         self.passes_selection_list.deselect_all()
 
     @on(Button.Pressed, "#copy_query_button")
-    def on_copy_query_button_pressed(self, event: Button.Pressed) -> None:
+    def copy_query(self, event: Button.Pressed) -> None:
         """When the "Copy Query" button is preseed, the selected passes/query is copied"""
         selected_passes = "\n" + (", " + "\n").join(
             p.name for p in self.passes_selection_list.selected
