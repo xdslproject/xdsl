@@ -200,7 +200,7 @@ class InputApp(App[None]):
         pyclip_copy(self.output_text_area.text)
 
     @on(Button.Pressed, "#clear_selection_list_button")
-    def on_clear_selection_list_button_pressed(self, event: Button.Pressed) -> None:
+    def clear_selection_list(self, event: Button.Pressed) -> None:
         """When the "Clear Passes" button is preseed, the SelectionList is cleared"""
         self.passes_selection_list.deselect_all()
 
