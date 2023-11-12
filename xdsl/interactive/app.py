@@ -148,10 +148,12 @@ class InputApp(App[None]):
         self.query_one("#output_container").border_title = "Output xDSL IR"
         self.query_one(
             "#passes_selection_list"
-        ).border_title = "Choose a pass or multiplepasses to be applied."
+        ).border_title = "Choose a pass or multiple passes to be applied."
 
         # aids in the construction of the seleciton list containing all the passes
         selections = sorted((value.name, value) for value in available_passes)
+
+        # type error due to Textual Bug requires pyright ignore
         self.passes_selection_list.add_options(  # pyright: ignore[reportUnknownMemberType]
             selections
         )
