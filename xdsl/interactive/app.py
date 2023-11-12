@@ -3,7 +3,8 @@ An interactive command-line tool to explore compilation pipeline construction.
 
 Execute `xdsl-gui` in your terminal to run it.
 
-Run `terminal -m xdsl.interactive.app:InputApp --def` to run in development mode. Please be sure to install `textual-dev` to run this command.
+Run `terminal -m xdsl.interactive.app:InputApp --def` to run in development mode. Please
+be sure to install `textual-dev` to run this command.
 """
 
 from io import StringIO
@@ -13,7 +14,7 @@ from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widgets import Footer, TextArea
+from textual.widgets import Button, Footer, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
@@ -52,9 +53,10 @@ class InputApp(App[None]):
         },
     )
 
-    current_module: reactive[ModuleOp | Exception | None] = reactive(None)
+    current_module = reactive[ModuleOp | Exception | None](None)
     """
-    Reactive variable used to save the current state of the modified Input TextArea (i.e. is the Output TextArea)
+    Reactive variable used to save the current state of the modified Input TextArea
+    (i.e. is the Output TextArea)
     """
 
     input_text_area = TextArea(id="input")
@@ -63,13 +65,16 @@ class InputApp(App[None]):
     def compose(self) -> ComposeResult:
         """
         Creates the required widgets, events, etc.
-        Get the list of xDSL passes, add them to an array in "Selection" format (so it can be added to a Selection List)
+        Get the list of xDSL passes, add them to an array in "Selection" format (so it
+        can be added to a Selection List)
         and sort the list in alphabetical order.
         """
 
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
+                with Horizontal(id="clear_input"):
+                    yield Button("Clear Input", id="clear_input_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
         yield Footer()
@@ -77,8 +82,8 @@ class InputApp(App[None]):
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
-        Function called when the Input TextArea is cahnged. This function parses the Input IR and updates
-        the current_module reactive variable.
+        Function called when the Input TextArea is cahnged. This function parses the Input
+        IR and updates the current_module reactive variable.
         """
         input_text = self.input_text_area.text
         try:
@@ -93,8 +98,8 @@ class InputApp(App[None]):
 
     def watch_current_module(self):
         """
-        Function called when the current_module reactive variable is updated. This function updates
-        the Output TextArea.
+        Function called when the current_module reactive variable is updated. This
+        function updates the Output TextArea.
         """
         match self.current_module:
             case None:
@@ -129,6 +134,11 @@ class InputApp(App[None]):
     def action_quit_app(self) -> None:
         """An action to quit the app."""
         self.exit()
+
+    @on(Button.Pressed, "#clear_input_button")
+    def clear_input(self, event: Button.Pressed) -> None:
+        """Input TextArea is cleared when "Clear Input" button is pressed"""
+        self.input_text_area.clear()
 
 
 def main():
