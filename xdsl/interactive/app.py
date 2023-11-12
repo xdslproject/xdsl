@@ -23,6 +23,8 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects
 
+from ._pasteboard import pyclip_copy
+
 
 class OutputTextArea(TextArea):
     """Used to prevent users from being able to change/alter the Output TextArea"""
@@ -77,6 +79,8 @@ class InputApp(App[None]):
                     yield Button("Clear Input", id="clear_input_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
+                with Horizontal(id="copy_output"):
+                    yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
     @on(TextArea.Changed, "#input")
@@ -139,6 +143,11 @@ class InputApp(App[None]):
     def clear_input(self, event: Button.Pressed) -> None:
         """Input TextArea is cleared when "Clear Input" button is pressed"""
         self.input_text_area.clear()
+
+    @on(Button.Pressed, "#copy_output_button")
+    def copy_output(self, event: Button.Pressed) -> None:
+        """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
+        pyclip_copy(self.output_text_area.text)
 
 
 def main():

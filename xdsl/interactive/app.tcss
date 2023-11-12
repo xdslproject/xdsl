@@ -14,6 +14,14 @@
     border-title-align: center;
 }
 
+
+# Horizontal(Button)
+#copy_output{
+    height: 3;
+    overflow: hidden;
+    text-opacity: 60%;
+}
+
 # Vertical(OutputTextArea)
 #output_container {
     margin: 1;
