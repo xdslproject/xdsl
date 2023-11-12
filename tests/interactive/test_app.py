@@ -93,6 +93,5 @@ async def test_input_and_buttons():
         """
         )
         await pilot.click("#clear_input_button")
-        # assert that the curent_module and test_module's are structurally equivalent
         await pilot.pause()
         assert app.input_text_area.text == ""
