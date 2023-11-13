@@ -3,7 +3,8 @@ An interactive command-line tool to explore compilation pipeline construction.
 
 Execute `xdsl-gui` in your terminal to run it.
 
-Run `terminal -m xdsl.interactive.app:InputApp --def` to run in development mode. Please
+Run `terminal -m xdsl.interactive.app:InputApp --dev` to run in development mode. Please
+
 be sure to install `textual-dev` to run this command.
 """
 
@@ -26,7 +27,7 @@ from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
 from ._pasteboard import pyclip_copy
 
-available_passes = tuple(get_all_passes())
+ALL_PASSES = tuple(get_all_passes())
 """Contains the list of xDSL passes."""
 
 
@@ -65,15 +66,19 @@ class InputApp(App[None]):
     (i.e. is the Output TextArea)
     """
 
-    input_text_area = TextArea(id="input")
-    output_text_area = OutputTextArea(id="output")
+    input_text_area: TextArea
+    output_text_area: OutputTextArea
+    passes_selection_list: SelectionList[type[ModulePass]]
 
-    query_label = Label("", id="selected_passes_label")
-    """Display's user selected passes"""
+    selected_query_label: Label
+    """Display selected passes"""
 
-    passes_selection_list: SelectionList[type[ModulePass]] = SelectionList(
-        id="passes_selection_list"
-    )
+    def __init__(self):
+        self.input_text_area = TextArea(id="input")
+        self.output_text_area = OutputTextArea(id="output")
+        self.passes_selection_list = SelectionList(id="passes_selection_list")
+        self.selected_query_label = Label("", id="selected_passes_label")
+        super().__init__()
 
     def compose(self) -> ComposeResult:
         """
@@ -91,8 +96,7 @@ class InputApp(App[None]):
                 with Horizontal(id="copy_query"):
                     yield Button("Copy Query", id="copy_query_button")
             with ScrollableContainer(id="selected_passes"):
-                yield self.query_label
-
+                yield self.selected_query_label
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
@@ -102,7 +106,6 @@ class InputApp(App[None]):
                 yield self.output_text_area
                 with Horizontal(id="copy_output"):
                     yield Button("Copy Output", id="copy_output_button")
-
         yield Footer()
 
     @on(SelectionList.SelectedChanged)
@@ -172,11 +175,13 @@ class InputApp(App[None]):
         self.query_one("#output_container").border_title = "Output xDSL IR"
         self.query_one(
             "#passes_selection_list"
-        ).border_title = "Choose a pass or multiplepasses to be applied."
+        ).border_title = "Choose a pass or multiple passes to be applied."
         self.query_one("#selected_passes").border_title = "Selected passes/query"
-
         # aids in the construction of the seleciton list containing all the passes
-        selections = sorted((value.name, value) for value in available_passes)
+        selections = sorted((value.name, value) for value in ALL_PASSES)
+
+        # type error due to Textual Bug requires pyright ignore
+        # Link to issue: https://github.com/xdslproject/xdsl/issues/1777
         self.passes_selection_list.add_options(  # pyright: ignore[reportUnknownMemberType]
             selections
         )

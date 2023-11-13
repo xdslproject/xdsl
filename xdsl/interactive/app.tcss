@@ -1,6 +1,6 @@
 # SelectionList
 #passes_selection_list {
-    margin: 1 1 0 1;
+    margin: 1 1 1 1;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
     border-title-align: center;
@@ -32,10 +32,9 @@
 
 # ScrollableContainer(Label)
 #selected_passes {
-    margin: 1 1 0 1;
+    margin: 1 1 1 1;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
-    # grid-columns: 75% 25%;
     border-title-align: center;
     width: 100%;
     height: 100%;
@@ -57,6 +56,7 @@
     text-opacity: 60%;
 }
 
+
 # Vertical(TextArea, Horizontal(Button))
 #input_container {
     margin: 1;
@@ -64,6 +64,7 @@
     border-title-color: $primary;
     border-title-align: center;
 }
+
 
 # Horizontal(Button)
 #copy_output{
