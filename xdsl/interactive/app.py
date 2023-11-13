@@ -70,16 +70,14 @@ class InputApp(App[None]):
     output_text_area: OutputTextArea
     passes_selection_list: SelectionList[type[ModulePass]]
 
-    selected_query_label = Label("", id="selected_passes_label")
+    selected_query_label: Label
     """Display selected passes"""
 
     def __init__(self):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_selection_list = SelectionList(id="passes_selection_list")
-        self.passes_selection_list: SelectionList[type[ModulePass]] = SelectionList(
-            id="passes_selection_list"
-        )
+        self.selected_query_label = Label("", id="selected_passes_label")
         super().__init__()
 
     def compose(self) -> ComposeResult:
