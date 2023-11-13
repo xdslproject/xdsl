@@ -18,6 +18,7 @@ from textual.reactive import reactive
 from textual.widgets import Button, Footer, Label, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
@@ -28,7 +29,34 @@ from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 from ._pasteboard import pyclip_copy
 
 ALL_PASSES = tuple(get_all_passes())
+
 """Contains the list of xDSL passes."""
+
+
+def condensed_pass_list(input: builtin.ModuleOp) -> SelectionList[type[ModulePass]]:
+    """Used to check if a pass has had an effect on the IR (i.e. has changed the IR)"""
+
+    condense_selections = SelectionList[type[ModulePass]]
+
+    selections = []
+    ctx = MLContext(True)
+    for dialect in get_all_dialects():
+        ctx.load_dialect(dialect)
+    for p in ALL_PASSES:
+        item = (p.name, p)
+        try:
+            cloned_module = input.clone()
+            cloned_ctx = ctx.clone()
+            p().apply(cloned_ctx, cloned_module)
+
+            if not input.is_structurally_equivalent(cloned_module):
+                selections.append(item)  # pyright: ignore [reportUnknownMemberType]
+        except Exception:
+            selections.append(item)  # pyright: ignore [reportUnknownMemberType]
+
+    sorted(selections)
+    condense_selections.add_options(selections)
+    return condense_selections  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
 
 
 class OutputTextArea(TextArea):
@@ -60,11 +88,18 @@ class InputApp(App[None]):
         },
     )
 
-    current_module = reactive[ModuleOp | Exception | None](None)
+    current_module = reactive(SelectionList[type[ModulePass]])
     """
     Reactive variable used to save the current state of the modified Input TextArea
     (i.e. is the Output TextArea)
     """
+
+    current_pass_list = reactive(SelectionList[type[ModulePass]])
+    """
+    TO DO
+    """
+
+    condense_mode = reactive(bool)
 
     input_text_area: TextArea
     output_text_area: OutputTextArea
@@ -90,6 +125,8 @@ class InputApp(App[None]):
 
         with Horizontal(id="selected_passes_and_list_horizontal"):
             yield self.passes_selection_list
+            with Horizontal(id="condense"):
+                yield Button("Condense", id="condense_button")
             with ScrollableContainer(id="selected_passes"):
                 yield self.selected_query_label
         with Horizontal(id="input_output"):
@@ -143,7 +180,15 @@ class InputApp(App[None]):
                 Printer(output_stream).print(self.current_module)
                 output_text = output_stream.getvalue()
 
+                # calculate condensed pass list whenever current_module changes (and is a ModuleOp)
+                self.current_pass_list = condensed_pass_list(self.current_module)
+
         self.output_text_area.load_text(output_text)
+
+    def watch_current_pass_list(self):
+        if self.condense_mode:
+            self.passes_selection_list.clear_options()
+            self.passes_selection_list = self.current_pass_list
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
@@ -168,6 +213,7 @@ class InputApp(App[None]):
         self.passes_selection_list.add_options(  # pyright: ignore[reportUnknownMemberType]
             selections
         )
+        self.condense_mode = False
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
@@ -186,6 +232,16 @@ class InputApp(App[None]):
     def copy_output(self, event: Button.Pressed) -> None:
         """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
         pyclip_copy(self.output_text_area.text)
+
+    @on(Button.Pressed, "#condense_button")
+    def condense(self, event: Button.Pressed) -> None:
+        """
+        When the "Condense" button is pressed, the Pass Selection List is filtered to
+        contain only passes that have an effect on the IR
+        """
+        self.condense_mode = True
+        self.passes_selection_list.clear_options()
+        self.passes_selection_list = self.current_pass_list
 
 
 def main():
