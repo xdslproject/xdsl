@@ -94,7 +94,7 @@ class LowerStridePatternOp(RewritePattern):
             stride_op = riscv.SubOp(
                 s_ops[i], new_a_op, rd=riscv.IntRegisterType.unallocated()
             )
-            set_stride_op = snitch.SsrSetDimensionStrideOp(stride_op.rd, op.dm, ints[1])
+            set_stride_op = snitch.SsrSetDimensionStrideOp(stride_op.rd, op.dm, ints[i])
             new_ops.extend((a_inc_op, new_a_op, stride_op, set_stride_op))
             a_op = new_a_op
 
