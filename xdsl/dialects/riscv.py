@@ -3358,6 +3358,35 @@ class FSwOp(RsRsImmFloatOperation):
 
 
 @irdl_op_definition
+class FMAddDOp(RdRsRsRsFloatOperation):
+    """
+    Perform double-precision fused multiply addition.
+
+    f[rd] = f[rs1]×f[rs2]+f[rs3]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-d
+    """
+
+    name = "riscv.fmadd.d"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FMSubDOp(RdRsRsRsFloatOperation):
+    """
+    Perform double-precision fused multiply substraction.
+
+    f[rd] = f[rs1]×f[rs2]+f[rs3]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-d
+    """
+
+    name = "riscv.fmsub.d"
+
+    traits = frozenset((Pure(),))
+
+@irdl_op_definition
 class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
     Perform double-precision floating-point addition.
@@ -3540,6 +3569,31 @@ class FSdOp(RsRsImmFloatOperation):
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
+class FMvDHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMvD
+
+        return (RemoveRedundantFMvD(),)
+
+
+
+@irdl_op_definition
+class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+    """
+    A pseudo instruction to copy 64 bits of one float register to another.
+
+    Equivalent to `fsgnj.d rd, rs, rs`.
+    """
+
+    name = "riscv.fmv.d"
+
+    traits = frozenset(
+        (
+            Pure(),
+            FMVHasCanonicalizationPatternsTrait(),
+        )
+    )
 
 # endregion
 
@@ -3715,6 +3769,8 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FMAddDOp,
+        FMSubDOp,
         FAddDOp,
         FSubDOp,
         FMulDOp,
@@ -3725,6 +3781,7 @@ RISCV = Dialect(
         FCvtDWuOp,
         FLdOp,
         FSdOp,
+        FMvDOp,
         VFAddSOp,
         VFMulSOp,
     ],

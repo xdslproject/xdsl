@@ -287,6 +287,7 @@ RISCV_Snitch = Dialect(
         ScfgwiOp,
         FrepOuter,
         FrepInner,
+        FrepYieldOp,
     ],
     [],
 )
