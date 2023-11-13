@@ -3,7 +3,7 @@ An interactive command-line tool to explore compilation pipeline construction.
 
 Execute `xdsl-gui` in your terminal to run it.
 
-Run `terminal -m xdsl.interactive.app:InputApp --def` to run in development mode. Please
+Run `terminal -m xdsl.interactive.app:InputApp --dev` to run in development mode. Please
 be sure to install `textual-dev` to run this command.
 """
 
@@ -14,16 +14,20 @@ from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widgets import Button, Footer, TextArea
+from textual.widgets import Button, Footer, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
+from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import get_all_dialects
+from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
 from ._pasteboard import pyclip_copy
+
+ALL_PASSES = tuple(get_all_passes())
+"""Contains the list of xDSL passes."""
 
 
 class OutputTextArea(TextArea):
@@ -61,8 +65,16 @@ class InputApp(App[None]):
     (i.e. is the Output TextArea)
     """
 
-    input_text_area = TextArea(id="input")
-    output_text_area = OutputTextArea(id="output")
+    input_text_area: TextArea
+    output_text_area: OutputTextArea
+
+    passes_selection_list: SelectionList[type[ModulePass]]
+
+    def __init__(self):
+        self.input_text_area = TextArea(id="input")
+        self.output_text_area = OutputTextArea(id="output")
+        self.passes_selection_list = SelectionList(id="passes_selection_list")
+        super().__init__()
 
     def compose(self) -> ComposeResult:
         """
@@ -71,6 +83,8 @@ class InputApp(App[None]):
         can be added to a Selection List)
         and sort the list in alphabetical order.
         """
+
+        yield self.passes_selection_list
 
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
@@ -83,19 +97,25 @@ class InputApp(App[None]):
                     yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
+    @on(SelectionList.SelectedChanged)
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
-        Function called when the Input TextArea is cahnged. This function parses the Input
-        IR and updates the current_module reactive variable.
+        Function called when the Input TextArea is changed or a pass is selected/
+        unselected. This function parses the Input IR, applies selected passes and
+        updates the Output TextArea.
         """
         input_text = self.input_text_area.text
+        selected_passes = self.passes_selection_list.selected
+
         try:
             ctx = MLContext(True)
             for dialect in get_all_dialects():
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
+            pipeline = PipelinePass([p() for p in selected_passes])
+            pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:
             self.current_module = e
@@ -130,6 +150,18 @@ class InputApp(App[None]):
 
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
+        self.query_one(
+            "#passes_selection_list"
+        ).border_title = "Choose a pass or multiple passes to be applied."
+
+        # aids in the construction of the seleciton list containing all the passes
+        selections = sorted((value.name, value) for value in ALL_PASSES)
+
+        # type error due to Textual Bug requires pyright ignore
+        # Link to issue: https://github.com/xdslproject/xdsl/issues/1777
+        self.passes_selection_list.add_options(  # pyright: ignore[reportUnknownMemberType]
+            selections
+        )
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""

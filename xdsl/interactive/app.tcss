@@ -1,3 +1,13 @@
+# SelectionList
+#passes_selection_list {
+    margin: 1 1 1 1;
+    border: heavy $warning-lighten-1;
+    border-title-color: $primary;
+    border-title-align: center;
+    width: 100%;
+    height: 100%;
+    align: center middle;
+}
 
 # Horizontal(Button)
 #clear_input{
@@ -22,10 +32,16 @@
     text-opacity: 60%;
 }
 
-# Vertical(OutputTextArea)
+# Vertical(TextArea, Horizontal(Button))
 #output_container {
     margin: 1;
     border: heavy $warning-lighten-1;
     border-title-color: $primary;
     border-title-align: center;
+}
+
+Screen {
+    layout: grid;
+    grid-size: 1;
+    grid-rows: 45% 55%;
 }
