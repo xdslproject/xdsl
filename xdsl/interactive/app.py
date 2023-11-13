@@ -65,12 +65,17 @@ class InputApp(App[None]):
     (i.e. is the Output TextArea)
     """
 
-    input_text_area = TextArea(id="input")
-    output_text_area = OutputTextArea(id="output")
+    input_text_area: TextArea
+    output_text_area: OutputTextArea
 
-    passes_selection_list: SelectionList[type[ModulePass]] = SelectionList(
-        id="passes_selection_list"
-    )
+    passes_selection_list: SelectionList[type[ModulePass]]
+
+    def __init__(self):
+        self.input_text_area = TextArea(id="input")
+        self.output_text_area = OutputTextArea(id="output")
+
+        self.passes_selection_list = SelectionList(id="passes_selection_list")
+        super().__init__()
 
     def compose(self) -> ComposeResult:
         """

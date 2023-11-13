@@ -90,6 +90,13 @@ async def test_input_and_buttons():
         await pilot.pause()
         assert app.input_text_area.text == ""
 
+
+@pytest.mark.asyncio()
+async def test_passes():
+    """Test pressing keys has the desired result."""
+    async with InputApp().run_test() as pilot:
+        app = cast(InputApp, pilot.app)
+
         # Testing a pass
         app.input_text_area.insert(
             """
@@ -99,6 +106,20 @@ async def test_input_and_buttons():
           func.return %res : index
         }
         """
+        )
+
+        # Await on test update to make sure we only update due to pass change later
+        await pilot.pause()
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : index) -> index {
+    %two = arith.constant 2 : index
+    %res = arith.muli %n, %two : index
+    func.return %res : index
+  }
+}
+"""
         )
 
         # Select a pass
