@@ -24,6 +24,7 @@
     border-title-align: center;
 }
 
+
 # Horizontal(Button)
 #copy_output{
     height: 3;

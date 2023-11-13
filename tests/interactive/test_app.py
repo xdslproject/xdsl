@@ -100,6 +100,7 @@ async def test_input_and_buttons():
         }
         """
         )
+
         # Select a pass
         app.passes_selection_list.select(
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass
