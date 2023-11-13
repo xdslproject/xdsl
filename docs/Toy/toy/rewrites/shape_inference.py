@@ -26,9 +26,9 @@ class InferShapes(RewritePattern):
 class RemoveCastOps(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.CastOp, rewriter: PatternRewriter):
-        assert isinstance(op.arg.type, toy.TensorType)
-        assert isinstance(op.res.type, toy.TensorType)
-        assert op.arg.type.get_shape() == op.res.type.get_shape()
+        assert isinstance(op_arg_type := op.arg.type, toy.TensorType)
+        assert isinstance(op_res_type := op.res.type, toy.TensorType)
+        assert op_arg_type.get_shape() == op_res_type.get_shape()
         rewriter.replace_matched_op([], new_results=op.operands)
 
 
