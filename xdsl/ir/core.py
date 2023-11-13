@@ -1087,7 +1087,6 @@ class Operation(IRNode):
         if self.parent is None:
             raise Exception("Cannot detach a toplevel operation.")
         self.parent.detach_op(self)
-        return self
 
     def is_structurally_equivalent(
         self,
