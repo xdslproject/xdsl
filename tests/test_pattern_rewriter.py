@@ -162,9 +162,9 @@ def test_recursive_rewriter():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
-            if not isa(op.value, IntegerAttr):
+            if not isa(op_val := op.value, IntegerAttr):
                 return
-            val = op.value.value.data
+            val = op_val.value.data
             if val == 0 or val == 1:
                 return
             constant_op = Constant(IntegerAttr.from_int_and_width(val - 1, 32), i32)
@@ -199,9 +199,9 @@ def test_recursive_rewriter_reversed():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter):
-            if not isa(op.value, IntegerAttr):
+            if not isa(op_val := op.value, IntegerAttr):
                 return
-            val = op.value.value.data
+            val = op_val.value.data
             if val == 0 or val == 1:
                 return
             constant_op = Constant(IntegerAttr.from_int_and_width(val - 1, 32), i32)

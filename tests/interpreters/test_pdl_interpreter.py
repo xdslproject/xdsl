@@ -17,7 +17,7 @@ from xdsl.interpreters.experimental.pdl import (
     PDLRewriteFunctions,
     PDLRewritePattern,
 )
-from xdsl.ir import MLContext, OpResult
+from xdsl.ir import Attribute, MLContext, OpResult
 from xdsl.irdl import IRDLOperation, irdl_op_definition, prop_def
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -143,9 +143,9 @@ class AddZero(RewritePattern):
         if not isinstance(op.rhs.op, arith.Constant):
             return
         rhs = op.rhs.op
-        if not isinstance(rhs.value, IntegerAttr):
+        if not isinstance(rhs_value := rhs.value, IntegerAttr):
             return
-        if rhs.value.value.data != 0:
+        if rhs_value.value.data != 0:
             return
         rewriter.replace_matched_op([], new_results=[op.lhs])
 
@@ -458,10 +458,11 @@ def test_native_constraint():
         op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
     )
 
+    def even_length_string(attr: Attribute) -> bool:
+        return isinstance(attr, StringAttr) and len(attr.data) == 4
+
     ctx = MLContext()
-    PDLMatcher.native_constraints["even_length_string"] = (
-        lambda attr: isinstance(attr, StringAttr) and len(attr.data) == 4
-    )
+    PDLMatcher.native_constraints["even_length_string"] = even_length_string
 
     pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
 
@@ -510,12 +511,15 @@ def test_native_constraint_constant_parameter():
         op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
     )
 
+    def length_string(attr: Attribute, size: Attribute) -> bool:
+        return (
+            isinstance(attr, StringAttr)
+            and isinstance(size, IntegerAttr)
+            and len(attr.data) == size.value.data
+        )
+
     ctx = MLContext()
-    PDLMatcher.native_constraints["length_string"] = (
-        lambda attr, size: isinstance(attr, StringAttr)
-        and isinstance(size, IntegerAttr)
-        and len(attr.data) == size.value.data
-    )
+    PDLMatcher.native_constraints["length_string"] = length_string
 
     pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
 

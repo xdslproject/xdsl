@@ -173,8 +173,8 @@ def test_global_op():
     assert isinstance(global_op.unnamed_addr, builtin.IntegerAttr)
     assert global_op.unnamed_addr.value.data == 0
     assert isinstance(global_op.linkage, llvm.LinkageAttr)
-    assert isinstance(global_op.value, builtin.IntegerAttr)
-    assert global_op.value.value.data == 76
+    assert isinstance(global_op_value := global_op.value, builtin.IntegerAttr)
+    assert global_op_value.value.data == 76
 
 
 def test_addressof_op():
