@@ -96,6 +96,7 @@ class LowerStridePatternOp(RewritePattern):
             )
             set_stride_op = snitch.SsrSetDimensionStrideOp(stride_op.rd, op.dm, ints[1])
             new_ops.extend((a_inc_op, new_a_op, stride_op, set_stride_op))
+            a_op = new_a_op
 
         rewriter.insert_op_before_matched_op(new_ops)
         rewriter.erase_matched_op()
