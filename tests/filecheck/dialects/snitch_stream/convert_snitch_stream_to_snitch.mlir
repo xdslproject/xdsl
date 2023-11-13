@@ -5,16 +5,24 @@
 %A, %B, %C = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
 // CHECK-NEXT:  %A, %B, %C = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
 
+%sp1 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<2>], "strides" = [#builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type
+// CHECK-NEXT:  %{{.*}} = riscv.li 2 : () -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.addi %{{.*}}, -1 : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:  "snitch.ssr_set_dimension_bound"(%{{.*}}) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<0>} : (!riscv.reg<>) -> ()
+// CHECK-NEXT:  "snitch.ssr_set_dimension_stride"(%{{.*}}) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<0>} : (!riscv.reg<>) -> ()
+// CHECK-NEXT:  %{{.*}} = riscv.li 0 : () -> !riscv.reg<>
+
 %0 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<2>, #builtin.int<3>], "strides" = [#builtin.int<24>, #builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type
-// CHECK-NEXT:  %0 = riscv.li 2 : () -> !riscv.reg<>
-// CHECK-NEXT:  %1 = riscv.li 3 : () -> !riscv.reg<>
-// CHECK-NEXT:  %2 = riscv.li 24 : () -> !riscv.reg<>
-// CHECK-NEXT:  %3 = riscv.li 8 : () -> !riscv.reg<>
-// CHECK-NEXT:  %4 = riscv.addi %0, -1 : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:  %5 = riscv.addi %1, -1 : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:  "snitch.ssr_set_dimension_bound"(%4) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<0>} : (!riscv.reg<>) -> ()
-// CHECK-NEXT:  "snitch.ssr_set_dimension_bound"(%5) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<1>} : (!riscv.reg<>) -> ()
-// CHECK-NEXT:  "snitch.ssr_set_dimension_stride"(%2) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<0>} : (!riscv.reg<>) -> ()
+// CHECK-NEXT:  %{{.*}} = riscv.li 2 : () -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.li 3 : () -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.li 24 : () -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.addi %{{.*}}, -1 : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.addi %{{.*}}, -1 : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:  "snitch.ssr_set_dimension_bound"(%{{.*}}) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<0>} : (!riscv.reg<>) -> ()
+// CHECK-NEXT:  "snitch.ssr_set_dimension_bound"(%{{.*}}) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<1>} : (!riscv.reg<>) -> ()
+// CHECK-NEXT:  "snitch.ssr_set_dimension_stride"(%{{.*}}) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<0>} : (!riscv.reg<>) -> ()
 // CHECK-NEXT:  %{{.*}} = riscv.li 0 : () -> !riscv.reg<>
 // CHECK-NEXT:  %{{.*}} = riscv.mul %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:  %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
