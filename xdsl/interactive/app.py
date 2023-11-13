@@ -154,6 +154,7 @@ class InputApp(App[None]):
         selections = sorted((value.name, value) for value in available_passes)
 
         # type error due to Textual Bug requires pyright ignore
+        # Link to issue: https://github.com/xdslproject/xdsl/issues/1777
         self.passes_selection_list.add_options(  # pyright: ignore[reportUnknownMemberType]
             selections
         )
