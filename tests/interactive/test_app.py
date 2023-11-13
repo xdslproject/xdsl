@@ -100,6 +100,7 @@ async def test_buttons():
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass
         )
 
+        # assert that pass selection affected Output Text Area
         await pilot.pause()
         assert (
             app.output_text_area.text
