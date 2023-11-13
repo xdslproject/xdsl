@@ -3,7 +3,7 @@ An interactive command-line tool to explore compilation pipeline construction.
 
 Execute `xdsl-gui` in your terminal to run it.
 
-Run `terminal -m xdsl.interactive.app:InputApp --def` to run in development mode. Please
+Run `terminal -m xdsl.interactive.app:InputApp --dev` to run in development mode. Please
 be sure to install `textual-dev` to run this command.
 """
 
@@ -27,7 +27,7 @@ from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
 from ._pasteboard import pyclip_copy
 
-available_passes = tuple(get_all_passes())
+ALL_PASSES = tuple(get_all_passes())
 """Contains the list of xDSL passes."""
 
 from ._pasteboard import pyclip_copy
@@ -154,7 +154,7 @@ class InputApp(App[None]):
         ).border_title = "Choose a pass or multiple passes to be applied."
 
         # aids in the construction of the seleciton list containing all the passes
-        selections = sorted((value.name, value) for value in available_passes)
+        selections = sorted((value.name, value) for value in ALL_PASSES)
 
         # type error due to Textual Bug requires pyright ignore
         # Link to issue: https://github.com/xdslproject/xdsl/issues/1777
