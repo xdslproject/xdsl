@@ -15,9 +15,11 @@
 // CHECK-NEXT:  "snitch.ssr_set_dimension_bound"(%4) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<0>} : (!riscv.reg<>) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_bound"(%5) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<1>} : (!riscv.reg<>) -> ()
 // CHECK-NEXT:  "snitch.ssr_set_dimension_stride"(%2) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<0>} : (!riscv.reg<>) -> ()
-// CHECK-NEXT:  %6 = riscv.mul %4, %2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:  %7 = riscv.sub %3, %6 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:  "snitch.ssr_set_dimension_stride"(%7) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<1>} : (!riscv.reg<>) -> ()
+// CHECK-NEXT:  %{{.*}} = riscv.li 0 : () -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.mul %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.sub %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:  "snitch.ssr_set_dimension_stride"(%{{.*}}) {"dm" = #builtin.int<31>, "dimension" = #builtin.int<1>} : (!riscv.reg<>) -> ()
 
 
 %1 = "snitch_stream.strided_read"(%A, %0) {"dm" = #builtin.int<0>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.readable<!riscv.freg<ft0>>
@@ -33,7 +35,7 @@
 
 
 %4 = riscv.li 6 : () -> !riscv.reg<>
-// CHECK-NEXT:  %8 = riscv.li 6 : () -> !riscv.reg<>
+// CHECK-NEXT:  %{{.*}} = riscv.li 6 : () -> !riscv.reg<>
 
 
 "snitch_stream.generic"(%4, %1, %2, %3) <{"operandSegmentSizes" = array<i32: 1, 2, 1>}> ({
@@ -42,8 +44,8 @@
 snitch_stream.yield %sum : !riscv.freg<ft2>
 }) : (!riscv.reg<>, !stream.readable<!riscv.freg<ft0>>, !stream.readable<!riscv.freg<ft1>>, !stream.writable<!riscv.freg<ft2>>) -> ()
 // CHECK-NEXT:  "snitch.ssr_enable"() : () -> ()
-// CHECK-NEXT:  %9 = riscv.addi %8, -1 : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:  riscv_snitch.frep_outer %9, 0, 0 ({
+// CHECK-NEXT:  %{{.*}} = riscv.addi %{{.*}}, -1 : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:  riscv_snitch.frep_outer %{{.*}}, 0, 0 ({
 // CHECK-NEXT:    %sum = riscv.fadd.d %a, %b : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
 // CHECK-NEXT:    riscv_snitch.frep_yield %sum : (!riscv.freg<ft2>) -> ()
 // CHECK-NEXT:  }) : (!riscv.reg<>) -> ()
