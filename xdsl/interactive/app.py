@@ -14,7 +14,6 @@ from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-
 from textual.widgets import Button, Footer, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
@@ -29,8 +28,6 @@ from ._pasteboard import pyclip_copy
 
 ALL_PASSES = tuple(get_all_passes())
 """Contains the list of xDSL passes."""
-
-from ._pasteboard import pyclip_copy
 
 
 class OutputTextArea(TextArea):
