@@ -42,6 +42,7 @@
     text-opacity: 60%;
 }
 
+
 # Vertical(TextArea, Horizontal(Button))
 #input_container {
     margin: 1;
@@ -49,6 +50,7 @@
     border-title-color: $primary;
     border-title-align: center;
 }
+
 
 # Horizontal(Button)
 #copy_output{
