@@ -22,12 +22,9 @@ async def test_inputs():
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
-        # Due to Python Static Analysis weirdness
-        curr_module = app.current_module
-
         # Test no input
         assert app.output_text_area.text == "No input"
-        assert curr_module is None
+        assert app.current_module is None
 
         # Test inccorect input
         app.input_text_area.insert("dkjfd")
@@ -37,11 +34,9 @@ async def test_inputs():
             == "(Span[5:6](text=''), 'Operation builtin.unregistered does not have a custom format.')"
         )
 
-        # Due to Python Static Analysis weirdness
-        curr_module = app.current_module
-        assert isinstance(curr_module, ParseError)
+        assert isinstance(app.current_module, ParseError)
         assert (
-            str(curr_module)
+            str(app.current_module)
             == "(Span[5:6](text=''), 'Operation builtin.unregistered does not have a custom format.')"
         )
 
@@ -79,10 +74,8 @@ async def test_inputs():
                 res = arith.Muli(n, two)
                 func.Return(res)
 
-        # Due to Python Static Analysis weirdness
-        curr_module = app.current_module
-        assert isinstance(curr_module, ModuleOp)
-        assert curr_module.is_structurally_equivalent(expected_module)
+        assert isinstance(app.current_module, ModuleOp)
+        assert app.current_module.is_structurally_equivalent(expected_module)
 
 
 @pytest.mark.asyncio()
@@ -115,7 +108,6 @@ async def test_passes():
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # Testing a pass
-        app.input_text_area.clear()
         app.input_text_area.insert(
             """
         func.func @hello(%n : index) -> index {
@@ -190,8 +182,6 @@ async def test_passes():
                     two_two = riscv.MVOp(one, rd=riscv.Registers.A0)
                     riscv_func.ReturnOp(two_two)
 
-        # Due to Python Static Analysis weirdness
-        curr_module = app.current_module
-        assert isinstance(curr_module, ModuleOp)
+        assert isinstance(app.current_module, ModuleOp)
         # Assert that the current module has been changed accordingly
-        assert curr_module.is_structurally_equivalent(expected_module)
+        assert app.current_module.is_structurally_equivalent(expected_module)

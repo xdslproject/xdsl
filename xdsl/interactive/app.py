@@ -73,7 +73,6 @@ class InputApp(App[None]):
     def __init__(self):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
-
         self.passes_selection_list = SelectionList(id="passes_selection_list")
         super().__init__()
 
