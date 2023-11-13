@@ -45,10 +45,12 @@ from xdsl.irdl import (
     operand_def,
     opt_prop_def,
     prop_def,
+    region_def,
     result_def,
     var_operand_def,
+    var_result_def,
 )
-from xdsl.traits import SymbolOpInterface
+from xdsl.traits import HasParent, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -318,6 +320,31 @@ class Alloc(IRDLOperation):
                 else None
             },
         )
+
+
+@irdl_op_definition
+class AllocaScopeOp(IRDLOperation):
+    name = "memref.alloca_scope"
+
+    res = var_result_def()
+
+    scope = region_def()
+
+
+@irdl_op_definition
+class AllocaScopeReturnOp(IRDLOperation):
+    name = "memref.alloca_scope.return"
+
+    ops = var_operand_def()
+
+    traits = frozenset([IsTerminator(), HasParent(AllocaScopeOp)])
+
+    def verify_(self) -> None:
+        parent = cast(AllocaScopeOp, self.parent_op())
+        if any(op.type != res.type for op, res in zip(self.ops, parent.results)):
+            raise VerifyException(
+                "Expected operand types to match parent's return types."
+            )
 
 
 @irdl_op_definition
@@ -690,6 +717,8 @@ MemRef = Dialect(
         Store,
         Alloc,
         Alloca,
+        AllocaScopeOp,
+        AllocaScopeReturnOp,
         CopyOp,
         Dealloc,
         GetGlobal,

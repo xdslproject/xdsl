@@ -1,0 +1,31 @@
+
+# Horizontal(Button)
+#clear_input{
+    height: 3;
+    overflow: hidden;
+    text-opacity: 60%;
+}
+
+# Vertical(TextArea, Horizontal(Button))
+#input_container {
+    margin: 1;
+    border: heavy $warning-lighten-1;
+    border-title-color: $primary;
+    border-title-align: center;
+}
+
+
+# Horizontal(Button)
+#copy_output{
+    height: 3;
+    overflow: hidden;
+    text-opacity: 60%;
+}
+
+# Vertical(OutputTextArea)
+#output_container {
+    margin: 1;
+    border: heavy $warning-lighten-1;
+    border-title-color: $primary;
+    border-title-align: center;
+}

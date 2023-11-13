@@ -34,6 +34,7 @@ from xdsl.dialects.llvm import LLVM
 from xdsl.dialects.ltl import LTL
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.mpi import MPI
+from xdsl.dialects.omp import OMP
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.printf import Printf
 from xdsl.dialects.riscv import RISCV
@@ -106,6 +107,7 @@ def get_all_dialects() -> list[Dialect]:
         Math,
         MemRef,
         MPI,
+        OMP,
         PDL,
         Printf,
         RISCV,
