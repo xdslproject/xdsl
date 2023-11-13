@@ -68,21 +68,19 @@ class InputApp(App[None]):
 
     input_text_area: TextArea
     output_text_area: OutputTextArea
-
     passes_selection_list: SelectionList[type[ModulePass]]
+
+    selected_query_label = Label("", id="selected_passes_label")
+    """Display selected passes"""
 
     def __init__(self):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_selection_list = SelectionList(id="passes_selection_list")
+        self.passes_selection_list: SelectionList[type[ModulePass]] = SelectionList(
+            id="passes_selection_list"
+        )
         super().__init__()
-
-    query_label = Label("", id="selected_passes_label")
-    """Display's user selected passes"""
-
-    passes_selection_list: SelectionList[type[ModulePass]] = SelectionList(
-        id="passes_selection_list"
-    )
 
     def compose(self) -> ComposeResult:
         """
@@ -95,7 +93,7 @@ class InputApp(App[None]):
         with Horizontal(id="selected_passes_and_list_horizontal"):
             yield self.passes_selection_list
             with ScrollableContainer(id="selected_passes"):
-                yield self.query_label
+                yield self.selected_query_label
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
