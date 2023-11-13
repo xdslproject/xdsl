@@ -15,7 +15,6 @@ from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
-
 from textual.widgets import Button, Footer, Label, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
@@ -27,7 +26,6 @@ from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
 from ._pasteboard import pyclip_copy
-
 
 ALL_PASSES = tuple(get_all_passes())
 """Contains the list of xDSL passes."""
@@ -93,7 +91,6 @@ class InputApp(App[None]):
         can be added to a Selection List)
         and sort the list in alphabetical order.
         """
-
 
         with Horizontal(id="selected_passes_and_list_horizontal"):
             yield self.passes_selection_list
@@ -169,7 +166,6 @@ class InputApp(App[None]):
         self.query_one("#selected_passes").border_title = "Selected passes/query"
         # aids in the construction of the seleciton list containing all the passes
         selections = sorted((value.name, value) for value in ALL_PASSES)
-
 
         # type error due to Textual Bug requires pyright ignore
         # Link to issue: https://github.com/xdslproject/xdsl/issues/1777

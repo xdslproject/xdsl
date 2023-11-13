@@ -17,7 +17,6 @@ from xdsl.utils.exceptions import ParseError
 
 
 @pytest.mark.asyncio()
-
 async def test_inputs():
     """Test different inputs produce desired result."""
     async with InputApp().run_test() as pilot:
@@ -77,6 +76,7 @@ async def test_inputs():
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
+
 
 @pytest.mark.asyncio()
 async def test_buttons():
@@ -161,7 +161,6 @@ async def test_passes():
 """
         )
 
-
         index = IndexType()
         expected_module = ModuleOp(Region([Block()]))
         with ImplicitBuilder(expected_module.body):
@@ -188,4 +187,3 @@ async def test_passes():
         assert isinstance(app.current_module, ModuleOp)
         # Assert that the current module has been changed accordingly
         assert app.current_module.is_structurally_equivalent(expected_module)
-
