@@ -4,6 +4,7 @@ An interactive command-line tool to explore compilation pipeline construction.
 Execute `xdsl-gui` in your terminal to run it.
 
 Run `terminal -m xdsl.interactive.app:InputApp --dev` to run in development mode. Please
+
 be sure to install `textual-dev` to run this command.
 """
 
@@ -12,9 +13,9 @@ from io import StringIO
 from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
-from textual.widgets import Button, Footer, SelectionList, TextArea
+from textual.widgets import Button, Footer, Label, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
@@ -67,13 +68,16 @@ class InputApp(App[None]):
 
     input_text_area: TextArea
     output_text_area: OutputTextArea
-
     passes_selection_list: SelectionList[type[ModulePass]]
+
+    selected_query_label: Label
+    """Display selected passes"""
 
     def __init__(self):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_selection_list = SelectionList(id="passes_selection_list")
+        self.selected_query_label = Label("", id="selected_passes_label")
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -84,8 +88,10 @@ class InputApp(App[None]):
         and sort the list in alphabetical order.
         """
 
-        yield self.passes_selection_list
-
+        with Horizontal(id="selected_passes_and_list_horizontal"):
+            yield self.passes_selection_list
+            with ScrollableContainer(id="selected_passes"):
+                yield self.selected_query_label
         with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
@@ -153,7 +159,7 @@ class InputApp(App[None]):
         self.query_one(
             "#passes_selection_list"
         ).border_title = "Choose a pass or multiple passes to be applied."
-
+        self.query_one("#selected_passes").border_title = "Selected passes/query"
         # aids in the construction of the seleciton list containing all the passes
         selections = sorted((value.name, value) for value in ALL_PASSES)
 
