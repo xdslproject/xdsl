@@ -149,16 +149,7 @@ async def test_input_and_buttons():
 
         await pilot.pause()
         assert app.passes_selection_list.selected == []
-        assert (
-            str(app.current_module)
-            == """builtin.module {
-  func.func @hello(%n : index) -> index {
-    %two = arith.constant 2 : index
-    %res = arith.muli %n, %two : index
-    func.return %res : index
-  }
-}"""
-        )
+        app.current_module.is_structurally_equivalent(expected_module)
         assert (
             app.output_text_area.text
             == """builtin.module {
