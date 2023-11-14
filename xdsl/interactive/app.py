@@ -4,7 +4,6 @@ An interactive command-line tool to explore compilation pipeline construction.
 Execute `xdsl-gui` in your terminal to run it.
 
 Run `terminal -m xdsl.interactive.app:InputApp --dev` to run in development mode. Please
-
 be sure to install `textual-dev` to run this command.
 """
 
