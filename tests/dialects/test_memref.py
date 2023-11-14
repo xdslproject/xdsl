@@ -23,6 +23,7 @@ from xdsl.dialects.memref import (
     ExtractAlignedPointerAsIndexOp,
     Load,
     MemRefType,
+    MemorySpaceCast,
     Store,
     Subview,
     UnrankedMemrefType,
@@ -257,6 +258,26 @@ def test_memref_cast():
 
     assert cast.source is memref_ssa_value
     assert cast.dest.type is res_type
+
+
+def test_memref_memory_space_cast():
+    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [10, 2], memory_space=builtin.IntegerAttr(1, i32))
+    memref_ssa_value = TestSSAValue(i32_memref_type)
+
+    res_type = MemRefType.from_element_type_and_shape(i32, [10, 2], memory_space=builtin.IntegerAttr(2, i32))
+    res_type_wrong_type = MemRefType.from_element_type_and_shape(i64, [10, 2], memory_space=builtin.IntegerAttr(2, i32))
+    res_type_wrong_shape = MemRefType.from_element_type_and_shape(i32, [10, 4], memory_space=builtin.IntegerAttr(2, i32))
+
+    memory_space_cast = MemorySpaceCast.get(memref_ssa_value, res_type)
+
+    assert memory_space_cast.source is memref_ssa_value
+    assert memory_space_cast.dest.type is res_type
+
+    with pytest.raises(VerifyException, match="Expected source and destination to have the same element type."):
+        MemorySpaceCast.get(memref_ssa_value, res_type_wrong_type).verify()
+
+    with pytest.raises(VerifyException, match="Expected source and destination to have the same shape."):
+        MemorySpaceCast.get(memref_ssa_value, res_type_wrong_shape).verify()
 
 
 def test_dma_start():
