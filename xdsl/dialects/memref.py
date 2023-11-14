@@ -600,7 +600,7 @@ class MemorySpaceCast(IRDLOperation):
         type: MemRefType[Attribute] | UnrankedMemrefType[Attribute],
     ):
         return MemorySpaceCast.build(operands=[source], result_types=[type])
-    
+
     def verify_(self) -> None:
         source = cast(MemRefType[Attribute], self.source.type)
         dest = cast(MemRefType[Attribute], self.dest.type)
