@@ -594,12 +594,12 @@ class MemorySpaceCast(IRDLOperation):
     source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
     dest: OpResult = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         source: SSAValue | Operation,
-        type: MemRefType[Attribute] | UnrankedMemrefType[Attribute],
+        dest: MemRefType[Attribute] | UnrankedMemrefType[Attribute],
     ):
-        return MemorySpaceCast.build(operands=[source], result_types=[type])
+        super().__init__(operands=[source], result_types=[dest])
 
     def verify_(self) -> None:
         source = cast(MemRefType[Attribute], self.source.type)
