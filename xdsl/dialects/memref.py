@@ -182,26 +182,25 @@ class Load(IRDLOperation):
     # which is subject to change
 
     def verify_(self):
-        memref_type = self.memref.type
-        if not isinstance(memref_type, MemRefType):
+        if not isinstance(self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_type = cast(MemRefType[Attribute], memref_type)
+        memref_type = cast(MemRefType[Attribute], self.memref.type)
 
         if memref_type.element_type != self.res.type:
             raise Exception("expected return type to match the MemRef element type")
 
-        if memref_type.get_num_dims() != len(self.indices):
+        if self.memref.type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
 
-    @classmethod
-    def get(
-        cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
-    ) -> Self:
+    @staticmethod
+    def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
         ssa_value = SSAValue.get(ref)
         ssa_value_type = ssa_value.type
         ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
-        return cls(operands=[ref, indices], result_types=[ssa_value_type.element_type])
+        return Load.build(
+            operands=[ref, indices], result_types=[ssa_value_type.element_type]
+        )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -239,25 +238,24 @@ class Store(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType)
 
     def verify_(self):
-        if not isinstance(memref_type := self.memref.type, MemRefType):
+        if not isinstance(self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_type = cast(MemRefType[Attribute], memref_type)
+        memref_type = cast(MemRefType[Attribute], self.memref.type)
 
         if memref_type.element_type != self.value.type:
             raise Exception("Expected value type to match the MemRef element type")
 
-        if memref_type.get_num_dims() != len(self.indices):
+        if self.memref.type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")
 
-    @classmethod
+    @staticmethod
     def get(
-        cls,
         value: Operation | SSAValue,
         ref: Operation | SSAValue,
         indices: Sequence[Operation | SSAValue],
-    ) -> Self:
-        return cls(operands=[value, ref, indices])
+    ) -> Store:
+        return Store.build(operands=[value, ref, indices])
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:

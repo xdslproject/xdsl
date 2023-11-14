@@ -136,7 +136,7 @@ class IntRegisterType(RISCVRegisterType):
         return IntRegisterType.RV32I_INDEX_BY_NAME
 
     @classmethod
-    def a_register(cls, index: int) -> IntRegisterType:
+    def a_register(cls, index: int) -> Self:
         return Registers.A[index]
 
     RV32I_INDEX_BY_NAME = {
@@ -193,7 +193,7 @@ class FloatRegisterType(RISCVRegisterType):
         return FloatRegisterType.RV32F_INDEX_BY_NAME
 
     @classmethod
-    def a_register(cls, index: int) -> FloatRegisterType:
+    def a_register(cls, index: int) -> Self:
         return Registers.FA[index]
 
     RV32F_INDEX_BY_NAME = {

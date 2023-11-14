@@ -87,21 +87,25 @@ class InputApp(App[None]):
         can be added to a Selection List)
         and sort the list in alphabetical order.
         """
-        with Horizontal(id="top_container"):
+
+        with Horizontal(id="selected_passes_and_list_horizontal"):
             yield self.passes_selection_list
-            with Horizontal(id="button_and_selected_horziontal"):
-                with VerticalScroll(id="buttons_and_selection_list"):
+            with VerticalScroll(id="buttons_and_selection_list"):
+                with Horizontal(id="clear_selection_list"):
                     yield Button("Clear Passes", id="clear_selection_list_button")
+                with Horizontal(id="copy_query"):
                     yield Button("Copy Query", id="copy_query_button")
-                with ScrollableContainer(id="selected_passes"):
-                    yield self.selected_query_label
-        with Horizontal(id="bottom_container")
+            with ScrollableContainer(id="selected_passes"):
+                yield self.selected_query_label
+        with Horizontal(id="input_output"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
-                yield Button("Clear Input", id="clear_input_button")
+                with Horizontal(id="clear_input"):
+                    yield Button("Clear Input", id="clear_input_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
-                yield Button("Copy Output", id="copy_output_button")
+                with Horizontal(id="copy_output"):
+                    yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
     @on(SelectionList.SelectedChanged)

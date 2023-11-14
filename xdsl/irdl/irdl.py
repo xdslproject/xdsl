@@ -487,7 +487,7 @@ class IRDLOperation(Operation):
             regions = []
         irdl_op_init(
             self,
-            type(self).irdl_definition,
+            self.irdl_definition,
             operands=operands,
             result_types=result_types,
             properties=properties,

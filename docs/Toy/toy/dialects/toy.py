@@ -117,13 +117,12 @@ class InferAddOpShapeTrait(ToyShapeInferenceTrait):
         if not isinstance(op, AddOp):
             raise TypeError
         if not (
-            isinstance(op_lhs_type := op.lhs.type, TensorType)
-            and isinstance(op_rhs_type := op.rhs.type, TensorType)
+            isinstance(op.lhs.type, TensorType) and isinstance(op.rhs.type, TensorType)
         ):
             return
-        assert op_lhs_type.get_shape() == op_rhs_type.get_shape()
-        if isinstance(op_res_type := op.res.type, TensorType):
-            assert op_lhs_type.get_shape() == op_res_type.get_shape()
+        assert op.lhs.type.get_shape() == op.rhs.type.get_shape()
+        if isinstance(op.res.type, TensorType):
+            assert op.lhs.type.get_shape() == op.res.type.get_shape()
         else:
             op.res.type = op.lhs.type
 
@@ -155,11 +154,11 @@ class AddOp(IRDLOperation):
         shape = None
         for arg in args:
             # Expect shapes to be the same whenever they are defined, no check for unranked
-            if isinstance(arg_type := arg.type, TensorType):
+            if isinstance(arg.type, TensorType):
                 if shape is None:
-                    shape = arg_type.shape
+                    shape = arg.type.shape
                 else:
-                    if shape != arg_type.shape:
+                    if shape != arg.type.shape:
                         raise VerifyException(
                             "Expected AddOp args to have the same shape"
                         )
@@ -285,14 +284,13 @@ class InferMulOpShapeTrait(ToyShapeInferenceTrait):
             raise TypeError
 
         if not (
-            isinstance(op_lhs_type := op.lhs.type, TensorType)
-            and isinstance(op_rhs_type := op.rhs.type, TensorType)
+            isinstance(op.lhs.type, TensorType) and isinstance(op.rhs.type, TensorType)
         ):
             return
 
-        assert op_lhs_type.get_shape() == op_rhs_type.get_shape()
-        if isinstance(op_res_type := op.res.type, TensorType):
-            assert op_lhs_type.get_shape() == op_res_type.get_shape()
+        assert op.lhs.type.get_shape() == op.rhs.type.get_shape()
+        if isinstance(op.res.type, TensorType):
+            assert op.lhs.type.get_shape() == op.res.type.get_shape()
         else:
             op.res.type = op.lhs.type
 
@@ -324,11 +322,11 @@ class MulOp(IRDLOperation):
         shape = None
         for arg in args:
             # Expect shapes to be the same whenever they are defined, no check for unranked
-            if isinstance(arg_type := arg.type, TensorType):
+            if isinstance(arg.type, TensorType):
                 if shape is None:
-                    shape = arg_type.shape
+                    shape = arg.type.shape
                 else:
-                    if shape != arg_type.shape:
+                    if shape != arg.type.shape:
                         raise VerifyException(
                             "Expected MulOp args to have the same shape"
                         )
@@ -434,14 +432,14 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
         if not isinstance(op, TransposeOp):
             raise TypeError
 
-        if not isinstance(op_arg_type := op.arg.type, TensorType):
+        if not isinstance(op.arg.type, TensorType):
             return
 
-        arg_shape = op_arg_type.get_shape()
+        arg_shape = op.arg.type.get_shape()
         res_shape = arg_shape[::-1]
 
-        if isinstance(op_res_type := op.res.type, TensorType):
-            assert res_shape == op_res_type.get_shape()
+        if isinstance(op.res.type, TensorType):
+            assert res_shape == op.res.type.get_shape()
         else:
             op.res.type = TensorType.from_type_and_list(f64, res_shape)
 
@@ -492,13 +490,13 @@ class InferCastOpShapeTrait(ToyShapeInferenceTrait):
         if not isinstance(op, CastOp):
             raise TypeError
 
-        if not isinstance(op_arg_type := op.arg.type, TensorType):
+        if not isinstance(op.arg.type, TensorType):
             return
 
-        shape = op_arg_type.get_shape()
+        shape = op.arg.type.get_shape()
 
-        if isinstance(op_res_type := op.res.type, TensorType):
-            assert shape == op_res_type.get_shape()
+        if isinstance(op.res.type, TensorType):
+            assert shape == op.res.type.get_shape()
         else:
             op.res.type = TensorType.from_type_and_list(f64, shape)
 
