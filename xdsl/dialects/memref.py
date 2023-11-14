@@ -597,20 +597,35 @@ class MemorySpaceCast(IRDLOperation):
     def __init__(
         self,
         source: SSAValue | Operation,
-        dest_space: Attribute,
+        dest: MemRefType[Attribute] | UnrankedMemrefType[Attribute],
     ):
-        source = SSAValue.get(source)
-
-        assert isinstance(source.type, MemRefType)
-        source_memref: MemRefType[Attribute] = source.type
-
-        dest = MemRefType.from_element_type_and_shape(
-            source_memref.get_element_type(),
-            shape=source_memref.get_shape(),
-            layout=source_memref.layout,
-            memory_space=dest_space,
-        )
         super().__init__(operands=[source], result_types=[dest])
+
+    @staticmethod
+    def from_type_and_target_space(
+        source: SSAValue | Operation,
+        type: MemRefType[Attribute],
+        dest_memory_space: Attribute,
+    ) -> MemorySpaceCast:
+        dest = MemRefType.from_element_type_and_shape(
+            type.get_element_type(),
+            shape=type.get_shape(),
+            layout=type.layout,
+            memory_space=dest_memory_space,
+        )
+        return MemorySpaceCast(source, dest)
+
+    def verify_(self) -> None:
+        source = cast(MemRefType[Attribute], self.source.type)
+        dest = cast(MemRefType[Attribute], self.dest.type)
+        if source.get_shape() != dest.get_shape():
+            raise VerifyException(
+                "Expected source and destination to have the same shape."
+            )
+        if source.get_element_type() != dest.get_element_type():
+            raise VerifyException(
+                "Expected source and destination to have the same element type."
+            )
 
 
 @irdl_op_definition

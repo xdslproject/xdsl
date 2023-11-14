@@ -266,13 +266,41 @@ def test_memref_memory_space_cast():
     )
     memref_ssa_value = TestSSAValue(i32_memref_type)
 
-    dest_space = builtin.IntegerAttr(2, i32)
+    res_type = MemRefType.from_element_type_and_shape(
+        i32, [10, 2], memory_space=builtin.IntegerAttr(2, i32)
+    )
+    res_type_wrong_type = MemRefType.from_element_type_and_shape(
+        i64, [10, 2], memory_space=builtin.IntegerAttr(2, i32)
+    )
+    res_type_wrong_shape = MemRefType.from_element_type_and_shape(
+        i32, [10, 4], memory_space=builtin.IntegerAttr(2, i32)
+    )
 
-    memory_space_cast = MemorySpaceCast(memref_ssa_value, dest_space)
+    memory_space_cast = MemorySpaceCast(memref_ssa_value, res_type)
+
+    assert memory_space_cast.source is memref_ssa_value
+    assert memory_space_cast.dest.type is res_type
+
+    with pytest.raises(
+        VerifyException,
+        match="Expected source and destination to have the same element type.",
+    ):
+        MemorySpaceCast(memref_ssa_value, res_type_wrong_type).verify()
+
+    with pytest.raises(
+        VerifyException, match="Expected source and destination to have the same shape."
+    ):
+        MemorySpaceCast(memref_ssa_value, res_type_wrong_shape).verify()
+
+    # Test helper function
+    dest_memory_space = builtin.IntegerAttr(2, i32)
+    memory_space_cast = MemorySpaceCast.from_type_and_target_space(
+        memref_ssa_value, i32_memref_type, dest_memory_space
+    )
 
     assert memory_space_cast.source is memref_ssa_value
     assert isinstance(memory_space_cast.dest.type, MemRefType)
-    assert memory_space_cast.dest.type.memory_space is dest_space
+    assert memory_space_cast.dest.type.memory_space is dest_memory_space
 
 
 def test_dma_start():
