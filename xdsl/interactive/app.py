@@ -87,13 +87,13 @@ class InputApp(App[None]):
         and sort the list in alphabetical order.
         """
 
-        with Horizontal(id="selected_passes_and_list_horizontal"):
+        with Horizontal(id="top_container"):
             yield self.passes_selection_list
-            with Horizontal(id="copy_query"):
+            with Horizontal(id="button_and_selected_horziontal"):
                 yield Button("Copy Query", id="copy_query_button")
-            with ScrollableContainer(id="selected_passes"):
-                yield self.selected_query_label
-        with Horizontal(id="input_output"):
+                with ScrollableContainer(id="selected_passes"):
+                    yield self.selected_query_label
+        with Horizontal(id="bottom_container"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
                 with Horizontal(id="clear_input"):
