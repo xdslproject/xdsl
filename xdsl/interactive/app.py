@@ -4,7 +4,6 @@ An interactive command-line tool to explore compilation pipeline construction.
 Execute `xdsl-gui` in your terminal to run it.
 
 Run `terminal -m xdsl.interactive.app:InputApp --dev` to run in development mode. Please
-
 be sure to install `textual-dev` to run this command.
 """
 
@@ -88,19 +87,19 @@ class InputApp(App[None]):
         and sort the list in alphabetical order.
         """
 
-        with Horizontal(id="selected_passes_and_list_horizontal"):
+        with Horizontal(id="top_container"):
             yield self.passes_selection_list
-            with ScrollableContainer(id="selected_passes"):
-                yield self.selected_query_label
-        with Horizontal(id="input_output"):
+            with Horizontal(id="button_and_selected_horziontal"):
+                yield Button("Copy Query", id="copy_query_button")
+                with ScrollableContainer(id="selected_passes"):
+                    yield self.selected_query_label
+        with Horizontal(id="bottom_container"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
-                with Horizontal(id="clear_input"):
-                    yield Button("Clear Input", id="clear_input_button")
+                yield Button("Clear Input", id="clear_input_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
-                with Horizontal(id="copy_output"):
-                    yield Button("Copy Output", id="copy_output_button")
+                yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
     @on(SelectionList.SelectedChanged)
@@ -186,6 +185,15 @@ class InputApp(App[None]):
     def copy_output(self, event: Button.Pressed) -> None:
         """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
         pyclip_copy(self.output_text_area.text)
+
+    @on(Button.Pressed, "#copy_query_button")
+    def copy_query(self, event: Button.Pressed) -> None:
+        """When the "Copy Query" button is preseed, the selected passes/query is copied"""
+        selected_passes = "\n" + (", " + "\n").join(
+            p.name for p in self.passes_selection_list.selected
+        )
+        query = f"xdsl-opt -p {selected_passes}"
+        pyclip_copy(query)
 
 
 def main():
