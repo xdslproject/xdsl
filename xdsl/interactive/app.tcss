@@ -7,15 +7,6 @@
     height: 100%;
 }
 
-
-# Button
-#copy_query_button{
-    # height: 3;
-    # overflow: hidden;
-    # margin: 1 1 1 1;
-}
-
-
 # ScrollableContainer(Label)
 #selected_passes {
     border: heavy $accent-darken-1;
@@ -24,29 +15,12 @@
     border-title-align: center;
 }
 
-
-# Horizontal(Button)
-#clear_input{
-    height: 3;
-    overflow: hidden;
-    text-opacity: 60%;
-}
-
-
 # Vertical(TextArea, Horizontal(Button))
 #input_container {
     border: heavy $accent-darken-1;
     border-title-color: $warning-lighten-1;
     border-title-style: bold;
     border-title-align: center;
-}
-
-
-# Horizontal(Button)
-#copy_output{
-    height: 3;
-    overflow: hidden;
-    text-opacity: 60%;
 }
 
 # Vertical(TextArea, Horizontal(Button))

@@ -96,12 +96,10 @@ class InputApp(App[None]):
         with Horizontal(id="bottom_container"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
-                with Horizontal(id="clear_input"):
-                    yield Button("Clear Input", id="clear_input_button")
+                yield Button("Clear Input", id="clear_input_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
-                with Horizontal(id="copy_output"):
-                    yield Button("Copy Output", id="copy_output_button")
+                yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
     @on(SelectionList.SelectedChanged)
