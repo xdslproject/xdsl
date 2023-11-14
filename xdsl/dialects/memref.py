@@ -590,6 +590,47 @@ class Cast(IRDLOperation):
 
 
 @irdl_op_definition
+class MemorySpaceCast(IRDLOperation):
+    name = "memref.memory_space_cast"
+
+    source = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    dest = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        dest: MemRefType[Attribute] | UnrankedMemrefType[Attribute],
+    ):
+        super().__init__(operands=[source], result_types=[dest])
+
+    @staticmethod
+    def from_type_and_target_space(
+        source: SSAValue | Operation,
+        type: MemRefType[Attribute],
+        dest_memory_space: Attribute,
+    ) -> MemorySpaceCast:
+        dest = MemRefType.from_element_type_and_shape(
+            type.get_element_type(),
+            shape=type.get_shape(),
+            layout=type.layout,
+            memory_space=dest_memory_space,
+        )
+        return MemorySpaceCast(source, dest)
+
+    def verify_(self) -> None:
+        source = cast(MemRefType[Attribute], self.source.type)
+        dest = cast(MemRefType[Attribute], self.dest.type)
+        if source.get_shape() != dest.get_shape():
+            raise VerifyException(
+                "Expected source and destination to have the same shape."
+            )
+        if source.get_element_type() != dest.get_element_type():
+            raise VerifyException(
+                "Expected source and destination to have the same element type."
+            )
+
+
+@irdl_op_definition
 class DmaStartOp(IRDLOperation):
     name = "memref.dma_start"
 
@@ -729,6 +770,7 @@ MemRef = Dialect(
         ExtractAlignedPointerAsIndexOp,
         Subview,
         Cast,
+        MemorySpaceCast,
         DmaStartOp,
         DmaWaitOp,
     ],
