@@ -164,7 +164,6 @@ async def test_passes():
     """Test pass application has the desired result."""
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
-
         # Testing a pass
         app.input_text_area.insert(
             """
@@ -197,7 +196,6 @@ async def test_passes():
 
         # assert that the Output Text Area has changed accordingly
         await pilot.pause()
-
         assert (
             app.output_text_area.text
             == """builtin.module {
