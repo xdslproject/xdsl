@@ -3,7 +3,7 @@ An interactive command-line tool to explore compilation pipeline construction.
 
 Execute `xdsl-gui` in your terminal to run it.
 
-Run `terminal -m xdsl.interactive.app:InputApp --dev` to run in development mode. Please
+Run `textual run xdsl.interactive.app:InputApp --dev` to run in development mode. Please
 be sure to install `textual-dev` to run this command.
 """
 
@@ -31,7 +31,7 @@ ALL_PASSES = tuple(get_all_passes())
 
 
 class OutputTextArea(TextArea):
-    """Used to prevent users from being able to change/alter the Output TextArea"""
+    """Used to prevent users from being able to alter the Output TextArea."""
 
     async def _on_key(self, event: events.Key) -> None:
         event.prevent_default()
@@ -62,15 +62,21 @@ class InputApp(App[None]):
     current_module = reactive[ModuleOp | Exception | None](None)
     """
     Reactive variable used to save the current state of the modified Input TextArea
-    (i.e. is the Output TextArea)
+    (i.e. is the Output TextArea).
     """
 
     input_text_area: TextArea
+    """Input TextArea."""
     output_text_area: OutputTextArea
+    """Output TextArea."""
     passes_selection_list: SelectionList[type[ModulePass]]
+    """
+    SelectionList displaying the passes available to apply. Passes can be selected or
+    unselected (i.e. applied or removed).
+    """
 
     selected_query_label: Label
-    """Display selected passes"""
+    """Display selected passes."""
 
     def __init__(self):
         self.input_text_area = TextArea(id="input")
@@ -83,8 +89,7 @@ class InputApp(App[None]):
         """
         Creates the required widgets, events, etc.
         Get the list of xDSL passes, add them to an array in "Selection" format (so it
-        can be added to a Selection List)
-        and sort the list in alphabetical order.
+        can be added to a Selection List) and sort the list in alphabetical order.
         """
 
         with Horizontal(id="top_container"):
@@ -107,8 +112,8 @@ class InputApp(App[None]):
     @on(SelectionList.SelectedChanged)
     def update_selected_view(self) -> None:
         """
-        When the SelectionList (pass options) changes (i.e. a pass was selected or deselected), update the label to show
-        the query, and then call the update_current_module() function, which applies the selected passes to the input and displays the output
+        When the SelectionList selection changes (i.e. a pass was selected or
+        deselected), update the label to show the respective generated query in the Label.
         """
         new_passes = "\n" + (", " + "\n").join(
             p.name for p in self.passes_selection_list.selected
@@ -121,7 +126,7 @@ class InputApp(App[None]):
     def update_current_module(self) -> None:
         """
         Function called when the Input TextArea is changed or a pass is selected/
-        unselected. This function parses the Input IR, applies selected passes and
+        unselected. This function parses the Input IR, applies the selected pass(es) and
         updates the Output TextArea.
         """
         input_text = self.input_text_area.text
@@ -192,22 +197,25 @@ class InputApp(App[None]):
 
     @on(Button.Pressed, "#clear_input_button")
     def clear_input(self, event: Button.Pressed) -> None:
-        """Input TextArea is cleared when "Clear Input" button is pressed"""
+        """Input TextArea is cleared when "Clear Input" button is pressed."""
         self.input_text_area.clear()
 
     @on(Button.Pressed, "#copy_output_button")
     def copy_output(self, event: Button.Pressed) -> None:
-        """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
+        """Output TextArea is copied when "Copy Output" button is pressed."""
         pyclip_copy(self.output_text_area.text)
 
     @on(Button.Pressed, "#clear_selection_list_button")
     def clear_selection_list(self, event: Button.Pressed) -> None:
-        """When the "Clear Passes" button is preseed, the SelectionList is cleared"""
+        """
+        SelectionList is cleared (i.e. all selected passes are unselected) when
+        "Clear Passes" button is pressed.
+        """
         self.passes_selection_list.deselect_all()
 
     @on(Button.Pressed, "#copy_query_button")
     def copy_query(self, event: Button.Pressed) -> None:
-        """When the "Copy Query" button is preseed, the selected passes/query is copied"""
+        """Selected passes/query Label is copied when "Copy Query" button is pressed."""
         selected_passes = "\n" + (", " + "\n").join(
             p.name for p in self.passes_selection_list.selected
         )
