@@ -90,7 +90,9 @@ class InputApp(App[None]):
         with Horizontal(id="top_container"):
             yield self.passes_selection_list
             with Horizontal(id="button_and_selected_horziontal"):
-                yield Button("Copy Query", id="copy_query_button")
+                with Vertical(id="buttons"):
+                    yield Button("Clear Passes", id="clear_selection_list_button")
+                    yield Button("Copy Query", id="copy_query_button")
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -101,6 +103,18 @@ class InputApp(App[None]):
                 yield self.output_text_area
                 yield Button("Copy Output", id="copy_output_button")
         yield Footer()
+
+    @on(SelectionList.SelectedChanged)
+    def update_selected_view(self) -> None:
+        """
+        When the SelectionList (pass options) changes (i.e. a pass was selected or deselected), update the label to show
+        the query, and then call the update_current_module() function, which applies the selected passes to the input and displays the output
+        """
+        new_passes = "\n" + (", " + "\n").join(
+            p.name for p in self.passes_selection_list.selected
+        )
+        new_label = f"xdsl-opt -p {new_passes}"
+        self.query_one(Label).update(new_label)
 
     @on(SelectionList.SelectedChanged)
     @on(TextArea.Changed, "#input")
@@ -185,6 +199,11 @@ class InputApp(App[None]):
     def copy_output(self, event: Button.Pressed) -> None:
         """When the "Copy Output" button is pressed, the output IR TextArea is copied"""
         pyclip_copy(self.output_text_area.text)
+
+    @on(Button.Pressed, "#clear_selection_list_button")
+    def clear_selection_list(self, event: Button.Pressed) -> None:
+        """When the "Clear Passes" button is preseed, the SelectionList is cleared"""
+        self.passes_selection_list.deselect_all()
 
     @on(Button.Pressed, "#copy_query_button")
     def copy_query(self, event: Button.Pressed) -> None:
