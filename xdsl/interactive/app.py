@@ -12,7 +12,7 @@ from io import StringIO
 from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, ScrollableContainer, Vertical, VerticalScroll
+from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.widgets import Button, Footer, Label, SelectionList, TextArea
 from textual.widgets.text_area import TextAreaTheme
@@ -90,7 +90,7 @@ class InputApp(App[None]):
         with Horizontal(id="top_container"):
             yield self.passes_selection_list
             with Horizontal(id="button_and_selected_horziontal"):
-                with VerticalScroll(id="buttons"):
+                with Vertical(id="buttons"):
                     yield Button("Clear Passes", id="clear_selection_list_button")
                     yield Button("Copy Query", id="copy_query_button")
                 with ScrollableContainer(id="selected_passes"):

@@ -8,8 +8,9 @@
 }
 
 # VerticalScroll(Button, Button)
-#buttons_and_selection_list{
+#buttons{
     layout: vertical;
+    width: auto;
     overflow: hidden;
 }
 
