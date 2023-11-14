@@ -22,7 +22,7 @@
     border-title-align: center;
 }
 
-# Vertical(TextArea, Horizontal(Button))
+# Vertical(TextArea, Button)
 #input_container {
     border: heavy $accent-darken-1;
     border-title-color: $warning-lighten-1;
@@ -30,7 +30,7 @@
     border-title-align: center;
 }
 
-# Vertical(TextArea, Horizontal(Button))
+# Vertical(TextArea, Button)
 #output_container {
     border: heavy $accent-darken-1;
     border-title-color: $warning-lighten-1;
