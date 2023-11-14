@@ -23,8 +23,8 @@ class A(ParametrizedAttribute):
 
 class _A(_FrontendType):
     @staticmethod
-    def to_xdsl() -> Callable[..., Any]:
-        return A
+    def to_xdsl() -> Callable[[], Any]:
+        return A.__call__
 
 
 class _B:
@@ -45,8 +45,8 @@ class D(ParametrizedAttribute):
 
 class _D(Generic[T], _FrontendType):
     @staticmethod
-    def to_xdsl() -> Callable[..., Any]:
-        return D
+    def to_xdsl() -> Callable[[], Any]:
+        return D.__call__
 
 
 a: TypeAlias = _A

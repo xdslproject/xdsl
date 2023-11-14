@@ -118,8 +118,8 @@ class ConvertMemrefStoreOp(RewritePattern):
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
         value, mem, *indices = cast_operands_to_regs(rewriter)
 
-        assert isinstance(op.memref.type, memref.MemRefType)
-        memref_type = cast(memref.MemRefType[Any], op.memref.type)
+        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        memref_type = cast(memref.MemRefType[Any], op_memref_type)
         shape = memref_type.get_shape()
 
         ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
@@ -161,8 +161,10 @@ class ConvertMemrefLoadOp(RewritePattern):
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
         mem, *indices = cast_operands_to_regs(rewriter)
 
-        assert isinstance(op.memref.type, memref.MemRefType), f"{op.memref.type}"
-        memref_type = cast(memref.MemRefType[Any], op.memref.type)
+        assert isinstance(
+            op_memref_type := op.memref.type, memref.MemRefType
+        ), f"{op.memref.type}"
+        memref_type = cast(memref.MemRefType[Any], op_memref_type)
         shape = memref_type.get_shape()
         ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
         rewriter.insert_op_before_matched_op(ops)
