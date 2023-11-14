@@ -83,8 +83,8 @@ async def test_buttons():
     """Test pressing keys has the desired result."""
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
-        # Test clicking the "clear input" button
-        app.input_text_area.clear()
+
+        # Test clicking the "clear passes" button
         app.input_text_area.insert(
             """
         func.func @hello(%n : index) -> index {
@@ -94,7 +94,64 @@ async def test_buttons():
         }
         """
         )
-        # press clear input button
+
+        # Select a pass
+        app.passes_selection_list.select(
+            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass
+        )
+
+        # assert that pass selection affected Output Text Area
+        await pilot.pause()
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  riscv.assembly_section ".text" {
+    riscv.directive ".globl" "hello"
+    riscv.directive ".p2align" "2"
+    riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
+      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg<>
+      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg<> to index
+      %two = arith.constant 2 : index
+      %res = arith.muli %n_1, %two : index
+      %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg<>
+      %2 = riscv.mv %1 : (!riscv.reg<>) -> !riscv.reg<a0>
+      riscv_func.return %2 : !riscv.reg<a0>
+    }
+  }
+}
+"""
+        )
+        # press "clear passes" button
+        await pilot.click("#clear_selection_list_button")
+
+        # assder that the Output Text Area and current_module have the expected results
+        await pilot.pause()
+        assert app.passes_selection_list.selected == []
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : index) -> index {
+    %two = arith.constant 2 : index
+    %res = arith.muli %n, %two : index
+    func.return %res : index
+  }
+}
+"""
+        )
+        index = IndexType()
+
+        expected_module = ModuleOp(Region([Block()]))
+        with ImplicitBuilder(expected_module.body):
+            function = func.FuncOp("hello", ((index,), (index,)))
+            with ImplicitBuilder(function.body) as (n,):
+                two = arith.Constant(IntegerAttr(2, index)).result
+                res = arith.Muli(n, two)
+                func.Return(res)
+
+        assert isinstance(app.current_module, ModuleOp)
+        assert app.current_module.is_structurally_equivalent(expected_module)
+
+        # Test clicking the "clear input" button
         await pilot.click("#clear_input_button")
 
         # assert that the input text area has been cleared
