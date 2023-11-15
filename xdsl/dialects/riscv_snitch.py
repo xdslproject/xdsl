@@ -17,7 +17,9 @@ from xdsl.dialects.riscv import (
     RISCVInstruction,
     RISCVOp,
 )
+from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
+    Attribute,
     Block,
     Dialect,
     Operation,
@@ -26,20 +28,19 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    VarOperand,
     attr_def,
     irdl_op_definition,
     operand_def,
     region_def,
-    var_operand_def,
+    traits_def,
 )
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasCanonicalisationPatternsTrait,
+    HasParent,
     IsTerminator,
-    NoTerminator,
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -129,8 +130,6 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
     wraps again (up to 23 = 8).
     """
 
-    traits = frozenset((NoTerminator(),))
-
     def __init__(
         self,
         max_rep: SSAValue | Operation,
@@ -177,6 +176,11 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
 
         body = parser.parse_region()
 
+        if body.blocks and (
+            not body.block.ops or not isinstance(body.block.last_op, FrepYieldOp)
+        ):
+            body.block.add_op(FrepYieldOp())
+
         frep = cls(max_rep, body, IntAttr(stagger_mask), IntAttr(stagger_count))
         if remaining_attributes is not None:
             frep.attributes |= remaining_attributes.data
@@ -196,7 +200,12 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
         )
         printer.print_string(" ")
 
-        printer.print_region(self.body)
+        yield_op = self.body.block.last_op
+        print_block_terminators = not isinstance(yield_op, FrepYieldOp) or bool(
+            yield_op.operands
+        )
+
+        printer.print_region(self.body, print_block_terminators=print_block_terminators)
 
     def verify_(self) -> None:
         if self.stagger_count.data:
@@ -211,6 +220,18 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
                     "Frep operation body may not contain instructions "
                     f"with side-effects, found {instruction.name}"
                 )
+
+        block = self.body.blocks[0]
+
+        if not block.ops:
+            raise VerifyException(f"Expected {self.name} to not be empty")
+
+        last_op = block.last_op
+
+        if not isinstance(last_op, FrepYieldOp):
+            raise VerifyException(
+                f"Expected last op of {self.name} to be a FrepYieldOp"
+            )
 
 
 @irdl_op_definition
@@ -278,15 +299,12 @@ class FrepInner(FRepOperation):
 
 
 @irdl_op_definition
-class FrepYieldOp(IRDLOperation, RISCVOp):
+class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
     name = "riscv_snitch.frep_yield"
 
-    values: VarOperand = var_operand_def()
-
-    traits = frozenset([IsTerminator()])
-
-    def __init__(self, *operands: SSAValue | Operation) -> None:
-        super().__init__(operands=[SSAValue.get(operand) for operand in operands])
+    traits = traits_def(
+        lambda: frozenset([IsTerminator(), HasParent(FrepInner, FrepOuter)])
+    )
 
     def assembly_line(self) -> str | None:
         return None
@@ -301,6 +319,7 @@ RISCV_Snitch = Dialect(
         ScfgwiOp,
         FrepOuter,
         FrepInner,
+        FrepYieldOp,
     ],
     [],
 )

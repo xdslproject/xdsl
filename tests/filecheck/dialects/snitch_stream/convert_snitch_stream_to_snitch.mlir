@@ -87,7 +87,7 @@ snitch_stream.yield %sum : !riscv.freg<ft2>
 // CHECK-NEXT:  %{{.*}} = riscv.addi %{{.*}}, -1 : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:  riscv_snitch.frep_outer %{{.*}} {
 // CHECK-NEXT:    %sum = riscv.fadd.d %a, %b : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
-// CHECK-NEXT:    riscv_snitch.frep_yield %sum : (!riscv.freg<ft2>) -> ()
+// CHECK-NEXT:    riscv_snitch.frep_yield %sum : !riscv.freg<ft2>
 // CHECK-NEXT:  }
 // CHECK-NEXT:  "snitch.ssr_disable"() : () -> ()
 

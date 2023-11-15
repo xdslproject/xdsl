@@ -36,3 +36,13 @@ riscv_snitch.frep_outer %i0 {
 }
 
 // CHECK: Operation does not verify: Frep operation body may not contain instructions with side-effects, found riscv.sw
+
+// -----
+
+%0 = "test.op"(): () -> !riscv.reg<>
+
+"riscv_snitch.frep_outer"(%0) ({
+^bb0:
+}) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<>) -> ()
+
+// CHECK: Operation riscv_snitch.frep_outer contains empty block in single-block region that expects at least a terminator
