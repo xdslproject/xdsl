@@ -1,5 +1,5 @@
-# SelectionList
-#passes_selection_list {
+# ListView
+#passes_list_view{
     border: heavy $accent-darken-1;
     border-title-color: $warning-lighten-1;
     border-title-style: bold;
@@ -7,7 +7,7 @@
     height: 100%;
 }
 
-# VerticalScroll(Button, Button)
+# Vertical(Button)
 #buttons{
     layout: vertical;
     width: auto;
