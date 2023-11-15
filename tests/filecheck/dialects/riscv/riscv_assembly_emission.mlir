@@ -261,6 +261,10 @@
     riscv.fsd %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
     // CHECK-NEXT: fsd j5, 1(zero)
 
+    %fmadd_d = riscv.fmadd.d %f0, %f1, %f2 : (!riscv.freg<j5>, !riscv.freg<j6>, !riscv.freg<j7>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fmadd.d j8, j5, j6, j7
+    %fmsub_d = riscv.fmsub.d %f0, %f1, %f2 : (!riscv.freg<j5>, !riscv.freg<j6>, !riscv.freg<j7>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fmsub.d j8, j5, j6, j7
     %fadd_d= riscv.fadd.d %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>
     // CHECK-NEXT: fadd.d j8, j5, j6
     %fsub_d = riscv.fsub.d %f0, %f1 : (!riscv.freg<j5>, !riscv.freg<j6>) -> !riscv.freg<j8>

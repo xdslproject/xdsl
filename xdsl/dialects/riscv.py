@@ -3386,6 +3386,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 
     traits = frozenset((Pure(),))
 
+
 @irdl_op_definition
 class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
@@ -3574,13 +3575,13 @@ class FSdOp(RsRsImmFloatOperation):
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
+
 class FMvDHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMvD
 
         return (RemoveRedundantFMvD(),)
-
 
 
 @irdl_op_definition
@@ -3599,6 +3600,7 @@ class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
             FMVHasCanonicalizationPatternsTrait(),
         )
     )
+
 
 # endregion
 

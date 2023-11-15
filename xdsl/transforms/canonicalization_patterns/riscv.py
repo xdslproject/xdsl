@@ -31,6 +31,7 @@ class RemoveRedundantFMv(RewritePattern):
         ):
             rewriter.replace_matched_op([], [op.rs])
 
+
 class RemoveRedundantFMvD(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FMvDOp, rewriter: PatternRewriter) -> None:
@@ -40,6 +41,7 @@ class RemoveRedundantFMvD(RewritePattern):
             and op.rd.type.is_allocated
         ):
             rewriter.replace_matched_op([], [op.rs])
+
 
 class MultiplyImmediates(RewritePattern):
     @op_type_rewrite_pattern
