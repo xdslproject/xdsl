@@ -35,11 +35,10 @@ def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
 def _uses_snitch_stream(func: riscv_func.FuncOp) -> bool:
     """Utility method to detect use of read/write ops of the `snitch_stream` dialect."""
 
-    for op in func.walk():
-        if isinstance(op, snitch_stream.StridedReadOp | snitch_stream.StridedWriteOp):
-            return True
-
-    return False
+    return any(
+        isinstance(op, snitch_stream.StridedReadOp | snitch_stream.StridedWriteOp)
+        for op in func.walk()
+    )
 
 
 class RegisterAllocator(abc.ABC):
