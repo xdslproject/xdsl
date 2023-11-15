@@ -14,7 +14,8 @@ from xdsl.pattern_rewriter import (
 
 
 def get_snitch_reserved() -> set[riscv.FloatRegisterType]:
-    """Utility method to make explicit the Snitch ISA assumptions wrt the
+    """
+    Utility method to make explicit the Snitch ISA assumptions wrt the
     floating-point registers that are considered reserved.
     Currently, the first 3 floating-point registers are reserved.
     """
