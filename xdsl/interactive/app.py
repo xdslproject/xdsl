@@ -48,7 +48,7 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
             if not input.is_structurally_equivalent(cloned_module):
                 selections = tuple((*selections, value))
         except Exception:
-            pass
+            selections = tuple((*selections, value))
 
     return selections
 
@@ -90,7 +90,7 @@ class InputApp(App[None]):
     current_selected_pass_list = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of selected passes."""
 
-    condense_mode = reactive(bool)
+    condense_mode = reactive(bool, always_update=True)
     current_condensed_pass_list = reactive(tuple[type[ModulePass], ...])
 
     input_text_area: TextArea
@@ -174,9 +174,24 @@ class InputApp(App[None]):
             pipeline = PipelinePass([p() for p in self.current_selected_pass_list])
             pipeline.apply(ctx, module)
             self.current_module = module
+            # for current_module's that are valid ModuleOp's find the condensed pass list
             self.current_condensed_pass_list = condensed_pass_list(self.current_module)
+
+            # trigger watch_condense_mode function every time current_module is updated to recalculate/reupdate condensed_pass_list
+            if self.condense_mode is True:
+                self.condense_mode = True
+            else:
+                self.condense_mode = False
         except Exception as e:
             self.current_module = e
+            # for current_module's that are exceptions, the condensed pass list is empty
+            self.current_condensed_pass_list = []
+
+            # trigger watch_condense_mode function every time current_module is updated to recalculate/reupdate condensed_pass_list
+            if self.condense_mode is True:
+                self.condense_mode = True
+            else:
+                self.condense_mode = False
 
     def watch_current_module(self):
         """
@@ -248,13 +263,15 @@ class InputApp(App[None]):
     def clear_passes(self, event: Button.Pressed) -> None:
         """Selected passes cleared when "Clear Passes" button is pressed."""
         self.current_selected_pass_list = ()
-        # self.update_current_module()
 
     @on(Button.Pressed, "#condense_button")
     def condense(self, event: Button.Pressed) -> None:
         self.condense_mode = True
+        self.watch_condense_mode()
 
     def watch_condense_mode(self) -> None:
+        self.passes_list_view.clear()
+
         if self.condense_mode is False:
             for n, _ in ALL_PASSES:
                 self.passes_list_view.append(ListItem(Label(n), name=n))
