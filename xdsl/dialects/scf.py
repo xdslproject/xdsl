@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Annotated
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import IndexType, IntegerType
+from xdsl.dialects.builtin import (
+    AnySignlessIntegerOrIndexType,
+    IndexType,
+    IntegerType,
+)
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_assignment,
@@ -14,6 +19,7 @@ from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     VarOperand,
@@ -128,9 +134,11 @@ class If(IRDLOperation):
 class For(IRDLOperation):
     name = "scf.for"
 
-    lb: Operand = operand_def(IndexType)
-    ub: Operand = operand_def(IndexType)
-    step: Operand = operand_def(IndexType)
+    T = Annotated[AnySignlessIntegerOrIndexType, ConstraintVar("T")]
+
+    lb: Operand = operand_def(T)
+    ub: Operand = operand_def(T)
+    step: Operand = operand_def(T)
 
     iter_args: VarOperand = var_operand_def(AnyAttr())
 
@@ -233,6 +241,10 @@ class For(IRDLOperation):
             printer.print_string(") -> (")
             printer.print_list((a.type for a in iter_args), printer.print_attribute)
             printer.print_string(") ")
+        if not isinstance(indvar.type, IndexType):
+            printer.print_string(": ")
+            printer.print_attribute(indvar.type)
+            printer.print_string(" ")
         printer.print_region(
             self.body,
             print_entry_block_args=False,
@@ -271,15 +283,19 @@ class For(IRDLOperation):
             iter_arg_unresolved_operands, iter_arg_types, pos
         )
 
-        # Set block argument types
+        # Set induction variable type
         indvar.type = lb.type
+        if parser.parse_optional_characters(":"):
+            indvar.type = parser.parse_type()
+
+        # Set block argument types
         for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
             iter_arg.type = iter_arg_type
 
         # Parse body
         body = parser.parse_region((indvar, *iter_args))
 
-        for_op = For(lb, ub, step, iter_arg_operands, body)
+        for_op = cls(lb, ub, step, iter_arg_operands, body)
 
         if not iter_args:
             for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):

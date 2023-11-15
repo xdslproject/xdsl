@@ -35,6 +35,9 @@ categories:
     labels:
       - 'minor'
       - 'misc'
+  - title: 'Interactive'
+    labels:
+      - 'interactive'
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 template: |
   ## Changes

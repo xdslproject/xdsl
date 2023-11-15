@@ -24,5 +24,12 @@
                 "${file}"
             ]
         },
+        {
+            "name": "interactive",
+            "type": "python",
+            "request": "launch",
+            "module": "xdsl.interactive.app",
+            "justMyCode": false,
+        },
     ]
 }

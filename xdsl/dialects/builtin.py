@@ -36,6 +36,7 @@ from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyOf,
     AttrConstraint,
     GenericData,
     IRDLOperation,
@@ -340,6 +341,15 @@ i32 = IntegerType(32)
 i1 = IntegerType(1)
 
 
+SignlessIntegerConstraint = ParamAttrConstraint(
+    IntegerType, [IntAttr, SignednessAttr(Signedness.SIGNLESS)]
+)
+"""Type constraint for signless IntegerType."""
+
+AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstraint]
+"""Type alias constrained to signless IntegerType."""
+
+
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute):
     name = "unit"
@@ -363,6 +373,11 @@ class IndexType(ParametrizedAttribute):
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
+
+AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
+    Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
+]
+"""Type alias constrained to IndexType or signless IntegerType."""
 
 
 @irdl_attr_definition
@@ -1222,7 +1237,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
             parser.parse_type,
         )
         attributes = parser.parse_optional_attr_dict()
-        return UnrealizedConversionCastOp(
+        return cls(
             operands=[inputs], result_types=[output_types], attributes=attributes
         )
 
