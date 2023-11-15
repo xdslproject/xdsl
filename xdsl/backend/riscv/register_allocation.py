@@ -5,7 +5,6 @@ from ordered_set import OrderedSet
 
 from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv_func, riscv_scf, snitch_stream
-from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
 from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
@@ -13,6 +12,7 @@ from xdsl.dialects.riscv import (
     RISCVRegisterType,
 )
 from xdsl.ir import Block, Operation, SSAValue
+from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
 
 
 def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
