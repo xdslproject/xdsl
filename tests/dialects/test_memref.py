@@ -105,8 +105,11 @@ def test_memref_store_i32_with_dimensions():
 
 def test_memref_alloc():
     my_i32 = IntegerType(32)
+    my_layout = StridedLayoutAttr(strides=(2, 4, 6), offset=8)
+    my_memspace = builtin.IntegerAttr(0, i32)
     alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloc.get(my_i32, 64)
+    alloc2 = Alloc.get(my_i32, 64, [3, 1, 2], my_layout, my_memspace)
 
     assert alloc0.dynamic_sizes == ()
     assert type(alloc0.results[0]) is OpResult
@@ -115,12 +118,20 @@ def test_memref_alloc():
     assert type(alloc1.results[0]) is OpResult
     assert type(alloc1.results[0].type) is MemRefType
     assert alloc1.results[0].type.get_shape() == (1,)
+    assert type(alloc2.results[0]) is OpResult
+    assert type(alloc2.results[0].type) is MemRefType
+    assert alloc2.results[0].type.get_shape() == (3, 1, 2)
+    assert alloc2.results[0].type.layout == my_layout
+    assert alloc2.results[0].type.memory_space == my_memspace
 
 
 def test_memref_alloca():
     my_i32 = IntegerType(32)
+    my_layout = StridedLayoutAttr(strides=(2, 4, 6), offset=8)
+    my_memspace = builtin.IntegerAttr(0, i32)
     alloc0 = Alloca.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloca.get(my_i32, 64)
+    alloc2 = Alloc.get(my_i32, 64, [3, 1, 2], my_layout, my_memspace)
 
     assert type(alloc0.results[0]) is OpResult
     assert type(alloc0.results[0].type) is MemRefType
@@ -128,6 +139,11 @@ def test_memref_alloca():
     assert type(alloc1.results[0]) is OpResult
     assert type(alloc1.results[0].type) is MemRefType
     assert alloc1.results[0].type.get_shape() == (1,)
+    assert type(alloc2.results[0]) is OpResult
+    assert type(alloc2.results[0].type) is MemRefType
+    assert alloc2.results[0].type.get_shape() == (3, 1, 2)
+    assert alloc2.results[0].type.layout == my_layout
+    assert alloc2.results[0].type.memory_space == my_memspace
 
 
 def test_memref_dealloc():
