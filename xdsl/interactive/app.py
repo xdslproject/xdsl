@@ -17,6 +17,7 @@ from textual.reactive import reactive
 from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
@@ -28,6 +29,28 @@ from ._pasteboard import pyclip_copy
 
 ALL_PASSES = tuple(sorted((p.name, p) for p in get_all_passes()))
 """Contains the list of xDSL passes."""
+
+
+def condensed_pass_list(input: builtin.ModuleOp) -> list[type[ModulePass]]:
+    """Used to check if a pass has had an effect on the IR (i.e. has changed the IR)."""
+    selections = get_all_passes()
+    ctx = MLContext(True)
+
+    for dialect in get_all_dialects():
+        ctx.load_dialect(dialect)
+
+    for _, value in ALL_PASSES:
+        try:
+            cloned_module = input.clone()
+            cloned_ctx = ctx.clone()
+            value().apply(cloned_ctx, cloned_module)
+
+            if input.is_structurally_equivalent(cloned_module):
+                selections.remove(value)
+        except Exception:
+            pass
+
+    return selections
 
 
 class OutputTextArea(TextArea):
