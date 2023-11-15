@@ -94,6 +94,7 @@ class InputApp(App[None]):
             with Horizontal(id="button_and_selected_horziontal"):
                 with Vertical(id="buttons"):
                     yield Button("Copy Query", id="copy_query_button")
+                    yield Button("Clear Passes", id="clear_passes_button")
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -129,8 +130,8 @@ class InputApp(App[None]):
         )
         new_label = f"xdsl-opt -p {new_passes}"
         self.selected_query_label.update(new_label)
+        self.update_current_module()
 
-    @on(ListView.Selected)
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
@@ -212,6 +213,12 @@ class InputApp(App[None]):
         )
         query = f"xdsl-opt -p {selected_passes}"
         pyclip_copy(query)
+
+    @on(Button.Pressed, "#clear_passes_button")
+    def clear_passes(self, event: Button.Pressed) -> None:
+        """Selected passes cleared when "Clear Passes" button is pressed."""
+        self.current_selected_pass_list = ()
+        # self.update_current_module()
 
 
 def main():
