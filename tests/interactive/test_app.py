@@ -21,8 +21,10 @@ async def test_inputs():
         app = cast(InputApp, pilot.app)
 
         # Test no input
-        assert app.output_text_area.text == "No input"
-        assert app.current_module is None
+        assert (
+            app.output_text_area.text
+            == "(Span[0:1](text=''), 'Could not parse entire input!')"
+        )
 
         # Test inccorect input
         app.input_text_area.insert("dkjfd")
