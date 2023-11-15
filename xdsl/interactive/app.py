@@ -46,11 +46,15 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
             value().apply(cloned_ctx, cloned_module)
 
             if not input.is_structurally_equivalent(cloned_module):
-                selections = tuple((*selections, value))
+                selections = tuple(
+                    (*selections, value)
+                )  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
         except Exception:
-            selections = tuple((*selections, value))
+            selections = tuple(
+                (*selections, value)
+            )  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
 
-    return selections
+    return selections  # pyright: ignore[reportUnknownVariableType]
 
 
 class OutputTextArea(TextArea):
@@ -276,9 +280,15 @@ class InputApp(App[None]):
             for n, _ in ALL_PASSES:
                 self.passes_list_view.append(ListItem(Label(n), name=n))
         else:
-            for value in self.current_condensed_pass_list:
+            for (
+                value
+            ) in (
+                self.current_condensed_pass_list
+            ):  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnknownVariableType]
                 self.passes_list_view.append(
-                    ListItem(Label(value.name), name=value.name)
+                    ListItem(
+                        Label(value.name), name=value.name
+                    )  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
                 )
 
 
