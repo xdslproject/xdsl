@@ -91,7 +91,7 @@ class InputApp(App[None]):
     Reactive variable used to save the current state of the modified Input TextArea
     (i.e. is the Output TextArea).
     """
-    current_selected_pass_list = reactive(tuple[type[ModulePass], ...])
+    pass_pipeline = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of selected passes."""
 
     condense_mode = reactive(bool, always_update=True)
@@ -138,7 +138,7 @@ class InputApp(App[None]):
         yield Footer()
 
     @on(ListView.Selected)
-    def update_current_selected_pass_list(self, event: ListView.Selected) -> None:
+    def update_pass_pipeline(self, event: ListView.Selected) -> None:
         """
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
@@ -146,19 +146,15 @@ class InputApp(App[None]):
         selected_pass = event.item.name
         for name, value in ALL_PASSES:
             if name == selected_pass:
-                self.current_selected_pass_list = tuple(
-                    (*self.current_selected_pass_list, value)
-                )
+                self.pass_pipeline = tuple((*self.pass_pipeline, value))
                 return
 
-    def watch_current_selected_pass_list(self) -> None:
+    def watch_pass_pipeline(self) -> None:
         """
-        When the reactive variable current_selected_pass_list changes, this function
+        When the reactive variable pass_pipeline changes, this function
         is called and updates the label to show the respective generated query in the Label.
         """
-        new_passes = "\n" + (", " + "\n").join(
-            p.name for p in self.current_selected_pass_list
-        )
+        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
         new_label = f"xdsl-opt -p {new_passes}"
         self.selected_query_label.update(new_label)
         self.update_current_module()
@@ -169,13 +165,15 @@ class InputApp(App[None]):
         Function to parse the input and to apply the list of selected passes to it.
         """
         input_text = self.input_text_area.text
+        if (input_text) == "":
+            return
         try:
             ctx = MLContext(True)
             for dialect in get_all_dialects():
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-            pipeline = PipelinePass([p() for p in self.current_selected_pass_list])
+            pipeline = PipelinePass([p() for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
             # for current_module's that are valid ModuleOp's find the condensed pass list
@@ -257,16 +255,14 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#copy_query_button")
     def copy_query(self, event: Button.Pressed) -> None:
         """Selected passes/query Label is copied when "Copy Query" button is pressed."""
-        selected_passes = "\n" + (", " + "\n").join(
-            p.name for p in self.current_selected_pass_list
-        )
+        selected_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
         query = f"xdsl-opt -p {selected_passes}"
         pyclip_copy(query)
 
     @on(Button.Pressed, "#clear_passes_button")
     def clear_passes(self, event: Button.Pressed) -> None:
         """Selected passes cleared when "Clear Passes" button is pressed."""
-        self.current_selected_pass_list = ()
+        self.pass_pipeline = ()
 
     @on(Button.Pressed, "#condense_button")
     def condense(self, event: Button.Pressed) -> None:
