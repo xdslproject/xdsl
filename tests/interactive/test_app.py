@@ -23,10 +23,8 @@ async def test_inputs():
         app = cast(InputApp, pilot.app)
 
         # Test no input
-        assert (
-            app.output_text_area.text
-            == "(Span[0:1](text=''), 'Could not parse entire input!')"
-        )
+        assert app.output_text_area.text == "No input"
+        assert app.current_module is None
 
         # Test inccorect input
         app.input_text_area.insert("dkjfd")
@@ -127,6 +125,73 @@ async def test_buttons():
         # assert that the input text area has been cleared
         await pilot.pause()
         assert app.input_text_area.text == ""
+
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
+        )
+
+        # Select a pass
+        app.pass_pipeline = tuple(
+            (*app.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
+        )
+
+        # assert that pass selection affected Output Text Area
+        await pilot.pause()
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  riscv.assembly_section ".text" {
+    riscv.directive ".globl" "hello"
+    riscv.directive ".p2align" "2"
+    riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
+      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg<>
+      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg<> to index
+      %two = arith.constant 2 : index
+      %res = arith.muli %n_1, %two : index
+      %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg<>
+      %2 = riscv.mv %1 : (!riscv.reg<>) -> !riscv.reg<a0>
+      riscv_func.return %2 : !riscv.reg<a0>
+    }
+  }
+}
+"""
+        )
+
+        # press "Clear Passes" button
+        await pilot.click("#clear_passes_button")
+
+        # assert that the Output Text Area and current_module have the expected results
+        await pilot.pause()
+        assert app.pass_pipeline == ()
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : index) -> index {
+    %two = arith.constant 2 : index
+    %res = arith.muli %n, %two : index
+    func.return %res : index
+  }
+}
+"""
+        )
+        index = IndexType()
+
+        expected_module = ModuleOp(Region([Block()]))
+        with ImplicitBuilder(expected_module.body):
+            function = func.FuncOp("hello", ((index,), (index,)))
+            with ImplicitBuilder(function.body) as (n,):
+                two = arith.Constant(IntegerAttr(2, index)).result
+                res = arith.Muli(n, two)
+                func.Return(res)
+
+        assert isinstance(app.current_module, ModuleOp)
+        assert app.current_module.is_structurally_equivalent(expected_module)
 
 
 @pytest.mark.asyncio()

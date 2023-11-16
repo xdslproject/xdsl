@@ -213,8 +213,7 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#clear_passes_button")
     def clear_passes(self, event: Button.Pressed) -> None:
         """Selected passes cleared when "Clear Passes" button is pressed."""
-        self.current_selected_pass_list = ()
-        # self.update_current_module()
+        self.pass_pipeline = ()
 
 
 def main():
