@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Annotated, Generic
 
+from typing_extensions import Self
+
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AnyAttr,
@@ -50,7 +52,7 @@ from xdsl.irdl import (
     successor_def,
     var_operand_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, SymbolOpInterface, SymbolTable
 from xdsl.utils.exceptions import VerifyException
@@ -273,6 +275,16 @@ class CoreOp(IRDLOperation):
         printer.print_region(self.region)
         if self.link_with is not None:
             printer.print(' { link_with="', self.link_with, '" }')
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        parser.parse_characters("(")
+        tile = parser.parse_operand()
+        parser.parse_characters(")")
+        region = parser.parse_region()
+
+        stackSize = IntegerAttr.from_int_and_width(256, i32)
+        return CoreOp(stackSize, tile, region)
 
 
 @irdl_op_definition
@@ -995,6 +1007,25 @@ class UseLockOp(IRDLOperation):
         printer.print(self.value.value.data)
         printer.print(")")
 
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        parser.parse_characters("(")
+        lock = parser.parse_operand()
+        parser.parse_characters(",")
+        value = parser.parse_str_literal()
+        value = (
+            IntegerAttr.from_int_and_width(LOCK_ACQUIRE, i32)
+            if value == "Acquire"
+            else IntegerAttr.from_int_and_width(LOCK_RELEASE, i32)
+        )
+        parser.parse_characters(",")
+        action = IntegerAttr.from_int_and_width(parser.parse_integer(), i32)
+        parser.parse_characters(")")
+
+        blocking = IntegerAttr.from_int_and_width(BLOCKING, i32)
+
+        return UseLockOp(value, action, blocking, lock)
+
 
 @irdl_op_definition
 class WireOp(IRDLOperation):
@@ -1027,6 +1058,7 @@ class EndOp(IRDLOperation):
 
 
 AIE = Dialect(
+    "aie",
     [
         ObjectFIFOSubview,
         AMSelOp,

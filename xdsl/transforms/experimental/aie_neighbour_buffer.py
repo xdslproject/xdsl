@@ -22,14 +22,11 @@ class NorthNeighbour(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: aie.CoreOp, rewriter: PatternRewriter, /):
-        print("FOUND CORE: ", op.tile.op.row)
-
-        device = None
         for _op in self.module.ops:
             if isinstance(_op, aie.DeviceOp):
-                device = _op
+                pass
 
-        print(device)
+        # print(device)
         # Instantiate north neighbour tile and core
         row = builtin.IntegerAttr.from_int_and_width(
             op.tile.op.row.value.data + 1, builtin.i32
@@ -47,8 +44,6 @@ class NorthNeighbour(RewritePattern):
             north_tile,
             core_region,
         )
-
-        print(north_core)
 
         rewriter.insert_op_after_matched_op([north_tile, north_core])
 
