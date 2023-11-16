@@ -126,6 +126,7 @@ class InputApp(App[None]):
                 with Vertical(id="buttons"):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
+                    yield Button("Remove Last Pass", id="remove_last_pass_button")
                     yield Button("Condense", id="condense_button")
                     yield Button("Uncondense", id="uncondense_button")
                 with ScrollableContainer(id="selected_passes"):
@@ -294,6 +295,10 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#uncondense_button")
     def uncondense(self, event: Button.Pressed) -> None:
         self.condense_mode = False
+
+    @on(Button.Pressed, "#remove_last_pass_button")
+    def remove_last_pass(self, event: Button.Pressed) -> None:
+        self.pass_pipeline = self.pass_pipeline[:-1]
 
 
 def main():
