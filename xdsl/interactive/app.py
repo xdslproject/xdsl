@@ -127,6 +127,7 @@ class InputApp(App[None]):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
                     yield Button("Condense", id="condense_button")
+                    yield Button("Uncondense", id="uncondense_button")
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -289,6 +290,10 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#condense_button")
     def condense(self, event: Button.Pressed) -> None:
         self.condense_mode = True
+
+    @on(Button.Pressed, "#uncondense_button")
+    def uncondense(self, event: Button.Pressed) -> None:
+        self.condense_mode = False
 
 
 def main():
