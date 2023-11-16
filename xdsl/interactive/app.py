@@ -64,7 +64,7 @@ class InputApp(App[None]):
     Reactive variable used to save the current state of the modified Input TextArea
     (i.e. is the Output TextArea).
     """
-    current_selected_pass_list = reactive(tuple[type[ModulePass], ...])
+    pass_pipeline = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of selected passes."""
 
     input_text_area: TextArea
@@ -106,7 +106,7 @@ class InputApp(App[None]):
         yield Footer()
 
     @on(ListView.Selected)
-    def update_current_selected_pass_list(self, event: ListView.Selected) -> None:
+    def update_pass_pipeline(self, event: ListView.Selected) -> None:
         """
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
@@ -114,23 +114,19 @@ class InputApp(App[None]):
         selected_pass = event.item.name
         for name, value in ALL_PASSES:
             if name == selected_pass:
-                self.current_selected_pass_list = tuple(
-                    (*self.current_selected_pass_list, value)
-                )
+                self.pass_pipeline = tuple((*self.pass_pipeline, value))
                 return
 
-    def watch_current_selected_pass_list(self) -> None:
+    def watch_pass_pipeline(self) -> None:
         """
-        When the reactive variable current_selected_pass_list changes, this function
+        When the reactive variable pass_pipeline changes, this function
         is called and updates the label to show the respective generated query in the Label.
         """
-        new_passes = "\n" + (", " + "\n").join(
-            p.name for p in self.current_selected_pass_list
-        )
+        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
         new_label = f"xdsl-opt -p {new_passes}"
         self.selected_query_label.update(new_label)
+        self.update_current_module()
 
-    @on(ListView.Selected)
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
@@ -143,7 +139,7 @@ class InputApp(App[None]):
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-            pipeline = PipelinePass([p() for p in self.current_selected_pass_list])
+            pipeline = PipelinePass([p() for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:
@@ -207,9 +203,7 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#copy_query_button")
     def copy_query(self, event: Button.Pressed) -> None:
         """Selected passes/query Label is copied when "Copy Query" button is pressed."""
-        selected_passes = "\n" + (", " + "\n").join(
-            p.name for p in self.current_selected_pass_list
-        )
+        selected_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
         query = f"xdsl-opt -p {selected_passes}"
         pyclip_copy(query)
 
