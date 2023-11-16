@@ -143,7 +143,7 @@ def get_type_var_mapping(
     orig_bases = [
         orig_base
         for orig_base in orig_bases
-        if (o := get_origin(orig_base)) is not Generic and o is not None
+        if (origin := get_origin(orig_base)) is not Generic and origin is not None
     ]
     # Do not handle more than one generic parent in the mro.
     # It is possible to handle more than one generic parent, but

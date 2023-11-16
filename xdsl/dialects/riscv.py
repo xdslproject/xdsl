@@ -3358,6 +3358,36 @@ class FSwOp(RsRsImmFloatOperation):
 
 
 @irdl_op_definition
+class FMAddDOp(RdRsRsRsFloatOperation):
+    """
+    Perform double-precision fused multiply addition.
+
+    f[rd] = f[rs1]×f[rs2]+f[rs3]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-d
+    """
+
+    name = "riscv.fmadd.d"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FMSubDOp(RdRsRsRsFloatOperation):
+    """
+    Perform double-precision fused multiply substraction.
+
+    f[rd] = f[rs1]×f[rs2]+f[rs3]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-d
+    """
+
+    name = "riscv.fmsub.d"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
 class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
     Perform double-precision floating-point addition.
@@ -3715,6 +3745,8 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FMAddDOp,
+        FMSubDOp,
         FAddDOp,
         FSubDOp,
         FMulDOp,
