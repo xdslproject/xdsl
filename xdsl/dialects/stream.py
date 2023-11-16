@@ -227,8 +227,8 @@ class StridedReadOp(IRDLOperation):
         dm: IntAttr,
         rank: IntAttr,
     ):
-        assert isinstance(memref.type, MemRefType)
-        memref_type = cast(MemRefType[Attribute], memref.type)
+        assert isinstance(memref_type := memref.type, MemRefType)
+        memref_type = cast(MemRefType[Attribute], memref_type)
         super().__init__(
             operands=[memref, pattern],
             result_types=[ReadableStreamType(memref_type.element_type)],
@@ -256,8 +256,8 @@ class StridedWriteOp(IRDLOperation):
     rank = attr_def(IntAttr)
 
     def __init__(self, memref: SSAValue, pattern: SSAValue, dm: IntAttr, rank: IntAttr):
-        assert isinstance(memref.type, MemRefType)
-        memref_type = cast(MemRefType[Attribute], memref.type)
+        assert isinstance(memref_type := memref.type, MemRefType)
+        memref_type = cast(MemRefType[Attribute], memref_type)
         super().__init__(
             operands=[memref, pattern],
             result_types=[WritableStreamType(memref_type.element_type)],
