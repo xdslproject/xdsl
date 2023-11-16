@@ -133,6 +133,8 @@ class InputApp(App[None]):
         Function to parse the input and to apply the list of selected passes to it.
         """
         input_text = self.input_text_area.text
+        if (input_text) == "":
+            return
         try:
             ctx = MLContext(True)
             for dialect in get_all_dialects():
