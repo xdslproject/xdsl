@@ -3532,9 +3532,14 @@ class FLdOp(RdRsImmFloatOperation):
         value = _assembly_arg_str(self.rd)
         imm = _assembly_arg_str(self.immediate)
         offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
-            instruction_name, f"{value}, {imm}({offset})", self.comment
-        )
+        if isinstance(self.immediate, LabelAttr):
+            return _assembly_line(
+                instruction_name, f"{value}, {imm}, {offset}", self.comment
+            )
+        else:
+            return _assembly_line(
+                instruction_name, f"{value}, {imm}({offset})", self.comment
+            )
 
 
 class FSdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
