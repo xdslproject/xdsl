@@ -380,22 +380,6 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 """Type alias constrained to IndexType or signless IntegerType."""
 
 
-def _get_int_range(int_type: IntegerType) -> tuple[int, int]:
-    width: int = int_type.width.data
-    match int_type.signedness.data:
-        case Signedness.SIGNLESS:
-            min_value = -(1 << width)
-            max_value = 1 << width
-        case Signedness.SIGNED:
-            min_value = -(1 << (width - 1))
-            max_value = (1 << (width - 1)) - 1
-        case Signedness.UNSIGNED:
-            min_value = 0
-            max_value = (1 << width) - 1
-
-    return (min_value, max_value)
-
-
 @irdl_attr_definition
 class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
     name = "integer"
@@ -434,8 +418,19 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
         return IntegerAttr(value, IndexType())
 
     def verify(self) -> None:
-        if isinstance(int_type := self.type, IntegerType):
-            min_value, max_value = _get_int_range(int_type)
+        if isinstance(self.type, IntegerType):
+            match self.type.signedness.data:
+                case Signedness.SIGNLESS:
+                    min_value = -(1 << self.type.width.data)
+                    max_value = 1 << self.type.width.data
+                case Signedness.SIGNED:
+                    min_value = -(1 << (self.type.width.data - 1))
+                    max_value = (1 << (self.type.width.data - 1)) - 1
+                case Signedness.UNSIGNED:
+                    min_value = 0
+                    max_value = (1 << self.type.width.data) - 1
+                case _:
+                    assert False, "unreachable"
 
             if not (min_value <= self.value.data <= max_value):
                 raise VerifyException(
