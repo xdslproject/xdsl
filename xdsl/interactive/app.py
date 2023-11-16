@@ -234,13 +234,17 @@ class InputApp(App[None]):
         else:
             self.condense_mode = False
 
-    def watch_condense_mode(self) -> None:
-        self.passes_list_view.clear()
-
-        if self.condense_mode is False:
+    def watch_condense_mode(
+        self, old_condense_mode: bool, new_condense_mode: bool
+    ) -> None:
+        if old_condense_mode is False and new_condense_mode is False:
+            return
+        elif old_condense_mode is True and new_condense_mode is False:
+            self.passes_list_view.clear()
             for n, _ in ALL_PASSES:
                 self.passes_list_view.append(ListItem(Label(n), name=n))
         else:
+            self.passes_list_view.clear()
             for (
                 value
             ) in (
