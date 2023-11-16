@@ -32,7 +32,8 @@ ALL_PASSES = tuple(sorted((p.name, p) for p in get_all_passes()))
 
 
 def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
-    """Used to check if a pass has had an effect on the IR (i.e. has changed the IR)."""
+    """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
+
     selections = ()
     ctx = MLContext(True)
 
@@ -137,6 +138,27 @@ class InputApp(App[None]):
                 yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
+    def on_mount(self) -> None:
+        """Configure widgets in this application before it is first shown."""
+
+        # register's the theme for the Input/Output TextArea's
+        self.input_text_area.register_theme(InputApp._DEFAULT_THEME)
+        self.output_text_area.register_theme(InputApp._DEFAULT_THEME)
+        self.input_text_area.theme = "my_theme_design"
+        self.output_text_area.theme = "my_theme_design"
+
+        self.query_one("#input_container").border_title = "Input xDSL IR"
+        self.query_one("#output_container").border_title = "Output xDSL IR"
+        self.query_one(
+            "#passes_list_view"
+        ).border_title = "Choose a pass or multiple passes to be applied."
+        self.query_one("#selected_passes").border_title = "Selected passes/query"
+
+        for n, _ in ALL_PASSES:
+            self.passes_list_view.append(ListItem(Label(n), name=n))
+
+        self.condense_mode = False
+
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
         """
@@ -176,24 +198,13 @@ class InputApp(App[None]):
             pipeline = PipelinePass([p() for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
-            # for current_module's that are valid ModuleOp's find the condensed pass list
             self.current_condensed_pass_list = condensed_pass_list(self.current_module)
+            self.trigger()
 
-            # trigger watch_condense_mode function every time current_module is updated to recalculate/reupdate condensed_pass_list
-            if self.condense_mode is True:
-                self.condense_mode = True
-            else:
-                self.condense_mode = False
         except Exception as e:
             self.current_module = e
-            # for current_module's that are exceptions, the condensed pass list is empty
             self.current_condensed_pass_list = []
-
-            # trigger watch_condense_mode function every time current_module is updated to recalculate/reupdate condensed_pass_list
-            if self.condense_mode is True:
-                self.condense_mode = True
-            else:
-                self.condense_mode = False
+            self.trigger()
 
     def watch_current_module(self):
         """
@@ -213,26 +224,33 @@ class InputApp(App[None]):
 
         self.output_text_area.load_text(output_text)
 
-    def on_mount(self) -> None:
-        """Configure widgets in this application before it is first shown."""
+    def trigger(self):
+        """
+        Function re-updates reactive condense_mode variable, which triggers reactivity
+        properties to recalculate current_condensed_pass_list.
+        """
+        if self.condense_mode is True:
+            self.condense_mode = True
+        else:
+            self.condense_mode = False
 
-        # register's the theme for the Input/Output TextArea's
-        self.input_text_area.register_theme(InputApp._DEFAULT_THEME)
-        self.output_text_area.register_theme(InputApp._DEFAULT_THEME)
-        self.input_text_area.theme = "my_theme_design"
-        self.output_text_area.theme = "my_theme_design"
+    def watch_condense_mode(self) -> None:
+        self.passes_list_view.clear()
 
-        self.query_one("#input_container").border_title = "Input xDSL IR"
-        self.query_one("#output_container").border_title = "Output xDSL IR"
-        self.query_one(
-            "#passes_list_view"
-        ).border_title = "Choose a pass or multiple passes to be applied."
-        self.query_one("#selected_passes").border_title = "Selected passes/query"
-
-        for n, _ in ALL_PASSES:
-            self.passes_list_view.append(ListItem(Label(n), name=n))
-
-        self.condense_mode = False
+        if self.condense_mode is False:
+            for n, _ in ALL_PASSES:
+                self.passes_list_view.append(ListItem(Label(n), name=n))
+        else:
+            for (
+                value
+            ) in (
+                self.current_condensed_pass_list
+            ):  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnknownVariableType]
+                self.passes_list_view.append(
+                    ListItem(
+                        Label(value.name), name=value.name
+                    )  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+                )
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
@@ -267,25 +285,6 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#condense_button")
     def condense(self, event: Button.Pressed) -> None:
         self.condense_mode = True
-        self.watch_condense_mode()
-
-    def watch_condense_mode(self) -> None:
-        self.passes_list_view.clear()
-
-        if self.condense_mode is False:
-            for n, _ in ALL_PASSES:
-                self.passes_list_view.append(ListItem(Label(n), name=n))
-        else:
-            for (
-                value
-            ) in (
-                self.current_condensed_pass_list
-            ):  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnknownVariableType]
-                self.passes_list_view.append(
-                    ListItem(
-                        Label(value.name), name=value.name
-                    )  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-                )
 
 
 def main():

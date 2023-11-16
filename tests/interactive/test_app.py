@@ -2,7 +2,10 @@ from typing import cast
 
 import pytest
 
-from xdsl.backend.riscv.lowering import convert_func_to_riscv_func
+from xdsl.backend.riscv.lowering import (
+    convert_arith_to_riscv,
+    convert_func_to_riscv_func,
+)
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func, riscv, riscv_func
 from xdsl.dialects.builtin import (
@@ -13,6 +16,14 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.app import InputApp
 from xdsl.ir import Block, Region
+from xdsl.transforms import (
+    mlir_opt,
+    printf_to_llvm,
+)
+from xdsl.transforms.experimental import (
+    hls_convert_stencil_to_ll_mlir,
+)
+from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 
 
@@ -192,6 +203,24 @@ async def test_buttons():
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
+
+        # press "Condense" button
+        await pilot.click("#condense_button")
+
+        condensed_list = tuple(
+            (
+                convert_arith_to_riscv.ConvertArithToRiscvPass,
+                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                stencil_global_to_local.DistributeStencilPass,
+                hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
+                mlir_opt.MLIROptPass,
+                printf_to_llvm.PrintfToLLVM,
+            )
+        )
+
+        await pilot.pause()
+        assert app.condense_mode is True
+        assert app.current_condensed_pass_list == condensed_list
 
 
 @pytest.mark.asyncio()
