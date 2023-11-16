@@ -188,6 +188,7 @@ class InputApp(App[None]):
         """
         input_text = self.input_text_area.text
         if (input_text) == "":
+            self.current_module = None
             return
         try:
             ctx = MLContext(True)
