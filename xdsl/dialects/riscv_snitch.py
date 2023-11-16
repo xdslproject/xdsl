@@ -42,6 +42,8 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     Pure,
+    SingleBlockImplicitTerminator,
+    ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -130,6 +132,10 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
     wraps again (up to 23 = 8).
     """
 
+    traits = traits_def(
+        lambda: frozenset((SingleBlockImplicitTerminator(FrepYieldOp),))
+    )
+
     def __init__(
         self,
         max_rep: SSAValue | Operation,
@@ -176,14 +182,13 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
 
         body = parser.parse_region()
 
-        if body.blocks and (
-            not body.block.ops or not isinstance(body.block.last_op, FrepYieldOp)
-        ):
-            body.block.add_op(FrepYieldOp())
-
         frep = cls(max_rep, body, IntAttr(stagger_mask), IntAttr(stagger_count))
         if remaining_attributes is not None:
             frep.attributes |= remaining_attributes.data
+
+        for trait in frep.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(frep, trait)
+
         return frep
 
     def print(self, printer: Printer) -> None:
@@ -220,18 +225,6 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
                     "Frep operation body may not contain instructions "
                     f"with side-effects, found {instruction.name}"
                 )
-
-        block = self.body.blocks[0]
-
-        if not block.ops:
-            raise VerifyException(f"Expected {self.name} to not be empty")
-
-        last_op = block.last_op
-
-        if not isinstance(last_op, FrepYieldOp):
-            raise VerifyException(
-                f"Expected last op of {self.name} to be a FrepYieldOp"
-            )
 
 
 @irdl_op_definition
