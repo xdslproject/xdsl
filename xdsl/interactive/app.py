@@ -296,10 +296,15 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#condense_button")
     def condense(self, event: Button.Pressed) -> None:
         self.condense_mode = True
+        self.add_class("condensed")
+        self.remove_class("uncondensed")
 
     @on(Button.Pressed, "#uncondense_button")
     def uncondense(self, event: Button.Pressed) -> None:
         self.condense_mode = False
+        # self.add_class("uncondensed")
+        self.remove_class("condensed")
+        self.add_class("uncondensed")
 
     @on(Button.Pressed, "#remove_last_pass_button")
     def remove_last_pass(self, event: Button.Pressed) -> None:
