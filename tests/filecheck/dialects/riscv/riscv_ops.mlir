@@ -285,6 +285,11 @@
 
     // RV32F: 9 “D” Standard Extension for Single-Precision Floating-Point, Version 2.0
 
+    %fmadd_d = riscv.fmadd.d %f0, %f1, %f2 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %fmsub_d = riscv.fmsub.d %f0, %f1, %f2 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmsub.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
     %fmin_d = riscv.fmin.d %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.fmin.d %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     %fmax_d = riscv.fmax.d %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
@@ -418,6 +423,8 @@
 // CHECK-GENERIC-NEXT:     "riscv.fsd"(%0, %f0) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.freg<>) -> ()
 // CHECK-GENERIC-NEXT:     %vfadd_s = "riscv.vfadd.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %vfmul_s = "riscv.vfmul.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmadd_d = "riscv.fmadd.d"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmsub_d = "riscv.fmsub.d"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fmin_d = "riscv.fmin.d"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fmax_d = "riscv.fmax.d"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT: %{{.*}} = "riscv.fcvt.d.w"(%{{.*}}) : (!riscv.reg<>) -> !riscv.freg<>

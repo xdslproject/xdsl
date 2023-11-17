@@ -106,8 +106,8 @@ async def test_buttons():
         """
         )
 
-        await pilot.pause()
         # assert that the Input and Output Text Area's have changed
+        await pilot.pause()
         assert (
             app.input_text_area.text
             == """
@@ -146,6 +146,7 @@ async def test_buttons():
         }
         """
         )
+       
         # Select two passes
         app.pass_pipeline = tuple(
             (
@@ -153,7 +154,6 @@ async def test_buttons():
                 convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
                 convert_arith_to_riscv.ConvertArithToRiscvPass,
             )
-        )
 
         # assert that pass selection affected Output Text Area
         await pilot.pause()
@@ -231,6 +231,7 @@ async def test_buttons():
 }
 """
         )
+
         index = IndexType()
 
         expected_module = ModuleOp(Region([Block()]))
@@ -259,8 +260,8 @@ async def test_buttons():
         )
 
         await pilot.pause()
-        # assert after "Condense Button" is clicked that the condensed_pass list changes accordingly
-        assert app.current_condensed_pass_list == condensed_list
+        # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
+        assert app.available_pass_list == condensed_list
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
