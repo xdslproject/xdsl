@@ -16,7 +16,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from xdsl.ir import (
     Attribute,
@@ -417,20 +417,28 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr(value, IndexType())
 
+    @staticmethod
+    def _get_value_range(int_type: IntegerType) -> tuple[int, int]:
+        signedness = int_type.signedness.data
+        width = int_type.width.data
+
+        if signedness == Signedness.SIGNLESS:
+            min_value = -(1 << width)
+            max_value = 1 << width
+        elif signedness == Signedness.SIGNED:
+            min_value = -(1 << (width - 1))
+            max_value = (1 << (width - 1)) - 1
+        elif signedness == Signedness.UNSIGNED:
+            min_value = 0
+            max_value = (1 << width) - 1
+        else:
+            assert_never(signedness)
+
+        return min_value, max_value
+
     def verify(self) -> None:
-        if isinstance(self.type, IntegerType):
-            match self.type.signedness.data:
-                case Signedness.SIGNLESS:
-                    min_value = -(1 << self.type.width.data)
-                    max_value = 1 << self.type.width.data
-                case Signedness.SIGNED:
-                    min_value = -(1 << (self.type.width.data - 1))
-                    max_value = (1 << (self.type.width.data - 1)) - 1
-                case Signedness.UNSIGNED:
-                    min_value = 0
-                    max_value = (1 << self.type.width.data) - 1
-                case _:
-                    assert False, "unreachable"
+        if isinstance(int_type := self.type, IntegerType):
+            min_value, max_value = self._get_value_range(int_type)
 
             if not (min_value <= self.value.data <= max_value):
                 raise VerifyException(
