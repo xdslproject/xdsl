@@ -27,6 +27,9 @@ class RISCVRegisterAllocation(ModulePass):
     are excluded completely from any further allocation decisions.
     """
 
+    exclude_snitch_reserved: bool = True
+    """Excludes floating-point registers that are used by the Snitch ISA extensions."""
+
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         allocator_strategies = {
             "LivenessBlockNaive": RegisterAllocatorLivenessBlockNaive,
@@ -50,4 +53,5 @@ class RISCVRegisterAllocation(ModulePass):
                 if self.limit_registers is not None:
                     allocator.available_registers.limit_registers(self.limit_registers)
                 allocator.exclude_preallocated = self.exclude_preallocated
+                allocator.exclude_snitch_reserved = self.exclude_snitch_reserved
                 allocator.allocate_func(inner_op)

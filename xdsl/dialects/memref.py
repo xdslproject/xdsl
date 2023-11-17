@@ -310,12 +310,18 @@ class Alloc(IRDLOperation):
         return_type: Attribute,
         alignment: int | None = None,
         shape: Iterable[int | AnyIntegerAttr] | None = None,
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr(),
     ) -> Alloc:
         if shape is None:
             shape = [1]
         return Alloc.build(
             operands=[[], []],
-            result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
+            result_types=[
+                MemRefType.from_element_type_and_shape(
+                    return_type, shape, layout, memory_space
+                )
+            ],
             attributes={
                 "alignment": IntegerAttr.from_int_and_width(alignment, 64)
                 if alignment is not None
@@ -369,6 +375,8 @@ class Alloca(IRDLOperation):
         alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | AnyIntegerAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr(),
     ) -> Alloca:
         if shape is None:
             shape = [1]
@@ -381,7 +389,11 @@ class Alloca(IRDLOperation):
 
         return Alloca.build(
             operands=[dynamic_sizes, []],
-            result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
+            result_types=[
+                MemRefType.from_element_type_and_shape(
+                    return_type, shape, layout, memory_space
+                )
+            ],
             properties={
                 "alignment": alignment,
             },
