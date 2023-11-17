@@ -94,6 +94,7 @@ class InputApp(App[None]):
             with Horizontal(id="button_and_selected_horziontal"):
                 with Vertical(id="buttons"):
                     yield Button("Copy Query", id="copy_query_button")
+                    yield Button("Clear Passes", id="clear_passes_button")
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -209,6 +210,11 @@ class InputApp(App[None]):
         selected_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
         query = f"xdsl-opt -p {selected_passes}"
         pyclip_copy(query)
+
+    @on(Button.Pressed, "#clear_passes_button")
+    def clear_passes(self, event: Button.Pressed) -> None:
+        """Selected passes cleared when "Clear Passes" button is pressed."""
+        self.pass_pipeline = ()
 
 
 def main():
