@@ -39,18 +39,17 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
     for dialect in get_all_dialects():
         ctx.load_dialect(dialect)
 
-    selections: tuple[type[ModulePass], ...]
-    selections = ()
+    selections: tuple[type[ModulePass], ...] = ()
     for _, value in ALL_PASSES:
-        new_selections = (*selections, value)
         try:
             cloned_module = input.clone()
             cloned_ctx = ctx.clone()
             value().apply(cloned_ctx, cloned_module)
             if not input.is_structurally_equivalent(cloned_module):
-                selections = tuple(new_selections)
+                rhs = (*selections, value)
+                selections = tuple(rhs)
         except Exception:
-            selections = tuple(new_selections)
+            selections = tuple((*selections, value))
 
     return selections
 
