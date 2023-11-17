@@ -135,7 +135,6 @@ class InputApp(App[None]):
                 yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
-
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
 
@@ -156,7 +155,6 @@ class InputApp(App[None]):
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
         self.condense_mode = False
-
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
@@ -224,7 +222,6 @@ class InputApp(App[None]):
 
         self.output_text_area.load_text(output_text)
 
-
     def trigger(self):
         """
         Function re-updates reactive condense_mode variable, which triggers reactivity
@@ -250,7 +247,7 @@ class InputApp(App[None]):
                 self.passes_list_view.append(
                     ListItem(Label(value.name), name=value.name)
                 )
-                
+
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
         self.dark = not self.dark

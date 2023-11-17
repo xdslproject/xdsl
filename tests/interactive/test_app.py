@@ -265,7 +265,6 @@ async def test_buttons():
         assert app.current_condensed_pass_list == condensed_list
 
 
-
 @pytest.mark.asyncio()
 async def test_passes():
     """Test pass application has the desired result."""
