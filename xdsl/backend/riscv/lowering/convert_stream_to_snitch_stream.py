@@ -1,17 +1,17 @@
 from xdsl.backend.riscv.lowering.utils import (
-    cast_block_args_to_regs,
     cast_ops_for_values,
     move_ops_for_value,
     register_type_for_type,
 )
-from xdsl.dialects import riscv, snitch_stream, stream
+from xdsl.builder import ImplicitBuilder
+from xdsl.dialects import builtin, riscv, riscv_snitch, snitch_stream, stream
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IntAttr,
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -23,54 +23,121 @@ from xdsl.pattern_rewriter import (
 
 
 class LowerGenericOp(RewritePattern):
+    """
+    Rewrites stream.generic to be a streaming region with an frep, but defers substituting block arguments to stream.yield lowering.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stream.GenericOp, rewriter: PatternRewriter):
-        # Input streams are currently streams of values, but they will be replaced with
-        # streams of registers, so don't need to do anything for operands.
-        # The only thing to do is to rewrite the block arguments to be float registers.
-        new_region = rewriter.move_region_contents_to_new_regions(op.body)
-        cast_block_args_to_regs(new_region.block, rewriter)
-        cast_op, repeat_count = cast_ops_for_values((op.repeat_count,))
+        # Cast inputs to RISC-V registers
+        rep_count_cast_ops, new_rep_counts = cast_ops_for_values((op.repeat_count,))
+        (new_rep_count,) = new_rep_counts
+        input_cast_ops, new_inputs = cast_ops_for_values(op.inputs)
+        output_cast_ops, new_outputs = cast_ops_for_values(op.outputs)
+
+        # Replace by
+        # 1. streaming region
+        # 2. block arguments are streams
+        # 3. explicit loop inside
+
+        input_stream_types = (
+            stream.ReadableStreamType(riscv.FloatRegisterType.unallocated()),
+        ) * len(new_inputs)
+        output_stream_types = (
+            stream.WritableStreamType(riscv.FloatRegisterType.unallocated()),
+        ) * len(new_outputs)
+
+        streaming_region_body = Region(
+            Block(arg_types=input_stream_types + output_stream_types)
+        )
+
+        streaming_region = snitch_stream.StreamingRegionOp(
+            new_inputs, new_outputs, op.stride_patterns, streaming_region_body
+        )
+
+        with ImplicitBuilder(streaming_region_body):
+            rep_count_minus_one = riscv.AddiOp(new_rep_count, -1).rd
+            frep = riscv_snitch.FrepOuter(
+                rep_count_minus_one,
+                rewriter.move_region_contents_to_new_regions(op.body),
+                IntAttr(0),
+                IntAttr(0),
+            )
+            with ImplicitBuilder(frep.body):
+                riscv_snitch.FrepYieldOp()
+
         rewriter.replace_matched_op(
             [
-                *cast_op,
-                snitch_stream.GenericOp(
-                    repeat_count[0],
-                    op.inputs,
-                    op.outputs,
-                    new_region,
-                ),
+                *rep_count_cast_ops,
+                *input_cast_ops,
+                *output_cast_ops,
+                streaming_region,
             ]
         )
 
 
 class LowerYieldOp(RewritePattern):
+    """
+    Values yielded in stream.generic are written to streams in snitch_stream. Inputs that do not correspond to a yielded value are converted to stream reads.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stream.YieldOp, rewriter: PatternRewriter):
+        loop_block = op.parent_block()
+
+        if loop_block is None:
+            return
+
+        streaming_region_block = loop_block.parent_block()
+
+        if streaming_region_block is None:
+            return
+
+        all_streams = streaming_region_block.args
+
+        output_stream_count = len(op.operands)
+
+        input_streams = all_streams[:-output_stream_count]
+        output_streams = all_streams[-output_stream_count:]
+
         new_ops = list[Operation]()
-        new_operands = list[SSAValue]()
 
-        b = op.parent_block()
-
-        for operand in rewriter.current_operation.operands:
+        # Convert yielded values to stream writes
+        for output_stream, operand in zip(output_streams, op.operands, strict=True):
             new_type = register_type_for_type(operand.type)
             cast_op = UnrealizedConversionCastOp.get(
                 (operand,), (new_type.unallocated(),)
             )
             new_ops.append(cast_op)
             new_operand = cast_op.results[0]
-            if operand.owner is b:
+            if operand.owner is loop_block:
                 # Have to move from input register to output register
                 mv_op, new_operand = move_ops_for_value(
                     new_operand, new_type.unallocated()
                 )
                 new_ops.append(mv_op)
+            new_ops.append(riscv_snitch.WriteOp(new_operand, output_stream))
 
-            new_operands.append(new_operand)
+        # Convert input values to stream reads
+        for input_stream, operand in zip(
+            reversed(input_streams), reversed(loop_block.args)
+        ):
+            rewriter.insert_op_at_start(
+                (
+                    read_op := riscv_snitch.ReadOp(input_stream),
+                    cast_op := builtin.UnrealizedConversionCastOp(
+                        operands=[read_op.res], result_types=[operand.type]
+                    ),
+                ),
+                loop_block,
+            )
+            operand.replace_by(cast_op.results[0])
 
-        rewriter.insert_op_before_matched_op(new_ops)
+        # delete block arguments
+        for arg in loop_block.args[::-1]:
+            rewriter.erase_block_argument(arg)
 
-        rewriter.replace_matched_op(snitch_stream.YieldOp(*new_operands))
+        rewriter.replace_matched_op(new_ops)
 
 
 class LowerStridePatternOp(RewritePattern):
@@ -85,63 +152,22 @@ class LowerStridePatternOp(RewritePattern):
         )
 
 
-class LowerStridedReadOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stream.StridedReadOp, rewriter: PatternRewriter):
-        new_ops, new_operands = cast_ops_for_values((op.memref,))
-        rewriter.insert_op_before_matched_op(new_ops)
-
-        (pointer,) = new_operands
-
-        rewriter.replace_matched_op(
-            snitch_stream.StridedReadOp(
-                pointer,
-                op.pattern,
-                riscv.FloatRegisterType.unallocated(),
-                op.dm,
-                op.rank,
-            )
-        )
-
-
-class LowerStridedWriteOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stream.StridedWriteOp, rewriter: PatternRewriter):
-        new_ops, new_operands = cast_ops_for_values((op.memref,))
-        rewriter.insert_op_before_matched_op(new_ops)
-
-        (pointer,) = new_operands
-
-        rewriter.replace_matched_op(
-            snitch_stream.StridedWriteOp(
-                pointer,
-                op.pattern,
-                riscv.FloatRegisterType.unallocated(),
-                op.dm,
-                op.rank,
-            )
-        )
-
-
 class ConvertStreamToSnitchStreamPass(ModulePass):
     name = "convert-stream-to-snitch-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        # Lower yield before generic
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    LowerYieldOp(),
+                    LowerGenericOp(),
+                    LowerStridePatternOp(),
                 ]
             )
         ).rewrite_module(op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    LowerGenericOp(),
-                    LowerStridePatternOp(),
-                    LowerStridedReadOp(),
-                    LowerStridedWriteOp(),
+                    LowerYieldOp(),
                 ]
             )
         ).rewrite_module(op)

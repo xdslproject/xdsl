@@ -25,7 +25,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.dead_code_elimination import dce
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 
 _INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
@@ -497,5 +496,3 @@ class ConvertArithToRiscvPass(ModulePass):
             apply_recursively=False,
         )
         walker.rewrite_module(op)
-
-        dce(op)

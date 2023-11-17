@@ -90,12 +90,34 @@ class StreamFunctions(InterpreterFunctions):
     def run_generic(
         self, interpreter: Interpreter, op: stream.GenericOp, args: tuple[Any, ...]
     ) -> PythonValues:
+        input_count = len(op.inputs)
+        output_count = len(op.outputs)
+        total_count = input_count + output_count
+
         repeat_count = args[0]
-        input_streams: tuple[ReadableStream[Any], ...] = interpreter.get_values(
-            op.inputs
+        input_shaped_arrays: tuple[ShapedArray[Any], ...] = args[1 : input_count + 1]
+        output_shaped_arrays: tuple[ShapedArray[Any], ...] = args[input_count + 1 :]
+
+        stride_patterns: tuple[StridePattern, ...] = args[total_count + 1 :]
+
+        if len(stride_patterns) == 1:
+            stride_patterns = stride_patterns * total_count
+
+        input_stride_patterns = stride_patterns[:input_count]
+        output_stride_patterns = stride_patterns[input_count:]
+
+        input_streams = tuple(
+            StridedMemrefInputStream(
+                strided_pointer_offset_iter(pat.strides, pat.ub), shaped_array
+            )
+            for pat, shaped_array in zip(input_stride_patterns, input_shaped_arrays)
         )
-        output_streams: tuple[WritableStream[Any], ...] = interpreter.get_values(
-            op.outputs
+
+        output_streams = tuple(
+            StridedMemrefOutputStream(
+                strided_pointer_offset_iter(pat.strides, pat.ub), shaped_array
+            )
+            for pat, shaped_array in zip(output_stride_patterns, output_shaped_arrays)
         )
 
         for _ in range(repeat_count):
@@ -111,34 +133,6 @@ class StreamFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: stream.StridePatternOp, args: PythonValues
     ) -> PythonValues:
         return (StridePattern([b.data for b in op.ub], [s.data for s in op.strides]),)
-
-    @impl(stream.StridedReadOp)
-    def run_strided_read(
-        self, interpreter: Interpreter, op: stream.StridedReadOp, args: tuple[Any, ...]
-    ) -> PythonValues:
-        (memref, pattern) = args
-        memref: ShapedArray[Any] = memref
-        pattern: StridePattern = pattern
-
-        input_stream_factory = StridedMemrefInputStream(
-            strided_pointer_offset_iter(pattern.strides, pattern.ub),
-            memref,
-        )
-        return (input_stream_factory,)
-
-    @impl(stream.StridedWriteOp)
-    def run_strided_write(
-        self, interpreter: Interpreter, op: stream.StridedWriteOp, args: tuple[Any, ...]
-    ) -> PythonValues:
-        (memref, pattern) = args
-        memref: ShapedArray[Any] = memref
-        pattern: StridePattern = pattern
-
-        output_stream_factory = StridedMemrefOutputStream(
-            strided_pointer_offset_iter(pattern.strides, pattern.ub),
-            memref,
-        )
-        return (output_stream_factory,)
 
     @impl(stream.ReadOp)
     def run_read(

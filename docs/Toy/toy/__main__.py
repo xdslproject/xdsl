@@ -10,6 +10,7 @@ from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
+from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
 from xdsl.interpreters.scf import ScfFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
@@ -118,6 +119,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
         interpreter.register_implementations(RiscvScfFunctions())
+        interpreter.register_implementations(RiscvSnitchFunctions())
 
     interpreter.call_op("main", ())
 

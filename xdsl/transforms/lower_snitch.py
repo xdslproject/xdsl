@@ -2,7 +2,6 @@
 Rewrite patterns for lowering snitch → riscv.
 """
 
-from collections.abc import Iterable
 from dataclasses import dataclass
 
 from xdsl.dialects import builtin, riscv, riscv_snitch, snitch
@@ -96,7 +95,7 @@ class SnitchStreamerMemoryMap:
     )
 
 
-def write_ssr_config_ops(reg: int, dm: int, value: Operand) -> Iterable[Operation]:
+def write_ssr_config_ops(reg: int, dm: int, value: Operand) -> list[Operation]:
     """
     Return the list of riscv operations needed to set a specific SSR configuration
     parameter located at 'reg' to a specific 'value' for a specific data mover

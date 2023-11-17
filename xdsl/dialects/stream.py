@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import (
     Attribute,
+    Data,
     Dialect,
     Operation,
     OpResult,
@@ -35,7 +36,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 
@@ -68,17 +69,29 @@ class WritableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElem
 
 
 @irdl_attr_definition
-class StridePatternType(ParametrizedAttribute, TypeAttribute):
+class StridePatternType(Data[int], TypeAttribute):
     name = "stream.stride_pattern_type"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> int:
+        with parser.in_angle_brackets():
+            return parser.parse_integer()
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string(str(self.data))
 
 
 @irdl_op_definition
 class GenericOp(IRDLOperation):
     name = "stream.generic"
 
+    T = Annotated[Attribute, ConstraintVar("T")]
+
     repeat_count = operand_def(IndexType)
-    inputs = var_operand_def(ReadableStreamType)
-    outputs = var_operand_def(WritableStreamType)
+    inputs = var_operand_def(MemRefType[T])
+    outputs = var_operand_def(MemRefType[T])
+    stride_patterns = var_operand_def(StridePatternType)
 
     body = region_def("single_block")
 
@@ -89,10 +102,11 @@ class GenericOp(IRDLOperation):
         repeat_count: SSAValue,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
+        stride_patterns: Sequence[SSAValue],
         body: Region,
     ) -> None:
         super().__init__(
-            operands=[repeat_count, inputs, outputs],
+            operands=[repeat_count, inputs, outputs, stride_patterns],
             regions=[body],
         )
 
@@ -194,76 +208,14 @@ class StridePatternOp(IRDLOperation):
         strides: ArrayAttr[IntAttr],
         dm: IntAttr,
     ) -> None:
+        rank = len(ub.data)
+        assert rank == len(strides.data)
         super().__init__(
-            result_types=[StridePatternType()],
+            result_types=[StridePatternType(rank)],
             attributes={
                 "ub": ub,
                 "strides": strides,
                 "dm": dm,
-            },
-        )
-
-
-@irdl_op_definition
-class StridedReadOp(IRDLOperation):
-    """
-    Generates a stream reading from a memref sequentially.
-    """
-
-    name = "stream.strided_read"
-
-    T = Annotated[Attribute, ConstraintVar("T")]
-
-    memref = operand_def(MemRefType[T])
-    pattern = operand_def(StridePatternType())
-    stream = result_def(ReadableStreamType[T])
-    dm = attr_def(IntAttr)
-    rank = attr_def(IntAttr)
-
-    def __init__(
-        self,
-        memref: SSAValue,
-        pattern: SSAValue,
-        dm: IntAttr,
-        rank: IntAttr,
-    ):
-        assert isinstance(memref_type := memref.type, MemRefType)
-        memref_type = cast(MemRefType[Attribute], memref_type)
-        super().__init__(
-            operands=[memref, pattern],
-            result_types=[ReadableStreamType(memref_type.element_type)],
-            attributes={
-                "dm": dm,
-                "rank": rank,
-            },
-        )
-
-
-@irdl_op_definition
-class StridedWriteOp(IRDLOperation):
-    """
-    Generates a stream writing from a memref sequentially.
-    """
-
-    name = "stream.strided_write"
-
-    T = Annotated[Attribute, ConstraintVar("T")]
-
-    memref = operand_def(MemRefType[T])
-    pattern = operand_def(StridePatternType())
-    stream = result_def(WritableStreamType[T])
-    dm = attr_def(IntAttr)
-    rank = attr_def(IntAttr)
-
-    def __init__(self, memref: SSAValue, pattern: SSAValue, dm: IntAttr, rank: IntAttr):
-        assert isinstance(memref_type := memref.type, MemRefType)
-        memref_type = cast(MemRefType[Attribute], memref_type)
-        super().__init__(
-            operands=[memref, pattern],
-            result_types=[WritableStreamType(memref_type.element_type)],
-            attributes={
-                "dm": dm,
-                "rank": rank,
             },
         )
 
@@ -275,8 +227,6 @@ Stream = Dialect(
         YieldOp,
         ReadOp,
         WriteOp,
-        StridedReadOp,
-        StridedWriteOp,
         StridePatternOp,
     ],
     [

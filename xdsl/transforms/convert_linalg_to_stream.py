@@ -64,7 +64,6 @@ class LowerGenericOp(RewritePattern):
             rewriter.erase_block_argument(o)
 
         ub = op.get_static_loop_ranges()
-        rank = len(ub)
         repeat_count = prod(ub)
         ub_attr = ArrayAttr(IntAttr(b) for b in ub)
 
@@ -86,7 +85,6 @@ class LowerGenericOp(RewritePattern):
             stride_pattern_ops = [
                 stream.StridePatternOp(ub_attr, first_strides, dm_all)
             ]
-            stride_patterns = stride_pattern_ops * len(ub)
         else:
             stride_pattern_ops = [
                 stream.StridePatternOp(
@@ -103,41 +101,16 @@ class LowerGenericOp(RewritePattern):
                 )
                 for i, affine_map in enumerate(op.indexing_maps)
             ]
-            stride_patterns = stride_pattern_ops
-
-        new_inputs = [
-            stream.StridedReadOp(
-                memref,
-                stride_pattern.pattern,
-                IntAttr(i),
-                IntAttr(rank),
-            )
-            for i, (memref, stride_pattern) in enumerate(
-                zip(op.inputs, stride_patterns)
-            )
-        ]
-        new_outputs = [
-            stream.StridedWriteOp(
-                memref,
-                stride_pattern.pattern,
-                IntAttr(i + len(op.inputs)),
-                IntAttr(rank),
-            )
-            for i, (memref, stride_pattern) in enumerate(
-                zip(op.outputs, stride_patterns[-len(op.outputs) :])
-            )
-        ]
 
         rewriter.replace_matched_op(
             [
                 *stride_pattern_ops,
-                *new_inputs,
-                *new_outputs,
                 repeat_count := arith.Constant(IntegerAttr(repeat_count, IndexType())),
                 stream.GenericOp(
                     repeat_count.result,
-                    [i.stream for i in new_inputs],
-                    [o.stream for o in new_outputs],
+                    op.inputs,
+                    op.outputs,
+                    [p.pattern for p in stride_pattern_ops],
                     rewriter.move_region_contents_to_new_regions(op.body),
                 ),
             ]
