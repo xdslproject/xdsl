@@ -106,6 +106,47 @@ async def test_buttons():
         """
         )
 
+        # assert that the Input and Output Text Area's have changed
+        await pilot.pause()
+        assert (
+            app.input_text_area.text
+            == """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
+        )
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : index) -> index {
+    %two = arith.constant 2 : index
+    %res = arith.muli %n, %two : index
+    func.return %res : index
+  }
+}
+"""
+        )
+
+        # Test clicking the "clear input" button
+        await pilot.click("#clear_input_button")
+
+        # assert that the input text area has been cleared
+        await pilot.pause()
+        assert app.input_text_area.text == ""
+
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
+        )
+
         await pilot.pause()
         # assert that the Input and Output Text Area's have changed
         assert (
@@ -191,6 +232,7 @@ async def test_buttons():
 }
 """
         )
+
         index = IndexType()
 
         expected_module = ModuleOp(Region([Block()]))
@@ -224,7 +266,7 @@ async def test_buttons():
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        assert app.current_condensed_pass_list == condensed_list
+        assert app.available_pass_list == condensed_list
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
