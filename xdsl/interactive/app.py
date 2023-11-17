@@ -14,7 +14,7 @@ from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
-from textual.widgets import Button, Footer, Label, SelectionList, TextArea
+from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
 from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects.builtin import ModuleOp
@@ -26,7 +26,7 @@ from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 
 from ._pasteboard import pyclip_copy
 
-ALL_PASSES = tuple(get_all_passes())
+ALL_PASSES = tuple(sorted((p.name, p) for p in get_all_passes()))
 """Contains the list of xDSL passes."""
 
 
@@ -64,39 +64,35 @@ class InputApp(App[None]):
     Reactive variable used to save the current state of the modified Input TextArea
     (i.e. is the Output TextArea).
     """
+    pass_pipeline = reactive(tuple[type[ModulePass], ...])
+    """Reactive variable that saves the list of selected passes."""
 
     input_text_area: TextArea
     """Input TextArea."""
     output_text_area: OutputTextArea
     """Output TextArea."""
-    passes_selection_list: SelectionList[type[ModulePass]]
-    """
-    SelectionList displaying the passes available to apply. Passes can be selected or
-    unselected (i.e. applied or removed).
-    """
-
     selected_query_label: Label
     """Display selected passes."""
+    passes_list_view: ListView
+    """ListView displaying the passes available to apply."""
 
     def __init__(self):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
-        self.passes_selection_list = SelectionList(id="passes_selection_list")
+        self.passes_list_view = ListView(id="passes_list_view")
         self.selected_query_label = Label("", id="selected_passes_label")
+
         super().__init__()
 
     def compose(self) -> ComposeResult:
         """
         Creates the required widgets, events, etc.
-        Get the list of xDSL passes, add them to an array in "Selection" format (so it
-        can be added to a Selection List) and sort the list in alphabetical order.
         """
 
         with Horizontal(id="top_container"):
-            yield self.passes_selection_list
+            yield self.passes_list_view
             with Horizontal(id="button_and_selected_horziontal"):
                 with Vertical(id="buttons"):
-                    yield Button("Clear Passes", id="clear_selection_list_button")
                     yield Button("Copy Query", id="copy_query_button")
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
@@ -109,36 +105,44 @@ class InputApp(App[None]):
                 yield Button("Copy Output", id="copy_output_button")
         yield Footer()
 
-    @on(SelectionList.SelectedChanged)
-    def update_selected_view(self) -> None:
+    @on(ListView.Selected)
+    def update_pass_pipeline(self, event: ListView.Selected) -> None:
         """
-        When the SelectionList selection changes (i.e. a pass was selected or
-        deselected), update the label to show the respective generated query in the Label.
+        When a new selection is made, the reactive variable storing the list of selected
+        passes is updated.
         """
-        new_passes = "\n" + (", " + "\n").join(
-            p.name for p in self.passes_selection_list.selected
-        )
-        new_label = f"xdsl-opt -p {new_passes}"
-        self.query_one(Label).update(new_label)
+        selected_pass = event.item.name
+        for name, value in ALL_PASSES:
+            if name == selected_pass:
+                self.pass_pipeline = tuple((*self.pass_pipeline, value))
+                return
 
-    @on(SelectionList.SelectedChanged)
+    def watch_pass_pipeline(self) -> None:
+        """
+        When the reactive variable pass_pipeline changes, this function
+        is called and updates the label to show the respective generated query in the Label.
+        """
+        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
+        new_label = f"xdsl-opt -p {new_passes}"
+        self.selected_query_label.update(new_label)
+        self.update_current_module()
+
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
-        Function called when the Input TextArea is changed or a pass is selected/
-        unselected. This function parses the Input IR, applies the selected pass(es) and
-        updates the Output TextArea.
+        Function to parse the input and to apply the list of selected passes to it.
         """
         input_text = self.input_text_area.text
-        selected_passes = self.passes_selection_list.selected
-
+        if (input_text) == "":
+            self.current_module = None
+            return
         try:
             ctx = MLContext(True)
             for dialect in get_all_dialects():
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-            pipeline = PipelinePass([p() for p in selected_passes])
+            pipeline = PipelinePass([p() for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:
@@ -146,8 +150,7 @@ class InputApp(App[None]):
 
     def watch_current_module(self):
         """
-        Function called when the current_module reactive variable is updated. This
-        function updates the Output TextArea.
+        Function to update the Output TextArea.
         """
         match self.current_module:
             case None:
@@ -175,17 +178,12 @@ class InputApp(App[None]):
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
         self.query_one(
-            "#passes_selection_list"
+            "#passes_list_view"
         ).border_title = "Choose a pass or multiple passes to be applied."
         self.query_one("#selected_passes").border_title = "Selected passes/query"
-        # aids in the construction of the seleciton list containing all the passes
-        selections = sorted((value.name, value) for value in ALL_PASSES)
 
-        # type error due to Textual Bug requires pyright ignore
-        # Link to issue: https://github.com/xdslproject/xdsl/issues/1777
-        self.passes_selection_list.add_options(  # pyright: ignore[reportUnknownMemberType]
-            selections
-        )
+        for n, _ in ALL_PASSES:
+            self.passes_list_view.append(ListItem(Label(n), name=n))
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
@@ -205,20 +203,10 @@ class InputApp(App[None]):
         """Output TextArea is copied when "Copy Output" button is pressed."""
         pyclip_copy(self.output_text_area.text)
 
-    @on(Button.Pressed, "#clear_selection_list_button")
-    def clear_selection_list(self, event: Button.Pressed) -> None:
-        """
-        SelectionList is cleared (i.e. all selected passes are unselected) when
-        "Clear Passes" button is pressed.
-        """
-        self.passes_selection_list.deselect_all()
-
     @on(Button.Pressed, "#copy_query_button")
     def copy_query(self, event: Button.Pressed) -> None:
         """Selected passes/query Label is copied when "Copy Query" button is pressed."""
-        selected_passes = "\n" + (", " + "\n").join(
-            p.name for p in self.passes_selection_list.selected
-        )
+        selected_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
         query = f"xdsl-opt -p {selected_passes}"
         pyclip_copy(query)
 
