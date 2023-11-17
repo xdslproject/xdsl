@@ -156,6 +156,15 @@ class InputApp(App[None]):
 
         self.condense_mode = False
 
+    def compute_current_condensed_pass_list(self) -> tuple[type[ModulePass], ...]:
+        match self.current_module:
+            case None:
+                return tuple(p for _, p in ALL_PASSES)
+            case Exception():
+                return ()
+            case ModuleOp():
+                return condensed_pass_list(self.current_module)
+
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
         """
@@ -196,13 +205,18 @@ class InputApp(App[None]):
             pipeline = PipelinePass([p() for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
-            self.current_condensed_pass_list = condensed_pass_list(self.current_module)
-            self.trigger()
+            self.current_condensed_pass_list = (
+                self.compute_current_condensed_pass_list()
+            )
+
+            # self.trigger()
 
         except Exception as e:
             self.current_module = e
-            self.current_condensed_pass_list = ()
-            self.trigger()
+            self.current_condensed_pass_list = (
+                self.compute_current_condensed_pass_list()
+            )
+            # self.trigger()
 
     def watch_current_module(self):
         """
@@ -221,16 +235,6 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
-
-    def trigger(self):
-        """
-        Function re-updates reactive condense_mode variable, which triggers reactivity
-        properties to recalculate current_condensed_pass_list.
-        """
-        if self.condense_mode is True:
-            self.condense_mode = True
-        else:
-            self.condense_mode = False
 
     def watch_condense_mode(
         self, old_condense_mode: bool, new_condense_mode: bool
