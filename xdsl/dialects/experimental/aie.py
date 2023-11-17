@@ -1012,14 +1012,15 @@ class UseLockOp(IRDLOperation):
         parser.parse_characters("(")
         lock = parser.parse_operand()
         parser.parse_characters(",")
-        value = parser.parse_str_literal()
-        value = (
+        action = parser.parse_str_literal()
+        print(action, ", ", action == "Acquire")
+        action = (
             IntegerAttr.from_int_and_width(LOCK_ACQUIRE, i32)
-            if value == "Acquire"
+            if action == "Acquire"
             else IntegerAttr.from_int_and_width(LOCK_RELEASE, i32)
         )
         parser.parse_characters(",")
-        action = IntegerAttr.from_int_and_width(parser.parse_integer(), i32)
+        value = IntegerAttr.from_int_and_width(parser.parse_integer(), i32)
         parser.parse_characters(")")
 
         blocking = IntegerAttr.from_int_and_width(BLOCKING, i32)
