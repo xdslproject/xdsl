@@ -13,6 +13,7 @@ from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
+from textual.screen import Screen
 from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
 
 from xdsl.backend.riscv.lowering import (
@@ -57,6 +58,24 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
             )  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
 
     return selections  # pyright: ignore[reportUnknownVariableType]
+
+
+class AddArguments(Screen):
+    """Screen to allow users to provide arguments to passes that require them."""
+
+    def compose(self) -> ComposeResult:
+        yield ScrollableContainer(
+            Label("Are you sure you want to quit?", id="question"),
+            Button("Quit", variant="error", id="quit"),
+            Button("Cancel", variant="primary", id="cancel"),
+            id="dialog",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "quit":
+            self.app.exit()
+        else:
+            self.app.pop_screen()
 
 
 class OutputTextArea(TextArea):
@@ -307,6 +326,7 @@ class InputApp(App[None]):
 
     @on(Button.Pressed, "#load_file_button")
     def load_file(self, event: Button.Pressed) -> None:
+        self.push_screen(AddArguments())
         pass
 
 

@@ -1,3 +1,8 @@
+
+#AddArguments{
+    background: rgba(0,0,255,0.5);
+}
+
 # ListView
 #passes_list_view{
     border: heavy $accent-darken-1;
