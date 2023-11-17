@@ -74,7 +74,7 @@ class InputApp(App[None]):
         ("q", "quit_app", "Quit"),
     ]
 
-    # defines a theme for the Input/Output TextArea's
+    # defines a theme for the Input/Output TextArea
     _DEFAULT_THEME = TextAreaTheme(
         name="my_theme_design",
         base_style=Style(bgcolor="white"),
@@ -92,7 +92,7 @@ class InputApp(App[None]):
     pass_pipeline = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of selected passes."""
 
-    condense_mode = reactive(bool, always_update=True)
+    condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
     available_pass_list = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of passes that have an effect on current_module."""
@@ -140,7 +140,7 @@ class InputApp(App[None]):
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
 
-        # register's the theme for the Input/Output TextArea's
+        # register the theme for the Input/Output TextAreas
         self.input_text_area.register_theme(InputApp._DEFAULT_THEME)
         self.output_text_area.register_theme(InputApp._DEFAULT_THEME)
         self.input_text_area.theme = "my_theme_design"
@@ -155,8 +155,6 @@ class InputApp(App[None]):
 
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
-
-        self.condense_mode = False
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         match self.current_module:
