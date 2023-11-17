@@ -15,6 +15,7 @@ from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
 
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
@@ -26,6 +27,30 @@ from ._pasteboard import pyclip_copy
 
 ALL_PASSES = tuple(sorted((p.name, p) for p in get_all_passes()))
 """Contains the list of xDSL passes."""
+
+
+def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
+    """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
+
+    ctx = MLContext(True)
+
+    for dialect in get_all_dialects():
+        ctx.load_dialect(dialect)
+
+    selections: tuple[type[ModulePass], ...] = ()
+    for _, value in ALL_PASSES:
+        try:
+            cloned_module = input.clone()
+            cloned_ctx = ctx.clone()
+            value().apply(cloned_ctx, cloned_module)
+
+            if not input.is_structurally_equivalent(cloned_module):
+                rhs = (*selections, value)
+                selections = tuple(rhs)
+        except Exception:
+            selections = tuple((*selections, value))
+
+    return selections
 
 
 class OutputTextArea(TextArea):
@@ -55,6 +80,11 @@ class InputApp(App[None]):
     pass_pipeline = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of selected passes."""
 
+    condense_mode = reactive(False, always_update=True)
+    """Reactive boolean."""
+    available_pass_list = reactive(tuple[type[ModulePass], ...])
+    """Reactive variable that saves the list of passes that have an effect on current_module."""
+
     input_text_area: TextArea
     """Input TextArea."""
     output_text_area: OutputTextArea
@@ -83,6 +113,7 @@ class InputApp(App[None]):
                 with Vertical(id="buttons"):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
+                    yield Button("Condense", id="condense_button")
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -93,6 +124,47 @@ class InputApp(App[None]):
                 yield self.output_text_area
                 yield Button("Copy Output", id="copy_output_button")
         yield Footer()
+
+    def on_mount(self) -> None:
+        """Configure widgets in this application before it is first shown."""
+
+        # register's the theme for the Input/Output TextArea's
+        self.input_text_area.theme = "vscode_dark"
+        self.output_text_area.theme = "vscode_dark"
+
+        self.query_one("#input_container").border_title = "Input xDSL IR"
+        self.query_one("#output_container").border_title = "Output xDSL IR"
+        self.query_one(
+            "#passes_list_view"
+        ).border_title = "Choose a pass or multiple passes to be applied."
+        self.query_one("#selected_passes").border_title = "Selected passes/query"
+
+        for n, _ in ALL_PASSES:
+            self.passes_list_view.append(ListItem(Label(n), name=n))
+
+    def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
+        match self.current_module:
+            case None:
+                return tuple(p for _, p in ALL_PASSES)
+            case Exception():
+                return ()
+            case ModuleOp():
+                if self.condense_mode:
+                    return condensed_pass_list(self.current_module)
+                else:
+                    return tuple(p for _, p in ALL_PASSES)
+
+    def watch_available_pass_list(
+        self,
+        old_pass_list: tuple[type[ModulePass], ...],
+        new_pass_list: tuple[type[ModulePass], ...],
+    ) -> None:
+        if old_pass_list != new_pass_list:
+            self.passes_list_view.clear()
+            for value in new_pass_list:
+                self.passes_list_view.append(
+                    ListItem(Label(value.name), name=value.name)
+                )
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
@@ -155,23 +227,6 @@ class InputApp(App[None]):
 
         self.output_text_area.load_text(output_text)
 
-    def on_mount(self) -> None:
-        """Configure widgets in this application before it is first shown."""
-
-        # register's the theme for the Input/Output TextArea's
-        self.input_text_area.theme = "vscode_dark"
-        self.output_text_area.theme = "vscode_dark"
-
-        self.query_one("#input_container").border_title = "Input xDSL IR"
-        self.query_one("#output_container").border_title = "Output xDSL IR"
-        self.query_one(
-            "#passes_list_view"
-        ).border_title = "Choose a pass or multiple passes to be applied."
-        self.query_one("#selected_passes").border_title = "Selected passes/query"
-
-        for n, _ in ALL_PASSES:
-            self.passes_list_view.append(ListItem(Label(n), name=n))
-
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
         self.dark = not self.dark
@@ -201,6 +256,10 @@ class InputApp(App[None]):
     def clear_passes(self, event: Button.Pressed) -> None:
         """Selected passes cleared when "Clear Passes" button is pressed."""
         self.pass_pipeline = ()
+
+    @on(Button.Pressed, "#condense_button")
+    def condense(self, event: Button.Pressed) -> None:
+        self.condense_mode = True
 
 
 def main():
