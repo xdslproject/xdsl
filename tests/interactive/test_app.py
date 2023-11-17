@@ -105,8 +105,9 @@ async def test_buttons():
         }
         """
         )
-        
+
         # assert that the Input and Output Text Area's have changed
+        await pilot.pause()
         assert (
             app.input_text_area.text
             == """
@@ -231,7 +232,7 @@ async def test_buttons():
 }
 """
         )
-        
+
         index = IndexType()
 
         expected_module = ModuleOp(Region([Block()]))
@@ -262,6 +263,7 @@ async def test_buttons():
         await pilot.pause()
         assert app.condense_mode is True
         assert app.current_condensed_pass_list == condensed_list
+
 
 
 @pytest.mark.asyncio()
