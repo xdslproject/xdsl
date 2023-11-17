@@ -93,7 +93,8 @@ class InputApp(App[None]):
     """Reactive variable that saves the list of selected passes."""
 
     condense_mode = reactive(bool, always_update=True)
-    current_condensed_pass_list = reactive(tuple[type[ModulePass], ...])
+
+    available_pass_list = reactive(tuple[type[ModulePass], ...])
 
     input_text_area: TextArea
     """Input TextArea."""
@@ -156,14 +157,29 @@ class InputApp(App[None]):
 
         self.condense_mode = False
 
-    def compute_current_condensed_pass_list(self) -> tuple[type[ModulePass], ...]:
+    def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         match self.current_module:
             case None:
                 return tuple(p for _, p in ALL_PASSES)
             case Exception():
                 return ()
             case ModuleOp():
-                return condensed_pass_list(self.current_module)
+                if self.condense_mode:
+                    return condensed_pass_list(self.current_module)
+                else:
+                    return tuple(p for _, p in ALL_PASSES)
+
+    def watch_available_pass_list(
+        self,
+        old_pass_list: tuple[type[ModulePass], ...],
+        new_pass_list: tuple[type[ModulePass], ...],
+    ) -> None:
+        if old_pass_list != new_pass_list:
+            self.passes_list_view.clear()
+            for value in new_pass_list:
+                self.passes_list_view.append(
+                    ListItem(Label(value.name), name=value.name)
+                )
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
@@ -205,18 +221,8 @@ class InputApp(App[None]):
             pipeline = PipelinePass([p() for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
-            self.current_condensed_pass_list = (
-                self.compute_current_condensed_pass_list()
-            )
-
-            # self.trigger()
-
         except Exception as e:
             self.current_module = e
-            self.current_condensed_pass_list = (
-                self.compute_current_condensed_pass_list()
-            )
-            # self.trigger()
 
     def watch_current_module(self):
         """
@@ -235,22 +241,6 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
-
-    def watch_condense_mode(
-        self, old_condense_mode: bool, new_condense_mode: bool
-    ) -> None:
-        if old_condense_mode is False and new_condense_mode is False:
-            return
-        elif old_condense_mode is True and new_condense_mode is False:
-            self.passes_list_view.clear()
-            for n, _ in ALL_PASSES:
-                self.passes_list_view.append(ListItem(Label(n), name=n))
-        else:
-            self.passes_list_view.clear()
-            for value in self.current_condensed_pass_list:
-                self.passes_list_view.append(
-                    ListItem(Label(value.name), name=value.name)
-                )
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""

@@ -262,7 +262,7 @@ async def test_buttons():
 
         await pilot.pause()
         assert app.condense_mode is True
-        assert app.current_condensed_pass_list == condensed_list
+        assert app.available_pass_list == condensed_list
 
 
 @pytest.mark.asyncio()
