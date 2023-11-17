@@ -1,7 +1,6 @@
 import pytest
 from xdsl.builder import Builder, ImplicitBuilder
 
-from xdsl.builder import Builder
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
@@ -47,7 +46,7 @@ from xdsl.dialects.stencil import (
     StoreResultOp,
     TempType,
 )
-from xdsl.ir import Attribute, Block, SSAValue
+from xdsl.ir import Attribute, Block, BlockArgument, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
