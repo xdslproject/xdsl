@@ -141,7 +141,9 @@ def get_type_var_mapping(
     # Get the generic parent
     orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
     orig_bases = [
-        orig_base for orig_base in orig_bases if get_origin(orig_base) is not Generic
+        orig_base
+        for orig_base in orig_bases
+        if (origin := get_origin(orig_base)) is not Generic and origin is not None
     ]
     # Do not handle more than one generic parent in the mro.
     # It is possible to handle more than one generic parent, but

@@ -589,3 +589,41 @@ def test_generic_op():
     )
     with pytest.raises(DiagnosticException):
         op_result_fail.verify()
+
+
+class OtherParentOp(IRDLOperation):
+    other_attr = attr_def(Attribute)
+
+
+@irdl_op_definition
+class OtherStringFooOp(GenericOp[StringAttr, FooType, FooType], OtherParentOp):
+    name = "test.string_specialized"
+
+
+def test_multiple_inheritance_op():
+    """Test generic operation."""
+    FooOperand = TestSSAValue(TestType("foo"))
+    FooResultType = TestType("foo")
+
+    op = OtherStringFooOp(
+        attributes={"attr": StringAttr("test"), "other_attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    op.verify()
+
+    op_attr_fail = OtherStringFooOp(
+        attributes={"attr": IntAttr(1), "other_attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_attr_fail.verify()
+
+    op = OtherStringFooOp(
+        attributes={"attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_attr_fail.verify()
