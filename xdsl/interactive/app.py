@@ -113,6 +113,7 @@ class InputApp(App[None]):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
                     yield Button("Condense", id="condense_button")
+                    yield Button("Uncondense", id="uncondense_button")
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -129,7 +130,6 @@ class InputApp(App[None]):
         # register's the theme for the Input/Output TextArea's
         self.input_text_area.theme = "vscode_dark"
         self.output_text_area.theme = "vscode_dark"
-
 
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
@@ -267,7 +267,6 @@ class InputApp(App[None]):
     def uncondense(self, event: Button.Pressed) -> None:
         self.condense_mode = False
         self.remove_class("condensed")
-
 
 
 def main():
