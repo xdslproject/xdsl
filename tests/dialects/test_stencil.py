@@ -1,6 +1,10 @@
 import pytest
-from xdsl.builder import Builder, ImplicitBuilder
+from conftest import assert_print_op
 
+from xdsl.builder import Builder, ImplicitBuilder
+from xdsl.dialects.arith import (
+    Addf,
+)
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
@@ -18,15 +22,9 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-
-from xdsl.dialects.arith import (
-    Addf,
-)
-
 from xdsl.dialects.func import (
     FuncOp,
 )
-
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -50,8 +48,6 @@ from xdsl.ir import Attribute, Block, BlockArgument, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
-
-from conftest import assert_print_op
 
 
 def test_stencilboundsattr_verify():
@@ -102,8 +98,7 @@ def test_stencil_return_multiple_ResultType():
     result_type_val2 = TestSSAValue(ResultType(f32))
     result_type_val3 = TestSSAValue(ResultType(f32))
 
-    return_op = ReturnOp.get([result_type_val1, result_type_val2,
-                              result_type_val3])
+    return_op = ReturnOp.get([result_type_val1, result_type_val2, result_type_val3])
 
     assert return_op.arg[0] is result_type_val1
     assert return_op.arg[1] is result_type_val2
@@ -142,8 +137,7 @@ def test_stencil_cast_op_verifier():
         cast.verify()
 
     # check that non-dynamic input verifies
-    non_dyn_field = TestSSAValue(FieldType(((-2, 102), (-2, 102), (-2, 102)),
-                                 f32))
+    non_dyn_field = TestSSAValue(FieldType(((-2, 102), (-2, 102), (-2, 102)), f32))
     cast = CastOp.get(
         non_dyn_field,
         StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))),
@@ -708,7 +702,7 @@ def test_1d3pt_stencil_construct():
 
             # The computation region
             @Builder.implicit_region([temp0])
-            def computation_region(args: tuple[BlockArgument]):
+            def computation_region(args: tuple[BlockArgument, ...]):
                 temp_in = args[0]
                 # Stencil computation
                 stencil_acs_l = AccessOp.get(temp_in, (-1,))
