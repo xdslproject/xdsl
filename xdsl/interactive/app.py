@@ -9,13 +9,11 @@ be sure to install `textual-dev` to run this command.
 
 from io import StringIO
 
-from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
-from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
@@ -73,16 +71,6 @@ class InputApp(App[None]):
         ("q", "quit_app", "Quit"),
     ]
 
-    # defines a theme for the Input/Output TextArea
-    _DEFAULT_THEME = TextAreaTheme(
-        name="my_theme_design",
-        base_style=Style(bgcolor="white"),
-        syntax_styles={
-            "string": Style(color="red"),
-            "comment": Style(color="magenta"),
-        },
-    )
-
     current_module = reactive[ModuleOp | Exception | None](None)
     """
     Reactive variable used to save the current state of the modified Input TextArea
@@ -125,7 +113,6 @@ class InputApp(App[None]):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
                     yield Button("Condense", id="condense_button")
-                    yield Button("Uncondense", id="uncondense_button")
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -139,19 +126,17 @@ class InputApp(App[None]):
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
+        # register's the theme for the Input/Output TextArea's
+        self.input_text_area.theme = "vscode_dark"
+        self.output_text_area.theme = "vscode_dark"
 
-        # register the theme for the Input/Output TextAreas
-        self.input_text_area.register_theme(InputApp._DEFAULT_THEME)
-        self.output_text_area.register_theme(InputApp._DEFAULT_THEME)
-        self.input_text_area.theme = "my_theme_design"
-        self.output_text_area.theme = "my_theme_design"
 
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
         self.query_one(
             "#passes_list_view"
-        ).border_title = """Choose a pass or multiple
-        passes to be applied."""
+        ).border_title = "Choose a pass or multiple passes to be applied."
+
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
         for n, _ in ALL_PASSES:
@@ -282,6 +267,7 @@ class InputApp(App[None]):
     def uncondense(self, event: Button.Pressed) -> None:
         self.condense_mode = False
         self.remove_class("condensed")
+
 
 
 def main():
