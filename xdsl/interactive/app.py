@@ -290,7 +290,6 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#uncondense_button")
     def uncondense(self, event: Button.Pressed) -> None:
         self.condense_mode = False
-        # self.add_class("uncondensed")
         self.remove_class("condensed")
 
 
