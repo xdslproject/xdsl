@@ -92,9 +92,7 @@ class InputApp(App[None]):
     """Reactive variable that saves the list of selected passes."""
 
     condense_mode = reactive(bool, always_update=True)
-    """Reactive boolean."""
     current_condensed_pass_list = reactive(tuple[type[ModulePass], ...])
-    """Reactive variable that saves the list of passes that have an effect on current_module."""
 
     input_text_area: TextArea
     """Input TextArea."""
