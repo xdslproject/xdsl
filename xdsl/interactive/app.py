@@ -43,7 +43,6 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
             cloned_module = input.clone()
             cloned_ctx = ctx.clone()
             value().apply(cloned_ctx, cloned_module)
-
             if not input.is_structurally_equivalent(cloned_module):
                 rhs = (*selections, value)
                 selections = tuple(rhs)
@@ -114,6 +113,7 @@ class InputApp(App[None]):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
                     yield Button("Condense", id="condense_button")
+                    yield Button("Uncondense", id="uncondense_button")
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -127,7 +127,6 @@ class InputApp(App[None]):
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
-
         # register's the theme for the Input/Output TextArea's
         self.input_text_area.theme = "vscode_dark"
         self.output_text_area.theme = "vscode_dark"
@@ -137,6 +136,7 @@ class InputApp(App[None]):
         self.query_one(
             "#passes_list_view"
         ).border_title = "Choose a pass or multiple passes to be applied."
+
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
         for n, _ in ALL_PASSES:
@@ -196,6 +196,7 @@ class InputApp(App[None]):
         input_text = self.input_text_area.text
         if (input_text) == "":
             self.current_module = None
+            self.current_condensed_pass_list = ()
             return
         try:
             ctx = MLContext(True)
@@ -260,6 +261,12 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#condense_button")
     def condense(self, event: Button.Pressed) -> None:
         self.condense_mode = True
+        self.add_class("condensed")
+
+    @on(Button.Pressed, "#uncondense_button")
+    def uncondense(self, event: Button.Pressed) -> None:
+        self.condense_mode = False
+        self.remove_class("condensed")
 
 
 def main():

@@ -246,6 +246,9 @@ async def test_buttons():
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
 
+        # assert initial state of condense_mode is False
+        assert app.condense_mode is False
+
         # press "Condense" button
         await pilot.click("#condense_button")
 
@@ -261,8 +264,16 @@ async def test_buttons():
         )
 
         await pilot.pause()
+        # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
         assert app.available_pass_list == condensed_list
+
+        # press "Uncondense" button
+        await pilot.click("#uncondense_button")
+
+        await pilot.pause()
+        # assert after "Condense Button" is clicked that the state changes accordingly
+        assert app.condense_mode is False
 
 
 @pytest.mark.asyncio()
