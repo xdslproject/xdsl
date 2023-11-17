@@ -207,6 +207,7 @@ class InputApp(App[None]):
         input_text = self.input_text_area.text
         if (input_text) == "":
             self.current_module = None
+            self.current_condensed_pass_list = ()
             return
         try:
             ctx = MLContext(True)
