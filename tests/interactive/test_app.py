@@ -274,7 +274,7 @@ async def test_buttons():
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state changes accordingly
         assert app.condense_mode is False
-        
+
 
 @pytest.mark.asyncio()
 async def test_passes():
