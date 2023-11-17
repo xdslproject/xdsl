@@ -105,6 +105,46 @@ async def test_buttons():
         }
         """
         )
+        
+        # assert that the Input and Output Text Area's have changed
+        assert (
+            app.input_text_area.text
+            == """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
+        )
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : index) -> index {
+    %two = arith.constant 2 : index
+    %res = arith.muli %n, %two : index
+    func.return %res : index
+  }
+}
+"""
+        )
+
+        # Test clicking the "clear input" button
+        await pilot.click("#clear_input_button")
+
+        # assert that the input text area has been cleared
+        await pilot.pause()
+        assert app.input_text_area.text == ""
+
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
+        )
 
         await pilot.pause()
         # assert that the Input and Output Text Area's have changed
@@ -191,6 +231,7 @@ async def test_buttons():
 }
 """
         )
+        
         index = IndexType()
 
         expected_module = ModuleOp(Region([Block()]))

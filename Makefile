@@ -50,7 +50,7 @@ tests-toy: filecheck-toy pytest-toy
 
 # run all tests
 tests: pytest tests-toy filecheck pytest-nb pyright
-	@echo test
+	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory
 rerun-notebooks:
