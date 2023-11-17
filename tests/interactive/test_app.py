@@ -94,8 +94,9 @@ async def test_buttons():
         }
         """
         )
-        
+
         # assert that the Input and Output Text Area's have changed
+        await pilot.pause()
         assert (
             app.input_text_area.text
             == """
@@ -168,7 +169,8 @@ async def test_buttons():
         # assert that the Output Text Area and current_module have the expected results
         await pilot.pause()
         assert app.pass_pipeline == ()
-        assert app.output_text_area.text
+        assert (
+            app.output_text_area.text
             == """builtin.module {
   func.func @hello(%n : index) -> index {
     %two = arith.constant 2 : index
@@ -178,7 +180,7 @@ async def test_buttons():
 }
 """
         )
-        
+
         index = IndexType()
 
         expected_module = ModuleOp(Region([Block()]))
@@ -191,6 +193,7 @@ async def test_buttons():
 
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
+
 
 @pytest.mark.asyncio()
 async def test_passes():
