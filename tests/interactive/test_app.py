@@ -33,6 +33,10 @@ async def test_inputs():
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+        app.pass_pipeline = ()
+
         # Test no input
         assert app.output_text_area.text == "No input"
         assert app.current_module is None
@@ -94,6 +98,10 @@ async def test_buttons():
     """Test pressing keys has the desired result."""
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
+
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+        app.pass_pipeline = ()
 
         # Test clicking the "clear passes" button
         app.input_text_area.insert(
@@ -275,6 +283,12 @@ async def test_passes():
     """Test pass application has the desired result."""
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
+
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+        app.pass_pipeline = ()
+        app.current_condensed_pass_list = ()
+
         # Testing a pass
         app.input_text_area.insert(
             """
