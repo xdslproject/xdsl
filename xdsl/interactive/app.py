@@ -34,12 +34,12 @@ ALL_PASSES = tuple(sorted((p.name, p) for p in get_all_passes()))
 def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
     """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
 
-    selections = ()
     ctx = MLContext(True)
 
     for dialect in get_all_dialects():
         ctx.load_dialect(dialect)
 
+    selections: tuple[type[ModulePass], ...] = ()
     for _, value in ALL_PASSES:
         try:
             cloned_module = input.clone()
@@ -47,15 +47,12 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
             value().apply(cloned_ctx, cloned_module)
 
             if not input.is_structurally_equivalent(cloned_module):
-                selections = tuple(
-                    (*selections, value)
-                )  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+                rhs = (*selections, value)
+                selections = tuple(rhs)
         except Exception:
-            selections = tuple(
-                (*selections, value)
-            )  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
+            selections = tuple((*selections, value))
 
-    return selections  # pyright: ignore[reportUnknownVariableType]
+    return selections
 
 
 class OutputTextArea(TextArea):
@@ -204,7 +201,7 @@ class InputApp(App[None]):
 
         except Exception as e:
             self.current_module = e
-            self.current_condensed_pass_list = []
+            self.current_condensed_pass_list = ()
             self.trigger()
 
     def watch_current_module(self):
@@ -246,15 +243,9 @@ class InputApp(App[None]):
                 self.passes_list_view.append(ListItem(Label(n), name=n))
         else:
             self.passes_list_view.clear()
-            for (
-                value
-            ) in (
-                self.current_condensed_pass_list
-            ):  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnknownVariableType]
+            for value in self.current_condensed_pass_list:
                 self.passes_list_view.append(
-                    ListItem(
-                        Label(value.name), name=value.name
-                    )  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+                    ListItem(Label(value.name), name=value.name)
                 )
 
     def action_toggle_dark(self) -> None:
