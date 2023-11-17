@@ -36,12 +36,12 @@ ALL_PASSES = tuple(sorted((p.name, p) for p in get_all_passes()))
 def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
     """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
 
-    selections = ()
     ctx = MLContext(True)
 
     for dialect in get_all_dialects():
         ctx.load_dialect(dialect)
 
+    selections: tuple[type[ModulePass], ...] = ()
     for _, value in ALL_PASSES:
         try:
             cloned_module = input.clone()
@@ -49,15 +49,10 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
             value().apply(cloned_ctx, cloned_module)
 
             if not input.is_structurally_equivalent(cloned_module):
-                selections = tuple(
-                    (*selections, value)
-                )  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+                rhs = (*selections, value)
+                selections = tuple(rhs)
         except Exception:
-            selections = tuple(
-                (*selections, value)
-            )  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
-
-    return selections  # pyright: ignore[reportUnknownVariableType]
+            selections = tuple((*selections, value))
 
 
 class AddArguments(Screen):
@@ -316,14 +311,11 @@ class InputApp(App[None]):
     def condense(self, event: Button.Pressed) -> None:
         self.condense_mode = True
         self.add_class("condensed")
-        self.remove_class("uncondensed")
 
     @on(Button.Pressed, "#uncondense_button")
     def uncondense(self, event: Button.Pressed) -> None:
         self.condense_mode = False
-        # self.add_class("uncondensed")
         self.remove_class("condensed")
-        self.add_class("uncondensed")
 
     @on(Button.Pressed, "#remove_last_pass_button")
     def remove_last_pass(self, event: Button.Pressed) -> None:
@@ -331,7 +323,6 @@ class InputApp(App[None]):
 
     @on(Button.Pressed, "#load_file_button")
     def load_file(self, event: Button.Pressed) -> None:
-        self.push_screen(AddArguments())
         pass
 
 
