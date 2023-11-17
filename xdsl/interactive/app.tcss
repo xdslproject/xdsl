@@ -43,3 +43,16 @@ Screen {
     grid-size: 1 2;
     grid-rows: 45% 55%;
 }
+
+# Button
+#uncondense_button{
+    display: none;
+}
+
+.condensed #condense_button {
+    display: none;
+}
+
+.condensed #uncondense_button {
+    display: block;
+}
