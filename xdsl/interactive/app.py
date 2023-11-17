@@ -34,28 +34,25 @@ ALL_PASSES = tuple(sorted((p.name, p) for p in get_all_passes()))
 def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
     """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
 
-    selections = ()
     ctx = MLContext(True)
 
     for dialect in get_all_dialects():
         ctx.load_dialect(dialect)
 
+    selections: tuple[type[ModulePass], ...]
+    selections = ()
     for _, value in ALL_PASSES:
+        new_selections = (*selections, value)
         try:
             cloned_module = input.clone()
             cloned_ctx = ctx.clone()
             value().apply(cloned_ctx, cloned_module)
-
             if not input.is_structurally_equivalent(cloned_module):
-                selections = tuple(
-                    (*selections, value)
-                )  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+                selections = tuple(new_selections)
         except Exception:
-            selections = tuple(
-                (*selections, value)
-            )  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
+            selections = tuple(new_selections)
 
-    return selections  # pyright: ignore[reportUnknownVariableType]
+    return selections
 
 
 class OutputTextArea(TextArea):
@@ -96,7 +93,9 @@ class InputApp(App[None]):
     """Reactive variable that saves the list of selected passes."""
 
     condense_mode = reactive(bool, always_update=True)
+    """Reactive boolean."""
     current_condensed_pass_list = reactive(tuple[type[ModulePass], ...])
+    """Reactive variable that saves the list of passes that have an effect on current_module."""
 
     input_text_area: TextArea
     """Input TextArea."""
@@ -152,12 +151,14 @@ class InputApp(App[None]):
         self.query_one("#output_container").border_title = "Output xDSL IR"
         self.query_one(
             "#passes_list_view"
-        ).border_title = "Choose a pass or multiple passes to be applied."
+        ).border_title = """Choose a pass or multiple
+        passes to be applied."""
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
+        # initialize gui to inital state - uncondensed mode.
         self.condense_mode = False
 
     @on(ListView.Selected)
@@ -205,7 +206,7 @@ class InputApp(App[None]):
 
         except Exception as e:
             self.current_module = e
-            self.current_condensed_pass_list = []
+            self.current_condensed_pass_list = ()
             self.trigger()
 
     def watch_current_module(self):
@@ -247,15 +248,9 @@ class InputApp(App[None]):
                 self.passes_list_view.append(ListItem(Label(n), name=n))
         else:
             self.passes_list_view.clear()
-            for (
-                value
-            ) in (
-                self.current_condensed_pass_list
-            ):  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportUnknownVariableType]
+            for value in self.current_condensed_pass_list:
                 self.passes_list_view.append(
-                    ListItem(
-                        Label(value.name), name=value.name
-                    )  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+                    ListItem(Label(value.name), name=value.name)
                 )
 
     def action_toggle_dark(self) -> None:
@@ -292,14 +287,12 @@ class InputApp(App[None]):
     def condense(self, event: Button.Pressed) -> None:
         self.condense_mode = True
         self.add_class("condensed")
-        self.remove_class("uncondensed")
 
     @on(Button.Pressed, "#uncondense_button")
     def uncondense(self, event: Button.Pressed) -> None:
         self.condense_mode = False
         # self.add_class("uncondensed")
         self.remove_class("condensed")
-        self.add_class("uncondensed")
 
 
 def main():
