@@ -56,3 +56,16 @@ Screen {
     grid-rows: 45% 55%;
     background: $surface;
 }
+
+# Button
+#uncondense_button{
+    display: none;
+}
+
+.condensed #condense_button {
+    display: none;
+}
+
+.condensed #uncondense_button {
+    display: block;
+}
