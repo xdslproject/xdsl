@@ -170,7 +170,7 @@ class InputApp(App[None]):
         self.condense_mode = False
 
         # initialize GUI with an interesting input IR and pass application
-        self.input_text_area.load_text(INITIAL_IR_TEXT)
+        self.input_text_area.load_text(self.INITIAL_IR_TEXT)
         self.pass_pipeline = tuple(
             (*self.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
         )
