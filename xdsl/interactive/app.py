@@ -144,7 +144,7 @@ class InputApp(App[None]):
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
-            
+
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         match self.current_module:
             case None:
@@ -210,13 +210,8 @@ class InputApp(App[None]):
             pipeline = PipelinePass([p() for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
-            self.current_condensed_pass_list = condensed_pass_list(self.current_module)
-            self.trigger()
-
         except Exception as e:
             self.current_module = e
-            self.current_condensed_pass_list = ()
-            self.trigger()
 
     def watch_current_module(self):
         """
