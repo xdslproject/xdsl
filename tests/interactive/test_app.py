@@ -153,7 +153,8 @@ async def test_buttons():
                 *app.pass_pipeline,
                 convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
                 convert_arith_to_riscv.ConvertArithToRiscvPass,
-            ))
+            )
+        )
 
         # assert that pass selection affected Output Text Area
         await pilot.pause()

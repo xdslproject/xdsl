@@ -14,7 +14,6 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
-from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
@@ -143,7 +142,6 @@ class InputApp(App[None]):
 
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
-
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         match self.current_module:
@@ -274,6 +272,7 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#remove_last_pass_button")
     def remove_last_pass(self, event: Button.Pressed) -> None:
         self.pass_pipeline = self.pass_pipeline[:-1]
+
 
 def main():
     return InputApp().run()
