@@ -85,7 +85,12 @@ class InputApp(App[None]):
             "comment": Style(color="magenta"),
         },
     )
-
+    INITIAL_IR_TEXT = """func.func @hello(%n : index) -> index {
+  %two = arith.constant 2 : index
+  %res = arith.muli %n, %two : index
+  func.return %res : index
+}
+"""
     current_module = reactive[ModuleOp | Exception | None](None)
     """
     Reactive variable used to save the current state of the modified Input TextArea
@@ -165,14 +170,7 @@ class InputApp(App[None]):
         self.condense_mode = False
 
         # initialize GUI with an interesting input IR and pass application
-        self.input_text_area.load_text(
-            """func.func @hello(%n : index) -> index {
-  %two = arith.constant 2 : index
-  %res = arith.muli %n, %two : index
-  func.return %res : index
-}
-"""
-        )
+        self.input_text_area.load_text(INITIAL_IR_TEXT)
         self.pass_pipeline = tuple(
             (*self.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
         )
