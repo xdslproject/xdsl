@@ -32,12 +32,12 @@ async def test_inputs():
     """Test different inputs produce desired result."""
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
-
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
         app.pass_pipeline = ()
 
         # Test no input
+        await pilot.pause()
         assert app.output_text_area.text == "No input"
         assert app.current_module is None
 
@@ -103,6 +103,7 @@ async def test_buttons():
         app.input_text_area.clear()
         app.pass_pipeline = ()
 
+        await pilot.pause()
         # Test clicking the "clear passes" button
         app.input_text_area.insert(
             """
@@ -289,8 +290,8 @@ async def test_passes():
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
         app.pass_pipeline = ()
-        app.current_condensed_pass_list = ()
 
+        await pilot.pause()
         # Testing a pass
         app.input_text_area.insert(
             """

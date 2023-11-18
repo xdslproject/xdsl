@@ -74,6 +74,14 @@ class InputApp(App[None]):
         ("q", "quit_app", "Quit"),
     ]
 
+    INITIAL_IR_TEXT = """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
+
     current_module = reactive[ModuleOp | Exception | None](None)
     """
     Reactive variable used to save the current state of the modified Input TextArea
@@ -82,7 +90,7 @@ class InputApp(App[None]):
     pass_pipeline = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of selected passes."""
 
-    condense_mode = reactive(False, always_update=True)
+    condense_mode = reactive(bool)
     """Reactive boolean."""
     available_pass_list = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of passes that have an effect on current_module."""
@@ -101,7 +109,7 @@ class InputApp(App[None]):
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
         self.selected_query_label = Label("", id="selected_passes_label")
-
+        self.condense_mode = False
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -146,6 +154,12 @@ class InputApp(App[None]):
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
+        # initialize GUI with an interesting input IR and pass application
+        self.input_text_area.load_text(self.INITIAL_IR_TEXT)
+        self.pass_pipeline = tuple(
+            (*self.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
+        )
+
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         match self.current_module:
             case None:
@@ -169,12 +183,6 @@ class InputApp(App[None]):
                 self.passes_list_view.append(
                     ListItem(Label(value.name), name=value.name)
                 )
-
-        # initialize GUI with an interesting input IR and pass application
-        self.input_text_area.load_text(self.INITIAL_IR_TEXT)
-        self.pass_pipeline = tuple(
-            (*self.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
-        )
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
