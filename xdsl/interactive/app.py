@@ -9,13 +9,11 @@ be sure to install `textual-dev` to run this command.
 
 from io import StringIO
 
-from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
-from textual.widgets.text_area import TextAreaTheme
 
 from xdsl.backend.riscv.lowering import (
     convert_func_to_riscv_func,
@@ -76,21 +74,6 @@ class InputApp(App[None]):
         ("q", "quit_app", "Quit"),
     ]
 
-    # defines a theme for the Input/Output TextArea's
-    _DEFAULT_THEME = TextAreaTheme(
-        name="my_theme_design",
-        base_style=Style(bgcolor="white"),
-        syntax_styles={
-            "string": Style(color="red"),
-            "comment": Style(color="magenta"),
-        },
-    )
-    INITIAL_IR_TEXT = """func.func @hello(%n : index) -> index {
-  %two = arith.constant 2 : index
-  %res = arith.muli %n, %two : index
-  func.return %res : index
-}
-"""
     current_module = reactive[ModuleOp | Exception | None](None)
     """
     Reactive variable used to save the current state of the modified Input TextArea
@@ -99,9 +82,9 @@ class InputApp(App[None]):
     pass_pipeline = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of selected passes."""
 
-    condense_mode = reactive(bool, always_update=True)
+    condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
-    current_condensed_pass_list = reactive(tuple[type[ModulePass], ...])
+    available_pass_list = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of passes that have an effect on current_module."""
 
     input_text_area: TextArea
@@ -148,26 +131,44 @@ class InputApp(App[None]):
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
-
         # register's the theme for the Input/Output TextArea's
-        self.input_text_area.register_theme(InputApp._DEFAULT_THEME)
-        self.output_text_area.register_theme(InputApp._DEFAULT_THEME)
-        self.input_text_area.theme = "my_theme_design"
-        self.output_text_area.theme = "my_theme_design"
+        self.input_text_area.theme = "vscode_dark"
+        self.output_text_area.theme = "vscode_dark"
 
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
         self.query_one(
             "#passes_list_view"
-        ).border_title = """Choose a pass or multiple
-        passes to be applied."""
+        ).border_title = "Choose a pass or multiple passes to be applied."
+
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
-        # initialize gui to inital state - uncondensed mode.
-        self.condense_mode = False
+    def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
+        match self.current_module:
+            case None:
+                return tuple(p for _, p in ALL_PASSES)
+            case Exception():
+                return ()
+            case ModuleOp():
+                if self.condense_mode:
+                    return condensed_pass_list(self.current_module)
+                else:
+                    return tuple(p for _, p in ALL_PASSES)
+
+    def watch_available_pass_list(
+        self,
+        old_pass_list: tuple[type[ModulePass], ...],
+        new_pass_list: tuple[type[ModulePass], ...],
+    ) -> None:
+        if old_pass_list != new_pass_list:
+            self.passes_list_view.clear()
+            for value in new_pass_list:
+                self.passes_list_view.append(
+                    ListItem(Label(value.name), name=value.name)
+                )
 
         # initialize GUI with an interesting input IR and pass application
         self.input_text_area.load_text(self.INITIAL_IR_TEXT)
@@ -216,13 +217,8 @@ class InputApp(App[None]):
             pipeline = PipelinePass([p() for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
-            self.current_condensed_pass_list = condensed_pass_list(self.current_module)
-            self.trigger()
-
         except Exception as e:
             self.current_module = e
-            self.current_condensed_pass_list = ()
-            self.trigger()
 
     def watch_current_module(self):
         """
@@ -241,32 +237,6 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
-
-    def trigger(self):
-        """
-        Function re-updates reactive condense_mode variable, which triggers reactivity
-        properties to recalculate current_condensed_pass_list.
-        """
-        if self.condense_mode is True:
-            self.condense_mode = True
-        else:
-            self.condense_mode = False
-
-    def watch_condense_mode(
-        self, old_condense_mode: bool, new_condense_mode: bool
-    ) -> None:
-        if old_condense_mode is False and new_condense_mode is False:
-            return
-        elif old_condense_mode is True and new_condense_mode is False:
-            self.passes_list_view.clear()
-            for n, _ in ALL_PASSES:
-                self.passes_list_view.append(ListItem(Label(n), name=n))
-        else:
-            self.passes_list_view.clear()
-            for value in self.current_condensed_pass_list:
-                self.passes_list_view.append(
-                    ListItem(Label(value.name), name=value.name)
-                )
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
