@@ -60,8 +60,6 @@ class LowerGenericOp(RewritePattern):
             frep = riscv_snitch.FrepOuter(
                 rep_count_minus_one,
                 rewriter.move_region_contents_to_new_regions(op.body),
-                IntAttr(0),
-                IntAttr(0),
             )
             with ImplicitBuilder(frep.body):
                 riscv_snitch.FrepYieldOp()

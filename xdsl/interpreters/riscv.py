@@ -564,6 +564,17 @@ class RiscvFunctions(InterpreterFunctions):
         results = (max(args[0], args[1]),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.FCvtDWOp)
+    def run_fcvt_d_w(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FCvtDWOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (float(args[0]),)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.FSdOp)
     def run_fsd(
         self,

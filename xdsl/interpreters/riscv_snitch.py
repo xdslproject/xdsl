@@ -25,12 +25,13 @@ class RiscvSnitchFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        count_minus_one = args[0]
+        count_minus_one, *loop_args = args
+        loop_args = tuple(loop_args)
 
         for _ in range(count_minus_one + 1):
-            interpreter.run_ssacfg_region(op.body, (), "frep.o")
+            loop_args = interpreter.run_ssacfg_region(op.body, loop_args, "frep.o")
 
-        return ()
+        return loop_args
 
     @impl_terminator(riscv_snitch.FrepYieldOp)
     def run_yield(
