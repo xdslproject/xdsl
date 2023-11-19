@@ -223,6 +223,10 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
             iter_arg_unresolved_operands, iter_arg_types, pos
         )
 
+        # Set block argument types
+        for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
+            iter_arg.type = iter_arg_type
+
         body = parser.parse_region(iter_args)
 
         frep = cls(
