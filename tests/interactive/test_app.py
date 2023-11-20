@@ -192,18 +192,12 @@ async def test_buttons():
         )
 
         # press "Remove Last Pass" button
+        current_pipeline = app.pass_pipeline
         await pilot.click("#remove_last_pass_button")
         await pilot.pause()
 
         # assert that the pass pipeline and Output Text Area change accordingly
-        expected_pass_pipeline = ()
-        expected_pass_pipeline = tuple(
-            (
-                *expected_pass_pipeline,
-                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-            )
-        )
-        assert app.pass_pipeline == expected_pass_pipeline
+        assert app.pass_pipeline == current_pipeline[:-1]
         assert (
             app.output_text_area.text
             == """builtin.module {
