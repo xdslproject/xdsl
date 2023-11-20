@@ -62,3 +62,39 @@ Screen {
 .condensed #uncondense_button {
     display: block;
 }
+
+DistributeStencilPassScreen{
+    background: rgba(100,100,100,0.5);
+    align: center middle;
+    layout: vertical;
+}
+
+# Horizonal(TextArea, TextArea)
+#container{
+    border: heavy $warning;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+    width: 75%;
+    height: 50%;
+    layout: vertical;
+}
+
+#provide_stencil_argument_text_area{
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+}
+
+#provide_strategy_argument_text_area{
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+}
+
+#cancel_enter_buttons{
+    layout: horizontal;
+    height: auto;
+}
