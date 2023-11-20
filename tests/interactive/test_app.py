@@ -248,6 +248,9 @@ async def test_buttons():
 
         # press "Condense" button
         await pilot.click("#condense_button")
+        await pilot.pause()
+
+        assert app.condense_mode is True
 
         condensed_list = tuple(
             (
@@ -260,7 +263,6 @@ async def test_buttons():
             )
         )
 
-        await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.available_pass_list == condensed_list
 

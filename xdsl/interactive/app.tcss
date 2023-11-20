@@ -63,16 +63,3 @@ Screen {
 .condensed #uncondense_button {
     display: block;
 }
-
-# Button
-#uncondense_button{
-    display: none;
-}
-
-.condensed #condense_button {
-    display: none;
-}
-
-.condensed #uncondense_button {
-    display: block;
-}

@@ -128,6 +128,7 @@ class InputApp(App[None]):
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
+
         # register's the theme for the Input/Output TextArea's
         self.input_text_area.theme = "vscode_dark"
         self.output_text_area.theme = "vscode_dark"
@@ -144,16 +145,17 @@ class InputApp(App[None]):
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
-        match self.current_module:
-            case None:
+        current_module = self.current_module
+        condense_mode = self.condense_mode
+        match (current_module, condense_mode):
+            case (None, _):
                 return tuple(p for _, p in ALL_PASSES)
-            case Exception():
+            case (Exception(), _):
                 return ()
-            case ModuleOp():
-                if self.condense_mode:
-                    return condensed_pass_list(self.current_module)
-                else:
-                    return tuple(p for _, p in ALL_PASSES)
+            case (ModuleOp(), True):
+                return condensed_pass_list(current_module)
+            case (ModuleOp(), False):
+                return tuple(p for _, p in ALL_PASSES)
 
     def watch_available_pass_list(
         self,
