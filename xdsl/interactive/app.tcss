@@ -27,7 +27,23 @@
     border-title-align: center;
 }
 
-# Vertical(TextArea, Button)
+# TextArea
+#file_name{
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+    overflow: hidden;
+
+}
+
+# Horizontal(Button, TextArea, Button)
+#input_horizontal{
+    width: auto;
+    height: 3;
+}
+
+# Vertical(TextArea, Horizontal(Button, TextArea, Button))
 #input_container {
     border: heavy $accent-darken-1;
     border-title-color: $error-darken-3;

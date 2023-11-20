@@ -131,7 +131,10 @@ class InputApp(App[None]):
         with Horizontal(id="bottom_container"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
-                yield Button("Clear Input", id="clear_input_button")
+                with Horizontal(id="input_horizontal"):
+                    yield Button("Clear Input", id="clear_input_button")
+                    yield TextArea(id="file_name")
+                    yield Button("Load File", id="load_file_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
                 yield Button("Copy Output", id="copy_output_button")
@@ -150,6 +153,7 @@ class InputApp(App[None]):
         ).border_title = "Choose a pass or multiple passes to be applied."
 
         self.query_one("#selected_passes").border_title = "Selected passes/query"
+        self.query_one("#file_name").border_title = "Insert File Name"
 
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
@@ -289,6 +293,10 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#remove_last_pass_button")
     def remove_last_pass(self, event: Button.Pressed) -> None:
         self.pass_pipeline = self.pass_pipeline[:-1]
+
+    @on(Button.Pressed, "#load_file_button")
+    def load_file(self, event: Button.Pressed) -> None:
+        pass
 
 
 def main():
