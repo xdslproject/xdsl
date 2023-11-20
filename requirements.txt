@@ -9,7 +9,7 @@ nbval<0.11
 filecheck<0.0.24
 lit<18.0.0
 pre-commit==3.5.0
-ruff==0.1.5
+ruff==0.1.6
 asv<0.7
 isort==5.12.0
 nbconvert>=7.7.2,<8.0.0
