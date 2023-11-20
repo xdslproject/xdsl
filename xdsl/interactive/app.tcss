@@ -7,7 +7,12 @@
     height: 100%;
 }
 
-# Vertical(Button, Button, Button)
+# Button
+#remove_last_pass_button{
+    width: 1;
+}
+
+# Vertical(Button, Button, Button, Button)
 #buttons{
     layout: vertical;
     width: auto;
