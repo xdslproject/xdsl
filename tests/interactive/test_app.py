@@ -33,6 +33,11 @@ async def test_inputs():
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+        app.pass_pipeline = ()
+        await pilot.pause()
+
         # Test no input
         assert app.output_text_area.text == "No input"
         assert app.current_module is None
@@ -95,6 +100,11 @@ async def test_buttons():
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+        app.pass_pipeline = ()
+
+        await pilot.pause()
         app.input_text_area.insert(
             """
         func.func @hello(%n : index) -> index {
@@ -273,6 +283,11 @@ async def test_passes():
     """Test pass application has the desired result."""
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+        app.pass_pipeline = ()
+
+        await pilot.pause()
         # Testing a pass
         app.input_text_area.insert(
             """

@@ -15,6 +15,9 @@ from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
 
+from xdsl.backend.riscv.lowering import (
+    convert_func_to_riscv_func,
+)
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
@@ -70,6 +73,14 @@ class InputApp(App[None]):
         ("d", "toggle_dark", "Toggle dark mode"),
         ("q", "quit_app", "Quit"),
     ]
+
+    INITIAL_IR_TEXT = """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
 
     current_module = reactive[ModuleOp | Exception | None](None)
     """
@@ -142,6 +153,12 @@ class InputApp(App[None]):
 
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
+
+        # initialize GUI with an interesting input IR and pass application
+        self.input_text_area.load_text(self.INITIAL_IR_TEXT)
+        self.pass_pipeline = tuple(
+            (*self.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
+        )
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         match self.current_module:
