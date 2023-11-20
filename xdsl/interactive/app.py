@@ -7,13 +7,25 @@ Run `textual run xdsl.interactive.app:InputApp --dev` to run in development mode
 be sure to install `textual-dev` to run this command.
 """
 
+import os
+from collections.abc import Callable
 from io import StringIO
+from typing import Any, ClassVar
 
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
-from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
+from textual.screen import Screen
+from textual.widgets import (
+    Button,
+    DirectoryTree,
+    Footer,
+    Label,
+    ListItem,
+    ListView,
+    TextArea,
+)
 
 from xdsl.backend.riscv.lowering import (
     convert_func_to_riscv_func,
@@ -55,6 +67,35 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
     return selections
 
 
+class LoadFile(Screen[str]):
+    CSS_PATH = "app.tcss"
+
+    directory_tree: DirectoryTree
+
+    def __init__(self):
+        self.directory_tree = DirectoryTree("./", id="directory_tree")
+        super().__init__()
+
+    def compose(self) -> ComposeResult:
+        with ScrollableContainer(id="directory_tree_container"):
+            yield self.directory_tree
+            yield Button("Cancel", id="quit_load_file_screen_button")
+
+    def on_mount(self) -> None:
+        """Configure widgets in this application before it is first shown."""
+        self.query_one("#directory_tree_container").border_title = "Click File to Open"
+
+    def on_directory_tree_file_selected(
+        self, event: DirectoryTree.FileSelected
+    ) -> None:
+        selected_path = str(event.path)
+        self.dismiss(selected_path)
+
+    @on(Button.Pressed, "#quit_load_file_screen_button")
+    def exit_screen(self, event: Button.Pressed) -> None:
+        self.dismiss()
+
+
 class OutputTextArea(TextArea):
     """Used to prevent users from being able to alter the Output TextArea."""
 
@@ -73,6 +114,10 @@ class InputApp(App[None]):
         ("d", "toggle_dark", "Toggle dark mode"),
         ("q", "quit_app", "Quit"),
     ]
+
+    SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
+        "load_file": LoadFile
+    }
 
     INITIAL_IR_TEXT = """
         func.func @hello(%n : index) -> index {
@@ -133,7 +178,6 @@ class InputApp(App[None]):
                 yield self.input_text_area
                 with Horizontal(id="input_horizontal"):
                     yield Button("Clear Input", id="clear_input_button")
-                    yield TextArea(id="file_name")
                     yield Button("Load File", id="load_file_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
@@ -153,7 +197,6 @@ class InputApp(App[None]):
         ).border_title = "Choose a pass or multiple passes to be applied."
 
         self.query_one("#selected_passes").border_title = "Selected passes/query"
-        self.query_one("#file_name").border_title = "Insert File Name"
 
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
@@ -296,7 +339,27 @@ class InputApp(App[None]):
 
     @on(Button.Pressed, "#load_file_button")
     def load_file(self, event: Button.Pressed) -> None:
-        pass
+        def check_load_file(file_path: str) -> None:
+            """Called when LoadFile is dismissed."""
+
+            # Clear Input TextArea and Pass Pipeline
+            self.pass_pipeline = ()
+            self.input_text_area.clear()
+
+            try:
+                if os.path.exists(file_path):
+                    # Open the file and read its contents
+                    with open(file_path) as file:
+                        file_contents = file.read()
+                        self.input_text_area.load_text(file_contents)
+                else:
+                    self.input_text_area.load_text(
+                        f"The file '{file_path}' does not exist."
+                    )
+            except Exception as e:
+                self.input_text_area.load_text(str(e))
+
+        self.push_screen("load_file", check_load_file)
 
 
 def main():
