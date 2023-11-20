@@ -1,32 +1,11 @@
 from typing import TypeVar
 import pytest
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    Operation,
-    OpResult,
-    ParametrizedAttribute,
-    SSAValue,
-    TypeAttribute,
-)
-from xdsl.irdl import (
-    IRDLOperation,
-    Operand,
-    OptOperand,
-    OptOpResult,
-    ParameterDef,
-    attr_def,
-    irdl_attr_definition,
-    irdl_op_definition,
-    operand_def,
-    opt_attr_def,
-    opt_operand_def,
-    opt_result_def,
-    result_def,
-)
-from xdsl.irdl import OperandDef
-from xdsl.dialects.arith import BinaryOperation, CeilDivSI, Constant, TruncFOp
-from xdsl.dialects.builtin import AnyFloatAttr, FloatAttr,  f32, AnyFloat, i32, Float32Type
+
+from xdsl.utils.exceptions import VerifyException
+from xdsl.ir import Attribute
+
+from xdsl.dialects.arith import BinaryOperation, Constant
+from xdsl.dialects.builtin import FloatAttr,  f32, i32
 from xdsl.dialects.experimental.math import (
         AbsFOp,
         AbsIOp,
@@ -68,7 +47,7 @@ from xdsl.ir import Attribute
 #from xdsl.utils.exceptions import VerifyException
 
 _BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
-class Test_float_math_binary_construction:
+class Test_float_math_binary_constant_construction:
     operand_type = f32
     a = Constant(FloatAttr(1.1, operand_type))
     b = Constant(FloatAttr(2.2, operand_type))
@@ -153,7 +132,7 @@ class Test_int_math_unary_constructions:
         assert op.operand.owner == self.a
         assert op.result.type == self.operand_type
 
-class Test_fpowi:
+class Test_fpowi_constant:
     a = Constant(FloatAttr(2.2, f32))
     b = Constant.from_int_and_width(0, 32)
 
@@ -164,7 +143,7 @@ class Test_fpowi:
         assert op.rhs.owner is self.b
         assert op.result.type == f32
 
-class Test_fma:
+class Test_fma_constant:
     a = Constant(FloatAttr(1.1, f32))
     b = Constant(FloatAttr(2.2, f32))
     c = Constant(FloatAttr(3.3, f32))
@@ -177,3 +156,9 @@ class Test_fma:
         assert op.b.owner is self.b
         assert op.c.owner is self.c
         assert op.result.type == f32
+def test_trunci_incorrect_bitwidth():
+    a = Constant.from_int_and_width(1, 16)
+    # bitwidth of b has to be smaller than the one of a
+
+    with pytest.raises(VerifyException):
+        _trunci_op = TruncOp(a).verify()
