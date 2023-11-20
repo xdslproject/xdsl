@@ -7,12 +7,15 @@ Run `textual run xdsl.interactive.app:InputApp --dev` to run in development mode
 be sure to install `textual-dev` to run this command.
 """
 
+from collections.abc import Callable
 from io import StringIO
+from typing import Any, ClassVar
 
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
+from textual.screen import Screen
 from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
 
 from xdsl.dialects import builtin
@@ -22,6 +25,8 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+from xdsl.transforms import mlir_opt
+from xdsl.transforms.experimental.dmp import stencil_global_to_local
 
 from ._pasteboard import pyclip_copy
 
@@ -52,6 +57,47 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
     return selections
 
 
+class DistributeStencilPassScreen(Screen[str]):
+    CSS_PATH = "app.tcss"
+
+    provide_argument_one_text_area: TextArea
+    provide_argument_two_text_area: TextArea
+
+    def __init__(self):
+        self.provide_argument_one_text_area = TextArea(
+            "", id="provide_argument_one_text_area"
+        )
+        self.provide_argument_two_text_area = TextArea(
+            "", id="provide_argument_two_text_area"
+        )
+        super().__init__()
+
+    def compose(self) -> ComposeResult:
+        with ScrollableContainer(id="directory_tree_container"):
+            with Horizontal(id="text_area_horizontal"):
+                yield self.provide_argument_one_text_area
+                yield self.provide_argument_two_text_area
+            yield Button("Cancel", id="quit_screen_button")
+            yield Button("Enter", id="enter_button")
+
+    def on_mount(self) -> None:
+        """Configure widgets in this application before it is first shown."""
+        self.query_one(
+            "#provide_argument_one_text_area"
+        ).border_title = "Provide Argument 1"
+        self.query_one(
+            "#provide_argument_two_text_area"
+        ).border_title = "Provide Argument 2"
+
+    @on(Button.Pressed, "#quit_screen_button")
+    def exit_screen(self, event: Button.Pressed) -> None:
+        self.dismiss()
+
+    @on(Button.Pressed, "#enter_button")
+    def enter_arguments(self, event: Button.Pressed) -> None:
+        self.dismiss()
+
+
 class OutputTextArea(TextArea):
     """Used to prevent users from being able to alter the Output TextArea."""
 
@@ -70,6 +116,10 @@ class InputApp(App[None]):
         ("d", "toggle_dark", "Toggle dark mode"),
         ("q", "quit_app", "Quit"),
     ]
+
+    SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
+        "distribute_stencil_screen": DistributeStencilPassScreen
+    }
 
     current_module = reactive[ModuleOp | Exception | None](None)
     """
@@ -167,6 +217,33 @@ class InputApp(App[None]):
                     ListItem(Label(value.name), name=value.name)
                 )
 
+    def check_pass_for_arguments(self, selected_pass: type[ModulePass]) -> None:
+        def check_distribute_stencil_screen(file_path: str) -> None:
+            """Called when DistributeStencilPassScreeen is dismissed."""
+
+            # try:
+            #     if os.path.exists(file_path):
+            #         # Open the file and read its contents
+            #         with open(file_path) as file:
+            #             file_contents = file.read()
+            #             self.input_text_area.load_text(file_contents)
+            #     else:
+            #         self.input_text_area.load_text(
+            #             f"The file '{file_path}' does not exist."
+            #         )
+            # except Exception as e:
+            #     self.input_text_area.load_text(str(e))
+            pass
+
+        if selected_pass == stencil_global_to_local.DistributeStencilPass:
+            self.push_screen(
+                "distribute_stencil_screen", check_distribute_stencil_screen
+            )
+        elif selected_pass == mlir_opt.MLIROptPass:
+            pass
+        else:
+            pass
+
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
         """
@@ -176,6 +253,8 @@ class InputApp(App[None]):
         selected_pass = event.item.name
         for name, value in ALL_PASSES:
             if name == selected_pass:
+                self.check_pass_for_arguments(value)
+
                 self.pass_pipeline = tuple((*self.pass_pipeline, value))
                 return
 
