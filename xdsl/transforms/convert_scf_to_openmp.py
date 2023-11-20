@@ -29,7 +29,7 @@ class ConvertParallel(RewritePattern):
             return
 
         collapse = self.collapse
-        if collapse is None:
+        if collapse is None or collapse > len(loop.lowerBound):
             collapse = len(loop.lowerBound)
 
         if not self.nested:
