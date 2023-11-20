@@ -90,7 +90,7 @@ class InputApp(App[None]):
     pass_pipeline = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of selected passes."""
 
-    condense_mode = reactive(bool)
+    condense_mode = reactive(False)
     """Reactive boolean."""
     available_pass_list = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of passes that have an effect on current_module."""
@@ -109,7 +109,7 @@ class InputApp(App[None]):
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
         self.selected_query_label = Label("", id="selected_passes_label")
-        self.condense_mode = False
+
         super().__init__()
 
     def compose(self) -> ComposeResult:
