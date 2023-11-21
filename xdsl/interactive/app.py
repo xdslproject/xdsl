@@ -276,7 +276,7 @@ class InputApp(App[None]):
                 )
                 new_passes = new_passes + pass_name + ", " + "\n"
             elif isinstance(p, mlir_opt.MLIROptPass):
-                new_passes = new_passes + p.name + " ".join(p.arguments)
+                new_passes = new_passes + p.name + " " + " ".join(p.arguments)
             else:
                 new_passes = new_passes + p.name + ", " + "\n"
 
