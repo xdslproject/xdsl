@@ -7,7 +7,6 @@ Run `textual run xdsl.interactive.app:InputApp --dev` to run in development mode
 be sure to install `textual-dev` to run this command.
 """
 
-=======
 import os
 from collections.abc import Callable
 from io import StringIO
@@ -18,12 +17,6 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.screen import Screen
-
-from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
-
-from xdsl.dialects import builtin
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.interactive.distribute_stencil_pass_screen import DistributeStencilPassScreen
 from textual.widgets import (
     Button,
     Footer,
@@ -33,6 +26,10 @@ from textual.widgets import (
     TextArea,
 )
 
+from xdsl.dialects import builtin
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.interactive.distribute_stencil_pass_screen import DistributeStencilPassScreen
+from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
@@ -91,7 +88,7 @@ class InputApp(App[None]):
 
     SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
         "distribute_stencil_screen": DistributeStencilPassScreen,
-        "load_file": LoadFile
+        "load_file": LoadFile,
     }
 
     INITIAL_IR_TEXT = """
