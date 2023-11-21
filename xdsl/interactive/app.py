@@ -7,6 +7,8 @@ Run `textual run xdsl.interactive.app:InputApp --dev` to run in development mode
 be sure to install `textual-dev` to run this command.
 """
 
+=======
+import os
 from collections.abc import Callable
 from io import StringIO
 from typing import Any, ClassVar
@@ -16,11 +18,21 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.screen import Screen
+
 from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.distribute_stencil_pass_screen import DistributeStencilPassScreen
+from textual.widgets import (
+    Button,
+    Footer,
+    Label,
+    ListItem,
+    ListView,
+    TextArea,
+)
+
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
@@ -78,8 +90,17 @@ class InputApp(App[None]):
     ]
 
     SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
-        "distribute_stencil_screen": DistributeStencilPassScreen
+        "distribute_stencil_screen": DistributeStencilPassScreen,
+        "load_file": LoadFile
     }
+
+    INITIAL_IR_TEXT = """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
 
     current_module = reactive[ModuleOp | Exception | None](None)
     """
@@ -130,7 +151,9 @@ class InputApp(App[None]):
         with Horizontal(id="bottom_container"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
-                yield Button("Clear Input", id="clear_input_button")
+                with Horizontal(id="input_horizontal"):
+                    yield Button("Clear Input", id="clear_input_button")
+                    yield Button("Load File", id="load_file_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
                 yield Button("Copy Output", id="copy_output_button")
@@ -152,6 +175,9 @@ class InputApp(App[None]):
 
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
+
+        # initialize GUI with an interesting input IR and pass application
+        self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         match self.current_module:
@@ -329,6 +355,30 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#remove_last_pass_button")
     def remove_last_pass(self, event: Button.Pressed) -> None:
         self.pass_pipeline = self.pass_pipeline[:-1]
+
+    @on(Button.Pressed, "#load_file_button")
+    def load_file(self, event: Button.Pressed) -> None:
+        def check_load_file(file_path: str) -> None:
+            """Called when LoadFile is dismissed."""
+
+            # Clear Input TextArea and Pass Pipeline
+            self.pass_pipeline = ()
+            self.input_text_area.clear()
+
+            try:
+                if os.path.exists(file_path):
+                    # Open the file and read its contents
+                    with open(file_path) as file:
+                        file_contents = file.read()
+                        self.input_text_area.load_text(file_contents)
+                else:
+                    self.input_text_area.load_text(
+                        f"The file '{file_path}' does not exist."
+                    )
+            except Exception as e:
+                self.input_text_area.load_text(str(e))
+
+        self.push_screen("load_file", check_load_file)
 
 
 def main():
