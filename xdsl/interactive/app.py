@@ -26,9 +26,6 @@ from textual.widgets import (
     TextArea,
 )
 
-from xdsl.backend.riscv.lowering import (
-    convert_func_to_riscv_func,
-)
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.load_file_screen import LoadFile
@@ -173,10 +170,8 @@ class InputApp(App[None]):
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
         # initialize GUI with an interesting input IR and pass application
-        self.input_text_area.load_text(self.INITIAL_IR_TEXT)
-        self.pass_pipeline = tuple(
-            (*self.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
-        )
+        self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
+
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         match self.current_module:
