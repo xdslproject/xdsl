@@ -7,16 +7,28 @@ Run `textual run xdsl.interactive.app:InputApp --dev` to run in development mode
 be sure to install `textual-dev` to run this command.
 """
 
+import os
+from collections.abc import Callable
 from io import StringIO
+from typing import Any, ClassVar
 
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
-from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
+from textual.screen import Screen
+from textual.widgets import (
+    Button,
+    Footer,
+    Label,
+    ListItem,
+    ListView,
+    TextArea,
+)
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
@@ -70,6 +82,10 @@ class InputApp(App[None]):
         ("d", "toggle_dark", "Toggle dark mode"),
         ("q", "quit_app", "Quit"),
     ]
+
+    SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
+        "load_file": LoadFile
+    }
 
     INITIAL_IR_TEXT = """
         func.func @hello(%n : index) -> index {
@@ -128,7 +144,9 @@ class InputApp(App[None]):
         with Horizontal(id="bottom_container"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
-                yield Button("Clear Input", id="clear_input_button")
+                with Horizontal(id="input_horizontal"):
+                    yield Button("Clear Input", id="clear_input_button")
+                    yield Button("Load File", id="load_file_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
                 yield Button("Copy Output", id="copy_output_button")
@@ -283,6 +301,30 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#remove_last_pass_button")
     def remove_last_pass(self, event: Button.Pressed) -> None:
         self.pass_pipeline = self.pass_pipeline[:-1]
+
+    @on(Button.Pressed, "#load_file_button")
+    def load_file(self, event: Button.Pressed) -> None:
+        def check_load_file(file_path: str) -> None:
+            """Called when LoadFile is dismissed."""
+
+            # Clear Input TextArea and Pass Pipeline
+            self.pass_pipeline = ()
+            self.input_text_area.clear()
+
+            try:
+                if os.path.exists(file_path):
+                    # Open the file and read its contents
+                    with open(file_path) as file:
+                        file_contents = file.read()
+                        self.input_text_area.load_text(file_contents)
+                else:
+                    self.input_text_area.load_text(
+                        f"The file '{file_path}' does not exist."
+                    )
+            except Exception as e:
+                self.input_text_area.load_text(str(e))
+
+        self.push_screen("load_file", check_load_file)
 
 
 def main():
