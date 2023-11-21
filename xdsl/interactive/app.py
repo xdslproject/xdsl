@@ -16,10 +16,11 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea, SelectionList
+from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.interactive.distribute_stencil_pass_screen import DistributeStencilPassScreen
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
@@ -27,15 +28,12 @@ from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 from xdsl.transforms import mlir_opt
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
-from xdsl.transforms.experimental.dmp.decompositions import (
-    DomainDecompositionStrategy,
-    GridSlice2d,
-)
 
 from ._pasteboard import pyclip_copy
 
 ALL_PASSES = tuple(sorted((p.name, p) for p in get_all_passes()))
 """Contains the list of xDSL passes."""
+
 
 def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
     """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
@@ -58,69 +56,6 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
             selections = tuple((*selections, value))
 
     return selections
-
-class DistributeStencilPassScreen(Screen[dict[int, type[[DomainDecompositionStrategy]]]]):
-    CSS_PATH = "app.tcss"
-
-    stencil_argument_text_area: TextArea
-    strategy_argument_selection_list: SelectionList[type[DomainDecompositionStrategy]]
-
-    STRATEGIES : dict[str, type[DomainDecompositionStrategy]] = stencil_global_to_local.DistributeStencilPass.STRATEGIES
-
-    res: dict[int, type[[DomainDecompositionStrategy]]]
-
-    def __init__(self):
-        self.stencil_argument_text_area = TextArea(
-            "", id="stencil_argument_text_area"
-        )
-        self.strategy_argument_selection_list = SelectionList(
-             id="strategy_argument_selection_list"
-        )
-        super().__init__()
-
-    def compose(self) -> ComposeResult:
-        with ScrollableContainer(id="container"):
-            with Horizontal(id="text_area_horizontal"):
-                yield self.stencil_argument_text_area
-                yield self.strategy_argument_selection_list
-            with Horizontal(id="cancel_enter_buttons"):
-                yield Button("Cancel", id="quit_screen_button")
-                yield Button("Enter", id="enter_button")
-
-    def on_mount(self) -> None:
-        """Configure widgets in this application before it is first shown."""
-        self.query_one(
-            "#stencil_argument_text_area"
-        ).border_title = "Provide number of slices to decompose the input into"
-        self.query_one(
-            "#strategy_argument_selection_list"
-        ).border_title = "Select name of the decomposition strategy to use"
-        self.query_one("#container").border_title = "DistributeStencilPass requires two arguments /'Stencil' and 'Strategy'."
-
-        selections = sorted((name,value) for (name,value) in self.STRATEGIES.items())
-        self.strategy_argument_selection_list.add_options(selections)
-
-
-    @on(Button.Pressed, "#quit_screen_button")
-    def exit_screen(self, event: Button.Pressed) -> None:
-        self.dismiss()
-
-    @on(Button.Pressed, "#enter_button")
-    def enter_arguments(self, event: Button.Pressed) -> None:
-        slices_input_string = self.stencil_argument_text_area.text
-
-        if(SelectionList.OptionSelected):
-            selected_strategy = SelectionList.selected
-            try:
-                # Splitting the string using spaces as the delimiter and converting each element to an integer
-                # number_list = [int(num) for num in slices_input_string.split()]
-
-                self.res = {slices_input_string : selected_strategy}
-                self.dismiss(self.res)
-            except Exception as e:
-                self.stencil_argument_text_area.load_text(f"Error: {e}")
-
-
 
 
 class OutputTextArea(TextArea):
@@ -243,25 +178,18 @@ class InputApp(App[None]):
                 )
 
     def check_pass_for_arguments(self, selected_pass: type[ModulePass]) -> None:
-        def check_distribute_stencil_screen(slice_strategy: dict[int, type[[DomainDecompositionStrategy]]]) -> None:
+        def check_distribute_stencil_screen(
+            slice_strategy: dict[str, list[int]]
+        ) -> None:
             """Called when DistributeStencilPassScreeen is dismissed."""
+            # Get strategy and slices arguments, assign them to an instance of the DistributeStencil Pass and add it to the pass pipline
+            (strategy_val, slices_val) = next(iter(slice_strategy.items()))
+            distribute_stencil_pass = stencil_global_to_local.DistributeStencilPass(
+                slices=slices_val, strategy=strategy_val
+            )
+            self.pass_pipeline = tuple((*self.pass_pipeline, distribute_stencil_pass))
 
-            for (slice, strategy) in slice_strategy.items():
-
-            try:
-                if os.path.exists(file_path):
-                    # Open the file and read its contents
-                    with open(file_path) as file:
-                        file_contents = file.read()
-                        self.input_text_area.load_text(file_contents)
-                else:
-                    self.input_text_area.load_text(
-                        f"The file '{file_path}' does not exist."
-                    )
-            except Exception as e:
-                self.input_text_area.load_text(str(e))
-            pass
-
+        # Depending on what pass has been selected, push the respective Screen
         if selected_pass == stencil_global_to_local.DistributeStencilPass:
             self.push_screen(
                 "distribute_stencil_screen", check_distribute_stencil_screen
@@ -269,7 +197,7 @@ class InputApp(App[None]):
         elif selected_pass == mlir_opt.MLIROptPass:
             pass
         else:
-            pass
+            return
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
@@ -278,19 +206,42 @@ class InputApp(App[None]):
         passes is updated.
         """
         selected_pass = event.item.name
+
         for name, value in ALL_PASSES:
             if name == selected_pass:
-                self.check_pass_for_arguments(value)
-
-                self.pass_pipeline = tuple((*self.pass_pipeline, value))
-                return
+                if selected_pass == "distribute-stencil":
+                    self.check_pass_for_arguments(value)
+                    return
+                else:
+                    self.pass_pipeline = tuple((*self.pass_pipeline, value))
+                    return
 
     def watch_pass_pipeline(self) -> None:
         """
         When the reactive variable pass_pipeline changes, this function
         is called and updates the label to show the respective generated query in the Label.
         """
-        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
+        new_passes = "\n"
+        for p in self.pass_pipeline:
+            if isinstance(p, stencil_global_to_local.DistributeStencilPass):
+                # reformat integer list into a string of numbers separated by commas
+                slices_integer_list = p.slices
+                string_list = [str(num) for num in slices_integer_list]
+                result_string = ",".join(string_list)
+
+                # format distribute-stencil query with arguments according to syntax rules
+                pass_name = (
+                    p.name
+                    + "{slices="
+                    + result_string
+                    + " strategy="
+                    + p.strategy
+                    + "}"
+                )
+                new_passes = new_passes + pass_name + ", " + "\n"
+            else:
+                new_passes = new_passes + p.name + ", " + "\n"
+
         new_label = f"xdsl-opt -p {new_passes}"
         self.selected_query_label.update(new_label)
         self.update_current_module()
