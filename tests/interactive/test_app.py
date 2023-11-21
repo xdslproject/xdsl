@@ -35,7 +35,6 @@ async def test_inputs():
 
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
-        app.pass_pipeline = ()
         await pilot.pause()
 
         # Test no input
@@ -102,7 +101,6 @@ async def test_buttons():
 
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
-        app.pass_pipeline = ()
 
         await pilot.pause()
         app.input_text_area.insert(
@@ -285,7 +283,6 @@ async def test_passes():
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
-        app.pass_pipeline = ()
 
         await pilot.pause()
         # Testing a pass
