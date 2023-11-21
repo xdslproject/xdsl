@@ -30,6 +30,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.distribute_stencil_pass_screen import DistributeStencilPassScreen
 from xdsl.interactive.load_file_screen import LoadFile
+from xdsl.interactive.mlir_opt_pass_screen import MlirOptPassScreen
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
@@ -89,6 +90,7 @@ class InputApp(App[None]):
     SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
         "distribute_stencil_screen": DistributeStencilPassScreen,
         "load_file": LoadFile,
+        "mlir_opt_pass_screen": MlirOptPassScreen,
     }
 
     INITIAL_IR_TEXT = """
@@ -212,13 +214,21 @@ class InputApp(App[None]):
             )
             self.pass_pipeline = tuple((*self.pass_pipeline, distribute_stencil_pass))
 
+        def check_mlir_opt_pass_screen(arguments: str) -> None:
+            """Called when MlirOptPassScreen is dismissed."""
+            # Splitting the string into a list of strings ( delimiter is space)
+            arguments_list = arguments.split()
+
+            mlir_opt_pass = mlir_opt.MLIROptPass(arguments=arguments_list)
+            self.pass_pipeline = tuple((*self.pass_pipeline, mlir_opt_pass))
+
         # Depending on what pass has been selected, push the respective Screen
         if selected_pass == stencil_global_to_local.DistributeStencilPass:
             self.push_screen(
                 "distribute_stencil_screen", check_distribute_stencil_screen
             )
         elif selected_pass == mlir_opt.MLIROptPass:
-            pass
+            self.push_screen("mlir_opt_pass_screen", check_mlir_opt_pass_screen)
         else:
             return
 
@@ -233,6 +243,9 @@ class InputApp(App[None]):
         for name, value in ALL_PASSES:
             if name == selected_pass:
                 if selected_pass == "distribute-stencil":
+                    self.check_pass_for_arguments(value)
+                    return
+                elif selected_pass == "mlir-opt":
                     self.check_pass_for_arguments(value)
                     return
                 else:
@@ -262,6 +275,8 @@ class InputApp(App[None]):
                     + "}"
                 )
                 new_passes = new_passes + pass_name + ", " + "\n"
+            elif isinstance(p, mlir_opt.MLIROptPass):
+                new_passes = new_passes + p.name + " ".join(p.arguments)
             else:
                 new_passes = new_passes + p.name + ", " + "\n"
 
