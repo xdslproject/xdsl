@@ -58,7 +58,8 @@ class DistributeStencilPassScreen(Screen[dict[str, list[int]]]):
         )
 
         selections = sorted((name, name) for (name, _) in self.STRATEGIES.items())
-        self.strategy_argument_selection_list.add_options(selections)
+
+        self.strategy_argument_selection_list.add_options(selections)  # pyright: ignore [reportUnknownMemberType]
 
     @on(Button.Pressed, "#quit_screen_button")
     def exit_screen(self, event: Button.Pressed) -> None:
