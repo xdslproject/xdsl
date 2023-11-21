@@ -98,9 +98,3 @@ DistributeStencilPassScreen{
     layout: horizontal;
     height: auto;
 }
-
-ErrorScreen{
-    background: rgba(100,100,100,0.5);
-    align: center middle;
-    layout: vertical;
-}
