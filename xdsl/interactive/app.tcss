@@ -89,7 +89,7 @@ LoadFile{
 
 # DirectoryTree
 #directory_tree{
-    background: white;
+    background: $surface;
 }
 
 # Button
