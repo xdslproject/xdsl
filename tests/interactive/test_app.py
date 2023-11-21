@@ -283,7 +283,7 @@ async def test_passes():
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
-        
+
         await pilot.pause()
         # Testing a pass
         app.input_text_area.insert(

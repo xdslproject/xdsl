@@ -172,7 +172,6 @@ class InputApp(App[None]):
         # initialize GUI with an interesting input IR and pass application
         self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
 
-
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         match self.current_module:
             case None:
