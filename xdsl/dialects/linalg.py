@@ -196,10 +196,17 @@ class Generic(IRDLOperation):
         return shapes_to_loops.eval(self.get_static_shapes(), [])
 
     def print(self, printer: Printer):
-        printer.print_op_attributes(
-            self.properties,
-            reserved_attr_names=("operandSegmentSizes",),
+        printer.print_string(" {indexing_maps = ")
+        printer.print_attribute(self.indexing_maps)
+        printer.print_string(", iterator_types = [")
+        printer.print_list(
+            self.iterator_types,
+            lambda iterator_type: printer.print_string_literal(
+                iterator_type.data.value
+            ),
         )
+        printer.print_string("]}")
+
         if self.inputs:
             printer.print_string(" ins(")
             printer.print_list(self.inputs, printer.print_ssa_value)
@@ -236,10 +243,29 @@ class Generic(IRDLOperation):
             )
 
         if "iterator_types" in attrs:
-            iterator_types = attrs["iterator_types"]
-            assert isinstance(iterator_types, ArrayAttr)
-            iterator_types = cast(ArrayAttr[Attribute], iterator_types)
+            # Get iterator types and make sure they're an ArrayAttr
+            parsed_iterator_types = attrs["iterator_types"]
+            assert isinstance(parsed_iterator_types, ArrayAttr)
+            parsed_iterator_types = cast(ArrayAttr[Attribute], parsed_iterator_types)
             del attrs["iterator_types"]
+
+            # Make sure they're iterator types
+            iterator_types: list[IteratorTypeAttr] = []
+            for iterator_type in parsed_iterator_types:
+                match iterator_type:
+                    case IteratorTypeAttr():
+                        iterator_types.append(iterator_type)
+                    case StringAttr():
+                        iterator_type = IteratorTypeAttr(
+                            IteratorType(iterator_type.data)
+                        )
+                        iterator_types.append(iterator_type)
+                    case _:
+                        parser.raise_error(
+                            f"Unknown iterator type {iterator_type}",
+                            attrs_start_pos,
+                            attrs_end_pos,
+                        )
         else:
             parser.raise_error(
                 "Expected iterator_types for linalg.generic",
