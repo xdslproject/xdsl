@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 from enum import Enum
 from types import EllipsisType
-from typing import Literal
+from typing import Annotated, Generic, Literal, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -33,6 +34,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    ConstraintVar,
     IRDLOperation,
     Operand,
     OptOperand,
@@ -333,6 +335,113 @@ class LinkageAttr(ParametrizedAttribute):
         ]
         if self.linkage.data not in allowed_linkage:
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
+
+
+ArgT = TypeVar("ArgT", bound=Attribute)
+
+
+class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
+    """Class for arithmetic binary operations."""
+
+    T = Annotated[ArgT, ConstraintVar("T")]
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        attributes: dict[str, Attribute] = {},
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[lhs.type],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> list[Attribute]:
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], attributes)
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.lhs.type)
+
+
+@irdl_op_definition
+class AddOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.add"
+
+
+@irdl_op_definition
+class SubOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.sub"
+
+
+@irdl_op_definition
+class MulOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.mul"
+
+
+@irdl_op_definition
+class UDivOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.udiv"
+
+
+@irdl_op_definition
+class SDivOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.sdiv"
+
+
+@irdl_op_definition
+class URemOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.urem"
+
+
+@irdl_op_definition
+class SRemOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.srem"
+
+
+@irdl_op_definition
+class AndOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.and"
+
+
+@irdl_op_definition
+class OrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.or"
+
+
+@irdl_op_definition
+class XOrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.xor"
+
+
+@irdl_op_definition
+class ShlOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.shl"
+
+
+@irdl_op_definition
+class LShrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.lshr"
+
+
+@irdl_op_definition
+class AShrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.ashr"
 
 
 @irdl_op_definition
@@ -1099,6 +1208,19 @@ class CallOp(IRDLOperation):
 LLVM = Dialect(
     "llvm",
     [
+        AddOp,
+        SubOp,
+        MulOp,
+        UDivOp,
+        SDivOp,
+        URemOp,
+        SRemOp,
+        AndOp,
+        OrOp,
+        XOrOp,
+        ShlOp,
+        LShrOp,
+        AShrOp,
         ExtractValueOp,
         InsertValueOp,
         UndefOp,
