@@ -4,7 +4,7 @@ from itertools import chain
 from ordered_set import OrderedSet
 
 from xdsl.backend.riscv.register_queue import RegisterQueue
-from xdsl.dialects import riscv_func, riscv_scf, snitch_stream
+from xdsl.dialects import riscv_func, riscv_scf, riscv_snitch
 from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
@@ -36,8 +36,7 @@ def _uses_snitch_stream(func: riscv_func.FuncOp) -> bool:
     """Utility method to detect use of read/write ops of the `snitch_stream` dialect."""
 
     return any(
-        isinstance(op, snitch_stream.StridedReadOp | snitch_stream.StridedWriteOp)
-        for op in func.walk()
+        isinstance(op, riscv_snitch.ReadOp | riscv_snitch.WriteOp) for op in func.walk()
     )
 
 
