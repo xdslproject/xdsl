@@ -1,13 +1,13 @@
-# SelectionList
-#passes_selection_list {
+# ListView
+#passes_list_view{
     border: heavy $accent-darken-1;
-    border-title-color: $warning-lighten-1;
+    border-title-color: $error-darken-3;
     border-title-style: bold;
     border-title-align: center;
     height: 100%;
 }
 
-# VerticalScroll(Button, Button)
+# Vertical(Button, Button, Button)
 #buttons{
     layout: vertical;
     width: auto;
@@ -17,7 +17,7 @@
 # ScrollableContainer(Label)
 #selected_passes {
     border: heavy $accent-darken-1;
-    border-title-color: $warning-lighten-1;
+    border-title-color: $error-darken-3;
     border-title-style: bold;
     border-title-align: center;
 }
@@ -25,7 +25,7 @@
 # Vertical(TextArea, Button)
 #input_container {
     border: heavy $accent-darken-1;
-    border-title-color: $warning-lighten-1;
+    border-title-color: $error-darken-3;
     border-title-style: bold;
     border-title-align: center;
 }
@@ -33,7 +33,7 @@
 # Vertical(TextArea, Button)
 #output_container {
     border: heavy $accent-darken-1;
-    border-title-color: $warning-lighten-1;
+    border-title-color: $error-darken-3;
     border-title-style: bold;
     border-title-align: center;
 }
@@ -42,4 +42,18 @@ Screen {
     layout: grid;
     grid-size: 1 2;
     grid-rows: 45% 55%;
+    background: $surface;
+}
+
+# Button
+#uncondense_button{
+    display: none;
+}
+
+.condensed #condense_button {
+    display: none;
+}
+
+.condensed #uncondense_button {
+    display: block;
 }
