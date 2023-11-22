@@ -23,6 +23,9 @@ from xdsl.interpreters import (
     stream,
 )
 from xdsl.interpreters.experimental import pdl
+from xdsl.interpreters.shaped_array import (
+    ShapedArray,  # pyright: ignore[reportUnusedImport]  # noqa: F401
+)
 from xdsl.ir import MLContext
 from xdsl.tools.command_line_tool import CommandLineTool
 
@@ -60,6 +63,18 @@ class xDSLRunMain(CommandLineTool):
             action="store_true",
             help="Print resulting Python values.",
         )
+        arg_parser.add_argument(
+            "--symbol",
+            default="main",
+            type=str,
+            help="Name of function to call.",
+        )
+        arg_parser.add_argument(
+            "--args",
+            default="()",
+            type=str,
+            help="Arguments to pass to entry function.",
+        )
         return super().register_all_arguments(arg_parser)
 
     def register_implementations(self, interpreter: Interpreter):
@@ -92,7 +107,11 @@ class xDSLRunMain(CommandLineTool):
                 module.verify()
                 interpreter = Interpreter(module)
                 self.register_implementations(interpreter)
-                result = interpreter.call_op("main", ())
+                symbol = self.args.symbol
+                assert isinstance(symbol, str)
+                exec(f"runner_args = {self.args.args}")
+                args = locals()["runner_args"]
+                result = interpreter.call_op(symbol, args)
                 if self.args.verbose:
                     print(f"result: {result}")
         finally:
