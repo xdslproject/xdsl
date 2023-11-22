@@ -115,6 +115,8 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         match op:
             case riscv_scf.ForOp():
                 self.allocate_for_loop(op)
+            case riscv_snitch.FRepOperation():
+                self.allocate_frep_loop(op)
             case RISCVOp():
                 self.process_riscv_op(op)
             case _:
@@ -180,6 +182,54 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         # Induction variable
         assert isinstance(block_args[0].type, IntRegisterType)
         self.allocate(block_args[0])
+
+        # Operands
+        for operand in loop.operands:
+            self.allocate(operand)
+
+        for op in loop.body.block.ops_reverse:
+            self.process_operation(op)
+
+    def allocate_frep_loop(self, loop: riscv_snitch.FRepOperation) -> None:
+        """
+        Allocate registers for riscv_snitch frep_outer or frep_inner loop, recursively
+        calling process_operation for operations in the loop.
+        """
+        # Allocate values used inside the body but defined outside.
+        # Their scope lasts for the whole body execution scope
+        live_ins = self.live_ins_per_block[loop.body.block]
+        for live_in in live_ins:
+            self.allocate(live_in)
+
+        yield_op = loop.body.block.last_op
+        assert yield_op is not None, (
+            "last op of riscv_snitch.frep_outer and riscv_snitch.frep_inner is guaranteed"
+            " to be riscv_scf.Yield"
+        )
+        block_args = loop.body.block.args
+
+        # The loop-carried variables are trickier
+        # The for op operand, block arg, and yield operand must have the same type
+        for block_arg, operand, yield_operand, op_result in zip(
+            block_args, loop.iter_args, yield_op.operands, loop.results
+        ):
+            # If some allocated then assign all to that type, otherwise get new reg
+            assert isinstance(block_arg.type, RISCVRegisterType)
+            assert isinstance(operand.type, RISCVRegisterType)
+            assert isinstance(yield_operand.type, RISCVRegisterType)
+            assert isinstance(op_result.type, RISCVRegisterType)
+
+            # Because we are walking backwards, the result of the operation may have been
+            # allocated already. If it isn't it's because it's not used below.
+            if not op_result.type.is_allocated:
+                # We only need to check one of the four since they're constrained to be
+                # the same
+                self.allocate(op_result)
+
+            shared_type = op_result.type
+            block_arg.type = shared_type
+            yield_operand.type = shared_type
+            operand.type = shared_type
 
         # Operands
         for operand in loop.operands:
