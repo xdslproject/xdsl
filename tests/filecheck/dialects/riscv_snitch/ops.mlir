@@ -33,7 +33,6 @@ riscv_func.func @main() {
 
   // CHECK-NEXT:  %init = "test.op"() : () -> !riscv.freg<ft3>
   // CHECK-NEXT:    %z = riscv_snitch.frep_outer %0 iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
-  // CHECK-NEXT:    ^0(%acc : !riscv.freg<ft3>):
   // CHECK-NEXT:      %res = riscv.fadd.d %acc, %acc : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
   // CHECK-NEXT:      riscv_snitch.frep_yield %res : !riscv.freg<ft3>
   // CHECK-NEXT:    }

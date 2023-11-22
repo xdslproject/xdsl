@@ -275,7 +275,11 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
             printer.print_list((a.type for a in iter_args), printer.print_attribute)
             printer.print_string(") ")
 
-        printer.print_region(self.body, print_block_terminators=print_block_terminators)
+        printer.print_region(
+            self.body,
+            print_entry_block_args=False,
+            print_block_terminators=print_block_terminators,
+        )
 
     def verify_(self) -> None:
         if self.stagger_count.data:
