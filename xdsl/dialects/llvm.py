@@ -343,7 +343,7 @@ ArgT = TypeVar("ArgT", bound=Attribute)
 class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T = Annotated[ArgT, ConstraintVar("T")]
+    T = Annotated[Attribute, ArgT, ConstraintVar("T")]
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -362,7 +362,7 @@ class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
         )
 
     @classmethod
-    def parse(cls, parser: Parser) -> list[Attribute]:
+    def parse(cls, parser: Parser):
         lhs = parser.parse_unresolved_operand()
         parser.parse_characters(",")
         rhs = parser.parse_unresolved_operand()
