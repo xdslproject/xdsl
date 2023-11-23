@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import cast
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     IntAttr,
 )
@@ -16,7 +18,6 @@ from xdsl.dialects.riscv import (
     RISCVOp,
 )
 from xdsl.ir import (
-    Attribute,
     Block,
     Dialect,
     Operation,
@@ -161,28 +162,41 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
             self.stagger_count.data,
         )
 
-    def custom_print_attributes(self, printer: Printer):
-        printer.print(", ")
-        printer.print(self.stagger_mask.data)
-        printer.print_string(", ")
-        printer.print(self.stagger_count.data)
-        return {"stagger_mask", "stagger_count"}
-
     @classmethod
-    def custom_parse_attributes(cls, parser: Parser):
-        attributes = dict[str, Attribute]()
-        attributes["stagger_mask"] = IntAttr(
-            parser.parse_integer(
-                allow_boolean=False, context_msg="Expected stagger mask"
-            )
+    def parse(cls, parser: Parser) -> Self:
+        max_rep = parser.parse_operand()
+        if parser.parse_optional_punctuation(","):
+            stagger_mask = parser.parse_integer(False, False)
+            parser.parse_punctuation(",")
+            stagger_count = parser.parse_integer(False, False)
+        else:
+            stagger_mask = 0
+            stagger_count = 0
+
+        remaining_attributes = parser.parse_optional_attr_dict_with_keyword()
+
+        body = parser.parse_region()
+
+        frep = cls(max_rep, body, IntAttr(stagger_mask), IntAttr(stagger_count))
+        if remaining_attributes is not None:
+            frep.attributes |= remaining_attributes.data
+        return frep
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_ssa_value(self.max_rep)
+        if self.stagger_count.data and self.stagger_mask.data:
+            printer.print_string(", ")
+            printer.print(self.stagger_count.data)
+            printer.print_string(", ")
+            printer.print(self.stagger_mask.data)
+
+        printer.print_op_attributes(
+            self.attributes, reserved_attr_names=("stagger_count", "stagger_mask")
         )
-        parser.parse_punctuation(",")
-        attributes["stagger_count"] = IntAttr(
-            parser.parse_integer(
-                allow_boolean=False, context_msg="Expected stagger count"
-            )
-        )
-        return attributes
+        printer.print_string(" ")
+
+        printer.print_region(self.body)
 
     def verify_(self) -> None:
         if self.stagger_count.data:
