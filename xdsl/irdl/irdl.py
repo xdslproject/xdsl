@@ -118,7 +118,7 @@ class VarConstraint(AttrConstraint):
             constraint_vars[self.name] = attr
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConstraintVar:
     """
     Annotation used in PyRDL to define a constraint variable.

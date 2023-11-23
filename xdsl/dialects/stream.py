@@ -89,7 +89,7 @@ class GenericOp(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     repeat_count = operand_def(IndexType)
-    inputs = var_operand_def(MemRefType[T])
+    inputs = var_operand_def(MemRefType[T] | T)
     outputs = var_operand_def(MemRefType[T])
     stride_patterns = var_operand_def(StridePatternType)
 

@@ -1,4 +1,5 @@
 // RUN: xdsl-run %s --symbol fill --args "(4.0, ShapedArray([0.0]*256, [16, 16]))" --verbose | filecheck %s
+// RUN: xdsl-opt %s -p convert-linalg-to-stream | xdsl-run %s --symbol fill --args "(4.0, ShapedArray([0.0]*256, [16, 16]))" --verbose | filecheck %s
 
 module {
   func.func public @fill(%arg0: f64, %arg1: memref<16x16xf64>) -> memref<16x16xf64> {
