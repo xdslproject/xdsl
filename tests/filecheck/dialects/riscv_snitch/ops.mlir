@@ -11,19 +11,19 @@ riscv_func.func @main() {
   %scfgwi_zero = riscv_snitch.scfgwi %0, 42 : (!riscv.reg<>) -> !riscv.reg<zero>
   // CHECK-NEXT: %scfgwi_zero = riscv_snitch.scfgwi %0, 42 : (!riscv.reg<>) -> !riscv.reg<zero>
 
-  riscv_snitch.frep_outer %0, 0, 0 ({
+  riscv_snitch.frep_outer %0 {
     %add_o = riscv.add %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-  }) : (!riscv.reg<>) -> ()
-  // CHECK-NEXT:  riscv_snitch.frep_outer %0, 0, 0 ({
+  }
+  // CHECK-NEXT:  riscv_snitch.frep_outer %0 {
   // CHECK-NEXT: %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-  // CHECK-NEXT:  }) : (!riscv.reg<>) -> ()
+  // CHECK-NEXT:  }
 
-  riscv_snitch.frep_inner %0, 0, 0 ({
+  riscv_snitch.frep_inner %0 {
     %add_i = riscv.add %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-  }) : (!riscv.reg<>) -> ()
-  // CHECK-NEXT:  riscv_snitch.frep_inner %0, 0, 0 ({
+  }
+  // CHECK-NEXT:  riscv_snitch.frep_inner %0 {
   // CHECK-NEXT: %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-  // CHECK-NEXT:  }) : (!riscv.reg<>) -> ()
+  // CHECK-NEXT:  }
 
   // Terminate block
   riscv_func.return
