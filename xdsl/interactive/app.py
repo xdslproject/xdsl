@@ -28,7 +28,7 @@ from textual.widgets import (
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.interactive.distribute_stencil_pass_screen import DistributeStencilPassScreen
+from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
@@ -87,7 +87,7 @@ class InputApp(App[None]):
     ]
 
     SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
-        "distribute_stencil_screen": DistributeStencilPassScreen,
+        "add_arguments_screen": AddArguments,
         "load_file": LoadFile,
     }
 
@@ -201,26 +201,41 @@ class InputApp(App[None]):
                 )
 
     def check_pass_for_arguments(self, selected_pass: type[ModulePass]) -> None:
-        def check_distribute_stencil_screen(
-            slice_strategy: dict[str, list[int]]
-        ) -> None:
-            """Called when DistributeStencilPassScreeen is dismissed."""
-            # Get strategy and slices arguments, assign them to an instance of the DistributeStencil Pass and add it to the pass pipline
-            (strategy_val, slices_val) = next(iter(slice_strategy.items()))
-            distribute_stencil_pass = stencil_global_to_local.DistributeStencilPass(
-                slices=slices_val, strategy=strategy_val
-            )
-            self.pass_pipeline = tuple((*self.pass_pipeline, distribute_stencil_pass))
+        def check_add_arguments_screen(arguments: str) -> None:
+            """Called when AddArguments Screen is dismissed."""
+            # Get string arguments, assign them to an instance of the selected pass and add it to the pass pipline
+
+            if selected_pass == stencil_global_to_local.DistributeStencilPass:
+                try:
+                    # Splitting the string into a list of strings (delimiter is space)
+                    arguments_list = arguments.split()
+                    slices_val = [int(num) for num in arguments_list[:-1]]
+                    strategy_val = arguments_list[-1]
+                    distribute_stencil_pass = (
+                        stencil_global_to_local.DistributeStencilPass(
+                            slices=slices_val, strategy=strategy_val
+                        )
+                    )
+                    self.pass_pipeline = tuple(
+                        (*self.pass_pipeline, distribute_stencil_pass)
+                    )
+                except Exception as e:
+                    self.current_module = e
+
+            else:
+                try:
+                    # Splitting the string into a list of strings (delimiter is space)
+                    arguments_list = arguments.split()
+                    mlir_opt_pass = mlir_opt.MLIROptPass(arguments=arguments_list)
+                    self.pass_pipeline = tuple((*self.pass_pipeline, mlir_opt_pass))
+                except Exception as e:
+                    self.current_module = e
 
         # Depending on what pass has been selected, push the respective Screen
         if selected_pass == stencil_global_to_local.DistributeStencilPass:
-            self.push_screen(
-                "distribute_stencil_screen", check_distribute_stencil_screen
-            )
-        elif selected_pass == mlir_opt.MLIROptPass:
-            pass
+            self.push_screen("add_arguments_screen", check_add_arguments_screen)
         else:
-            return
+            self.push_screen("add_arguments_screen", check_add_arguments_screen)
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
@@ -233,6 +248,9 @@ class InputApp(App[None]):
         for name, value in ALL_PASSES:
             if name == selected_pass:
                 if selected_pass == "distribute-stencil":
+                    self.check_pass_for_arguments(value)
+                    return
+                elif selected_pass == "mlir-opt":
                     self.check_pass_for_arguments(value)
                     return
                 else:
@@ -262,6 +280,8 @@ class InputApp(App[None]):
                     + "}"
                 )
                 new_passes = new_passes + pass_name + ", " + "\n"
+            elif isinstance(p, mlir_opt.MLIROptPass):
+                new_passes = new_passes + p.name + " " + " ".join(p.arguments)
             else:
                 new_passes = new_passes + p.name + ", " + "\n"
 
