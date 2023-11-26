@@ -506,7 +506,7 @@ class FPowIOp(IRDLOperation):
         return super().__init__(
             attributes=attributes,
             operands=[lhs, rhs],
-            result_types=[SSAValue.get(lhs).type]
+            result_types=[SSAValue.get(lhs).type],
         )
 
 
