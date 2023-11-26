@@ -3,7 +3,13 @@ from typing import TypeVar
 import pytest
 
 from xdsl.dialects.arith import BinaryOperation, Constant
-from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, FloatAttr, VectorType, f32, i32
+from xdsl.dialects.builtin import (
+    DenseIntOrFPElementsAttr,
+    FloatAttr,
+    VectorType,
+    f32,
+    i32,
+)
 from xdsl.dialects.experimental.math import (
     AbsFOp,
     AbsIOp,
@@ -45,6 +51,7 @@ from xdsl.utils.test_value import TestSSAValue
 
 _BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
 
+
 class Test_float_math_binary_construction:
     operand_type = f32
     a = Constant(FloatAttr(1.1, operand_type))
@@ -65,7 +72,6 @@ class Test_float_math_binary_construction:
     lhs_tensor = TestOp([lhs_tensor_ssa_value], result_types=[f32_tensor_type])
     rhs_tensor = TestOp([rhs_tensor_ssa_value], result_types=[f32_tensor_type])
 
-
     @pytest.mark.parametrize(
         "OpClass",
         [
@@ -73,12 +79,14 @@ class Test_float_math_binary_construction:
             CopySignOp,
             IPowIOp,
             PowFOp,
-        ]
+        ],
     )
-    @pytest.mark.parametrize('return_type', [None, operand_type])
-    def test_float_binary_ops_constant_math_init(self,
-                           OpClass: type[BinaryOperation[_BinOpArgT]], return_type: Attribute,
-                           ):
+    @pytest.mark.parametrize("return_type", [None, operand_type])
+    def test_float_binary_ops_constant_math_init(
+        self,
+        OpClass: type[BinaryOperation[_BinOpArgT]],
+        return_type: Attribute,
+    ):
         op = OpClass(self.a, self.b)
         assert isinstance(op, OpClass)
         assert op.lhs.owner is self.a
@@ -92,11 +100,12 @@ class Test_float_math_binary_construction:
             CopySignOp,
             IPowIOp,
             PowFOp,
-        ]
+        ],
     )
-    @pytest.mark.parametrize('return_type', [None, f32_vector_type])
-    def test_flaot_binary_vector_ops_init(self, OpClass: type[BinaryOperation[_BinOpArgT]], return_type:Attribute):
-
+    @pytest.mark.parametrize("return_type", [None, f32_vector_type])
+    def test_flaot_binary_vector_ops_init(
+        self, OpClass: type[BinaryOperation[_BinOpArgT]], return_type: Attribute
+    ):
         op = OpClass(self.lhs_vector, self.rhs_vector)
         assert isinstance(op, OpClass)
         assert op.lhs.owner is self.lhs_vector
@@ -110,17 +119,17 @@ class Test_float_math_binary_construction:
             CopySignOp,
             IPowIOp,
             PowFOp,
-        ]
+        ],
     )
-    @pytest.mark.parametrize('return_type', [None, f32_tensor_type])
-    def test_float_binary_ops_tensor_math_init(self, OpClass: type[BinaryOperation[_BinOpArgT]], return_type:Attribute):
+    @pytest.mark.parametrize("return_type", [None, f32_tensor_type])
+    def test_float_binary_ops_tensor_math_init(
+        self, OpClass: type[BinaryOperation[_BinOpArgT]], return_type: Attribute
+    ):
         op = OpClass(self.lhs_tensor, self.rhs_tensor)
         assert isinstance(op, OpClass)
         assert op.lhs.owner is self.lhs_tensor
         assert op.rhs.owner is self.rhs_tensor
         assert op.result.type == self.f32_tensor_type
-
-
 
 
 class Test_float_math_unary_constructions:
@@ -161,12 +170,14 @@ class Test_float_math_unary_constructions:
             TanOp,
             TanhOp,
             TruncOp,
-        ]
+        ],
     )
-    @pytest.mark.parametrize('return_type', [operand_type])
-    def test_float_math_constant_ops_init(self,
-                           OpClass: type, return_type: Attribute, # FIXME
-                           ):
+    @pytest.mark.parametrize("return_type", [operand_type])
+    def test_float_math_constant_ops_init(
+        self,
+        OpClass: type,
+        return_type: Attribute,  # FIXME
+    ):
         op = OpClass(self.a)
         assert op.result.type == f32
         assert op.operand.type == f32
@@ -198,11 +209,10 @@ class Test_float_math_unary_constructions:
             TanOp,
             TanhOp,
             TruncOp,
-        ]
+        ],
     )
-    @pytest.mark.parametrize('return_type', [f32_tensor_type])
-    def test_float_math_ops_vector_init(self, OpClass: type, return_type:Attribute):
-
+    @pytest.mark.parametrize("return_type", [f32_tensor_type])
+    def test_float_math_ops_vector_init(self, OpClass: type, return_type: Attribute):
         op = OpClass(self.test_vec)
         assert op.result.type == self.f32_vector_type
         assert op.operand.type == self.f32_vector_type
@@ -234,17 +244,15 @@ class Test_float_math_unary_constructions:
             TanOp,
             TanhOp,
             TruncOp,
-        ]
+        ],
     )
-    @pytest.mark.parametrize('return_type', [f32_tensor_type])
-    def test_float_math_ops_tensor_init(self, OpClass: type, return_type:Attribute):
-
+    @pytest.mark.parametrize("return_type", [f32_tensor_type])
+    def test_float_math_ops_tensor_init(self, OpClass: type, return_type: Attribute):
         op = OpClass(self.test_tensor)
-        assert op.result.type ==  self.f32_tensor_type
+        assert op.result.type == self.f32_tensor_type
         assert op.operand.type == self.f32_tensor_type
         assert op.operand.owner == self.test_tensor
         assert op.result.type == self.f32_tensor_type
-
 
 
 class Test_fpowi:
@@ -260,7 +268,6 @@ class Test_fpowi:
     a_tensor_ssa_value = TestSSAValue(f32_tensor_type)
     a_tensor = TestOp([a_tensor_ssa_value], result_types=[f32_tensor_type])
 
-
     def test_fpowi_constant_construction(self):
         op = FPowIOp(self.a, self.b)
         assert op.result.type == f32
@@ -274,12 +281,14 @@ class Test_fpowi:
         assert op.lhs.owner is self.a_vector
         assert op.rhs.owner is self.b
         assert op.result.type == self.f32_vector_type
+
     def test_fpowi_tensor_construction(self):
         op = FPowIOp(self.a_tensor, self.b)
         assert op.result.type == self.f32_tensor_type
         assert op.lhs.owner is self.a_tensor
         assert op.rhs.owner is self.b
         assert op.result.type == self.f32_tensor_type
+
 
 class Test_fma:
     a = Constant(FloatAttr(1.1, f32))
@@ -299,7 +308,6 @@ class Test_fma:
     c_tensor = TestOp([test_tensor_ssa], result_types=[f32_tensor_type])
 
     def test_fma_construction(self):
-
         op = FmaOp(self.a, self.b, self.c)
         assert op.result.type == f32
         assert op.a.owner is self.a
@@ -313,6 +321,7 @@ class Test_fma:
         assert op.a.owner is self.a_vec
         assert op.b.owner is self.b_vec
         assert op.c.owner is self.c_vec
+
     def test_fma_construction_tensor(self):
         op = FmaOp(self.a_tensor, self.b_tensor, self.c_tensor)
         assert op.result.type == self.f32_tensor_type
@@ -340,12 +349,14 @@ class Test_int_math_unary_constructions:
             CountLeadingZerosOp,
             CountTrailingZerosOp,
             CtPopOp,
-        ]
+        ],
     )
-    @pytest.mark.parametrize('return_type', [operand_type])
-    def test_int_math_ops_init(self,
-                           OpClass: type, return_type: Attribute, # FIXME use something other than `type`
-                           ):
+    @pytest.mark.parametrize("return_type", [operand_type])
+    def test_int_math_ops_init(
+        self,
+        OpClass: type,
+        return_type: Attribute,  # FIXME use something other than `type`
+    ):
         op = OpClass(self.a)
         assert op.result.type == i32
         assert op.operand.type == i32
@@ -359,13 +370,14 @@ class Test_int_math_unary_constructions:
             CountLeadingZerosOp,
             CountTrailingZerosOp,
             CtPopOp,
-        ]
+        ],
     )
-    @pytest.mark.parametrize('return_type', [i32_vector_type])
-    def test_int_math_ops_vec_init(self,
-                                   OpClass: type, return_type: Attribute, # FIXME use something other than `type`
-                                   ):
-
+    @pytest.mark.parametrize("return_type", [i32_vector_type])
+    def test_int_math_ops_vec_init(
+        self,
+        OpClass: type,
+        return_type: Attribute,  # FIXME use something other than `type`
+    ):
         op = OpClass(self.test_vec)
         assert op.result.type == self.i32_vector_type
         assert op.operand.type == self.i32_vector_type
@@ -379,22 +391,22 @@ class Test_int_math_unary_constructions:
             CountLeadingZerosOp,
             CountTrailingZerosOp,
             CtPopOp,
-        ]
+        ],
     )
-    @pytest.mark.parametrize('return_type', [i32_vector_type])
-    def test_int_math_ops_tensor_init(self,
-                                   OpClass: type, return_type: Attribute, # FIXME use something other than `type`
-                                   ):
-
+    @pytest.mark.parametrize("return_type", [i32_vector_type])
+    def test_int_math_ops_tensor_init(
+        self,
+        OpClass: type,
+        return_type: Attribute,  # FIXME use something other than `type`
+    ):
         op = OpClass(self.test_tensor)
-        assert op.result.type ==  self.i32_tensor_type
+        assert op.result.type == self.i32_tensor_type
         assert op.operand.type == self.i32_tensor_type
         assert op.operand.owner == self.test_tensor
         assert op.result.type == self.i32_tensor_type
 
 
 class Test_Trunci:
-
     operand_type = i32
     a = Constant.from_int_and_width(0, 32)
 
@@ -407,7 +419,6 @@ class Test_Trunci:
     test_tensor = TestOp([test_tensor_ssa_value], result_types=[i32_tensor_type])
 
     def test_trunci_incorrect_bitwidth(self):
-
         with pytest.raises(VerifyException):
             _trunci_op = TruncOp(self.a).verify()
         with pytest.raises(VerifyException):
