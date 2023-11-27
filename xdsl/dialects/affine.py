@@ -164,11 +164,10 @@ class Store(IRDLOperation):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
-            if not isinstance(memref.type, MemRefType):
+            if not isinstance(memref_type := memref.type, MemRefType):
                 raise ValueError(
                     "affine.store memref operand must be of type MemrefType"
                 )
-            memref_type = cast(MemRefType[Attribute], memref.type)
             rank = memref_type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
         super().__init__(

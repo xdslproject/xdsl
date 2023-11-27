@@ -13,6 +13,19 @@ from xdsl.pattern_rewriter import (
 )
 
 
+def get_snitch_reserved() -> set[riscv.FloatRegisterType]:
+    """
+    Utility method to make explicit the Snitch ISA assumptions wrt the
+    floating-point registers that are considered reserved.
+    Currently, the first 3 floating-point registers are reserved.
+    """
+
+    num_reserved = 3
+    assert len(riscv.Registers.FT) >= num_reserved
+
+    return {riscv.Registers.FT[i] for i in range(0, num_reserved)}
+
+
 class AllocateSnitchStridedStreamRegisters(RewritePattern):
     """
     Allocates the register used by the stream as the one specified by the `dm`
@@ -48,17 +61,17 @@ class AllocateSnitchGenericRegisters(RewritePattern):
         block = op.body.block
 
         for arg, input in zip(block.args, op.inputs):
-            assert isinstance(input.type, stream.ReadableStreamType)
-            input_type: stream.ReadableStreamType[Any] = input.type
-            arg.type = input_type.element_type
+            assert isinstance(input_type := input.type, stream.ReadableStreamType)
+            rs_input_type: stream.ReadableStreamType[Any] = input_type
+            arg.type = rs_input_type.element_type
 
         yield_op = block.last_op
         assert isinstance(yield_op, snitch_stream.YieldOp)
 
         for arg, output in zip(yield_op.values, op.outputs):
-            assert isinstance(output.type, stream.WritableStreamType)
-            output_type: stream.WritableStreamType[Any] = output.type
-            arg.type = output_type.element_type
+            assert isinstance(output_type := output.type, stream.WritableStreamType)
+            rs_output_type: stream.WritableStreamType[Any] = output_type
+            arg.type = rs_output_type.element_type
 
 
 @dataclass

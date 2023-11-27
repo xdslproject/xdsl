@@ -7,14 +7,14 @@ license = { text = "MIT License" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<3.0.1",
+    "immutabledict<4.0.1",
     "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.11.0", "textual==0.40.0", "pyclip==0.7"]
+extras = ["riscemu==2.2.5", "wgpu==0.13.0", "textual==0.42.0", "pyclip==0.7"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -25,6 +25,7 @@ Homepage = "https://xdsl.dev/"
 xdsl-opt = "xdsl.tools.xdsl_opt:main"
 irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
 xdsl-run = "xdsl.tools.xdsl_run:main"
+xdsl-gui = "xdsl.interactive.app:main"
 
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
@@ -100,16 +101,6 @@ exclude = """
 |versioneer.py$
 |xdsl/_version.py$
 """
-
-[tool.flake8]
-max-line-length = 90
-ignore = "F403,E226,E731,E275,W503,F405,E722,E741,W504,W605,E402"
-exclude = [".github"]
-
-[tool.flake8_nb]
-max-line-length = 90
-ignore = "F403,E226,E731,E275,W503,F405,E722,E741,W504,W605,E402"
-exclude = [".github"]
 
 [tool.pytest.ini_options]
 python_files = ["tests/*test_*.py", "docs/*test_*.py"]

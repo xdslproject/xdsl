@@ -182,25 +182,26 @@ class Load(IRDLOperation):
     # which is subject to change
 
     def verify_(self):
-        if not isinstance(self.memref.type, MemRefType):
+        memref_type = self.memref.type
+        if not isinstance(memref_type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_type = cast(MemRefType[Attribute], self.memref.type)
+        memref_type = cast(MemRefType[Attribute], memref_type)
 
         if memref_type.element_type != self.res.type:
             raise Exception("expected return type to match the MemRef element type")
 
-        if self.memref.type.get_num_dims() != len(self.indices):
+        if memref_type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
 
-    @staticmethod
-    def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
+    @classmethod
+    def get(
+        cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
+    ) -> Self:
         ssa_value = SSAValue.get(ref)
         ssa_value_type = ssa_value.type
         ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
-        return Load.build(
-            operands=[ref, indices], result_types=[ssa_value_type.element_type]
-        )
+        return cls(operands=[ref, indices], result_types=[ssa_value_type.element_type])
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -238,24 +239,25 @@ class Store(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType)
 
     def verify_(self):
-        if not isinstance(self.memref.type, MemRefType):
+        if not isinstance(memref_type := self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_type = cast(MemRefType[Attribute], self.memref.type)
+        memref_type = cast(MemRefType[Attribute], memref_type)
 
         if memref_type.element_type != self.value.type:
             raise Exception("Expected value type to match the MemRef element type")
 
-        if self.memref.type.get_num_dims() != len(self.indices):
+        if memref_type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")
 
-    @staticmethod
+    @classmethod
     def get(
+        cls,
         value: Operation | SSAValue,
         ref: Operation | SSAValue,
         indices: Sequence[Operation | SSAValue],
-    ) -> Store:
-        return Store.build(operands=[value, ref, indices])
+    ) -> Self:
+        return cls(operands=[value, ref, indices])
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -308,12 +310,18 @@ class Alloc(IRDLOperation):
         return_type: Attribute,
         alignment: int | None = None,
         shape: Iterable[int | AnyIntegerAttr] | None = None,
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr(),
     ) -> Alloc:
         if shape is None:
             shape = [1]
         return Alloc.build(
             operands=[[], []],
-            result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
+            result_types=[
+                MemRefType.from_element_type_and_shape(
+                    return_type, shape, layout, memory_space
+                )
+            ],
             attributes={
                 "alignment": IntegerAttr.from_int_and_width(alignment, 64)
                 if alignment is not None
@@ -367,6 +375,8 @@ class Alloca(IRDLOperation):
         alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | AnyIntegerAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr(),
     ) -> Alloca:
         if shape is None:
             shape = [1]
@@ -379,7 +389,11 @@ class Alloca(IRDLOperation):
 
         return Alloca.build(
             operands=[dynamic_sizes, []],
-            result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
+            result_types=[
+                MemRefType.from_element_type_and_shape(
+                    return_type, shape, layout, memory_space
+                )
+            ],
             properties={
                 "alignment": alignment,
             },
@@ -588,6 +602,47 @@ class Cast(IRDLOperation):
 
 
 @irdl_op_definition
+class MemorySpaceCast(IRDLOperation):
+    name = "memref.memory_space_cast"
+
+    source = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    dest = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        dest: MemRefType[Attribute] | UnrankedMemrefType[Attribute],
+    ):
+        super().__init__(operands=[source], result_types=[dest])
+
+    @staticmethod
+    def from_type_and_target_space(
+        source: SSAValue | Operation,
+        type: MemRefType[Attribute],
+        dest_memory_space: Attribute,
+    ) -> MemorySpaceCast:
+        dest = MemRefType.from_element_type_and_shape(
+            type.get_element_type(),
+            shape=type.get_shape(),
+            layout=type.layout,
+            memory_space=dest_memory_space,
+        )
+        return MemorySpaceCast(source, dest)
+
+    def verify_(self) -> None:
+        source = cast(MemRefType[Attribute], self.source.type)
+        dest = cast(MemRefType[Attribute], self.dest.type)
+        if source.get_shape() != dest.get_shape():
+            raise VerifyException(
+                "Expected source and destination to have the same shape."
+            )
+        if source.get_element_type() != dest.get_element_type():
+            raise VerifyException(
+                "Expected source and destination to have the same element type."
+            )
+
+
+@irdl_op_definition
 class DmaStartOp(IRDLOperation):
     name = "memref.dma_start"
 
@@ -727,6 +782,7 @@ MemRef = Dialect(
         ExtractAlignedPointerAsIndexOp,
         Subview,
         Cast,
+        MemorySpaceCast,
         DmaStartOp,
         DmaWaitOp,
     ],

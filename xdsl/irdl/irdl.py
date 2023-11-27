@@ -487,7 +487,7 @@ class IRDLOperation(Operation):
             regions = []
         irdl_op_init(
             self,
-            self.irdl_definition,
+            type(self).irdl_definition,
             operands=operands,
             result_types=result_types,
             properties=properties,
@@ -1947,10 +1947,7 @@ def irdl_op_arg_definition(
         )
 
 
-TypeIRDLOperationInvT = TypeVar("TypeIRDLOperationInvT", bound=type[IRDLOperation])
-
-
-def irdl_op_definition(cls: TypeIRDLOperationInvT) -> TypeIRDLOperationInvT:
+def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(

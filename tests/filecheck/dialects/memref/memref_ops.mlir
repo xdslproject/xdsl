@@ -20,9 +20,15 @@ builtin.module {
     %6 = "memref.subview"(%5) {"operandSegmentSizes" = array<i32: 1, 0, 0, 0>, "static_offsets" = array<i64: 0, 0>, "static_sizes" = array<i64: 1, 1>, "static_strides" = array<i64: 1, 1>} : (memref<10x2xindex>) -> memref<1x1xindex>
     %7 = "memref.cast"(%5) : (memref<10x2xindex>) -> memref<?x?xindex>
     %8 = "memref.alloca"() {"operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<1xindex>
+    %9 = "memref.memory_space_cast"(%5) : (memref<10x2xindex>) -> memref<10x2xindex, 1: i32>
+    %10 = "memref.alloc"() {"operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
+    %11 = "memref.alloca"() {"operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
     "memref.dealloc"(%2) : (memref<1xindex>) -> ()
     "memref.dealloc"(%5) : (memref<10x2xindex>) -> ()
     "memref.dealloc"(%8) : (memref<1xindex>) -> ()
+    "memref.dealloc"(%10) : (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> ()
+    "memref.dealloc"(%11) : (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> ()
+
     func.return
   }
 }
@@ -47,9 +53,14 @@ builtin.module {
 // CHECK-NEXT:     %{{.*}} = "memref.subview"(%5) <{"static_offsets" = array<i64: 0, 0>, "static_sizes" = array<i64: 1, 1>, "static_strides" = array<i64: 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<10x2xindex>) -> memref<1x1xindex>
 // CHECK-NEXT:     %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x2xindex>) -> memref<?x?xindex>
 // CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{"operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<1xindex>
+// CHECK-NEXT:     %{{.*}} = "memref.memory_space_cast"(%{{.*}}) : (memref<10x2xindex>) -> memref<10x2xindex, 1 : i32>
+// CHECK-NEXT:     %{{.*}} = "memref.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
+// CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{"operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
 // CHECK-NEXT:     "memref.dealloc"(%{{.*}}) : (memref<1xindex>) -> ()
 // CHECK-NEXT:     "memref.dealloc"(%{{.*}}) : (memref<10x2xindex>) -> ()
 // CHECK-NEXT:     "memref.dealloc"(%{{.*}}) : (memref<1xindex>) -> ()
+// CHECK-NEXT:     "memref.dealloc"(%{{.*}}) : (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> ()
+// CHECK-NEXT:     "memref.dealloc"(%{{.*}}) : (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> ()
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

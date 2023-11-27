@@ -1,6 +1,7 @@
 import argparse
 import sys
 from collections.abc import Callable, Sequence
+from importlib.metadata import version
 from io import StringIO
 from typing import IO
 
@@ -151,6 +152,13 @@ class xDSLOptMain(CommandLineTool):
             default=False,
             action="store_true",
             help="Print operations with debug info annotation, such as location.",
+        )
+
+        arg_parser.add_argument(
+            "-v",
+            "--version",
+            action="version",
+            version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
         )
 
     def register_pass(self, opPass: type[ModulePass]):

@@ -224,12 +224,12 @@ def build_affine_loop_from_values(
 
     if (
         isinstance(lb_const, arith.Constant)
-        and isinstance(lb_const.value, IntegerAttr)
+        and isinstance(lb_const_value := lb_const.value, IntegerAttr)
         and isinstance(ub_const, arith.Constant)
-        and isinstance(ub_const.value, IntegerAttr)
+        and isinstance(ub_const_value := ub_const.value, IntegerAttr)
     ):
-        lb_val = lb_const.value.value.data
-        ub_val = ub_const.value.value.data
+        lb_val = lb_const_value.value.data
+        ub_val = ub_const_value.value.data
         return build_affine_loop_from_constants(
             builder, lb_val, ub_val, step, body_builder_fn
         )

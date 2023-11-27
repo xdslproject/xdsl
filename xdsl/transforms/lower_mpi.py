@@ -200,14 +200,14 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         It then returns a list of operations calculating that size, and
         an OpResult containing the calculated value.
         """
-        assert isinstance(ssa_val.type, memref.MemRefType)
+        assert isinstance(ssa_val_type := ssa_val.type, memref.MemRefType)
 
         # Note: we only allow MemRef, not UnrankedMemref!
         # TODO: handle -1 in sizes
-        if not all(dim.value.data >= 0 for dim in ssa_val.type.shape.data):
+        if not all(dim.value.data >= 0 for dim in ssa_val_type.shape.data):
             raise RuntimeError("MPI lowering does not support unknown-size memrefs!")
 
-        size = prod(dim.value.data for dim in ssa_val.type.shape.data)
+        size = prod(dim.value.data for dim in ssa_val_type.shape.data)
 
         literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result

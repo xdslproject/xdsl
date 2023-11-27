@@ -816,8 +816,8 @@ class UnwrapMemrefOp(MPIBaseOp):
 
     def __init__(self, ref: SSAValue | Operation):
         ssa_val = SSAValue.get(ref)
-        assert isinstance(ssa_val.type, MemRefType)
-        elem_type = cast(MemRefType[AnyNumericType], ssa_val.type).element_type
+        assert isinstance(ssa_val_type := ssa_val.type, MemRefType)
+        elem_type = cast(MemRefType[AnyNumericType], ssa_val_type).element_type
 
         return super().__init__(
             operands=[ref],
@@ -828,8 +828,8 @@ class UnwrapMemrefOp(MPIBaseOp):
     @staticmethod
     def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
         ssa_val = SSAValue.get(ref)
-        assert isinstance(ssa_val.type, MemRefType)
-        elem_type = cast(MemRefType[AnyNumericType], ssa_val.type).element_type
+        assert isinstance(ssa_val_type := ssa_val.type, MemRefType)
+        elem_type = cast(MemRefType[AnyNumericType], ssa_val_type).element_type
 
         return UnwrapMemrefOp.build(
             operands=[ref],

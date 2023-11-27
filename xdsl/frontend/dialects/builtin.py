@@ -11,7 +11,7 @@ class _FrontendType:
     """Represents any type in the frontend."""
 
     @staticmethod
-    def to_xdsl() -> Callable[..., Any]:
+    def to_xdsl() -> Callable[[], Any]:
         raise NotImplementedError()
 
 
@@ -30,8 +30,8 @@ class _Integer(Generic[_Width, _Signedness], _FrontendType):
     """
 
     @staticmethod
-    def to_xdsl() -> Callable[..., Any]:
-        return builtin.IntegerType
+    def to_xdsl() -> Callable[[], Any]:
+        return builtin.IntegerType.__call__
 
     def __add__(
         self, other: _Integer[_Width, _Signedness]
@@ -148,8 +148,8 @@ class _Index(_FrontendType):
     """
 
     @staticmethod
-    def to_xdsl() -> Callable[..., Any]:
-        return builtin.IndexType
+    def to_xdsl() -> Callable[[], Any]:
+        return builtin.IndexType.__call__
 
 
 # Type alias for index type.
@@ -163,8 +163,8 @@ class _Float16(_FrontendType):
     """
 
     @staticmethod
-    def to_xdsl() -> Callable[..., Any]:
-        return builtin.Float16Type
+    def to_xdsl() -> Callable[[], Any]:
+        return builtin.Float16Type.__call__
 
     def __add__(self, other: f16) -> f16:
         from xdsl.frontend.dialects.arith import addf
@@ -189,8 +189,8 @@ class _Float32(_FrontendType):
     """
 
     @staticmethod
-    def to_xdsl() -> Callable[..., Any]:
-        return builtin.Float32Type
+    def to_xdsl() -> Callable[[], Any]:
+        return builtin.Float32Type.__call__
 
     def __add__(self, other: f32) -> f32:
         from xdsl.frontend.dialects.arith import addf
@@ -215,8 +215,8 @@ class _Float64(_FrontendType):
     """
 
     @staticmethod
-    def to_xdsl() -> Callable[..., Any]:
-        return builtin.Float64Type
+    def to_xdsl() -> Callable[[], Any]:
+        return builtin.Float64Type.__call__
 
     def __add__(self, other: f64) -> f64:
         from xdsl.frontend.dialects.arith import addf
