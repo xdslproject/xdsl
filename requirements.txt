@@ -6,7 +6,7 @@ coverage<8.0.0
 ipykernel
 pytest<8.0
 nbval<0.11
-filecheck<0.0.24
+filecheck<0.0.25
 lit<18.0.0
 pre-commit==3.5.0
 ruff==0.1.6
