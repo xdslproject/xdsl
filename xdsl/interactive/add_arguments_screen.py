@@ -10,8 +10,8 @@ class AddArguments(Screen[str]):
 
     argument_text_area: TextArea
 
-    def __init__(self):
-        self.argument_text_area = TextArea("", id="argument_text_area")
+    def __init__(self, parameter_one: TextArea):
+        self.argument_text_area = parameter_one
 
         super().__init__()
 

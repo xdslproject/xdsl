@@ -9,6 +9,7 @@ be sure to install `textual-dev` to run this command.
 
 import os
 from collections.abc import Callable
+from dataclasses import fields
 from io import StringIO
 from typing import Any, ClassVar
 
@@ -35,8 +36,7 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
-from xdsl.transforms import mlir_opt
-from xdsl.transforms.experimental.dmp import stencil_global_to_local
+from xdsl.utils.parse_pipeline import parse_pipeline
 
 from ._pasteboard import pyclip_copy
 
@@ -104,7 +104,7 @@ class InputApp(App[None]):
     Reactive variable used to save the current state of the modified Input TextArea
     (i.e. is the Output TextArea).
     """
-    pass_pipeline = reactive(tuple[type[ModulePass], ...])
+    pass_pipeline = reactive(tuple[ModulePass, ...])
     """Reactive variable that saves the list of selected passes."""
 
     condense_mode = reactive(False, always_update=True)
@@ -200,42 +200,24 @@ class InputApp(App[None]):
                     ListItem(Label(value.name), name=value.name)
                 )
 
-    def check_pass_for_arguments(self, selected_pass: type[ModulePass]) -> None:
-        def check_add_arguments_screen(arguments: str) -> None:
+    def get_pass_arguments(
+        self, selected_pass_name: str, selected_pass_value: type[ModulePass]
+    ) -> None:
+        def add_pass_with_arguments_to_pass_pipeline(arguments: str) -> None:
             """Called when AddArguments Screen is dismissed."""
-            # Get string arguments, assign them to an instance of the selected pass and add it to the pass pipline
+            pass_with_arguments = list(
+                parse_pipeline(f"{selected_pass_name}{{{arguments}}}")
+            )
+            pass_with_arguments_module = selected_pass_value.from_pass_spec(
+                pass_with_arguments[0]
+            )
+            self.pass_pipeline = tuple(
+                (*self.pass_pipeline, pass_with_arguments_module)
+            )
 
-            if selected_pass == stencil_global_to_local.DistributeStencilPass:
-                try:
-                    # Splitting the string into a list of strings (delimiter is space)
-                    arguments_list = arguments.split()
-                    slices_val = [int(num) for num in arguments_list[:-1]]
-                    strategy_val = arguments_list[-1]
-                    distribute_stencil_pass = (
-                        stencil_global_to_local.DistributeStencilPass(
-                            slices=slices_val, strategy=strategy_val
-                        )
-                    )
-                    self.pass_pipeline = tuple(
-                        (*self.pass_pipeline, distribute_stencil_pass)
-                    )
-                except Exception as e:
-                    self.current_module = e
-
-            else:
-                try:
-                    # Splitting the string into a list of strings (delimiter is space)
-                    arguments_list = arguments.split()
-                    mlir_opt_pass = mlir_opt.MLIROptPass(arguments=arguments_list)
-                    self.pass_pipeline = tuple((*self.pass_pipeline, mlir_opt_pass))
-                except Exception as e:
-                    self.current_module = e
-
-        # Depending on what pass has been selected, push the respective Screen
-        if selected_pass == stencil_global_to_local.DistributeStencilPass:
-            self.push_screen("add_arguments_screen", check_add_arguments_screen)
-        else:
-            self.push_screen("add_arguments_screen", check_add_arguments_screen)
+        res = " ".join(f"{f.name}={f.type}" for f in fields(selected_pass_value))
+        screen = AddArguments(TextArea(res, id="argument_text_area"))
+        self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
@@ -247,46 +229,29 @@ class InputApp(App[None]):
 
         for name, value in ALL_PASSES:
             if name == selected_pass:
-                if selected_pass == "distribute-stencil":
-                    self.check_pass_for_arguments(value)
-                    return
-                elif selected_pass == "mlir-opt":
-                    self.check_pass_for_arguments(value)
-                    return
+                # check if pass has arguments
+                if len(fields(value)) != 0:
+                    self.get_pass_arguments(name, value)
                 else:
-                    self.pass_pipeline = tuple((*self.pass_pipeline, value))
-                    return
+                    self.pass_pipeline = tuple((*self.pass_pipeline, value()))
 
     def watch_pass_pipeline(self) -> None:
         """
         When the reactive variable pass_pipeline changes, this function
         is called and updates the label to show the respective generated query in the Label.
         """
-        new_passes = "\n"
-        for p in self.pass_pipeline:
-            if isinstance(p, stencil_global_to_local.DistributeStencilPass):
-                # reformat integer list into a string of numbers separated by commas
-                slices_integer_list = p.slices
-                string_list = [str(num) for num in slices_integer_list]
-                result_string = ",".join(string_list)
+        # new_passes = "\n"
+        # for p in self.pass_pipeline:
+        #     if len(fields(p)) != 0:
+        #         p.
+        #         for f in fields(p):
+        #             # res = " ".join(f"{f.name"}={f.value}" for f in fields(p))
+        #             new_passes = new_passes + p.name + res
+        #     else:
+        #         new_passes = new_passes + p.name + ", " + "\n"
 
-                # format distribute-stencil query with arguments according to syntax rules
-                pass_name = (
-                    p.name
-                    + "{slices="
-                    + result_string
-                    + " strategy="
-                    + p.strategy
-                    + "}"
-                )
-                new_passes = new_passes + pass_name + ", " + "\n"
-            elif isinstance(p, mlir_opt.MLIROptPass):
-                new_passes = new_passes + p.name + " " + " ".join(p.arguments)
-            else:
-                new_passes = new_passes + p.name + ", " + "\n"
-
-        new_label = f"xdsl-opt -p {new_passes}"
-        self.selected_query_label.update(new_label)
+        # new_label = f"xdsl-opt -p {new_passes}"
+        # self.selected_query_label.update(new_label)
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")
@@ -305,7 +270,7 @@ class InputApp(App[None]):
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-            pipeline = PipelinePass([p() for p in self.pass_pipeline])
+            pipeline = PipelinePass([p for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:
