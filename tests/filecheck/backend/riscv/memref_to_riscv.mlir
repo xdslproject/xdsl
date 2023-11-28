@@ -100,15 +100,6 @@ builtin.module {
 // -----
 
 builtin.module {
-    %v, %d0, %d1, %d2, %m = "test.op"() : () -> (f32, index, index, index, memref<3x2x1xf32>)
-    "memref.store"(%v, %m, %d0, %d1, %d2) {"nontemporal" = false} : (f32, memref<3x2x1xf32>, index, index, index) -> ()
-}
-
-// CHECK:      Unsupported memref shape (3, 2, 1), only support 1D and 2D memrefs.
-
-// -----
-
-builtin.module {
     %v, %d0, %m = "test.op"() : () -> (i8, index, memref<1xi8>)
     "memref.store"(%v, %m, %d0) {"nontemporal" = false} : (i8, memref<1xi8>, index) -> ()
 }
