@@ -1,3 +1,4 @@
+from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
 
 from xdsl.dialects import builtin, riscv
@@ -75,11 +76,17 @@ def move_to_regs(
     return new_ops, new_values
 
 
+def a_regs_for_types(types: Iterable[Attribute]) -> Iterator[riscv.RISCVRegisterType]:
+    counter = Counter[type[riscv.RISCVRegisterType]]()
+    for attr_type in types:
+        register_type = register_type_for_type(attr_type)
+        index = counter[register_type]
+        yield register_type.a_register(index)
+        counter[register_type] += 1
+
+
 def a_regs(values: Iterable[SSAValue]) -> Iterator[riscv.RISCVRegisterType]:
-    return (
-        register_type_for_type(value.type).a_register(index)
-        for index, value in enumerate(values)
-    )
+    return a_regs_for_types(value.type for value in values)
 
 
 def move_to_a_regs(
@@ -175,15 +182,18 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
     """
 
     new_ops: list[Operation] = []
+    counter = Counter[type[riscv.RISCVRegisterType]]()
 
-    for index, arg in enumerate(block.args):
+    for arg in block.args:
         register_type = register_type_for_type(arg.type)
         move_op, new_value = move_ops_for_value(arg, register_type.unallocated())
         cast_op = builtin.UnrealizedConversionCastOp.get((new_value,), (arg.type,))
         new_ops.append(move_op)
         new_ops.append(cast_op)
 
+        index = counter[register_type]
         arg.type = register_type.a_register(index)
+        counter[register_type] += 1
         arg.replace_by(cast_op.results[0])
         move_op.operands[0] = arg
 
