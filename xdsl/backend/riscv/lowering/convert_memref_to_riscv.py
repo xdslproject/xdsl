@@ -52,8 +52,6 @@ def memref_shape_ops(
     The pointer is byte-indexed, and the indices are strided by element size, so the index
     into the flat memory buffer needs to be multiplied by the size of the element.
     """
-    assert shape
-    assert indices
     assert len(shape) == len(indices)
 
     # Only handle a small subset of elements
@@ -74,6 +72,10 @@ def memref_shape_ops(
             raise DiagnosticException(
                 f"Unsupported memref element type for riscv lowering: {element_type}"
             )
+
+    if not shape:
+        # Scalar memref
+        return ([], mem)
 
     ops: list[Operation] = []
 

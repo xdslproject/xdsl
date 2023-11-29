@@ -1,19 +1,21 @@
 // RUN: xdsl-opt -p convert-memref-to-riscv  --split-input-file --verify-diagnostics %s | filecheck %s
 
 builtin.module {
-    %v_f32, %v_f64, %v_i32, %r, %c, %m_f32, %m_f64, %m_i32 = "test.op"() : () -> (f32, f64, i32, index, index, memref<3x2xf32>, memref<3x2xf64>, memref<3xi32>)
+    %v_f32, %v_f64, %v_i32, %r, %c, %m_f32, %m_f64, %m_i32, %m_scalar_i32 = "test.op"() : () -> (f32, f64, i32, index, index, memref<3x2xf32>, memref<3x2xf64>, memref<3xi32>, memref<i32>)
     "memref.store"(%v_f32, %m_f32, %r, %c) {"nontemporal" = false} : (f32, memref<3x2xf32>, index, index) -> ()
     %x_f32 = "memref.load"(%m_f32, %r, %c) {"nontemporal" = false} : (memref<3x2xf32>, index, index) -> (f32)
     "memref.store"(%v_i32, %m_i32, %c) {"nontemporal" = false} : (i32, memref<3xi32>, index) -> ()
     %x_i32 = "memref.load"(%m_i32, %c) {"nontemporal" = false} : (memref<3xi32>, index) -> (i32)
     "memref.store"(%v_f64, %m_f64, %r, %c) {"nontemporal" = false} : (f64, memref<3x2xf64>, index, index) -> ()
+    %scalar_x_i32 = "memref.load"(%m_scalar_i32) {"nontemporal" = false} : (memref<i32>) -> (i32)
+    "memref.store"(%scalar_x_i32, %m_scalar_i32) {"nontemporal" = false} : (i32, memref<i32>) -> ()
     %x_f64 = "memref.load"(%m_f64, %r, %c) {"nontemporal" = false} : (memref<3x2xf64>, index, index) -> (f64)
     "memref.global"() {"sym_name" = "global", "type" = memref<2x3xf64>, "initial_value" = dense<[1, 2]> : tensor<2xi32>, "sym_visibility" = "public"} : () -> ()
     %global = "memref.get_global"() {"name" = @global} : () -> memref<2xi32>
 }
 
 // CHECK:      builtin.module {
-// CHECK-NEXT:   %v_f32, %v_f64, %v_i32, %r, %c, %m_f32, %m_f64, %m_i32 = "test.op"() : () -> (f32, f64, i32, index, index, memref<3x2xf32>, memref<3x2xf64>, memref<3xi32>)
+// CHECK-NEXT:     %v_f32, %v_f64, %v_i32, %r, %c, %m_f32, %m_f64, %m_i32, %m_scalar_i32 = "test.op"() : () -> (f32, f64, i32, index, index, memref<3x2xf32>, memref<3x2xf64>, memref<3xi32>, memref<i32>)
 // CHECK-NEXT:   %0 = builtin.unrealized_conversion_cast %v_f32 : f32 to !riscv.freg<>
 // CHECK-NEXT:   %1 = builtin.unrealized_conversion_cast %m_f32 : memref<3x2xf32> to !riscv.reg<>
 // CHECK-NEXT:   %2 = builtin.unrealized_conversion_cast %r : index to !riscv.reg<>
@@ -61,6 +63,12 @@ builtin.module {
 // CHECK-NEXT:   %{{.*}} = riscv.mul %{{.*}}, %{{.*}} {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:   %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:   riscv.fsd %{{.*}}, %{{.*}}, 0 {"comment" = "store double value to memref of shape (3, 2)"} : (!riscv.reg<>, !riscv.freg<>) -> ()
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %m_scalar_i32 : memref<i32> to !riscv.reg<>
+// CHECK-NEXT:   %scalar_x_i32 = riscv.lw %{{.*}}, 0 {"comment" = "load word from memref of shape ()"} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:   %scalar_x_i32_1 = builtin.unrealized_conversion_cast %scalar_x_i32 : !riscv.reg<> to i32
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %scalar_x_i32_1 : i32 to !riscv.reg<>
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %m_scalar_i32 : memref<i32> to !riscv.reg<>
+// CHECK-NEXT:   riscv.sw %{{.*}}, %{{.*}}, 0 {"comment" = "store int value to memref of shape ()"} : (!riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %m_f64 : memref<3x2xf64> to !riscv.reg<>
 // CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %r : index to !riscv.reg<>
 // CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %c : index to !riscv.reg<>
