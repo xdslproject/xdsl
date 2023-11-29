@@ -36,7 +36,8 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
-from xdsl.utils.parse_pipeline import parse_pipeline
+from xdsl.utils.exceptions import PassPipelineParseError
+from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 from ._pasteboard import pyclip_copy
 
@@ -87,10 +88,12 @@ class InputApp(App[None]):
     ]
 
     SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
-        "add_arguments_screen": AddArguments,
-        "load_file": LoadFile,
+        "add_arguments_screen": AddArguments(TextArea("")),
+        "load_file": LoadFile(),
     }
-
+    """
+    A dictionary that maps names on to Screen objects.
+    """
     INITIAL_IR_TEXT = """
         func.func @hello(%n : index) -> index {
           %two = arith.constant 2 : index
@@ -104,14 +107,12 @@ class InputApp(App[None]):
     Reactive variable used to save the current state of the modified Input TextArea
     (i.e. is the Output TextArea).
     """
-    pass_pipeline = reactive(tuple[ModulePass, ...])
+    pass_pipeline = reactive(tuple[dict[type[ModulePass], PipelinePassSpec], ...])
     """Reactive variable that saves the list of selected passes."""
-
     condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
     available_pass_list = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of passes that have an effect on current_module."""
-
     input_text_area: TextArea
     """Input TextArea."""
     output_text_area: OutputTextArea
@@ -122,6 +123,9 @@ class InputApp(App[None]):
     """ListView displaying the passes available to apply."""
 
     def __init__(self):
+        """
+        When a new instance of InputApp is created, this function is automatically called.
+        """
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
@@ -133,7 +137,6 @@ class InputApp(App[None]):
         """
         Creates the required widgets, events, etc.
         """
-
         with Horizontal(id="top_container"):
             yield self.passes_list_view
             with Horizontal(id="button_and_selected_horziontal"):
@@ -158,18 +161,19 @@ class InputApp(App[None]):
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
-        # register's the theme for the Input/Output TextArea's
+        # register's the theme for the Input/Output TextAreas
         self.input_text_area.theme = "vscode_dark"
         self.output_text_area.theme = "vscode_dark"
 
+        # add titles for various widgets
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
         self.query_one(
             "#passes_list_view"
         ).border_title = "Choose a pass or multiple passes to be applied."
-
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
+        # initialize ListView to contain the pass options
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
@@ -177,6 +181,10 @@ class InputApp(App[None]):
         self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
+        """
+        When any reactive variable is modified, this function (re-)computes the
+        available_pass_list variable.
+        """
         match self.current_module:
             case None:
                 return tuple(p for _, p in ALL_PASSES)
@@ -193,6 +201,10 @@ class InputApp(App[None]):
         old_pass_list: tuple[type[ModulePass], ...],
         new_pass_list: tuple[type[ModulePass], ...],
     ) -> None:
+        """
+        Function called when the reactive variable available_pass_list changes, and
+        updates the ListView to display the latelst pass options.
+        """
         if old_pass_list != new_pass_list:
             self.passes_list_view.clear()
             for value in new_pass_list:
@@ -203,21 +215,40 @@ class InputApp(App[None]):
     def get_pass_arguments(
         self, selected_pass_name: str, selected_pass_value: type[ModulePass]
     ) -> None:
-        def add_pass_with_arguments_to_pass_pipeline(arguments: str) -> None:
-            """Called when AddArguments Screen is dismissed."""
-            pass_with_arguments = list(
-                parse_pipeline(f"{selected_pass_name}{{{arguments}}}")
-            )
-            pass_with_arguments_module = selected_pass_value.from_pass_spec(
-                pass_with_arguments[0]
-            )
-            self.pass_pipeline = tuple(
-                (*self.pass_pipeline, pass_with_arguments_module)
-            )
+        """
+        This function facilitates user input of pass concatenated_arg_val by navigating to the
+        AddArguments screen, and subsequently parses the returned string upon screen
+        dismissal and appends the pass to the pass_pipeline variable.
+        """
 
-        res = " ".join(f"{f.name}={f.type}" for f in fields(selected_pass_value))
-        screen = AddArguments(TextArea(res, id="argument_text_area"))
-        self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
+        def add_pass_with_arguments_to_pass_pipeline(concatenated_arg_val: str) -> None:
+            """
+            Called when AddArguments Screen is dismissed. This function attempts to parse
+            the returned string, and if successful, adds it to the pass_pipeline variable.
+            In case of parsing failure, the AddArguments Screen is pushed, revealing the
+            Parse Error.
+            """
+            try:
+                new_pass_with_arguments = list(
+                    parse_pipeline(f"{selected_pass_name}{{{concatenated_arg_val}}}")
+                )[0]
+                # add the pass to pass_pipeline
+                self.pass_pipeline += ({selected_pass_value: new_pass_with_arguments},)
+            except PassPipelineParseError as e:
+                res = f"PassPipelineParseError: {e}"
+                screen = AddArguments(TextArea(res, id="argument_text_area"))
+                self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
+
+        # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
+        self.push_screen(
+            AddArguments(
+                TextArea(
+                    " ".join(f"{f.name}={f.type}" for f in fields(selected_pass_value)),
+                    id="argument_text_area",
+                )
+            ),
+            add_pass_with_arguments_to_pass_pipeline,
+        )
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
@@ -227,31 +258,23 @@ class InputApp(App[None]):
         """
         selected_pass = event.item.name
 
-        for name, value in ALL_PASSES:
-            if name == selected_pass:
-                # check if pass has arguments
-                if len(fields(value)) != 0:
-                    self.get_pass_arguments(name, value)
+        for name_pass, value_pass in ALL_PASSES:
+            if name_pass == selected_pass:
+                # check if pass has concatenated_arg_val
+                if len(fields(value_pass)) != 0:
+                    # call function that handles adding passes with concatenated_arg_val to the pass_pipeline
+                    self.get_pass_arguments(name_pass, value_pass)
                 else:
-                    self.pass_pipeline = tuple((*self.pass_pipeline, value()))
+                    # add the selected pass to pass_pipeline
+                    new_pass = PipelinePassSpec(name=name_pass, args={})
+                    self.pass_pipeline += ({value_pass: new_pass},)
 
     def watch_pass_pipeline(self) -> None:
         """
-        When the reactive variable pass_pipeline changes, this function
-        is called and updates the label to show the respective generated query in the Label.
+        Function called when the reactive variable pass_pipeline changes - updates the
+        label to display the respective generated query in the Label.
         """
-        # new_passes = "\n"
-        # for p in self.pass_pipeline:
-        #     if len(fields(p)) != 0:
-        #         p.
-        #         for f in fields(p):
-        #             # res = " ".join(f"{f.name"}={f.value}" for f in fields(p))
-        #             new_passes = new_passes + p.name + res
-        #     else:
-        #         new_passes = new_passes + p.name + ", " + "\n"
-
-        # new_label = f"xdsl-opt -p {new_passes}"
-        # self.selected_query_label.update(new_label)
+        self.selected_query_label.update(self.get_query_string())
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")
@@ -270,7 +293,19 @@ class InputApp(App[None]):
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-            pipeline = PipelinePass([p for p in self.pass_pipeline])
+            pipeline = PipelinePass(passes=[])
+
+            for pass_dict in self.pass_pipeline:
+                for module_pass, pipeline_pass_spec in pass_dict.items():
+                    # check if pass contains concatenated_arg_val
+                    if pipeline_pass_spec.args != {}:
+                        # convert PipelinePassSpec to ModulePass and add ModulePass to pipeline
+                        pipeline.passes.append(
+                            module_pass.from_pass_spec(pipeline_pass_spec)
+                        )
+                    else:
+                        # add ModulePass to pipeline
+                        pipeline.passes.append(module_pass())
             pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:
@@ -278,7 +313,8 @@ class InputApp(App[None]):
 
     def watch_current_module(self):
         """
-        Function to update the Output TextArea.
+        Function called when the reactive variable current_module changes - updates the
+        Output TextArea.
         """
         match self.current_module:
             case None:
@@ -293,6 +329,45 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
+
+    def get_query_string(self) -> str:
+        """
+        Function returning a string containing the textual description of the pass
+        pipeline generated thus far.
+        """
+        query = "\n"
+        arguments_pipeline = ""
+        for pass_dict in self.pass_pipeline:
+            for _, pipeline_pass_spec in pass_dict.items():
+                # check if pass contains concatenated_arg_val
+                if len(pipeline_pass_spec.args) != 0:
+                    concatenated_arg_val = ""
+                    for arg_name, arg_val in pipeline_pass_spec.args.items():
+                        # if argument has type bool, make result lowercase
+                        if isinstance(arg_val[0], bool):
+                            concatenated_arg_val = ",".join(
+                                map(str.lower, map(str, arg_val))
+                            )
+                        else:
+                            concatenated_arg_val = ",".join(map(str, arg_val))
+                        arguments_pipeline += (
+                            "".join(f"{arg_name}={concatenated_arg_val}") + " "
+                        )
+                    # Remove the final whitespace
+                    arguments_pipeline = arguments_pipeline.rstrip()
+                    query += (
+                        pipeline_pass_spec.name
+                        + "{"
+                        + arguments_pipeline
+                        + "}, "
+                        + "\n"
+                    )
+                # if pass has no concatenated_arg_val
+                else:
+                    query += pipeline_pass_spec.name + ", " + "\n"
+
+        new_label = f"xdsl-opt -p {query}"
+        return new_label
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
@@ -315,9 +390,7 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#copy_query_button")
     def copy_query(self, event: Button.Pressed) -> None:
         """Selected passes/query Label is copied when "Copy Query" button is pressed."""
-        selected_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
-        query = f"xdsl-opt -p {selected_passes}"
-        pyclip_copy(query)
+        pyclip_copy(self.get_query_string())
 
     @on(Button.Pressed, "#clear_passes_button")
     def clear_passes(self, event: Button.Pressed) -> None:
@@ -326,22 +399,36 @@ class InputApp(App[None]):
 
     @on(Button.Pressed, "#condense_button")
     def condense(self, event: Button.Pressed) -> None:
+        """
+        Displayed passes are filtered to display only those passes that have an affect
+        on current_module when "Condense" Button is pressed.
+        """
         self.condense_mode = True
         self.add_class("condensed")
 
     @on(Button.Pressed, "#uncondense_button")
     def uncondense(self, event: Button.Pressed) -> None:
+        """
+        Displayed passes are filtered to display all available passes when "Uncondense"
+        Button is pressed.
+        """
         self.condense_mode = False
         self.remove_class("condensed")
 
     @on(Button.Pressed, "#remove_last_pass_button")
     def remove_last_pass(self, event: Button.Pressed) -> None:
+        """Last selected pass removed when "Remove Last Pass" button is pressed."""
         self.pass_pipeline = self.pass_pipeline[:-1]
 
     @on(Button.Pressed, "#load_file_button")
     def load_file(self, event: Button.Pressed) -> None:
+        """
+        Pushes screen displaying DirectoryTree widget when "Load File" button is pressed.
+        """
+
         def check_load_file(file_path: str) -> None:
-            """Called when LoadFile is dismissed."""
+            """Called when LoadFile is dismissed. Loads selected file into
+            input_text_area."""
 
             # Clear Input TextArea and Pass Pipeline
             self.pass_pipeline = ()

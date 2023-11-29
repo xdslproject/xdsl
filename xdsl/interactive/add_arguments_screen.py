@@ -6,6 +6,10 @@ from textual.widgets import Button, TextArea
 
 
 class AddArguments(Screen[str]):
+    """
+    Screen called when selected pass has arguments requiring user input.
+    """
+
     CSS_PATH = "add_arguments_screen.tcss"
 
     argument_text_area: TextArea
@@ -27,7 +31,7 @@ class AddArguments(Screen[str]):
         """Configure widgets in this application before it is first shown."""
         self.query_one(
             "#argument_text_area"
-        ).border_title = "Provide List of Arguments to apply to Selected Pass."
+        ).border_title = "Provide arguments to apply to selected pass."
 
     @on(Button.Pressed, "#quit_screen_button")
     def exit_screen(self, event: Button.Pressed) -> None:
