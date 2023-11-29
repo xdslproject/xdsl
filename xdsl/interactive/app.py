@@ -109,10 +109,15 @@ class InputApp(App[None]):
     """
     pass_pipeline = reactive(tuple[dict[type[ModulePass], PipelinePassSpec], ...])
     """Reactive variable that saves the list of selected passes."""
+
     condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
     available_pass_list = reactive(tuple[type[ModulePass], ...])
-    """Reactive variable that saves the list of passes that have an effect on current_module."""
+    """
+    Reactive variable that saves the list of passes that have an effect on
+    current_module.
+    """
+
     input_text_area: TextArea
     """Input TextArea."""
     output_text_area: OutputTextArea
@@ -124,7 +129,8 @@ class InputApp(App[None]):
 
     def __init__(self):
         """
-        When a new instance of InputApp is created, this function is automatically called.
+        When a new instance of InputApp is created, this function is automatically
+        called.
         """
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
@@ -202,8 +208,8 @@ class InputApp(App[None]):
         new_pass_list: tuple[type[ModulePass], ...],
     ) -> None:
         """
-        Function called when the reactive variable available_pass_list changes, and
-        updates the ListView to display the latelst pass options.
+        Function called when the reactive variable available_pass_list changes - updates
+        the ListView to display the latest pass options.
         """
         if old_pass_list != new_pass_list:
             self.passes_list_view.clear()
@@ -216,9 +222,9 @@ class InputApp(App[None]):
         self, selected_pass_name: str, selected_pass_value: type[ModulePass]
     ) -> None:
         """
-        This function facilitates user input of pass concatenated_arg_val by navigating to the
-        AddArguments screen, and subsequently parses the returned string upon screen
-        dismissal and appends the pass to the pass_pipeline variable.
+        This function facilitates user input of pass concatenated_arg_val by navigating
+        to the AddArguments screen, and subsequently parses the returned string upon
+        screen dismissal and appends the pass to the pass_pipeline variable.
         """
 
         def add_pass_with_arguments_to_pass_pipeline(concatenated_arg_val: str) -> None:
