@@ -38,6 +38,24 @@ def test_push_register():
     assert riscv.Registers.FA0 == register_queue.available_float_registers[-1]
 
 
+def test_reserve_register():
+    register_queue = RegisterQueue()
+
+    register_queue.reserve_register(riscv.IntRegisterType("j0"))
+    assert register_queue.reserved_registers[riscv.IntRegisterType("j0")] == 1
+
+    register_queue.reserve_register(riscv.IntRegisterType("j0"))
+    assert register_queue.reserved_registers[riscv.IntRegisterType("j0")] == 2
+
+    register_queue.unreserve_register(riscv.IntRegisterType("j0"))
+    assert register_queue.reserved_registers[riscv.IntRegisterType("j0")] == 1
+
+    register_queue.unreserve_register(riscv.IntRegisterType("j0"))
+    # assert riscv.IntRegisterType("j0") not in register_queue.reserved_registers
+
+    assert register_queue.pop(riscv.IntRegisterType).register_name == "j0"
+
+
 def test_limit():
     register_queue = RegisterQueue()
     register_queue.limit_registers(1)

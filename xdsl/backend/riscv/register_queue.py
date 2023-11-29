@@ -79,6 +79,24 @@ class RegisterQueue:
             self._idx += 1
         return reg
 
+    def reserve_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
+        """
+        Increase the reservation count for a register.
+        """
+        self.reserved_registers[reg] += 1
+
+    def unreserve_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
+        """
+        Decrease the reservation count for a register. If the reservation count is 0, make
+        the register available for allocation.
+        """
+        if reg not in self.reserved_registers:
+            raise ValueError("Cannot unreserve an unreserved register")
+        self.reserved_registers[reg] -= 1
+        if not self.reserved_registers[reg]:
+            del self.reserved_registers[reg]
+            self.push(reg)
+
     def limit_registers(self, limit: int) -> None:
         """
         Limits the number of currently available registers to the provided limit.
