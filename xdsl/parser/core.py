@@ -797,7 +797,7 @@ class Parser(AttrParser):
         # Properties retrocompatibility : if no properties dictionary was present at all,
         # We extract them from the attribute dictionary by name.
         if issubclass(op_type, IRDLOperation) and not properties:
-            for property_name in op_type.irdl_definition.properties.keys():
+            for property_name in op_type.irdl_definition().properties.keys():
                 if property_name in attrs:
                     properties[property_name] = attrs.pop(property_name)
 

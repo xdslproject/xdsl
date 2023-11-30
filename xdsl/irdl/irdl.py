@@ -487,7 +487,7 @@ class IRDLOperation(Operation):
             regions = []
         irdl_op_init(
             self,
-            type(self).irdl_definition,
+            type(self).irdl_definition(),
             operands=operands,
             result_types=result_types,
             properties=properties,
@@ -529,7 +529,6 @@ class IRDLOperation(Operation):
         return op
 
     @classmethod
-    @property
     def irdl_definition(cls) -> OpDef:
         """Get the IRDL operation definition."""
         ...
@@ -2036,7 +2035,6 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     new_attrs["traits"] = get_traits
 
     @classmethod
-    @property
     def irdl_definition(cls: type[IRDLOperationInvT]):
         return op_def
 

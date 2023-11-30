@@ -317,7 +317,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
 
         # If the op is an IRDL-defined operation, get the property names.
         if issubclass(op_type, IRDLOperation):
-            property_names = op_type.irdl_definition.properties.keys()
+            property_names = op_type.irdl_definition().properties.keys()
         else:
             property_names = []
 

@@ -23,7 +23,7 @@ def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue
 
 def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
     """Convert an operation definition to an IRDL operation definition."""
-    op_def = op.irdl_definition
+    op_def = op.irdl_definition()
 
     block = Block()
     builder = Builder(block)
