@@ -1260,9 +1260,9 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         module: builtin.ModuleOp = op
-        shift_streams = []
-        out_data_streams = []
-        out_global_mem = []
+        shift_streams: list[list[HLSStream]] = []
+        out_data_streams: list[HLSStream] = []
+        out_global_mem: list[BlockArgument] = []
 
         inout_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
@@ -1322,7 +1322,7 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
         write_data_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    StencilExternalStoreToHLSWriteData(module, out_data_streams),
+                    StencilExternalStoreToHLSWriteData(module, []),
                     # TrivialExternalLoadOpCleanup(),
                     TrivialExternalStoreOpCleanup(),
                     TrivialStoreOpCleanup(),
