@@ -49,7 +49,7 @@ def attr_def_to_irdl(
     attr: type[ParametrizedAttribute],
 ) -> AttributeOp:
     """Convert an attribute definition to an IRDL attribute definition."""
-    attr_def = attr.irdl_definition
+    attr_def = attr.irdl_definition()
 
     block = Block()
     builder = Builder(block)

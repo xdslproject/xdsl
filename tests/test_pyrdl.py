@@ -276,11 +276,11 @@ def test_constraint_vars_success():
 
     constraint = VarConstraint("T", AnyOf([BoolData(False), IntData(0)]))
 
-    constraint_vars = {}
+    constraint_vars: dict[str, Attribute] = {}
     constraint.verify(BoolData(False), constraint_vars)
     constraint.verify(BoolData(False), constraint_vars)
 
-    constraint_vars = {}
+    constraint_vars: dict[str, Attribute] = {}
     constraint.verify(IntData(0), constraint_vars)
     constraint.verify(IntData(0), constraint_vars)
 
@@ -290,7 +290,7 @@ def test_constraint_vars_fail_different():
 
     constraint = VarConstraint("T", AnyOf([BoolData(False), IntData(0)]))
 
-    constraint_vars = {}
+    constraint_vars: dict[str, Attribute] = {}
     constraint.verify(IntData(0), constraint_vars)
 
     with pytest.raises(VerifyException):
