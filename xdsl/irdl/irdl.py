@@ -2234,7 +2234,6 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
         new_fields[param_name] = param_name_field(idx)
 
     @classmethod
-    @property
     def irdl_definition(cls: type[_PAttrT]):
         return attr_def
 
