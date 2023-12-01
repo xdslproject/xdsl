@@ -121,10 +121,6 @@ class InputApp(App[None]):
     """ListView displaying the passes available to apply."""
 
     def __init__(self):
-        """
-        When a new instance of InputApp is created, this function is automatically
-        called.
-        """
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
@@ -161,7 +157,7 @@ class InputApp(App[None]):
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
-        # register's the theme for the Input/Output TextAreas
+        # Registers the theme for the Input/Output TextAreas
         self.input_text_area.theme = "vscode_dark"
         self.output_text_area.theme = "vscode_dark"
 
