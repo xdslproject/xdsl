@@ -229,9 +229,7 @@ class InputApp(App[None]):
         Function called when the reactive variable pass_pipeline changes - updates the
         label to display the respective generated query in the Label.
         """
-        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
-        new_label = f"xdsl-opt -p {new_passes}"
-        self.selected_query_label.update(new_label)
+        self.selected_query_label.update(self.get_query_string())
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")
@@ -275,6 +273,15 @@ class InputApp(App[None]):
 
         self.output_text_area.load_text(output_text)
 
+    def get_query_string(self) -> str:
+        """
+        Function returning a string containing the textual description of the pass
+        pipeline generated thus far.
+        """
+        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
+        new_label = f"xdsl-opt -p {new_passes}"
+        return new_label
+
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
         self.dark = not self.dark
@@ -296,9 +303,7 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#copy_query_button")
     def copy_query(self, event: Button.Pressed) -> None:
         """Selected passes/query Label is copied when "Copy Query" button is pressed."""
-        selected_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
-        query = f"xdsl-opt -p {selected_passes}"
-        pyclip_copy(query)
+        pyclip_copy(self.get_query_string())
 
     @on(Button.Pressed, "#clear_passes_button")
     def clear_passes(self, event: Button.Pressed) -> None:
