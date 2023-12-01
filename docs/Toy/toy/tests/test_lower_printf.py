@@ -1,7 +1,7 @@
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func, memref, printf, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp, f64
-from xdsl.ir.core import MLContext
+from xdsl.ir import MLContext
 
 from ..rewrites.lower_printf_riscv import LowerPrintfRiscvPass
 

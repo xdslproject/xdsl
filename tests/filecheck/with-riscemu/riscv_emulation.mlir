@@ -1,13 +1,16 @@
 // RUN: xdsl-opt --split-input-file -t riscemu %s | filecheck %s
 
 builtin.module {
-  %0 = riscv.li 6 : () -> !riscv.reg<j0>
-  %1 = riscv.li 7 : () -> !riscv.reg<j1>
-  %2 = riscv.mul %0, %1 : (!riscv.reg<j0>, !riscv.reg<j1>) -> !riscv.reg<j2>
-  riscv.custom_assembly_instruction %2 {"instruction_name" = "print"} : (!riscv.reg<j2>) -> ()
-  %3 = riscv.li 93 : () -> !riscv.reg<a7>
-  riscv.ecall : () -> ()
-  riscv.ret : () -> ()
+  riscv.directive ".globl" "main"
+  riscv_func.func @main() {
+    %0 = riscv.li 6 : () -> !riscv.reg<j0>
+    %1 = riscv.li 7 : () -> !riscv.reg<j1>
+    %2 = riscv.mul %0, %1 : (!riscv.reg<j0>, !riscv.reg<j1>) -> !riscv.reg<j2>
+    riscv.custom_assembly_instruction %2 {"instruction_name" = "print"} : (!riscv.reg<j2>) -> ()
+    %3 = riscv.li 93 : () -> !riscv.reg<a7>
+    riscv.ecall
+    riscv_func.return
+  }
 }
 
 // CHECK: 42
@@ -15,6 +18,7 @@ builtin.module {
 // -----
 
 builtin.module {
+  riscv.directive ".globl" "main"
   riscv_func.func @main() {
     %0 = riscv.li 3 : () -> !riscv.reg<a0>
     %1 = riscv.li 2 : () -> !riscv.reg<a1>
@@ -22,7 +26,7 @@ builtin.module {
     %xyz = riscv_func.call @muladd(%x, %y, %z) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>) -> !riscv.reg<a0>
     riscv.custom_assembly_instruction %xyz {"instruction_name" = "print"} : (!riscv.reg<a0>) -> ()
     %4 = riscv.li 93 : () -> !riscv.reg<a7>
-    riscv.ecall : () -> ()
+    riscv.ecall
     riscv_func.return
   }
   riscv_func.func @multiply(%x : !riscv.reg<a0>, %y : !riscv.reg<a1>) {

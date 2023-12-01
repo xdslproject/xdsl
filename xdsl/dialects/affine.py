@@ -5,6 +5,7 @@ from typing import Annotated, Any, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AffineSetAttr,
     AnyIntegerAttr,
     ContainerType,
     IndexType,
@@ -13,8 +14,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
-from xdsl.ir.affine.affine_expr import AffineExpr
-from xdsl.ir.affine.affine_map import AffineMap
+from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
     ConstraintVar,
@@ -25,12 +25,31 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    prop_def,
     region_def,
     result_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
+
+
+@irdl_op_definition
+class ApplyOp(IRDLOperation):
+    name = "affine.apply"
+
+    mapOperands = var_operand_def(IndexType)
+    map = prop_def(AffineMapAttr)
+    result = result_def(IndexType)
+
+    def verify_(self) -> None:
+        if len(self.mapOperands) != self.map.data.num_dims + self.map.data.num_symbols:
+            raise VerifyException(
+                f"{self.name} expects {self.map.data.num_dims + self.map.data.num_symbols} operands, but got {len(self.mapOperands)}. The number of map operands must match the sum of the dimensions and symbols of its map."
+            )
+        if len(self.map.data.results) != 1:
+            raise VerifyException("affine.apply expects a unidimensional map.")
 
 
 @irdl_op_definition
@@ -51,20 +70,31 @@ class For(IRDLOperation):
     # gh issue: https://github.com/xdslproject/xdsl/issues/1149
 
     def verify_(self) -> None:
-        if len(self.operands) != len(self.results):
-            raise Exception("Expected the same amount of operands and results")
-
-        operand_types = [SSAValue.get(op).type for op in self.operands]
-        if operand_types != [res.type for res in self.results]:
-            raise Exception(
-                "Expected all operands and result pairs to have matching types"
+        if (
+            len(self.operands)
+            != len(self.results)
+            + self.lower_bound.data.num_dims
+            + self.upper_bound.data.num_dims
+            + self.lower_bound.data.num_symbols
+            + self.upper_bound.data.num_symbols
+        ):
+            raise VerifyException(
+                "Expected as many operands as results, lower bound args and upper bound args."
             )
 
+        iter_types = [op.type for op in self.operands[-len(self.results) :]]
+        if iter_types != [res.type for res in self.results]:
+            raise VerifyException(
+                "Expected all operands and result pairs to have matching types"
+            )
+        if any(op.type != IndexType() for op in self.operands[: -len(self.results)]):
+            raise VerifyException("Expected all bounds arguments types to be index")
+
         entry_block: Block = self.body.blocks[0]
-        block_arg_types = [IndexType()] + operand_types
+        block_arg_types = [IndexType()] + iter_types
         arg_types = [arg.type for arg in entry_block.args]
         if block_arg_types != arg_types:
-            raise Exception(
+            raise VerifyException(
                 "Expected BlockArguments to have the same types as the operands"
             )
 
@@ -101,6 +131,19 @@ class For(IRDLOperation):
 
 
 @irdl_op_definition
+class If(IRDLOperation):
+    name = "affine.if"
+
+    args = var_operand_def(IndexType)
+    res = var_result_def()
+
+    condition = attr_def(AffineSetAttr)
+
+    then_region = region_def("single_block")
+    else_region = region_def()
+
+
+@irdl_op_definition
 class Store(IRDLOperation):
     name = "affine.store"
 
@@ -121,11 +164,10 @@ class Store(IRDLOperation):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
-            if not isinstance(memref.type, MemRefType):
+            if not isinstance(memref_type := memref.type, MemRefType):
                 raise ValueError(
                     "affine.store memref operand must be of type MemrefType"
                 )
-            memref_type = cast(MemRefType[Attribute], memref.type)
             rank = memref_type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
         super().__init__(
@@ -194,8 +236,11 @@ class Yield(IRDLOperation):
 
 
 Affine = Dialect(
+    "affine",
     [
+        ApplyOp,
         For,
+        If,
         Store,
         Load,
         Yield,

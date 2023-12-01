@@ -1,6 +1,6 @@
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir.core import Block, MLContext, Region
+from xdsl.ir import Block, MLContext, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,

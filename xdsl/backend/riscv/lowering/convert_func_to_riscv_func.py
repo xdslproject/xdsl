@@ -1,4 +1,5 @@
 from xdsl.backend.riscv.lowering.utils import (
+    a_regs,
     cast_block_args_from_a_regs,
     cast_to_regs,
     move_to_a_regs,
@@ -7,8 +8,7 @@ from xdsl.backend.riscv.lowering.utils import (
 )
 from xdsl.dialects import func, riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
-from xdsl.ir import MLContext
-from xdsl.ir.core import Block, Operation, Region
+from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -74,10 +74,7 @@ class LowerFuncCallOp(RewritePattern):
 
         cast_operand_ops, register_operands = cast_to_regs(op.arguments)
         move_operand_ops, moved_operands = move_to_a_regs(register_operands)
-        new_result_types = [
-            register_type_for_type(result.type).a_register(i)
-            for i, result in enumerate(op.results)
-        ]
+        new_result_types = list(a_regs(op.results))
         new_op = riscv_func.CallOp(op.callee, moved_operands, new_result_types)
         move_result_ops, moved_results = move_to_unallocated_regs(new_op.results)
         cast_result_ops = [

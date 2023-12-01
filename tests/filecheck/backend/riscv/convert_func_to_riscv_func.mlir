@@ -20,8 +20,8 @@ builtin.module {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    riscv.assembly_section ".text" {
-// CHECK-NEXT:      riscv.directive ".globl" "main" : () -> ()
-// CHECK-NEXT:      riscv.directive ".p2align" "2" : () -> ()
+// CHECK-NEXT:      riscv.directive ".globl" "main"
+// CHECK-NEXT:      riscv.directive ".p2align" "2"
 // CHECK-NEXT:      riscv_func.func @main() {
 // CHECK-NEXT:          %0, %1 = "test.op"() : () -> (i32, i32)
 // CHECK-NEXT:          %{{.*}} = builtin.unrealized_conversion_cast %0 : i32 to !riscv.reg<>
@@ -37,8 +37,8 @@ builtin.module {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv.assembly_section ".text" {
-// CHECK-NEXT:      riscv.directive ".globl" "foo" : () -> ()
-// CHECK-NEXT:      riscv.directive ".p2align" "2" : () -> ()
+// CHECK-NEXT:      riscv.directive ".globl" "foo"
+// CHECK-NEXT:      riscv.directive ".p2align" "2"
 // CHECK-NEXT:      riscv_func.func @foo(%arg0 : !riscv.reg<a0>, %arg1 : !riscv.reg<a1>) -> (!riscv.reg<a0>, !riscv.reg<a1>) {
 // CHECK-NEXT:        %{{.*}} = riscv.mv %arg0 : (!riscv.reg<a0>) -> !riscv.reg<>
 // CHECK-NEXT:        %arg0_1 = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg<> to i32
@@ -53,8 +53,8 @@ builtin.module {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv.assembly_section ".text" {
-// CHECK-NEXT:      riscv.directive ".globl" "foo_float" : () -> ()
-// CHECK-NEXT:      riscv.directive ".p2align" "2" : () -> ()
+// CHECK-NEXT:      riscv.directive ".globl" "foo_float"
+// CHECK-NEXT:      riscv.directive ".p2align" "2"
 // CHECK-NEXT:      riscv_func.func @foo_float(%farg0 : !riscv.freg<fa0>, %farg1 : !riscv.freg<fa1>) -> (!riscv.freg<fa0>, !riscv.freg<fa1>) {
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.s %farg0 : (!riscv.freg<fa0>) -> !riscv.freg<>
 // CHECK-NEXT:        %farg0_1 = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg<> to f32

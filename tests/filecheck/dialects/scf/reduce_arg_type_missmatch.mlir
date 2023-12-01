@@ -14,7 +14,7 @@
         "scf.reduce.return"(%11) : (f64) -> ()
       }) : (f32) -> ()
       "scf.yield"() : () -> ()
-    }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f32
+    }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f32
 }) : () -> ()
 
 // CHECK: scf.reduce block argument types must match the operand type  but have f64 and f32

@@ -8,7 +8,7 @@ from xdsl.dialects.irdl.irdl import (
     ParametersOp,
     ResultsOp,
 )
-from xdsl.ir.core import Block, Dialect, ParametrizedAttribute, Region, SSAValue
+from xdsl.ir import Block, Dialect, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import AttrConstraint, IRDLOperation
 
 

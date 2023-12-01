@@ -146,9 +146,7 @@ def test_print_between_passes():
         opt.run()
 
     output = f.getvalue()
-    assert (
-        len([l for l in output.split("\n") if "builtin.module" in l]) == len(passes) + 1
-    )
+    assert len([l for l in output.split("\n") if "builtin.module" in l]) == len(passes)
 
 
 def test_diagnostic_exception():

@@ -15,6 +15,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
 
 
@@ -199,14 +200,14 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         It then returns a list of operations calculating that size, and
         an OpResult containing the calculated value.
         """
-        assert isinstance(ssa_val.type, memref.MemRefType)
+        assert isinstance(ssa_val_type := ssa_val.type, memref.MemRefType)
 
         # Note: we only allow MemRef, not UnrankedMemref!
         # TODO: handle -1 in sizes
-        if not all(dim.value.data >= 0 for dim in ssa_val.type.shape.data):
+        if not all(dim.value.data >= 0 for dim in ssa_val_type.shape.data):
             raise RuntimeError("MPI lowering does not support unknown-size memrefs!")
 
-        size = prod(dim.value.data for dim in ssa_val.type.shape.data)
+        size = prod(dim.value.data for dim in ssa_val_type.shape.data)
 
         literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result
@@ -622,7 +623,7 @@ class LowerMpiUnwrapMemrefOp(_MPIToLLVMRewriteBase):
         return [
             *extract_ptr_ops,
             *count_ops,
-            dtype := mpi.GetDtypeOp.get(elem_type),
+            dtype := mpi.GetDtypeOp(elem_type),
         ], [ptr.results[0], count_ssa_val, dtype.result]
 
 
@@ -759,10 +760,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
 
         # for each func found, add a FuncOp to the top of the module.
         for name, types in funcs_to_emit.items():
-            arg, res = types
-            rewriter.insert_op_at_end(
-                func.FuncOp.external(name, arg, res), module.body.block
-            )
+            SymbolTable.insert_or_update(module, func.FuncOp.external(name, *types))
 
 
 class LowerNullRequestOp(_MPIToLLVMRewriteBase):

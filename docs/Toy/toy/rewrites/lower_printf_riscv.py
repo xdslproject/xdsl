@@ -1,6 +1,6 @@
 from xdsl.dialects import memref, printf, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
-from xdsl.ir.core import Attribute, MLContext
+from xdsl.ir import Attribute, MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,

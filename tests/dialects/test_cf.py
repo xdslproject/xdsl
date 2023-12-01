@@ -7,13 +7,13 @@ from xdsl.ir import Block
 def test_assert():
     a = Constant.from_int_and_width(1, i1)
     b = Constant.from_int_and_width(1, i1)
-    c = Assert.get(a, "a")
-    d = Assert.get(b, StringAttr("b"))
+    c = Assert(a, "a")
+    d = Assert(b, StringAttr("b"))
 
     assert c.arg is a.result
     assert d.arg is b.result
-    assert c.attributes["msg"] == StringAttr("a")
-    assert d.attributes["msg"] == StringAttr("b")
+    assert c.properties["msg"] == StringAttr("a")
+    assert d.properties["msg"] == StringAttr("b")
 
 
 def test_branch():
@@ -23,7 +23,7 @@ def test_branch():
     c = Addi(a, b)
 
     block0 = Block([a, b, c])
-    br0 = Branch.get(block0)
+    br0 = Branch(block0)
     ops = list(br0.successors[0].ops)
 
     assert br0.successor is block0
@@ -43,7 +43,7 @@ def test_condbranch():
     block0 = Block(arg_types=[i32])
     block1 = Block(arg_types=[i32])
 
-    branch0 = ConditionalBranch.get(c, block0, [d], block1, [e])
+    branch0 = ConditionalBranch(c, block0, [d], block1, [e])
     assert branch0.cond is c.results[0]
     assert branch0.then_arguments[0] is d.results[0]
     assert branch0.else_arguments[0] is e.results[0]

@@ -14,13 +14,19 @@ from typing import (
     NoReturn,
     Protocol,
     TypeVar,
+    cast,
+    final,
+    get_args,
+    get_origin,
     overload,
 )
 
 from typing_extensions import Self
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
+from xdsl.utils import lexer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -34,6 +40,8 @@ OpT = TypeVar("OpT", bound="Operation")
 @dataclass
 class Dialect:
     """Contains the operations and attributes of a specific dialect"""
+
+    _name: str
 
     _operations: list[type[Operation]] = field(
         default_factory=list, init=True, repr=True
@@ -50,6 +58,10 @@ class Dialect:
     def attributes(self) -> Iterator[type[Attribute]]:
         return iter(self._attributes)
 
+    @property
+    def name(self) -> str:
+        return self._name
+
 
 @dataclass
 class MLContext:
@@ -57,36 +69,60 @@ class MLContext:
 
     allow_unregistered: bool = field(default=False)
 
-    _registeredOps: dict[str, type[Operation]] = field(init=False, default_factory=dict)
-    _registeredAttrs: dict[str, type[Attribute]] = field(
-        init=False, default_factory=dict
-    )
+    _loaded_dialects: dict[str, Dialect] = field(default_factory=dict)
+    _loaded_ops: dict[str, type[Operation]] = field(default_factory=dict)
+    _loaded_attrs: dict[str, type[Attribute]] = field(default_factory=dict)
 
-    def registered_ops(self) -> Iterable[type[Operation]]:
-        """
-        Returns all the registered operations. Not valid across mutations of this object.
-        """
-        return self._registeredOps.values()
+    def clone(self) -> MLContext:
+        return MLContext(
+            self.allow_unregistered,
+            self._loaded_dialects.copy(),
+            self._loaded_ops.copy(),
+            self._loaded_attrs.copy(),
+        )
 
-    def register_dialect(self, dialect: Dialect):
-        """Register a dialect. Operation and Attribute names should be unique"""
+    @property
+    def loaded_ops(self) -> Iterable[type[Operation]]:
+        """
+        Returns all the loaded operations. Not valid across mutations of this object.
+        """
+        return self._loaded_ops.values()
+
+    @property
+    def loaded_attrs(self) -> Iterable[type[Attribute]]:
+        """
+        Returns all the loaded attributes. Not valid across mutations of this object.
+        """
+        return self._loaded_attrs.values()
+
+    @property
+    def loaded_dialects(self) -> Iterable[Dialect]:
+        """
+        Returns all the loaded attributes. Not valid across mutations of this object.
+        """
+        return self._loaded_dialects.values()
+
+    def load_dialect(self, dialect: Dialect):
+        """Load a dialect. Operation and Attribute names should be unique"""
+        self._loaded_dialects[dialect.name] = dialect
+
         for op in dialect.operations:
-            self.register_op(op)
+            self.load_op(op)
 
         for attr in dialect.attributes:
-            self.register_attr(attr)
+            self.load_attr(attr)
 
-    def register_op(self, op: type[Operation]) -> None:
-        """Register an operation definition. Operation names should be unique."""
-        if op.name in self._registeredOps:
-            raise Exception(f"Operation {op.name} has already been registered")
-        self._registeredOps[op.name] = op
+    def load_op(self, op: type[Operation]) -> None:
+        """Load an operation definition. Operation names should be unique."""
+        if op.name in self._loaded_ops:
+            raise Exception(f"Operation {op.name} has already been loaded")
+        self._loaded_ops[op.name] = op
 
-    def register_attr(self, attr: type[Attribute]) -> None:
-        """Register an attribute definition. Attribute names should be unique."""
-        if attr.name in self._registeredAttrs:
-            raise Exception(f"Attribute {attr.name} has already been registered")
-        self._registeredAttrs[attr.name] = attr
+    def load_attr(self, attr: type[Attribute]) -> None:
+        """Load an attribute definition. Attribute names should be unique."""
+        if attr.name in self._loaded_attrs:
+            raise Exception(f"Attribute {attr.name} has already been loaded")
+        self._loaded_attrs[attr.name] = attr
 
     def get_optional_op(self, name: str) -> type[Operation] | None:
         """
@@ -94,13 +130,13 @@ class MLContext:
         If the operation is not registered, return None unless unregistered operations
         are allowed in the context, in which case return an UnregisteredOp.
         """
-        if name in self._registeredOps:
-            return self._registeredOps[name]
+        if name in self._loaded_ops:
+            return self._loaded_ops[name]
         if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredOp
 
             op_type = UnregisteredOp.with_name(name)
-            self._registeredOps[name] = op_type
+            self._loaded_ops[name] = op_type
             return op_type
         return None
 
@@ -127,15 +163,15 @@ class MLContext:
         additional flag is required to create an UnregisterAttr that is
         also a type.
         """
-        if name in self._registeredAttrs:
-            return self._registeredAttrs[name]
+        if name in self._loaded_attrs:
+            return self._loaded_attrs[name]
         if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredAttr
 
             attr_type = UnregisteredAttr.with_name_and_type(
                 name, create_unregistered_as_type
             )
-            self._registeredAttrs[name] = attr_type
+            self._loaded_attrs[name] = attr_type
             return attr_type
 
         return None
@@ -156,6 +192,16 @@ class MLContext:
         if attr_type := self.get_optional_attr(name, create_unregistered_as_type):
             return attr_type
         raise Exception(f"Attribute {name} is not registered")
+
+    def get_dialect(self, name: str) -> Dialect:
+        if (dialect := self.get_optional_dialect(name)) is None:
+            raise Exception(f"Dialect {name} is not registered")
+        return dialect
+
+    def get_optional_dialect(self, name: str) -> Dialect | None:
+        if name in self._loaded_dialects:
+            return self._loaded_dialects[name]
+        return None
 
 
 @dataclass(frozen=True)
@@ -324,21 +370,6 @@ class ErasedSSAValue(SSAValue):
         return hash(id(self))
 
 
-@dataclass
-class TypeAttribute:
-    """
-    This class should only be inherited by classes inheriting Attribute.
-    This class is only used for printing attributes in the MLIR format,
-    inheriting this class prefix the attribute by `!` instead of `#`.
-    """
-
-    def __post_init__(self):
-        if not isinstance(self, Attribute):
-            raise TypeError(
-                "TypeAttribute should only be inherited by classes inheriting Attribute"
-            )
-
-
 A = TypeVar("A", bound="Attribute")
 
 
@@ -355,6 +386,8 @@ class Attribute(ABC):
 
     def __post_init__(self):
         self._verify()
+        if not isinstance(self, Data | ParametrizedAttribute):
+            raise TypeError("Attributes should only be Data or ParameterizedAttribute")
 
     def _verify(self):
         self.verify()
@@ -373,6 +406,26 @@ class Attribute(ABC):
         printer = Printer(stream=res)
         printer.print_attribute(self)
         return res.getvalue()
+
+
+class TypeAttribute(Attribute):
+    """
+    This class should only be inherited by classes inheriting Attribute.
+    This class is only used for printing attributes in the MLIR format,
+    inheriting this class prefix the attribute by `!` instead of `#`.
+    """
+
+    pass
+
+
+class OpaqueSyntaxAttribute(Attribute):
+    """
+    This class should only be inherited by classes inheriting Attribute.
+    This class is only used for printing attributes in the opaque form,
+    as described at https://mlir.llvm.org/docs/LangRef/#dialect-attribute-values.
+    """
+
+    pass
 
 
 DataElement = TypeVar("DataElement", covariant=True)
@@ -417,6 +470,81 @@ class Data(Generic[DataElement], Attribute, ABC):
         """Print the attribute parameter."""
 
 
+EnumType = TypeVar("EnumType", bound=StrEnum)
+
+
+class EnumAttribute(Data[EnumType]):
+    """
+    Core helper for Enum Attributes. Takes a StrEnum type parameter, and defines
+    parsing/printing automatically from its values, restricted to be parsable as
+    identifiers.
+
+    example:
+    ```python
+    class MyEnum(StrEnum):
+        First = auto()
+        Second = auto()
+
+    class MyEnumAttribute(EnumAttribute[MyEnum], OpaqueSyntaxAttribute):
+        name = "example.my_enum"
+    ```
+    To use this attribute suffices to have a textual representation
+    of `example<my_enum first>` and ``example<my_enum second>``
+
+    """
+
+    enum_type: ClassVar[type[StrEnum]]
+
+    def __init_subclass__(cls) -> None:
+        """
+        This hook first checks two constraints, enforced to keep the implementation
+        reasonable, until more complex use cases appear. It then stores the Enum type
+        used by the subclass to use in parsing/printing.
+
+        The constraints are:
+
+        - Only direct, specialized inheritance is allowed. That is, using a subclass
+        of EnumAttribute as a base class is *not supported*.
+          This simplifies type-hacking code and I don't see it being too restrictive
+          anytime soon.
+        - The StrEnum values must all be parsable as identifiers. This is to keep the
+        parsing code simple and efficient. This restriction is easier to lift, but I
+        haven't yet met an example use case where it matters, so I'm keeping it simple.
+        """
+        orig_bases = getattr(cls, "__orig_bases__")
+        enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
+        enum_type = get_args(enumattr)[0]
+        if isinstance(enum_type, TypeVar):
+            raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
+
+        for v in enum_type:
+            if lexer.Lexer.bare_identifier_suffix_regex.fullmatch(v) is None:
+                raise ValueError(
+                    "All StrEnum values of an EnumAttribute must be parsable as an identifer."
+                )
+
+        cls.enum_type = enum_type
+
+    @final
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(" ", self.data.value)
+
+    @final
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> EnumType:
+        enum_type = cls.enum_type
+
+        val = parser.parse_identifier()
+        if val not in enum_type.__members__.values():
+            enum_values = list(enum_type)
+            if len(enum_values) == 1:
+                parser.raise_error(f"Expected `{enum_values[0]}`.")
+            parser.raise_error(
+                f"Expected `{'`, `'.join(enum_values[:-1])}` or `{enum_values[-1]}`."
+            )
+        return cast(EnumType, enum_type(val))
+
+
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
@@ -450,36 +578,35 @@ class ParametrizedAttribute(Attribute):
         """Print the attribute parameters."""
         printer.print_paramattr_parameters(self.parameters)
 
-    def _verify(self):
-        # Verifier generated by irdl_attr_def
-        attr_def = type(self).irdl_definition
-        attr_def.verify(self)
-        super()._verify()
-
     @classmethod
     @property
     def irdl_definition(cls) -> ParamAttrDef:
         """Get the IRDL attribute definition."""
         ...
 
+    def _verify(self):
+        # Verifier generated by irdl_attr_def
+        t: type[ParametrizedAttribute] = type(self)
+        attr_def = t.irdl_definition
+        attr_def.verify(self)
+        super()._verify()
+
 
 @dataclass(init=False)
 class IRNode(ABC):
-    parent: IRNode | None = field(default=None, init=False, repr=False)
-
     def is_ancestor(self, op: IRNode) -> bool:
         "Returns true if the IRNode is an ancestor of another IRNode."
         if op is self:
             return True
-        if op.parent is None:
+        if (parent := op.parent_node) is None:
             return False
-        return self.is_ancestor(op.parent)
+        return self.is_ancestor(parent)
 
     def get_toplevel_object(self) -> IRNode:
         """Get the operation, block, or region ancestor that has no parents."""
-        if self.parent is None:
+        if (parent := self.parent_node) is None:
             return self
-        return self.parent.get_toplevel_object()
+        return parent.get_toplevel_object()
 
     def is_structurally_equivalent(
         self,
@@ -487,6 +614,11 @@ class IRNode(ABC):
         context: dict[IRNode | SSAValue, IRNode | SSAValue] | None = None,
     ) -> bool:
         """Check if two IR nodes are structurally equivalent."""
+        ...
+
+    @property
+    @abstractmethod
+    def parent_node(self) -> IRNode | None:
         ...
 
     @abstractmethod
@@ -580,6 +712,10 @@ class Operation(IRNode):
     This is a static field, and is made empty by default by PyRDL if not set
     by the operation definition.
     """
+
+    @property
+    def parent_node(self) -> IRNode | None:
+        return self.parent
 
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
@@ -1152,7 +1288,7 @@ class Block(IRNode):
     _first_op: Operation | None = field(repr=False)
     _last_op: Operation | None = field(repr=False)
 
-    parent: Region | None
+    parent: Region | None = field(default=None, repr=False)
     """Parent region containing the block."""
 
     def __init__(
@@ -1170,6 +1306,10 @@ class Block(IRNode):
         self._last_op = None
 
         self.add_ops(ops)
+
+    @property
+    def parent_node(self) -> IRNode | None:
+        return self.parent
 
     @property
     def ops(self) -> BlockOps:
@@ -1489,6 +1629,10 @@ class Region(IRNode):
             blocks = (blocks,)
         for block in blocks:
             self.add_block(block)
+
+    @property
+    def parent_node(self) -> IRNode | None:
+        return self.parent
 
     def parent_block(self) -> Block | None:
         return self.parent.parent if self.parent else None

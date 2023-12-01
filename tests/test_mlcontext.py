@@ -26,7 +26,7 @@ class DummyAttr2(ParametrizedAttribute):
 def test_get_op():
     """Test `get_op` and `get_optional_op` methods."""
     ctx = MLContext()
-    ctx.register_op(DummyOp)
+    ctx.load_op(DummyOp)
 
     assert ctx.get_op("dummy") == DummyOp
     with pytest.raises(Exception):
@@ -42,7 +42,7 @@ def test_get_op_unregistered():
     methods with the `allow_unregistered` flag.
     """
     ctx = MLContext(allow_unregistered=True)
-    ctx.register_op(DummyOp)
+    ctx.load_op(DummyOp)
 
     assert ctx.get_optional_op("dummy") == DummyOp
     op = ctx.get_optional_op("dummy2")
@@ -56,7 +56,7 @@ def test_get_op_unregistered():
 def test_get_attr():
     """Test `get_attr` and `get_optional_attr` methods."""
     ctx = MLContext()
-    ctx.register_attr(DummyAttr)
+    ctx.load_attr(DummyAttr)
 
     assert ctx.get_attr("dummy_attr") == DummyAttr
     with pytest.raises(Exception):
@@ -73,7 +73,7 @@ def test_get_attr_unregistered(is_type: bool):
     methods with the `allow_unregistered` flag.
     """
     ctx = MLContext(allow_unregistered=True)
-    ctx.register_attr(DummyAttr)
+    ctx.load_attr(DummyAttr)
 
     assert (
         ctx.get_optional_attr("dummy_attr", create_unregistered_as_type=is_type)
@@ -92,3 +92,21 @@ def test_get_attr_unregistered(is_type: bool):
     )
     if is_type:
         assert issubclass(attr, TypeAttribute)
+
+
+def test_clone_function():
+    ctx = MLContext()
+    ctx.load_attr(DummyAttr)
+    ctx.load_op(DummyOp)
+
+    copy = ctx.clone()
+
+    assert ctx == copy
+    copy.load_op(DummyOp2)
+    assert ctx != copy
+
+    copy = ctx.clone()
+
+    assert ctx == copy
+    copy.load_attr(DummyAttr2)
+    assert ctx != copy

@@ -1,13 +1,14 @@
 import argparse
 import sys
 from collections.abc import Callable, Sequence
+from importlib.metadata import version
 from io import StringIO
 from typing import IO
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import print_assembly, riscv_code
 from xdsl.ir import MLContext
-from xdsl.passes import ModulePass
+from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool, get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
@@ -26,7 +27,7 @@ class xDSLOptMain(CommandLineTool):
     stream.
     """
 
-    pipeline: list[ModulePass]
+    pipeline: PipelinePass
     """ The pass-pipeline to be applied. """
 
     def __init__(
@@ -153,6 +154,13 @@ class xDSLOptMain(CommandLineTool):
             help="Print operations with debug info annotation, such as location.",
         )
 
+        arg_parser.add_argument(
+            "-v",
+            "--version",
+            action="version",
+            version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
+        )
+
     def register_pass(self, opPass: type[ModulePass]):
         self.available_passes[opPass.name] = opPass
 
@@ -212,9 +220,21 @@ class xDSLOptMain(CommandLineTool):
             if p.name not in self.available_passes:
                 raise Exception(f"Unrecognized pass: {p.name}")
 
-        self.pipeline = [
-            self.available_passes[p.name].from_pass_spec(p) for p in pipeline
-        ]
+        def callback(
+            previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
+        ) -> None:
+            if not self.args.disable_verify:
+                module.verify()
+            if self.args.print_between_passes:
+                print(f"IR after {previous_pass.name}:")
+                printer = Printer(stream=sys.stdout)
+                printer.print_op(module)
+                print("\n\n\n")
+
+        self.pipeline = PipelinePass(
+            [self.available_passes[p.name].from_pass_spec(p) for p in pipeline],
+            callback,
+        )
 
     def prepare_input(self) -> tuple[list[IO[str]], str]:
         """
@@ -253,16 +273,9 @@ class xDSLOptMain(CommandLineTool):
             assert isinstance(prog, ModuleOp)
             if not self.args.disable_verify:
                 prog.verify()
-            for p in self.pipeline:
-                p.apply(self.ctx, prog)
-                assert isinstance(prog, ModuleOp)
-                if not self.args.disable_verify:
-                    prog.verify()
-                if self.args.print_between_passes:
-                    print(f"IR after {p.name}:")
-                    printer = Printer(stream=sys.stdout)
-                    printer.print_op(prog)
-                    print("\n\n\n")
+            self.pipeline.apply(self.ctx, prog)
+            if not self.args.disable_verify:
+                prog.verify()
         except DiagnosticException as e:
             if self.args.verify_diagnostics:
                 print(e)

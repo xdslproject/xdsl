@@ -7,8 +7,7 @@ from xdsl.dialects.builtin import (
     ParametrizedAttribute,
     StringAttr,
 )
-from xdsl.ir import Dialect, Operation, OpResult, SSAValue, TypeAttribute
-from xdsl.ir.core import Region
+from xdsl.ir import Dialect, Operation, OpResult, Region, SSAValue, TypeAttribute
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
@@ -164,6 +163,7 @@ class HLSExtractStencilValue(IRDLOperation):
 
 
 HLS = Dialect(
+    "hls",
     [
         PragmaPipeline,
         PragmaUnroll,

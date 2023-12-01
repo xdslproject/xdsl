@@ -2,14 +2,11 @@ import pytest
 
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, func, memref, scf
-from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    DenseArrayBase,
     FloatAttr,
     IndexType,
     IntAttr,
-    IntegerAttr,
     IntegerType,
     StridedLayoutAttr,
     i32,
@@ -25,13 +22,13 @@ from xdsl.dialects.memref import (
     DmaWaitOp,
     ExtractAlignedPointerAsIndexOp,
     Load,
+    MemorySpaceCast,
     MemRefType,
     Store,
     Subview,
     UnrankedMemrefType,
 )
-from xdsl.ir import Attribute, OpResult
-from xdsl.ir.core import BlockArgument
+from xdsl.ir import Attribute, BlockArgument, OpResult
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
@@ -108,8 +105,11 @@ def test_memref_store_i32_with_dimensions():
 
 def test_memref_alloc():
     my_i32 = IntegerType(32)
+    my_layout = StridedLayoutAttr(strides=(2, 4, 6), offset=8)
+    my_memspace = builtin.IntegerAttr(0, i32)
     alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloc.get(my_i32, 64)
+    alloc2 = Alloc.get(my_i32, 64, [3, 1, 2], my_layout, my_memspace)
 
     assert alloc0.dynamic_sizes == ()
     assert type(alloc0.results[0]) is OpResult
@@ -118,12 +118,20 @@ def test_memref_alloc():
     assert type(alloc1.results[0]) is OpResult
     assert type(alloc1.results[0].type) is MemRefType
     assert alloc1.results[0].type.get_shape() == (1,)
+    assert type(alloc2.results[0]) is OpResult
+    assert type(alloc2.results[0].type) is MemRefType
+    assert alloc2.results[0].type.get_shape() == (3, 1, 2)
+    assert alloc2.results[0].type.layout == my_layout
+    assert alloc2.results[0].type.memory_space == my_memspace
 
 
 def test_memref_alloca():
     my_i32 = IntegerType(32)
+    my_layout = StridedLayoutAttr(strides=(2, 4, 6), offset=8)
+    my_memspace = builtin.IntegerAttr(0, i32)
     alloc0 = Alloca.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloca.get(my_i32, 64)
+    alloc2 = Alloc.get(my_i32, 64, [3, 1, 2], my_layout, my_memspace)
 
     assert type(alloc0.results[0]) is OpResult
     assert type(alloc0.results[0].type) is MemRefType
@@ -131,6 +139,11 @@ def test_memref_alloca():
     assert type(alloc1.results[0]) is OpResult
     assert type(alloc1.results[0].type) is MemRefType
     assert alloc1.results[0].type.get_shape() == (1,)
+    assert type(alloc2.results[0]) is OpResult
+    assert type(alloc2.results[0].type) is MemRefType
+    assert alloc2.results[0].type.get_shape() == (3, 1, 2)
+    assert alloc2.results[0].type.layout == my_layout
+    assert alloc2.results[0].type.memory_space == my_memspace
 
 
 def test_memref_dealloc():
@@ -211,15 +224,15 @@ def test_memref_matmul_verify():
                         out_i_j = memref.Load.get(out, [i, j])
                         new_out_val = arith.Addf(out_i_j, mul)
                         memref.Store.get(new_out_val, out, [i, j])
-                        scf.Yield.get()
+                        scf.Yield()
 
-                    scf.For.get(lit0, dim_a1, lit1, [], inner_loop)
-                    scf.Yield.get()
+                    scf.For(lit0, dim_a1, lit1, [], inner_loop)
+                    scf.Yield()
 
-                scf.For.get(lit0, dim_b0, lit1, [], mid_loop)
-                scf.Yield.get()
+                scf.For(lit0, dim_b0, lit1, [], mid_loop)
+                scf.Yield()
 
-            scf.For.get(lit0, dim_a0, lit1, [], outer_loop)
+            scf.For(lit0, dim_a0, lit1, [], outer_loop)
 
             func.Return(out)
 
@@ -231,53 +244,6 @@ def test_memref_matmul_verify():
 
     # check that it verifies correctly
     module.verify()
-
-
-def test_memref_subview():
-    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [10, 2])
-    memref_ssa_value = TestSSAValue(i32_memref_type)
-
-    res_memref_type = MemRefType.from_element_type_and_shape(i32, [1, 1])
-
-    offset_arg1 = Constant(IntegerAttr.from_int_and_width(0, 64), i64)
-    offset_arg2 = Constant(IntegerAttr.from_int_and_width(0, 64), i64)
-
-    size_arg1 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
-    size_arg2 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
-
-    stride_arg1 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
-    stride_arg2 = Constant(IntegerAttr.from_int_and_width(1, 64), i64)
-
-    operand_segment_sizes = ArrayAttr([IntAttr(1), IntAttr(2), IntAttr(2), IntAttr(2)])
-
-    static_offsets = DenseArrayBase.from_list(i64, [0, 0])
-    static_sizes = DenseArrayBase.from_list(i64, [1, 1])
-    static_strides = DenseArrayBase.from_list(i64, [1, 1])
-
-    subview = Subview.build(
-        operands=[
-            memref_ssa_value,
-            [offset_arg1, offset_arg2],
-            [size_arg1, size_arg2],
-            [stride_arg1, stride_arg2],
-        ],
-        attributes={
-            "operand_segment_sizes": operand_segment_sizes,
-            "static_offsets": static_offsets,
-            "static_sizes": static_sizes,
-            "static_strides": static_strides,
-        },
-        result_types=[res_memref_type],
-    )
-
-    assert subview.source is memref_ssa_value
-    assert subview.offsets == (offset_arg1.result, offset_arg2.result)
-    assert subview.sizes == (size_arg1.result, size_arg2.result)
-    assert subview.strides == (stride_arg1.result, stride_arg2.result)
-    assert subview.static_offsets is static_offsets
-    assert subview.static_sizes is static_sizes
-    assert subview.static_strides is static_strides
-    assert subview.result.type is res_memref_type
 
 
 def test_memref_subview_constant_parameters():
@@ -308,6 +274,49 @@ def test_memref_cast():
 
     assert cast.source is memref_ssa_value
     assert cast.dest.type is res_type
+
+
+def test_memref_memory_space_cast():
+    i32_memref_type = MemRefType.from_element_type_and_shape(
+        i32, [10, 2], memory_space=builtin.IntegerAttr(1, i32)
+    )
+    memref_ssa_value = TestSSAValue(i32_memref_type)
+
+    res_type = MemRefType.from_element_type_and_shape(
+        i32, [10, 2], memory_space=builtin.IntegerAttr(2, i32)
+    )
+    res_type_wrong_type = MemRefType.from_element_type_and_shape(
+        i64, [10, 2], memory_space=builtin.IntegerAttr(2, i32)
+    )
+    res_type_wrong_shape = MemRefType.from_element_type_and_shape(
+        i32, [10, 4], memory_space=builtin.IntegerAttr(2, i32)
+    )
+
+    memory_space_cast = MemorySpaceCast(memref_ssa_value, res_type)
+
+    assert memory_space_cast.source is memref_ssa_value
+    assert memory_space_cast.dest.type is res_type
+
+    with pytest.raises(
+        VerifyException,
+        match="Expected source and destination to have the same element type.",
+    ):
+        MemorySpaceCast(memref_ssa_value, res_type_wrong_type).verify()
+
+    with pytest.raises(
+        VerifyException, match="Expected source and destination to have the same shape."
+    ):
+        MemorySpaceCast(memref_ssa_value, res_type_wrong_shape).verify()
+
+    # Test helper function
+    dest_memory_space = builtin.IntegerAttr(2, i32)
+    memory_space_cast = MemorySpaceCast.from_type_and_target_space(
+        memref_ssa_value, i32_memref_type, dest_memory_space
+    )
+
+    assert memory_space_cast.source is memref_ssa_value
+    assert isinstance(memory_space_cast.dest.type, MemRefType)
+    assert memory_space_cast.dest.type.memory_space is dest_memory_space
 
 
 def test_dma_start():

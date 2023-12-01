@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 from enum import Enum
 from types import EllipsisType
-from typing import Literal
+from typing import Annotated, Generic, Literal, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -33,22 +34,24 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    ConstraintVar,
     IRDLOperation,
     Operand,
     OptOperand,
+    OptOpResult,
     ParameterDef,
     VarOperand,
-    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
+    opt_result_def,
+    prop_def,
     region_def,
     result_def,
     var_operand_def,
-    var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
@@ -334,6 +337,113 @@ class LinkageAttr(ParametrizedAttribute):
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
 
 
+ArgT = TypeVar("ArgT", bound=Attribute)
+
+
+class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
+    """Class for arithmetic binary operations."""
+
+    T = Annotated[Attribute, ArgT, ConstraintVar("T")]
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        attributes: dict[str, Attribute] = {},
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[lhs.type],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], attributes)
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.lhs.type)
+
+
+@irdl_op_definition
+class AddOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.add"
+
+
+@irdl_op_definition
+class SubOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.sub"
+
+
+@irdl_op_definition
+class MulOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.mul"
+
+
+@irdl_op_definition
+class UDivOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.udiv"
+
+
+@irdl_op_definition
+class SDivOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.sdiv"
+
+
+@irdl_op_definition
+class URemOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.urem"
+
+
+@irdl_op_definition
+class SRemOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.srem"
+
+
+@irdl_op_definition
+class AndOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.and"
+
+
+@irdl_op_definition
+class OrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.or"
+
+
+@irdl_op_definition
+class XOrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.xor"
+
+
+@irdl_op_definition
+class ShlOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.shl"
+
+
+@irdl_op_definition
+class LShrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.lshr"
+
+
+@irdl_op_definition
+class AShrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.ashr"
+
+
 @irdl_op_definition
 class GEPOp(IRDLOperation):
     """
@@ -449,12 +559,12 @@ class GEPOp(IRDLOperation):
 
     ptr: Operand = operand_def(LLVMPointerType)
     ssa_indices: VarOperand = var_operand_def(IntegerType)
-    elem_type: Attribute | None = opt_attr_def(Attribute)
+    elem_type: Attribute | None = opt_prop_def(Attribute)
 
     result: OpResult = result_def(LLVMPointerType)
 
-    rawConstantIndices: DenseArrayBase = attr_def(DenseArrayBase)
-    inbounds: UnitAttr | None = opt_attr_def(UnitAttr)
+    rawConstantIndices: DenseArrayBase = prop_def(DenseArrayBase)
+    inbounds: UnitAttr | None = opt_prop_def(UnitAttr)
 
     def __init__(
         self,
@@ -484,7 +594,7 @@ class GEPOp(IRDLOperation):
         if not isinstance(ptr_type, LLVMPointerType):
             raise ValueError("Input must be a pointer")
 
-        attrs: dict[str, Attribute] = {
+        props: dict[str, Attribute] = {
             "rawConstantIndices": DenseArrayBase.create_dense_int_or_index(
                 i32, indices
             ),
@@ -494,13 +604,13 @@ class GEPOp(IRDLOperation):
             if pointee_type is None:
                 raise ValueError("Opaque types must have a pointee type passed")
             # opaque input ptr => opaque output ptr
-            attrs["elem_type"] = LLVMPointerType.opaque()
+            props["elem_type"] = LLVMPointerType.opaque()
 
         if inbounds:
-            attrs["inbounds"] = UnitAttr()
+            props["inbounds"] = UnitAttr()
 
         super().__init__(
-            operands=[ptr, ssa_indices], result_types=[result_type], attributes=attrs
+            operands=[ptr, ssa_indices], result_types=[result_type], properties=props
         )
 
     @staticmethod
@@ -544,7 +654,8 @@ class AllocaOp(IRDLOperation):
 
     size: Operand = operand_def(IntegerType)
 
-    alignment: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    alignment: AnyIntegerAttr = prop_def(AnyIntegerAttr)
+    elem_type = opt_prop_def(Attribute)
 
     res: OpResult = result_def()
 
@@ -555,16 +666,16 @@ class AllocaOp(IRDLOperation):
         alignment: int = 32,
         as_untyped_ptr: bool = False,
     ):
-        attrs: dict[str, Attribute] = {
+        props: dict[str, Attribute] = {
             "alignment": IntegerAttr.from_int_and_width(alignment, 64)
         }
         if as_untyped_ptr:
             ptr_type = LLVMPointerType.opaque()
-            attrs["elem_type"] = elem_type
+            props["elem_type"] = elem_type
         else:
             ptr_type = LLVMPointerType.typed(elem_type)
 
-        super().__init__(operands=[size], attributes=attrs, result_types=[ptr_type])
+        super().__init__(operands=[size], properties=props, result_types=[ptr_type])
 
 
 @irdl_op_definition
@@ -601,6 +712,8 @@ class LoadOp(IRDLOperation):
 
     ptr: Operand = operand_def(LLVMPointerType)
 
+    ordering = opt_prop_def(IntegerAttr[IntegerType])
+
     dereferenced_value: OpResult = result_def()
 
     def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
@@ -624,10 +737,10 @@ class StoreOp(IRDLOperation):
     value: Operand = operand_def()
     ptr: Operand = operand_def(LLVMPointerType)
 
-    alignment: IntegerAttr[IntegerType] | None = opt_attr_def(IntegerAttr[IntegerType])
-    ordering: IntegerAttr[IntegerType] | None = opt_attr_def(IntegerAttr[IntegerType])
-    volatile_: UnitAttr | None = opt_attr_def(UnitAttr)
-    nontemporal: UnitAttr | None = opt_attr_def(UnitAttr)
+    alignment: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
+    ordering: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
+    volatile_: UnitAttr | None = opt_prop_def(UnitAttr)
+    nontemporal: UnitAttr | None = opt_prop_def(UnitAttr)
 
     def __init__(
         self,
@@ -638,20 +751,20 @@ class StoreOp(IRDLOperation):
         volatile: bool = False,
         nontemporal: bool = False,
     ):
-        attrs: dict[str, Attribute] = {
+        props: dict[str, Attribute] = {
             "ordering": IntegerAttr(ordering, i64),
         }
 
         if alignment is not None:
-            attrs["alignment"] = IntegerAttr[IntegerType](alignment, i64)
+            props["alignment"] = IntegerAttr[IntegerType](alignment, i64)
         if volatile:
-            attrs["volatile_"] = UnitAttr()
+            props["volatile_"] = UnitAttr()
         if nontemporal:
-            attrs["nontemporal"] = UnitAttr()
+            props["nontemporal"] = UnitAttr()
 
         super().__init__(
             operands=[value, ptr],
-            attributes=attrs,
+            properties=props,
             result_types=[],
         )
 
@@ -745,17 +858,20 @@ class UndefOp(IRDLOperation):
 class GlobalOp(IRDLOperation):
     name = "llvm.mlir.global"
 
-    global_type: Attribute = attr_def(Attribute)
-    constant: UnitAttr | None = opt_attr_def(UnitAttr)
-    sym_name: StringAttr = attr_def(StringAttr)
-    linkage: LinkageAttr = attr_def(LinkageAttr)
-    dso_local: UnitAttr | None = opt_attr_def(UnitAttr)
-    thread_local_: UnitAttr | None = opt_attr_def(UnitAttr)
-    value: Attribute | None = opt_attr_def(Attribute)
-    alignment: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
-    addr_space: AnyIntegerAttr = attr_def(AnyIntegerAttr)
-    unnamed_addr: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
-    section: StringAttr | None = opt_attr_def(StringAttr)
+    global_type: Attribute = prop_def(Attribute)
+    constant: UnitAttr | None = opt_prop_def(UnitAttr)
+    sym_name: StringAttr = prop_def(StringAttr)
+    linkage: LinkageAttr = prop_def(LinkageAttr)
+    dso_local: UnitAttr | None = opt_prop_def(UnitAttr)
+    thread_local_: UnitAttr | None = opt_prop_def(UnitAttr)
+    visibility_: IntegerAttr[IntegerType] | None = opt_prop_def(
+        IntegerAttr[IntegerType]
+    )
+    value: Attribute | None = opt_prop_def(Attribute)
+    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
+    addr_space: AnyIntegerAttr = prop_def(AnyIntegerAttr)
+    unnamed_addr: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
+    section: StringAttr | None = opt_prop_def(StringAttr)
 
     # This always needs an empty region as it is in the top level module definition
     body: Region = region_def()
@@ -782,7 +898,7 @@ class GlobalOp(IRDLOperation):
         if isinstance(linkage, str):
             linkage = LinkageAttr(linkage)
 
-        attrs: dict[str, Attribute] = {
+        props: dict[str, Attribute] = {
             "global_type": global_type,
             "sym_name": sym_name,
             "linkage": linkage,
@@ -790,36 +906,36 @@ class GlobalOp(IRDLOperation):
         }
 
         if constant is not None and constant:
-            attrs["constant"] = UnitAttr()
+            props["constant"] = UnitAttr()
 
         if dso_local is not None and dso_local:
-            attrs["dso_local"] = UnitAttr()
+            props["dso_local"] = UnitAttr()
 
         if thread_local_ is not None and thread_local_:
-            attrs["thread_local_"] = UnitAttr()
+            props["thread_local_"] = UnitAttr()
 
         if value is not None:
-            attrs["value"] = value
+            props["value"] = value
 
         if alignment is not None:
-            attrs["alignment"] = IntegerAttr(alignment, 64)
+            props["alignment"] = IntegerAttr(alignment, 64)
 
         if unnamed_addr is not None:
-            attrs["unnamed_addr"] = IntegerAttr(unnamed_addr, 64)
+            props["unnamed_addr"] = IntegerAttr(unnamed_addr, 64)
 
         if section is not None:
             if isinstance(section, str):
                 section = StringAttr(section)
-            attrs["section"] = section
+            props["section"] = section
 
-        super().__init__(attributes=attrs, regions=[Region([])])
+        super().__init__(properties=props, regions=[Region([])])
 
 
 @irdl_op_definition
 class AddressOfOp(IRDLOperation):
     name = "llvm.mlir.addressof"
 
-    global_name: SymbolRefAttr = attr_def(SymbolRefAttr)
+    global_name: SymbolRefAttr = prop_def(SymbolRefAttr)
     result: OpResult = result_def(LLVMPointerType)
 
     def __init__(
@@ -831,7 +947,7 @@ class AddressOfOp(IRDLOperation):
             global_name = SymbolRefAttr(global_name)
 
         super().__init__(
-            attributes={"global_name": global_name}, result_types=[result_type]
+            properties={"global_name": global_name}, result_types=[result_type]
         )
 
 
@@ -897,11 +1013,11 @@ class FuncOp(IRDLOperation):
     name = "llvm.func"
 
     body: Region = region_def()
-    sym_name: StringAttr = attr_def(StringAttr)
-    function_type: LLVMFunctionType = attr_def(LLVMFunctionType)
-    CConv: CallingConventionAttr = attr_def(CallingConventionAttr)
-    linkage: LinkageAttr = attr_def(LinkageAttr)
-    visibility_: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
+    sym_name: StringAttr = prop_def(StringAttr)
+    function_type: LLVMFunctionType = prop_def(LLVMFunctionType)
+    CConv: CallingConventionAttr = prop_def(CallingConventionAttr)
+    linkage: LinkageAttr = prop_def(LinkageAttr)
+    visibility_: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
 
     def __init__(
         self,
@@ -921,7 +1037,7 @@ class FuncOp(IRDLOperation):
         super().__init__(
             operands=[],
             regions=[body],
-            attributes={
+            properties={
                 "sym_name": sym_name,
                 "function_type": function_type,
                 "CConv": cconv,
@@ -951,39 +1067,10 @@ class ReturnOp(IRDLOperation):
 class ConstantOp(IRDLOperation):
     name = "llvm.mlir.constant"
     result: OpResult = result_def(Attribute)
-    value: Attribute = attr_def(Attribute)
+    value: Attribute = prop_def(Attribute)
 
     def __init__(self, value: Attribute, value_type: Attribute):
-        super().__init__(attributes={"value": value}, result_types=[value_type])
-
-
-@irdl_op_definition
-class CallIntrinsicOp(IRDLOperation):
-    """
-    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop
-    """
-
-    name = "llvm.call_intrinsic"
-
-    intrin: StringAttr = attr_def(StringAttr)
-    args: VarOperand = var_operand_def()
-    ress: VarOpResult = var_result_def()
-
-    def __init__(
-        self,
-        intrin: StringAttr | str,
-        args: Sequence[SSAValue],
-        result_types: Sequence[Attribute],
-    ):
-        if isinstance(intrin, str):
-            intrin = StringAttr(intrin)
-        super().__init__(
-            operands=args,
-            result_types=(result_types,),
-            attributes={
-                "intrin": intrin,
-            },
-        )
+        super().__init__(properties={"value": value}, result_types=[value_type])
 
 
 class FastMathFlag(Enum):
@@ -1034,29 +1121,61 @@ class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> tuple[FastMathFlag, ...]:
-        flags = FastMathFlag.try_parse(parser)
-        if flags is None:
-            return tuple()
+        with parser.in_angle_brackets():
+            flags = FastMathFlag.try_parse(parser)
+            if flags is None:
+                return tuple()
 
-        while parser.parse_optional_punctuation(",") is not None:
-            flag = parser.expect(
-                lambda: FastMathFlag.try_parse(parser), "fastmath flag expected"
-            )
-            flags.update(flag)
+            while parser.parse_optional_punctuation(",") is not None:
+                flag = parser.expect(
+                    lambda: FastMathFlag.try_parse(parser), "fastmath flag expected"
+                )
+                flags.update(flag)
 
-        return tuple(flags)
+            return tuple(flags)
 
     def print_parameter(self, printer: Printer):
-        flags = self.data
-        if len(flags) == 0:
-            printer.print("none")
-        elif len(flags) == len(FastMathFlag):
-            printer.print("fast")
-        else:
-            # make sure we emit flags in a consistent order
-            printer.print(
-                ",".join(flag.value for flag in FastMathFlag if flag in flags)
-            )
+        with printer.in_angle_brackets():
+            flags = self.data
+            if len(flags) == 0:
+                printer.print("none")
+            elif len(flags) == len(FastMathFlag):
+                printer.print("fast")
+            else:
+                # make sure we emit flags in a consistent order
+                printer.print(
+                    ",".join(flag.value for flag in FastMathFlag if flag in flags)
+                )
+
+
+@irdl_op_definition
+class CallIntrinsicOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvmcall_intrinsic-mlirllvmcallintrinsicop
+    """
+
+    name = "llvm.call_intrinsic"
+
+    fastmathFlags: FastMathAttr | None = opt_prop_def(FastMathAttr)
+    intrin: StringAttr = prop_def(StringAttr)
+    args: VarOperand = var_operand_def()
+    ress: OptOpResult = opt_result_def()
+
+    def __init__(
+        self,
+        intrin: StringAttr | str,
+        args: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+    ):
+        if isinstance(intrin, str):
+            intrin = StringAttr(intrin)
+        super().__init__(
+            operands=args,
+            result_types=(result_types,),
+            properties={
+                "intrin": intrin,
+            },
+        )
 
 
 @irdl_op_definition
@@ -1065,8 +1184,8 @@ class CallOp(IRDLOperation):
 
     args: VarOperand = var_operand_def()
 
-    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
-    fastmathFlags: FastMathAttr = attr_def(FastMathAttr)
+    callee: SymbolRefAttr = prop_def(SymbolRefAttr)
+    fastmathFlags: FastMathAttr = prop_def(FastMathAttr)
 
     def __init__(
         self,
@@ -1079,7 +1198,7 @@ class CallOp(IRDLOperation):
 
         super().__init__(
             operands=[args],
-            attributes={
+            properties={
                 "callee": callee,
                 "fastmathFlags": fastmath,
             },
@@ -1087,7 +1206,21 @@ class CallOp(IRDLOperation):
 
 
 LLVM = Dialect(
+    "llvm",
     [
+        AddOp,
+        SubOp,
+        MulOp,
+        UDivOp,
+        SDivOp,
+        URemOp,
+        SRemOp,
+        AndOp,
+        OrOp,
+        XOrOp,
+        ShlOp,
+        LShrOp,
+        AShrOp,
         ExtractValueOp,
         InsertValueOp,
         UndefOp,

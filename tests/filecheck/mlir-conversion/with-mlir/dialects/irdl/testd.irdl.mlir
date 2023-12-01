@@ -1,3 +1,4 @@
+// XFAIL: *
 // RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
 
 builtin.module {

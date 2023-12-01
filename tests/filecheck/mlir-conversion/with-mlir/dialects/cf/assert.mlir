@@ -5,4 +5,4 @@
   "cf.assert"(%0) {msg = "some message"} : (i1) -> ()
 }) : () -> ()
 
-// CHECK: "cf.assert"(%{{.*}}) {msg = "some message"} : (i1) -> ()
+// CHECK: "cf.assert"(%{{.*}}) <{msg = "some message"}> : (i1) -> ()

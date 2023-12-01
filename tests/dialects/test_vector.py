@@ -21,8 +21,7 @@ from xdsl.dialects.vector import (
     Print,
     Store,
 )
-from xdsl.ir import OpResult
-from xdsl.ir.core import Attribute
+from xdsl.ir import Attribute, OpResult
 from xdsl.utils.test_value import TestSSAValue
 
 

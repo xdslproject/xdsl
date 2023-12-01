@@ -71,4 +71,4 @@ class Mul(IRDLOperation):
         return Mul.build(operands=[operand1, operand2], result_types=[operand1.type])
 
 
-CMath = Dialect([Norm, Mul], [ComplexType])
+CMath = Dialect("cmath", [Norm, Mul], [ComplexType])

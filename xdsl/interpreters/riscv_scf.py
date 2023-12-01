@@ -10,6 +10,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.interpreters.riscv import RiscvFunctions
 
 
 @register_impls
@@ -24,10 +25,12 @@ class RiscvScfFunctions(InterpreterFunctions):
         op: riscv_scf.ForOp,
         args: tuple[Any, ...],
     ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         lb, ub, step, *loop_args = args
         loop_args = tuple(loop_args)
 
         for i in range(lb, ub, step):
+            RiscvFunctions.set_reg_value(interpreter, op.body.block.args[0].type, i)
             loop_args = interpreter.run_ssacfg_region(
                 op.body, (i, *loop_args), "for_loop"
             )

@@ -24,7 +24,7 @@ def main():
     ctx = MLContext()
     dialects = get_all_dialects()
     for dialect in dialects:
-        ctx.register_dialect(dialect)
+        ctx.load_dialect(dialect)
 
     # Parse the input file
     f = open(args.input_file)

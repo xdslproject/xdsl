@@ -1,13 +1,12 @@
 from xdsl.dialects import affine, arith, builtin, memref, scf
-from xdsl.ir import MLContext, SSAValue
-from xdsl.ir.affine import AffineConstantExpr
-from xdsl.ir.affine.affine_expr import (
+from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir.affine import (
     AffineBinaryOpExpr,
     AffineBinaryOpKind,
+    AffineConstantExpr,
     AffineDimExpr,
     AffineSymExpr,
 )
-from xdsl.ir.core import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -115,7 +114,7 @@ class LowerAffineFor(RewritePattern):
         step_op = arith.Constant(op.step)
         rewriter.insert_op_before_matched_op(step_op)
         rewriter.replace_matched_op(
-            scf.For.get(
+            scf.For(
                 lb_val,
                 ub_val,
                 step_op.result,
@@ -128,7 +127,7 @@ class LowerAffineFor(RewritePattern):
 class LowerAffineYield(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.Yield, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(scf.Yield.get(*op.arguments))
+        rewriter.replace_matched_op(scf.Yield(*op.arguments))
 
 
 class LowerAffinePass(ModulePass):

@@ -115,9 +115,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         interpreter.register_implementations(BuiltinFunctions())
 
     if emit in ("riscv", "riscv-opt", "riscv-regalloc", "riscv-regalloc-opt"):
-        interpreter.register_implementations(
-            ToyAcceleratorInstructionFunctions(module_op)
-        )
+        interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
         interpreter.register_implementations(RiscvScfFunctions())
 

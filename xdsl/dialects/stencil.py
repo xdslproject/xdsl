@@ -13,11 +13,11 @@ from xdsl.ir import (
     Dialect,
     Operation,
     OpResult,
+    ParametrizedAttribute,
     Region,
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.core import ParametrizedAttribute
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
@@ -58,7 +58,7 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
         return [ArrayAttr(IntAttr(i) for i in ints)]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print(f'<{", ".join((str(e) for e in self))}>')
+        printer.print(f'<{", ".join(str(e) for e in self)}>')
 
     def verify(self) -> None:
         l = len(self)
@@ -864,6 +864,7 @@ class AccessPattern:
 
 
 Stencil = Dialect(
+    "stencil",
     [
         CastOp,
         ExternalLoadOp,

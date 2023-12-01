@@ -7,7 +7,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.cf import CfFunctions
 from xdsl.interpreters.func import FuncFunctions
-from xdsl.ir.core import Block, Region
+from xdsl.ir import Block, Region
 
 
 def sum_to_fn(n: int) -> int:
@@ -30,20 +30,20 @@ def sum_to_op():
     with ImplicitBuilder(prologue):
         result = arith.Constant.from_int_and_width(0, 32).result
         i = arith.Constant.from_int_and_width(0, 32).result
-        cf.Branch.get(loop_iter, result, i)
+        cf.Branch(loop_iter, result, i)
 
     with ImplicitBuilder(loop_iter):
         (n,) = prologue.args
         result, i = loop_iter.args
         cond = arith.Cmpi(i, n, "sle")
-        cf.ConditionalBranch.get(cond, loop_body, (result, i), epilogue, (result,))
+        cf.ConditionalBranch(cond, loop_body, (result, i), epilogue, (result,))
 
     with ImplicitBuilder(loop_body):
         result, i = loop_iter.args
         new_result = arith.Addi(result, i)
         one = arith.Constant.from_int_and_width(1, 32)
         new_i = arith.Addi(i, one)
-        cf.Branch.get(loop_iter, new_result, new_i)
+        cf.Branch(loop_iter, new_result, new_i)
 
     with ImplicitBuilder(epilogue):
         (result,) = epilogue.args

@@ -451,11 +451,11 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             assert isinstance(step, int)
             op = affine.For.from_region([], [], start, end, body, step)
         else:
-            self.inserter.insert_op(scf.Yield.get())
+            self.inserter.insert_op(scf.Yield())
             assert isinstance(start, SSAValue)
             assert isinstance(end, SSAValue)
             assert isinstance(step, SSAValue)
-            op = scf.For.get(start, end, step, [], body)
+            op = scf.For(start, end, step, [], body)
 
         self.inserter.set_insertion_point_from_block(curr_block)
         self.inserter.insert_op(op)
@@ -527,9 +527,9 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # In our case, if statement never returns a value and therefore we can
         # simply yield nothing. It is the responsibility of subsequent passes to
         # ensure SSA-form of IR and that values are yielded correctly.
-        true_region.blocks[-1].add_op(scf.Yield.get())
-        false_region.blocks[-1].add_op(scf.Yield.get())
-        op = scf.If.get(cond, [], true_region, false_region)
+        true_region.blocks[-1].add_op(scf.Yield())
+        false_region.blocks[-1].add_op(scf.Yield())
+        op = scf.If(cond, [], true_region, false_region)
 
         # Reset insertion point and insert a new operation.
         self.inserter.set_insertion_point_from_block(cond_block)
@@ -545,7 +545,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             self.inserter.set_insertion_point_from_region(region)
             self.visit(expr)
             result = self.inserter.get_operand()
-            self.inserter.insert_op(scf.Yield.get(result))
+            self.inserter.insert_op(scf.Yield(result))
             return result.type, region
 
         # Generate code for both branches.
@@ -561,7 +561,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 f"Expected the same types for if expression,"
                 f" but got {true_type} and {false_type}.",
             )
-        op = scf.If.get(cond, [true_type], true_region, false_region)
+        op = scf.If(cond, [true_type], true_region, false_region)
 
         # Reset insertion point to add scf.if.
         self.inserter.set_insertion_point_from_block(cond_block)

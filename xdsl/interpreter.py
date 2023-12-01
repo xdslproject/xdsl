@@ -12,8 +12,7 @@ from typing import (
 )
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, OperationInvT, SSAValue
-from xdsl.ir.core import Attribute, Block, Region
+from xdsl.ir import Attribute, Block, Operation, OperationInvT, Region, SSAValue
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 
@@ -421,6 +420,12 @@ class Interpreter:
     )
     file: IO[str] | None = field(default=None)
     _symbol_table: dict[str, Operation] | None = None
+    _impl_data: dict[type[InterpreterFunctions], dict[str, Any]] = field(
+        default_factory=dict
+    )
+    """
+    Runtime data associated with an interpreter functions implementation.
+    """
 
     @property
     def symbol_table(self) -> dict[str, Operation]:
@@ -581,6 +586,31 @@ class Interpreter:
             return self.symbol_table[symbol]
         else:
             raise InterpretationError(f'Could not find symbol "{symbol}"')
+
+    def get_data(
+        self,
+        functions: type[InterpreterFunctions],
+        key: str,
+        factory: Callable[[], Any],
+    ) -> Any:
+        """
+        Get data associated with a specific interpreter functions class, with a given key.
+        If the data is missing, the `factory` argument will be executed and stored on the
+        interpreter.
+        """
+        if functions not in self._impl_data:
+            functions_data = {}
+            self._impl_data[functions] = functions_data
+        else:
+            functions_data = self._impl_data[functions]
+
+        if key not in functions_data:
+            data = factory()
+            functions_data[key] = data
+        else:
+            data = functions_data[key]
+
+        return data
 
     def print(self, *args: Any, **kwargs: Any):
         """Print to current file."""

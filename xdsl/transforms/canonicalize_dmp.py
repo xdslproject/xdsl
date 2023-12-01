@@ -11,8 +11,8 @@ from xdsl.pattern_rewriter import (
 
 class CanonicalizeDmpSwap(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: dmp.HaloSwapOp, rewriter: PatternRewriter, /):
-        keeps: list[dmp.HaloExchangeDecl] = []
+    def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
+        keeps: list[dmp.ExchangeDeclarationAttr] = []
         if op.swaps is None:
             return
         for swap in op.swaps:

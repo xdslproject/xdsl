@@ -11,12 +11,12 @@ from typing import TypeAlias, TypeVar, cast
 from xdsl.builder import Builder
 from xdsl.dialects import affine, arith, func, memref
 from xdsl.dialects.builtin import (
-    Float32Type,
+    Float64Type,
     FloatAttr,
     IndexType,
     IntegerAttr,
     ModuleOp,
-    f32,
+    f64,
 )
 from xdsl.dialects.printf import PrintFormatOp
 from xdsl.ir import Block, MLContext, Operation, Region, SSAValue
@@ -33,18 +33,18 @@ from ..dialects import toy
 
 # region Helpers
 
-MemrefTypeF32: TypeAlias = memref.MemRefType[Float32Type]
+MemrefTypeF64: TypeAlias = memref.MemRefType[Float64Type]
 
 
-def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF32:
+def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF64:
     """
     Convert the given RankedTensorType into the corresponding MemRefType.
     """
-    return memref.MemRefType.from_element_type_and_shape(f32, type.shape)
+    return memref.MemRefType.from_element_type_and_shape(f64, type.shape)
 
 
 def insert_alloc_and_dealloc(
-    type: MemrefTypeF32, op: Operation, rewriter: PatternRewriter
+    type: MemrefTypeF64, op: Operation, rewriter: PatternRewriter
 ) -> memref.Alloc:
     """
     Insert an allocation and deallocation for the given MemRefType.
@@ -224,12 +224,12 @@ def build_affine_loop_from_values(
 
     if (
         isinstance(lb_const, arith.Constant)
-        and isinstance(lb_const.value, IntegerAttr)
+        and isinstance(lb_const_value := lb_const.value, IntegerAttr)
         and isinstance(ub_const, arith.Constant)
-        and isinstance(ub_const.value, IntegerAttr)
+        and isinstance(ub_const_value := ub_const.value, IntegerAttr)
     ):
-        lb_val = lb_const.value.value.data
-        ub_val = ub_const.value.value.data
+        lb_val = lb_const_value.value.data
+        ub_val = ub_const_value.value.data
         return build_affine_loop_from_constants(
             builder, lb_val, ub_val, step, body_builder_fn
         )
@@ -361,7 +361,7 @@ class ConstantOpLowering(RewritePattern):
 
         # Scalar constant values for elements of the tensor
         constants: list[arith.Constant] = [
-            arith.Constant(FloatAttr(i.value.data, f32)) for i in constant_value.data
+            arith.Constant(FloatAttr(i.value.data, f64)) for i in constant_value.data
         ]
 
         # n-d indices of elements

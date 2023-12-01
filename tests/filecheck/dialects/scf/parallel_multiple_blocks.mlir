@@ -9,7 +9,7 @@
     "scf.yield"() : () -> ()
   ^bb1():
     "scf.yield"() : () -> ()
-  }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
+  }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 }) : () -> ()
 
 // CHECK: scf.parallel operation does not verify

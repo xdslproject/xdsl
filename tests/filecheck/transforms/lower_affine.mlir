@@ -18,20 +18,20 @@
 
 // CHECK:      "builtin.module"() ({
 // CHECK-NEXT:     %v0, %m = "test.op"() : () -> (f32, memref<2x3xf32>)
-// CHECK-NEXT:     %0 = "arith.constant"() {"value" = 1 : index} : () -> index
-// CHECK-NEXT:     %1 = "arith.constant"() {"value" = 2 : index} : () -> index
+// CHECK-NEXT:     %0 = "arith.constant"() <{"value" = 1 : index}> : () -> index
+// CHECK-NEXT:     %1 = "arith.constant"() <{"value" = 2 : index}> : () -> index
 // CHECK-NEXT:     "memref.store"(%v0, %m, %0, %1) : (f32, memref<2x3xf32>, index, index) -> ()
-// CHECK-NEXT:     %2 = "arith.constant"() {"value" = 1 : index} : () -> index
-// CHECK-NEXT:     %3 = "arith.constant"() {"value" = 2 : index} : () -> index
+// CHECK-NEXT:     %2 = "arith.constant"() <{"value" = 1 : index}> : () -> index
+// CHECK-NEXT:     %3 = "arith.constant"() <{"value" = 2 : index}> : () -> index
 // CHECK-NEXT:     %v1 = "memref.load"(%m, %2, %3) : (memref<2x3xf32>, index, index) -> f32
-// CHECK-NEXT:     %4 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:     %5 = "arith.constant"() {"value" = 2 : index} : () -> index
-// CHECK-NEXT:     %6 = "arith.constant"() {"value" = 1 : index} : () -> index
+// CHECK-NEXT:     %4 = "arith.constant"() <{"value" = 0 : index}> : () -> index
+// CHECK-NEXT:     %5 = "arith.constant"() <{"value" = 2 : index}> : () -> index
+// CHECK-NEXT:     %6 = "arith.constant"() <{"value" = 1 : index}> : () -> index
 // CHECK-NEXT:     %v2 = "scf.for"(%4, %5, %6, %v1) ({
 // CHECK-NEXT:     ^0(%r : index, %acc0 : f32):
-// CHECK-NEXT:       %7 = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:       %8 = "arith.constant"() {"value" = 3 : index} : () -> index
-// CHECK-NEXT:       %9 = "arith.constant"() {"value" = 1 : index} : () -> index
+// CHECK-NEXT:       %7 = "arith.constant"() <{"value" = 0 : index}> : () -> index
+// CHECK-NEXT:       %8 = "arith.constant"() <{"value" = 3 : index}> : () -> index
+// CHECK-NEXT:       %9 = "arith.constant"() <{"value" = 1 : index}> : () -> index
 // CHECK-NEXT:       %v3 = "scf.for"(%7, %8, %9, %acc0) ({
 // CHECK-NEXT:       ^1(%c : index, %acc1 : f32):
 // CHECK-NEXT:         %v4 = "memref.load"(%m, %r, %c) : (memref<2x3xf32>, index, index) -> f32

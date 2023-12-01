@@ -43,8 +43,16 @@ from xdsl.dialects.stencil import (
     StencilBoundsAttr,
     TempType,
 )
-from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue
-from xdsl.ir.core import Block, BlockArgument, Region
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    MLContext,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -96,14 +104,14 @@ def gen_duplicate_loop(
             hls_write.attributes["duplicate"] = IntAttr(1)
             builder.insert(hls_write)
 
-        yield_op = scf.Yield.get()
+        yield_op = scf.Yield()
         builder.insert(yield_op)
 
     lb = Constant.from_int_and_width(0, IndexType())
     ub = n
     step = Constant.from_int_and_width(1, IndexType())
 
-    for_duplicate = scf.For.get(lb, ub, step, [], for_body)
+    for_duplicate = scf.For(lb, ub, step, [], for_body)
 
     return [ii, lb, ub, step, for_duplicate]
 
@@ -158,8 +166,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         LLVMStructType.from_type_list([func_arg_elem_type])
         LLVMStructType.from_type_list([stencil_type])
 
-        assert isinstance(field.type, MemRefType)
-        shape = field.type.get_shape()
+        field_type = field.type
+        assert isinstance(field_type, MemRefType)
+        shape = field_type.get_shape()
 
         if len(shape) < 3:
             return
@@ -254,7 +263,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         duplicateStream_dataflow = PragmaDataflow(duplicateStream_region)
 
-        ndims = len(field.type.get_shape())
+        ndims = len(field_type.get_shape())
         if inout is IN and ndims == 3:
             rewriter.insert_op_before_matched_op(
                 [
@@ -361,7 +370,7 @@ def transform_apply_into_loop(
 ):
     body = prepare_apply_body(op, rewriter)
 
-    body.block.add_op(scf.Yield.get())
+    body.block.add_op(scf.Yield())
     dim: int = ndim
     assert dim == 3
 
@@ -419,7 +428,7 @@ def transform_apply_into_loop(
     current_region = body
     for_op_lst: list[scf.For] = []
     for i in range(1, dim + 1):
-        for_op = scf.For.get(
+        for_op = scf.For(
             lb=lowerBounds[-i],
             ub=upperBounds[-i],
             step=one,
@@ -427,7 +436,7 @@ def transform_apply_into_loop(
             body=current_region,
         )
         for_op_lst.append(for_op)
-        block = Block(ops=[for_op, scf.Yield.get()], arg_types=[builtin.IndexType()])
+        block = Block(ops=[for_op, scf.Yield()], arg_types=[builtin.IndexType()])
         current_region = Region(block)
 
         # if i == 2:
@@ -442,9 +451,9 @@ def transform_apply_into_loop(
             )
 
     y_for_op = for_op_lst[1]
-    p = scf.ParallelOp.get(
-        lowerBounds=[lowerBounds[0]],
-        upperBounds=[upperBounds[0]],
+    p = scf.ParallelOp(
+        lower_bounds=[lowerBounds[0]],
+        upper_bounds=[upperBounds[0]],
         steps=[one],
         body=current_region,
     )
@@ -528,9 +537,10 @@ class ApplyOpToHLS(RewritePattern):
 
             for i in range(len(apply_clone.operands)):
                 operand: OpResult = typing.cast(OpResult, apply_clone.operands[i])
-                assert isinstance(operand.type, TempType)
-                assert isinstance(operand.type.bounds, StencilBoundsAttr)
-                n_dims = len(operand.type.bounds.lb)
+                operand_type = operand.type
+                assert isinstance(operand_type, TempType)
+                assert isinstance(operand_type.bounds, StencilBoundsAttr)
+                n_dims = len(operand_type.bounds.lb)
 
                 if n_dims == 3:
                     stream = self.shift_streams[current_stream][k]
@@ -763,8 +773,9 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
                 assert isinstance(new_op.owner, Operation)
                 func_arg = new_op.owner.operands[-1]
 
-            assert isinstance(op.field.type, MemRefType)
-            shape = op.field.type.shape
+            op_field_type = op.field.type
+            assert isinstance(op_field_type, MemRefType)
+            shape = op_field_type.shape
             shape_x = Constant.from_int_and_width(shape.data[0].value.data, i32)
             shape_y = Constant.from_int_and_width(shape.data[1].value.data, i32)
             shape_z = Constant.from_int_and_width(shape.data[2].value.data, i32)
@@ -902,8 +913,9 @@ def get_number_input_stencils(op: FuncOp):
     # ndims = len(field.typ.get_shape())
     def dim(o: ExternalLoadOp):
         assert isinstance(o.field, OpResult)
-        assert isinstance(o.field.type, memref.MemRefType)
-        return len(o.field.type.get_shape())
+        op_field_type = o.field.type
+        assert isinstance(op_field_type, memref.MemRefType)
+        return len(op_field_type.get_shape())
 
     external_load_lst = [
         o
@@ -1024,8 +1036,9 @@ class PackData(RewritePattern):
             func_arg = new_op.owner.operands[-1]
             new_op = new_op.owner.operands[0]
 
-        assert isinstance(field.type, memref.MemRefType)
-        shape = field.type.get_shape()
+        field_type = field.type
+        assert isinstance(field_type, memref.MemRefType)
+        shape = field_type.get_shape()
         ndims = len(shape)
 
         arg_idx = func_arg.index
@@ -1114,17 +1127,18 @@ class GetRepeatedCoefficients(RewritePattern):
         assert isinstance(op.source, OpResult)
         assert isinstance(op.source.op, memref.Cast)
         cast = op.source.op  # original memref
-        assert isinstance(cast.dest.type, memref.MemRefType)
+        cast_dest_type = cast.dest.type
+        assert isinstance(cast_dest_type, memref.MemRefType)
         cast.clone()
 
-        dim = len(cast.dest.type.shape.data)
-        cast.dest.type.shape.data[0].value.data
+        dim = len(cast_dest_type.shape.data)
+        cast_dest_type.shape.data[0].value.data
         if dim == 1:
             uses_copy = set(op.results[0].uses)
             for use in uses_copy:
                 if isinstance(use.operation, memref.Load):
                     memref_copy = memref.Alloca.get(
-                        return_type=f64, shape=cast.dest.type.shape
+                        return_type=f64, shape=cast_dest_type.shape
                     )
                     use.operation.operands[0] = memref_copy.results[0]
                     rewriter.insert_op_before_matched_op(memref_copy)
@@ -1151,8 +1165,9 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
             and not self.inserted_already
             and len(self.original_memref_lst) > 0
         ):
-            assert isinstance(self.original_memref_lst[0].dest.type, memref.MemRefType)
-            dim = self.original_memref_lst[0].dest.type.shape.data[0].value.data
+            original_memref_lst_dest_type = self.original_memref_lst[0].dest.type
+            assert isinstance(original_memref_lst_dest_type, memref.MemRefType)
+            dim = original_memref_lst_dest_type.shape.data[0].value.data
 
             lb = Constant.from_int_and_width(0, IndexType())
             ub = Constant.from_int_and_width(dim, IndexType())
@@ -1172,10 +1187,10 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
                     builder.insert(load_op)
                     builder.insert(store_op)
 
-                yield_op = scf.Yield.get()
+                yield_op = scf.Yield()
                 builder.insert(yield_op)
 
-            for_local_copies = scf.For.get(lb, ub, step, [], for_body)
+            for_local_copies = scf.For(lb, ub, step, [], for_body)
             rewriter.insert_op_before_matched_op([lb, ub, step, ii, for_local_copies])
 
             self.inserted_already = True

@@ -9,7 +9,7 @@
   "scf.parallel"(%0, %3, %1, %4, %2) ({
   ^bb0(%i: index):
     "scf.yield"() : () -> ()
-  }) {"operand_segment_sizes" = array<i32: 2, 2, 1, 0>} : (index, index, index, index, index) -> ()
+  }) {"operandSegmentSizes" = array<i32: 2, 2, 1, 0>} : (index, index, index, index, index) -> ()
 }) : () -> ()
 
 // CHECK: Expected the same number of lower bounds, upper bounds, and steps for scf.parallel. Got 2, 2 and 1.

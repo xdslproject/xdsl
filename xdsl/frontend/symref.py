@@ -51,4 +51,4 @@ class Update(IRDLOperation):
         return Update.build(operands=[value], attributes={"symbol": symbol})
 
 
-Symref = Dialect([Declare, Fetch, Update], [])
+Symref = Dialect("symref", [Declare, Fetch, Update], [])

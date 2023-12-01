@@ -298,5 +298,7 @@ class Createmask(IRDLOperation):
 
 
 Vector = Dialect(
-    [Load, Store, Broadcast, FMA, Maskedload, Maskedstore, Print, Createmask], []
+    "vector",
+    [Load, Store, Broadcast, FMA, Maskedload, Maskedstore, Print, Createmask],
+    [],
 )

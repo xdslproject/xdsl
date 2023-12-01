@@ -20,6 +20,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    BaseAttr,
     ConstraintVar,
     IRDLOperation,
     OpDef,
@@ -49,7 +50,6 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
-from xdsl.irdl.irdl import BaseAttr
 from xdsl.utils.exceptions import (
     DiagnosticException,
     PyRDLOpDefinitionError,
@@ -87,12 +87,28 @@ def test_get_definition():
         results=[("result", ResultDef(AnyAttr()))],
         attributes={
             "attr": AttributeDef(AnyAttr()),
-            "operand_segment_sizes": AttributeDef(BaseAttr(DenseArrayBase)),
+            "operandSegmentSizes": AttributeDef(BaseAttr(DenseArrayBase)),
         },
         properties={"prop": PropertyDef(AnyAttr())},
         regions=[("region", RegionDef())],
         accessor_names={"attr": ("attr", "attribute"), "prop": ("prop", "property")},
         options=[AttrSizedOperandSegments()],
+    )
+
+
+@irdl_op_definition
+class PropOptionOp(IRDLOperation):
+    name = "test.prop_option_test"
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+
+def test_property_option():
+    """Test retrieval of an IRDL definition from an operation"""
+    assert PropOptionOp.irdl_definition == OpDef(
+        "test.prop_option_test",
+        properties={"operandSegmentSizes": PropertyDef(BaseAttr(DenseArrayBase))},
+        options=[AttrSizedOperandSegments(as_property=True)],
     )
 
 
@@ -139,7 +155,7 @@ class AttrOp(IRDLOperation):
 def test_attr_verify():
     op = AttrOp.create(attributes={"attr": IntAttr(1)})
     with pytest.raises(
-        VerifyException, match="#int<1> should be of base attribute string"
+        VerifyException, match="#builtin.int<1> should be of base attribute string"
     ):
         op.verify()
 
@@ -573,3 +589,41 @@ def test_generic_op():
     )
     with pytest.raises(DiagnosticException):
         op_result_fail.verify()
+
+
+class OtherParentOp(IRDLOperation):
+    other_attr = attr_def(Attribute)
+
+
+@irdl_op_definition
+class OtherStringFooOp(GenericOp[StringAttr, FooType, FooType], OtherParentOp):
+    name = "test.string_specialized"
+
+
+def test_multiple_inheritance_op():
+    """Test generic operation."""
+    FooOperand = TestSSAValue(TestType("foo"))
+    FooResultType = TestType("foo")
+
+    op = OtherStringFooOp(
+        attributes={"attr": StringAttr("test"), "other_attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    op.verify()
+
+    op_attr_fail = OtherStringFooOp(
+        attributes={"attr": IntAttr(1), "other_attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_attr_fail.verify()
+
+    op = OtherStringFooOp(
+        attributes={"attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_attr_fail.verify()

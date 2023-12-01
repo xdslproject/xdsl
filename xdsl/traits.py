@@ -227,9 +227,8 @@ class SymbolTable(OpTrait):
         block = op.regions[0].blocks[0]
         met_names: set[StringAttr] = set()
         for o in block.ops:
-            if "sym_name" not in o.attributes:
+            if (sym_name := o.get_attr_or_prop("sym_name")) is None:
                 continue
-            sym_name = o.attributes["sym_name"]
             if not isinstance(sym_name, StringAttr):
                 continue
             if sym_name in met_names:
@@ -265,6 +264,48 @@ class SymbolTable(OpTrait):
                 return SymbolTable.lookup_symbol(o, nested_name)
         return None
 
+    @staticmethod
+    def insert_or_update(
+        symbol_table_op: Operation, symbol_op: Operation
+    ) -> Operation | None:
+        """
+        This takes a symbol_table_op and a symbol_op. It looks if another operation
+        inside symbol_table_op already defines symbol_ops symbol. If another operation
+        is found, it replaces that operation with symbol_op. Otherwise, symbol_op is
+        inserted at the end of symbol_table_op.
+
+        This method returns the operation that was replaced or None if no operation
+        was replaced.
+        """
+        trait = symbol_op.get_trait(SymbolOpInterface)
+
+        if trait is None:
+            raise ValueError(
+                "Passed symbol_op does not have the SymbolOpInterface trait"
+            )
+
+        symbol_name = trait.get_sym_attr_name(symbol_op)
+
+        if symbol_name is None:
+            raise ValueError("Passed symbol_op does not have a symbol attribute name")
+
+        tbl_trait = symbol_table_op.get_trait(SymbolTable)
+
+        if tbl_trait is None:
+            raise ValueError("Passed symbol_table_op does not have a SymbolTable trait")
+
+        defined_symbol = tbl_trait.lookup_symbol(symbol_table_op, symbol_name)
+
+        if defined_symbol is None:
+            symbol_table_op.regions[0].blocks[0].add_op(symbol_op)
+            return None
+        else:
+            parent = defined_symbol.parent
+            assert parent is not None
+            parent.insert_op_after(symbol_op, defined_symbol)
+            parent.detach_op(defined_symbol)
+            return defined_symbol
+
 
 class SymbolOpInterface(OpTrait):
     """
@@ -291,17 +332,15 @@ class SymbolOpInterface(OpTrait):
         # import builtin here to avoid circular import
         from xdsl.dialects.builtin import StringAttr
 
-        if "sym_name" not in op.attributes and self.is_optional_symbol(op):
+        sym_name = op.get_attr_or_prop("sym_name")
+        if sym_name is None and self.is_optional_symbol(op):
             return None
-        if "sym_name" not in op.attributes or not isinstance(
-            op.attributes["sym_name"], StringAttr
-        ):
+        if not isinstance(sym_name, StringAttr):
             raise VerifyException(
                 f'Operation {op.name} must have a "sym_name" attribute of type '
                 f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
             )
-        attr = op.attributes["sym_name"]
-        return attr
+        return sym_name
 
     def is_optional_symbol(self, op: Operation) -> bool:
         """
@@ -311,19 +350,10 @@ class SymbolOpInterface(OpTrait):
         return False
 
     def verify(self, op: Operation) -> None:
-        # import builtin here to avoid circular import
-        from xdsl.dialects.builtin import StringAttr
-
-        # If this is an optional symbol, bail out early if possible.
-        if self.is_optional_symbol(op) and "sym_name" not in op.attributes:
-            return
-        if "sym_name" not in op.attributes or not isinstance(
-            op.attributes["sym_name"], StringAttr
-        ):
-            raise VerifyException(
-                f'Operation {op.name} must have a "sym_name" attribute of type '
-                f"`StringAttr` to conform to {SymbolOpInterface.__name__}"
-            )
+        # This helper has the same behaviour, so we reuse it as a verifier.That is, it
+        # raises a VerifyException iff this operation is a non-optional symbol *and*
+        # there is no "sym_name" attribute or property.
+        self.get_sym_attr_name(op)
 
 
 class OptionalSymbolOpInterface(SymbolOpInterface):

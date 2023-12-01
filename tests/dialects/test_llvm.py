@@ -2,9 +2,42 @@ from io import StringIO
 
 import pytest
 
-from xdsl.dialects import arith, builtin, llvm
+from xdsl.dialects import arith, builtin, llvm, test
+from xdsl.dialects.builtin import IntegerType, UnitAttr, i32
+from xdsl.ir import Attribute
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+
+
+@pytest.mark.parametrize(
+    "op_type, attributes",
+    [
+        (llvm.AddOp, {}),
+        (llvm.AddOp, {"attr1": UnitAttr()}),
+        (llvm.SubOp, {}),
+        (llvm.MulOp, {}),
+        (llvm.UDivOp, {}),
+        (llvm.SDivOp, {}),
+        (llvm.URemOp, {}),
+        (llvm.SRemOp, {}),
+        (llvm.AndOp, {}),
+        (llvm.OrOp, {}),
+        (llvm.XOrOp, {}),
+        (llvm.ShlOp, {}),
+        (llvm.LShrOp, {}),
+        (llvm.AShrOp, {}),
+    ],
+)
+def test_llvm_arithmetic_ops(
+    op_type: type[llvm.ArithmeticBinOpBase[IntegerType]],
+    attributes: dict[str, Attribute],
+):
+    op1, op2 = test.TestOp(result_types=[i32, i32]).results
+    assert op_type(op1, op2, attributes).is_structurally_equivalent(
+        op_type.create(
+            operands=[op1, op2], result_types=[op1.type], attributes=attributes
+        )
+    )
 
 
 def test_llvm_pointer_ops():
@@ -30,10 +63,10 @@ def test_llvm_pointer_ops():
     assert ptr.res.type.type == builtin.i32
     assert isinstance(ptr.res.type.addr_space, builtin.NoneAttr)
 
-    assert "volatile_" in store.attributes
-    assert "nontemporal" in store.attributes
-    assert "alignment" in store.attributes
-    assert "ordering" in store.attributes
+    assert "volatile_" in store.properties
+    assert "nontemporal" in store.properties
+    assert "alignment" in store.properties
+    assert "ordering" in store.properties
 
     assert isinstance(nullptr.nullptr.type, llvm.LLVMPointerType)
     assert isinstance(nullptr.nullptr.type.type, builtin.NoneAttr)
@@ -100,10 +133,10 @@ def test_llvm_getelementptr_op():
         inbounds=True,
     )
 
-    assert "inbounds" in gep1.attributes
+    assert "inbounds" in gep1.properties
     assert gep1.result.type == ptr_type
     assert gep1.ptr == ptr.res
-    assert "elem_type" not in gep1.attributes
+    assert "elem_type" not in gep1.properties
     assert len(gep1.rawConstantIndices.data) == 1
     assert len(gep1.ssa_indices) == 0
 
@@ -115,8 +148,8 @@ def test_llvm_getelementptr_op():
         pointee_type=builtin.i32,
     )
 
-    assert "elem_type" in gep2.attributes
-    assert "inbounds" not in gep2.attributes
+    assert "elem_type" in gep2.properties
+    assert "inbounds" not in gep2.properties
     assert gep2.result.type == ptr_type
     assert len(gep1.rawConstantIndices.data) == 1
     assert len(gep1.ssa_indices) == 0
@@ -173,8 +206,8 @@ def test_global_op():
     assert isinstance(global_op.unnamed_addr, builtin.IntegerAttr)
     assert global_op.unnamed_addr.value.data == 0
     assert isinstance(global_op.linkage, llvm.LinkageAttr)
-    assert isinstance(global_op.value, builtin.IntegerAttr)
-    assert global_op.value.value.data == 76
+    assert isinstance(global_op_value := global_op.value, builtin.IntegerAttr)
+    assert global_op_value.value.data == 76
 
 
 def test_addressof_op():

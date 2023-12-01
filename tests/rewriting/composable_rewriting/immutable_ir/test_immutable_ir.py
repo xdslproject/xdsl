@@ -13,62 +13,62 @@ from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (  # n
 
 program_region = """
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
 }) : () -> ()
 """
 
 program_region_2 = """
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
 }) : () -> ()
 """
 
 program_region_2_diff_name = """
 "builtin.module"() ({
-  %cst = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
 }) : () -> ()
 """
 
 program_region_2_diff_type = """
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 2 : i64} : () -> i64
+  %0 = "arith.constant"() <{"value" = 2 : i64}> : () -> i64
 }) : () -> ()
 """
 
 program_add = """
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  %1 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
   %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
 }) : () -> ()
 """
 
 program_add_2 = """
 "builtin.module"() ({
-  %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
-  %1 = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  %1 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
   %2 = "arith.addi"(%1, %0) : (i32, i32) -> i32
 }) : () -> ()
 """
 
 program_func = """
 "builtin.module"() ({
-  "func.func"() ({
+  "func.func"() <{"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"}> ({
   ^0(%0 : i32, %1 : i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
-  }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
+  }) : () -> ()
 }) : () -> ()
 """
 
 program_successors = """
 "builtin.module"() ({
-  "func.func"() ({
+  "func.func"() <{"sym_name" = "unconditional_br", "function_type" = () -> (), "sym_visibility" = "private"}> ({
   ^0:
     "cf.br"() [^1] : () -> ()
   ^1:
     "cf.br"() [^0] : () -> ()
-  }) {"sym_name" = "unconditional_br", "function_type" = () -> (), "sym_visibility" = "private"} : () -> ()
+  }) : () -> ()
 }) : () -> ()
 """
 
@@ -95,11 +95,11 @@ program_attr_and_prop = """
 )
 def test_immutable_ir(program_str: str):
     ctx = MLContext()
-    ctx.register_dialect(Test)
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Cf)
+    ctx.load_dialect(Test)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Cf)
 
     parser = Parser(ctx, program_str)
     program: Operation = parser.parse_op()

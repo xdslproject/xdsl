@@ -14,15 +14,14 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 .ONESHELL:
 
 # these targets don't produce files:
-.PHONY: clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
+.PHONY: venv clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
 .PHONY: coverage coverage-tests coverage-filecheck-tests coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
-venv: requirements-optional.txt requirements.txt
+venv: requirements.txt
 	python3 -m venv ${VENV_DIR}
-	source ${VENV_DIR}/bin/activate
-	python3 -m pip --require-virtualenv install -r requirements-optional.txt -r requirements.txt
-	python3 -m pip --require-virtualenv install -e ".[extras]"
+	. ${VENV_DIR}/bin/activate
+	python3 -m pip --require-virtualenv install -r requirements.txt
 
 # remove all caches and the venv
 clean:
@@ -51,11 +50,11 @@ tests-toy: filecheck-toy pytest-toy
 
 # run all tests
 tests: pytest tests-toy filecheck pytest-nb pyright
-	@echo test
+	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory
 rerun-notebooks:
-	jupyter nbconvert --ClearMetadataPreprocessor.enabled=True --inplace --to notebook --execute docs/*.ipynb
+	jupyter nbconvert --ClearMetadataPreprocessor.enabled=True --inplace --to notebook --execute docs/*.ipynb docs/Toy/*.ipynb
 
 # set up all precommit hooks
 precommit-install:

@@ -77,7 +77,7 @@ def test_lower_mpi_finalize():
 def test_lower_mpi_wait_no_status():
     (request,) = CreateTestValsOp.get(mpi.RequestType()).results
 
-    ops, result = lower_mpi.LowerMpiWait(info).lower(mpi.Wait.get(request))
+    ops, result = lower_mpi.LowerMpiWait(info).lower(mpi.Wait(request))
 
     assert len(result) == 0
     call = extract_func_call(ops)
@@ -90,7 +90,7 @@ def test_lower_mpi_wait_with_status():
     (request,) = CreateTestValsOp.get(mpi.RequestType()).results
 
     ops, result = lower_mpi.LowerMpiWait(info).lower(
-        mpi.Wait.get(request, ignore_status=False)
+        mpi.Wait(request, ignore_status=False)
     )
 
     assert len(result) == 1
@@ -105,7 +105,7 @@ def test_lower_mpi_wait_with_status():
 
 
 def test_lower_mpi_comm_rank():
-    ops, result = lower_mpi.LowerMpiCommRank(info).lower(mpi.CommRank.get())
+    ops, result = lower_mpi.LowerMpiCommRank(info).lower(mpi.CommRank())
 
     assert len(result) == 1
     assert result[0] is not None
@@ -121,7 +121,7 @@ def test_lower_mpi_comm_rank():
 
 
 def test_lower_mpi_comm_size():
-    ops, result = lower_mpi.LowerMpiCommSize(info).lower(mpi.CommSize.get())
+    ops, result = lower_mpi.LowerMpiCommSize(info).lower(mpi.CommSize())
 
     assert len(result) == 1
     assert result[0] is not None
@@ -142,7 +142,7 @@ def test_lower_mpi_send():
     ).results
 
     ops, result = lower_mpi.LowerMpiSend(info).lower(
-        mpi.Send.get(buff, size, dtype, dest, tag)
+        mpi.Send(buff, size, dtype, dest, tag)
     )
     """
     Check for function with signature like:
@@ -166,7 +166,7 @@ def test_lower_mpi_isend():
     ).results
 
     ops, result = lower_mpi.LowerMpiIsend(info).lower(
-        mpi.Isend.get(ptr, count, dtype, dest, tag, req)
+        mpi.Isend(ptr, count, dtype, dest, tag, req)
     )
     """
     Check for function with signature like:
@@ -202,7 +202,7 @@ def test_lower_mpi_recv_no_status():
     """
 
     ops, result = lower_mpi.LowerMpiRecv(info).lower(
-        mpi.Recv.get(buff, count, dtype, source, tag, ignore_status=True)
+        mpi.Recv(buff, count, dtype, source, tag, ignore_status=True)
     )
 
     assert len(result) == 0
@@ -232,7 +232,7 @@ def test_lower_mpi_recv_with_status():
     """
 
     ops, result = lower_mpi.LowerMpiRecv(info).lower(
-        mpi.Recv.get(buff, count, dtype, source, tag, ignore_status=False)
+        mpi.Recv(buff, count, dtype, source, tag, ignore_status=False)
     )
 
     assert len(result) == 1
@@ -262,7 +262,7 @@ def test_lower_mpi_irecv():
     """
 
     ops, result = lower_mpi.LowerMpiIrecv(info).lower(
-        mpi.Irecv.get(ptr, count, dtype, source, tag, req)
+        mpi.Irecv(ptr, count, dtype, source, tag, req)
     )
 
     # recv has no results
@@ -293,7 +293,7 @@ def test_lower_mpi_reduce():
     """
 
     ops, result = lower_mpi.LowerMpiReduce(info).lower(
-        mpi.Reduce.get(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM, root)
+        mpi.Reduce(ptr, ptr, count, dtype, mpi.MpiOp.MPI_SUM, root)
     )
 
     # reduce has no results
@@ -324,7 +324,7 @@ def test_lower_mpi_all_reduce_no_send_buffer():
     """
 
     ops, result = lower_mpi.LowerMpiAllreduce(info).lower(
-        mpi.Allreduce.get(None, ptr, count, dtype, mpi.MpiOp.MPI_SUM)
+        mpi.Allreduce(None, ptr, count, dtype, mpi.MpiOp.MPI_SUM)
     )
 
     # allreduce has no results
@@ -350,9 +350,9 @@ def test_mpi_waitall():
     ).results
 
     dummy = arith.Constant.from_int_and_width(4, 32)
-    alloc_request_op = mpi.AllocateTypeOp.get(mpi.RequestType, dummy)
+    alloc_request_op = mpi.AllocateTypeOp(mpi.RequestType, dummy)
     req_op: Operand = alloc_request_op.results[0]
-    waitall = mpi.Waitall.get(req_op, count)
+    waitall = mpi.Waitall(req_op, count)
 
     assert waitall.operands[0] == req_op
     assert waitall.operands[1] == count
@@ -370,7 +370,7 @@ def test_lower_mpi_bcast():
     """
 
     ops, result = lower_mpi.LowerMpiBcast(info).lower(
-        mpi.Bcast.get(ptr, count, dtype, root)
+        mpi.Bcast(ptr, count, dtype, root)
     )
 
     # bcast has no results
@@ -391,7 +391,7 @@ def test_lower_mpi_bcast():
 
 def test_lower_mpi_allocate():
     (count,) = CreateTestValsOp.get(i32).results
-    op = mpi.AllocateTypeOp.get(mpi.RequestType, count)
+    op = mpi.AllocateTypeOp(mpi.RequestType, count)
 
     ops, res = lower_mpi.LowerMpiAllocateType(info).lower(op)
 
@@ -404,8 +404,8 @@ def test_lower_mpi_vec_get():
     mod = builtin.ModuleOp(
         [
             count := CreateTestValsOp.get(i32),
-            vec := mpi.AllocateTypeOp.get(mpi.RequestType, count),
-            get := mpi.VectorGetOp.get(vec, count),
+            vec := mpi.AllocateTypeOp(mpi.RequestType, count),
+            get := mpi.VectorGetOp(vec, count),
         ]
     )
     # we have to apply this rewrite to that the argument type of the `get`

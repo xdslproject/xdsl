@@ -17,10 +17,10 @@
 }) : () -> ()
 
 // CHECK: "builtin.module"() ({
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 0 : index} : () -> index
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 42 : index} : () -> index
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 7 : index} : () -> index
-// CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 36 : index} : () -> index
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 0 : index}> : () -> index
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 42 : index}> : () -> index
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 7 : index}> : () -> index
+// CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 36 : index}> : () -> index
 // CHECK-NEXT:   %{{.*}} = "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) ({
 // CHECK-NEXT:   ^0(%{{.*}} : index, %{{.*}} : index):
 // CHECK-NEXT:     %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (index, index) -> index

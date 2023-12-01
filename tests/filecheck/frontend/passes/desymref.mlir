@@ -8,7 +8,7 @@
   }) : () -> ()
 
   // CHECK-NEXT: "builtin.module"() ({
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 5 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
   // CHECK-NEXT: }) : () -> ()
 
 
@@ -32,9 +32,9 @@
   }) : () -> ()
 
   // CHECK-NEXT: "builtin.module"() ({
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 42 : i32} : () -> i32
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 11 : i32} : () -> i32
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 23 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 11 : i32}> : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 23 : i32}> : () -> i32
   // CHECK-NEXT: }) : () -> ()
 
 
@@ -49,9 +49,9 @@
   }) : () -> ()
 
   // CHECK-NEXT: "builtin.module"() ({
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 42 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
   // CHECK-NEXT:   %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 7 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 7 : i32}> : () -> i32
   // CHECK-NEXT:   %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
   // CHECK-NEXT: }) : () -> ()
 
@@ -69,8 +69,8 @@
   }) : () -> ()
 
   // CHECK-NEXT: "builtin.module"() ({
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 11 : i32} : () -> i32
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 22 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 11 : i32}> : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 22 : i32}> : () -> i32
   // CHECK-NEXT:   %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
   // CHECK-NEXT: }) : () -> ()
 
@@ -99,9 +99,9 @@
   }) : () -> ()
 
   // CHECK-NEXT: "builtin.module"() ({
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 0 : i32} : () -> i32
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : i32} : () -> i32
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 0 : i32}> : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
   // CHECK-NEXT:   %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
   // CHECK-NEXT:   %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
   // CHECK-NEXT:   %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
@@ -131,10 +131,10 @@
   }) : () -> ()
 
   // CHECK-NEXT: "builtin.module"() ({
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 0 : i32} : () -> i32
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 0 : i32}> : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   // CHECK-NEXT:   "symref.update"(%{{.*}}) {"symbol" = @a} : (i32) -> ()
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
   // CHECK-NEXT:   "symref.update"(%{{.*}}) {"symbol" = @c} : (i32) -> ()
   // CHECK-NEXT: }) : () -> ()
 
@@ -150,7 +150,7 @@
   // CHECK-NEXT: "builtin.module"() ({
   // CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @b} : () -> i32
   // CHECK-NEXT:   %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 5 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 5 : i32}> : () -> i32
   // CHECK-NEXT:   %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
   // CHECK-NEXT: }) : () -> ()
 
@@ -177,9 +177,9 @@
   }) : () -> ()
 
   // CHECK-NEXT: "builtin.module"() ({
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 1 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
   // CHECK-NEXT:   "symref.update"(%{{.*}}) {"symbol" = @b} : (i32) -> ()
-  // CHECK-NEXT:   %{{.*}} = "arith.constant"() {"value" = 2 : i32} : () -> i32
+  // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
   // CHECK-NEXT:   %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
   // CHECK-NEXT:   %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
   // CHECK-NEXT:   "symref.update"(%{{.*}}) {"symbol" = @a} : (i32) -> ()

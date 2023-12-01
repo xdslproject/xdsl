@@ -14,7 +14,7 @@ builtin.module {
       "scf.reduce.return"(%9) : (f32) -> ()
     }) : (f32) -> ()
     "scf.yield"() : () -> ()
-  }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f32
+  }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f32
 }
 
 // CHECK:      builtin.module {
@@ -23,7 +23,7 @@ builtin.module {
 // CHECK-NEXT:   %2 = arith.constant 3 : index
 // CHECK-NEXT:   %3 = arith.constant 1.020000e+01 : f32
 // CHECK-NEXT:   %4 = arith.constant 1.810000e+01 : f32
-// CHECK-NEXT:   %5 = "scf.parallel"(%0, %1, %2, %3) ({
+// CHECK-NEXT:   %5 = "scf.parallel"(%0, %1, %2, %3) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 1>}> ({
 // CHECK-NEXT:   ^0(%6 : index):
 // CHECK-NEXT:     "scf.reduce"(%4) ({
 // CHECK-NEXT:     ^1(%7 : f32, %8 : f32):
@@ -31,5 +31,5 @@ builtin.module {
 // CHECK-NEXT:       "scf.reduce.return"(%9) : (f32) -> ()
 // CHECK-NEXT:     }) : (f32) -> ()
 // CHECK-NEXT:     scf.yield
-// CHECK-NEXT:   }) {"operand_segment_sizes" = array<i32: 1, 1, 1, 1>} : (index, index, index, f32) -> f32
+// CHECK-NEXT:   }) : (index, index, index, f32) -> f32
 // CHECK-NEXT:

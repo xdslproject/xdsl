@@ -17,7 +17,7 @@ def test_linalg_on_memrefs():
 
         @Builder.implicit_region((f32, f32))
         def body(args: tuple[Any, ...]):
-            linalg.Yield(args[0])
+            linalg.YieldOp(args[0])
 
         indexing = AffineExpr.dimension(0)
         indexing_map = AffineMap(1, 0, (indexing,))
@@ -44,7 +44,7 @@ def test_loop_range_methods():
     @Builder.implicit_region((f32, f32, f32))
     def body(args: tuple[Any, ...]):
         a, b, c = args
-        linalg.Yield(arith.Addf(arith.Mulf(a, b), c))
+        linalg.YieldOp(arith.Addf(arith.Mulf(a, b), c))
 
     i = AffineExpr.dimension(0)
     j = AffineExpr.dimension(1)

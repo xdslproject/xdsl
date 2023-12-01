@@ -6,9 +6,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal, NoReturn, cast
 
-import xdsl.parser.affine_parser as affine_parser
+import xdsl.parser as affine_parser
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AffineSetAttr,
     AnyArrayAttr,
     AnyFloat,
     AnyFloatAttr,
@@ -50,7 +51,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.parser.base_parser import BaseParser
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.hints import isa
@@ -91,7 +92,7 @@ class AttrParser(BaseParser):
         if (
             token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
         ) is not None:
-            return self._parse_dialect_type_or_attribute_inner(token.text[1:], True)
+            return self._parse_dialect_type_or_attribute(token.text[1:], True)
         return self._parse_optional_builtin_type()
 
     def parse_type(self) -> Attribute:
@@ -123,7 +124,7 @@ class AttrParser(BaseParser):
                             | [^[]<>(){}\0]+
         """
         if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
-            return self._parse_dialect_type_or_attribute_inner(token.text[1:], False)
+            return self._parse_dialect_type_or_attribute(token.text[1:], False)
         return self._parse_optional_builtin_attr()
 
     def parse_attribute(self) -> Attribute:
@@ -171,53 +172,107 @@ class AttrParser(BaseParser):
             return dict()
         return dict(attrs)
 
-    def _parse_dialect_type_or_attribute_inner(
-        self, attr_name: str, is_type: bool = True
-    ) -> Attribute:
+    def _parse_dialect_type_or_attribute_body(
+        self,
+        attr_name: str,
+        is_type: bool,
+        is_opaque: bool,
+        starting_opaque_pos: Position | None,
+    ):
         """
-        Parse the contents of a dialect type or attribute, with format:
-            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
-                                    | `(` dialect-attribute-contents+ `)`
-                                    | `[` dialect-attribute-contents+ `]`
-                                    | `{` dialect-attribute-contents+ `}`
+        Parse the contents of an attribute or type, with syntax:
+            dialect-attr-contents ::= `<` dialect-attr-contents+ `>`
+                                    | `(` dialect-attr-contents+ `)`
+                                    | `[` dialect-attr-contents+ `]`
+                                    | `{` dialect-attr-contents+ `}`
                                     | [^[]<>(){}\0]+
-        The contents will be parsed by a user-defined parser, or by a generic parser
-        if the dialect attribute/type is not registered.
+        In the case where the attribute or type is using the opaque syntax,
+        the attribute or type mnemonic should have already been parsed.
         """
+        pretty = "." in attr_name
+        if not pretty:
+            self.parse_punctuation("<")
+            attr_name += (
+                "."
+                + self._parse_token(
+                    Token.Kind.BARE_IDENT, "Expected attribute name."
+                ).text
+            )
         attr_def = self.ctx.get_optional_attr(
             attr_name,
             create_unregistered_as_type=is_type,
         )
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
-
-        # Pass the task of parsing parameters on to the attribute/type definition
         if issubclass(attr_def, UnregisteredAttr):
-            body = self._parse_unregistered_attr_body()
-            return attr_def(attr_name, is_type, body)
-        if issubclass(attr_def, ParametrizedAttribute):
+            if not is_opaque:
+                if self.parse_optional_punctuation("<") is None:
+                    return attr_def(attr_name, is_type, is_opaque, "")
+            body = self._parse_unregistered_attr_body(starting_opaque_pos)
+            attr = attr_def(attr_name, is_type, is_opaque, body)
+            if not is_opaque:
+                self.parse_punctuation(">")
+            return attr
+
+        elif issubclass(attr_def, ParametrizedAttribute):
             param_list = attr_def.parse_parameters(self)
             return attr_def.new(param_list)
-        if issubclass(attr_def, Data):
-            self.parse_punctuation("<")
+        elif issubclass(attr_def, Data):
             param: Any = attr_def.parse_parameter(self)
-            self.parse_punctuation(">")
             return cast(Data[Any], attr_def(param))
-        assert False, "Attributes are either ParametrizedAttribute or Data."
+        else:
+            raise TypeError("Attributes are either ParametrizedAttribute or Data.")
 
-    def _parse_unregistered_attr_body(self) -> str:
+    def _parse_dialect_type_or_attribute(
+        self, attr_or_dialect_name: str, is_type: bool = True
+    ) -> Attribute:
+        """
+        Parse the contents of a dialect type or attribute, with format:
+            dialect-attr-contents ::= `<` dialect-attr-contents+ `>`
+                                    | `(` dialect-attr-contents+ `)`
+                                    | `[` dialect-attr-contents+ `]`
+                                    | `{` dialect-attr-contents+ `}`
+                                    | [^[]<>(){}\0]+
+        The contents will be parsed by a user-defined parser, or by a generic parser
+        if the dialect attribute/type is not registered.
+
+        In the case that the type or attribute is using the opaque syntax (where the
+        identifier parsed is the dialect name), this function will parse the opaque
+        attribute with the following format:
+            opaque-attr-contents ::= `<` bare-ident dialect-attr-contents+ `>`
+        """
+        is_opaque = "." not in attr_or_dialect_name
+        starting_opaque_pos = None
+        if is_opaque:
+            self.parse_punctuation("<")
+            attr_name_token = self._parse_token(
+                Token.Kind.BARE_IDENT, "Expected attribute name."
+            )
+            starting_opaque_pos = attr_name_token.span.end
+
+            attr_or_dialect_name += "." + attr_name_token.text
+
+        attr = self._parse_dialect_type_or_attribute_body(
+            attr_or_dialect_name, is_type, is_opaque, starting_opaque_pos
+        )
+
+        if is_opaque:
+            self.parse_punctuation(">")
+
+        return attr
+
+    def _parse_unregistered_attr_body(self, start_pos: Position | None) -> str:
         """
         Parse the body of an unregistered attribute, which is a balanced
         string for `<`, `(`, `[`, `{`, and may contain string literals.
+        The body ends when no parentheses are opened, and an `>` is encountered.
         """
-        start_token = self._parse_optional_token(Token.Kind.LESS)
-        if start_token is None:
-            return ""
 
-        start_pos = start_token.span.start
+        if start_pos is None:
+            start_pos = self.pos
         end_pos: Position = start_pos
 
-        symbols_stack = [Token.Kind.LESS]
+        symbols_stack: list[Token.Kind] = []
         parentheses = {
             Token.Kind.GREATER: Token.Kind.LESS,
             Token.Kind.R_PAREN: Token.Kind.L_PAREN,
@@ -239,17 +294,31 @@ class AttrParser(BaseParser):
                 continue
 
             # Closing a parenthesis
-            if (token := self._parse_optional_token_in(parentheses.keys())) is not None:
+            if (token := self._current_token).kind in parentheses.keys():
                 closing = parentheses[token.kind]
+
+                # If we don't have any open parenthesis, either we end the parsing if
+                # the parenthesis is a `>`, or we raise an error.
+                if len(symbols_stack) == 0:
+                    if token.kind == Token.Kind.GREATER:
+                        end_pos = self.pos
+                        break
+                    self.raise_error(
+                        "Unexpected closing parenthesis "
+                        f"{parentheses_names[token.kind]} in attribute body!",
+                        self._current_token.span,
+                    )
+
+                # If we have an open parenthesis, check that we are closing it
+                # with the right parenthesis kind.
                 if symbols_stack[-1] != closing:
                     self.raise_error(
-                        f"Mismatched {parentheses_names[token.kind]} in attribute body!",
+                        "Unexpected closing parenthesis "
+                        f"{parentheses_names[token.kind]} in attribute body! {symbols_stack}",
                         self._current_token.span,
                     )
                 symbols_stack.pop()
-                if len(symbols_stack) == 0:
-                    end_pos = token.span.end
-                    break
+                self._consume_token()
                 continue
 
             # Checking for unexpected EOF
@@ -571,7 +640,7 @@ class AttrParser(BaseParser):
             "dense_resource": self._parse_builtin_dense_resource_attr,
             "array": self._parse_builtin_densearray_attr,
             "affine_map": self._parse_builtin_affine_map,
-            "affine_set": self._parse_builtin_affine_attr,
+            "affine_set": self._parse_builtin_affine_set,
             "strided": self._parse_strided_layout_attr,
         }
 
@@ -688,47 +757,11 @@ class AttrParser(BaseParser):
         self.parse_characters(">", " in affine_map attribute")
         return AffineMapAttr(affine_map)
 
-    def _parse_builtin_affine_attr(self, name: Span) -> UnregisteredAttr:
-        # First, retrieve the attribute definition.
-        # Since we do not define affine attributes, we use an unregistered
-        # attribute definition.
-        attr_def = self.ctx.get_optional_attr(
-            name.text,
-            create_unregistered_as_type=False,
-        )
-        if attr_def is None:
-            self.raise_error(f"Unknown {name.text} attribute", at_position=name)
-        assert issubclass(
-            attr_def, UnregisteredAttr
-        ), f"{name.text} was registered, but should be reserved for builtin"
-
-        # We then parse the attribute body. Affine attributes are closed by
-        # `>`, so we can wait until we see this token. We just need to make
-        # sure that we do not stop at a `>=`.
-        start_pos = self._current_token.span.start
-        end_pos = start_pos
-        self.parse_punctuation("<", f" in {name.text} attribute")
-
-        # Loop until we see the closing `>`.
-        while True:
-            token = self._consume_token()
-
-            # Check for early EOF.
-            if token.kind == Token.Kind.EOF:
-                self.raise_error(f"Expected '>' in end of {name.text} attribute")
-
-            # Check for closing `>`.
-            if token.kind == Token.Kind.GREATER:
-                # Check that there is no `=` after the `>`.
-                if self._parse_optional_token(Token.Kind.EQUAL) is None:
-                    end_pos = token.span.end
-                    break
-                self._consume_token()
-
-        contents = self.lexer.input.slice(start_pos, end_pos)
-        assert contents is not None, "Fatal error in parser"
-
-        return attr_def(name.text, False, contents)
+    def _parse_builtin_affine_set(self, _name: Span) -> AffineSetAttr:
+        self.parse_characters("<", " in affine_set attribute")
+        affine_set = self.parse_affine_set()
+        self.parse_characters(">", " in affine_set attribute")
+        return AffineSetAttr(affine_set)
 
     @dataclass
     class _TensorLiteralElement:
@@ -770,8 +803,6 @@ class AttrParser(BaseParser):
                 )
             if not isinstance(self.value, bool | int):
                 parser.raise_error("Expected integer value", at_position=self.span)
-            if self.is_negative:
-                return -int(self.value)
             return int(self.value)
 
         def to_float(self, parser: AttrParser) -> float:
@@ -779,8 +810,6 @@ class AttrParser(BaseParser):
             Convert the element to a float value. Raises an error if the type
             is compatible.
             """
-            if self.is_negative:
-                return -float(self.value)
             return float(self.value)
 
         def to_type(self, parser: AttrParser, type: AnyFloat | IntegerType | IndexType):
@@ -813,9 +842,7 @@ class AttrParser(BaseParser):
             return self._TensorLiteralElement(False, False, token.span)
 
         # checking for negation
-        is_negative = False
-        if self._parse_optional_token(Token.Kind.MINUS) is not None:
-            is_negative = True
+        minus_token = self._parse_optional_token(Token.Kind.MINUS)
 
         # Integer and float case
         if self._current_token.kind == Token.Kind.FLOAT_LIT:
@@ -827,9 +854,15 @@ class AttrParser(BaseParser):
         else:
             self.raise_error("Expected either a float, integer, or complex literal")
 
-        if is_negative:
+        if minus_token is None:
+            is_negative = False
+            span = token.span
+        else:
+            is_negative = True
             value = -value
-        return self._TensorLiteralElement(is_negative, value, token.span)
+            span = Span(minus_token.span.start, token.span.end, token.span.input)
+
+        return self._TensorLiteralElement(is_negative, value, span)
 
     def _parse_tensor_literal(
         self,
@@ -1117,3 +1150,7 @@ class AttrParser(BaseParser):
     def parse_affine_map(self) -> AffineMap:
         affp = affine_parser.AffineParser(self._parser_state)
         return affp.parse_affine_map()
+
+    def parse_affine_set(self) -> AffineSet:
+        affp = affine_parser.AffineParser(self._parser_state)
+        return affp.parse_affine_set()

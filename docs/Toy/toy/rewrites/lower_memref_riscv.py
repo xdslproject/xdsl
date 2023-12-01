@@ -3,7 +3,7 @@ from typing import Any, cast
 
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
-from xdsl.ir.core import MLContext
+from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -16,9 +16,9 @@ from xdsl.pattern_rewriter import (
 class LowerMemrefAllocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter):
-        assert isinstance(op.memref.type, memref.MemRefType)
-        memref_typ = cast(memref.MemRefType[Any], op.memref.type)
-        size = prod(op.memref.type.get_shape())
+        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        memref_typ = cast(memref.MemRefType[Any], op_memref_type)
+        size = prod(op_memref_type.get_shape())
         rewriter.replace_matched_op(
             [
                 size_op := riscv.LiOp(size, comment="memref alloc size"),

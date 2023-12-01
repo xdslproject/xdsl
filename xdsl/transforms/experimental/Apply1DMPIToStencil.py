@@ -25,8 +25,8 @@ class ApplyMPIToExternalLoad(RewritePattern):
         mpi_operations: list[Operation] = []
 
         # Rank and size
-        comm_size_op = mpi.CommSize.get()
-        comm_rank_op = mpi.CommRank.get()
+        comm_size_op = mpi.CommSize()
+        comm_rank_op = mpi.CommRank()
         mpi_operations += [comm_size_op, comm_rank_op]
 
         # Constants we need to use
@@ -42,7 +42,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
 
         # The underlying datatype we use in communications and size in dimension zero
         element_type: TypeAttribute = memref_type.element_type
-        datatype_op = mpi.GetDtypeOp.get(element_type)
+        datatype_op = mpi.GetDtypeOp(element_type)
         int_attr: builtin.IntegerAttr[builtin.IndexType] = builtin.IntegerAttr(
             0, builtin.IndexType()
         )
@@ -65,7 +65,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         ]
 
         # Four request handles, one for send, one for recv
-        alloc_request_op = mpi.AllocateTypeOp.get(mpi.RequestType, four)
+        alloc_request_op = mpi.AllocateTypeOp(mpi.RequestType, four)
         mpi_operations += [alloc_request_op]
 
         # Comparison for top and bottom ranks
@@ -75,10 +75,10 @@ class ApplyMPIToExternalLoad(RewritePattern):
         mpi_operations += [compare_top_op, size_minus_one, compare_bottom_op]
 
         # MPI Request look ups (we need these regardless)
-        alloc_lookup_op_zero = mpi.VectorGetOp.get(alloc_request_op, zero)
-        alloc_lookup_op_one = mpi.VectorGetOp.get(alloc_request_op, one)
-        alloc_lookup_op_two = mpi.VectorGetOp.get(alloc_request_op, two)
-        alloc_lookup_op_three = mpi.VectorGetOp.get(alloc_request_op, three)
+        alloc_lookup_op_zero = mpi.VectorGetOp(alloc_request_op, zero)
+        alloc_lookup_op_one = mpi.VectorGetOp(alloc_request_op, one)
+        alloc_lookup_op_two = mpi.VectorGetOp(alloc_request_op, two)
+        alloc_lookup_op_three = mpi.VectorGetOp(alloc_request_op, three)
         mpi_request_null = arith.Constant.from_int_and_width(0x2C000000, builtin.i32)
         mpi_operations += [
             alloc_lookup_op_zero,
@@ -95,7 +95,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         added_ptr = arith.Addi(index_memref_i64, add_offset)
         send_ptr = llvm.IntToPtrOp(added_ptr)
 
-        mpi_send_top_op = mpi.Isend.get(
+        mpi_send_top_op = mpi.Isend(
             send_ptr,
             dim_zero_i32_op,
             datatype_op,
@@ -105,7 +105,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
 
         recv_ptr = llvm.IntToPtrOp(index_memref_i64)
-        mpi_recv_top_op = mpi.Irecv.get(
+        mpi_recv_top_op = mpi.Irecv(
             recv_ptr,
             dim_zero_i32_op,
             datatype_op,
@@ -124,7 +124,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
         null_req_one = llvm.StoreOp(mpi_request_null, one_conv)
 
-        top_halo_exhange = scf.If.get(
+        top_halo_exhange = scf.If(
             compare_top_op,
             [],
             [
@@ -135,9 +135,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
                 mpi_send_top_op,
                 recv_ptr,
                 mpi_recv_top_op,
-                scf.Yield.get(),
+                scf.Yield(),
             ],
-            [zero_conv, null_req_zero, one_conv, null_req_one, scf.Yield.get()],
+            [zero_conv, null_req_zero, one_conv, null_req_one, scf.Yield()],
         )
         mpi_operations += [top_halo_exhange]
 
@@ -151,7 +151,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         added_ptr_b_send = arith.Addi(index_memref_i64, add_offset_b_send)
         ptr_b_send = llvm.IntToPtrOp(added_ptr_b_send)
 
-        mpi_send_bottom_op = mpi.Isend.get(
+        mpi_send_bottom_op = mpi.Isend(
             ptr_b_send,
             dim_zero_i32_op,
             datatype_op,
@@ -168,7 +168,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         added_ptr_b_recv = arith.Addi(index_memref_i64, add_offset_b_recv)
         ptr_b_recv = llvm.IntToPtrOp(added_ptr_b_recv)
 
-        mpi_recv_bottom_op = mpi.Irecv.get(
+        mpi_recv_bottom_op = mpi.Irecv(
             ptr_b_recv,
             dim_zero_i32_op,
             datatype_op,
@@ -187,7 +187,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         )
         null_req_three = llvm.StoreOp(mpi_request_null, three_conv)
 
-        bottom_halo_exhange = scf.If.get(
+        bottom_halo_exhange = scf.If(
             compare_bottom_op,
             [],
             [
@@ -204,9 +204,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
                 added_ptr_b_recv,
                 ptr_b_recv,
                 mpi_recv_bottom_op,
-                scf.Yield.get(),
+                scf.Yield(),
             ],
-            [two_conv, null_req_two, three_conv, null_req_three, scf.Yield.get()],
+            [two_conv, null_req_two, three_conv, null_req_three, scf.Yield()],
         )
 
         mpi_operations += [bottom_halo_exhange]

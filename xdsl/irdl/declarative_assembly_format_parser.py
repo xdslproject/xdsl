@@ -18,6 +18,8 @@ from xdsl.irdl.declarative_assembly_format import (
     OperandTypeDirective,
     OperandVariable,
     PunctuationDirective,
+    ResultTypeDirective,
+    ResultVariable,
 )
 from xdsl.parser import BaseParser, ParserState
 from xdsl.utils.lexer import Input, Lexer, Token
@@ -52,7 +54,7 @@ class FormatLexer(Lexer):
         return super().lex()
 
     # Authorize `-` in bare identifier
-    _bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.\-]*")
+    bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.\-]*")
 
 
 class ParsingContext(Enum):
@@ -77,6 +79,8 @@ class FormatParser(BaseParser):
     """The operand variables that are already parsed."""
     seen_operand_types: list[bool]
     """The operand types that are already parsed."""
+    seen_result_types: list[bool]
+    """The result types that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
     context: ParsingContext = field(default=ParsingContext.TopLevel)
@@ -87,6 +91,7 @@ class FormatParser(BaseParser):
         self.op_def = op_def
         self.seen_operands = [False] * len(op_def.operands)
         self.seen_operand_types = [False] * len(op_def.operands)
+        self.seen_result_types = [False] * len(op_def.results)
 
     def parse_format(self) -> FormatProgram:
         """
@@ -101,6 +106,7 @@ class FormatParser(BaseParser):
 
         self.verify_attr_dict()
         self.verify_operands()
+        self.verify_results()
         return FormatProgram(elements)
 
     def verify_operands(self):
@@ -123,6 +129,19 @@ class FormatParser(BaseParser):
                     "assembly format"
                 )
 
+    def verify_results(self):
+        """Check that all result types are refered at least once."""
+
+        for result_type, (result_name, _) in zip(
+            self.seen_result_types, self.op_def.results
+        ):
+            if not result_type:
+                self.raise_error(
+                    f"type of result '{result_name}' not found, consider "
+                    f"adding a 'type(${result_name})' directive to the custom "
+                    "assembly format"
+                )
+
     def verify_attr_dict(self):
         """
         Check that the attribute dictionary is present.
@@ -130,7 +149,7 @@ class FormatParser(BaseParser):
         if not self.has_attr_dict:
             self.raise_error("'attr-dict' directive not found")
 
-    def parse_optional_variable(self) -> FormatDirective | None:
+    def parse_optional_variable(self) -> OperandVariable | ResultVariable | None:
         """
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
@@ -151,6 +170,18 @@ class FormatParser(BaseParser):
                     self.raise_error(f"operand '{variable_name}' is already bound")
                 self.seen_operands[idx] = True
             return OperandVariable(variable_name, idx)
+
+        # Check if the variable is a result
+        for idx, (result_name, _) in enumerate(self.op_def.results):
+            if variable_name != result_name:
+                continue
+            if self.context == ParsingContext.TopLevel:
+                self.raise_error(
+                    "result variable cannot be in a toplevel directive. "
+                    f"Consider using 'type({variable_name})' instead."
+                )
+            return ResultVariable(variable_name, idx)
+
         self.raise_error(
             "expected variable to refer to an operand, "
             "attribute, region, result, or successor"
@@ -169,15 +200,19 @@ class FormatParser(BaseParser):
         self.context = ParsingContext.TypeDirective
 
         variable = self.parse_optional_variable()
-        if variable is None:
-            self.raise_error("'type' directive expects a variable argument")
-        if isinstance(variable, OperandVariable):
-            if self.seen_operand_types[variable.index]:
-                self.raise_error(f"'type' of '{variable.name}' is already bound")
-            self.seen_operand_types[variable.index] = True
-            res = OperandTypeDirective(variable.name, variable.index)
-        else:
-            assert False, "Unknown variable in declarative assembly format"
+        match variable:
+            case None:
+                self.raise_error("'type' directive expects a variable argument")
+            case OperandVariable():
+                if self.seen_operand_types[variable.index]:
+                    self.raise_error(f"type of '{variable.name}' is already bound")
+                self.seen_operand_types[variable.index] = True
+                res = OperandTypeDirective(variable.name, variable.index)
+            case ResultVariable():
+                if self.seen_result_types[variable.index]:
+                    self.raise_error(f"type of '{variable.name}' is already bound")
+                self.seen_result_types[variable.index] = True
+                res = ResultTypeDirective(variable.name, variable.index)
 
         self.parse_punctuation(")")
         self.context = previous_context

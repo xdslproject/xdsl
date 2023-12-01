@@ -164,7 +164,7 @@ def test_build_nested_implicit_region():
         Block(
             [
                 cond := Constant.from_int_and_width(1, 1),
-                If.get(
+                If(
                     cond,
                     (),
                     Region(
@@ -187,7 +187,7 @@ def test_build_nested_implicit_region():
         def then():
             _y = Constant.from_int_and_width(2, i32)
 
-        If.get(cond, (), then)
+        If(cond, (), then)
 
     assert target.is_structurally_equivalent(region)
 
@@ -212,9 +212,9 @@ def test_build_implicit_region_fail():
                 def then_1(b: Builder):
                     b.insert(Constant.from_int_and_width(three, i32))
 
-                If.get(cond, (), then_1)
+                If(cond, (), then_1)
 
-            If.get(cond, (), then_0)
+            If(cond, (), then_0)
 
         _ = region
     assert e.value.args[0] == (

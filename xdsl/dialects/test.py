@@ -20,12 +20,12 @@ from xdsl.irdl import (
     VarSuccessor,
     irdl_attr_definition,
     irdl_op_definition,
+    opt_prop_def,
     var_operand_def,
     var_region_def,
     var_result_def,
     var_successor_def,
 )
-from xdsl.irdl.irdl import opt_prop_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
@@ -122,10 +122,12 @@ class TestType(Data[str], TypeAttribute):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
-        return parser.parse_str_literal()
+        with parser.in_angle_brackets():
+            return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string_literal(self.data)
+        with printer.in_angle_brackets():
+            printer.print_string_literal(self.data)
 
 
-Test = Dialect([TestOp, TestTermOp], [TestType])
+Test = Dialect("test", [TestOp, TestTermOp], [TestType])

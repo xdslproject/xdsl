@@ -7,7 +7,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.scf import ScfFunctions
-from xdsl.ir.core import BlockArgument
+from xdsl.ir import BlockArgument
 
 index = IndexType()
 
@@ -34,9 +34,9 @@ def sum_to_for_op():
         def for_loop_region(args: tuple[BlockArgument, ...]):
             (i, acc) = args
             res = arith.Addi(i, acc)
-            scf.Yield.get(res)
+            scf.Yield(res)
 
-        result = scf.For.get(lb, ub, step, (initial,), for_loop_region)
+        result = scf.For(lb, ub, step, (initial,), for_loop_region)
         func.Return(result)
 
 
@@ -64,14 +64,14 @@ def test_if():
             @Builder.implicit_region
             def true_region():
                 one = arith.Constant.from_int_and_width(1, 32)
-                scf.Yield.get(one)
+                scf.Yield(one)
 
             @Builder.implicit_region
             def false_region():
                 zero = arith.Constant.from_int_and_width(0, 32)
-                scf.Yield.get(zero)
+                scf.Yield(zero)
 
-            result = scf.If.get(cond, (i32,), true_region, false_region)
+            result = scf.If(cond, (i32,), true_region, false_region)
 
             func.Return(result)
 

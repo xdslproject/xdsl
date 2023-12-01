@@ -12,7 +12,6 @@ with CodeContext(p):
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
     # CHECK-NEXT:   %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
-    # CHECK-NEXT:     scf.yield
     # CHECK-NEXT:   }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
@@ -29,7 +28,6 @@ with CodeContext(p):
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
     # CHECK-NEXT:   %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
-    # CHECK-NEXT:     scf.yield
     # CHECK-NEXT:   }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
@@ -46,7 +44,6 @@ with CodeContext(p):
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @end} : () -> index
     # CHECK-NEXT:   %{{.*}} = "symref.fetch"() {"symbol" = @step} : () -> index
     # CHECK-NEXT:   scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
-    # CHECK-NEXT:     scf.yield
     # CHECK-NEXT:   }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT: }
@@ -72,11 +69,8 @@ with CodeContext(p):
     # CHECK-NEXT:         %{{.*}} = "symref.fetch"() {"symbol" = @c} : () -> index
     # CHECK-NEXT:         %{{.*}} = arith.constant 1 : index
     # CHECK-NEXT:         scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
-    # CHECK-NEXT:           scf.yield
     # CHECK-NEXT:         }
-    # CHECK-NEXT:         scf.yield
     # CHECK-NEXT:       }
-    # CHECK-NEXT:       scf.yield
     # CHECK-NEXT:     }
     # CHECK-NEXT:   func.return
     # CHECK-NEXT:   }

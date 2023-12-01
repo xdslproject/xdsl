@@ -843,6 +843,7 @@ class TypesOp(IRDLOperation):
 
 
 PDL = Dialect(
+    "pdl",
     [
         ApplyNativeConstraintOp,
         ApplyNativeRewriteOp,

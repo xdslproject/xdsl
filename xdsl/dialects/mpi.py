@@ -32,6 +32,7 @@ from xdsl.irdl import (
     opt_result_def,
     result_def,
 )
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.hints import isa
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
@@ -174,6 +175,22 @@ class Reduce(MPIBaseOp):
     operationtype: OperationType = attr_def(OperationType)
     root: Operand = operand_def(i32)
 
+    def __init__(
+        self,
+        send_buffer: SSAValue | Operation,
+        recv_buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        operationtype: OperationType,
+        root: SSAValue | Operation,
+    ):
+        return super().__init__(
+            operands=[send_buffer, recv_buffer, count, datatype, root],
+            attributes={"operationtype": operationtype},
+            result_types=[],
+        )
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get(
         send_buffer: SSAValue | Operation,
@@ -222,6 +239,30 @@ class Allreduce(MPIBaseOp):
     datatype: Operand = operand_def(DataType)
     operationtype: OperationType = attr_def(OperationType)
 
+    def __init__(
+        self,
+        send_buffer: SSAValue | Operation | None,
+        recv_buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        operationtype: OperationType,
+    ):
+        operands_to_add: Sequence[
+            SSAValue | Operation | Sequence[SSAValue | Operation]
+        ] = []
+
+        if send_buffer is None:
+            operands_to_add = [[], recv_buffer, count, datatype]
+        else:
+            operands_to_add = [[send_buffer], recv_buffer, count, datatype]
+
+        return super().__init__(
+            operands=operands_to_add,
+            attributes={"operationtype": operationtype},
+            result_types=[],
+        )
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get(
         send_buffer: SSAValue | Operation | None,
@@ -275,6 +316,19 @@ class Bcast(MPIBaseOp):
     datatype: Operand = operand_def(DataType)
     root: Operand = operand_def(i32)
 
+    def __init__(
+        self,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        root: SSAValue | Operation,
+    ):
+        return super().__init__(
+            operands=[buffer, count, datatype, root],
+            result_types=[],
+        )
+
+    @deprecated("Use init instead")
     @staticmethod
     def get(
         buffer: SSAValue | Operation,
@@ -321,6 +375,21 @@ class Isend(MPIBaseOp):
     tag: Operand = operand_def(i32)
     request: Operand = operand_def(RequestType)
 
+    def __init__(
+        self,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        dest: SSAValue | Operation,
+        tag: SSAValue | Operation,
+        request: SSAValue | Operation,
+    ):
+        return super().__init__(
+            operands=[buffer, count, datatype, dest, tag, request],
+            result_types=[],
+        )
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get(
         buffer: SSAValue | Operation,
@@ -368,6 +437,19 @@ class Send(MPIBaseOp):
     dest: Operand = operand_def(i32)
     tag: Operand = operand_def(i32)
 
+    def __init__(
+        self,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        dest: SSAValue | Operation,
+        tag: SSAValue | Operation,
+    ):
+        return super().__init__(
+            operands=[buffer, count, datatype, dest, tag], result_types=[]
+        )
+
+    @deprecated("Use init instead")
     @staticmethod
     def get(
         buffer: SSAValue | Operation,
@@ -415,6 +497,21 @@ class Irecv(MPIBaseOp):
     tag: Operand = operand_def(i32)
     request: Operand = operand_def(RequestType)
 
+    def __init__(
+        self,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        source: SSAValue | Operation,
+        tag: SSAValue | Operation,
+        request: SSAValue | Operation,
+    ):
+        return super().__init__(
+            operands=[buffer, count, datatype, source, tag, request],
+            result_types=[],
+        )
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get(
         buffer: SSAValue | Operation,
@@ -465,6 +562,21 @@ class Recv(MPIBaseOp):
 
     status: OptOpResult = opt_result_def(StatusType)
 
+    def __init__(
+        self,
+        buffer: SSAValue | Operation,
+        count: SSAValue | Operation,
+        datatype: SSAValue | Operation,
+        source: SSAValue | Operation,
+        tag: SSAValue | Operation,
+        ignore_status: bool = True,
+    ):
+        return super().__init__(
+            operands=[buffer, count, datatype, source, tag],
+            result_types=[[]] if ignore_status else [[StatusType()]],
+        )
+
+    @deprecated("Use Init instead.")
     @staticmethod
     def get(
         buffer: SSAValue | Operation,
@@ -502,6 +614,10 @@ class Test(MPIBaseOp):
     flag: OpResult = result_def(t_bool)
     status: OpResult = result_def(StatusType)
 
+    def __init__(self, request: Operand):
+        return super().__init__(operands=[request], result_types=[t_bool, StatusType()])
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get(request: Operand):
         return Test.build(operands=[request], result_types=[t_bool, StatusType()])
@@ -526,6 +642,14 @@ class Wait(MPIBaseOp):
     request: Operand = operand_def(RequestType)
     status: OptOpResult = opt_result_def(StatusType)
 
+    def __init__(self, request: Operand, ignore_status: bool = True):
+        result_types: list[list[Attribute]] = [[StatusType()]]
+        if ignore_status:
+            result_types = [[]]
+
+        return super().__init__(operands=[request], result_types=result_types)
+
+    @deprecated("Use init instead")
     @staticmethod
     def get(request: Operand, ignore_status: bool = True):
         result_types: list[list[Attribute]] = [[StatusType()]]
@@ -557,6 +681,14 @@ class Waitall(MPIBaseOp):
     count: Operand = operand_def(i32)
     statuses: OptOpResult = opt_result_def(VectorType[StatusType])
 
+    def __init__(self, requests: Operand, count: Operand, ignore_status: bool = True):
+        result_types: list[list[Attribute]] = [[VectorType.of(StatusType)]]
+        if ignore_status:
+            result_types = [[]]
+
+        return super().__init__(operands=[requests, count], result_types=result_types)
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get(requests: Operand, count: Operand, ignore_status: bool = True):
         result_types: list[list[Attribute]] = [[VectorType.of(StatusType)]]
@@ -587,6 +719,14 @@ class GetStatusField(MPIBaseOp):
 
     result: OpResult = result_def(i32)
 
+    def __init__(self, status_obj: Operand, field: StatusTypeField):
+        return super().__init__(
+            operands=[status_obj],
+            attributes={"field": StringAttr(field.value)},
+            result_types=[i32],
+        )
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get(status_obj: Operand, field: StatusTypeField):
         return GetStatusField.build(
@@ -609,6 +749,10 @@ class CommRank(MPIBaseOp):
 
     rank: OpResult = result_def(i32)
 
+    def __init__(self):
+        return super().__init__(result_types=[i32])
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get():
         return CommRank.build(result_types=[i32])
@@ -627,6 +771,10 @@ class CommSize(MPIBaseOp):
 
     size: OpResult = result_def(i32)
 
+    def __init__(self):
+        return super().__init__(result_types=[i32])
+
+    @deprecated("Use init instead")
     @staticmethod
     def get():
         return CommSize.build(result_types=[i32])
@@ -666,11 +814,22 @@ class UnwrapMemrefOp(MPIBaseOp):
     len: OpResult = result_def(i32)
     type: OpResult = result_def(DataType)
 
+    def __init__(self, ref: SSAValue | Operation):
+        ssa_val = SSAValue.get(ref)
+        assert isinstance(ssa_val_type := ssa_val.type, MemRefType)
+        elem_type = cast(MemRefType[AnyNumericType], ssa_val_type).element_type
+
+        return super().__init__(
+            operands=[ref],
+            result_types=[llvm.LLVMPointerType.typed(elem_type), i32, DataType()],
+        )
+
+    @deprecated("Use init instead")
     @staticmethod
     def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
         ssa_val = SSAValue.get(ref)
-        assert isinstance(ssa_val.type, MemRefType)
-        elem_type = cast(MemRefType[AnyNumericType], ssa_val.type).element_type
+        assert isinstance(ssa_val_type := ssa_val.type, MemRefType)
+        elem_type = cast(MemRefType[AnyNumericType], ssa_val_type).element_type
 
         return UnwrapMemrefOp.build(
             operands=[ref],
@@ -697,6 +856,10 @@ class GetDtypeOp(MPIBaseOp):
 
     result: OpResult = result_def(DataType)
 
+    def __init__(self, dtype: Attribute):
+        return super().__init__(result_types=[DataType()], attributes={"dtype": dtype})
+
+    @deprecated("Use init instead")
     @staticmethod
     def get(dtype: Attribute):
         return GetDtypeOp.build(result_types=[DataType()], attributes={"dtype": dtype})
@@ -722,6 +885,22 @@ class AllocateTypeOp(MPIBaseOp):
 
     result: OpResult = result_def(VectorType)
 
+    def __init__(
+        self,
+        dtype: type[VectorWrappable],
+        count: SSAValue | Operation,
+        bindc_name: StringAttr | None = None,
+    ):
+        return super().__init__(
+            result_types=[VectorType.of(dtype)],
+            attributes={
+                "dtype": dtype(),
+                "bindc_name": bindc_name,
+            },
+            operands=[count],
+        )
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get(
         dtype: type[VectorWrappable],
@@ -752,6 +931,15 @@ class VectorGetOp(MPIBaseOp):
 
     result: OpResult = result_def(VectorWrappable)
 
+    def __init__(self, vect: SSAValue | Operation, element: SSAValue | Operation):
+        ssa_val = SSAValue.get(vect)
+        assert isa(ssa_val.type, VectorType[VectorWrappable])
+
+        return super().__init__(
+            result_types=[ssa_val.type.wrapped_type], operands=[vect, element]
+        )
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get(vect: SSAValue | Operation, element: SSAValue | Operation) -> VectorGetOp:
         ssa_val = SSAValue.get(vect)
@@ -776,6 +964,10 @@ class NullRequestOp(MPIBaseOp):
 
     request: Operand = operand_def(RequestType)
 
+    def __init__(self, req: SSAValue | Operation):
+        return super().__init__(operands=[req])
+
+    @deprecated("Use init instead.")
     @staticmethod
     def get(req: SSAValue | Operation):
         return NullRequestOp.build(operands=[req])
@@ -839,6 +1031,7 @@ class GatherOp(MPIBaseOp):
 
 
 MPI = Dialect(
+    "mpi",
     [
         Isend,
         Irecv,

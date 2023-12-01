@@ -3,13 +3,15 @@ from xdsl.dialects import arith, builtin, memref
 from xdsl.dialects.gpu import (
     AllocOp,
     AllReduceOp,
-    AllReduceOperationAttr,
+    AllReduceOpAttr,
+    AllReduceOpEnum,
     AsyncTokenType,
     BarrierOp,
     BlockDimOp,
     BlockIdOp,
     DeallocOp,
     DimensionAttr,
+    DimensionEnum,
     FuncOp,
     GlobalIdOp,
     GridDimOp,
@@ -34,9 +36,9 @@ from xdsl.ir import Block, Operation, Region, SSAValue
 
 
 def test_dimension():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
-    assert dim.data == "x"
+    assert dim.data == DimensionEnum.X
 
 
 def test_alloc():
@@ -79,13 +81,13 @@ def test_alloc():
 
 
 def test_all_reduce_operation():
-    op = AllReduceOperationAttr.from_op("add")
+    op = AllReduceOpAttr(AllReduceOpEnum.Add)
 
-    assert op.data == "add"
+    assert op.data == AllReduceOpEnum.Add
 
 
 def test_all_reduce():
-    op = AllReduceOperationAttr.from_op("add")
+    op = AllReduceOpAttr(AllReduceOpEnum.Add)
 
     init = arith.Constant.from_int_and_width(0, builtin.IndexType())
 
@@ -120,7 +122,7 @@ def test_barrier():
 
 
 def test_block_dim():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
     block_dim = BlockDimOp(dim)
 
@@ -129,7 +131,7 @@ def test_block_dim():
 
 
 def test_block_id():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
     block_id = BlockIdOp(dim)
 
@@ -181,7 +183,7 @@ def test_gpu_module_end():
 
 
 def test_global_id():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
     global_id = GlobalIdOp(dim)
 
@@ -190,7 +192,7 @@ def test_global_id():
 
 
 def test_grid_dim():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
     grid_dim = GridDimOp(dim)
 
@@ -395,7 +397,7 @@ def test_subgroup_size():
 
 
 def test_thread_id():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
     thread_id = ThreadIdOp(dim)
 

@@ -54,23 +54,23 @@
     // CHECK-NEXT: %{{.*}} = riscv.sub %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     %sra = riscv.sra %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.sra %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-    riscv.nop : () -> ()
-    // CHECK-NEXT: riscv.nop : () -> ()
+    riscv.nop
+    // CHECK-NEXT: riscv.nop
 
     // RV32I/RV64I: 2.5 Control Transfer Instructions
 
     // Unconditional Branch Instructions
-    riscv.jal 1 : () -> ()
-    // CHECK-NEXT: riscv.jal 1 : () -> ()
-    riscv.jal 1, !riscv.reg<> : () -> ()
-    // CHECK-NEXT: riscv.jal 1, !riscv.reg<> : () -> ()
-    riscv.jal "label" : () -> ()
-    // CHECK-NEXT: riscv.jal "label" : () -> ()
+    riscv.jal 1
+    // CHECK-NEXT: riscv.jal 1
+    riscv.jal 1, !riscv.reg<>
+    // CHECK-NEXT: riscv.jal 1, !riscv.reg<>
+    riscv.jal "label"
+    // CHECK-NEXT: riscv.jal "label"
 
-    riscv.j 1 : () -> ()
-    // CHECK-NEXT: riscv.j 1 : () -> ()
-    riscv.j "label" : () -> ()
-    // CHECK-NEXT: riscv.j "label" : () -> ()
+    riscv.j 1
+    // CHECK-NEXT: riscv.j 1
+    riscv.j "label"
+    // CHECK-NEXT: riscv.j "label"
 
     riscv.jalr %0, 1: (!riscv.reg<>) -> ()
     // CHECK-NEXT: riscv.jalr %0, 1 : (!riscv.reg<>) -> ()
@@ -79,8 +79,8 @@
     riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
     // CHECK-NEXT: riscv.jalr %0, "label" : (!riscv.reg<>) -> ()
 
-    riscv.ret : () -> ()
-    // CHECK-NEXT: riscv.ret : () -> ()
+    riscv.ret
+    // CHECK-NEXT: riscv.ret
   ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
   // CHECK-NEXT: ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
 
@@ -145,8 +145,8 @@
     // CHECK-NEXT: %{{.*}} = riscv.csrrwi 1024, 1, "w" : () -> !riscv.reg<>
 
     // Machine Mode Privileged Instructions
-    riscv.wfi : () -> ()
-    // CHECK-NEXT: riscv.wfi : () -> ()
+    riscv.wfi
+    // CHECK-NEXT: riscv.wfi
 
 
     // RV32M/RV64M: 7 “M” Standard Extension for Integer Multiplication and Division
@@ -176,14 +176,14 @@
     %li = riscv.li 1 : () -> !riscv.reg<>
     // CHECK-NEXT: %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
     // Environment Call and Breakpoints
-    riscv.ecall : () -> ()
-    // CHECK-NEXT: riscv.ecall : () -> ()
-    riscv.ebreak : () -> ()
-    // CHECK-NEXT: riscv.ebreak : () -> ()
-    riscv.directive ".bss": () -> ()
-    // CHECK-NEXT: riscv.directive ".bss" : () -> ()
-    riscv.directive ".align" "2" : () -> ()
-    // CHECK-NEXT: riscv.directive ".align" "2" : () -> ()
+    riscv.ecall
+    // CHECK-NEXT: riscv.ecall
+    riscv.ebreak
+    // CHECK-NEXT: riscv.ebreak
+    riscv.directive ".bss"
+    // CHECK-NEXT: riscv.directive ".bss"
+    riscv.directive ".align" "2"
+    // CHECK-NEXT: riscv.directive ".align" "2"
     riscv.assembly_section ".text" attributes {"foo" = i32} {
       %nested_li = riscv.li 1 : () -> !riscv.reg<>
     }
@@ -201,13 +201,6 @@
     // Custom instruction
     %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1 {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
     // CHECK-NEXT:   %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1 {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
-
-
-    // RISC-V extensions
-    riscv.scfgw %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    // CHECK-NEXT: riscv.scfgw %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> ()
-    %scfgwi_zero = riscv.scfgwi %0, 42 : (!riscv.reg<>) -> !riscv.reg<zero>
-    // CHECK-NEXT: %scfgwi_zero = riscv.scfgwi %0, 42 : (!riscv.reg<>) -> !riscv.reg<zero>
 
     // RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
     %f0 = riscv.get_float_register : () -> !riscv.freg<>
@@ -289,6 +282,23 @@
     // CHECK-NEXT: %{{.*}} = riscv.vfadd.s %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     %vfmul_s = riscv.vfmul.s %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.vfmul.s %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+    // RV32F: 9 “D” Standard Extension for Single-Precision Floating-Point, Version 2.0
+
+    %fmadd_d = riscv.fmadd.d %f0, %f1, %f2 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %fmsub_d = riscv.fmsub.d %f0, %f1, %f2 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmsub.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+    %fmin_d = riscv.fmin.d %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmin.d %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %fmax_d = riscv.fmax.d %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmax.d %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+    %fcvt_d_w = riscv.fcvt.d.w %0 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fcvt.d.w %{{.*}} : (!riscv.reg<>) -> !riscv.freg<>
+    %fcvt_d_wu = riscv.fcvt.d.wu %0 : (!riscv.reg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fcvt.d.wu %{{.*}} : (!riscv.reg<>) -> !riscv.freg<>
 
     // Terminate block
     riscv_func.return
@@ -379,8 +389,6 @@
 // CHECK-GENERIC-NEXT:       %nested_li_1 = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     }) {"directive" = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:     %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
-// CHECK-GENERIC-NEXT:     "riscv.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     %scfgwi_zero = "riscv.scfgwi"(%0) {"immediate" = 42 : si12} : (!riscv.reg<>) -> !riscv.reg<zero>
 // CHECK-GENERIC-NEXT:     %f0 = "riscv.get_float_register"() : () -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %f1 = "riscv.get_float_register"() : () -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %f2 = "riscv.get_float_register"() : () -> !riscv.freg<>
@@ -415,6 +423,12 @@
 // CHECK-GENERIC-NEXT:     "riscv.fsd"(%0, %f0) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.freg<>) -> ()
 // CHECK-GENERIC-NEXT:     %vfadd_s = "riscv.vfadd.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %vfmul_s = "riscv.vfmul.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmadd_d = "riscv.fmadd.d"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmsub_d = "riscv.fmsub.d"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmin_d = "riscv.fmin.d"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmax_d = "riscv.fmax.d"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT: %{{.*}} = "riscv.fcvt.d.w"(%{{.*}}) : (!riscv.reg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT: %{{.*}} = "riscv.fcvt.d.wu"(%{{.*}}) : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

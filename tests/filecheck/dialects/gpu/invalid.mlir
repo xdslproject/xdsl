@@ -19,7 +19,7 @@
 "builtin.module"() ({
 }) {"wrong_all_reduce_operation" = #gpu<all_reduce_op magic>}: () -> ()
 
-// CHECK: Unexpected op magic. A gpu all_reduce_op can only be add, and, max, min, mul, or, or xor
+// CHECK: Expected `add`, `and`, `max`, `min`, `mul`, `or` or `xor`.
 
 // -----
 
@@ -67,7 +67,7 @@
 
 "builtin.module"() ({
     %0 = "arith.constant"() {"value" = 10 : index} : () -> index
-    %gdmemref = "gpu.alloc"(%0, %0, %0) {"operand_segment_sizes" = array<i32: 0, 3, 0>} : (index, index, index) -> memref<10x10x10xf64>
+    %gdmemref = "gpu.alloc"(%0, %0, %0) {"operandSegmentSizes" = array<i32: 0, 3, 0>} : (index, index, index) -> memref<10x10x10xf64>
 }) : () -> ()
 
 // CHECK: Expected 0 dynamic sizes, got 3. All dynamic sizes need to be set in the alloc operation.
@@ -77,7 +77,7 @@
 "builtin.module"() ({
 }) {"wrong_dim" = #gpu<dim w>}: () -> ()
 
-// CHECK: Unexpected dim w. A gpu dim can only be x, y, or z
+// CHECK: Expected `x`, `y` or `z`.
 
 // -----
 
@@ -93,7 +93,7 @@
             }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
             %final = "arith.muli"(%sum, %one) : (index, index) -> index
             "gpu.terminator"() : () -> ()
-        }) {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
+        }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
         "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
@@ -108,7 +108,7 @@
         %one = "arith.constant"() {"value" = 1 : index} : () -> index
 
         "gpu.launch"(%one, %one, %n, %one, %one, %one) ({})
-        {"operand_segment_sizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
+        {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
         "gpu.module_end"() : () -> ()
     }) {"sym_name" = "gpu"} : () -> ()
 }) {} : () -> ()
@@ -118,11 +118,11 @@
 // -----
 
 "builtin.module"() ({
-    %memref = "memref.alloc"() {"alignment" = 0 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<10x10xi32>
+    %memref = "memref.alloc"() {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<10x10xi32>
     %ten = "arith.constant"() {"value" = 10 : index} : () -> index
-    %gmemref = "gpu.alloc"(%ten, %ten) {"operand_segment_sizes" = array<i32: 0, 2, 0>} : (index, index) -> memref<?x?xi32>
+    %gmemref = "gpu.alloc"(%ten, %ten) {"operandSegmentSizes" = array<i32: 0, 2, 0>} : (index, index) -> memref<?x?xi32>
 
-    "gpu.memcpy"(%memref, %gmemref) {"operand_segment_sizes" = array<i32: 0, 1, 1>} : (memref<10x10xi32>, memref<?x?xi32>) -> ()
+    "gpu.memcpy"(%memref, %gmemref) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<10x10xi32>, memref<?x?xi32>) -> ()
 
 }) : () -> ()
 

@@ -485,7 +485,7 @@ class Lexer:
             f"Unexpected character: {current_char}",
         )
 
-    _bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.]*")
+    bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.]*")
 
     def _lex_bare_identifier(self, start_pos: Position) -> Token:
         """
@@ -494,7 +494,7 @@ class Lexer:
 
         The first character is expected to have already been parsed.
         """
-        self._consume_regex(self._bare_identifier_suffix_regex)
+        self._consume_regex(self.bare_identifier_suffix_regex)
 
         return self._form_token(Token.Kind.BARE_IDENT, start_pos)
 

@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator, Sequence
 
 from xdsl.dialects import builtin, riscv
 from xdsl.ir import Attribute, Block, Operation, SSAValue
@@ -57,8 +57,8 @@ def move_ops_for_value(
         raise NotImplementedError(f"Unsupported register type for move op: {rd}")
 
 
-def move_to_a_regs(
-    values: Iterable[SSAValue],
+def move_to_regs(
+    values: Iterable[SSAValue], reg_types: Iterable[riscv.RISCVRegisterType]
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
@@ -67,13 +67,28 @@ def move_to_a_regs(
     new_ops = list[Operation]()
     new_values = list[SSAValue]()
 
-    for index, value in enumerate(values):
-        register_type = register_type_for_type(value.type)
-        move_op, new_value = move_ops_for_value(value, register_type.a_register(index))
+    for value, register_type in zip(values, reg_types):
+        move_op, new_value = move_ops_for_value(value, register_type)
         new_ops.append(move_op)
         new_values.append(new_value)
 
     return new_ops, new_values
+
+
+def a_regs(values: Iterable[SSAValue]) -> Iterator[riscv.RISCVRegisterType]:
+    return (
+        register_type_for_type(value.type).a_register(index)
+        for index, value in enumerate(values)
+    )
+
+
+def move_to_a_regs(
+    values: Iterable[SSAValue],
+) -> tuple[list[Operation], list[SSAValue]]:
+    """
+    Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
+    """
+    return move_to_regs(values, a_regs(values))
 
 
 def move_to_unallocated_regs(
@@ -95,28 +110,39 @@ def move_to_unallocated_regs(
     return new_ops, new_values
 
 
+def cast_ops_for_values(
+    values: Sequence[SSAValue],
+) -> tuple[list[Operation], list[SSAValue]]:
+    """
+    Returns cast operations and new SSA values. The SSA values are guaranteed to be either
+    the original SSA value, if it already had a register type, or the result of a cast
+    operation. The resulting list has the same length and same order as the input.
+    """
+
+    new_ops = list[Operation]()
+    new_values = list[SSAValue]()
+
+    for value in values:
+        if not isinstance(value.type, riscv.IntRegisterType | riscv.FloatRegisterType):
+            new_type = register_type_for_type(value.type)
+            cast_op = builtin.UnrealizedConversionCastOp.get(
+                (value,), (new_type.unallocated(),)
+            )
+            new_ops.append(cast_op)
+            value = cast_op.results[0]
+
+        new_values.append(value)
+
+    return new_ops, new_values
+
+
 def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     """
     Add cast operations just before the targeted operation
     if the operands were not already int registers
     """
 
-    new_ops = list[Operation]()
-    new_operands = list[SSAValue]()
-
-    for operand in rewriter.current_operation.operands:
-        if not isinstance(
-            operand.type, riscv.IntRegisterType | riscv.FloatRegisterType
-        ):
-            new_type = register_type_for_type(operand.type)
-            cast_op = builtin.UnrealizedConversionCastOp.get(
-                (operand,), (new_type.unallocated(),)
-            )
-            new_ops.append(cast_op)
-            operand = cast_op.results[0]
-
-        new_operands.append(operand)
-
+    new_ops, new_operands = cast_ops_for_values(rewriter.current_operation.operands)
     rewriter.insert_op_before_matched_op(new_ops)
     return new_operands
 

@@ -41,7 +41,7 @@ class IList(list[_T]):
             raise Exception("frozen list can not be modified")
         return super().remove(__value)
 
-    def pop(self, __index: SupportsIndex = ...) -> _T:
+    def pop(self, __index: SupportsIndex) -> _T:
         if self._frozen:
             raise Exception("frozen list can not be modified")
         return super().pop(__index)

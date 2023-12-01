@@ -4,10 +4,10 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, f64, i1
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
-from xdsl.ir.core import Block, Region
+from xdsl.ir import Block, Region
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
@@ -21,19 +21,33 @@ def test_riscv_interpreter():
     ) -> PythonValues:
         return args
 
-    module_op = ModuleOp([])
+    module_op = ModuleOp(
+        [
+            riscv.AssemblySectionOp(
+                ".data",
+                Region(
+                    Block([riscv.LabelOp("label0"), riscv.DirectiveOp(".word", "2A")])
+                ),
+            ),
+            riscv.AssemblySectionOp(
+                ".data",
+                Region(
+                    Block([riscv.LabelOp("label1"), riscv.DirectiveOp(".word", "3B")])
+                ),
+            ),
+        ]
+    )
     register = riscv.IntRegisterType.unallocated()
     fregister = riscv.FloatRegisterType.unallocated()
 
     riscv_functions = RiscvFunctions(
-        module_op,
-        data={"label0": RawPtr.new_int32([42])},
         custom_instructions={"my_custom_instruction": my_custom_instruction},
     )
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(riscv_functions)
 
     assert interpreter.run_op(riscv.LiOp("label0"), ()) == (RawPtr.new_int32((42,)),)
+    assert interpreter.run_op(riscv.LiOp("label1"), ()) == (RawPtr.new_int32((59,)),)
     assert interpreter.run_op(
         riscv.MVOp(TestSSAValue(register), rd=riscv.IntRegisterType.unallocated()),
         (42,),
@@ -110,11 +124,72 @@ def test_riscv_interpreter():
         (3.0, 4.0),
     ) == (12.0,)
 
+    # D extension arithmetic
+
+    assert interpreter.run_op(
+        riscv.FAddDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0),
+    ) == (7.0,)
+
+    assert interpreter.run_op(
+        riscv.FSubDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0),
+    ) == (-1.0,)
+
+    assert interpreter.run_op(
+        riscv.FMulDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0),
+    ) == (12.0,)
+
+    assert interpreter.run_op(
+        riscv.FDivDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (3.0, 4.0),
+    ) == (0.75,)
+
+    assert interpreter.run_op(
+        riscv.FMinDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (1, 2),
+    ) == (1,)
+
+    assert interpreter.run_op(
+        riscv.FMaxDOp(
+            TestSSAValue(fregister),
+            TestSSAValue(fregister),
+            rd=riscv.FloatRegisterType.unallocated(),
+        ),
+        (1, 2),
+    ) == (2,)
+
+    assert interpreter.run_op(
+        riscv.FMVOp(TestSSAValue(register), rd=riscv.FloatRegisterType.unallocated()),
+        (42.0,),
+    ) == (42.0,)
+
     # same behaviour as riscemu currently, but incorrect
     # the top line is the one that should pass, the other is the same as riscemu
-    # assert interpreter.run_op(riscv.FCvtSWOp(TestSSAValue(fregister)), (3,)) == (3.0,)
+    # assert interpreter.run_op(riscv.FMvWXOp(TestSSAValue(fregister)), (3,)) == (3.0,)
     assert interpreter.run_op(
-        riscv.FCvtSWOp(
+        riscv.FMvWXOp(
             TestSSAValue(fregister), rd=riscv.FloatRegisterType.unallocated()
         ),
         (convert_f32_to_u32(3.0),),
@@ -145,14 +220,14 @@ def test_riscv_interpreter():
     assert interpreter.run_op(
         riscv.FLdOp(TestSSAValue(register), 8),
         (buffer,),
-    ) == (struct.unpack(">d", struct.pack(">ff", 3.0, 4.0))[0],)
+    ) == (struct.unpack("<d", struct.pack("<ff", 3.0, 4.0))[0],)
 
     assert buffer == test_buffer
 
     assert (
         interpreter.run_op(
             riscv.FSdOp(TestSSAValue(register), TestSSAValue(fregister), 8),
-            (buffer, struct.unpack(">d", struct.pack(">ff", 5.0, 6.0))[0]),
+            (buffer, struct.unpack("<d", struct.pack("<ff", 5.0, 6.0))[0]),
         )
         == ()
     )
@@ -166,7 +241,7 @@ def test_riscv_interpreter():
     get_non_zero = riscv.GetRegisterOp(riscv.IntRegisterType.unallocated())
     with pytest.raises(
         InterpretationError,
-        match="Cannot interpret riscv.get_register op with non-ZERO type",
+        match="Cannot get value for unallocated register !riscv.reg<>",
     ):
         interpreter.run_op(get_non_zero, ())
 
@@ -186,3 +261,63 @@ def test_get_data():
         "one": RawPtr.new_int32([1]),
         "two_three": RawPtr.new_int32([2, 3]),
     }
+
+
+def test_cast():
+    module_op = ModuleOp([])
+    fregister = riscv.FloatRegisterType.unallocated()
+
+    riscv_functions = RiscvFunctions()
+    interpreter = Interpreter(module_op)
+    interpreter.register_implementations(riscv_functions)
+
+    assert interpreter.cast_value(fregister, f64, 42.0) == 42.0
+
+
+def test_register_contents():
+    module_op = ModuleOp([])
+
+    riscv_functions = RiscvFunctions()
+    interpreter = Interpreter(module_op)
+    interpreter.register_implementations(riscv_functions)
+
+    assert RiscvFunctions.registers(interpreter) == {
+        riscv.Registers.ZERO.register_name: 0,
+        riscv.Registers.SP.register_name: RawPtr(bytearray(1 << 20), offset=1 << 20),
+    }
+
+    with pytest.raises(
+        InterpretationError, match="Unexpected type i1, expected register type"
+    ):
+        RiscvFunctions.get_reg_value(interpreter, i1, 2)
+
+    with pytest.raises(
+        InterpretationError, match="Unexpected type i1, expected register type"
+    ):
+        RiscvFunctions.set_reg_value(interpreter, i1, 2)
+
+    assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 0) == 0
+    assert RiscvFunctions.set_reg_value(interpreter, riscv.Registers.ZERO, 1) == 0
+    assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 0) == 0
+
+    with pytest.raises(
+        InterpretationError, match="Runtime and stored value mismatch: 1 != 0"
+    ):
+        RiscvFunctions.get_reg_value(interpreter, riscv.Registers.ZERO, 1)
+
+    with pytest.raises(
+        InterpretationError, match="Value not found for register name t0"
+    ):
+        RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 2)
+
+    assert RiscvFunctions.set_reg_value(interpreter, riscv.Registers.T0, 1) == 1
+
+    assert RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 1) == 1
+
+    with pytest.raises(
+        InterpretationError, match="Runtime and stored value mismatch: 2 != 1"
+    ):
+        RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 2)
+
+    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
+    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.T0), ()) == (1,)

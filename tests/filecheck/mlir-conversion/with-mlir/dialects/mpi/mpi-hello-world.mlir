@@ -6,7 +6,7 @@
     %0 = "mpi.comm.rank"() : () -> i32
     %1 = "arith.constant"() {"value" = 0 : i32} : () -> i32
     %2 = "arith.cmpi"(%0, %1) {"predicate" = 0 : i64} : (i32, i32) -> i1
-    %ref = "memref.alloc"() {"alignment" = 32 : i64, "operand_segment_sizes" = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
+    %ref = "memref.alloc"() {"alignment" = 32 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<100x14x14xf64>
     %tag = "arith.constant"() {"value" = 1 : i32} : () -> i32
     %buff, %count, %dtype = "mpi.unwrap_memref"(%ref) : (memref<100x14x14xf64>) -> (!llvm.ptr, i32, !mpi.datatype)
     "scf.if"(%2) ({

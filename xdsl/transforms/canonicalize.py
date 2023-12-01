@@ -19,7 +19,7 @@ class CanonicalizePass(ModulePass):
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         patterns = [
             pattern
-            for ctx_op in ctx.registered_ops()
+            for ctx_op in ctx.loaded_ops
             if (trait := ctx_op.get_trait(HasCanonicalisationPatternsTrait)) is not None
             for pattern in trait.get_canonicalization_patterns()
         ]

@@ -248,7 +248,7 @@ class ApplyOpToParallel(RewritePattern):
         return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
 
         body = prepare_apply_body(op, rewriter)
-        body.block.add_op(scf.Yield.get())
+        body.block.add_op(scf.Yield())
         dim = res_type.get_num_dims()
 
         # Then create the corresponding scf.parallel
@@ -290,13 +290,11 @@ class ApplyOpToParallel(RewritePattern):
                     dim += tiled_dim
 
                 assert lowerBounds[0] is not None
-                p = scf.ParallelOp.get(
-                    lowerBounds=[lowerBounds[0]],
-                    upperBounds=[upperBounds[0]],
+                p = scf.ParallelOp(
+                    lower_bounds=[lowerBounds[0]],
+                    upper_bounds=[upperBounds[0]],
                     steps=[steps[0]],
-                    body=Region(
-                        Block([scf.Yield.get()], arg_types=[builtin.IndexType()])
-                    ),
+                    body=Region(Block([scf.Yield()], arg_types=[builtin.IndexType()])),
                 )
                 loops: list[scf.ParallelOp | scf.For] = [p]
                 current_loop = p
@@ -317,13 +315,13 @@ class ApplyOpToParallel(RewritePattern):
                         block.insert_ops_before([add, cmpi, minop], last)
                         tiled_index += 1
                     assert (lb := lowerBounds[i]) is not None
-                    loop = scf.For.get(
+                    loop = scf.For(
                         lb=lb,
                         ub=upperBounds[i],
                         step=steps[i],
                         iter_args=[],
                         body=Region(
-                            Block([scf.Yield.get()], arg_types=[builtin.IndexType()])
+                            Block([scf.Yield()], arg_types=[builtin.IndexType()])
                         ),
                     )
                     block.insert_op_before(loop, last)
@@ -340,10 +338,10 @@ class ApplyOpToParallel(RewritePattern):
                     1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
                 )
                 assert isa(lowerBounds, list[arith.Constant])
-                p = scf.ParallelOp.get(
-                    lowerBounds=list(reversed(lowerBounds))
+                p = scf.ParallelOp(
+                    lower_bounds=list(reversed(lowerBounds))
                     + [zero] * (3 - stencil_rank),
-                    upperBounds=list(reversed(upperBounds))
+                    upper_bounds=list(reversed(upperBounds))
                     + [one] * (3 - stencil_rank),
                     steps=[one] * 3,
                     body=body,

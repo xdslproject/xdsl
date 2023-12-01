@@ -9,7 +9,7 @@
 
 // CHECK-NEXT:     riscv_func.func @main() {
 // CHECK-NEXT:         %{{.*}} = riscv.li 93 : () -> !riscv.reg<a7>
-// CHECK-NEXT:         riscv.ecall : () -> ()
+// CHECK-NEXT:         riscv.ecall
 // CHECK-NEXT:         riscv_func.return
 // CHECK-NEXT:     }
 

@@ -1,20 +1,25 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Annotated
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import IndexType, IntegerType
+from xdsl.dialects.builtin import (
+    AnySignlessIntegerOrIndexType,
+    IndexType,
+    IntegerType,
+)
 from xdsl.dialects.utils import (
+    AbstractYieldOperation,
     parse_assignment,
-    parse_return_op_like,
     print_assignment,
-    print_return_op_like,
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     VarOperand,
@@ -22,12 +27,19 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+    ensure_terminator,
+)
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -71,28 +83,12 @@ class While(IRDLOperation):
 
 
 @irdl_op_definition
-class Yield(IRDLOperation):
+class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
-    arguments: VarOperand = var_operand_def(AnyAttr())
 
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-    traits = frozenset([IsTerminator()])
-
-    @staticmethod
-    def get(*operands: SSAValue | Operation) -> Yield:
-        return Yield.create(operands=[SSAValue.get(operand) for operand in operands])
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.arguments)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs, args = parse_return_op_like(parser)
-        op = Yield.get(*args)
-        op.attributes.update(attrs)
-        return op
+    traits = traits_def(
+        lambda: frozenset([IsTerminator(), HasParent(For, If, ParallelOp, While)])
+    )
 
 
 @irdl_op_definition
@@ -107,30 +103,42 @@ class If(IRDLOperation):
 
     traits = frozenset([SingleBlockImplicitTerminator(Yield)])
 
+    def __init__(
+        self,
+        cond: SSAValue | Operation,
+        return_types: Sequence[Attribute],
+        true_region: Region | Sequence[Block] | Sequence[Operation],
+        false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
+    ):
+        if false_region is None:
+            false_region = Region()
+
+        super().__init__(
+            operands=[cond],
+            result_types=[return_types],
+            regions=[true_region, false_region],
+        )
+
     @staticmethod
+    @deprecated("use If() instead!")
     def get(
         cond: SSAValue | Operation,
         return_types: Sequence[Attribute],
         true_region: Region | Sequence[Block] | Sequence[Operation],
         false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
     ) -> If:
-        if false_region is None:
-            false_region = Region()
-
-        return If.build(
-            operands=[cond],
-            result_types=[return_types],
-            regions=[true_region, false_region],
-        )
+        return If(cond, return_types, true_region, false_region)
 
 
 @irdl_op_definition
 class For(IRDLOperation):
     name = "scf.for"
 
-    lb: Operand = operand_def(IndexType)
-    ub: Operand = operand_def(IndexType)
-    step: Operand = operand_def(IndexType)
+    T = Annotated[AnySignlessIntegerOrIndexType, ConstraintVar("T")]
+
+    lb: Operand = operand_def(T)
+    ub: Operand = operand_def(T)
+    step: Operand = operand_def(T)
 
     iter_args: VarOperand = var_operand_def(AnyAttr())
 
@@ -140,41 +148,25 @@ class For(IRDLOperation):
 
     traits = frozenset([SingleBlockImplicitTerminator(Yield)])
 
-    def verify_(self):
-        if (len(self.iter_args) + 1) != len(self.body.block.args):
-            raise VerifyException(
-                f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
-                f"{len(self.body.block.args)}. The body must have the induction "
-                f"variable and loop-carried variables as arguments."
-            )
-        if self.body.block.args and (iter_var := self.body.block.args[0]):
-            if not isinstance(iter_var.type, IndexType):
-                raise VerifyException(
-                    f"The first block argument of the body is of type {iter_var.type}"
-                    " instead of index"
-                )
-        for idx, arg in enumerate(self.iter_args):
-            if self.body.block.args[idx + 1].type != arg.type:
-                raise VerifyException(
-                    f"Block arguments with wrong type, expected {arg.type}, "
-                    f"got {self.body.block.args[idx].type}. Arguments after the "
-                    f"induction variable must match the carried variables."
-                )
-        if len(self.body.ops) > 0 and isinstance(self.body.block.last_op, Yield):
-            yieldop = self.body.block.last_op
-            if len(yieldop.arguments) != len(self.iter_args):
-                raise VerifyException(
-                    f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
-                    f"The scf.for must yield its carried variables."
-                )
-            for idx, arg in enumerate(yieldop.arguments):
-                if self.iter_args[idx].type != arg.type:
-                    raise VerifyException(
-                        f"Expected {self.iter_args[idx].type}, got {arg.type}. The "
-                        f"scf.for's scf.yield must match carried variables types."
-                    )
+    def __init__(
+        self,
+        lb: SSAValue | Operation,
+        ub: SSAValue | Operation,
+        step: SSAValue | Operation,
+        iter_args: Sequence[SSAValue | Operation],
+        body: Region | Sequence[Operation] | Sequence[Block] | Block,
+    ):
+        if isinstance(body, Block):
+            body = [body]
+
+        super().__init__(
+            operands=[lb, ub, step, iter_args],
+            result_types=[[SSAValue.get(a).type for a in iter_args]],
+            regions=[body],
+        )
 
     @staticmethod
+    @deprecated("Use init constructor instead")
     def get(
         lb: SSAValue | Operation,
         ub: SSAValue | Operation,
@@ -182,20 +174,57 @@ class For(IRDLOperation):
         iter_args: Sequence[SSAValue | Operation],
         body: Region | Sequence[Operation] | Sequence[Block] | Block,
     ) -> For:
-        if isinstance(body, Block):
-            body = [body]
+        return For(lb, ub, step, iter_args, body)
 
-        return For.build(
-            operands=[lb, ub, step, iter_args],
-            result_types=[[SSAValue.get(a).type for a in iter_args]],
-            regions=[body],
-        )
+    def verify_(self):
+        # body block verification
+        if not self.body.block.args:
+            raise VerifyException(
+                "Body block must have induction var as first block arg"
+            )
+
+        indvar, *block_iter_args = self.body.block.args
+        block_iter_args_num = len(block_iter_args)
+        iter_args = self.iter_args
+        iter_args_num = len(self.iter_args)
+
+        for opnd in (self.lb, self.ub, self.step):
+            if opnd.type != indvar.type:
+                raise VerifyException(
+                    "Expected induction var to be same type as bounds and step"
+                )
+        if iter_args_num + 1 != block_iter_args_num + 1:
+            raise VerifyException(
+                f"Expected {iter_args_num + 1} args, but got {block_iter_args_num + 1}. "
+                "Body block must have induction and loop-carried variables as args."
+            )
+        for i, arg in enumerate(iter_args):
+            if block_iter_args[i].type != arg.type:
+                raise VerifyException(
+                    f"Block arg #{i + 1} expected to be {arg.type}, but got {block_iter_args[i].type}. "
+                    "Block args after the induction variable must match the loop-carried variables."
+                )
+        if (last_op := self.body.block.last_op) is not None and isinstance(
+            last_op, Yield
+        ):
+            yieldop = last_op
+            if len(yieldop.arguments) != iter_args_num:
+                raise VerifyException(
+                    f"{yieldop.name} expected {iter_args_num} args, but got {len(yieldop.arguments)}. "
+                    f"The {self.name} must yield its loop-carried variables."
+                )
+            for i, arg in enumerate(yieldop.arguments):
+                if iter_args[i].type != arg.type:
+                    raise VerifyException(
+                        f"Expected yield arg #{i} to be {iter_args[i].type}, but got {arg.type}. "
+                        f"{yieldop.name} of {self.name} must match loop-carried variable types."
+                    )
 
     def print(self, printer: Printer):
         block = self.body.block
-        index, *iter_args = block.args
+        indvar, *iter_args = block.args
         printer.print_string(" ")
-        printer.print_ssa_value(index)
+        printer.print_ssa_value(indvar)
         printer.print_string(" = ")
         printer.print_ssa_value(self.lb)
         printer.print_string(" to ")
@@ -212,14 +241,21 @@ class For(IRDLOperation):
             printer.print_string(") -> (")
             printer.print_list((a.type for a in iter_args), printer.print_attribute)
             printer.print_string(") ")
+        if not isinstance(indvar.type, IndexType):
+            printer.print_string(": ")
+            printer.print_attribute(indvar.type)
+            printer.print_string(" ")
         printer.print_region(
-            self.body, print_entry_block_args=False, print_empty_block=False
+            self.body,
+            print_entry_block_args=False,
+            print_empty_block=False,
+            print_block_terminators=bool(iter_args),
         )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         # Parse bounds
-        index = parser.parse_argument(expect_type=False)
+        indvar = parser.parse_argument(expect_type=False)
         parser.parse_characters("=")
         lb = parser.parse_operand()
         parser.parse_characters("to")
@@ -247,18 +283,25 @@ class For(IRDLOperation):
             iter_arg_unresolved_operands, iter_arg_types, pos
         )
 
+        # Set induction variable type
+        indvar.type = lb.type
+        if parser.parse_optional_characters(":"):
+            indvar.type = parser.parse_type()
+
         # Set block argument types
-        index.type = lb.type
         for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
             iter_arg.type = iter_arg_type
 
         # Parse body
-        body = parser.parse_region((index, *iter_args))
-        if not body.block.ops:
-            assert not iter_args, "Cannot create implicit yield with arguments"
-            body.block.add_op(Yield.get())
+        body = parser.parse_region((indvar, *iter_args))
 
-        return For.get(lb, ub, step, iter_arg_operands, body)
+        for_op = cls(lb, ub, step, iter_arg_operands, body)
+
+        if not iter_args:
+            for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):
+                ensure_terminator(for_op, trait)
+
+        return for_op
 
 
 @irdl_op_definition
@@ -272,11 +315,26 @@ class ParallelOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     traits = frozenset([SingleBlockImplicitTerminator(Yield)])
 
+    def __init__(
+        self,
+        lower_bounds: Sequence[SSAValue | Operation],
+        upper_bounds: Sequence[SSAValue | Operation],
+        steps: Sequence[SSAValue | Operation],
+        body: Region | Sequence[Block] | Sequence[Operation],
+        init_vals: Sequence[SSAValue | Operation] = (),
+    ):
+        super().__init__(
+            operands=[lower_bounds, upper_bounds, steps, init_vals],
+            regions=[body],
+            result_types=[[SSAValue.get(a).type for a in init_vals]],
+        )
+
     @staticmethod
+    @deprecated("use ParallelOp() instead!")
     def get(
         lowerBounds: Sequence[SSAValue | Operation],
         upperBounds: Sequence[SSAValue | Operation],
@@ -284,11 +342,7 @@ class ParallelOp(IRDLOperation):
         body: Region | Sequence[Block] | Sequence[Operation],
         initVals: Sequence[SSAValue | Operation] = [],
     ) -> ParallelOp:
-        return ParallelOp.build(
-            operands=[lowerBounds, upperBounds, steps, initVals],
-            regions=[body],
-            result_types=[[SSAValue.get(a).type for a in initVals]],
-        )
+        return ParallelOp(lowerBounds, upperBounds, steps, body, initVals)
 
     def verify_(self) -> None:
         # This verifies the scf.parallel operation, as can be seen it's fairly complex
@@ -395,12 +449,20 @@ class ReduceOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
+    def __init__(
+        self,
+        argument: SSAValue | Operation,
+        block: Block,
+    ):
+        super().__init__(operands=[argument], regions=[Region(block)])
+
     @staticmethod
+    @deprecated("use ReduceOp() instead!")
     def get(
         argument: SSAValue | Operation,
         block: Block,
     ) -> ReduceOp:
-        return ReduceOp.build(operands=[argument], regions=[Region(block)])
+        return ReduceOp(argument, block)
 
     def verify_(self) -> None:
         if len(self.body.block.args) != 2:
@@ -443,11 +505,15 @@ class ReduceReturnOp(IRDLOperation):
 
     traits = frozenset([HasParent(ReduceOp), IsTerminator()])
 
+    def __init__(self, result: SSAValue | Operation):
+        super().__init__(operands=[result])
+
     @staticmethod
+    @deprecated("use ReduceReturnOp() instead!")
     def get(
         result: SSAValue | Operation,
     ) -> ReduceReturnOp:
-        return ReduceReturnOp.build(operands=[result])
+        return ReduceReturnOp(result)
 
 
 @irdl_op_definition
@@ -458,12 +524,21 @@ class Condition(IRDLOperation):
 
     traits = frozenset([HasParent(While), IsTerminator()])
 
+    def __init__(
+        self,
+        cond: SSAValue | Operation,
+        *output_ops: SSAValue | Operation,
+    ):
+        super().__init__(operands=[cond, [output for output in output_ops]])
+
     @staticmethod
+    @deprecated("use __init__ constructor instead!")
     def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:
-        return Condition.build(operands=[cond, [output for output in output_ops]])
+        return Condition(cond, *output_ops)
 
 
 Scf = Dialect(
+    "scf",
     [
         If,
         For,

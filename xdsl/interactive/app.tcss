@@ -1,0 +1,86 @@
+# ListView
+#passes_list_view{
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+    height: 100%;
+}
+
+# Button
+#remove_last_pass_button{
+    width: 1;
+}
+
+# Vertical(Button, Button, Button, Button)
+#buttons{
+    layout: vertical;
+    width: auto;
+    overflow: hidden;
+}
+
+# ScrollableContainer(Label)
+#selected_passes {
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+}
+
+# TextArea
+#file_name{
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+    overflow: hidden;
+
+}
+
+# Horizontal(Button, Button)
+#input_horizontal{
+    width: auto;
+    height: auto;
+}
+
+# Vertical(TextArea, Horizontal(Button, TextArea, Button))
+#input_container {
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+}
+
+# Vertical(TextArea, Button)
+#output_container {
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+}
+
+# InputApp Screen
+Screen {
+    layout: grid;
+    grid-size: 1 2;
+    grid-rows: 45% 55%;
+    background: $surface;
+}
+
+# Button
+#uncondense_button{
+    display: none;
+}
+
+.condensed #condense_button {
+    display: none;
+}
+
+.condensed #uncondense_button {
+    display: block;
+}
+
+# All Buttons
+Button{
+    border: $warning;
+}
