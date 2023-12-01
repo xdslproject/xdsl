@@ -9,7 +9,7 @@
   }) {CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void (i64, ...)>, linkage = #llvm.linkage<external>, sym_name = "printf", visibility_ = 0 : i64} : () -> ()
 
   %0 = "test.op"() : () -> i64
-  llvm.call @printf(%0) : (i64) -> ()
+  llvm.call @printf(%0) vararg(!llvm.func<i32 (ptr, ...)>) : (i64) -> ()
 
   "llvm.func"() ({
   }) {CConv = #llvm.cconv<swiftcc>, function_type = !llvm.func<void (i64)>, linkage = #llvm.linkage<external>, sym_name = "nop", visibility_ = 1 : i64} : () -> ()
