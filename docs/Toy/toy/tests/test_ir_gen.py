@@ -24,7 +24,7 @@ def test_convert_ast():
     @ModuleOp
     @Builder.implicit_region
     def module_op():
-        unrankedf64TensorType = toy.UnrankedTensorType.from_type(f64)
+        unrankedf64TensorType = toy.UnrankedTensorType(f64)
 
         multiply_transpose_type = FunctionType.from_lists(
             [unrankedf64TensorType, unrankedf64TensorType], [unrankedf64TensorType]

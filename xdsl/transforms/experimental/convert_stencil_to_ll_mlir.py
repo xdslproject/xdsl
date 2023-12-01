@@ -55,9 +55,7 @@ _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 def StencilToMemRefType(
     input_type: StencilType[_TypeElement],
 ) -> MemRefType[_TypeElement]:
-    return MemRefType.from_element_type_and_shape(
-        input_type.element_type, input_type.get_shape()
-    )
+    return MemRefType(input_type.element_type, input_type.get_shape())
 
 
 @dataclass
