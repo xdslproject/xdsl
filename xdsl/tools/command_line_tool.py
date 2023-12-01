@@ -57,6 +57,7 @@ from xdsl.passes import ModulePass
 from xdsl.transforms import (
     canonicalize,
     canonicalize_dmp,
+    convert_scf_to_openmp,
     dead_code_elimination,
     lower_affine,
     lower_mpi,
@@ -130,6 +131,7 @@ def get_all_passes() -> list[type[ModulePass]]:
     return [
         canonicalize.CanonicalizePass,
         canonicalize_dmp.CanonicalizeDmpPass,
+        convert_scf_to_openmp.ConvertScfToOpenMPPass,
         convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
