@@ -90,8 +90,6 @@ class Constant(IRDLOperation):
 
     traits = frozenset((ConstantLike(),))
 
-    traits = frozenset((ConstantLike(),))
-
     @overload
     def __init__(
         self, value: AnyIntegerAttr | FloatAttr[AnyFloat], value_type: None = None
