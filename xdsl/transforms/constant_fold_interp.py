@@ -11,8 +11,7 @@ from xdsl.dialects import arith, builtin
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import register_implementations
-from xdsl.ir import MLContext
-from xdsl.ir.core import Attribute, Operation, OpResult
+from xdsl.ir import Attribute, MLContext, Operation, OpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
