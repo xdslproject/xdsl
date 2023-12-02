@@ -18,12 +18,12 @@
 
 // CHECK:         func.func private @sum_vec(%{{.*}} : memref<128xi32>) -> i32 {
 // CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
-// CHECK-NEXT:      %{{.*}} = "affine.for"(%{{.*}}) ({
+// CHECK-NEXT:      %{{.*}} = "affine.for"(%{{.*}}) <{"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index}> ({
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : index, %{{.*}} : i32):
 // CHECK-NEXT:        %{{.*}} = memref.load %{{.*}}[%{{.*}}] : memref<128xi32>
 // CHECK-NEXT:        %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
 // CHECK-NEXT:        "affine.yield"(%{{.*}}) : (i32) -> ()
-// CHECK-NEXT:      }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : (i32) -> i32
+// CHECK-NEXT:      }) : (i32) -> i32
 // CHECK-NEXT:      func.return %{{.*}} : i32
 // CHECK-NEXT:    }
 
@@ -54,11 +54,11 @@
   }) {"sym_name" = "affine_mm", "function_type" = (memref<256x256xf32>, memref<256x256xf32>, memref<256x256xf32>) -> memref<256x256xf32>, "sym_visibility" = "private"} : () -> ()
 
 // CHECK:         func.func private @affine_mm(%{{.*}} : memref<256x256xf32>, %{{.*}} : memref<256x256xf32>, %{{.*}} : memref<256x256xf32>) -> memref<256x256xf32> {
-// CHECK-NEXT:      "affine.for"() ({
+// CHECK-NEXT:      "affine.for"() <{"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index}> ({
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : index):
-// CHECK-NEXT:        "affine.for"() ({
+// CHECK-NEXT:        "affine.for"() <{"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index}> ({
 // CHECK-NEXT:        ^{{.*}}(%{{.*}} : index):
-// CHECK-NEXT:          "affine.for"() ({
+// CHECK-NEXT:          "affine.for"() <{"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index}> ({
 // CHECK-NEXT:          ^{{.*}}(%{{.*}} : index):
 // CHECK-NEXT:            %{{.*}} = memref.load %{{.*}}[%{{.*}}, %{{.*}}] : memref<256x256xf32>
 // CHECK-NEXT:            %{{.*}} = memref.load %{{.*}}[%{{.*}}, %{{.*}}] : memref<256x256xf32>
@@ -67,11 +67,11 @@
 // CHECK-NEXT:            %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
 // CHECK-NEXT:            memref.store %{{.*}}, %{{.*}}[%{{.*}}, %{{.*}}] : memref<256x256xf32>
 // CHECK-NEXT:            "affine.yield"() : () -> ()
-// CHECK-NEXT:          }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : () -> ()
+// CHECK-NEXT:          }) : () -> ()
 // CHECK-NEXT:          "affine.yield"() : () -> ()
-// CHECK-NEXT:        }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : () -> ()
+// CHECK-NEXT:        }) : () -> ()
 // CHECK-NEXT:        "affine.yield"() : () -> ()
-// CHECK-NEXT:      }) {"lower_bound" = affine_map<() -> (0)>, "upper_bound" = affine_map<() -> (256)>, "step" = 1 : index} : () -> ()
+// CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return %{{.*}} : memref<256x256xf32>
 // CHECK-NEXT:    }
 

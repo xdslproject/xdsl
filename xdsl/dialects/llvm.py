@@ -227,6 +227,13 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         parser.parse_characters("<", " in llvm.func parameters")
         if parser.parse_optional_characters("void"):
             output = LLVMVoidType()
+        elif parser.parse_optional_characters("ptr"):
+            if parser.parse_optional_punctuation("<"):
+                adress_space = IntAttr(parser.parse_integer())
+                parser.parse_punctuation(">")
+            else:
+                adress_space = NoneAttr()
+            output = LLVMPointerType([adress_space])
         else:
             output = parser.parse_attribute()
 
@@ -238,6 +245,13 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
             This returns either an attribute, or Ellipsis if a
             varargs specifier (`...`) was parsed.
             """
+            if parser.parse_optional_characters("ptr"):
+                if parser.parse_optional_punctuation("<"):
+                    adress_space = IntAttr(parser.parse_integer())
+                    parser.parse_punctuation(">")
+                else:
+                    adress_space = NoneAttr()
+                return LLVMPointerType([adress_space])
             if parser.parse_optional_characters("...") is not None:
                 return ...
             return parser.parse_attribute()
@@ -1135,12 +1149,16 @@ class CallOp(IRDLOperation):
     args: VarOperand = var_operand_def()
 
     callee: SymbolRefAttr = prop_def(SymbolRefAttr)
+    callee_type: LLVMFunctionType = prop_def(LLVMFunctionType)
     fastmathFlags: FastMathAttr = prop_def(FastMathAttr)
+    CConv: CallingConventionAttr = prop_def(CallingConventionAttr)
 
     def __init__(
         self,
         callee: str | SymbolRefAttr | StringAttr,
+        callee_type: LLVMFunctionType,
         *args: SSAValue | Operation,
+        calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
         fastmath: FastMathAttr = FastMathAttr(None),
     ):
         if isinstance(callee, str):
@@ -1150,7 +1168,9 @@ class CallOp(IRDLOperation):
             operands=[args],
             properties={
                 "callee": callee,
+                "callee_type": callee_type,
                 "fastmathFlags": fastmath,
+                "CConv": calling_convention,
             },
         )
 
