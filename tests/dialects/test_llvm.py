@@ -89,21 +89,14 @@ def test_llvm_pointer_type():
 
 def test_llvm_getelementptr_op_invalid_construction():
     size = arith.Constant.from_int_and_width(1, 32)
-    opaque_ptr = llvm.AllocaOp(size, builtin.i32)
-
-    # check that passing an opaque pointer to GEP without a pointee type fails
-    with pytest.raises(ValueError):
-        llvm.GEPOp(
-            opaque_ptr,
-            indices=[1],
-            result_type=llvm.LLVMPointerType.opaque(),
-        )
+    llvm.AllocaOp(size, builtin.i32)
 
     # check that non-pointer arguments fail
     with pytest.raises(ValueError):
         llvm.GEPOp(
             size,
             indices=[1],
+            pointee_type=builtin.i32,
             result_type=llvm.LLVMPointerType.opaque(),
         )
 
@@ -118,6 +111,7 @@ def test_llvm_getelementptr_op():
     gep1 = llvm.GEPOp.from_mixed_indices(
         ptr,
         indices=[1],
+        pointee_type=builtin.i32,
         result_type=ptr_type,
         inbounds=True,
     )
@@ -125,7 +119,6 @@ def test_llvm_getelementptr_op():
     assert "inbounds" in gep1.properties
     assert gep1.result.type == ptr_type
     assert gep1.ptr == ptr.res
-    assert "elem_type" not in gep1.properties
     assert len(gep1.rawConstantIndices.data) == 1
     assert len(gep1.ssa_indices) == 0
 

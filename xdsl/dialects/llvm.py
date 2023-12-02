@@ -542,10 +542,10 @@ class GEPOp(IRDLOperation):
         self,
         ptr: SSAValue | Operation,
         indices: Sequence[int],
+        pointee_type: Attribute,
         ssa_indices: Sequence[SSAValue | Operation] | None = None,
         result_type: LLVMPointerType = LLVMPointerType.opaque(),
         inbounds: bool = False,
-        pointee_type: Attribute | None = None,
     ):
         """
         A basic constructor for the GEPOp.
@@ -574,6 +574,7 @@ class GEPOp(IRDLOperation):
 
         if inbounds:
             props["inbounds"] = UnitAttr()
+        props["elem_type"] = pointee_type
 
         super().__init__(
             operands=[ptr, ssa_indices], result_types=[result_type], properties=props
@@ -583,9 +584,9 @@ class GEPOp(IRDLOperation):
     def from_mixed_indices(
         ptr: SSAValue | Operation,
         indices: Sequence[int | SSAValue | Operation],
+        pointee_type: Attribute,
         result_type: LLVMPointerType = LLVMPointerType.opaque(),
         inbounds: bool = False,
-        pointee_type: Attribute | None = None,
     ):
         """
         This is a helper function that accepts a mixed list of SSA values and const
@@ -607,10 +608,10 @@ class GEPOp(IRDLOperation):
         return GEPOp(
             ptr,
             const_indices,
+            pointee_type,
             ssa_indices,
             result_type=result_type,
             inbounds=inbounds,
-            pointee_type=pointee_type,
         )
 
 
