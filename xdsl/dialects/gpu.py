@@ -545,9 +545,9 @@ class LaunchFuncOp(IRDLOperation):
     blockSizeX: Operand = operand_def(IndexType)
     blockSizeY: Operand = operand_def(IndexType)
     blockSizeZ: Operand = operand_def(IndexType)
-    clusterSizeX: Operand = operand_def(IndexType)
-    clusterSizeY: Operand = operand_def(IndexType)
-    clusterSizeZ: Operand = operand_def(IndexType)
+    clusterSizeX: OptOperand = opt_operand_def(IndexType)
+    clusterSizeY: OptOperand = opt_operand_def(IndexType)
+    clusterSizeZ: OptOperand = opt_operand_def(IndexType)
     dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
     kernelOperands: VarOperand = var_operand_def()
     asyncObject: OptOperand = opt_operand_def()
@@ -563,6 +563,7 @@ class LaunchFuncOp(IRDLOperation):
         func: SymbolRefAttr,
         gridSize: Sequence[SSAValue | Operation],
         blockSize: Sequence[SSAValue | Operation],
+        clusterSize: Sequence[SSAValue | Operation] | None = None,
         kernelOperands: Sequence[SSAValue | Operation] | None = None,
         async_launch: bool = False,
         asyncDependencies: Sequence[SSAValue | Operation] | None = None,
@@ -572,12 +573,24 @@ class LaunchFuncOp(IRDLOperation):
             raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+        clusterSizeOperands: Sequence[
+            SSAValue | Operation | Sequence[SSAValue | Operation]
+        ]
+        if clusterSize is None:
+            clusterSizeOperands = [[], [], []]
+        else:
+            clusterSizeOperands = clusterSize
+        if len(clusterSizeOperands) != 3:
+            raise ValueError(
+                f"LaunchFuncOp must have 3 cluterSizes if any, got {len(clusterSizeOperands)}"
+            )
 
         super().__init__(
             operands=[
                 asyncDependencies,
                 *gridSize,
                 *blockSize,
+                *clusterSizeOperands,
                 dynamicSharedMemorySize,
                 kernelOperands,
                 [],
