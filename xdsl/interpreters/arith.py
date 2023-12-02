@@ -51,12 +51,16 @@ class ArithFunctions(InterpreterFunctions):
     def run_mulf(self, interpreter: Interpreter, op: arith.Mulf, args: PythonValues):
         return (args[0] * args[1],)
 
-    @impl(arith.Minf)
-    def run_minf(self, interpreter: Interpreter, op: arith.Minf, args: PythonValues):
+    @impl(arith.Minimumf)
+    def run_minf(
+        self, interpreter: Interpreter, op: arith.Minimumf, args: PythonValues
+    ):
         return (min(args[0], args[1]),)
 
-    @impl(arith.Maxf)
-    def run_maxf(self, interpreter: Interpreter, op: arith.Maxf, args: PythonValues):
+    @impl(arith.Maximumf)
+    def run_maxf(
+        self, interpreter: Interpreter, op: arith.Maximumf, args: PythonValues
+    ):
         return (max(args[0], args[1]),)
 
     @impl(arith.Cmpi)

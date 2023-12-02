@@ -105,7 +105,7 @@ def test_mulf(lhs_value: int, rhs_value: int):
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
 @pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
 def test_minf(lhs_value: float, rhs_value: float):
-    minf = arith.Minf(lhs_op, rhs_op)
+    minf = arith.Minimumf(lhs_op, rhs_op)
 
     ret = interpreter.run_op(minf, (lhs_value, rhs_value))
 
@@ -116,7 +116,7 @@ def test_minf(lhs_value: float, rhs_value: float):
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
 @pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
 def test_maxf(lhs_value: int, rhs_value: int):
-    maxf = arith.Maxf(lhs_op, rhs_op)
+    maxf = arith.Maximumf(lhs_op, rhs_op)
 
     ret = interpreter.run_op(maxf, (lhs_value, rhs_value))
 

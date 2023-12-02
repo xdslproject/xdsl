@@ -732,13 +732,23 @@ class Negf(IRDLOperation):
 
 
 @irdl_op_definition
-class Maxf(FloatingPointLikeBinaryOp):
-    name = "arith.maxf"
+class Maximumf(FloatingPointLikeBinaryOp):
+    name = "arith.maximumf"
 
 
 @irdl_op_definition
-class Minf(FloatingPointLikeBinaryOp):
-    name = "arith.minf"
+class Maxnumf(FloatingPointLikeBinaryOp):
+    name = "arith.maxnumf"
+
+
+@irdl_op_definition
+class Minimumf(FloatingPointLikeBinaryOp):
+    name = "arith.minimumf"
+
+
+@irdl_op_definition
+class Minnumf(FloatingPointLikeBinaryOp):
+    name = "arith.minnumf"
 
 
 @irdl_op_definition
@@ -902,8 +912,10 @@ Arith = Dialect(
         ShRUI,
         ShRSI,
         # Min/Max
-        Minf,
-        Maxf,
+        Minimumf,
+        Minnumf,
+        Maximumf,
+        Maxnumf,
         # Casts
         IndexCastOp,
         FPToSIOp,

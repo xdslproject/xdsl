@@ -116,7 +116,7 @@ class For(IRDLOperation):
             )
         if isinstance(step, int):
             step = IntegerAttr.from_index_int_value(step)
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "lower_bound": lower_bound,
             "upper_bound": upper_bound,
             "step": step,
@@ -124,7 +124,7 @@ class For(IRDLOperation):
         return For.build(
             operands=[operands],
             result_types=[result_types],
-            attributes=attributes,
+            properties=properties,
             regions=[region],
         )
 
@@ -171,7 +171,7 @@ class Store(IRDLOperation):
             map = AffineMapAttr(AffineMap.identity(rank))
         super().__init__(
             operands=(value, memref, indices),
-            attributes={"map": map},
+            properties={"map": map},
         )
 
 
@@ -217,7 +217,7 @@ class Load(IRDLOperation):
 
         super().__init__(
             operands=(memref, indices),
-            attributes={"map": map},
+            properties={"map": map},
             result_types=(result_type,),
         )
 
