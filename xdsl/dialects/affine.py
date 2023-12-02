@@ -21,10 +21,9 @@ from xdsl.irdl import (
     IRDLOperation,
     VarOperand,
     VarOpResult,
-    attr_def,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -59,9 +58,9 @@ class For(IRDLOperation):
     arguments: VarOperand = var_operand_def(AnyAttr())
     res: VarOpResult = var_result_def(AnyAttr())
 
-    lower_bound = attr_def(AffineMapAttr)
-    upper_bound = attr_def(AffineMapAttr)
-    step: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    lower_bound = prop_def(AffineMapAttr)
+    upper_bound = prop_def(AffineMapAttr)
+    step: AnyIntegerAttr = prop_def(AnyIntegerAttr)
 
     body: Region = region_def()
 
@@ -137,7 +136,7 @@ class If(IRDLOperation):
     args = var_operand_def(IndexType)
     res = var_result_def()
 
-    condition = attr_def(AffineSetAttr)
+    condition = prop_def(AffineSetAttr)
 
     then_region = region_def("single_block")
     else_region = region_def()
@@ -152,7 +151,7 @@ class Store(IRDLOperation):
     value = operand_def(T)
     memref = operand_def(MemRefType[T])
     indices = var_operand_def(IndexType)
-    map = opt_attr_def(AffineMapAttr)
+    map = opt_prop_def(AffineMapAttr)
 
     def __init__(
         self,
@@ -187,7 +186,7 @@ class Load(IRDLOperation):
 
     result = result_def(T)
 
-    map = opt_attr_def(AffineMapAttr)
+    map = opt_prop_def(AffineMapAttr)
 
     def __init__(
         self,
