@@ -270,6 +270,11 @@ class Addi(SignlessIntegerBinaryOp):
 
 @irdl_op_definition
 class AddUIExtended(IRDLOperation):
+    """
+    An add operation on an unsigned representation of integers that returns a flag
+    indicating if the result overflowed.
+    """
+
     name = "arith.addui_extended"
 
     traits = frozenset([Pure()])
