@@ -172,4 +172,10 @@
 
   // CHECK-NEXT: %selecti = arith.select %lhsi1, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %selectf = arith.select %lhsi1, %lhsf32, %rhsf32 : f32
+
+  %sum, %carry = arith.addui_extended %lhsi32, %rhsi32 : i32, i1
+  %sum_index, %carry_index = arith.addui_extended %lhsi64, %rhsi64 : i64, i1
+
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.addui_extended %{{.*}}, %{{.*}} : i32, i1
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.addui_extended %{{.*}}, %{{.*}} : i64, i1
 }) : () -> ()
