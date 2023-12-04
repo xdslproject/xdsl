@@ -81,12 +81,19 @@ class MemrefSubviewOfSubviewFolding(RewritePattern):
             )
         ]
 
+        current_sizes = [x.data for x in op.static_sizes.data]
+        current_strides = [x.data for x in op.static_strides.data]
+
+        assert isa(new_offsets, list[int])
+        assert isa(current_sizes, list[int])
+        assert isa(current_strides, list[int])
+
         new_op = memref.Subview.from_static_parameters(
             source_subview.source,
             source_subview.source.type,
             new_offsets,
-            tuple(x.data for x in op.static_sizes.data),
-            tuple(x.data for x in op.static_strides.data),
+            current_sizes,
+            current_strides,
             reduce_rank=reduce_rank,
         )
         if reduce_rank:
