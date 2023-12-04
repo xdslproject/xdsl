@@ -13,7 +13,7 @@ builtin.module {
 }
 
 
-// CHECK: llvm.call @printf(%{{\d+}}, %{{\d+}}, %{{\d+}}) vararg(!llvm.func<void (i64, ...)>) : (!llvm.ptr, f64, i32) -> ()
+// CHECK: llvm.call @printf(%{{\d+}}, %{{\d+}}, %{{\d+}}) vararg(!llvm.func<void (ptr, ...)>) : (!llvm.ptr, f64, i32) -> ()
 
 // CHECK: llvm.func @printf(!llvm.ptr, ...)
 

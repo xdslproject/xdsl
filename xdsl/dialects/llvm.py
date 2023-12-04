@@ -9,7 +9,9 @@ from typing import Annotated, Generic, Literal, TypeVar
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
+    ContainerType,
     DenseArrayBase,
+    IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -111,28 +113,54 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
+class LLVMPointerType(
+    ParametrizedAttribute, TypeAttribute, ContainerType[Attribute | None]
+):
     name = "llvm.ptr"
 
+    type: ParameterDef[Attribute | NoneAttr]
     addr_space: ParameterDef[IntAttr | NoneAttr]
 
     def print_parameters(self, printer: Printer) -> None:
+        if isinstance(self.type, NoneAttr):
+            return
+
+        printer.print_string("<")
+        printer.print_attribute(self.type)
         if not isinstance(self.addr_space, NoneAttr):
-            printer.print_string("<")
+            printer.print_string(", ")
             printer.print_attribute(self.addr_space)
-            printer.print_string(">")
+
+        printer.print_string(">")
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         if parser.parse_optional_characters("<") is None:
-            return [NoneAttr()]
+            return [NoneAttr(), NoneAttr()]
+        type = parser.parse_optional_type()
+        if type is None:
+            parser.raise_error("Expected first parameter of llvm.ptr to be a type!")
+        if parser.parse_optional_characters(",") is None:
+            parser.parse_characters(">", " for llvm.ptr parameters")
+            return [type, NoneAttr()]
+        parser.parse_characters(",", " between llvm.ptr args")
         addr_space = parser.parse_integer()
         parser.parse_characters(">", " to end llvm.ptr parameters")
-        return [IntAttr(addr_space)]
+        return [type, IntegerAttr(addr_space, IndexType())]
 
     @staticmethod
     def opaque():
-        return LLVMPointerType([NoneAttr()])
+        return LLVMPointerType([NoneAttr(), NoneAttr()])
+
+    @staticmethod
+    def typed(type: Attribute):
+        return LLVMPointerType([type, NoneAttr()])
+
+    def is_typed(self):
+        return not isinstance(self.type, NoneAttr)
+
+    def get_element_type(self) -> Attribute | None:
+        return self.type
 
 
 @irdl_attr_definition
@@ -228,12 +256,18 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         if parser.parse_optional_characters("void"):
             output = LLVMVoidType()
         elif parser.parse_optional_characters("ptr"):
+            ptr_type = NoneAttr()
             if parser.parse_optional_punctuation("<"):
+                ptr_type = parser.parse_optional_type()
+                if ptr_type is None:
+                    ptr_type = NoneAttr()
+                else:
+                    parser.parse_punctuation(",")
                 adress_space = IntAttr(parser.parse_integer())
                 parser.parse_punctuation(">")
             else:
                 adress_space = NoneAttr()
-            output = LLVMPointerType([adress_space])
+            output = LLVMPointerType([ptr_type, adress_space])
         else:
             output = parser.parse_attribute()
 
@@ -246,12 +280,18 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
             varargs specifier (`...`) was parsed.
             """
             if parser.parse_optional_characters("ptr"):
+                ptr_type = NoneAttr()
                 if parser.parse_optional_punctuation("<"):
+                    ptr_type = parser.parse_optional_type()
+                    if ptr_type is None:
+                        ptr_type = NoneAttr()
+                    else:
+                        parser.parse_punctuation(",")
                     adress_space = IntAttr(parser.parse_integer())
                     parser.parse_punctuation(">")
                 else:
                     adress_space = NoneAttr()
-                return LLVMPointerType([adress_space])
+                return LLVMPointerType([ptr_type, adress_space])
             if parser.parse_optional_characters("...") is not None:
                 return ...
             return parser.parse_attribute()
@@ -545,7 +585,7 @@ class GEPOp(IRDLOperation):
 
     ptr: Operand = operand_def(LLVMPointerType)
     ssa_indices: VarOperand = var_operand_def(IntegerType)
-    elem_type: Attribute = prop_def(Attribute)
+    elem_type: Attribute | None = opt_prop_def(Attribute)
 
     result: OpResult = result_def(LLVMPointerType)
 
@@ -556,10 +596,10 @@ class GEPOp(IRDLOperation):
         self,
         ptr: SSAValue | Operation,
         indices: Sequence[int],
-        pointee_type: Attribute,
         ssa_indices: Sequence[SSAValue | Operation] | None = None,
         result_type: LLVMPointerType = LLVMPointerType.opaque(),
         inbounds: bool = False,
+        pointee_type: Attribute | None = None,
     ):
         """
         A basic constructor for the GEPOp.
@@ -586,9 +626,14 @@ class GEPOp(IRDLOperation):
             ),
         }
 
+        if not ptr_type.is_typed():
+            if pointee_type is None:
+                raise ValueError("Opaque types must have a pointee type passed")
+            # opaque input ptr => opaque output ptr
+            props["elem_type"] = LLVMPointerType.opaque()
+
         if inbounds:
             props["inbounds"] = UnitAttr()
-        props["elem_type"] = pointee_type
 
         super().__init__(
             operands=[ptr, ssa_indices], result_types=[result_type], properties=props
@@ -598,9 +643,9 @@ class GEPOp(IRDLOperation):
     def from_mixed_indices(
         ptr: SSAValue | Operation,
         indices: Sequence[int | SSAValue | Operation],
-        pointee_type: Attribute,
         result_type: LLVMPointerType = LLVMPointerType.opaque(),
         inbounds: bool = False,
+        pointee_type: Attribute | None = None,
     ):
         """
         This is a helper function that accepts a mixed list of SSA values and const
@@ -622,10 +667,10 @@ class GEPOp(IRDLOperation):
         return GEPOp(
             ptr,
             const_indices,
-            pointee_type,
             ssa_indices,
             result_type=result_type,
             inbounds=inbounds,
+            pointee_type=pointee_type,
         )
 
 
@@ -645,12 +690,16 @@ class AllocaOp(IRDLOperation):
         size: SSAValue | Operation,
         elem_type: Attribute,
         alignment: int = 32,
+        as_untyped_ptr: bool = True,
     ):
         props: dict[str, Attribute] = {
             "alignment": IntegerAttr.from_int_and_width(alignment, 64)
         }
-        ptr_type = LLVMPointerType.opaque()
-        props["elem_type"] = elem_type
+        if as_untyped_ptr:
+            ptr_type = LLVMPointerType.opaque()
+            props["elem_type"] = elem_type
+        else:
+            ptr_type = LLVMPointerType.typed(elem_type)
 
         super().__init__(operands=[size], properties=props, result_types=[ptr_type])
 
@@ -663,8 +712,11 @@ class IntToPtrOp(IRDLOperation):
 
     output: OpResult = result_def(LLVMPointerType)
 
-    def __init__(self, input: SSAValue | Operation):
-        ptr_type = LLVMPointerType.opaque()
+    def __init__(self, input: SSAValue | Operation, ptr_type: Attribute | None = None):
+        if ptr_type is None:
+            ptr_type = LLVMPointerType.opaque()
+        else:
+            ptr_type = LLVMPointerType.typed(ptr_type)
         super().__init__(operands=[input], result_types=[ptr_type])
 
 
@@ -690,7 +742,17 @@ class LoadOp(IRDLOperation):
 
     dereferenced_value: OpResult = result_def()
 
-    def __init__(self, ptr: SSAValue | Operation, result_type: Attribute):
+    def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
+        if result_type is None:
+            ptr = SSAValue.get(ptr)
+            assert isinstance(ptr.type, LLVMPointerType)
+
+            if isinstance(ptr.type.type, NoneAttr):
+                raise ValueError(
+                    "llvm.load requires either a result type or a typed pointer!"
+                )
+            result_type = ptr.type.type
+
         super().__init__(operands=[ptr], result_types=[result_type])
 
 
@@ -1156,14 +1218,20 @@ class CallOp(IRDLOperation):
     def __init__(
         self,
         callee: str | SymbolRefAttr | StringAttr,
-        callee_type: LLVMFunctionType,
         *args: SSAValue | Operation,
+        return_type: Attribute | None = None,
         calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
         fastmath: FastMathAttr = FastMathAttr(None),
+        variadic_args: int = 0,
     ):
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
-
+        if return_type is None:
+            return_type = LLVMVoidType()
+        input_types = [
+            SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
+        ]
+        callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
         super().__init__(
             operands=[args],
             properties={
