@@ -44,10 +44,12 @@ def test_llvm_pointer_ops():
     module = builtin.ModuleOp(
         [
             idx := arith.Constant.from_int_and_width(0, 64),
-            ptr := llvm.AllocaOp(idx, builtin.i32),
+            ptr := llvm.AllocaOp(idx, builtin.i32, as_untyped_ptr=False),
             val := llvm.LoadOp(ptr),
             nullptr := llvm.NullOp(),
-            alloc_ptr := llvm.AllocaOp(idx, elem_type=builtin.IndexType()),
+            alloc_ptr := llvm.AllocaOp(
+                idx, elem_type=builtin.IndexType(), as_untyped_ptr=False
+            ),
             llvm.LoadOp(alloc_ptr),
             store := llvm.StoreOp(
                 val, ptr, alignment=32, volatile=True, nontemporal=True
@@ -121,7 +123,7 @@ def test_llvm_getelementptr_op_invalid_construction():
 
 def test_llvm_getelementptr_op():
     size = arith.Constant.from_int_and_width(1, 32)
-    ptr = llvm.AllocaOp(size, builtin.i32)
+    ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=False)
     ptr_type = llvm.LLVMPointerType.typed(ptr.res.type)
     opaque_ptr = llvm.AllocaOp(size, builtin.i32, as_untyped_ptr=True)
 
