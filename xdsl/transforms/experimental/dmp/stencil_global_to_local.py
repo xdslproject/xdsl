@@ -5,7 +5,7 @@ from math import prod
 from typing import ClassVar, TypeVar, cast
 
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
-from xdsl.dialects.builtin import ShapedType
+from xdsl.dialects.builtin import ContainerType
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, Block, MLContext, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
@@ -74,15 +74,14 @@ class LowerHaloExchangeToMpi(RewritePattern):
         assert op.topo is not None
         exchanges = list(op.swaps)
 
-        assert isinstance(op.input_stencil.type, ShapedType)
-        # assert isa(op.input_stencil.type, ContainerType[Attribute])
+        input_type = cast(ContainerType[Attribute], op.input_stencil.type)
 
         rewriter.replace_matched_op(
             list(
                 generate_mpi_calls_for(
                     op.input_stencil,
                     exchanges,
-                    op.input_stencil.type.get_element_type(),
+                    input_type.get_element_type(),
                     op.topo,
                     emit_init=self.init,
                     emit_debug=self.debug_prints,
@@ -377,10 +376,10 @@ def generate_memcpy(
     `field` as specified by `ex`
 
     """
-    # assert isa(field.type, memref.MemRefType[Attribute])
+    field_type = cast(memref.MemRefType[Attribute], field.type)
 
     subview = memref.Subview.from_static_parameters(
-        field, field.type, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
+        field, field_type, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
     )
     if receive:
         copy = memref.CopyOp(buffer, subview)
