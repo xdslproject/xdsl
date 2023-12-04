@@ -1,5 +1,6 @@
 import operator
 from collections.abc import Callable
+from math import isnan
 
 import pytest
 
@@ -115,13 +116,29 @@ def test_minf(lhs_value: float, rhs_value: float):
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
 @pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
-def test_maxf(lhs_value: int, rhs_value: int):
+def test_maximumf(lhs_value: int, rhs_value: int):
     maxf = arith.Maximumf(lhs_op, rhs_op)
 
     ret = interpreter.run_op(maxf, (lhs_value, rhs_value))
 
     assert len(ret) == 1
     assert ret[0] == max(lhs_value, rhs_value)
+
+
+def test_minmax_corner():
+    maxf = arith.Maximumf(lhs_op, rhs_op)
+
+    assert interpreter.run_op(maxf, (0.0, -0.0)) == (0.0,)
+    assert interpreter.run_op(maxf, (-0.0, 0.0)) == (0.0,)
+    assert isnan(interpreter.run_op(maxf, (float("NaN"), 0.0))[0])
+    assert isnan(interpreter.run_op(maxf, (0.0, float("NaN")))[0])
+
+    minf = arith.Minimumf(lhs_op, rhs_op)
+
+    assert interpreter.run_op(minf, (0.0, -0.0)) == (-0.0,)
+    assert interpreter.run_op(minf, (-0.0, 0.0)) == (-0.0,)
+    assert isnan(interpreter.run_op(minf, (float("NaN"), 0.0))[0])
+    assert isnan(interpreter.run_op(minf, (0.0, float("NaN")))[0])
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])

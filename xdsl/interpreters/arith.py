@@ -1,3 +1,4 @@
+from math import isnan
 from typing import cast
 
 from xdsl.dialects import arith
@@ -55,12 +56,16 @@ class ArithFunctions(InterpreterFunctions):
     def run_minf(
         self, interpreter: Interpreter, op: arith.Minimumf, args: PythonValues
     ):
+        if isnan(args[0]) or isnan(args[1]):
+            return (float("NaN"),)
         return (min(args[0], args[1]),)
 
     @impl(arith.Maximumf)
     def run_maxf(
         self, interpreter: Interpreter, op: arith.Maximumf, args: PythonValues
     ):
+        if isnan(args[0]) or isnan(args[1]):
+            return (float("NaN"),)
         return (max(args[0], args[1]),)
 
     @impl(arith.Cmpi)
