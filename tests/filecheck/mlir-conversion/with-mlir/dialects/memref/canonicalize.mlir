@@ -20,3 +20,5 @@ builtin.module {
         func.return
     }
 }
+//CHECK:      %subview = memref.subview %arg0[4, 4, 4] [34, 66, 64] [1, 1, 1] : memref<72x72x72xf64> to memref<34x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+//CHECK-NEXT: %subview_0 = memref.subview %arg0[35, 4, 4] [1, 64, 64] [1, 1, 1] : memref<72x72x72xf64> to memref<64x64xf64, strided<[72, 1], offset: 181732>>
