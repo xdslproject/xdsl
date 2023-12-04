@@ -1,6 +1,6 @@
 import operator
 from collections.abc import Callable
-from math import isnan
+from math import copysign, isnan
 
 import pytest
 
@@ -128,15 +128,19 @@ def test_maximumf(lhs_value: int, rhs_value: int):
 def test_minmax_corner():
     maxf = arith.Maximumf(lhs_op, rhs_op)
 
-    assert interpreter.run_op(maxf, (0.0, -0.0)) == (0.0,)
-    assert interpreter.run_op(maxf, (-0.0, 0.0)) == (0.0,)
+    assert copysign(1.0, interpreter.run_op(maxf, (0.0, 0.0))[0]) == 1.0
+    assert copysign(1.0, interpreter.run_op(maxf, (-0.0, 0.0))[0]) == 1.0
+    assert copysign(1.0, interpreter.run_op(maxf, (0.0, -0.0))[0]) == 1.0
+    assert copysign(1.0, interpreter.run_op(maxf, (-0.0, -0.0))[0]) == -1.0
     assert isnan(interpreter.run_op(maxf, (float("NaN"), 0.0))[0])
     assert isnan(interpreter.run_op(maxf, (0.0, float("NaN")))[0])
 
     minf = arith.Minimumf(lhs_op, rhs_op)
 
-    assert interpreter.run_op(minf, (0.0, -0.0)) == (-0.0,)
-    assert interpreter.run_op(minf, (-0.0, 0.0)) == (-0.0,)
+    assert copysign(1.0, interpreter.run_op(minf, (0.0, 0.0))[0]) == 1.0
+    assert copysign(1.0, interpreter.run_op(minf, (-0.0, 0.0))[0]) == -1.0
+    assert copysign(1.0, interpreter.run_op(minf, (0.0, -0.0))[0]) == -1.0
+    assert copysign(1.0, interpreter.run_op(minf, (-0.0, -0.0))[0]) == -1.0
     assert isnan(interpreter.run_op(minf, (float("NaN"), 0.0))[0])
     assert isnan(interpreter.run_op(minf, (0.0, float("NaN")))[0])
 

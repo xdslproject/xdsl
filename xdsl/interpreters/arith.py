@@ -1,4 +1,4 @@
-from math import isnan
+from math import copysign, isnan
 from typing import cast
 
 from xdsl.dialects import arith
@@ -53,19 +53,29 @@ class ArithFunctions(InterpreterFunctions):
         return (args[0] * args[1],)
 
     @impl(arith.Minimumf)
-    def run_minf(
+    def run_minimumf(
         self, interpreter: Interpreter, op: arith.Minimumf, args: PythonValues
     ):
         if isnan(args[0]) or isnan(args[1]):
             return (float("NaN"),)
+        if args[0] == 0 and args[1] == 0:
+            if copysign(1.0, args[0]) < 0 or copysign(1.0, args[1]) < 0:
+                return (-0.0,)
+            else:
+                return (0.0,)
         return (min(args[0], args[1]),)
 
     @impl(arith.Maximumf)
-    def run_maxf(
+    def run_maximumf(
         self, interpreter: Interpreter, op: arith.Maximumf, args: PythonValues
     ):
         if isnan(args[0]) or isnan(args[1]):
             return (float("NaN"),)
+        if args[0] == 0 and args[1] == 0:
+            if copysign(1.0, args[0]) > 0 or copysign(1.0, args[1]) > 0:
+                return (0.0,)
+            else:
+                return (-0.0,)
         return (max(args[0], args[1]),)
 
     @impl(arith.Cmpi)
