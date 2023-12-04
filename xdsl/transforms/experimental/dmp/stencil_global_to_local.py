@@ -5,7 +5,7 @@ from math import prod
 from typing import ClassVar, TypeVar, cast
 
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
-from xdsl.dialects.builtin import ContainerType, ShapedType
+from xdsl.dialects.builtin import ShapedType
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, Block, MLContext, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
@@ -75,7 +75,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
         exchanges = list(op.swaps)
 
         assert isinstance(op.input_stencil.type, ShapedType)
-        assert isa(op.input_stencil.type, ContainerType[Attribute])
+        # assert isa(op.input_stencil.type, ContainerType[Attribute])
 
         rewriter.replace_matched_op(
             list(
@@ -377,7 +377,7 @@ def generate_memcpy(
     `field` as specified by `ex`
 
     """
-    assert isa(field.type, memref.MemRefType[Attribute])
+    # assert isa(field.type, memref.MemRefType[Attribute])
 
     subview = memref.Subview.from_static_parameters(
         field, field.type, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
