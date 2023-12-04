@@ -733,21 +733,42 @@ class Negf(IRDLOperation):
 
 @irdl_op_definition
 class Maximumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the maximum of the two arguments, treating -0.0 as less than +0.0.
+    If one of the arguments is NaN, then the result is also NaN.
+    """
+
     name = "arith.maximumf"
 
 
 @irdl_op_definition
 class Maxnumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the maximum of the two arguments.
+    If the arguments are -0.0 and +0.0, then the result is either of them.
+    If one of the arguments is NaN, then the result is the other argument.
+    """
+
     name = "arith.maxnumf"
 
 
 @irdl_op_definition
 class Minimumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the minimum of the two arguments, treating -0.0 as less than +0.0.
+    If one of the arguments is NaN, then the result is also NaN.
+    """
+
     name = "arith.minimumf"
 
 
 @irdl_op_definition
 class Minnumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the minimum of the two arguments. If the arguments are -0.0 and +0.0, then the result is either of them.
+    If one of the arguments is NaN, then the result is the other argument.
+    """
+
     name = "arith.minnumf"
 
 
