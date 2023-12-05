@@ -123,6 +123,27 @@ class PipelinePassSpec:
             del self.args[k]
             self.args[k.replace("-", "_")] = v
 
+    def spec_to_string(self) -> str:
+        """
+        This function returns a string containing the PipelineSpec name, its arguments and
+        respective values for use on the commandline.
+        """
+        query = f"\n{self.name}"
+        arguments_pipeline = (
+            ", ".join(
+                f"{arg_name}={','.join(map(str.lower, map(str, arg_val)))}"
+                if isinstance(arg_val[0], bool)
+                else f"{arg_name}={','.join(map(str, arg_val))}"
+                for arg_name, arg_val in self.args.items()
+            )
+            if self.args
+            else ""
+        )
+        query += f"{{{arguments_pipeline}}}" if arguments_pipeline else ""
+        query += ",\n"
+
+        return query
+
 
 def parse_pipeline(
     pipeline_spec: str,
