@@ -7,17 +7,28 @@ Run `textual run xdsl.interactive.app:InputApp --dev` to run in development mode
 be sure to install `textual-dev` to run this command.
 """
 
+import os
+from collections.abc import Callable
 from io import StringIO
+from typing import Any, ClassVar
 
-from rich.style import Style
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
-from textual.widgets import Button, Footer, Label, ListItem, ListView, TextArea
-from textual.widgets.text_area import TextAreaTheme
+from textual.screen import Screen
+from textual.widgets import (
+    Button,
+    Footer,
+    Label,
+    ListItem,
+    ListView,
+    TextArea,
+)
 
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
@@ -28,6 +39,29 @@ from ._pasteboard import pyclip_copy
 
 ALL_PASSES = tuple(sorted((p.name, p) for p in get_all_passes()))
 """Contains the list of xDSL passes."""
+
+
+def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
+    """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
+
+    ctx = MLContext(True)
+
+    for dialect in get_all_dialects():
+        ctx.load_dialect(dialect)
+
+    selections: tuple[type[ModulePass], ...] = ()
+    for _, value in ALL_PASSES:
+        try:
+            cloned_module = input.clone()
+            cloned_ctx = ctx.clone()
+            value().apply(cloned_ctx, cloned_module)
+            if not input.is_structurally_equivalent(cloned_module):
+                rhs = (*selections, value)
+                selections = tuple(rhs)
+        except Exception:
+            selections = tuple((*selections, value))
+
+    return selections
 
 
 class OutputTextArea(TextArea):
@@ -49,15 +83,17 @@ class InputApp(App[None]):
         ("q", "quit_app", "Quit"),
     ]
 
-    # defines a theme for the Input/Output TextArea's
-    _DEFAULT_THEME = TextAreaTheme(
-        name="my_theme_design",
-        base_style=Style(bgcolor="white"),
-        syntax_styles={
-            "string": Style(color="red"),
-            "comment": Style(color="magenta"),
-        },
-    )
+    SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
+        "load_file": LoadFile
+    }
+
+    INITIAL_IR_TEXT = """
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
+        """
 
     current_module = reactive[ModuleOp | Exception | None](None)
     """
@@ -66,6 +102,14 @@ class InputApp(App[None]):
     """
     pass_pipeline = reactive(tuple[type[ModulePass], ...])
     """Reactive variable that saves the list of selected passes."""
+
+    condense_mode = reactive(False, always_update=True)
+    """Reactive boolean."""
+    available_pass_list = reactive(tuple[type[ModulePass], ...])
+    """
+    Reactive variable that saves the list of passes that have an effect on
+    current_module.
+    """
 
     input_text_area: TextArea
     """Input TextArea."""
@@ -95,16 +139,74 @@ class InputApp(App[None]):
                 with Vertical(id="buttons"):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
+                    yield Button("Condense", id="condense_button")
+                    yield Button("Uncondense", id="uncondense_button")
+                    yield Button("Remove Last Pass", id="remove_last_pass_button")
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
             with Vertical(id="input_container"):
                 yield self.input_text_area
-                yield Button("Clear Input", id="clear_input_button")
+                with Horizontal(id="input_horizontal"):
+                    yield Button("Clear Input", id="clear_input_button")
+                    yield Button("Load File", id="load_file_button")
             with Vertical(id="output_container"):
                 yield self.output_text_area
                 yield Button("Copy Output", id="copy_output_button")
         yield Footer()
+
+    def on_mount(self) -> None:
+        """Configure widgets in this application before it is first shown."""
+        # Registers the theme for the Input/Output TextAreas
+        self.input_text_area.theme = "vscode_dark"
+        self.output_text_area.theme = "vscode_dark"
+
+        # add titles for various widgets
+        self.query_one("#input_container").border_title = "Input xDSL IR"
+        self.query_one("#output_container").border_title = "Output xDSL IR"
+        self.query_one(
+            "#passes_list_view"
+        ).border_title = "Choose a pass or multiple passes to be applied."
+        self.query_one("#selected_passes").border_title = "Selected passes/query"
+
+        # initialize ListView to contain the pass options
+        for n, _ in ALL_PASSES:
+            self.passes_list_view.append(ListItem(Label(n), name=n))
+
+        # initialize GUI with an interesting input IR and pass application
+        self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
+
+    def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
+        """
+        When any reactive variable is modified, this function (re-)computes the
+        available_pass_list variable.
+        """
+        match self.current_module:
+            case None:
+                return tuple(p for _, p in ALL_PASSES)
+            case Exception():
+                return ()
+            case ModuleOp():
+                if self.condense_mode:
+                    return condensed_pass_list(self.current_module)
+                else:
+                    return tuple(p for _, p in ALL_PASSES)
+
+    def watch_available_pass_list(
+        self,
+        old_pass_list: tuple[type[ModulePass], ...],
+        new_pass_list: tuple[type[ModulePass], ...],
+    ) -> None:
+        """
+        Function called when the reactive variable available_pass_list changes - updates
+        the ListView to display the latest pass options.
+        """
+        if old_pass_list != new_pass_list:
+            self.passes_list_view.clear()
+            for value in new_pass_list:
+                self.passes_list_view.append(
+                    ListItem(Label(value.name), name=value.name)
+                )
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
@@ -120,12 +222,10 @@ class InputApp(App[None]):
 
     def watch_pass_pipeline(self) -> None:
         """
-        When the reactive variable pass_pipeline changes, this function
-        is called and updates the label to show the respective generated query in the Label.
+        Function called when the reactive variable pass_pipeline changes - updates the
+        label to display the respective generated query in the Label.
         """
-        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
-        new_label = f"xdsl-opt -p {new_passes}"
-        self.selected_query_label.update(new_label)
+        self.selected_query_label.update(self.get_query_string())
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")
@@ -136,6 +236,7 @@ class InputApp(App[None]):
         input_text = self.input_text_area.text
         if (input_text) == "":
             self.current_module = None
+            self.current_condensed_pass_list = ()
             return
         try:
             ctx = MLContext(True)
@@ -151,7 +252,8 @@ class InputApp(App[None]):
 
     def watch_current_module(self):
         """
-        Function to update the Output TextArea.
+        Function called when the reactive variable current_module changes - updates the
+        Output TextArea.
         """
         match self.current_module:
             case None:
@@ -167,24 +269,14 @@ class InputApp(App[None]):
 
         self.output_text_area.load_text(output_text)
 
-    def on_mount(self) -> None:
-        """Configure widgets in this application before it is first shown."""
-
-        # register's the theme for the Input/Output TextArea's
-        self.input_text_area.register_theme(InputApp._DEFAULT_THEME)
-        self.output_text_area.register_theme(InputApp._DEFAULT_THEME)
-        self.input_text_area.theme = "my_theme_design"
-        self.output_text_area.theme = "my_theme_design"
-
-        self.query_one("#input_container").border_title = "Input xDSL IR"
-        self.query_one("#output_container").border_title = "Output xDSL IR"
-        self.query_one(
-            "#passes_list_view"
-        ).border_title = "Choose a pass or multiple passes to be applied."
-        self.query_one("#selected_passes").border_title = "Selected passes/query"
-
-        for n, _ in ALL_PASSES:
-            self.passes_list_view.append(ListItem(Label(n), name=n))
+    def get_query_string(self) -> str:
+        """
+        Function returning a string containing the textual description of the pass
+        pipeline generated thus far.
+        """
+        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
+        new_label = f"xdsl-opt -p {new_passes}"
+        return new_label
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
@@ -207,14 +299,65 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#copy_query_button")
     def copy_query(self, event: Button.Pressed) -> None:
         """Selected passes/query Label is copied when "Copy Query" button is pressed."""
-        selected_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
-        query = f"xdsl-opt -p {selected_passes}"
-        pyclip_copy(query)
+        pyclip_copy(self.get_query_string())
 
     @on(Button.Pressed, "#clear_passes_button")
     def clear_passes(self, event: Button.Pressed) -> None:
         """Selected passes cleared when "Clear Passes" button is pressed."""
         self.pass_pipeline = ()
+
+    @on(Button.Pressed, "#condense_button")
+    def condense(self, event: Button.Pressed) -> None:
+        """
+        Displayed passes are filtered to display only those passes that have an affect
+        on current_module when "Condense" Button is pressed.
+        """
+        self.condense_mode = True
+        self.add_class("condensed")
+
+    @on(Button.Pressed, "#uncondense_button")
+    def uncondense(self, event: Button.Pressed) -> None:
+        """
+        Displayed passes are filtered to display all available passes when "Uncondense"
+        Button is pressed.
+        """
+        self.condense_mode = False
+        self.remove_class("condensed")
+
+    @on(Button.Pressed, "#remove_last_pass_button")
+    def remove_last_pass(self, event: Button.Pressed) -> None:
+        """Last selected pass removed when "Remove Last Pass" button is pressed."""
+        self.pass_pipeline = self.pass_pipeline[:-1]
+
+    @on(Button.Pressed, "#load_file_button")
+    def load_file(self, event: Button.Pressed) -> None:
+        """
+        Pushes screen displaying DirectoryTree widget when "Load File" button is pressed.
+        """
+
+        def check_load_file(file_path: str) -> None:
+            """
+            Called when LoadFile is dismissed. Loads selected file into
+            input_text_area.
+            """
+            # Clear Input TextArea and Pass Pipeline
+            self.pass_pipeline = ()
+            self.input_text_area.clear()
+
+            try:
+                if os.path.exists(file_path):
+                    # Open the file and read its contents
+                    with open(file_path) as file:
+                        file_contents = file.read()
+                        self.input_text_area.load_text(file_contents)
+                else:
+                    self.input_text_area.load_text(
+                        f"The file '{file_path}' does not exist."
+                    )
+            except Exception as e:
+                self.input_text_area.load_text(str(e))
+
+        self.push_screen("load_file", check_load_file)
 
 
 def main():

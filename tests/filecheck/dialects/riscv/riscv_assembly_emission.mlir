@@ -176,16 +176,16 @@
 
     // RISC-V Extensions
 
-    riscv_snitch.frep_outer %0, 0, 0 ({
+    riscv_snitch.frep_outer %0 {
       %add_o = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
-    }) : (!riscv.reg<zero>) -> ()
+    }
 
     // CHECK:          frep.o zero, 1, 0, 0
     // CHECK-NEXT:     add  j2, zero, j1
 
-    riscv_snitch.frep_inner %0, 0, 0 ({
+    riscv_snitch.frep_inner %0 {
       %add_i = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j1>) -> !riscv.reg<j2>
-    }) : (!riscv.reg<zero>) -> ()
+    }
     // CHECK:          frep.i zero, 1, 0, 0
     // CHECK-NEXT:     add  j2, zero, j1
 
@@ -254,6 +254,10 @@
 
     %fld = riscv.fld %0, 1 : (!riscv.reg<zero>) -> !riscv.freg<j8>
     // CHECK-NEXT: fld j8, 1(zero)
+
+    %min_val = riscv.fld %0, "hello" : (!riscv.reg<zero>) -> !riscv.freg<j8>
+    // CHECK-NEXT: fld j8, hello, zero
+
     riscv.fsd %0, %f0, 1  : (!riscv.reg<zero>, !riscv.freg<j5>) -> ()
     // CHECK-NEXT: fsd j5, 1(zero)
 

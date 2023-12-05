@@ -11,7 +11,7 @@ builtin.module {
         %zero = arith.constant 0.0 : f64
         "linalg.generic"(%A, %B) ({
         ^bb0(%a: f64, %b: f64):
-            %res = arith.maxf %a, %zero : f64
+            %res = arith.maximumf %a, %zero : f64
             linalg.yield %res : f64
         }) {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], operandSegmentSizes = array<i32: 1, 1>} : (memref<2x3xf64>, memref<2x3xf64>) -> ()
         printf.print_format "{}", %B : memref<2x3xf64>

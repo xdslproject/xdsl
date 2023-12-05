@@ -7,14 +7,14 @@ license = { text = "MIT License" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<3.0.1",
+    "immutabledict<4.0.1",
     "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.12.0", "textual==0.41.0", "pyclip==0.7"]
+extras = ["riscemu==2.2.5", "wgpu==0.13.0", "textual==0.44.1", "pyclip==0.7"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"

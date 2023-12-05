@@ -73,9 +73,9 @@ riscv_func.func @pres_4(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
     %i = riscv.addi %zero, 63 : (!riscv.reg<zero>) -> !riscv.reg<a0>
     %x = riscv.get_float_register() : () -> !riscv.freg<ft0>
     %y = riscv.get_float_register() : () -> !riscv.freg<ft1>
-    riscv_snitch.frep_outer %i, 0, 0 ({
+    riscv_snitch.frep_outer %i {
         %z = riscv.vfadd.s %x, %y : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
-    }) : (!riscv.reg<a0>) -> ()
+    }
     %zero_7 = riscv.csrrci 1984, 1 : () -> !riscv.reg<zero>
     riscv_func.return
 }

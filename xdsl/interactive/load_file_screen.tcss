@@ -1,0 +1,31 @@
+# LoadFile Screen
+LoadFile{
+    background: rgba(100,100,100,0.5);
+    align: center middle;
+    layout: vertical;
+}
+
+# DirectoryTree
+#directory_tree{
+    background: $surface;
+}
+
+# Button
+#quit_load_file_screen_button{
+    width: 100%;
+}
+
+# Container(DirectoryTree, Button)
+#directory_tree_container{
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+    width: 50%;
+    height: 50%;
+}
+
+# All Buttons
+Button{
+    border: $warning;
+}

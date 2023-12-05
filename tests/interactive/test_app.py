@@ -2,7 +2,10 @@ from typing import cast
 
 import pytest
 
-from xdsl.backend.riscv.lowering import convert_func_to_riscv_func
+from xdsl.backend.riscv.lowering import (
+    convert_arith_to_riscv,
+    convert_func_to_riscv_func,
+)
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func, riscv, riscv_func
 from xdsl.dialects.builtin import (
@@ -13,6 +16,14 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.app import InputApp
 from xdsl.ir import Block, Region
+from xdsl.transforms import (
+    mlir_opt,
+    printf_to_llvm,
+)
+from xdsl.transforms.experimental import (
+    hls_convert_stencil_to_ll_mlir,
+)
+from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 
 
@@ -21,6 +32,10 @@ async def test_inputs():
     """Test different inputs produce desired result."""
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
+
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+        await pilot.pause()
 
         # Test no input
         assert app.output_text_area.text == "No input"
@@ -84,7 +99,10 @@ async def test_buttons():
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
-        # Test clicking the "clear passes" button
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+
+        await pilot.pause()
         app.input_text_area.insert(
             """
         func.func @hello(%n : index) -> index {
@@ -136,13 +154,47 @@ async def test_buttons():
         """
         )
 
-        # Select a pass
+        # Select two passes
         app.pass_pipeline = tuple(
-            (*app.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
+            (
+                *app.pass_pipeline,
+                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                convert_arith_to_riscv.ConvertArithToRiscvPass,
+            )
         )
 
         # assert that pass selection affected Output Text Area
         await pilot.pause()
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  riscv.assembly_section ".text" {
+    riscv.directive ".globl" "hello"
+    riscv.directive ".p2align" "2"
+    riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
+      %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg<>
+      %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg<> to index
+      %two = riscv.li 2 : () -> !riscv.reg<>
+      %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg<> to index
+      %res = builtin.unrealized_conversion_cast %n_1 : index to !riscv.reg<>
+      %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg<>
+      %res_2 = riscv.mul %res, %res_1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+      %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg<> to index
+      %1 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg<>
+      %2 = riscv.mv %1 : (!riscv.reg<>) -> !riscv.reg<a0>
+      riscv_func.return %2 : !riscv.reg<a0>
+    }
+  }
+}
+"""
+        )
+
+        current_pipeline = app.pass_pipeline
+        # press "Remove Last Pass" button
+        await pilot.click("#remove_last_pass_button")
+        await pilot.pause()
+        assert app.pass_pipeline == current_pipeline[:-1]
+
         assert (
             app.output_text_area.text
             == """builtin.module {
@@ -194,12 +246,45 @@ async def test_buttons():
         assert isinstance(app.current_module, ModuleOp)
         assert app.current_module.is_structurally_equivalent(expected_module)
 
+        # assert initial state of condense_mode is False
+        assert app.condense_mode is False
+
+        # press "Condense" button
+        await pilot.click("#condense_button")
+
+        condensed_list = tuple(
+            (
+                convert_arith_to_riscv.ConvertArithToRiscvPass,
+                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                stencil_global_to_local.DistributeStencilPass,
+                hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
+                mlir_opt.MLIROptPass,
+                printf_to_llvm.PrintfToLLVM,
+            )
+        )
+
+        await pilot.pause()
+        # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
+        assert app.condense_mode is True
+        assert app.available_pass_list == condensed_list
+
+        # press "Uncondense" button
+        await pilot.click("#uncondense_button")
+
+        await pilot.pause()
+        # assert after "Condense Button" is clicked that the state changes accordingly
+        assert app.condense_mode is False
+
 
 @pytest.mark.asyncio()
 async def test_passes():
     """Test pass application has the desired result."""
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+
+        await pilot.pause()
         # Testing a pass
         app.input_text_area.insert(
             """
