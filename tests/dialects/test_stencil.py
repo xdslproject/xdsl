@@ -44,7 +44,7 @@ from xdsl.dialects.stencil import (
     StoreResultOp,
     TempType,
 )
-from xdsl.ir import Attribute, Block, BlockArgument, SSAValue
+from xdsl.ir import Attribute, Block, Region, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
@@ -701,8 +701,13 @@ def test_1d3pt_stencil_construct():
             load0 = LoadOp.get(field_in)
 
             # The computation region
-            @Builder.implicit_region([temp0])
-            def computation_region(args: tuple[BlockArgument, ...]):
+            with ImplicitBuilder(
+                (
+                    apply := ApplyOp.get(
+                        [load0], Region(Block(arg_types=[temp0])), [temp0]
+                    )
+                ).region
+            ) as args:
                 temp_in = args[0]
                 # Stencil computation
                 stencil_acs_l = AccessOp.get(temp_in, (-1,))
@@ -711,12 +716,11 @@ def test_1d3pt_stencil_construct():
                 stencil_comp0 = Addf(stencil_acs_l, stencil_acs_c)
                 stencil_comp1 = Addf(stencil_comp0, stencil_acs_r)
                 # Define the return operation
-                _return_op = ReturnOp.get([stencil_comp1])
+                ReturnOp.get([stencil_comp1])
 
             # Apply the computation to the loaded values
-            temp_out = ApplyOp.get([load0], computation_region, [temp0])
             # Store the computed values to the output field
-            StoreOp.get(temp_out, field_out, IndexAttr.get(0), IndexAttr.get(6))
+            StoreOp.get(apply.results[0], field_out, IndexAttr.get(0), IndexAttr.get(6))
 
     expected = """
 builtin.module {
