@@ -110,13 +110,16 @@ class ModulePass(ABC):
         pass arguments and their types. If an argument has a default value, it is not
         added to the string.
         """
-        return "\n".join(
-            [
-                f"{field.name}={field.type}"
-                for field in dataclasses.fields(cls)
-                if not hasattr(cls, field.name)
-            ]
-        )
+        try:
+            return "\n".join(
+                [
+                    f"{field.name}={field.type}"
+                    for field in dataclasses.fields(cls)
+                    if not hasattr(cls, field.name)
+                ]
+            )
+        except Exception as e:
+            raise e
 
 
 def _empty_callback(
