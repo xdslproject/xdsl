@@ -103,6 +103,21 @@ class ModulePass(ABC):
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
 
+    @classmethod
+    def get_pass_argument_names_and_types(cls: type[ModulePassT]) -> str:
+        """
+        This method takes a ModulePassT and outputs a string containing the names of the
+        pass arguments and their types. If an argument has a default value, it is not
+        added to the string.
+        """
+        return "\n".join(
+            [
+                f"{field.name}={field.type}"
+                for field in dataclasses.fields(cls)
+                if not hasattr(cls, field.name)
+            ]
+        )
+
 
 def _empty_callback(
     previous_pass: ModulePass, module: builtin.ModuleOp, next_pass: ModulePass
