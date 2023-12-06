@@ -120,6 +120,16 @@ class ModulePass(ABC):
         except Exception as e:
             raise e
 
+    def from_pass_to_spec(self) -> PipelinePassSpec:
+        """
+        This function takes a ModulePassT and returns a PipelinePassSpec.
+        """
+        res = PipelinePassSpec(self.name, dict())
+        for f in dataclasses.fields(self):
+            res.args.update(getattr(self, f.name))
+
+        return res
+
 
 def _empty_callback(
     previous_pass: ModulePass, module: builtin.ModuleOp, next_pass: ModulePass
