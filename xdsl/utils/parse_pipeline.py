@@ -106,6 +106,22 @@ PassArgElementType = str | int | bool | float
 PassArgListType = list[PassArgElementType]
 
 
+def _pass_arg_element_type_str(arg: PassArgElementType) -> str:
+    if isinstance(arg, bool):
+        if arg:
+            return str(arg).lower()
+        else:
+            return str(arg).lower()
+    elif isinstance(arg, str):
+        return f'"{arg}"'
+    else:
+        return str(arg)
+
+
+def _pass_arg_list_type_str(arg: PassArgListType) -> str:
+    return ",".join(_pass_arg_element_type_str(val) for val in arg)
+
+
 @dataclass(eq=True, frozen=True)
 class PipelinePassSpec:
     """
@@ -123,22 +139,32 @@ class PipelinePassSpec:
             del self.args[k]
             self.args[k.replace("-", "_")] = v
 
-    def spec_to_string(self) -> str:
+    def __str__(self) -> str:
         """
         This function returns a string containing the PipelineSpec name, its arguments and
         respective values for use on the commandline.
         """
-        query = f"\n{self.name}"
-        arguments_pipeline = ", ".join(
-            f"{arg_name}={','.join(map(str.lower, map(str, arg_val)))}"
-            if isinstance(arg_val[0], bool)
-            else f"{arg_name}={','.join(map(str, arg_val))}"
+        query = f"{self.name}"
+        arguments_pipeline = " ".join(
+            f"{arg_name}={_pass_arg_list_type_str(arg_val)}"
+            if len(arg_val) >= 1
+            else f"{arg_name}"
             for arg_name, arg_val in self.args.items()
         )
-        query += f"{{{arguments_pipeline}}}" if arguments_pipeline else ""
-        query += ",\n"
+        query += f"{{{arguments_pipeline}}}" if len(self.args) != 0 else ""
 
         return query
+
+        # query = f"{self.name}"
+        # arguments_pipeline = ", ".join(
+        #     f"{arg_name}={','.join(map(str.lower, map(str, arg_val)))}"
+        #     if isinstance(arg_val[0], bool)
+        #     else f"{arg_name}={','.join(map(str, arg_val))}"
+        #     for arg_name, arg_val in self.args.items()
+        # )
+        # query += f"{{{arguments_pipeline}}}" if arguments_pipeline else ""
+
+        # return query
 
 
 def parse_pipeline(
