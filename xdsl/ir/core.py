@@ -1155,6 +1155,10 @@ class Operation(IRNode):
         diagnostic.add_message(self, message)
         diagnostic.raise_exception(message, self, exception_type, underlying_error)
 
+    @classmethod
+    def dialect_name(cls) -> str:
+        return cls.name.split(".")[0]
+
     def __eq__(self, other: object) -> bool:
         return self is other
 
