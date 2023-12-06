@@ -96,7 +96,7 @@ class FormatProgram:
         FormatProgram.
         """
         # Parse elements one by one
-        state = ParsingState(op_type.irdl_definition())
+        state = ParsingState(op_type.get_irdl_definition())
         for stmt in self.stmts:
             stmt.parse(parser, state)
 
