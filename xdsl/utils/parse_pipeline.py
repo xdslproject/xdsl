@@ -129,15 +129,11 @@ class PipelinePassSpec:
         respective values for use on the commandline.
         """
         query = f"\n{self.name}"
-        arguments_pipeline = (
-            ", ".join(
-                f"{arg_name}={','.join(map(str.lower, map(str, arg_val)))}"
-                if isinstance(arg_val[0], bool)
-                else f"{arg_name}={','.join(map(str, arg_val))}"
-                for arg_name, arg_val in self.args.items()
-            )
-            if self.args
-            else ""
+        arguments_pipeline = ", ".join(
+            f"{arg_name}={','.join(map(str.lower, map(str, arg_val)))}"
+            if isinstance(arg_val[0], bool)
+            else f"{arg_name}={','.join(map(str, arg_val))}"
+            for arg_name, arg_val in self.args.items()
         )
         query += f"{{{arguments_pipeline}}}" if arguments_pipeline else ""
         query += ",\n"
