@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 from enum import Enum
 from types import EllipsisType
-from typing import Literal
+from typing import Annotated, Generic, Literal, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -33,6 +34,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    ConstraintVar,
     IRDLOperation,
     Operand,
     OptOperand,
@@ -253,6 +255,19 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         parser.parse_characters("<", " in llvm.func parameters")
         if parser.parse_optional_characters("void"):
             output = LLVMVoidType()
+        elif parser.parse_optional_characters("ptr"):
+            ptr_type = NoneAttr()
+            if parser.parse_optional_punctuation("<"):
+                ptr_type = parser.parse_optional_type()
+                if ptr_type is None:
+                    ptr_type = NoneAttr()
+                else:
+                    parser.parse_punctuation(",")
+                adress_space = IntAttr(parser.parse_integer())
+                parser.parse_punctuation(">")
+            else:
+                adress_space = NoneAttr()
+            output = LLVMPointerType([ptr_type, adress_space])
         else:
             output = parser.parse_attribute()
 
@@ -264,6 +279,19 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
             This returns either an attribute, or Ellipsis if a
             varargs specifier (`...`) was parsed.
             """
+            if parser.parse_optional_characters("ptr"):
+                ptr_type = NoneAttr()
+                if parser.parse_optional_punctuation("<"):
+                    ptr_type = parser.parse_optional_type()
+                    if ptr_type is None:
+                        ptr_type = NoneAttr()
+                    else:
+                        parser.parse_punctuation(",")
+                    adress_space = IntAttr(parser.parse_integer())
+                    parser.parse_punctuation(">")
+                else:
+                    adress_space = NoneAttr()
+                return LLVMPointerType([ptr_type, adress_space])
             if parser.parse_optional_characters("...") is not None:
                 return ...
             return parser.parse_attribute()
@@ -333,6 +361,113 @@ class LinkageAttr(ParametrizedAttribute):
         ]
         if self.linkage.data not in allowed_linkage:
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
+
+
+ArgT = TypeVar("ArgT", bound=Attribute)
+
+
+class ArithmeticBinOpBase(Generic[ArgT], IRDLOperation, ABC):
+    """Class for arithmetic binary operations."""
+
+    T = Annotated[Attribute, ArgT, ConstraintVar("T")]
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        attributes: dict[str, Attribute] = {},
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[lhs.type],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], attributes)
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ")
+        printer.print(self.lhs.type)
+
+
+@irdl_op_definition
+class AddOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.add"
+
+
+@irdl_op_definition
+class SubOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.sub"
+
+
+@irdl_op_definition
+class MulOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.mul"
+
+
+@irdl_op_definition
+class UDivOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.udiv"
+
+
+@irdl_op_definition
+class SDivOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.sdiv"
+
+
+@irdl_op_definition
+class URemOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.urem"
+
+
+@irdl_op_definition
+class SRemOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.srem"
+
+
+@irdl_op_definition
+class AndOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.and"
+
+
+@irdl_op_definition
+class OrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.or"
+
+
+@irdl_op_definition
+class XOrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.xor"
+
+
+@irdl_op_definition
+class ShlOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.shl"
+
+
+@irdl_op_definition
+class LShrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.lshr"
+
+
+@irdl_op_definition
+class AShrOp(ArithmeticBinOpBase[IntegerType]):
+    name = "llvm.ashr"
 
 
 @irdl_op_definition
@@ -555,7 +690,7 @@ class AllocaOp(IRDLOperation):
         size: SSAValue | Operation,
         elem_type: Attribute,
         alignment: int = 32,
-        as_untyped_ptr: bool = False,
+        as_untyped_ptr: bool = True,
     ):
         props: dict[str, Attribute] = {
             "alignment": IntegerAttr.from_int_and_width(alignment, 64)
@@ -1076,22 +1211,34 @@ class CallOp(IRDLOperation):
     args: VarOperand = var_operand_def()
 
     callee: SymbolRefAttr = prop_def(SymbolRefAttr)
+    callee_type: LLVMFunctionType = prop_def(LLVMFunctionType)
     fastmathFlags: FastMathAttr = prop_def(FastMathAttr)
+    CConv: CallingConventionAttr = prop_def(CallingConventionAttr)
 
     def __init__(
         self,
         callee: str | SymbolRefAttr | StringAttr,
         *args: SSAValue | Operation,
+        return_type: Attribute | None = None,
+        calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
         fastmath: FastMathAttr = FastMathAttr(None),
+        variadic_args: int = 0,
     ):
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
-
+        if return_type is None:
+            return_type = LLVMVoidType()
+        input_types = [
+            SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
+        ]
+        callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
         super().__init__(
             operands=[args],
             properties={
                 "callee": callee,
+                "callee_type": callee_type,
                 "fastmathFlags": fastmath,
+                "CConv": calling_convention,
             },
         )
 
@@ -1099,6 +1246,19 @@ class CallOp(IRDLOperation):
 LLVM = Dialect(
     "llvm",
     [
+        AddOp,
+        SubOp,
+        MulOp,
+        UDivOp,
+        SDivOp,
+        URemOp,
+        SRemOp,
+        AndOp,
+        OrOp,
+        XOrOp,
+        ShlOp,
+        LShrOp,
+        AShrOp,
         ExtractValueOp,
         InsertValueOp,
         UndefOp,

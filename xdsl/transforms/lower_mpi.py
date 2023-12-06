@@ -183,7 +183,6 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                     res := llvm.AllocaOp(
                         lit1,
                         builtin.IntegerType(8 * self.info.MPI_Status_size),
-                        as_untyped_ptr=True,
                     ),
                 ],
                 [res.res],
@@ -682,7 +681,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
             idx_cast2 := arith.IndexCastOp(idx_cast1, i64),
             mul := arith.Muli(lit1, idx_cast2),
             add := arith.Addi(mul, ptr_int),
-            out_ptr := llvm.IntToPtrOp(add, op.vect.type.type),
+            out_ptr := llvm.IntToPtrOp(add),
         ], [out_ptr.results[0]]
 
 
@@ -704,7 +703,7 @@ class LowerMpiCommRank(_MPIToLLVMRewriteBase):
             lit1 := arith.Constant.from_int_and_width(1, 64),
             int_ptr := llvm.AllocaOp(lit1, i32),
             func.Call(self._mpi_name(op), [comm_global, int_ptr], [i32]),
-            rank := llvm.LoadOp(int_ptr),
+            rank := llvm.LoadOp(int_ptr, IntegerType(32)),
         ], [rank.dereferenced_value]
 
 
@@ -726,7 +725,7 @@ class LowerMpiCommSize(_MPIToLLVMRewriteBase):
             lit1 := arith.Constant.from_int_and_width(1, 64),
             int_ptr := llvm.AllocaOp(lit1, i32),
             func.Call(self._mpi_name(op), [comm_global, int_ptr], [i32]),
-            rank := llvm.LoadOp(int_ptr),
+            rank := llvm.LoadOp(int_ptr, IntegerType(32)),
         ], [rank.dereferenced_value]
 
 

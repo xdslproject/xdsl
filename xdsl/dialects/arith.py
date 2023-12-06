@@ -734,13 +734,44 @@ class Negf(IRDLOperation):
 
 
 @irdl_op_definition
-class Maxf(FloatingPointLikeBinaryOp):
-    name = "arith.maxf"
+class Maximumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the maximum of the two arguments, treating -0.0 as less than +0.0.
+    If one of the arguments is NaN, then the result is also NaN.
+    """
+
+    name = "arith.maximumf"
 
 
 @irdl_op_definition
-class Minf(FloatingPointLikeBinaryOp):
-    name = "arith.minf"
+class Maxnumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the maximum of the two arguments.
+    If the arguments are -0.0 and +0.0, then the result is either of them.
+    If one of the arguments is NaN, then the result is the other argument.
+    """
+
+    name = "arith.maxnumf"
+
+
+@irdl_op_definition
+class Minimumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the minimum of the two arguments, treating -0.0 as less than +0.0.
+    If one of the arguments is NaN, then the result is also NaN.
+    """
+
+    name = "arith.minimumf"
+
+
+@irdl_op_definition
+class Minnumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the minimum of the two arguments. If the arguments are -0.0 and +0.0, then the result is either of them.
+    If one of the arguments is NaN, then the result is the other argument.
+    """
+
+    name = "arith.minnumf"
 
 
 @irdl_op_definition
@@ -904,8 +935,10 @@ Arith = Dialect(
         ShRUI,
         ShRSI,
         # Min/Max
-        Minf,
-        Maxf,
+        Minimumf,
+        Minnumf,
+        Maximumf,
+        Maxnumf,
         # Casts
         IndexCastOp,
         FPToSIOp,
