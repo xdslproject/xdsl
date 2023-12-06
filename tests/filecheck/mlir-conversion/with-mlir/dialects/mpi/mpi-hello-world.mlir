@@ -26,14 +26,14 @@
 // we don't really care about the whole structure, we just want to make sure mlir-opt can lower all this down to llvm
 
 // CHECK: llvm.call @MPI_Init({{%\d+}}, {{%\d+}}) : (!llvm.ptr, !llvm.ptr) -> i32
-// CHECK: llvm.call @MPI_Comm_rank({{%\d+}}, {{%\d+}}) : (i32, !llvm.ptr<i32>) -> i32
+// CHECK: llvm.call @MPI_Comm_rank({{%\d+}}, {{%\d+}}) : (i32, !llvm.ptr) -> i32
 // CHECK: llvm.call @MPI_Send({{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}) : (!llvm.ptr, i32, i32, i32, i32, i32) -> i32
 // CHECK: llvm.call @MPI_Recv({{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}, {{%\d+}}) : (!llvm.ptr, i32, i32, i32, i32, i32, !llvm.ptr) -> i32
 
 // also check that external funcs were declared correctly:
 
 // CHECK: llvm.func @MPI_Init(!llvm.ptr, !llvm.ptr) -> i32 attributes {sym_visibility = "private"}
-// CHECK: llvm.func @MPI_Comm_rank(i32, !llvm.ptr<i32>) -> i32 attributes {sym_visibility = "private"}
+// CHECK: llvm.func @MPI_Comm_rank(i32, !llvm.ptr) -> i32 attributes {sym_visibility = "private"}
 // CHECK: llvm.func @MPI_Send(!llvm.ptr, i32, i32, i32, i32, i32) -> i32 attributes {sym_visibility = "private"}
 // CHECK: llvm.func @MPI_Recv(!llvm.ptr, i32, i32, i32, i32, i32, !llvm.ptr) -> i32 attributes {sym_visibility = "private"}
 // CHECK: llvm.func @MPI_Finalize() -> i32 attributes {sym_visibility = "private"}

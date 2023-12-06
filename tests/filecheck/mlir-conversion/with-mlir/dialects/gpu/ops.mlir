@@ -47,26 +47,26 @@
             %subgroupid = "gpu.subgroup_id"() : () -> index
             %subgroupsize = "gpu.subgroup_size"() : () -> index
 
-            %globalprodx = "gpu.all_reduce"(%globalidx) ({
-            }) {"op" = #gpu<all_reduce_op mul>} : (index) -> index
+            %globalprodx = "gpu.all_reduce"(%dev) ({
+            }) {"op" = #gpu<all_reduce_op mul>} : (i32) -> i32
 
-            %globalsumy = "gpu.all_reduce"(%globalidy) ({
-            ^bb(%lhs : index, %rhs : index):
-                %sum = "arith.addi"(%lhs, %rhs) : (index, index) -> index
-                "gpu.yield"(%sum) : (index) -> ()
-            }) : (index) -> index
+            %globalsumy = "gpu.all_reduce"(%dev) ({
+            ^bb(%lhs : i32, %rhs : i32):
+                %sum = "arith.addi"(%lhs, %rhs) : (i32, i32) -> i32
+                "gpu.yield"(%sum) : (i32) -> ()
+            }) : (i32) -> i32
 
             "gpu.launch"(%one, %one, %one, %n, %one, %one) ({
             ^bb0(%bx : index, %by : index, %bz : index,
                 %tx : index, %ty : index, %tz : index,
                 %num_bx : index, %num_by : index, %num_bz : index,
                 %num_tx : index, %num_ty : index, %num_tz : index):
-                %sum = "gpu.all_reduce"(%tx) ({
-                }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
-                %final = "arith.muli"(%sum, %one) : (index, index) -> index
+                %sum = "gpu.all_reduce"(%dev) ({
+                }) {"op" = #gpu<all_reduce_op add>} : (i32) -> i32
+                %final = "arith.muli"(%sum, %dev) : (i32, i32) -> i32
                 "gpu.terminator"() : () -> ()
             }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
-            "gpu.launch_func"(%n, %n, %n, %n, %n, %n, %dev, %n) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1, 0>, "kernel" = @gpu::@foo} : (index, index, index, index, index, index, i32, index) -> ()
+            "gpu.launch_func"(%n, %n, %n, %n, %n, %n, %one, %one, %one, %dev, %n) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0>, "kernel" = @gpu::@foo} : (index, index, index, index, index, index, index, index, index, i32, index) -> ()
 
             "func.return"() : () -> ()
         }) {"function_type" = () -> (), "sym_name" = "kernel"} : () -> ()
@@ -126,13 +126,13 @@
 // CHECK-NEXT:             %{{.*}} = "gpu.subgroup_size"() : () -> index
 
 // CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{"op" = #gpu<all_reduce_op mul>}> ({
-// CHECK-NEXT:             }) : (index) -> index
+// CHECK-NEXT:             }) : (i32) -> i32
 
 // CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
-// CHECK-NEXT:             ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
-// CHECK-NEXT:                 %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (index, index) -> index
-// CHECK-NEXT:                 "gpu.yield"(%{{.*}}) : (index) -> ()
-// CHECK-NEXT:             }) : (index) -> index
+// CHECK-NEXT:             ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32):
+// CHECK-NEXT:                 %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
+// CHECK-NEXT:                 "gpu.yield"(%{{.*}}) : (i32) -> ()
+// CHECK-NEXT:             }) : (i32) -> i32
 
 // CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>}> ({
 // CHECK-NEXT:             ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
@@ -140,11 +140,11 @@
 // CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
 // CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{"op" = #gpu<all_reduce_op add>}> ({
-// CHECK-NEXT:             }) : (index) -> index
-// CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (index, index) -> index
+// CHECK-NEXT:             }) : (i32) -> i32
+// CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
 // CHECK-NEXT:                 "gpu.terminator"() : () -> ()
 // CHECK-NEXT:             }) : (index, index, index, index, index, index) -> ()
-// CHECK-NEXT:             "gpu.launch_func"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"kernel" = @gpu::@foo, "operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1, 0>}> : (index, index, index, index, index, index, i32, index) -> ()
+// CHECK-NEXT:             "gpu.launch_func"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"kernel" = @gpu::@foo, "operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0>}> : (index, index, index, index, index, index, index, index, index, i32, index) -> ()
 
 // CHECK-NEXT:             "func.return"() : () -> ()
 // CHECK-NEXT:         }) : () -> ()

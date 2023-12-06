@@ -315,6 +315,7 @@ def test_launchfunc():
         kernel,
         gridSize,
         blockSize,
+        None,
         args,
         True,
         [],

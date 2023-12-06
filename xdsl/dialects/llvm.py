@@ -255,6 +255,19 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         parser.parse_characters("<", " in llvm.func parameters")
         if parser.parse_optional_characters("void"):
             output = LLVMVoidType()
+        elif parser.parse_optional_characters("ptr"):
+            ptr_type = NoneAttr()
+            if parser.parse_optional_punctuation("<"):
+                ptr_type = parser.parse_optional_type()
+                if ptr_type is None:
+                    ptr_type = NoneAttr()
+                else:
+                    parser.parse_punctuation(",")
+                adress_space = IntAttr(parser.parse_integer())
+                parser.parse_punctuation(">")
+            else:
+                adress_space = NoneAttr()
+            output = LLVMPointerType([ptr_type, adress_space])
         else:
             output = parser.parse_attribute()
 
@@ -266,6 +279,19 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
             This returns either an attribute, or Ellipsis if a
             varargs specifier (`...`) was parsed.
             """
+            if parser.parse_optional_characters("ptr"):
+                ptr_type = NoneAttr()
+                if parser.parse_optional_punctuation("<"):
+                    ptr_type = parser.parse_optional_type()
+                    if ptr_type is None:
+                        ptr_type = NoneAttr()
+                    else:
+                        parser.parse_punctuation(",")
+                    adress_space = IntAttr(parser.parse_integer())
+                    parser.parse_punctuation(">")
+                else:
+                    adress_space = NoneAttr()
+                return LLVMPointerType([ptr_type, adress_space])
             if parser.parse_optional_characters("...") is not None:
                 return ...
             return parser.parse_attribute()
@@ -664,7 +690,7 @@ class AllocaOp(IRDLOperation):
         size: SSAValue | Operation,
         elem_type: Attribute,
         alignment: int = 32,
-        as_untyped_ptr: bool = False,
+        as_untyped_ptr: bool = True,
     ):
         props: dict[str, Attribute] = {
             "alignment": IntegerAttr.from_int_and_width(alignment, 64)
@@ -1185,22 +1211,34 @@ class CallOp(IRDLOperation):
     args: VarOperand = var_operand_def()
 
     callee: SymbolRefAttr = prop_def(SymbolRefAttr)
+    callee_type: LLVMFunctionType = prop_def(LLVMFunctionType)
     fastmathFlags: FastMathAttr = prop_def(FastMathAttr)
+    CConv: CallingConventionAttr = prop_def(CallingConventionAttr)
 
     def __init__(
         self,
         callee: str | SymbolRefAttr | StringAttr,
         *args: SSAValue | Operation,
+        return_type: Attribute | None = None,
+        calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
         fastmath: FastMathAttr = FastMathAttr(None),
+        variadic_args: int = 0,
     ):
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
-
+        if return_type is None:
+            return_type = LLVMVoidType()
+        input_types = [
+            SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
+        ]
+        callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
         super().__init__(
             operands=[args],
             properties={
                 "callee": callee,
+                "callee_type": callee_type,
                 "fastmathFlags": fastmath,
+                "CConv": calling_convention,
             },
         )
 

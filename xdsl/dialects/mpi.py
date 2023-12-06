@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from enum import Enum
-from typing import Generic, TypeVar, cast
+from typing import Generic, TypeVar
 
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import AnyFloat, IntegerType, Signedness, StringAttr, i32
@@ -815,25 +815,17 @@ class UnwrapMemrefOp(MPIBaseOp):
     type: OpResult = result_def(DataType)
 
     def __init__(self, ref: SSAValue | Operation):
-        ssa_val = SSAValue.get(ref)
-        assert isinstance(ssa_val_type := ssa_val.type, MemRefType)
-        elem_type = cast(MemRefType[AnyNumericType], ssa_val_type).element_type
-
         return super().__init__(
             operands=[ref],
-            result_types=[llvm.LLVMPointerType.typed(elem_type), i32, DataType()],
+            result_types=[llvm.LLVMPointerType.opaque(), i32, DataType()],
         )
 
     @deprecated("Use init instead")
     @staticmethod
     def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
-        ssa_val = SSAValue.get(ref)
-        assert isinstance(ssa_val_type := ssa_val.type, MemRefType)
-        elem_type = cast(MemRefType[AnyNumericType], ssa_val_type).element_type
-
         return UnwrapMemrefOp.build(
             operands=[ref],
-            result_types=[llvm.LLVMPointerType.typed(elem_type), i32, DataType()],
+            result_types=[llvm.LLVMPointerType.opaque(), i32, DataType()],
         )
 
 

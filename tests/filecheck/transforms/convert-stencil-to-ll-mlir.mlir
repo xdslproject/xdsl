@@ -394,7 +394,7 @@ builtin.module {
   //CHECK-NEXT:   func.return
   //CHECK-NEXT: }
 
-  func.func @apply_kernel(%69 : !stencil.field<[-2,13]x[-2,13]xf32>, %70 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr<f64>)  attributes {"param_names" = ["u_vec_0", "u_vec_1", "timers"]}{
+  func.func @apply_kernel(%69 : !stencil.field<[-2,13]x[-2,13]xf32>, %70 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr)  attributes {"param_names" = ["u_vec_0", "u_vec_1", "timers"]}{
     %71 = "gpu.alloc"() {"operandSegmentSizes" = array<i32: 0, 0, 0>} : () -> memref<15x15xf32>
     %u_vec_1 = "builtin.unrealized_conversion_cast"(%71) : (memref<15x15xf32>) -> !stencil.field<[-2,13]x[-2,13]xf32>
     %72 = "builtin.unrealized_conversion_cast"(%70) : (!stencil.field<[-2,13]x[-2,13]xf32>) -> memref<15x15xf32>
@@ -420,7 +420,7 @@ builtin.module {
     func.return
   }
 
-// CHECK-NEXT: func.func @apply_kernel(%146 : memref<15x15xf32>, %147 : memref<15x15xf32>, %timers : !llvm.ptr<f64>)  attributes {"param_names" = ["u_vec_0", "u_vec_1", "timers"]}{
+// CHECK-NEXT: func.func @apply_kernel(%146 : memref<15x15xf32>, %147 : memref<15x15xf32>, %timers : !llvm.ptr)  attributes {"param_names" = ["u_vec_0", "u_vec_1", "timers"]}{
 // CHECK-NEXT:   %148 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
 // CHECK-NEXT:   %u_vec_1 = builtin.unrealized_conversion_cast %148 : memref<15x15xf32> to memref<15x15xf32>
 // CHECK-NEXT:   %149 = builtin.unrealized_conversion_cast %147 : memref<15x15xf32> to memref<15x15xf32>

@@ -298,8 +298,8 @@ lower_arith_addf = LowerBinaryFloatOp(arith.Addf, riscv.FAddSOp, riscv.FAddDOp)
 lower_arith_subf = LowerBinaryFloatOp(arith.Subf, riscv.FSubSOp, riscv.FSubDOp)
 lower_arith_mulf = LowerBinaryFloatOp(arith.Mulf, riscv.FMulSOp, riscv.FMulDOp)
 lower_arith_divf = LowerBinaryFloatOp(arith.Divf, riscv.FDivSOp, riscv.FDivDOp)
-lower_arith_minf = LowerBinaryFloatOp(arith.Minf, riscv.FMinSOp, riscv.FMinDOp)
-lower_arith_maxf = LowerBinaryFloatOp(arith.Maxf, riscv.FMaxSOp, riscv.FMaxDOp)
+lower_arith_minf = LowerBinaryFloatOp(arith.Minimumf, riscv.FMinSOp, riscv.FMinDOp)
+lower_arith_maxf = LowerBinaryFloatOp(arith.Maximumf, riscv.FMaxSOp, riscv.FMaxDOp)
 
 
 class LowerArithNegf(RewritePattern):
