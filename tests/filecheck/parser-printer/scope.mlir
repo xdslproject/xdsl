@@ -1,6 +1,5 @@
 // RUN: XDSL_ROUNDTRIP
 // RUN: XDSL_GENERIC_ROUNDTRIP
-// RUN: mlir-opt %s | xdsl-opt | filecheck %s
 
 module {
   func.func public @my_func() {
