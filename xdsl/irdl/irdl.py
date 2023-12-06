@@ -487,7 +487,7 @@ class IRDLOperation(Operation):
             regions = []
         irdl_op_init(
             self,
-            type(self).irdl_definition,
+            type(self).get_irdl_definition(),
             operands=operands,
             result_types=result_types,
             properties=properties,
@@ -529,8 +529,7 @@ class IRDLOperation(Operation):
         return op
 
     @classmethod
-    @property
-    def irdl_definition(cls) -> OpDef:
+    def get_irdl_definition(cls) -> OpDef:
         """Get the IRDL operation definition."""
         ...
 
@@ -2036,11 +2035,10 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     new_attrs["traits"] = get_traits
 
     @classmethod
-    @property
-    def irdl_definition(cls: type[IRDLOperationInvT]):
+    def get_irdl_definition(cls: type[IRDLOperationInvT]):
         return op_def
 
-    new_attrs["irdl_definition"] = irdl_definition
+    new_attrs["get_irdl_definition"] = get_irdl_definition
 
     custom_verify = getattr(cls, "verify_")
 
@@ -2234,11 +2232,10 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
         new_fields[param_name] = param_name_field(idx)
 
     @classmethod
-    @property
-    def irdl_definition(cls: type[_PAttrT]):
+    def get_irdl_definition(cls: type[_PAttrT]):
         return attr_def
 
-    new_fields["irdl_definition"] = irdl_definition
+    new_fields["get_irdl_definition"] = get_irdl_definition
 
     return dataclass(frozen=True, init=False)(
         type.__new__(type(cls), cls.__name__, (cls,), {**cls.__dict__, **new_fields})
