@@ -136,7 +136,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
             casts
             + [
                 ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType.opaque()),
-                llvm.CallOp("printf", ptr.result, *args),
+                llvm.CallOp("printf", ptr.result, *args, variadic_args=len(args)),
             ]
         )
 

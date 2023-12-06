@@ -50,7 +50,13 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsTerminator, SymbolOpInterface
+from xdsl.pattern_rewriter import RewritePattern
+from xdsl.traits import (
+    HasCanonicalisationPatternsTrait,
+    HasParent,
+    IsTerminator,
+    SymbolOpInterface,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -508,6 +514,16 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
         )
 
 
+class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.memref import (
+            MemrefSubviewOfSubviewFolding,
+        )
+
+        return (MemrefSubviewOfSubviewFolding(),)
+
+
 @irdl_op_definition
 class Subview(IRDLOperation):
     name = "memref.subview"
@@ -522,6 +538,8 @@ class Subview(IRDLOperation):
     result: OpResult = result_def(MemRefType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    traits = frozenset((MemrefHasCanonicalizationPatternsTrait(),))
 
     @staticmethod
     def from_static_parameters(

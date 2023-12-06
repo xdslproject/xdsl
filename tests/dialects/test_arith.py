@@ -23,10 +23,10 @@ from xdsl.dialects.arith import (
     FloorDivSI,
     FPToSIOp,
     IndexCastOp,
-    Maxf,
+    Maximumf,
     MaxSI,
     MaxUI,
-    Minf,
+    Minimumf,
     MinSI,
     MinUI,
     Mulf,
@@ -111,7 +111,7 @@ class Test_float_arith_construction:
 
     @pytest.mark.parametrize(
         "func",
-        [Addf, Subf, Mulf, Divf, Maxf, Minf],
+        [Addf, Subf, Mulf, Divf, Maximumf, Minimumf],
     )
     @pytest.mark.parametrize(
         "flags", [FastMathFlagsAttr("none"), FastMathFlagsAttr("fast"), None]
