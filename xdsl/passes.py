@@ -110,9 +110,15 @@ def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
     pass arguments and their types. If an argument has a default value, it is not
     added to the string.
     """
+
+    def check_for_class(arg: str) -> str:
+        if arg.__contains__("<class"):
+            return (arg.removeprefix("<class '")).removesuffix("'>")
+        return arg
+
     return " ".join(
         [
-            f"{field.name}={field.type}"
+            f"{field.name}={check_for_class(str(field.type))}"
             if not hasattr(arg, field.name)
             else f"{field.name}={str(getattr(arg, field.name)).lower()}"
             for field in dataclasses.fields(arg)

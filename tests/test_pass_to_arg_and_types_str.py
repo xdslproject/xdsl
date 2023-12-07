@@ -56,7 +56,7 @@ class SimplePass(ModulePass):
     "str_arg, pass_arg",
     (
         (
-            """number=int | float single_number=<class 'int'> int_list=list[int] non_init_thing=<class 'int'> str_thing=<class 'str'> nullable_str=str | None literal=no optional_bool=false""",
+            """number=int | float single_number=int int_list=list[int] non_init_thing=int str_thing=str nullable_str=str | None literal=no optional_bool=false""",
             CustomPass,
         ),
         ("", EmptyPass),
