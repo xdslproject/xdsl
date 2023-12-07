@@ -83,12 +83,25 @@ class DimensionEnum(StrEnum):
     Z = auto()
 
 
+class ProcessorEnum(StrEnum):
+    Block_X = auto()
+    Block_Y = auto()
+    Block_Z = auto()
+    Thread_X = auto()
+    Thread_Y = auto()
+    Thread_Z = auto()
+
+
 class AllReduceOpAttr(EnumAttribute[AllReduceOpEnum], OpaqueSyntaxAttribute):
     name = "gpu.all_reduce_op"
 
 
 class DimensionAttr(EnumAttribute[DimensionEnum], OpaqueSyntaxAttribute):
     name = "gpu.dim"
+
+
+class ProcessorAttr(EnumAttribute[ProcessorEnum], OpaqueSyntaxAttribute):
+    name = "gpu.processor"
 
 
 _Element = TypeVar("_Element", bound=Attribute, covariant=True)
@@ -719,5 +732,5 @@ GPU = Dialect(
         ThreadIdOp,
         YieldOp,
     ],
-    [AllReduceOpAttr, DimensionAttr],
+    [AllReduceOpAttr, DimensionAttr, ProcessorAttr],
 )
