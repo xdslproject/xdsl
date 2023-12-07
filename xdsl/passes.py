@@ -109,7 +109,6 @@ class ModulePass(ABC):
         """
         # get all dataclass fields
         fields: tuple[Field[Any], ...] = dataclasses.fields(self)
-        # start constructing the argument dict for the dataclass
         arg_dict: dict[str, PassArgListType] = {}
 
         # iterate over all fields of the dataclass
@@ -121,7 +120,6 @@ class ModulePass(ABC):
             if _is_optional(op_field):
                 arg_dict[op_field.name] = _get_default(op_field)
 
-            # convert pass arg to the correct type:
             val = getattr(self, op_field.name)
             if val is None:
                 arg_dict.update({op_field.name: []})
