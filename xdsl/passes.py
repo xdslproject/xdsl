@@ -110,7 +110,7 @@ class ModulePass(ABC):
         res = PipelinePassSpec(self.name, {})
         if dataclasses.fields(self):
             for f in dataclasses.fields(self):
-                res.args.update({f.name: getattr(self, f.name)})
+                res.args.update({f.name: [getattr(self, f.name)]})
         return res
 
 

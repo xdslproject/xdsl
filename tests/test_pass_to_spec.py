@@ -43,7 +43,7 @@ class SimplePass(ModulePass):
     name = "simple"
 
     a: int | float
-    b: int | None
+    b: int
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         pass
@@ -67,7 +67,7 @@ class SimplePass(ModulePass):
             ),
         ),
         (EmptyPass(), PipelinePassSpec("empty", {})),
-        (SimplePass(3.40, None), PipelinePassSpec("simple", {"a": [3.40], "b": []})),
+        (SimplePass(3.40, 2), PipelinePassSpec("simple", {"a": [3.40], "b": [2]})),
     ),
 )
 def test_pass_to_spec_equality(test_pass: ModulePass, test_spec: PipelinePassSpec):
@@ -81,4 +81,4 @@ def test_pass_to_spec_equality(test_pass: ModulePass, test_spec: PipelinePassSpe
         else:
             assert getattr(test_pass, f.name) == test_spec.args[f.name]
 
-    # assert str(test_pass.from_pass_to_spec()) == str(test_spec)
+    assert str(test_pass.from_pass_to_spec()) == str(test_spec)
