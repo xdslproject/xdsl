@@ -6,6 +6,7 @@ from typing import TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     ArrayAttr,
     DenseArrayBase,
     FunctionType,
@@ -36,6 +37,7 @@ from xdsl.irdl import (
     Operand,
     OptOperand,
     OptOpResult,
+    ParameterDef,
     VarOperand,
     attr_def,
     irdl_attr_definition,
@@ -51,6 +53,8 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
@@ -84,6 +88,7 @@ class DimensionEnum(StrEnum):
 
 
 class ProcessorEnum(StrEnum):
+    Sequential = auto()
     Block_X = auto()
     Block_Y = auto()
     Block_Z = auto()
@@ -92,16 +97,54 @@ class ProcessorEnum(StrEnum):
     Thread_Z = auto()
 
 
+@irdl_attr_definition
 class AllReduceOpAttr(EnumAttribute[AllReduceOpEnum], OpaqueSyntaxAttribute):
     name = "gpu.all_reduce_op"
 
 
+@irdl_attr_definition
 class DimensionAttr(EnumAttribute[DimensionEnum], OpaqueSyntaxAttribute):
     name = "gpu.dim"
 
 
+@irdl_attr_definition
 class ProcessorAttr(EnumAttribute[ProcessorEnum], OpaqueSyntaxAttribute):
     name = "gpu.processor"
+
+
+@irdl_attr_definition
+class LoopDimMapAttr(ParametrizedAttribute):
+    name = "gpu.loop_dim_map"
+
+    processor: ParameterDef[ProcessorAttr]
+    map: ParameterDef[AffineMapAttr]
+    bound: ParameterDef[AffineMapAttr]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print("processor = ")
+            printer.print(self.processor.data)
+            printer.print(", map = ")
+            printer.print(self.map.data)
+            printer.print(", bound = ")
+            printer.print(self.bound.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser):
+        with parser.in_angle_brackets():
+            parser.parse_keyword("processor")
+            parser.parse_punctuation("=")
+            proc = ProcessorAttr.parse_parameter(parser)
+            processor = ProcessorAttr(proc)
+            parser.parse_punctuation(",")
+            parser.parse_keyword("map")
+            parser.parse_punctuation("=")
+            map = AffineMapAttr(parser.parse_affine_map())
+            parser.parse_punctuation(",")
+            parser.parse_keyword("bound")
+            parser.parse_punctuation("=")
+            bound = AffineMapAttr(parser.parse_affine_map())
+        return [processor, map, bound]
 
 
 _Element = TypeVar("_Element", bound=Attribute, covariant=True)
@@ -732,5 +775,10 @@ GPU = Dialect(
         ThreadIdOp,
         YieldOp,
     ],
-    [AllReduceOpAttr, DimensionAttr, ProcessorAttr],
+    [
+        AllReduceOpAttr,
+        DimensionAttr,
+        ProcessorAttr,
+        LoopDimMapAttr,
+    ],
 )
