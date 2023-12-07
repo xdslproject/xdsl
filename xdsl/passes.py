@@ -7,7 +7,7 @@ from typing import Any, ClassVar, TypeVar, Union, get_args, get_origin
 
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
-from xdsl.utils.hints import isa
+from xdsl.utils.hints import isa, type_repr
 from xdsl.utils.parse_pipeline import (
     PassArgElementType,
     PassArgListType,
@@ -121,14 +121,9 @@ def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
     added to the string.
     """
 
-    def check_for_class(arg: str) -> str:
-        if arg.__contains__("<class"):
-            return (arg.removeprefix("<class '")).removesuffix("'>")
-        return arg
-
     return " ".join(
         [
-            f"{field.name}={check_for_class(str(field.type))}"
+            f"{field.name}={type_repr(field.type)}"
             if not hasattr(arg, field.name)
             else f"{field.name}={str(getattr(arg, field.name)).lower()}"
             for field in dataclasses.fields(arg)
