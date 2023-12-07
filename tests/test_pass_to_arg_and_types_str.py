@@ -14,6 +14,8 @@ class CustomPass(ModulePass):
 
     number: int | float
 
+    single_number: int
+
     int_list: list[int]
 
     non_init_thing: int = field(init=False)
@@ -44,6 +46,7 @@ class SimplePass(ModulePass):
 
     a: int | float
     b: int | None
+    c: int = 5
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         pass
@@ -53,11 +56,11 @@ class SimplePass(ModulePass):
     "str_arg, pass_arg",
     (
         (
-            """number=int | float int_list=list[int] non_init_thing=<class 'int'> str_thing=<class 'str'> nullable_str=str | None""",
+            """number=int | float single_number=<class 'int'> int_list=list[int] non_init_thing=<class 'int'> str_thing=<class 'str'> nullable_str=str | None literal=no optional_bool=false""",
             CustomPass,
         ),
         ("", EmptyPass),
-        ("""a=int | float b=int | None""", SimplePass),
+        ("""a=int | float b=int | None c=5""", SimplePass),
     ),
 )
 def test_pass_to_arg_and_type_str(str_arg: str, pass_arg: type[ModulePass]):

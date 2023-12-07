@@ -113,8 +113,9 @@ def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
     return " ".join(
         [
             f"{field.name}={field.type}"
-            for field in dataclasses.fields(arg)
             if not hasattr(arg, field.name)
+            else f"{field.name}={str(getattr(arg, field.name)).lower()}"
+            for field in dataclasses.fields(arg)
         ]
     )
 
