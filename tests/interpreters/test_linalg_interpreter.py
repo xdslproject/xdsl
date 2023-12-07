@@ -74,9 +74,9 @@ def test_linalg_generic():
             ),
         ),
         (
-            linalg.IteratorTypeAttr.parallel,
-            linalg.IteratorTypeAttr.parallel,
-            linalg.IteratorTypeAttr.parallel,
+            linalg.IteratorTypeAttr.parallel(),
+            linalg.IteratorTypeAttr.parallel(),
+            linalg.IteratorTypeAttr.parallel(),
         ),
     )
 
