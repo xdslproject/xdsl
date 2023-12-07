@@ -122,13 +122,24 @@ class ModulePass(ABC):
 
     def from_pass_to_spec(self) -> PipelinePassSpec:
         """
-        This function takes a ModulePassT and returns a PipelinePassSpec.
+        This function takes a ModulePass and returns a PipelinePassSpec.
         """
-        res = PipelinePassSpec(self.name, dict())
-        for f in dataclasses.fields(self):
-            res.args.update(getattr(self, f.name))
-
+        res = PipelinePassSpec(self.name, {})
+        # if(dataclasses.fields(self)):
+        #     for f in dataclasses.fields(self):
+        #         res.args.update(getattr(self, f.name))
         return res
+
+
+# def from_pass_to_spec(cls : type[ModulePassT]) -> PipelinePassSpec:
+#     """
+#     This function takes a ModulePass and returns a PipelinePassSpec.
+#     """
+#     res = PipelinePassSpec(cls.name, dict())
+#     for f in dataclasses.fields(cls):
+#         res.args.update(getattr(cls, f.name))
+
+#     return res
 
 
 def _empty_callback(
