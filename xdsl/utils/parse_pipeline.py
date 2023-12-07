@@ -107,19 +107,22 @@ PassArgListType = list[PassArgElementType]
 
 
 def _pass_arg_element_type_str(arg: PassArgElementType) -> str:
-    if isinstance(arg, bool):
-        if arg:
+    match arg:
+        case bool():
             return str(arg).lower()
-        else:
-            return str(arg).lower()
-    elif isinstance(arg, str):
-        return f'"{arg}"'
+        case str():
+            return f'"{arg}"'
+        case int():
+            return str(arg)
+        case float():
+            return str(arg)
+
+
+def _pass_arg_list_type_str(name: str, arg: PassArgListType) -> str:
+    if arg:
+        return f'{name}={",".join(_pass_arg_element_type_str(val) for val in arg)}'
     else:
-        return str(arg)
-
-
-def _pass_arg_list_type_str(arg: PassArgListType) -> str:
-    return ",".join(_pass_arg_element_type_str(val) for val in arg)
+        return name
 
 
 @dataclass(eq=True, frozen=True)
@@ -146,25 +149,12 @@ class PipelinePassSpec:
         """
         query = f"{self.name}"
         arguments_pipeline = " ".join(
-            f"{arg_name}={_pass_arg_list_type_str(arg_val)}"
-            if len(arg_val) >= 1
-            else f"{arg_name}"
+            _pass_arg_list_type_str(arg_name, arg_val)
             for arg_name, arg_val in self.args.items()
         )
         query += f"{{{arguments_pipeline}}}" if len(self.args) != 0 else ""
 
         return query
-
-        # query = f"{self.name}"
-        # arguments_pipeline = ", ".join(
-        #     f"{arg_name}={','.join(map(str.lower, map(str, arg_val)))}"
-        #     if isinstance(arg_val[0], bool)
-        #     else f"{arg_name}={','.join(map(str, arg_val))}"
-        #     for arg_name, arg_val in self.args.items()
-        # )
-        # query += f"{{{arguments_pipeline}}}" if arguments_pipeline else ""
-
-        # return query
 
 
 def parse_pipeline(
