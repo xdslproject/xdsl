@@ -60,6 +60,7 @@ from xdsl.transforms import (
     constant_fold_interp,
     convert_scf_to_openmp,
     dead_code_elimination,
+    gpu_map_parallel_loops,
     lower_affine,
     lower_mpi,
     lower_riscv_func,
@@ -130,6 +131,7 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
+        gpu_map_parallel_loops.GpuMapParallelLoopsPass,
         canonicalize.CanonicalizePass,
         canonicalize_dmp.CanonicalizeDmpPass,
         convert_scf_to_openmp.ConvertScfToOpenMPPass,
