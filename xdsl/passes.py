@@ -103,6 +103,16 @@ class ModulePass(ABC):
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
 
+    def from_pass_to_spec(self) -> PipelinePassSpec:
+        """
+        This function takes a ModulePass and returns a PipelinePassSpec.
+        """
+        res = PipelinePassSpec(self.name, {})
+        if dataclasses.fields(self):
+            for f in dataclasses.fields(self):
+                res.args.update({f.name: getattr(self, f.name)})
+        return res
+
 
 def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
     """
@@ -124,16 +134,6 @@ def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
             for field in dataclasses.fields(arg)
         ]
     )
-
-    def from_pass_to_spec(self) -> PipelinePassSpec:
-        """
-        This function takes a ModulePass and returns a PipelinePassSpec.
-        """
-        res = PipelinePassSpec(self.name, {})
-        if dataclasses.fields(self):
-            for f in dataclasses.fields(self):
-                res.args.update(getattr(self, f.name))
-        return res
 
 
 def _empty_callback(

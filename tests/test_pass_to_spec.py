@@ -80,3 +80,5 @@ def test_pass_to_spec_equality(test_pass: ModulePass, test_spec: PipelinePassSpe
             assert getattr(test_pass, f.name) == test_spec.args[f.name][0]
         else:
             assert getattr(test_pass, f.name) == test_spec.args[f.name]
+
+    # assert str(test_pass.from_pass_to_spec()) == str(test_spec)
