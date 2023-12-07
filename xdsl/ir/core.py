@@ -570,7 +570,7 @@ class ParametrizedAttribute(Attribute):
         return attr
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 
