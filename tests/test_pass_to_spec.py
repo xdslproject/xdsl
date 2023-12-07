@@ -1,6 +1,5 @@
 import dataclasses
-from dataclasses import dataclass
-from typing import Literal
+from dataclasses import dataclass, field
 
 import pytest
 
@@ -14,15 +13,17 @@ from xdsl.utils.parse_pipeline import PipelinePassSpec
 class CustomPass(ModulePass):
     name = "custom-pass"
 
-    number: int | float
+    number: int
 
     int_list: list[int]
 
-    str_thing: str
+    # non_init_thing: int = field(init=False)
 
-    nullable_str: str | None
+    str_thing: str | None
 
-    literal: Literal["yes", "no", "maybe"] = "no"
+    list_str: list[str] = field(default_factory=list)
+
+    # literal: Literal["yes", "no", "maybe"] = "no"
 
     optional_bool: bool = False
 
@@ -42,7 +43,7 @@ class EmptyPass(ModulePass):
 class SimplePass(ModulePass):
     name = "simple"
 
-    a: int | float
+    a: list[float]
     b: int
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
@@ -53,21 +54,24 @@ class SimplePass(ModulePass):
     "test_pass, test_spec",
     (
         (
-            CustomPass(3, [1, 2], "hi", "bye"),
+            CustomPass(3, [1, 2], None, ["clown", "season"]),
             PipelinePassSpec(
                 "custom-pass",
                 {
                     "number": [3],
                     "int_list": [1, 2],
-                    "str_thing": ["hi"],
-                    "nullable_str": ["bye"],
-                    "literal": ["no"],
+                    "str_thing": [],
+                    "list_str": ["clown", "season"],
+                    # "literal": ["no"],
                     "optional_bool": [False],
                 },
             ),
         ),
         (EmptyPass(), PipelinePassSpec("empty", {})),
-        (SimplePass(3.40, 2), PipelinePassSpec("simple", {"a": [3.40], "b": [2]})),
+        (
+            SimplePass([3.14, 2.13], 2),
+            PipelinePassSpec("simple", {"a": [3.14, 2.13], "b": [2]}),
+        ),
     ),
 )
 def test_pass_to_spec_equality(test_pass: ModulePass, test_spec: PipelinePassSpec):

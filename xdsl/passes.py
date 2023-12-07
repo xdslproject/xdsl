@@ -107,11 +107,30 @@ class ModulePass(ABC):
         """
         This function takes a ModulePass and returns a PipelinePassSpec.
         """
-        res = PipelinePassSpec(self.name, {})
-        if dataclasses.fields(self):
-            for f in dataclasses.fields(self):
-                res.args.update({f.name: [getattr(self, f.name)]})
-        return res
+        # get all dataclass fields
+        fields: tuple[Field[Any], ...] = dataclasses.fields(self)
+        # start constructing the argument dict for the dataclass
+        arg_dict: dict[str, PassArgListType] = {}
+
+        # iterate over all fields of the dataclass
+        for op_field in fields:
+            # ignore the name field and everything that's not used by __init__
+            if op_field.name == "name" or not op_field.init:
+                continue
+
+            if _is_optional(op_field):
+                arg_dict[op_field.name] = _get_default(op_field)
+
+            # convert pass arg to the correct type:
+            val = getattr(self, op_field.name)
+            if val is None:
+                arg_dict.update({op_field.name: []})
+            elif isinstance(val, PassArgElementType):
+                arg_dict.update({op_field.name: [getattr(self, op_field.name)]})
+            else:
+                arg_dict.update({op_field.name: getattr(self, op_field.name)})
+
+        return PipelinePassSpec(self.name, arg_dict)
 
 
 def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
