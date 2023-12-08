@@ -1,4 +1,3 @@
-import dataclasses
 from dataclasses import dataclass, field
 
 import pytest
@@ -75,14 +74,5 @@ class SimplePass(ModulePass):
     ),
 )
 def test_pass_to_spec_equality(test_pass: ModulePass, test_spec: PipelinePassSpec):
-    assert test_pass.from_pass_to_spec().name == test_spec.name
-    for f in dataclasses.fields(test_pass):
-        if len(test_spec.args[f.name]) == 0:
-            assert getattr(test_pass, f.name) is None
-            assert test_spec.args[f.name] == []
-        elif len(test_spec.args[f.name]) == 1:
-            assert getattr(test_pass, f.name) == test_spec.args[f.name][0]
-        else:
-            assert getattr(test_pass, f.name) == test_spec.args[f.name]
-
+    assert test_pass.from_pass_to_spec() == test_spec
     assert str(test_pass.from_pass_to_spec()) == str(test_spec)
