@@ -106,7 +106,7 @@ class ModulePass(ABC):
 
 def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
     """
-    This method takes a ModulePassT and outputs a string containing the names of the
+    This method takes a type[ModulePassT] and outputs a string containing the names of the
     pass arguments and their types. If an argument has a default value, it is not
     added to the string.
     """
