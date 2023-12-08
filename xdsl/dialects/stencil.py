@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
+from math import prod
 from operator import add, lt, neg
 from typing import Generic, TypeVar, cast
 
@@ -29,6 +30,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
     region_def,
     result_def,
     var_operand_def,
@@ -739,6 +741,13 @@ class ReturnOp(IRDLOperation):
 
     name = "stencil.return"
     arg: VarOperand = var_operand_def(ResultType | AnyFloat)
+    unroll = opt_prop_def(IndexAttr)
+
+    @property
+    def unroll_factor(self) -> int:
+        if self.unroll is None:
+            return 1
+        return prod(self.unroll)
 
     traits = frozenset([HasParent(ApplyOp), IsTerminator()])
 
@@ -747,21 +756,24 @@ class ReturnOp(IRDLOperation):
         return ReturnOp.build(operands=[list(res)])
 
     def verify_(self) -> None:
+        unroll_factor = self.unroll_factor
         types = [
             o.type.elem if isinstance(o.type, ResultType) else o.type for o in self.arg
         ]
         apply = cast(ApplyOp, self.parent_op())
         res_types = [cast(TempType[Attribute], r.type).element_type for r in apply.res]
-        if len(types) != len(res_types):
+        if len(types) != len(res_types) * unroll_factor:
             raise VerifyException(
-                f"stencil.return expected {len(res_types)} operands to match the parent "
+                f"stencil.return expected {len(res_types) * unroll_factor} operands to match the parent "
                 f"stencil.apply result types, got {len(types)}"
             )
-        if types != res_types:
-            raise VerifyException(
-                "stencil.return expected operand types to match the parent "
-                "stencil.apply result element types."
-            )
+        for i, res_type in enumerate(res_types):
+            for type in types[unroll_factor * i : unroll_factor * (i + 1)]:
+                if type != res_type:
+                    raise VerifyException(
+                        "stencil.return expected operand types to match the parent "
+                        "stencil.apply result element types."
+                    )
 
 
 @dataclass(frozen=True)

@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
+from itertools import product
 from typing import Literal, TypeVar
 from warnings import warn
 
@@ -14,6 +15,7 @@ from xdsl.dialects.stencil import (
     ExternalLoadOp,
     ExternalStoreOp,
     FieldType,
+    IndexAttr,
     IndexOp,
     LoadOp,
     ReturnOp,
@@ -117,29 +119,48 @@ class ReturnOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
+        parallel = op.parent_op()
+        assert isinstance(parallel, scf.ParallelOp)
+
+        dims = len(parallel.lowerBound)
         store_list: list[memref.Store] = []
+        unroll_factor = op.unroll_factor
+        n_res = len(op.arg) // unroll_factor
+        unroll = op.unroll
+        if unroll is None:
+            unroll = IndexAttr.get(*([1] * dims))
 
         parallel = op.parent_op()
-        assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp | scf.For)
+        assert isinstance(parallel, scf.ParallelOp)
+        for j in range(n_res):
+            for offset in product(*(range(u) for u in unroll)):
+                target = self.return_target[op][j]
 
-        for j in range(len(op.arg)):
-            target = self.return_target[op][j]
+                if target is None:
+                    break
 
-            if target is None:
-                break
+                assert isinstance(target.type, builtin.ShapedType)
 
-            assert isinstance(target.type, builtin.ShapedType)
+                assert (block := op.parent_block()) is not None
 
-            assert (block := op.parent_block()) is not None
+                dims = target.type.get_num_dims()
 
-            dims = target.type.get_num_dims()
+                args = collectBlockArguments(dims, block)
 
-            args = collectBlockArguments(dims, block)
+                for i in range(dims):
+                    if offset[i] != 0:
+                        constant_op = arith.Constant.from_int_and_width(
+                            offset[i], builtin.IndexType()
+                        )
+                        add_op = arith.Addi(args[i], constant_op)
+                        args[i] = add_op.results[0]
+                        store_list.append(constant_op)
+                        store_list.append(add_op)
 
-            if self.target == "gpu":
-                args = list(reversed(args))
+                if self.target == "gpu":
+                    args = list(reversed(args))
 
-            store_list.append(memref.Store.get(op.arg[j], target, args))
+                store_list.append(memref.Store.get(op.arg[j], target, args))
 
         rewriter.replace_matched_op([*store_list])
 
