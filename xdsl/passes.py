@@ -104,6 +104,7 @@ class ModulePass(ABC):
         return cls(**arg_dict)
 
 
+# Git Issue: https://github.com/xdslproject/xdsl/issues/1845
 def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
     """
     This method takes a type[ModulePassT] and outputs a string containing the names of the
