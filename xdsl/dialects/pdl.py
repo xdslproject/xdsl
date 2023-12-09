@@ -173,6 +173,7 @@ class ApplyNativeConstraintOp(IRDLOperation):
         return ApplyNativeConstraintOp(name, operands)
 
     def print(self, printer: Printer) -> None:
+        printer.print(" ")
         printer.print_string_literal(self.constraint_name.data)
         printer.print("(")
         print_operands_with_types(printer, self.operands)
@@ -225,7 +226,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
         printer.print(")")
         if len(self.results) != 0:
             printer.print(" : ")
-            printer.print_list(self.results, printer.print)
+            printer.print_list([res.type for res in self.results], printer.print)
 
 
 @irdl_op_definition
@@ -594,7 +595,7 @@ class RangeOp(IRDLOperation):
         if len(self.arguments) == 0:
             printer.print(" : ", self.result.type)
             return
-
+        printer.print(" ")
         print_operands_with_types(printer, self.arguments)
 
 
