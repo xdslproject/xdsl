@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from xdsl.dialects import affine, arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import ParallelOp, Yield
-from xdsl.ir import Block, MLContext, Operation, Region
+from xdsl.ir import Block, MLContext, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -24,38 +24,21 @@ class ScfParallelLoopTilingPattern(RewritePattern):
         # Only tile the innermost parallel loop
         if any(isinstance(o, ParallelOp) for o in op.body.walk()):
             return
-        lower = tuple(o.owner for o in op.lowerBound)
-        upper = tuple(o.owner for o in op.upperBound)
-        step = tuple(o.owner for o in op.step)
-
-        # Only handle constant loop bounds for now
-        if not (
-            isa(lower, tuple[arith.Constant, ...])
-            and isa(upper, tuple[arith.Constant, ...])
-            and isa(step, tuple[arith.Constant, ...])
-        ):
-            return
-        lower_v = tuple(o.value for o in lower)
-        upper_v = tuple(o.value for o in upper)
-        step_v = tuple(o.value for o in step)
-
-        # Verifier ensures those are of index type
-        assert isa(lower_v, tuple[IntegerAttr[IndexType], ...])
-        assert isa(upper_v, tuple[IntegerAttr[IndexType], ...])
-        assert isa(step_v, tuple[IntegerAttr[IndexType], ...])
-
-        # Get the values
-        lower_v = tuple(o.value.data for o in lower_v)
-        upper_v = tuple(o.value.data for o in upper_v)
-        step_v = tuple(o.value.data for o in step_v)
+        lower = op.lowerBound
+        upper = op.upperBound
+        step = op.step
 
         # fill the tile sizes with ones
         tile_sizes_v = self.tile_sizes
         for _ in range(len(tile_sizes_v), len(lower)):
             tile_sizes_v.append(1)
 
-        # Only handle perfectly divisible loops for now
-        # if any((u - l) % s != 0 for l, u, s in zip(lower_v, upper_v, tile_sizes_v)):
+        # Only handle constant loop bounds for now
+        # if not (
+        #     isa(lower, tuple[arith.Constant, ...])
+        #     and isa(upper, tuple[arith.Constant, ...])
+        #     and isa(step, tuple[arith.Constant, ...])
+        # ):
         #     return
 
         zero = arith.Constant(IntegerAttr.from_index_int_value(0))
@@ -81,8 +64,8 @@ class ScfParallelLoopTilingPattern(RewritePattern):
             ),
         )
 
-        inner_lower = list[Operation]()
-        inner_upper = list[Operation]()
+        inner_lower = list[SSAValue | Operation]()
+        inner_upper = list[SSAValue | Operation]()
         minops = list[Operation]()
         minmap = affine.AffineMapAttr(
             affine.AffineMap(
@@ -97,24 +80,40 @@ class ScfParallelLoopTilingPattern(RewritePattern):
         for i in range(len(op.lowerBound)):
             if i in tile_sizes:
                 inner_lower.append(zero)
-                iter_count = (upper_v[i] - lower_v[i]) // step_v[i]
-                if iter_count % tile_sizes_v[i] == 0:
-                    inner_upper.append(tile_sizes[i])
-                else:
-                    arg_index = tiled_dims.index(i)
-                    minop = affine.MinOp(
-                        operands=[
-                            [
-                                tile_sizes[i],
-                                outter_upper[i],
-                                outter_loop.body.block.args[arg_index],
-                            ]
-                        ],
-                        properties={"map": minmap},
-                        result_types=[IndexType()],
+                ilower, iupper, istep = lower[i], upper[i], step[i]
+                if (
+                    isinstance(ilower, arith.Constant)
+                    and isinstance(iupper, arith.Constant)
+                    and isinstance(istep, arith.Constant)
+                ):
+                    lower_v, upper_v, step_v = (
+                        c.value for c in (ilower, iupper, istep)
                     )
-                    minops.append(minop)
-                    inner_upper.append(minop)
+                    assert isa(lower_v, IntegerAttr[IndexType])
+                    assert isa(upper_v, IntegerAttr[IndexType])
+                    assert isa(step_v, IntegerAttr[IndexType])
+                    lower_v, upper_v, step_v = (
+                        c.value.data for c in (lower_v, upper_v, step_v)
+                    )
+                    iter_count = (upper_v - lower_v) // step_v
+                    if iter_count % tile_sizes_v[i] == 0:
+                        inner_upper.append(tile_sizes[i])
+                        continue
+
+                arg_index = tiled_dims.index(i)
+                minop = affine.MinOp(
+                    operands=[
+                        [
+                            tile_sizes[i],
+                            outter_upper[i],
+                            outter_loop.body.block.args[arg_index],
+                        ]
+                    ],
+                    properties={"map": minmap},
+                    result_types=[IndexType()],
+                )
+                minops.append(minop)
+                inner_upper.append(minop)
 
             else:
                 inner_lower.append(lower[i])
@@ -129,7 +128,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
                 inner_loop.body.block.insert_op_before(
                     iv, inner_loop.body.block.first_op
                 )
-                for use in arg.uses:
+                for use in tuple(arg.uses):
                     if use.operation is iv:
                         continue
                     use.operation.operands[use.index] = iv.result
