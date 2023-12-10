@@ -22,12 +22,13 @@ func.func @static_loop_with_step() {
 // CHECK:           {{%.*}} = arith.constant 4 : index
 // CHECK:           {{%.*}} = arith.muli {{%.*}}, {{%.*}} : index
 // CHECK:           {{%.*}} = arith.muli {{%.*}}, {{%.*}} : index
-// CHECK:           scf.parallel ({{%.*}}, {{%.*}}) = ({{%.*}}, {{%.*}}) to ({{%.*}}, {{%.*}}) step ({{%.*}}, {{%.*}}) {
-// CHECK:             scf.parallel ({{%.*}}, {{%.*}}) = ({{%.*}}, {{%.*}}) to ({{%.*}}, {{%.*}}) step ({{%.*}}, {{%.*}}) {
-// CHECK:               = arith.addi {{%.*}}, {{%.*}} : index
-// CHECK:               = arith.addi {{%.*}}, {{%.*}} : index
-// CHECK:             }
-// CHECK:           }
+// CHECK:           "scf.parallel"({{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+// CHECK:           ^{{.*}}({{%.*}} : index, {{%.*}} : index):
+// CHECK:             "scf.parallel"({{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+// CHECK:             ^{{.*}}({{%.*}} : index, {{%.*}} : index):
+// CHECK:               scf.yield
+// CHECK:             })
+// CHECK:           })
 // CHECK:           return
 
 // -----
@@ -50,10 +51,10 @@ func.func @tile_nested_in_non_ploop() {
 // CHECK-LABEL: func @tile_nested_in_non_ploop
 // CHECK:         scf.for
 // CHECK:           scf.for
-// CHECK:             scf.parallel
-// CHECK:               scf.parallel
-// CHECK:               }
-// CHECK:             }
+// CHECK:             "scf.parallel"
+// CHECK:               "scf.parallel"
+// CHECK:               })
+// CHECK:             })
 // CHECK:           }
 // CHECK:         }
 // CHECK:       }
