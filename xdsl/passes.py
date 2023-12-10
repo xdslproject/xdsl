@@ -103,6 +103,33 @@ class ModulePass(ABC):
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
 
+    def pipeline_pass_spec(self) -> PipelinePassSpec:
+        """
+        This function takes a ModulePass and returns a PipelinePassSpec.
+        """
+        # get all dataclass fields
+        fields: tuple[Field[Any], ...] = dataclasses.fields(self)
+        arg_dict: dict[str, PassArgListType] = {}
+
+        # iterate over all fields of the dataclass
+        for op_field in fields:
+            # ignore the name field and everything that's not used by __init__
+            if op_field.name == "name" or not op_field.init:
+                continue
+
+            if _is_optional(op_field):
+                arg_dict[op_field.name] = _get_default(op_field)
+
+            val = getattr(self, op_field.name)
+            if val is None:
+                arg_dict.update({op_field.name: []})
+            elif isinstance(val, PassArgElementType):
+                arg_dict.update({op_field.name: [getattr(self, op_field.name)]})
+            else:
+                arg_dict.update({op_field.name: getattr(self, op_field.name)})
+
+        return PipelinePassSpec(self.name, arg_dict)
+
 
 # Git Issue: https://github.com/xdslproject/xdsl/issues/1845
 def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
