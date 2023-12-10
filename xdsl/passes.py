@@ -103,7 +103,7 @@ class ModulePass(ABC):
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
 
-    def from_pass_to_spec(self) -> PipelinePassSpec:
+    def pipeline_pass_spec(self) -> PipelinePassSpec:
         """
         This function takes a ModulePass and returns a PipelinePassSpec.
         """
