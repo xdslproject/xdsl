@@ -9,6 +9,7 @@ be sure to install `textual-dev` to run this command.
 
 import os
 from collections.abc import Callable
+from dataclasses import fields
 from io import StringIO
 from typing import Any, ClassVar
 
@@ -28,12 +29,15 @@ from textual.widgets import (
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+from xdsl.utils.exceptions import PassPipelineParseError
+from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 from ._pasteboard import pyclip_copy
 
@@ -84,9 +88,12 @@ class InputApp(App[None]):
     ]
 
     SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
-        "load_file": LoadFile
+        "add_arguments_screen": AddArguments(TextArea("")),
+        "load_file": LoadFile(),
     }
-
+    """
+    A dictionary that maps names on to Screen objects.
+    """
     INITIAL_IR_TEXT = """
         func.func @hello(%n : index) -> index {
           %two = arith.constant 2 : index
@@ -100,7 +107,7 @@ class InputApp(App[None]):
     Reactive variable used to save the current state of the modified Input TextArea
     (i.e. is the Output TextArea).
     """
-    pass_pipeline = reactive(tuple[type[ModulePass], ...])
+    pass_pipeline = reactive(list[ModulePass])
     """Reactive variable that saves the list of selected passes."""
 
     condense_mode = reactive(False, always_update=True)
@@ -208,6 +215,44 @@ class InputApp(App[None]):
                     ListItem(Label(value.name), name=value.name)
                 )
 
+    def get_pass_arguments(self, selected_pass_value: type[ModulePass]) -> None:
+        """
+        This function facilitates user input of pass concatenated_arg_val by navigating
+        to the AddArguments screen, and subsequently parses the returned string upon
+        screen dismissal and appends the pass to the pass_pipeline variable.
+        """
+
+        def add_pass_with_arguments_to_pass_pipeline(concatenated_arg_val: str) -> None:
+            """
+            Called when AddArguments Screen is dismissed. This function attempts to parse
+            the returned string, and if successful, adds it to the pass_pipeline variable.
+            In case of parsing failure, the AddArguments Screen is pushed, revealing the
+            Parse Error.
+            """
+            try:
+                new_pass_with_arguments = list(
+                    parse_pipeline(
+                        f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
+                    )
+                )[0]
+
+                # add the pass to pass_pipeline
+                self.pass_pipeline.append(
+                    selected_pass_value.from_pass_spec(new_pass_with_arguments)
+                )
+            except PassPipelineParseError as e:
+                res = f"PassPipelineParseError: {e}"
+                screen = AddArguments(TextArea(res, id="argument_text_area"))
+                self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
+
+        # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
+        self.push_screen(
+            AddArguments(
+                TextArea(get_pass_argument_names_and_types(selected_pass_value))
+            ),
+            add_pass_with_arguments_to_pass_pipeline,
+        )
+
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
         """
@@ -215,10 +260,16 @@ class InputApp(App[None]):
         passes is updated.
         """
         selected_pass = event.item.name
-        for name, value in ALL_PASSES:
-            if name == selected_pass:
-                self.pass_pipeline = tuple((*self.pass_pipeline, value))
-                return
+        for name_pass, value_pass in ALL_PASSES:
+            if name_pass == selected_pass:
+                # check if pass has concatenated_arg_val
+                if len(fields(value_pass)) != 0:
+                    # call function that handles adding passes with concatenated_arg_val to the pass_pipeline
+                    self.get_pass_arguments(value_pass)
+                else:
+                    # add the selected pass to pass_pipeline
+                    new_pass = PipelinePassSpec(name=name_pass, args={})
+                    self.pass_pipeline.append(value_pass.from_pass_spec(new_pass))
 
     def watch_pass_pipeline(self) -> None:
         """
@@ -244,7 +295,7 @@ class InputApp(App[None]):
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-            pipeline = PipelinePass([p() for p in self.pass_pipeline])
+            pipeline = PipelinePass([p for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:

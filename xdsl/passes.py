@@ -105,7 +105,7 @@ class ModulePass(ABC):
 
     def from_pass_to_spec(self) -> PipelinePassSpec:
         """
-        This function takes a ModulePass and returns a PipelinePassSpec.
+        This function takes am instantiated ModulePass and returns a PipelinePassSpec.
         """
         # get all dataclass fields
         fields: tuple[Field[Any], ...] = dataclasses.fields(self)
