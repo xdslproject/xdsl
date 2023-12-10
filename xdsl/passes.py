@@ -131,23 +131,6 @@ class ModulePass(ABC):
         return PipelinePassSpec(self.name, arg_dict)
 
 
-def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
-    """
-    This method takes a type[ModulePassT] and outputs a string containing the names of the
-    pass arguments and their types. If an argument has a default value, it is not
-    added to the string.
-    """
-
-    return " ".join(
-        [
-            f"{field.name}={type_repr(field.type)}"
-            if not hasattr(arg, field.name)
-            else f"{field.name}={str(getattr(arg, field.name)).lower()}"
-            for field in dataclasses.fields(arg)
-        ]
-    )
-
-
 # Git Issue: https://github.com/xdslproject/xdsl/issues/1845
 def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
     """
