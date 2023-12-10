@@ -105,7 +105,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
                     operands=[
                         [
                             tile_sizes[i],
-                            outter_upper[i],
+                            outter_upper[arg_index],
                             outter_loop.body.block.args[arg_index],
                         ]
                     ],
