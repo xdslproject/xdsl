@@ -1,5 +1,40 @@
 // RUN: xdsl-opt %s -p "scf-parallel-loop-tiling{parallel-loop-tile-sizes=1,4}" --split-input-file | filecheck %s
 
+func.func @parallel_loop(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : index, %arg4 : index, %arg5 : index, %arg6 : memref<?x?xf32>, %arg7 : memref<?x?xf32>, %arg8 : memref<?x?xf32>, %arg9 : memref<?x?xf32>) {
+  "scf.parallel"(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+  ^0(%arg10 : index, %arg11 : index):
+    %0 = memref.load %arg7[%arg10, %arg11] : memref<?x?xf32>
+    %1 = memref.load %arg8[%arg10, %arg11] : memref<?x?xf32>
+    %2 = arith.addf %0, %1 : f32
+    memref.store %2, %arg9[%arg10, %arg11] : memref<?x?xf32>
+    scf.yield
+  }) : (index, index, index, index, index, index) -> ()
+  func.return
+}
+
+// CHECK:         func @parallel_loop(
+// CHECK-SAME:                        %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: index, %{{.*}}: memref<?x?xf32>, %{{.*}}: memref<?x?xf32>, %{{.*}}: memref<?x?xf32>, %{{.*}}: memref<?x?xf32>) {
+// COM:           %{{.*}} = arith.constant 0 : index
+// COM:           %{{.*}} = arith.constant 1 : index
+// COM:           %{{.*}} = arith.constant 4 : index
+// COM:           %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
+// COM:           %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
+// COM:           "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+// COM:             %{{.*}} = "affine.min"}(%{{.*}}, %{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// COM:             %{{.*}} = "affine.min"}(%{{.*}}, %{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// COM:             "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+// COM:               %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
+// COM:               %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
+// COM:               %{{.*}} = memref.load %{{.*}}{{\[}}%{{.*}}, %{{.*}}] : memref<?x?xf32>
+// COM:               %{{.*}} = memref.load %{{.*}}{{\[}}%{{.*}}, %{{.*}}] : memref<?x?xf32>
+// COM:               %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
+// COM:               memref.store %{{.*}}, %{{.*}}{{\[}}%{{.*}}, %{{.*}}] : memref<?x?xf32>
+// COM:             })
+// COM:           })
+// COM:           return
+
+// -----
+
 func.func @static_loop_with_step() {
   %3 = arith.constant 0 : index
   %4 = arith.constant 3 : index
@@ -30,6 +65,60 @@ func.func @static_loop_with_step() {
 // CHECK:             })
 // CHECK:           })
 // CHECK:           return
+
+// -----
+
+func.func @tile_nested_innermost() {
+  %7 = arith.constant 2 : index
+  %8 = arith.constant 0 : index
+  %9 = arith.constant 1 : index
+  "scf.parallel"(%8, %8, %7, %7, %9, %9) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+  ^2(%arg0_2 : index, %arg1_2 : index):
+    "scf.parallel"(%8, %8, %7, %7, %9, %9) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+    ^3(%arg2_1 : index, %arg3_1 : index):
+      scf.yield
+    }) : (index, index, index, index, index, index) -> ()
+    scf.yield
+  }) : (index, index, index, index, index, index) -> ()
+  "scf.parallel"(%8, %8, %7, %7, %9, %9) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+  ^4(%arg0_3 : index, %arg1_3 : index):
+    scf.yield
+  }) : (index, index, index, index, index, index) -> ()
+  func.return
+}
+
+// CHECK-LABEL:   func @tile_nested_innermost() {
+// CHECK:           %{{.*}} = arith.constant 2 : index
+// CHECK:           %{{.*}} = arith.constant 0 : index
+// CHECK:           %{{.*}} = arith.constant 1 : index
+// CHECK:           "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+// CHECK:             %{{.*}} = arith.constant 0 : index
+// CHECK:             %{{.*}} = arith.constant 1 : index
+// CHECK:             %{{.*}} = arith.constant 4 : index
+// CHECK:             %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
+// CHECK:             %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
+// CHECK:             "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+// CHECK:               %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK:               "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+// CHECK:                 = arith.addi %{{.*}}, %{{.*}} : index
+// CHECK:                 = arith.addi %{{.*}}, %{{.*}} : index
+// CHECK:               })
+// CHECK:             })
+// CHECK:           })
+// CHECK:           %{{.*}} = arith.constant 0 : index
+// CHECK:           %{{.*}} = arith.constant 1 : index
+// CHECK:           %{{.*}} = arith.constant 4 : index
+// CHECK:           %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
+// CHECK:           %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
+// CHECK:           "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+// CHECK:             %{{.*}} = "affine.min"(%{{.*}}, %{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1, d2) -> (d0, (d1 + (d2 * -1)))>}> : (index, index, index) -> index
+// CHECK:             "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({
+// CHECK:               = arith.addi %{{.*}}, %{{.*}} : index
+// CHECK:               = arith.addi %{{.*}}, %{{.*}} : index
+// CHECK:             })
+// CHECK:           })
+// CHECK:           return
+// CHECK:         }
 
 // -----
 
