@@ -152,7 +152,7 @@ class PipelinePassSpec:
             _pass_arg_list_type_str(arg_name, arg_val)
             for arg_name, arg_val in self.args.items()
         )
-        query += f"{{{arguments_pipeline}}}" if len(self.args) != 0 else ""
+        query += f"{{{arguments_pipeline}}}" if self.args else ""
 
         return query
 

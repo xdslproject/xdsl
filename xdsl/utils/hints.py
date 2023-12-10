@@ -181,7 +181,7 @@ def type_repr(obj: Any) -> str:
         return f"{type_repr(origin)}[{', '.join(type_repr(arg) for arg in args)}]"
     if isinstance(obj, types.UnionType):
         args = get_args(obj)
-        return f"{' | '.join(type_repr(arg) for arg in args)}"
+        return f"{'|'.join(type_repr(arg) for arg in args)}"
     if obj is type(None):
         return "None"
     if obj is ...:
