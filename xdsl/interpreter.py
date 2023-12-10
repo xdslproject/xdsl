@@ -599,7 +599,7 @@ class Interpreter:
         interpreter.
         """
         if functions not in self._impl_data:
-            functions_data = {}
+            functions_data: dict[str, Any] = {}
             self._impl_data[functions] = functions_data
         else:
             functions_data = self._impl_data[functions]
