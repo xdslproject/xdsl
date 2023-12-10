@@ -154,7 +154,6 @@ class PipelinePassSpec:
         )
         query += f"{{{arguments_pipeline}}}" if self.args else ""
 
-
         return query
 
 
