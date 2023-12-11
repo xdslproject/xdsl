@@ -47,7 +47,7 @@
 // CHECK-NEXT:      %16 = arith.constant 64 : index
 // CHECK-NEXT:      %17 = arith.constant 64 : index
 // CHECK-NEXT:      %18 = arith.constant 64 : index
-// CHECK-NEXT:      "scf.parallel"(%11, %10, %8, %15, %14, %13, %12, %12, %12) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
+// CHECK-NEXT:      "scf.parallel"(%11, %10, %8, %18, %17, %16, %15, %14, %13) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
 // CHECK-NEXT:      ^0(%19 : index, %20 : index, %21 : index):
 // CHECK-NEXT:        %22 = arith.constant -1 : index
 // CHECK-NEXT:        %23 = arith.addi %21, %22 : index

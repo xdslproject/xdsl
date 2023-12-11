@@ -371,8 +371,9 @@ class ApplyOpToParallel(RewritePattern):
                 p = scf.ParallelOp(
                     lower_bounds=list(reversed(lowerBounds))
                     + [zero] * (3 - stencil_rank),
-                    upper_bounds=list(reversed(steps)) + [one] * (3 - stencil_rank),
-                    steps=[one] * 3,
+                    upper_bounds=list(reversed(upperBounds))
+                    + [one] * (3 - stencil_rank),
+                    steps=list(reversed(steps)) + [one] * (3 - stencil_rank),
                     body=body,
                 )
                 for _ in range(3 - 1):
