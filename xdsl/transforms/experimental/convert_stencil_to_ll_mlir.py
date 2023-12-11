@@ -119,31 +119,23 @@ class ReturnOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
-        parallel = op.parent_op()
-        assert isinstance(parallel, scf.ParallelOp)
-
-        dims = len(parallel.lowerBound)
-        store_list: list[memref.Store] = []
         unroll_factor = op.unroll_factor
         n_res = len(op.arg) // unroll_factor
-        unroll = op.unroll
-        if unroll is None:
-            unroll = IndexAttr.get(*([1] * dims))
 
-        parallel = op.parent_op()
-        assert isinstance(parallel, scf.ParallelOp)
+        store_list: list[memref.Store] = []
         for j in range(n_res):
+            target = self.return_target[op][j]
+            if target is None:
+                continue
+            assert isinstance(target.type, builtin.ShapedType)
+            dims = target.type.get_num_dims()
+
+            unroll = op.unroll
+            if unroll is None:
+                unroll = IndexAttr.get(*([1] * dims))
+
             for offset in product(*(range(u) for u in unroll)):
-                target = self.return_target[op][j]
-
-                if target is None:
-                    break
-
-                assert isinstance(target.type, builtin.ShapedType)
-
                 assert (block := op.parent_block()) is not None
-
-                dims = target.type.get_num_dims()
 
                 args = collectBlockArguments(dims, block)
 
@@ -275,7 +267,7 @@ class ApplyOpToParallel(RewritePattern):
         if unroll is None:
             unroll = [1] * dim
         else:
-            unroll = [i for i in unroll] 
+            unroll = [i for i in unroll]
 
         # Then create the corresponding scf.parallel
         boilerplate_ops = [
@@ -285,6 +277,7 @@ class ApplyOpToParallel(RewritePattern):
                     for x in res_type.bounds.lb
                 )
             ),
+            one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
             *(
                 steps := list[arith.Constant | BlockArgument | None](
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
@@ -321,11 +314,11 @@ class ApplyOpToParallel(RewritePattern):
                     dim += tiled_dim
 
                 assert lowerBounds[0] is not None
-                assert steps
+                assert tiled_steps[0] is not None
                 p = scf.ParallelOp(
                     lower_bounds=[lowerBounds[0]],
                     upper_bounds=[upperBounds[0]],
-                    steps=[steps[0]],
+                    steps=[tiled_steps[0]],
                     body=Region(Block([scf.Yield()], arg_types=[builtin.IndexType()])),
                 )
                 loops: list[scf.ParallelOp | scf.For] = [p]
@@ -347,10 +340,11 @@ class ApplyOpToParallel(RewritePattern):
                         block.insert_ops_before([add, cmpi, minop], last)
                         tiled_index += 1
                     assert (lb := lowerBounds[i]) is not None
+                    assert (st := tiled_steps[i]) is not None
                     loop = scf.For(
                         lb=lb,
                         ub=upperBounds[i],
-                        step=steps[i],
+                        step=st,
                         iter_args=[],
                         body=Region(
                             Block([scf.Yield()], arg_types=[builtin.IndexType()])
@@ -370,11 +364,12 @@ class ApplyOpToParallel(RewritePattern):
                     1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
                 )
                 assert isa(lowerBounds, list[arith.Constant])
+                assert isa(steps, list[arith.Constant])
+
                 p = scf.ParallelOp(
                     lower_bounds=list(reversed(lowerBounds))
                     + [zero] * (3 - stencil_rank),
-                    upper_bounds=list(reversed(upperBounds))
-                    + [one] * (3 - stencil_rank),
+                    upper_bounds=list(reversed(steps)) + [one] * (3 - stencil_rank),
                     steps=[one] * 3,
                     body=body,
                 )
