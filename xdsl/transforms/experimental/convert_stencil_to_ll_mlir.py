@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import product
-from typing import Literal, TypeVar
+from typing import Literal, TypeVar, cast
 from warnings import warn
 
 from xdsl.dialects import arith, builtin, gpu, memref, scf
@@ -122,7 +122,7 @@ class ReturnOpToMemref(RewritePattern):
         unroll_factor = op.unroll_factor
         n_res = len(op.arg) // unroll_factor
 
-        store_list: list[memref.Store] = []
+        store_list: list[Operation] = []
         for j in range(n_res):
             target = self.return_target[op][j]
             if target is None:
@@ -137,7 +137,7 @@ class ReturnOpToMemref(RewritePattern):
             for offset in product(*(range(u) for u in unroll)):
                 assert (block := op.parent_block()) is not None
 
-                args = collectBlockArguments(dims, block)
+                args = cast(list[SSAValue], collectBlockArguments(dims, block))
 
                 for i in range(dims):
                     if offset[i] != 0:
