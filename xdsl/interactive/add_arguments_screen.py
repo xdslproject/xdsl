@@ -16,6 +16,7 @@ class AddArguments(Screen[str]):
 
     def __init__(self, parameter_one: TextArea):
         self.argument_text_area = parameter_one
+        self.input_text_area = TextArea(id="input")
 
         super().__init__()
 
@@ -23,7 +24,7 @@ class AddArguments(Screen[str]):
         with ScrollableContainer(id="container"):
             yield self.argument_text_area
             with Horizontal(id="cancel_enter_buttons"):
-                yield Button("Clear Text", id="clear_input_button")
+                yield Button("Clear Text", id="clear_input_screen_button")
                 yield Button("Enter", id="enter_button")
                 yield Button("Cancel", id="quit_screen_button")
 
@@ -37,9 +38,9 @@ class AddArguments(Screen[str]):
     def exit_screen(self, event: Button.Pressed) -> None:
         self.dismiss()
 
-    @on(Button.Pressed, "#clear_input_button")
+    @on(Button.Pressed, "#clear_input_screen_button")
     def clear_text_area(self, event: Button.Pressed) -> None:
-        self.argument_text_area.clear()
+        self.argument_text_area.load_text("")
 
     @on(Button.Pressed, "#enter_button")
     def enter_arguments(self, event: Button.Pressed) -> None:

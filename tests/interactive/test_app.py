@@ -155,11 +155,12 @@ async def test_buttons():
         )
 
         # Select two passes
+        # testing
         app.pass_pipeline = tuple(
             (
                 *app.pass_pipeline,
-                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                convert_arith_to_riscv.ConvertArithToRiscvPass,
+                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
+                convert_arith_to_riscv.ConvertArithToRiscvPass(),
             )
         )
 
@@ -312,7 +313,10 @@ async def test_passes():
 
         # Select a pass
         app.pass_pipeline = tuple(
-            (*app.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
+            (
+                *app.pass_pipeline,
+                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
+            )
         )
 
         # assert that the Output Text Area has changed accordingly

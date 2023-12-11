@@ -87,9 +87,9 @@ class InputApp(App[None]):
         ("q", "quit_app", "Quit"),
     ]
 
-    SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
-        "add_arguments_screen": AddArguments(TextArea("")),
-        "load_file": LoadFile(),
+    SCREENS: ClassVar[dict[str, type[Screen[Any]] | Callable[[], Screen[Any]]]] = {
+        "add_arguments_screen": AddArguments,
+        "load_file": LoadFile,
     }
     """
     A dictionary that maps names on to Screen objects.
@@ -253,7 +253,10 @@ class InputApp(App[None]):
         # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
         self.push_screen(
             AddArguments(
-                TextArea(get_pass_argument_names_and_types(selected_pass_value))
+                TextArea(
+                    get_pass_argument_names_and_types(selected_pass_value),
+                    id="argument_text_area",
+                )
             ),
             add_pass_with_arguments_to_pass_pipeline,
         )
@@ -347,7 +350,7 @@ class InputApp(App[None]):
         pipeline generated thus far.
         """
         new_passes = "\n" + (", " + "\n").join(
-            str(p.pipeline_pass_spec) for p in self.pass_pipeline
+            str(p.pipeline_pass_spec()) for p in self.pass_pipeline
         )
         return f"xdsl-opt -p {new_passes}"
 
