@@ -278,15 +278,21 @@ builtin.module {
     %3 = "stencil.apply"(%0) ({
     ^0(%4 : f64):
       %5 = arith.constant 1.0 : f64
-      %6 = arith.addf %4, %5 : f64
-      "stencil.return"(%6, %6, %6, %6, %6, %6, %6, %6) <{"unroll" = #stencil.index<2, 2, 2>}> : (f64, f64, f64, f64, f64, f64, f64, f64) -> ()
+      %6 = arith.constant 2.0 : f64
+      %7 = arith.constant 3.0 : f64
+      %8 = arith.constant 4.0 : f64
+      %9 = arith.constant 5.0 : f64
+      %10 = arith.constant 6.0 : f64
+      %11 = arith.constant 7.0 : f64
+      %12 = arith.constant 8.0 : f64
+      "stencil.return"(%5, %6, %7, %8, %9, %10, %11, %12) <{"unroll" = #stencil.index<2, 2, 2>}> : (f64, f64, f64, f64, f64, f64, f64, f64) -> ()
     }) : (f64) -> !stencil.temp<[1,65]x[2,66]x[3,63]xf64>
     "stencil.store"(%3, %2) {"lb" = #stencil.index<1, 2, 3>, "ub" = #stencil.index<65, 66, 63>} : (!stencil.temp<[1,65]x[2,66]x[3,63]xf64>, !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>) -> ()
     func.return
 
   }
 
-// CHECK:         func.func @stencil_init_float_unrolled(%150 : f64, %151 : memref<?x?x?xf64>) {
+// CHECK-NEXT:    func.func @stencil_init_float_unrolled(%150 : f64, %151 : memref<?x?x?xf64>) {
 // CHECK-NEXT:      %152 = "memref.cast"(%151) : (memref<?x?x?xf64>) -> memref<70x70x70xf64>
 // CHECK-NEXT:      %153 = "memref.subview"(%152) <{"static_offsets" = array<i64: 3, 3, 3>, "static_sizes" = array<i64: 64, 64, 60>, "static_strides" = array<i64: 1, 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<70x70x70xf64>) -> memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
 // CHECK-NEXT:      %154 = arith.constant 1 : index
@@ -314,39 +320,45 @@ builtin.module {
 // CHECK-NEXT:            scf.for %175 = %167 to %174 step %159 {
 // CHECK-NEXT:              scf.for %176 = %156 to %165 step %160 {
 // CHECK-NEXT:                %177 = arith.constant 1.000000e+00 : f64
-// CHECK-NEXT:                %178 = arith.addf %150, %177 : f64
-// CHECK-NEXT:                memref.store %178, %153[%171, %175, %176] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
-// CHECK-NEXT:                %179 = arith.constant 1 : index
-// CHECK-NEXT:                %180 = arith.addi %176, %179 : index
-// CHECK-NEXT:                memref.store %178, %153[%171, %175, %180] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
-// CHECK-NEXT:                %181 = arith.constant 1 : index
-// CHECK-NEXT:                %182 = arith.addi %175, %181 : index
-// CHECK-NEXT:                memref.store %178, %153[%171, %182, %176] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
-// CHECK-NEXT:                %183 = arith.constant 1 : index
-// CHECK-NEXT:                %184 = arith.addi %175, %183 : index
+// CHECK-NEXT:                %178 = arith.constant 2.000000e+00 : f64
+// CHECK-NEXT:                %179 = arith.constant 3.000000e+00 : f64
+// CHECK-NEXT:                %180 = arith.constant 4.000000e+00 : f64
+// CHECK-NEXT:                %181 = arith.constant 5.000000e+00 : f64
+// CHECK-NEXT:                %182 = arith.constant 6.000000e+00 : f64
+// CHECK-NEXT:                %183 = arith.constant 7.000000e+00 : f64
+// CHECK-NEXT:                %184 = arith.constant 8.000000e+00 : f64
+// CHECK-NEXT:                memref.store %177, %153[%171, %175, %176] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
 // CHECK-NEXT:                %185 = arith.constant 1 : index
 // CHECK-NEXT:                %186 = arith.addi %176, %185 : index
-// CHECK-NEXT:                memref.store %178, %153[%171, %184, %186] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
+// CHECK-NEXT:                memref.store %178, %153[%171, %175, %186] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
 // CHECK-NEXT:                %187 = arith.constant 1 : index
-// CHECK-NEXT:                %188 = arith.addi %171, %187 : index
-// CHECK-NEXT:                memref.store %178, %153[%188, %175, %176] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
+// CHECK-NEXT:                %188 = arith.addi %175, %187 : index
+// CHECK-NEXT:                memref.store %179, %153[%171, %188, %176] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
 // CHECK-NEXT:                %189 = arith.constant 1 : index
-// CHECK-NEXT:                %190 = arith.addi %171, %189 : index
+// CHECK-NEXT:                %190 = arith.addi %175, %189 : index
 // CHECK-NEXT:                %191 = arith.constant 1 : index
 // CHECK-NEXT:                %192 = arith.addi %176, %191 : index
-// CHECK-NEXT:                memref.store %178, %153[%190, %175, %192] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
+// CHECK-NEXT:                memref.store %180, %153[%171, %190, %192] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
 // CHECK-NEXT:                %193 = arith.constant 1 : index
 // CHECK-NEXT:                %194 = arith.addi %171, %193 : index
+// CHECK-NEXT:                memref.store %181, %153[%194, %175, %176] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
 // CHECK-NEXT:                %195 = arith.constant 1 : index
-// CHECK-NEXT:                %196 = arith.addi %175, %195 : index
-// CHECK-NEXT:                memref.store %178, %153[%194, %196, %176] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
+// CHECK-NEXT:                %196 = arith.addi %171, %195 : index
 // CHECK-NEXT:                %197 = arith.constant 1 : index
-// CHECK-NEXT:                %198 = arith.addi %171, %197 : index
+// CHECK-NEXT:                %198 = arith.addi %176, %197 : index
+// CHECK-NEXT:                memref.store %182, %153[%196, %175, %198] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
 // CHECK-NEXT:                %199 = arith.constant 1 : index
-// CHECK-NEXT:                %200 = arith.addi %175, %199 : index
+// CHECK-NEXT:                %200 = arith.addi %171, %199 : index
 // CHECK-NEXT:                %201 = arith.constant 1 : index
-// CHECK-NEXT:                %202 = arith.addi %176, %201 : index
-// CHECK-NEXT:                memref.store %178, %153[%198, %200, %202] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
+// CHECK-NEXT:                %202 = arith.addi %175, %201 : index
+// CHECK-NEXT:                memref.store %183, %153[%200, %202, %176] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
+// CHECK-NEXT:                %203 = arith.constant 1 : index
+// CHECK-NEXT:                %204 = arith.addi %171, %203 : index
+// CHECK-NEXT:                %205 = arith.constant 1 : index
+// CHECK-NEXT:                %206 = arith.addi %175, %205 : index
+// CHECK-NEXT:                %207 = arith.constant 1 : index
+// CHECK-NEXT:                %208 = arith.addi %176, %207 : index
+// CHECK-NEXT:                memref.store %184, %153[%204, %206, %208] : memref<64x64x60xf64, strided<[4900, 70, 1], offset: 14913>>
 // CHECK-NEXT:              }
 // CHECK-NEXT:            }
 // CHECK-NEXT:          }

@@ -134,7 +134,7 @@ class ReturnOpToMemref(RewritePattern):
             if unroll is None:
                 unroll = IndexAttr.get(*([1] * dims))
 
-            for offset in product(*(range(u) for u in unroll)):
+            for k, offset in enumerate(product(*(range(u) for u in unroll))):
                 assert (block := op.parent_block()) is not None
 
                 args = cast(list[SSAValue], collectBlockArguments(dims, block))
@@ -152,7 +152,9 @@ class ReturnOpToMemref(RewritePattern):
                 if self.target == "gpu":
                     args = list(reversed(args))
 
-                store_list.append(memref.Store.get(op.arg[j], target, args))
+                store_list.append(
+                    memref.Store.get(op.arg[j * unroll_factor + k], target, args)
+                )
 
         rewriter.replace_matched_op([*store_list])
 
