@@ -8,7 +8,7 @@ pytest<8.0
 nbval<0.11
 filecheck<0.0.25
 lit<18.0.0
-pre-commit==3.5.0
+pre-commit==3.6.0
 ruff==0.1.7
 asv<0.7
 isort==5.12.0
