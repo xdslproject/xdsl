@@ -632,14 +632,20 @@ class Parser(AttrParser):
         if (op_name := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
             # Custom operation format
             op_type = self._get_op_by_name(op_name.text)
+            dialect_name = op_type.dialect_name()
+            self._parser_state.dialect_stack.append(dialect_name)
             op = op_type.parse(self)
+            self._parser_state.dialect_stack.pop()
         else:
             # Generic operation format
             op_name = self.expect(
                 self.parse_optional_str_literal, "operation name expected"
             )
             op_type = self._get_op_by_name(op_name)
+            dialect_name = op_type.dialect_name()
+            self._parser_state.dialect_stack.append(dialect_name)
             op = self._parse_generic_operation(op_type)
+            self._parser_state.dialect_stack.pop()
 
         n_bound_results = sum(r[1] for r in bound_results)
         if (n_bound_results != 0) and (len(op.results) != n_bound_results):
@@ -669,6 +675,11 @@ class Parser(AttrParser):
         op_type = self.ctx.get_optional_op(name)
         if op_type is not None:
             return op_type
+
+        for dialect_name in reversed(self._parser_state.dialect_stack):
+            op_type = self.ctx.get_optional_op(f"{dialect_name}.{name}")
+            if op_type is not None:
+                return op_type
 
         self.raise_error(f"unregistered operation {name}!")
 
@@ -797,7 +808,7 @@ class Parser(AttrParser):
         # Properties retrocompatibility : if no properties dictionary was present at all,
         # We extract them from the attribute dictionary by name.
         if issubclass(op_type, IRDLOperation) and not properties:
-            for property_name in op_type.irdl_definition.properties.keys():
+            for property_name in op_type.get_irdl_definition().properties.keys():
                 if property_name in attrs:
                     properties[property_name] = attrs.pop(property_name)
 

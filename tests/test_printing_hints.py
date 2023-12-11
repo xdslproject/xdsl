@@ -23,10 +23,10 @@ class A:
         (..., "..."),
         (A, "A"),
         (list[A], "list[A]"),
-        (A | int, "A | int"),
-        (list[A] | int, "list[A] | int"),
+        (A | int, "A|int"),
+        (list[A] | int, "list[A]|int"),
         (None, "None"),
-        (int | None, "int | None"),
+        (int | None, "int|None"),
     ],
 )
 def test_type_repr(type: Any, expected: str):

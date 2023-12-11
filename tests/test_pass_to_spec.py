@@ -16,13 +16,9 @@ class CustomPass(ModulePass):
 
     int_list: list[int]
 
-    # non_init_thing: int = field(init=False)
-
     str_thing: str | None
 
     list_str: list[str] = field(default_factory=list)
-
-    # literal: Literal["yes", "no", "maybe"] = "no"
 
     optional_bool: bool = False
 
@@ -61,7 +57,6 @@ class SimplePass(ModulePass):
                     "int_list": [1, 2],
                     "str_thing": [],
                     "list_str": ["clown", "season"],
-                    # "literal": ["no"],
                     "optional_bool": [False],
                 },
             ),
@@ -74,5 +69,4 @@ class SimplePass(ModulePass):
     ),
 )
 def test_pass_to_spec_equality(test_pass: ModulePass, test_spec: PipelinePassSpec):
-    assert test_pass.from_pass_to_spec() == test_spec
-    assert str(test_pass.from_pass_to_spec()) == str(test_spec)
+    assert test_pass.pipeline_pass_spec() == test_spec

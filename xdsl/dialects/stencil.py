@@ -653,7 +653,7 @@ class BufferOp(IRDLOperation):
     temp: Operand = operand_def(TempType)
     res: OpResult = result_def(TempType)
 
-    def __init__(self: IRDLOperation, temp: SSAValue | Operation):
+    def __init__(self, temp: SSAValue | Operation):
         temp = SSAValue.get(temp)
         super().__init__(operands=[temp], result_types=[temp.type])
 

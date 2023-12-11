@@ -103,9 +103,9 @@ class ModulePass(ABC):
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
 
-    def from_pass_to_spec(self) -> PipelinePassSpec:
+    def pipeline_pass_spec(self) -> PipelinePassSpec:
         """
-        This function takes am instantiated ModulePass and returns a PipelinePassSpec.
+        This function takes a ModulePass and returns a PipelinePassSpec.
         """
         # get all dataclass fields
         fields: tuple[Field[Any], ...] = dataclasses.fields(self)
@@ -131,9 +131,10 @@ class ModulePass(ABC):
         return PipelinePassSpec(self.name, arg_dict)
 
 
+# Git Issue: https://github.com/xdslproject/xdsl/issues/1845
 def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
     """
-    This method takes a ModulePassT and outputs a string containing the names of the
+    This method takes a type[ModulePassT] and outputs a string containing the names of the
     pass arguments and their types. If an argument has a default value, it is not
     added to the string.
     """
