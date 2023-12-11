@@ -33,14 +33,6 @@ class ScfParallelLoopTilingPattern(RewritePattern):
         for _ in range(len(tile_sizes_v), len(lower)):
             tile_sizes_v.append(1)
 
-        # Only handle constant loop bounds for now
-        # if not (
-        #     isa(lower, tuple[arith.Constant, ...])
-        #     and isa(upper, tuple[arith.Constant, ...])
-        #     and isa(step, tuple[arith.Constant, ...])
-        # ):
-        #     return
-
         zero = arith.Constant(IntegerAttr.from_index_int_value(0))
         tile_sizes_v = {i: s for i, s in enumerate(tile_sizes_v) if s != 0}
         tile_sizes = {
@@ -133,7 +125,6 @@ class ScfParallelLoopTilingPattern(RewritePattern):
                         continue
                     use.operation.operands[use.index] = iv.result
         outter_loop.body.block.insert_ops_before([*minops, inner_loop], outter_yield)
-        # print("tiled")
         rewriter.replace_matched_op(
             [zero, *tile_sizes.values(), *outter_step, outter_loop]
         )
