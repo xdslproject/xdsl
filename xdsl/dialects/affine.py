@@ -235,8 +235,6 @@ class MinOp(IRDLOperation):
             raise VerifyException(
                 f"{self.name} expects {self.map.data.num_dims + self.map.data.num_symbols} operands, but got {len(self.operands)}. The number of map operands must match the sum of the dimensions and symbols of its map."
             )
-        if len(self.results) != 1:
-            raise VerifyException("affine.min expects a unidimensional map.")
 
 
 @irdl_op_definition
