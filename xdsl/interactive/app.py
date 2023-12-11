@@ -107,9 +107,10 @@ class InputApp(App[None]):
     Reactive variable used to save the current state of the modified Input TextArea
     (i.e. is the Output TextArea).
     """
-    pass_pipeline = reactive(list[ModulePass])
-    """Reactive variable that saves the list of selected passes."""
+    pass_pipeline = reactive(tuple[ModulePass, ...])
+    # pass_pipeline = reactive(tuple[dict[type[ModulePass], PipelinePassSpec], ...])
 
+    """Reactive variable that saves the list of selected passes."""
     condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
     available_pass_list = reactive(tuple[type[ModulePass], ...])
@@ -235,11 +236,15 @@ class InputApp(App[None]):
                         f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
                     )
                 )[0]
-
                 # add the pass to pass_pipeline
-                self.pass_pipeline.append(
-                    selected_pass_value.from_pass_spec(new_pass_with_arguments)
+                self.pass_pipeline = tuple(
+                    (
+                        *self.pass_pipeline,
+                        selected_pass_value.from_pass_spec(new_pass_with_arguments),
+                    )
                 )
+                # self.pass_pipeline += ({selected_pass_value: new_pass_with_arguments},)
+
             except PassPipelineParseError as e:
                 res = f"PassPipelineParseError: {e}"
                 screen = AddArguments(TextArea(res, id="argument_text_area"))
@@ -269,7 +274,10 @@ class InputApp(App[None]):
                 else:
                     # add the selected pass to pass_pipeline
                     new_pass = PipelinePassSpec(name=name_pass, args={})
-                    self.pass_pipeline.append(value_pass.from_pass_spec(new_pass))
+                    self.pass_pipeline = tuple(
+                        (*self.pass_pipeline, value_pass.from_pass_spec(new_pass))
+                    )
+                    # self.pass_pipeline += ({value_pass: new_pass},)
 
     def watch_pass_pipeline(self) -> None:
         """
@@ -296,6 +304,19 @@ class InputApp(App[None]):
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             pipeline = PipelinePass([p for p in self.pass_pipeline])
+
+            # pipeline = PipelinePass(passes=[])
+            # for pass_dict in self.pass_pipeline:
+            #     for module_pass, pipeline_pass_spec in pass_dict.items():
+            #         # check if pass contains concatenated_arg_val
+            #         if pipeline_pass_spec.args != {}:
+            #             # convert PipelinePassSpec to ModulePass and add ModulePass to pipeline
+            #             pipeline.passes.append(
+            #                 module_pass.from_pass_spec(pipeline_pass_spec)
+            #             )
+            #         else:
+            #             # add ModulePass to pipeline
+            #             pipeline.passes.append(module_pass())
             pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:
@@ -325,9 +346,18 @@ class InputApp(App[None]):
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
-        new_label = f"xdsl-opt -p {new_passes}"
-        return new_label
+        new_passes = "\n" + (", " + "\n").join(
+            str(p.pipeline_pass_spec) for p in self.pass_pipeline
+        )
+        return f"xdsl-opt -p {new_passes}"
+
+        # query = "\n"
+        # arguments_pipeline = ""
+        # for pass_dict in self.pass_pipeline:
+        #     for _, pipeline_pass_spec in pass_dict.items():
+        #         # check if pass contains concatenated_arg_val
+        #         query += str(pipeline_pass_spec) + ", " + "\n"
+        # return f"xdsl-opt -p {query}"
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
