@@ -66,6 +66,17 @@
 // CHECK-NEXT:       %35 = arith.mulf %31, %cst : f64
 // CHECK-NEXT:       %36 = arith.addf %35, %34 : f64
 // CHECK-NEXT:       memref.store %36, %6[%18, %17, %16] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %37 = arith.constant 1 : index
+// CHECK-NEXT:        %38 = arith.addi %17, %37 : index
+// CHECK-NEXT:        memref.store %36, %6[%18, %38, %16] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %39 = arith.constant 1 : index
+// CHECK-NEXT:        %40 = arith.addi %16, %39 : index
+// CHECK-NEXT:        memref.store %36, %6[%18, %17, %40] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %41 = arith.constant 1 : index
+// CHECK-NEXT:        %42 = arith.addi %16, %41 : index
+// CHECK-NEXT:        %43 = arith.constant 1 : index
+// CHECK-NEXT:        %44 = arith.addi %17, %43 : index
+// CHECK-NEXT:        memref.store %36, %6[%18, %44, %42] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }) : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:     func.return

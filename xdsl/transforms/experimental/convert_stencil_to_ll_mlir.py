@@ -267,10 +267,15 @@ class ApplyOpToParallel(RewritePattern):
         # Get this apply's ReturnOp
         body_block = op.region.blocks[0]
         return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
+        unroll = return_op.unroll
 
         body = prepare_apply_body(op, rewriter)
         body.block.add_op(scf.Yield())
         dim = res_type.get_num_dims()
+        if unroll is None:
+            unroll = [1] * dim
+        else:
+            unroll = [i for i in unroll] 
 
         # Then create the corresponding scf.parallel
         boilerplate_ops = [
@@ -280,7 +285,12 @@ class ApplyOpToParallel(RewritePattern):
                     for x in res_type.bounds.lb
                 )
             ),
-            one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
+            *(
+                steps := list[arith.Constant | BlockArgument | None](
+                    arith.Constant.from_int_and_width(x, builtin.IndexType())
+                    for x in unroll
+                )
+            ),
             *(
                 upperBounds := list[arith.Constant | arith.Select](
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
@@ -294,7 +304,7 @@ class ApplyOpToParallel(RewritePattern):
         # kernel itself is not slowed down by the OpenMP runtime.
         match self.target:
             case "cpu":
-                steps = [one] * dim
+                tiled_steps = steps
                 total_upper_bounds = upperBounds.copy()
                 cst_tile_sizes: list[arith.Constant] = []
                 if self.tile_sizes:
@@ -303,7 +313,7 @@ class ApplyOpToParallel(RewritePattern):
                         cst_tile_size = arith.Constant.from_int_and_width(
                             self.tile_sizes[i], builtin.IndexType()
                         )
-                        steps.insert(i, cst_tile_size)
+                        tiled_steps.insert(i, cst_tile_size)
                         boilerplate_ops.insert(-1, cst_tile_size)
                         lowerBounds.insert(tiled_dim + i, None)
                         upperBounds.insert(tiled_dim + i, cst_tile_size)
@@ -311,6 +321,7 @@ class ApplyOpToParallel(RewritePattern):
                     dim += tiled_dim
 
                 assert lowerBounds[0] is not None
+                assert steps
                 p = scf.ParallelOp(
                     lower_bounds=[lowerBounds[0]],
                     upper_bounds=[upperBounds[0]],
