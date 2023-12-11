@@ -131,7 +131,6 @@ def get_all_dialects() -> list[Dialect]:
 def get_all_passes() -> list[type[ModulePass]]:
     """Return the list of all available passes."""
     return [
-        gpu_map_parallel_loops.GpuMapParallelLoopsPass,
         canonicalize.CanonicalizePass,
         canonicalize_dmp.CanonicalizeDmpPass,
         convert_scf_to_openmp.ConvertScfToOpenMPPass,
@@ -140,6 +139,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
+        gpu_map_parallel_loops.GpuMapParallelLoopsPass,
         stencil_global_to_local.DistributeStencilPass,
         stencil_global_to_local.LowerHaloToMPI,
         lower_affine.LowerAffinePass,
