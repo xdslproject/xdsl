@@ -29,7 +29,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
         step = op.step
 
         # fill the tile sizes with ones
-        tile_sizes_v = self.tile_sizes
+        tile_sizes_v = self.tile_sizes.copy()
         for _ in range(len(tile_sizes_v), len(lower)):
             tile_sizes_v.append(1)
 
