@@ -69,13 +69,13 @@ func.func @stencil_hdiff(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?
 // CHECK-NEXT:        %41 = arith.addi %20, %40 : index
 // CHECK-NEXT:        memref.store %39, %6[%21, %41, %19] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:        %42 = arith.constant 1 : index
-// CHECK-NEXT:        %43 = arith.addi %19, %42 : index
-// CHECK-NEXT:        memref.store %39, %6[%21, %20, %43] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %43 = arith.addi %21, %42 : index
+// CHECK-NEXT:        memref.store %39, %6[%43, %20, %19] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:        %44 = arith.constant 1 : index
-// CHECK-NEXT:        %45 = arith.addi %19, %44 : index
+// CHECK-NEXT:        %45 = arith.addi %20, %44 : index
 // CHECK-NEXT:        %46 = arith.constant 1 : index
-// CHECK-NEXT:        %47 = arith.addi %20, %46 : index
-// CHECK-NEXT:        memref.store %39, %6[%21, %47, %45] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %47 = arith.addi %21, %46 : index
+// CHECK-NEXT:        memref.store %39, %6[%47, %45, %19] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:        scf.yield
 // CHECK-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:      func.return
