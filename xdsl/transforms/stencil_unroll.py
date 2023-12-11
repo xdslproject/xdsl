@@ -78,6 +78,11 @@ class StencilUnrollPattern(RewritePattern):
         for _ in range(len(unroll), dim):
             unroll.insert(0, 1)
 
+        # If unroll factors list is longer than the dim, pop from the front to keep
+        # similar semantics
+        for _ in range(dim, len(unroll)):
+            unroll.pop(0)
+
         # Bail out if nothing to unroll
         if prod(unroll) == 1:
             return

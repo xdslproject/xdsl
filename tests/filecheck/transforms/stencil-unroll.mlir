@@ -12,3 +12,16 @@ func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
     func.return
   }
 // CHECK: func.funcwdijd
+
+  func.func @copy_1d(%0 : !stencil.field<?xf64>, %out : !stencil.field<?xf64>) {
+    %1 = "stencil.cast"(%0) : (!stencil.field<?xf64>) -> !stencil.field<[-4,68]xf64>
+    %outc = "stencil.cast"(%out) : (!stencil.field<?xf64>) -> !stencil.field<[0,1024]xf64>
+    %2 = "stencil.load"(%1) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<[-1,68]xf64>
+    %3 = "stencil.apply"(%2) ({
+    ^0(%4 : !stencil.temp<[-1,68]xf64>):
+      %5 = "stencil.access"(%4) {"offset" = #stencil.index<-1>} : (!stencil.temp<[-1,68]xf64>) -> f64
+      "stencil.return"(%5) : (f64) -> ()
+    }) : (!stencil.temp<[-1,68]xf64>) -> !stencil.temp<[0,68]xf64>
+    "stencil.store"(%3, %outc) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<[0,68]xf64>, !stencil.field<[0,1024]xf64>) -> ()
+    func.return
+  }
