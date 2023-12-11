@@ -1,6 +1,8 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import product
 from math import prod
+from typing import cast
 
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
@@ -25,7 +27,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.utils.hints import isa
 
 
-def offseted_block_clone(apply: ApplyOp, unroll_offset: list[int]):
+def offseted_block_clone(apply: ApplyOp, unroll_offset: Sequence[int]):
     region = apply.region
     return_op = region.block.last_op
     # ReturnOp is ApplyOp's terminator
@@ -89,7 +91,7 @@ class StencilUnrollPattern(RewritePattern):
 
         # Get all the offsetted computations
         offsetted_blocks = [
-            offseted_block_clone(op, offset)
+            offseted_block_clone(op, cast(Sequence[int], offset))
             for offset in product(*(range(u) for u in unroll))
         ]
 
