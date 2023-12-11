@@ -136,7 +136,8 @@ class ReturnOpToMemref(RewritePattern):
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
                 assert (block := op.parent_block()) is not None
-
+                if self.target == "gpu":
+                    offset = tuple(reversed(offset))
                 args = cast(list[SSAValue], collectBlockArguments(dims, block))
 
                 for i in range(dims):
