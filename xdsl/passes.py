@@ -64,7 +64,9 @@ class ModulePass(ABC):
             )
 
         # normalize spec arg names:
-        spec.normalize_arg_names()
+        spec_arguments_dict: dict[
+            str, PassArgListType
+        ] = spec.normalize_arg_names().args
 
         # get all dataclass fields
         fields: tuple[Field[Any], ...] = dataclasses.fields(cls)
@@ -78,7 +80,7 @@ class ModulePass(ABC):
             if op_field.name == "name" or not op_field.init:
                 continue
             # check that non-optional fields are present
-            if op_field.name not in spec.args:
+            if op_field.name not in spec_arguments_dict:
                 if _is_optional(op_field):
                     arg_dict[op_field.name] = _get_default(op_field)
                     continue
@@ -86,14 +88,14 @@ class ModulePass(ABC):
 
             # convert pass arg to the correct type:
             arg_dict[op_field.name] = _convert_pass_arg_to_type(
-                spec.args.pop(op_field.name),
+                spec_arguments_dict.pop(op_field.name),
                 op_field.type,
             )
             # we use .pop here to also remove the arg from the dict
 
         # if not all args were removed we raise an error
-        if len(spec.args) != 0:
-            arguments_str = ", ".join(f'"{arg}"' for arg in spec.args)
+        if len(spec_arguments_dict) != 0:
+            arguments_str = ", ".join(f'"{arg}"' for arg in spec_arguments_dict)
             fields_str = ", ".join(f'"{field.name}"' for field in fields)
             raise ValueError(
                 f"Provided arguments [{arguments_str}] not found in expected pass "
