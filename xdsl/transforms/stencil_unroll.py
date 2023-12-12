@@ -76,14 +76,14 @@ class StencilUnrollPattern(RewritePattern):
         dim = res_types[0].get_num_dims()
 
         # If unroll factors list is shorter than the dim, fill with ones from the front
-        unroll = self.unroll_factor.copy()
-        for _ in range(len(unroll), dim):
-            unroll.insert(0, 1)
-
-        # If unroll factors list is longer than the dim, pop from the front to keep
-        # similar semantics
-        for _ in range(dim, len(unroll)):
-            unroll.pop(0)
+        unroll = self.unroll_factor
+        if len(unroll) < dim:
+            # If unroll factors list is shorter than the dim, fill with ones from the front
+            unroll = [1] * (dim - len(unroll)) + unroll
+        elif len(unroll) > dim:
+            # If unroll factors list is longer than the dim, pop from the front to keep
+            # similar semantics
+            unroll = unroll[-dim:]
 
         # Bail out if nothing to unroll
         if prod(unroll) == 1:
