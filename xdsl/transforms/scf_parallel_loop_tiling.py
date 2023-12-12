@@ -17,7 +17,7 @@ from xdsl.utils.hints import isa
 
 @dataclass
 class ScfParallelLoopTilingPattern(RewritePattern):
-    tile_sizes: list[int]
+    tile_sizes: tuple[int, ...]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ParallelOp, rewriter: PatternRewriter, /):
@@ -29,7 +29,7 @@ class ScfParallelLoopTilingPattern(RewritePattern):
         step = op.step
 
         # fill the tile sizes with ones
-        tile_sizes_v = self.tile_sizes.copy()
+        tile_sizes_v = list(self.tile_sizes)
         for _ in range(len(tile_sizes_v), len(lower)):
             tile_sizes_v.append(1)
 
@@ -139,7 +139,7 @@ class ScfParallelLoopTilingPass(ModulePass):
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
-                [ScfParallelLoopTilingPattern(self.parallel_loop_tile_sizes)]
+                [ScfParallelLoopTilingPattern(tuple(self.parallel_loop_tile_sizes))]
             ),
             walk_regions_first=True,
             apply_recursively=False,
