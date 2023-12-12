@@ -50,11 +50,11 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
     for dialect in get_all_dialects():
         ctx.load_dialect(dialect)
 
-    selections: tuple[type[ModulePass], ...] = ()
+    selections: list[type[ModulePass]] = []
     for _, value in ALL_PASSES:
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
-            selections = tuple((*selections, value))
+            selections.append(value)
             continue
         try:
             cloned_module = input.clone()
@@ -64,9 +64,9 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
                 continue
         except Exception:
             pass
-        selections = tuple((*selections, value))
+        selections.append(value)
 
-    return selections
+    return tuple(selections)
 
 
 class OutputTextArea(TextArea):
