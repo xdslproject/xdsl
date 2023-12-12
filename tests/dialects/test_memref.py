@@ -109,7 +109,9 @@ def test_memref_alloc():
     my_memspace = builtin.IntegerAttr(0, i32)
     alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloc.get(my_i32, 64)
-    alloc2 = Alloc.get(my_i32, 64, [3, 1, 2], my_layout, my_memspace)
+    alloc2 = Alloc.get(
+        my_i32, 64, [3, 1, 2], layout=my_layout, memory_space=my_memspace
+    )
 
     assert alloc0.dynamic_sizes == ()
     assert type(alloc0.results[0]) is OpResult
@@ -124,6 +126,26 @@ def test_memref_alloc():
     assert alloc2.results[0].type.layout == my_layout
     assert alloc2.results[0].type.memory_space == my_memspace
 
+    dynamic_sizes_1 = [TestSSAValue(builtin.IndexType()) for _ in range(1)]
+    dynamic_sizes_3 = [TestSSAValue(builtin.IndexType()) for _ in range(3)]
+
+    alloc4 = Alloc.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
+    alloc5 = Alloc.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
+    alloc6 = Alloc.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_1)
+
+    assert list(alloc4.operands) == dynamic_sizes_1
+    assert list(alloc5.operands) == dynamic_sizes_3
+    assert list(alloc6.operands) == dynamic_sizes_1
+
+    alloc4.verify()
+    alloc5.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="op dimension operand count does not equal memref dynamic dimension count",
+    ):
+        alloc6.verify()
+
 
 def test_memref_alloca():
     my_i32 = IntegerType(32)
@@ -131,7 +153,9 @@ def test_memref_alloca():
     my_memspace = builtin.IntegerAttr(0, i32)
     alloc0 = Alloca.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloca.get(my_i32, 64)
-    alloc2 = Alloc.get(my_i32, 64, [3, 1, 2], my_layout, my_memspace)
+    alloc2 = Alloca.get(
+        my_i32, 64, [3, 1, 2], layout=my_layout, memory_space=my_memspace
+    )
 
     assert type(alloc0.results[0]) is OpResult
     assert type(alloc0.results[0].type) is MemRefType
@@ -144,6 +168,26 @@ def test_memref_alloca():
     assert alloc2.results[0].type.get_shape() == (3, 1, 2)
     assert alloc2.results[0].type.layout == my_layout
     assert alloc2.results[0].type.memory_space == my_memspace
+
+    dynamic_sizes_1 = [TestSSAValue(builtin.IndexType()) for _ in range(1)]
+    dynamic_sizes_3 = [TestSSAValue(builtin.IndexType()) for _ in range(3)]
+
+    alloc4 = Alloca.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
+    alloc5 = Alloca.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
+    alloc6 = Alloca.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_1)
+
+    assert list(alloc4.operands) == dynamic_sizes_1
+    assert list(alloc5.operands) == dynamic_sizes_3
+    assert list(alloc6.operands) == dynamic_sizes_1
+
+    alloc4.verify()
+    alloc5.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="op dimension operand count does not equal memref dynamic dimension count",
+    ):
+        alloc6.verify()
 
 
 def test_memref_dealloc():
