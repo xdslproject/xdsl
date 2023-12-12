@@ -314,26 +314,42 @@ class Alloc(IRDLOperation):
     @staticmethod
     def get(
         return_type: Attribute,
-        alignment: int | None = None,
+        alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | AnyIntegerAttr] | None = None,
+        dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> Alloc:
         if shape is None:
             shape = [1]
+
+        if dynamic_sizes is None:
+            dynamic_sizes = []
+
+        if isinstance(alignment, int):
+            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+
         return Alloc.build(
-            operands=[[], []],
+            operands=[dynamic_sizes, []],
             result_types=[
                 MemRefType.from_element_type_and_shape(
                     return_type, shape, layout, memory_space
                 )
             ],
-            attributes={
-                "alignment": IntegerAttr.from_int_and_width(alignment, 64)
-                if alignment is not None
-                else None
+            properties={
+                "alignment": alignment,
             },
         )
+
+    def verify_(self) -> None:
+        if not isinstance(self.results[0].type, MemRefType):
+            raise VerifyException("expected result to be a memref")
+
+        dyn_dims = [x for x in self.results[0].type.shape.data if x.value.data == -1]
+        if len(dyn_dims) != len(self.dynamic_sizes):
+            raise VerifyException(
+                "op dimension operand count does not equal memref dynamic dimension count."
+            )
 
 
 @irdl_op_definition
@@ -404,6 +420,16 @@ class Alloca(IRDLOperation):
                 "alignment": alignment,
             },
         )
+
+    def verify_(self) -> None:
+        if not isinstance(self.results[0].type, MemRefType):
+            raise VerifyException("expected result to be a memref")
+
+        dyn_dims = [x for x in self.results[0].type.shape.data if x.value.data == -1]
+        if len(dyn_dims) != len(self.dynamic_sizes):
+            raise VerifyException(
+                "op dimension operand count does not equal memref dynamic dimension count."
+            )
 
 
 @irdl_op_definition
