@@ -223,6 +223,21 @@ class Load(IRDLOperation):
 
 
 @irdl_op_definition
+class MinOp(IRDLOperation):
+    name = "affine.min"
+    arguments = var_operand_def(IndexType())
+    result = result_def(IndexType())
+
+    map = prop_def(AffineMapAttr)
+
+    def verify_(self) -> None:
+        if len(self.operands) != self.map.data.num_dims + self.map.data.num_symbols:
+            raise VerifyException(
+                f"{self.name} expects {self.map.data.num_dims + self.map.data.num_symbols} operands, but got {len(self.operands)}. The number of map operands must match the sum of the dimensions and symbols of its map."
+            )
+
+
+@irdl_op_definition
 class Yield(IRDLOperation):
     name = "affine.yield"
     arguments: VarOperand = var_operand_def(AnyAttr())
@@ -242,6 +257,7 @@ Affine = Dialect(
         If,
         Store,
         Load,
+        MinOp,
         Yield,
     ],
     [],
