@@ -768,11 +768,13 @@ class ReturnOp(IRDLOperation):
                 f"stencil.apply result types, got {len(types)}"
             )
         for i, res_type in enumerate(res_types):
-            for type in types[unroll_factor * i : unroll_factor * (i + 1)]:
-                if type != res_type:
+            for j in range(unroll_factor * i, unroll_factor * (i + 1)):
+                op_type = types[j]
+                if op_type != res_type:
                     raise VerifyException(
                         "stencil.return expected operand types to match the parent "
-                        "stencil.apply result element types."
+                        f"stencil.apply result element types. Got {op_type} at index "
+                        f"{j}, expected {res_type}."
                     )
 
 
