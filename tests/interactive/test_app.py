@@ -157,7 +157,6 @@ async def test_buttons():
         )
 
         # Select two passes
-
         pass_one: dict[type[ModulePass], PipelinePassSpec] = {
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass: PipelinePassSpec(
                 name="convert-func-to-riscv-func", args={}

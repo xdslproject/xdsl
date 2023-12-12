@@ -107,7 +107,7 @@ class InputApp(App[None]):
     Reactive variable used to save the current state of the modified Input TextArea
     (i.e. is the Output TextArea).
     """
-    pass_pipeline = reactive(tuple[dict[type[ModulePass], PipelinePassSpec], ...])
+    pass_pipeline = reactive(tuple[tuple[type[ModulePass], PipelinePassSpec], ...])
     """Reactive variable that saves the list of selected passes."""
     condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
@@ -235,7 +235,7 @@ class InputApp(App[None]):
                     )
                 )[0]
                 # add the pass to pass_pipeline
-                self.pass_pipeline += ({selected_pass_value: new_pass_with_arguments},)
+                self.pass_pipeline += ((selected_pass_value, new_pass_with_arguments),)
 
             except PassPipelineParseError as e:
                 res = f"PassPipelineParseError: {e}"
@@ -269,7 +269,7 @@ class InputApp(App[None]):
                 else:
                     # add the selected pass to pass_pipeline
                     new_pass = PipelinePassSpec(name=name_pass, args={})
-                    self.pass_pipeline += ({value_pass: new_pass},)
+                    self.pass_pipeline += ((value_pass, new_pass),)
 
     def watch_pass_pipeline(self) -> None:
         """
@@ -295,19 +295,12 @@ class InputApp(App[None]):
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-            pipeline = PipelinePass(passes=[])
-
-            for pass_dict in self.pass_pipeline:
-                for module_pass, pipeline_pass_spec in pass_dict.items():
-                    # check if pass contains concatenated_arg_val
-                    if pipeline_pass_spec.args != {}:
-                        # convert PipelinePassSpec to ModulePass and add ModulePass to pipeline
-                        pipeline.passes.append(
-                            module_pass.from_pass_spec(pipeline_pass_spec)
-                        )
-                    else:
-                        # add ModulePass to pipeline
-                        pipeline.passes.append(module_pass())
+            pipeline = PipelinePass(
+                passes=[
+                    module_pass.from_pass_spec(pipeline_pass_spec)
+                    for module_pass, pipeline_pass_spec in self.pass_pipeline
+                ]
+            )
             pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:
@@ -338,10 +331,9 @@ class InputApp(App[None]):
         pipeline generated thus far.
         """
         query = "\n"
-        for pass_dict in self.pass_pipeline:
-            for _, pipeline_pass_spec in pass_dict.items():
-                # check if pass contains concatenated_arg_val
-                query += str(pipeline_pass_spec) + ", " + "\n"
+        query += ",\n".join(
+            str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
+        )
         return f"xdsl-opt -p {query}"
 
     def action_toggle_dark(self) -> None:
