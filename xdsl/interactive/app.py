@@ -36,6 +36,7 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -53,19 +54,23 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
     for dialect in get_all_dialects():
         ctx.load_dialect(dialect)
 
-    selections: tuple[type[ModulePass], ...] = ()
+    selections: list[type[ModulePass]] = []
     for _, value in ALL_PASSES:
+        if value is MLIROptPass:
+            # Always keep MLIROptPass as an option in condensed list
+            selections.append(value)
+            continue
         try:
             cloned_module = input.clone()
             cloned_ctx = ctx.clone()
             value().apply(cloned_ctx, cloned_module)
-            if not input.is_structurally_equivalent(cloned_module):
-                rhs = (*selections, value)
-                selections = tuple(rhs)
+            if input.is_structurally_equivalent(cloned_module):
+                continue
         except Exception:
-            selections = tuple((*selections, value))
+            pass
+        selections.append(value)
 
-    return selections
+    return tuple(selections)
 
 
 class OutputTextArea(TextArea):
