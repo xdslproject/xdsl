@@ -67,7 +67,7 @@ class StencilUnrollPattern(RewritePattern):
             return
 
         # Don't work on degenerate apply with no result
-        if len(op.results) == 0:
+        if not op.results:
             return
 
         # Enforced by verification
