@@ -279,8 +279,6 @@ class InputApp(App[None]):
                         *self.pass_pipeline,
                         (value_pass, value_pass().pipeline_pass_spec()),
                     )
-                    # new_pass = PipelinePassSpec(name=name_pass, args={})
-                    # self.pass_pipeline = (*self.pass_pipeline, (value_pass, new_pass))
 
     def watch_pass_pipeline(self) -> None:
         """
