@@ -239,8 +239,10 @@ class InputApp(App[None]):
                         f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
                     )
                 )[0]
-                # add the pass to pass_pipeline
-                self.pass_pipeline += ((selected_pass_value, new_pass_with_arguments),)
+                self.pass_pipeline = (
+                    *self.pass_pipeline,
+                    (selected_pass_value, new_pass_with_arguments),
+                )
 
             except PassPipelineParseError as e:
                 res = f"PassPipelineParseError: {e}"
@@ -273,8 +275,12 @@ class InputApp(App[None]):
                     self.get_pass_arguments(value_pass)
                 else:
                     # add the selected pass to pass_pipeline
-                    new_pass = PipelinePassSpec(name=name_pass, args={})
-                    self.pass_pipeline += ((value_pass, new_pass),)
+                    self.pass_pipeline = (
+                        *self.pass_pipeline,
+                        (value_pass, value_pass().pipeline_pass_spec()),
+                    )
+                    # new_pass = PipelinePassSpec(name=name_pass, args={})
+                    # self.pass_pipeline = (*self.pass_pipeline, (value_pass, new_pass))
 
     def watch_pass_pipeline(self) -> None:
         """
