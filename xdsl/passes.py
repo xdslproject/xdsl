@@ -64,10 +64,9 @@ class ModulePass(ABC):
             )
 
         # normalize spec arg names:
-        # spec.normalize_arg_names()
-        spec_arguments_dict: dict[str, PassArgListType] = dict()
-        for k, v in list(spec.normalize_arg_names()):
-            spec_arguments_dict[k] = v
+        spec_arguments_dict: dict[
+            str, PassArgListType
+        ] = spec.normalize_arg_names().args
 
         # get all dataclass fields
         fields: tuple[Field[Any], ...] = dataclasses.fields(cls)
