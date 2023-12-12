@@ -342,10 +342,12 @@ class Alloc(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(self.results[0].type, MemRefType):
+        memref_type = self.memref.type
+        if not isinstance(memref_type, MemRefType):
             raise VerifyException("expected result to be a memref")
+        memref_type = cast(MemRefType[Attribute], memref_type)
 
-        dyn_dims = [x for x in self.results[0].type.shape.data if x.value.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.value.data == -1]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
@@ -422,10 +424,12 @@ class Alloca(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(self.results[0].type, MemRefType):
+        memref_type = self.memref.type
+        if not isinstance(memref_type, MemRefType):
             raise VerifyException("expected result to be a memref")
+        memref_type = cast(MemRefType[Attribute], memref_type)
 
-        dyn_dims = [x for x in self.results[0].type.shape.data if x.value.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.value.data == -1]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
