@@ -767,6 +767,8 @@ class ReturnOp(IRDLOperation):
                 f"stencil.return expected {len(res_types) * unroll_factor} operands to match the parent "
                 f"stencil.apply result types, got {len(types)}"
             )
+        # stencil.return returns `unroll_factor` values per stencil.apply result
+        # This checks types are consistent for each of those.
         for i, res_type in enumerate(res_types):
             for j in range(unroll_factor * i, unroll_factor * (i + 1)):
                 op_type = types[j]
