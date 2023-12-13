@@ -19,6 +19,7 @@ from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import (
     Button,
+    DataTable,
     Footer,
     Label,
     ListItem,
@@ -120,16 +121,16 @@ class InputApp(App[None]):
     passes_list_view: ListView
     """ListView displaying the passes available to apply."""
 
-    input_number_of_ops: Label
-    output_number_of_ops: Label
+    input_number_of_ops: DataTable[tuple[str, int]]
+    output_number_of_ops: DataTable[tuple[str, int]]
 
     def __init__(self):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
         self.selected_query_label = Label("", id="selected_passes_label")
-        self.input_number_of_ops = Label("", id="input_number_of_ops")
-        self.output_number_of_ops = Label("", id="output_number_of_ops")
+        self.input_number_of_ops = DataTable(id="input_number_of_ops")
+        self.output_number_of_ops = DataTable(id="output_number_of_ops")
 
         super().__init__()
 
@@ -146,6 +147,9 @@ class InputApp(App[None]):
                     yield Button("Condense", id="condense_button")
                     yield Button("Uncondense", id="uncondense_button")
                     yield Button("Remove Last Pass", id="remove_last_pass_button")
+                    yield Button(
+                        "Number of Operations Mode", id="number_of_operations_button"
+                    )
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -154,14 +158,14 @@ class InputApp(App[None]):
                 with Horizontal(id="input_horizontal"):
                     yield Button("Clear Input", id="clear_input_button")
                     yield Button("Load File", id="load_file_button")
-                    with ScrollableContainer(id="input_ops_container"):
-                        yield self.input_number_of_ops
+            with ScrollableContainer(id="input_ops_container"):
+                yield self.input_number_of_ops
             with Vertical(id="output_container"):
                 yield self.output_text_area
                 with Horizontal(id="output_horizontal"):
                     yield Button("Copy Output", id="copy_output_button")
-                    with ScrollableContainer(id="output_ops_container"):
-                        yield self.output_number_of_ops
+            with ScrollableContainer(id="output_ops_container"):
+                yield self.output_number_of_ops
         yield Footer()
 
     def on_mount(self) -> None:
@@ -249,6 +253,7 @@ class InputApp(App[None]):
         if (input_text) == "":
             self.current_module = None
             self.current_condensed_pass_list = ()
+            self.input_number_of_ops.clear()
             return
         try:
             ctx = MLContext(True)
@@ -256,11 +261,21 @@ class InputApp(App[None]):
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
+
+            # module_clone = Parser(ctx.clone(), input_text).parse_module()
+            # input_ops = count_number_of_operations(module_clone)
+            # self.input_number_of_ops.clear()
+            # for (k,v) in input_ops.items():
+            #     if k is None:
+            #         continue
+            #     self.input_number_of_ops.add_row((k,v))
+
             pipeline = PipelinePass([p() for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:
             self.current_module = e
+            self.input_number_of_ops.clear()
 
     def watch_current_module(self):
         """
@@ -270,14 +285,21 @@ class InputApp(App[None]):
         match self.current_module:
             case None:
                 output_text = "No input"
+                self.output_number_of_ops.clear()
             case Exception() as e:
                 output_stream = StringIO()
                 Printer(output_stream).print(e)
                 output_text = output_stream.getvalue()
+                self.output_number_of_ops.clear()
             case ModuleOp():
                 output_stream = StringIO()
                 Printer(output_stream).print(self.current_module)
                 output_text = output_stream.getvalue()
+
+                # output_ops = count_number_of_operations(self.current_module)
+                # self.output_number_of_ops.clear()
+                # for (k,v) in output_ops.items():
+                #     self.output_number_of_ops.add_row((k,v))
 
         self.output_text_area.load_text(output_text)
 
@@ -326,6 +348,10 @@ class InputApp(App[None]):
         """
         self.condense_mode = True
         self.add_class("condensed")
+
+    @on(Button.Pressed, "#number_of_operations_button")
+    def number_of_operations(self, event: Button.Pressed) -> None:
+        pass
 
     @on(Button.Pressed, "#uncondense_button")
     def uncondense(self, event: Button.Pressed) -> None:

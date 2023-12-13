@@ -12,7 +12,7 @@
     width: 1;
 }
 
-# Vertical(Button, Button, Button, Button)
+# Vertical(Button, Button, Button, Button, Button)
 #buttons{
     layout: vertical;
     width: auto;
@@ -37,13 +37,13 @@
     height: 3;
 }
 
-# Horizontal(Button, Button, Label)
+# Horizontal(Button, Button)
 #input_horizontal{
     width: auto;
     height: auto;
 }
 
-# Vertical(TextArea, Horizontal(Button, Button, Label))
+# Vertical(TextArea, Horizontal(Button, Button))
 #input_container {
     border: heavy $accent-darken-1;
     border-title-color: $error-darken-3;
@@ -67,7 +67,7 @@
     height: 3;
 }
 
-# Vertical(TextArea, Horizontal(Button, Label))
+# Vertical(TextArea, Horizontal(Button))
 #output_container {
     border: heavy $accent-darken-1;
     border-title-color: $error-darken-3;
