@@ -249,16 +249,24 @@ class InputApp(App[None]):
                 screen = AddArguments(TextArea(res, id="argument_text_area"))
                 self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
-        # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
-        self.push_screen(
-            AddArguments(
-                TextArea(
-                    get_pass_argument_names_and_types(selected_pass_value),
-                    id="argument_text_area",
-                )
-            ),
-            add_pass_with_arguments_to_pass_pipeline,
-        )
+        # if selected_pass_value has arguments, push screen
+        if fields(selected_pass_value):
+            # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
+            self.push_screen(
+                AddArguments(
+                    TextArea(
+                        get_pass_argument_names_and_types(selected_pass_value),
+                        id="argument_text_area",
+                    )
+                ),
+                add_pass_with_arguments_to_pass_pipeline,
+            )
+        else:
+            # add the selected pass to pass_pipeline
+            self.pass_pipeline = (
+                *self.pass_pipeline,
+                (selected_pass_value, selected_pass_value().pipeline_pass_spec()),
+            )
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
@@ -267,18 +275,10 @@ class InputApp(App[None]):
         passes is updated.
         """
         selected_pass = event.item.name
-        for name_pass, value_pass in ALL_PASSES:
-            if name_pass == selected_pass:
-                # check if pass has concatenated_arg_val
-                if len(fields(value_pass)) != 0:
-                    # call function that handles adding passes with concatenated_arg_val to the pass_pipeline
-                    self.get_pass_arguments(value_pass)
-                else:
-                    # add the selected pass to pass_pipeline
-                    self.pass_pipeline = (
-                        *self.pass_pipeline,
-                        (value_pass, value_pass().pipeline_pass_spec()),
-                    )
+        for pass_name, pass_value in ALL_PASSES:
+            if pass_name == selected_pass:
+                # check if pass has arguments
+                self.get_pass_arguments(pass_value)
 
     def watch_pass_pipeline(self) -> None:
         """
