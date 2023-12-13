@@ -16,10 +16,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.app import InputApp
 from xdsl.ir import Block, Region
-from xdsl.transforms import (
-    mlir_opt,
-    printf_to_llvm,
-)
+from xdsl.transforms import mlir_opt, printf_to_llvm, scf_parallel_loop_tiling
 from xdsl.transforms.experimental import (
     hls_convert_stencil_to_ll_mlir,
 )
@@ -260,6 +257,7 @@ async def test_buttons():
                 hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
                 mlir_opt.MLIROptPass,
                 printf_to_llvm.PrintfToLLVM,
+                scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
             )
         )
 
