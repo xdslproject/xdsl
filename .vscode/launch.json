@@ -29,7 +29,7 @@
             "type": "python",
             "request": "launch",
             "module": "xdsl.interactive.app",
-            "justMyCode": true,
+            "justMyCode": false,
         },
     ]
 }
