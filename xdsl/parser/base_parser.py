@@ -23,10 +23,14 @@ class ParserState:
 
     lexer: Lexer
     current_token: Token
+    dialect_stack: list[str]
 
-    def __init__(self, lexer: Lexer):
+    def __init__(self, lexer: Lexer, dialect_stack: list[str] | None = None):
+        if dialect_stack is None:
+            dialect_stack = ["builtin"]
         self.lexer = lexer
         self.current_token = lexer.lex()
+        self.dialect_stack = dialect_stack
 
 
 _AnyInvT = TypeVar("_AnyInvT")

@@ -50,17 +50,14 @@ class IteratorTypeAttr(Data[IteratorType]):
     name = "linalg.iterator_type"
 
     @classmethod
-    @property
     def parallel(cls) -> IteratorTypeAttr:
         return IteratorTypeAttr(IteratorType.PARALLEL)
 
     @classmethod
-    @property
     def reduction(cls) -> IteratorTypeAttr:
         return IteratorTypeAttr(IteratorType.REDUCTION)
 
     @classmethod
-    @property
     def window(cls) -> IteratorTypeAttr:
         return IteratorTypeAttr(IteratorType.WINDOW)
 
