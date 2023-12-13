@@ -45,6 +45,7 @@
     border-title-color: $error-darken-3;
     border-title-style: bold;
     border-title-align: center;
+    width: auto;
 }
 
 
@@ -68,6 +69,7 @@
     border-title-color: $error-darken-3;
     border-title-style: bold;
     border-title-align: center;
+    width: auto;
 }
 
 # Vertical(TextArea, Horizontal(Button))
