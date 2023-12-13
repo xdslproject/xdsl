@@ -28,7 +28,9 @@ def test_operation_counter():
         "arith.constant": 2,
         "arith.muli": 3,
         "func.return": 1,
+        "builtin.module": 1,
     }
 
     res = count_number_of_operations(module)
+    print(res)
     assert res == expected_res
