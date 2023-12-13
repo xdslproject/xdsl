@@ -16,7 +16,7 @@
 #buttons{
     layout: vertical;
     width: auto;
-    overflow: hidden;
+    height: auto;
 }
 
 # ScrollableContainer(Label)
@@ -80,10 +80,11 @@
     border-title-align: center;
 }
 
+# Horizontal(Horizontal(Vertical(TextArea, (Horizontal(Button, Button))),ScrollableContainer(DataTable)))
 #bottom_container{
     layout: grid;
-    grid-size: 4 1;
-    grid-columns: 30% 20% 30% 20%;
+    grid-size: 2 1;
+    grid-columns: 50% 50%;
 }
 
 # InputApp Screen

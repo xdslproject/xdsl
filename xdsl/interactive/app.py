@@ -157,18 +157,21 @@ class InputApp(App[None]):
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
-            with Vertical(id="input_container"):
-                yield self.input_text_area
-                with Horizontal(id="input_horizontal"):
-                    yield Button("Clear Input", id="clear_input_button")
-                    yield Button("Load File", id="load_file_button")
-            with ScrollableContainer(id="input_ops_container"):
-                yield self.input_number_of_ops
-            with Vertical(id="output_container"):
-                yield self.output_text_area
-                yield Button("Copy Output", id="copy_output_button")
-            with ScrollableContainer(id="output_ops_container"):
-                yield self.output_number_of_ops
+            with Horizontal(id="input_horizontal_container"):
+                with Vertical(id="input_container"):
+                    yield self.input_text_area
+                    with Horizontal(id="input_horizontal"):
+                        yield Button("Clear Input", id="clear_input_button")
+                        yield Button("Load File", id="load_file_button")
+                with ScrollableContainer(id="input_ops_container"):
+                    yield self.input_number_of_ops
+
+            with Horizontal(id="output_horizontal_container"):
+                with Vertical(id="output_container"):
+                    yield self.output_text_area
+                    yield Button("Copy Output", id="copy_output_button")
+                with ScrollableContainer(id="output_ops_container"):
+                    yield self.output_number_of_ops
         yield Footer()
 
     def on_mount(self) -> None:
