@@ -30,6 +30,7 @@ from textual.widgets import (
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.load_file_screen import LoadFile
+from xdsl.interactive.pass_metrics import count_number_of_operations
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass
@@ -88,13 +89,11 @@ class InputApp(App[None]):
         "load_file": LoadFile
     }
 
-    INITIAL_IR_TEXT = """
-        func.func @hello(%n : index) -> index {
+    INITIAL_IR_TEXT = """func.func @hello(%n : index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
-        }
-        """
+        }"""
 
     current_module = reactive[ModuleOp | Exception | None](None)
     """
@@ -121,8 +120,8 @@ class InputApp(App[None]):
     passes_list_view: ListView
     """ListView displaying the passes available to apply."""
 
-    input_number_of_ops: DataTable[tuple[str, int]]
-    output_number_of_ops: DataTable[tuple[str, int]]
+    input_number_of_ops: DataTable[str | int]
+    output_number_of_ops: DataTable[str | int]
 
     def __init__(self):
         self.input_text_area = TextArea(id="input")
@@ -147,9 +146,6 @@ class InputApp(App[None]):
                     yield Button("Condense", id="condense_button")
                     yield Button("Uncondense", id="uncondense_button")
                     yield Button("Remove Last Pass", id="remove_last_pass_button")
-                    yield Button(
-                        "Number of Operations Mode", id="number_of_operations_button"
-                    )
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -182,15 +178,18 @@ class InputApp(App[None]):
         ).border_title = "Choose a pass or multiple passes to be applied."
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
-        self.query_one("#input_ops_container").border_title = "Number of Operations"
-        self.query_one("#output_ops_container").border_title = "Number of Operations"
-
         # initialize ListView to contain the pass options
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
         # initialize GUI with an interesting input IR and pass application
         self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
+
+        self.input_number_of_ops.add_columns("Operation", "Count")
+        self.input_number_of_ops.zebra_stripes = True
+
+        self.output_number_of_ops.add_columns("Operation", "Count")
+        self.output_number_of_ops.zebra_stripes = True
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -244,6 +243,29 @@ class InputApp(App[None]):
         self.selected_query_label.update(self.get_query_string())
         self.update_current_module()
 
+    def update_number_of_input_ops(self, input_text: str) -> None:
+        ctx = MLContext(True)
+        for dialect in get_all_dialects():
+            ctx.load_dialect(dialect)
+        module = Parser(ctx, input_text).parse_module()
+        input_ops = count_number_of_operations(module)
+
+        self.input_number_of_ops.clear()
+        for k, v in input_ops.items():
+            self.input_number_of_ops.add_row(k, v)
+
+    def update_number_of_output_ops(self) -> None:
+        match self.current_module:
+            case None:
+                self.output_number_of_ops.clear()
+            case Exception():
+                self.output_number_of_ops.clear()
+            case ModuleOp():
+                output_ops = count_number_of_operations(self.current_module)
+                self.output_number_of_ops.clear()
+                for k, v in output_ops.items():
+                    self.output_number_of_ops.add_row(k, v)
+
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
@@ -253,7 +275,7 @@ class InputApp(App[None]):
         if (input_text) == "":
             self.current_module = None
             self.current_condensed_pass_list = ()
-            self.input_number_of_ops.clear()
+            self.update_number_of_input_ops(input_text)
             return
         try:
             ctx = MLContext(True)
@@ -261,21 +283,13 @@ class InputApp(App[None]):
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-
-            # module_clone = Parser(ctx.clone(), input_text).parse_module()
-            # input_ops = count_number_of_operations(module_clone)
-            # self.input_number_of_ops.clear()
-            # for (k,v) in input_ops.items():
-            #     if k is None:
-            #         continue
-            #     self.input_number_of_ops.add_row((k,v))
-
             pipeline = PipelinePass([p() for p in self.pass_pipeline])
             pipeline.apply(ctx, module)
             self.current_module = module
+            self.update_number_of_input_ops(input_text)
         except Exception as e:
             self.current_module = e
-            self.input_number_of_ops.clear()
+            self.update_number_of_input_ops("")
 
     def watch_current_module(self):
         """
@@ -285,23 +299,17 @@ class InputApp(App[None]):
         match self.current_module:
             case None:
                 output_text = "No input"
-                self.output_number_of_ops.clear()
             case Exception() as e:
                 output_stream = StringIO()
                 Printer(output_stream).print(e)
                 output_text = output_stream.getvalue()
-                self.output_number_of_ops.clear()
             case ModuleOp():
                 output_stream = StringIO()
                 Printer(output_stream).print(self.current_module)
                 output_text = output_stream.getvalue()
 
-                # output_ops = count_number_of_operations(self.current_module)
-                # self.output_number_of_ops.clear()
-                # for (k,v) in output_ops.items():
-                #     self.output_number_of_ops.add_row((k,v))
-
         self.output_text_area.load_text(output_text)
+        self.update_number_of_output_ops()
 
     def get_query_string(self) -> str:
         """
@@ -348,10 +356,6 @@ class InputApp(App[None]):
         """
         self.condense_mode = True
         self.add_class("condensed")
-
-    @on(Button.Pressed, "#number_of_operations_button")
-    def number_of_operations(self, event: Button.Pressed) -> None:
-        pass
 
     @on(Button.Pressed, "#uncondense_button")
     def uncondense(self, event: Button.Pressed) -> None:

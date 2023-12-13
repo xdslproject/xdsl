@@ -12,7 +12,7 @@
     width: 1;
 }
 
-# Vertical(Button, Button, Button, Button, Button)
+# Vertical(Button, Button, Button, Button)
 #buttons{
     layout: vertical;
     width: auto;
@@ -27,21 +27,26 @@
     border-title-align: center;
 }
 
-# ScrollableContainer(Label)
-#input_ops_container{
-    border: heavy $accent-darken-1;
-    border-title-color: $error-darken-3;
-    border-title-style: bold;
-    border-title-align: center;
-    width: 30;
-    height: 3;
-}
-
 # Horizontal(Button, Button)
 #input_horizontal{
     width: auto;
     height: auto;
 }
+
+# DataTable
+#input_number_of_ops{
+    width: auto;
+    height: auto;
+}
+
+# ScrollableContainer(DataTable)
+#input_ops_container{
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+}
+
 
 # Vertical(TextArea, Horizontal(Button, Button))
 #input_container {
@@ -51,20 +56,24 @@
     border-title-align: center;
 }
 
-# ScrollableContainer(Label)
+# Horizontal(Button, Label)
+#output_horizontal{
+    width: auto;
+    height: 3;
+}
+
+# DataTable
+#output_number_of_ops{
+    width: auto;
+    height: auto;
+}
+
+# ScrollableContainer(DataTable)
 #output_ops_container{
     border: heavy $accent-darken-1;
     border-title-color: $error-darken-3;
     border-title-style: bold;
     border-title-align: center;
-    width: 30;
-    height: 3;
-}
-
-# Horizontal(Button, Label)
-#output_horizontal{
-    width: auto;
-    height: 3;
 }
 
 # Vertical(TextArea, Horizontal(Button))
@@ -73,6 +82,12 @@
     border-title-color: $error-darken-3;
     border-title-style: bold;
     border-title-align: center;
+}
+
+#bottom_container{
+    layout: grid;
+    grid-size: 4 1;
+    grid-columns: 30% 20% 30% 20%;
 }
 
 # InputApp Screen
