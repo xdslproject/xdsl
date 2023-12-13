@@ -32,5 +32,4 @@ def test_operation_counter():
     }
 
     res = count_number_of_operations(module)
-    print(res)
     assert res == expected_res
