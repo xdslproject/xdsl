@@ -90,11 +90,12 @@ class InputApp(App[None]):
     }
 
     INITIAL_IR_TEXT = """
-func.func @hello(%n : index) -> index {
+        func.func @hello(%n : index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
-        }"""
+        }
+        """
 
     current_module = reactive[ModuleOp | Exception | None](None)
     """
