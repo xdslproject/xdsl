@@ -23,5 +23,12 @@ def test_operation_counter():
             res = arith.Muli(res_1, res_2)
             func.Return(res)
 
+    expected_res = {
+        "func.func": 1,
+        "arith.constant": 2,
+        "arith.muli": 3,
+        "func.return": 1,
+    }
+
     res = count_number_of_operations(module)
-    print(res)
+    assert res == expected_res
