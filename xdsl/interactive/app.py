@@ -20,6 +20,7 @@ from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import (
     Button,
+    DataTable,
     Footer,
     Label,
     ListItem,
@@ -31,6 +32,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
+from xdsl.interactive.pass_metrics import count_number_of_operations
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
@@ -131,11 +133,16 @@ class InputApp(App[None]):
     passes_list_view: ListView
     """ListView displaying the passes available to apply."""
 
+    input_number_of_ops: DataTable[str | int]
+    output_number_of_ops: DataTable[str | int]
+
     def __init__(self):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
         self.selected_query_label = Label("", id="selected_passes_label")
+        self.input_number_of_ops = DataTable(id="input_number_of_ops")
+        self.output_number_of_ops = DataTable(id="output_number_of_ops")
 
         super().__init__()
 
@@ -156,14 +163,21 @@ class InputApp(App[None]):
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
-            with Vertical(id="input_container"):
-                yield self.input_text_area
-                with Horizontal(id="input_horizontal"):
-                    yield Button("Clear Input", id="clear_input_button")
-                    yield Button("Load File", id="load_file_button")
-            with Vertical(id="output_container"):
-                yield self.output_text_area
-                yield Button("Copy Output", id="copy_output_button")
+            with Horizontal(id="input_horizontal_container"):
+                with Vertical(id="input_container"):
+                    yield self.input_text_area
+                    with Horizontal(id="input_horizontal"):
+                        yield Button("Clear Input", id="clear_input_button")
+                        yield Button("Load File", id="load_file_button")
+                with ScrollableContainer(id="input_ops_container"):
+                    yield self.input_number_of_ops
+
+            with Horizontal(id="output_horizontal_container"):
+                with Vertical(id="output_container"):
+                    yield self.output_text_area
+                    yield Button("Copy Output", id="copy_output_button")
+                with ScrollableContainer(id="output_ops_container"):
+                    yield self.output_number_of_ops
         yield Footer()
 
     def on_mount(self) -> None:
@@ -186,6 +200,12 @@ class InputApp(App[None]):
 
         # initialize GUI with an interesting input IR and pass application
         self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
+
+        self.input_number_of_ops.add_columns("Operation", "Count")
+        self.input_number_of_ops.zebra_stripes = True
+
+        self.output_number_of_ops.add_columns("Operation", "Count")
+        self.output_number_of_ops.zebra_stripes = True
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -288,6 +308,32 @@ class InputApp(App[None]):
         self.selected_query_label.update(self.get_query_string())
         self.update_current_module()
 
+    def update_number_of_input_ops(self, input_text: str) -> None:
+        if input_text == "":
+            self.input_number_of_ops.clear()
+        else:
+            ctx = MLContext(True)
+            for dialect in get_all_dialects():
+                ctx.load_dialect(dialect)
+            module = Parser(ctx, input_text).parse_module()
+            input_ops = count_number_of_operations(module)
+
+            self.input_number_of_ops.clear()
+            for k, v in input_ops.items():
+                self.input_number_of_ops.add_row(k, v)
+
+    def update_number_of_output_ops(self) -> None:
+        match self.current_module:
+            case None:
+                self.output_number_of_ops.clear()
+            case Exception():
+                self.output_number_of_ops.clear()
+            case ModuleOp():
+                output_ops = count_number_of_operations(self.current_module)
+                self.output_number_of_ops.clear()
+                for k, v in output_ops.items():
+                    self.output_number_of_ops.add_row(k, v)
+
     @on(TextArea.Changed, "#input")
     def update_current_module(self) -> None:
         """
@@ -297,6 +343,7 @@ class InputApp(App[None]):
         if (input_text) == "":
             self.current_module = None
             self.current_condensed_pass_list = ()
+            self.update_number_of_input_ops(input_text)
             return
         try:
             ctx = MLContext(True)
@@ -312,8 +359,10 @@ class InputApp(App[None]):
             )
             pipeline.apply(ctx, module)
             self.current_module = module
+            self.update_number_of_input_ops(input_text)
         except Exception as e:
             self.current_module = e
+            self.update_number_of_input_ops("")
 
     def watch_current_module(self):
         """
@@ -333,6 +382,7 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
+        self.update_number_of_output_ops()
 
     def get_query_string(self) -> str:
         """
