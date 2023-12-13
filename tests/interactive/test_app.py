@@ -22,6 +22,7 @@ from xdsl.transforms.experimental import (
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
+from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
 @pytest.mark.asyncio()
@@ -152,12 +153,16 @@ async def test_buttons():
         )
 
         # Select two passes
-        app.pass_pipeline = tuple(
+        app.pass_pipeline += (
+            *app.pass_pipeline,
             (
-                *app.pass_pipeline,
                 convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
+            ),
+            (
                 convert_arith_to_riscv.ConvertArithToRiscvPass,
-            )
+                PipelinePassSpec(name="convert-arith-to-riscv", args={}),
+            ),
         )
 
         # assert that pass selection affected Output Text Area
@@ -309,10 +314,12 @@ async def test_passes():
         )
 
         # Select a pass
-        app.pass_pipeline = tuple(
-            (*app.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
+        app.pass_pipeline += (
+            (
+                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
+            ),
         )
-
         # assert that the Output Text Area has changed accordingly
         await pilot.pause()
         assert (
