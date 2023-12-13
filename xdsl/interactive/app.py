@@ -120,11 +120,16 @@ class InputApp(App[None]):
     passes_list_view: ListView
     """ListView displaying the passes available to apply."""
 
+    input_number_of_ops: Label
+    output_number_of_ops: Label
+
     def __init__(self):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
         self.selected_query_label = Label("", id="selected_passes_label")
+        self.input_number_of_ops = Label("", id="input_number_of_ops")
+        self.output_number_of_ops = Label("", id="output_number_of_ops")
 
         super().__init__()
 
@@ -132,7 +137,6 @@ class InputApp(App[None]):
         """
         Creates the required widgets, events, etc.
         """
-
         with Horizontal(id="top_container"):
             yield self.passes_list_view
             with Horizontal(id="button_and_selected_horziontal"):
@@ -150,9 +154,14 @@ class InputApp(App[None]):
                 with Horizontal(id="input_horizontal"):
                     yield Button("Clear Input", id="clear_input_button")
                     yield Button("Load File", id="load_file_button")
+                    with ScrollableContainer(id="input_ops_container"):
+                        yield self.input_number_of_ops
             with Vertical(id="output_container"):
                 yield self.output_text_area
-                yield Button("Copy Output", id="copy_output_button")
+                with Horizontal(id="output_horizontal"):
+                    yield Button("Copy Output", id="copy_output_button")
+                    with ScrollableContainer(id="output_ops_container"):
+                        yield self.output_number_of_ops
         yield Footer()
 
     def on_mount(self) -> None:
@@ -168,6 +177,9 @@ class InputApp(App[None]):
             "#passes_list_view"
         ).border_title = "Choose a pass or multiple passes to be applied."
         self.query_one("#selected_passes").border_title = "Selected passes/query"
+
+        self.query_one("#input_ops_container").border_title = "Number of Operations"
+        self.query_one("#output_ops_container").border_title = "Number of Operations"
 
         # initialize ListView to contain the pass options
         for n, _ in ALL_PASSES:

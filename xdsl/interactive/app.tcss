@@ -27,23 +27,21 @@
     border-title-align: center;
 }
 
-# TextArea
-#file_name{
+# ScrollableContainer(Label)
+#input_ops_container{
     border: heavy $accent-darken-1;
     border-title-color: $error-darken-3;
     border-title-style: bold;
     border-title-align: center;
-    overflow: hidden;
-
 }
 
-# Horizontal(Button, Button)
+# Horizontal(Button, Button, Label)
 #input_horizontal{
     width: auto;
-    height: auto;
+    height: 3;
 }
 
-# Vertical(TextArea, Horizontal(Button, TextArea, Button))
+# Vertical(TextArea, Horizontal(Button, Button, Label))
 #input_container {
     border: heavy $accent-darken-1;
     border-title-color: $error-darken-3;
@@ -51,7 +49,21 @@
     border-title-align: center;
 }
 
-# Vertical(TextArea, Button)
+# ScrollableContainer(Label)
+#output_ops_container{
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+}
+
+# Horizontal(Button, Label)
+#output_horizontal{
+    width: auto;
+    height: 3;
+}
+
+# Vertical(TextArea, Horizontal(Button, Label))
 #output_container {
     border: heavy $accent-darken-1;
     border-title-color: $error-darken-3;
