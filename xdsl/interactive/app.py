@@ -89,7 +89,8 @@ class InputApp(App[None]):
         "load_file": LoadFile
     }
 
-    INITIAL_IR_TEXT = """func.func @hello(%n : index) -> index {
+    INITIAL_IR_TEXT = """
+func.func @hello(%n : index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -137,6 +138,7 @@ class InputApp(App[None]):
         """
         Creates the required widgets, events, etc.
         """
+
         with Horizontal(id="top_container"):
             yield self.passes_list_view
             with Horizontal(id="button_and_selected_horziontal"):
@@ -158,8 +160,7 @@ class InputApp(App[None]):
                 yield self.input_number_of_ops
             with Vertical(id="output_container"):
                 yield self.output_text_area
-                with Horizontal(id="output_horizontal"):
-                    yield Button("Copy Output", id="copy_output_button")
+                yield Button("Copy Output", id="copy_output_button")
             with ScrollableContainer(id="output_ops_container"):
                 yield self.output_number_of_ops
         yield Footer()
