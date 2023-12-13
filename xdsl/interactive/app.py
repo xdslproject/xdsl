@@ -299,7 +299,6 @@ class InputApp(App[None]):
         if (input_text) == "":
             self.current_module = None
             self.current_condensed_pass_list = ()
-            self.update_number_of_input_ops(input_text)
             return
         try:
             ctx = MLContext(True)
@@ -315,10 +314,8 @@ class InputApp(App[None]):
             )
             pipeline.apply(ctx, module)
             self.current_module = module
-            self.update_number_of_input_ops(input_text)
         except Exception as e:
             self.current_module = e
-            self.update_number_of_input_ops("")
 
     def watch_current_module(self):
         """
@@ -344,9 +341,11 @@ class InputApp(App[None]):
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
-        new_label = f"xdsl-opt -p {new_passes}"
-        return new_label
+        query = "\n"
+        query += ",\n".join(
+            str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
+        )
+        return f"xdsl-opt -p {query}"
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
