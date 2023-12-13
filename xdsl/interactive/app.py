@@ -246,15 +246,18 @@ class InputApp(App[None]):
         self.update_current_module()
 
     def update_number_of_input_ops(self, input_text: str) -> None:
-        ctx = MLContext(True)
-        for dialect in get_all_dialects():
-            ctx.load_dialect(dialect)
-        module = Parser(ctx, input_text).parse_module()
-        input_ops = count_number_of_operations(module)
+        if input_text == "":
+            self.input_number_of_ops.clear()
+        else:
+            ctx = MLContext(True)
+            for dialect in get_all_dialects():
+                ctx.load_dialect(dialect)
+            module = Parser(ctx, input_text).parse_module()
+            input_ops = count_number_of_operations(module)
 
-        self.input_number_of_ops.clear()
-        for k, v in input_ops.items():
-            self.input_number_of_ops.add_row(k, v)
+            self.input_number_of_ops.clear()
+            for k, v in input_ops.items():
+                self.input_number_of_ops.add_row(k, v)
 
     def update_number_of_output_ops(self) -> None:
         match self.current_module:
