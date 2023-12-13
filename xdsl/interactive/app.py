@@ -338,18 +338,15 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
-        self.update_number_of_output_ops()
 
     def get_query_string(self) -> str:
         """
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        query = "\n"
-        query += ",\n".join(
-            str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
-        )
-        return f"xdsl-opt -p {query}"
+        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
+        new_label = f"xdsl-opt -p {new_passes}"
+        return new_label
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
