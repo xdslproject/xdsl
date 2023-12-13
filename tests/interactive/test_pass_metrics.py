@@ -10,8 +10,6 @@ from xdsl.ir import Block, MLContext, Region
 from xdsl.parser import Parser
 from xdsl.tools.command_line_tool import get_all_dialects
 
-from xdsl.ir import Block, Region
-
 
 def test_operation_counter():
     # build module
