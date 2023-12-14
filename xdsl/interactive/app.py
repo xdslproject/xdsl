@@ -135,16 +135,27 @@ class InputApp(App[None]):
     passes_list_view: ListView
     """ListView displaying the passes available to apply."""
 
-    input_number_of_ops: DataTable[str | int]
-    output_number_of_ops: DataTable[str | int]
+    input_operation_count_dict: dict[str, int] = dict()
+    """Saves the operation name and count of the input text area in a dictionary."""
+    output_operation_count_dict: dict[str, int] = dict()
+    """Saves the operation name and count of the output text area in a dictionary."""
+
+    input_operation_count_datatable: DataTable[str | int]
+    """DataTable displaying the operation names and counts of the input text area."""
+    output_operation_count_datatable: DataTable[str | int | None]
+    """DataTable displaying the operation names and counts of the output text area."""
 
     def __init__(self):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
         self.selected_query_label = Label("", id="selected_passes_label")
-        self.input_number_of_ops = DataTable(id="input_number_of_ops")
-        self.output_number_of_ops = DataTable(id="output_number_of_ops")
+        self.input_operation_count_datatable = DataTable(
+            id="input_operation_count_datatable"
+        )
+        self.output_operation_count_datatable = DataTable(
+            id="output_operation_count_datatable"
+        )
 
         super().__init__()
 
@@ -178,14 +189,14 @@ class InputApp(App[None]):
                         yield Button("Clear Input", id="clear_input_button")
                         yield Button("Load File", id="load_file_button")
                 with ScrollableContainer(id="input_ops_container"):
-                    yield self.input_number_of_ops
+                    yield self.input_operation_count_datatable
 
             with Horizontal(id="output_horizontal_container"):
                 with Vertical(id="output_container"):
                     yield self.output_text_area
                     yield Button("Copy Output", id="copy_output_button")
                 with ScrollableContainer(id="output_ops_container"):
-                    yield self.output_number_of_ops
+                    yield self.output_operation_count_datatable
         yield Footer()
 
     def on_mount(self) -> None:
@@ -209,11 +220,11 @@ class InputApp(App[None]):
         # initialize GUI with an interesting input IR and pass application
         self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
 
-        self.input_number_of_ops.add_columns("Operation", "Count")
-        self.input_number_of_ops.zebra_stripes = True
+        self.input_operation_count_datatable.add_columns("Operation", "Count")
+        self.input_operation_count_datatable.zebra_stripes = True
 
-        self.output_number_of_ops.add_columns("Operation", "Count")
-        self.output_number_of_ops.zebra_stripes = True
+        self.output_operation_count_datatable.add_columns("Operation", "Count", "Diff")
+        self.output_operation_count_datatable.zebra_stripes = True
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -325,7 +336,7 @@ class InputApp(App[None]):
         if (input_text) == "":
             self.current_module = None
             self.current_condensed_pass_list = ()
-            self.update_number_of_input_ops(input_text)
+            self.update_input_operation_count_dict(input_text)
             return
         try:
             ctx = MLContext(True)
@@ -341,10 +352,10 @@ class InputApp(App[None]):
             )
             pipeline.apply(ctx, module)
             self.current_module = module
-            self.update_number_of_input_ops(input_text)
+            self.update_input_operation_count_dict(input_text)
         except Exception as e:
             self.current_module = e
-            self.update_number_of_input_ops("")
+            self.update_input_operation_count_dict("")
 
     def watch_current_module(self):
         """
@@ -364,7 +375,7 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
-        self.update_number_of_output_ops()
+        self.update_output_operation_count_dict()
 
     def get_query_string(self) -> str:
         """
@@ -377,31 +388,48 @@ class InputApp(App[None]):
         )
         return f"xdsl-opt -p {query}"
 
-    def update_number_of_input_ops(self, input_text: str) -> None:
+    def update_input_operation_count_dict(self, input_text: str) -> None:
+        """
+        Function that updates the input_operation_datatable to display the operation
+        names and counts in the input text area.
+        """
         if input_text == "":
-            self.input_number_of_ops.clear()
+            self.input_operation_count_dict.clear
         else:
             ctx = MLContext(True)
             for dialect in get_all_dialects():
                 ctx.load_dialect(dialect)
             module = Parser(ctx, input_text).parse_module()
-            input_ops = count_number_of_operations(module)
+            self.input_operation_count_dict = count_number_of_operations(module)
+            self.input_operation_count_datatable.clear()
+            for k, v in self.input_operation_count_dict.items():
+                self.input_operation_count_datatable.add_row(k, v)
+        self.update_output_operation_count_dict()
 
-            self.input_number_of_ops.clear()
-            for k, v in input_ops.items():
-                self.input_number_of_ops.add_row(k, v)
-
-    def update_number_of_output_ops(self) -> None:
+    def update_output_operation_count_dict(self) -> None:
+        """
+        Function that updates the output_operation_datatable to display the operation
+        names and counts in the output text area. It also displays the diff of the input
+        and output datatable.
+        """
         match self.current_module:
             case None:
-                self.output_number_of_ops.clear()
+                self.output_operation_count_dict.clear
             case Exception():
-                self.output_number_of_ops.clear()
+                self.output_operation_count_dict.clear
             case ModuleOp():
-                output_ops = count_number_of_operations(self.current_module)
-                self.output_number_of_ops.clear()
-                for k, v in output_ops.items():
-                    self.output_number_of_ops.add_row(k, v)
+                self.output_operation_count_dict = count_number_of_operations(
+                    self.current_module
+                )
+
+        self.output_operation_count_datatable.clear()
+        for k, v in self.output_operation_count_dict.items():
+            # calculate diff of output and  input if there is one
+            if k in self.input_operation_count_dict:
+                diff = v - self.input_operation_count_dict[k]
+                self.output_operation_count_datatable.add_row(k, v, diff)
+            else:
+                self.output_operation_count_datatable.add_row(k, v, "-")
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
