@@ -16,7 +16,7 @@
 #buttons{
     layout: vertical;
     width: auto;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 # ScrollableContainer(Label)
