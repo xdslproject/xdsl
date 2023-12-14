@@ -12,11 +12,21 @@
     width: 1;
 }
 
-# Vertical(Button, Button, Button, Button)
+# Button
+#show_operation_count_button{
+    width: 1;
+}
+
+# Button
+#remove_operation_count_button{
+    width: 1;
+}
+
+# ScrollableContainer(Button, Button, Button, Button, Button)
 #buttons{
     layout: vertical;
     width: auto;
-    overflow: hidden;
+    overflow-x: hidden;
 }
 
 # ScrollableContainer(Label)
@@ -94,6 +104,8 @@ Screen {
     background: $surface;
 }
 
+# Toggle between "Uncondense" and "Condense" Mode
+
 # Button
 #uncondense_button{
     display: none;
@@ -104,6 +116,39 @@ Screen {
 }
 
 .condensed #uncondense_button {
+    display: block;
+}
+
+# ScrollableContainer(DataTable)
+#input_ops_container{
+    display: none;
+}
+# ScrollableContainer(DataTable)
+#output_ops_container{
+    display: none;
+}
+
+# Toggle between "Show Operations Count" and "Remove Operations Count" Mode
+
+# Button
+#remove_operation_count_button{
+    display: none;
+}
+
+.operation_count_shown #show_operation_count_button {
+    display: none;
+}
+
+.operation_count_shown #remove_operation_count_button {
+    display: block;
+}
+
+# ScrollableContainer(DataTable)
+.operation_count_shown #input_ops_container{
+    display: block;
+}
+# ScrollableContainer(DataTable)
+.operation_count_shown #output_ops_container{
     display: block;
 }
 

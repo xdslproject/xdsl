@@ -156,12 +156,18 @@ class InputApp(App[None]):
         with Horizontal(id="top_container"):
             yield self.passes_list_view
             with Horizontal(id="button_and_selected_horziontal"):
-                with Vertical(id="buttons"):
+                with ScrollableContainer(id="buttons"):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
                     yield Button("Condense", id="condense_button")
                     yield Button("Uncondense", id="uncondense_button")
                     yield Button("Remove Last Pass", id="remove_last_pass_button")
+                    yield Button(
+                        "Show Operation Count", id="show_operation_count_button"
+                    )
+                    yield Button(
+                        "Remove Operation Count", id="remove_operation_count_button"
+                    )
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
@@ -442,6 +448,16 @@ class InputApp(App[None]):
         """
         self.condense_mode = False
         self.remove_class("condensed")
+
+    @on(Button.Pressed, "#show_operation_count_button")
+    def show_operation_count_button(self, event: Button.Pressed) -> None:
+        """Operation Count is displayed when "Show Operation Count" button is pressed."""
+        self.add_class("operation_count_shown")
+
+    @on(Button.Pressed, "#remove_operation_count_button")
+    def remove_operation_count_button(self, event: Button.Pressed) -> None:
+        """Operation Count is removed when "Remove Operation Count" button is pressed."""
+        self.remove_class("operation_count_shown")
 
     @on(Button.Pressed, "#remove_last_pass_button")
     def remove_last_pass(self, event: Button.Pressed) -> None:
