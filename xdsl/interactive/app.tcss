@@ -68,7 +68,7 @@
 }
 
 # DataTable
-#output_containert_operation_count_datatable{
+#output_operation_count_datatable{
     width: auto;
     height: auto;
 }
