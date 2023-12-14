@@ -159,6 +159,10 @@ async def test_buttons():
                 convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
                 PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
             ),
+        )
+
+        app.pass_pipeline = (
+            *app.pass_pipeline,
             (
                 convert_arith_to_riscv.ConvertArithToRiscvPass,
                 PipelinePassSpec(name="convert-arith-to-riscv", args={}),
