@@ -12,16 +12,6 @@
     width: 1;
 }
 
-# Button
-#show_operation_count_button{
-    width: 1;
-}
-
-# Button
-#remove_operation_count_button{
-    width: 1;
-}
-
 # ScrollableContainer(Button, Button, Button, Button, Button)
 #buttons{
     layout: vertical;
@@ -131,8 +121,14 @@ Screen {
 # Toggle between "Show Operations Count" and "Remove Operations Count" Mode
 
 # Button
+#show_operation_count_button{
+    width: 1;
+}
+
+# Button
 #remove_operation_count_button{
     display: none;
+    width: 1;
 }
 
 .operation_count_shown #show_operation_count_button {
