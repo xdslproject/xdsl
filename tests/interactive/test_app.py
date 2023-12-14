@@ -153,7 +153,7 @@ async def test_buttons():
         )
 
         # Select two passes
-        app.pass_pipeline += (
+        app.pass_pipeline = (
             *app.pass_pipeline,
             (
                 convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
@@ -314,7 +314,8 @@ async def test_passes():
         )
 
         # Select a pass
-        app.pass_pipeline += (
+        app.pass_pipeline = (
+            *app.pass_pipeline,
             (
                 convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
                 PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
