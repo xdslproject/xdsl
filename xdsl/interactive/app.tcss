@@ -14,7 +14,6 @@
 
 # ScrollableContainer(Button, Button, Button, Button, Button)
 #buttons{
-    border: heavy $accent-darken-1;
     layout: vertical;
     width: auto;
     overflow: hidden;
