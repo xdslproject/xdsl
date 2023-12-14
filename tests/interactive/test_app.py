@@ -16,7 +16,12 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.app import InputApp
 from xdsl.ir import Block, Region
-from xdsl.transforms import mlir_opt, printf_to_llvm, scf_parallel_loop_tiling, stencil_unroll
+from xdsl.transforms import (
+    mlir_opt,
+    printf_to_llvm,
+    scf_parallel_loop_tiling,
+    stencil_unroll,
+)
 from xdsl.transforms.experimental import (
     hls_convert_stencil_to_ll_mlir,
 )
