@@ -374,8 +374,8 @@ class InputApp(App[None]):
                 Printer(output_stream).print(self.current_module)
                 output_text = output_stream.getvalue()
 
-        self.update_output_operation_count_dict()
         self.output_text_area.load_text(output_text)
+        self.update_output_operation_count_dict()
 
     def get_query_string(self) -> str:
         """
