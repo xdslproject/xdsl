@@ -374,8 +374,8 @@ class InputApp(App[None]):
                 Printer(output_stream).print(self.current_module)
                 output_text = output_stream.getvalue()
 
-        self.output_text_area.load_text(output_text)
         self.update_output_operation_count_dict()
+        self.output_text_area.load_text(output_text)
 
     def get_query_string(self) -> str:
         """
@@ -404,6 +404,7 @@ class InputApp(App[None]):
             self.input_operation_count_datatable.clear()
             for k, v in self.input_operation_count_dict.items():
                 self.input_operation_count_datatable.add_row(k, v)
+
         self.update_output_operation_count_dict()
 
     def update_output_operation_count_dict(self) -> None:
