@@ -24,6 +24,7 @@
 
 # ScrollableContainer(Button, Button, Button, Button, Button)
 #buttons{
+    border: heavy $accent-darken-1;
     layout: vertical;
     width: auto;
     overflow-x: hidden;
@@ -44,7 +45,7 @@
 }
 
 # DataTable
-#input_number_of_ops{
+#input_operation_count_datatable{
     width: auto;
     height: auto;
 }
@@ -67,7 +68,7 @@
 }
 
 # DataTable
-#output_number_of_ops{
+#output_containert_operation_count_datatable{
     width: auto;
     height: auto;
 }
