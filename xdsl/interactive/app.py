@@ -224,7 +224,7 @@ class InputApp(App[None]):
         self.input_operation_count_datatable.add_columns("Operation", "Count")
         self.input_operation_count_datatable.zebra_stripes = True
 
-        self.output_operation_count_datatable.add_columns("Operation", "Count")
+        self.output_operation_count_datatable.add_columns("Operation", "Count", "Diff")
         self.output_operation_count_datatable.zebra_stripes = True
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
@@ -431,6 +431,20 @@ class InputApp(App[None]):
         for k, v in self.output_operation_count_tuple:
             # calculate diff of output and  input if there is one
             self.output_operation_count_datatable.add_row(k, v)
+
+            input_op_count_dict = dict(self.input_operation_count_tuple)
+            if k in input_op_count_dict:
+                diff = v - input_op_count_dict[k]
+                self.output_operation_count_datatable.add_row(k, v, diff)
+            else:
+                self.output_operation_count_datatable.add_row(k, v, "-")
+
+            # for k_input, v_input in self.input_operation_count_tuple:
+            #     if k == k_input:
+            #         diff = v - v_input
+            #         self.output_operation_count_datatable.add_row(k, v, diff)
+            #     else:
+            #         self.output_operation_count_datatable.add_row(k, v, "-")
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
