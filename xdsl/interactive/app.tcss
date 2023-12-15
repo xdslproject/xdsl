@@ -34,7 +34,7 @@
 }
 
 # DataTable
-#input_number_of_ops{
+#input_operation_count_datatable{
     width: auto;
     height: auto;
 }
@@ -57,7 +57,7 @@
 }
 
 # DataTable
-#output_number_of_ops{
+#output_operation_count_datatable{
     width: auto;
     height: auto;
 }
