@@ -41,7 +41,6 @@ from xdsl.irdl import (
     OptOpResult,
     ParameterDef,
     VarOperand,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -809,7 +808,7 @@ class ExtractValueOp(IRDLOperation):
 
     name = "llvm.extractvalue"
 
-    position: DenseArrayBase = attr_def(DenseArrayBase)
+    position: DenseArrayBase = prop_def(DenseArrayBase)
     container: Operand = operand_def(Attribute)
 
     res: OpResult = result_def(Attribute)
@@ -837,7 +836,7 @@ class InsertValueOp(IRDLOperation):
 
     name = "llvm.insertvalue"
 
-    position: DenseArrayBase = attr_def(DenseArrayBase)
+    position: DenseArrayBase = prop_def(DenseArrayBase)
     container: Operand = operand_def(Attribute)
     value: Operand = operand_def(Attribute)
 
