@@ -135,14 +135,14 @@ class InputApp(App[None]):
     passes_list_view: ListView
     """ListView displaying the passes available to apply."""
 
-    input_operation_count_dict: dict[str, int] = dict()
+    input_operation_count_tuple: tuple[tuple[str, int], ...] = tuple()
     """Saves the operation name and count of the input text area in a dictionary."""
-    output_operation_count_dict: dict[str, int] = dict()
+    output_operation_count_tuple: tuple[tuple[str, int], ...] = tuple()
     """Saves the operation name and count of the output text area in a dictionary."""
 
     input_operation_count_datatable: DataTable[str | int]
     """DataTable displaying the operation names and counts of the input text area."""
-    output_operation_count_datatable: DataTable[str | int | None]
+    output_operation_count_datatable: DataTable[str | int]
     """DataTable displaying the operation names and counts of the output text area."""
 
     def __init__(self):
@@ -220,10 +220,11 @@ class InputApp(App[None]):
         # initialize GUI with an interesting input IR and pass application
         self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
 
+        # initialize DataTable with column names
         self.input_operation_count_datatable.add_columns("Operation", "Count")
         self.input_operation_count_datatable.zebra_stripes = True
 
-        self.output_operation_count_datatable.add_columns("Operation", "Count", "Diff")
+        self.output_operation_count_datatable.add_columns("Operation", "Count")
         self.output_operation_count_datatable.zebra_stripes = True
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
@@ -336,7 +337,7 @@ class InputApp(App[None]):
         if (input_text) == "":
             self.current_module = None
             self.current_condensed_pass_list = ()
-            self.update_input_operation_count_dict(input_text)
+            self.update_input_operation_count_tuple(input_text)
             return
         try:
             ctx = MLContext(True)
@@ -352,10 +353,10 @@ class InputApp(App[None]):
             )
             pipeline.apply(ctx, module)
             self.current_module = module
-            self.update_input_operation_count_dict(input_text)
+            self.update_input_operation_count_tuple(input_text)
         except Exception as e:
             self.current_module = e
-            self.update_input_operation_count_dict("")
+            self.update_input_operation_count_tuple("")
 
     def watch_current_module(self):
         """
@@ -375,7 +376,7 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
-        self.update_output_operation_count_dict()
+        self.update_output_operation_count_tuple()
 
     def get_query_string(self) -> str:
         """
@@ -388,26 +389,29 @@ class InputApp(App[None]):
         )
         return f"xdsl-opt -p {query}"
 
-    def update_input_operation_count_dict(self, input_text: str) -> None:
+    def update_input_operation_count_tuple(self, input_text: str) -> None:
         """
         Function that updates the input_operation_datatable to display the operation
         names and counts in the input text area.
         """
         if input_text == "":
-            self.input_operation_count_dict.clear
+            self.input_operation_count_tuple = tuple()
         else:
             ctx = MLContext(True)
             for dialect in get_all_dialects():
                 ctx.load_dialect(dialect)
             module = Parser(ctx, input_text).parse_module()
-            self.input_operation_count_dict = count_number_of_operations(module)
+            self.input_operation_count_tuple = tuple(
+                count_number_of_operations(module).items()
+            )
+
             self.input_operation_count_datatable.clear()
-            for k, v in self.input_operation_count_dict.items():
+            for k, v in self.input_operation_count_tuple:
                 self.input_operation_count_datatable.add_row(k, v)
 
-        self.update_output_operation_count_dict()
+            self.update_output_operation_count_tuple()
 
-    def update_output_operation_count_dict(self) -> None:
+    def update_output_operation_count_tuple(self) -> None:
         """
         Function that updates the output_operation_datatable to display the operation
         names and counts in the output text area. It also displays the diff of the input
@@ -415,22 +419,18 @@ class InputApp(App[None]):
         """
         match self.current_module:
             case None:
-                self.output_operation_count_dict.clear
+                self.output_operation_count_tuple = tuple()
             case Exception():
-                self.output_operation_count_dict.clear
+                self.output_operation_count_tuple = tuple()
             case ModuleOp():
-                self.output_operation_count_dict = count_number_of_operations(
-                    self.current_module
+                self.output_operation_count_tuple = tuple(
+                    count_number_of_operations(self.current_module).items()
                 )
 
         self.output_operation_count_datatable.clear()
-        for k, v in self.output_operation_count_dict.items():
+        for k, v in self.output_operation_count_tuple:
             # calculate diff of output and  input if there is one
-            if k in self.input_operation_count_dict:
-                diff = v - self.input_operation_count_dict[k]
-                self.output_operation_count_datatable.add_row(k, v, diff)
-            else:
-                self.output_operation_count_datatable.add_row(k, v, "-")
+            self.output_operation_count_datatable.add_row(k, v)
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""

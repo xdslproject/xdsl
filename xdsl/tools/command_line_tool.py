@@ -73,6 +73,7 @@ from xdsl.transforms import (
     riscv_scf_loop_range_folding,
     scf_parallel_loop_tiling,
     snitch_register_allocation,
+    stencil_unroll,
 )
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
@@ -166,6 +167,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
         lower_hls.LowerHLSPass,
         replace_incompatible_fpga.ReplaceIncompatibleFPGA,
+        stencil_unroll.StencilUnrollPass,
     ]
 
 
