@@ -9,6 +9,7 @@ be sure to install `textual-dev` to run this command.
 
 import os
 from collections.abc import Callable
+from dataclasses import fields
 from io import StringIO
 from typing import Any, ClassVar
 
@@ -28,13 +29,16 @@ from textual.widgets import (
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 from xdsl.transforms.mlir_opt import MLIROptPass
+from xdsl.utils.exceptions import PassPipelineParseError
+from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 from ._pasteboard import pyclip_copy
 
@@ -88,9 +92,13 @@ class InputApp(App[None]):
         ("q", "quit_app", "Quit"),
     ]
 
-    SCREENS: ClassVar[dict[str, Screen[Any] | Callable[[], Screen[Any]]]] = {
-        "load_file": LoadFile
+    SCREENS: ClassVar[dict[str, type[Screen[Any]] | Callable[[], Screen[Any]]]] = {
+        "add_arguments_screen": AddArguments,
+        "load_file": LoadFile,
     }
+    """
+    A dictionary that maps names on to Screen objects.
+    """
 
     INITIAL_IR_TEXT = """
         func.func @hello(%n : index) -> index {
@@ -105,7 +113,7 @@ class InputApp(App[None]):
     Reactive variable used to save the current state of the modified Input TextArea
     (i.e. is the Output TextArea).
     """
-    pass_pipeline = reactive(tuple[type[ModulePass], ...])
+    pass_pipeline = reactive(tuple[tuple[type[ModulePass], PipelinePassSpec], ...])
     """Reactive variable that saves the list of selected passes."""
 
     condense_mode = reactive(False, always_update=True)
@@ -213,6 +221,55 @@ class InputApp(App[None]):
                     ListItem(Label(value.name), name=value.name)
                 )
 
+    def get_pass_arguments(self, selected_pass_value: type[ModulePass]) -> None:
+        """
+        This function facilitates user input of pass concatenated_arg_val by navigating
+        to the AddArguments screen, and subsequently parses the returned string upon
+        screen dismissal and appends the pass to the pass_pipeline variable.
+        """
+
+        def add_pass_with_arguments_to_pass_pipeline(concatenated_arg_val: str) -> None:
+            """
+            Called when AddArguments Screen is dismissed. This function attempts to parse
+            the returned string, and if successful, adds it to the pass_pipeline variable.
+            In case of parsing failure, the AddArguments Screen is pushed, revealing the
+            Parse Error.
+            """
+            try:
+                new_pass_with_arguments = list(
+                    parse_pipeline(
+                        f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
+                    )
+                )[0]
+                self.pass_pipeline = (
+                    *self.pass_pipeline,
+                    (selected_pass_value, new_pass_with_arguments),
+                )
+
+            except PassPipelineParseError as e:
+                res = f"PassPipelineParseError: {e}"
+                screen = AddArguments(TextArea(res, id="argument_text_area"))
+                self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
+
+        # if selected_pass_value has arguments, push screen
+        if fields(selected_pass_value):
+            # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
+            self.push_screen(
+                AddArguments(
+                    TextArea(
+                        get_pass_argument_names_and_types(selected_pass_value),
+                        id="argument_text_area",
+                    )
+                ),
+                add_pass_with_arguments_to_pass_pipeline,
+            )
+        else:
+            # add the selected pass to pass_pipeline
+            self.pass_pipeline = (
+                *self.pass_pipeline,
+                (selected_pass_value, selected_pass_value().pipeline_pass_spec()),
+            )
+
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
         """
@@ -220,10 +277,10 @@ class InputApp(App[None]):
         passes is updated.
         """
         selected_pass = event.item.name
-        for name, value in ALL_PASSES:
-            if name == selected_pass:
-                self.pass_pipeline = tuple((*self.pass_pipeline, value))
-                return
+        for pass_name, pass_value in ALL_PASSES:
+            if pass_name == selected_pass:
+                # check if pass has arguments
+                self.get_pass_arguments(pass_value)
 
     def watch_pass_pipeline(self) -> None:
         """
@@ -249,7 +306,12 @@ class InputApp(App[None]):
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
-            pipeline = PipelinePass([p() for p in self.pass_pipeline])
+            pipeline = PipelinePass(
+                passes=[
+                    module_pass.from_pass_spec(pipeline_pass_spec)
+                    for module_pass, pipeline_pass_spec in self.pass_pipeline
+                ]
+            )
             pipeline.apply(ctx, module)
             self.current_module = module
         except Exception as e:
@@ -279,9 +341,11 @@ class InputApp(App[None]):
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        new_passes = "\n" + (", " + "\n").join(p.name for p in self.pass_pipeline)
-        new_label = f"xdsl-opt -p {new_passes}"
-        return new_label
+        query = "\n"
+        query += ",\n".join(
+            str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
+        )
+        return f"xdsl-opt -p {query}"
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
