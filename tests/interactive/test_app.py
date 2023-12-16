@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.app import InputApp
 from xdsl.ir import Block, Region
-from xdsl.passes import ModulePass
 from xdsl.transforms import (
     mlir_opt,
     printf_to_llvm,
@@ -159,23 +158,20 @@ async def test_buttons():
         )
 
         # Select two passes
-        pass_one: tuple[type[ModulePass], PipelinePassSpec] = (
-            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-            PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
-        )
-        pass_two: tuple[type[ModulePass], PipelinePassSpec] = (
-            convert_arith_to_riscv.ConvertArithToRiscvPass,
-            PipelinePassSpec(name="convert-arith-to-riscv", args={}),
+        app.pass_pipeline = (
+            *app.pass_pipeline,
+            (
+                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
+            ),
         )
 
         app.pass_pipeline = (
             *app.pass_pipeline,
-            pass_one,
-        )
-
-        app.pass_pipeline = (
-            *app.pass_pipeline,
-            pass_two,
+            (
+                convert_arith_to_riscv.ConvertArithToRiscvPass,
+                PipelinePassSpec(name="convert-arith-to-riscv", args={}),
+            ),
         )
 
         # assert that pass selection affected Output Text Area
