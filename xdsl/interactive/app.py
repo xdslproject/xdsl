@@ -448,6 +448,7 @@ class InputApp(App[None]):
             #     else:
             #         self.output_operation_count_datatable.add_row(k, v, "-")
 
+
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
         self.dark = not self.dark

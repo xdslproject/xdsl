@@ -167,4 +167,4 @@ def test_a_regs():
                 TestSSAValue(riscv.Registers.T0),
             )
         )
-    ) == [riscv.Registers.FA0, riscv.Registers.FA1, riscv.Registers.A2]
+    ) == [riscv.Registers.FA0, riscv.Registers.FA1, riscv.Registers.A0]

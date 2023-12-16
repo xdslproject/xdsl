@@ -1,10 +1,10 @@
 from xdsl.backend.riscv.lowering.utils import (
     a_regs,
+    a_regs_for_types,
     cast_block_args_from_a_regs,
     cast_to_regs,
     move_to_a_regs,
     move_to_unallocated_regs,
-    register_type_for_type,
 )
 from xdsl.dialects import func, riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
@@ -31,10 +31,7 @@ class LowerFuncOp(RewritePattern):
         cast_block_args_from_a_regs(first_block, rewriter)
 
         input_types = [arg.type for arg in first_block.args]
-        result_types = [
-            register_type_for_type(result_type).a_register(index)
-            for index, result_type in enumerate(op.function_type.outputs.data)
-        ]
+        result_types = list(a_regs_for_types(op.function_type.outputs.data))
 
         new_func = riscv_func.FuncOp(
             op.sym_name.data,
