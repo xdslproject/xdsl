@@ -77,6 +77,12 @@ def move_to_regs(
 
 
 def a_regs_for_types(types: Iterable[Attribute]) -> Iterator[riscv.RISCVRegisterType]:
+    """
+    Returns the "a" registers in which to store types, i.e. `fa0`, `fa1`, etc for
+    floating-point values and `a0`, `a1`, etc for integer values and pointers. The
+    register index is separate for integer and floating-point registers according to the
+    RISC-V ABI.
+    """
     counter = Counter[type[riscv.RISCVRegisterType]]()
     for attr_type in types:
         register_type = register_type_for_type(attr_type)
@@ -177,8 +183,10 @@ def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:
 
 def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
     """
-    Change the type of the block arguments to `a` registers and add cast operations just
-    after the block entry.
+    Change the type of the block arguments to "a" registers and add cast operations just
+    after the block entry. Use `fa0`, `fa1`, etc for floating-point values and `a0`, `a1`,
+    etc for integer values and pointers. The register index is separate for integer and
+    floating-point registers according to the RISC-V ABI.
     """
 
     new_ops: list[Operation] = []
