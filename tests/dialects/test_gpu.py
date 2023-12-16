@@ -270,11 +270,9 @@ def test_launch():
     assert launch.asyncDependencies == tuple()
     assert launch.dynamicSharedMemorySize is None
 
-    asyncDependencies = []
-
     body2 = Region()
 
-    nd_launch = LaunchOp(body2, gridSize, blockSize, True, asyncDependencies, ten)
+    nd_launch = LaunchOp(body2, gridSize, blockSize, True, [], ten)
 
     assert isinstance(launch, LaunchOp)
     assert nd_launch.body is body2
@@ -311,8 +309,6 @@ def test_launchfunc():
     assert launch.dynamicSharedMemorySize is None
     assert launch.kernelOperands == ()
 
-    asyncDependencies = []
-
     kernel = builtin.SymbolRefAttr("root", ["gpu", "kernel"])
 
     launch = LaunchFuncOp(
@@ -322,7 +318,7 @@ def test_launchfunc():
         None,
         args,
         True,
-        asyncDependencies,
+        [],
         ten,
     )
 

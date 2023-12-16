@@ -19,12 +19,15 @@ from xdsl.ir import Block, Region
 from xdsl.transforms import (
     mlir_opt,
     printf_to_llvm,
+    scf_parallel_loop_tiling,
+    stencil_unroll,
 )
 from xdsl.transforms.experimental import (
     hls_convert_stencil_to_ll_mlir,
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
+from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
 @pytest.mark.asyncio()
@@ -46,13 +49,13 @@ async def test_inputs():
         await pilot.pause()
         assert (
             app.output_text_area.text
-            == "(Span[5:6](text=''), 'Operation builtin.unregistered does not have a custom format.')"
+            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
         )
 
         assert isinstance(app.current_module, ParseError)
         assert (
             str(app.current_module)
-            == "(Span[5:6](text=''), 'Operation builtin.unregistered does not have a custom format.')"
+            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
         )
 
         # Test corect input
@@ -155,12 +158,20 @@ async def test_buttons():
         )
 
         # Select two passes
-        app.pass_pipeline = tuple(
+        app.pass_pipeline = (
+            *app.pass_pipeline,
             (
-                *app.pass_pipeline,
                 convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
+            ),
+        )
+
+        app.pass_pipeline = (
+            *app.pass_pipeline,
+            (
                 convert_arith_to_riscv.ConvertArithToRiscvPass,
-            )
+                PipelinePassSpec(name="convert-arith-to-riscv", args={}),
+            ),
         )
 
         # assert that pass selection affected Output Text Area
@@ -260,6 +271,8 @@ async def test_buttons():
                 hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
                 mlir_opt.MLIROptPass,
                 printf_to_llvm.PrintfToLLVM,
+                scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
+                stencil_unroll.StencilUnrollPass,
             )
         )
 
@@ -311,10 +324,13 @@ async def test_passes():
         )
 
         # Select a pass
-        app.pass_pipeline = tuple(
-            (*app.pass_pipeline, convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass)
+        app.pass_pipeline = (
+            *app.pass_pipeline,
+            (
+                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
+            ),
         )
-
         # assert that the Output Text Area has changed accordingly
         await pilot.pause()
         assert (

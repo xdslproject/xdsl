@@ -41,7 +41,6 @@ from xdsl.irdl import (
     OptOpResult,
     ParameterDef,
     VarOperand,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -66,6 +65,27 @@ This is used in the getelementptr index list to signify that an ssa value
 should be used for this index.
 
 """
+
+
+def _parse_llvm_type(parser: AttrParser):
+    if parser.parse_optional_characters("void"):
+        return LLVMVoidType()
+    if parser.parse_optional_characters("ptr"):
+        return LLVMPointerType(LLVMPointerType.parse_parameters(parser))
+    if parser.parse_optional_characters("array"):
+        return LLVMArrayType(LLVMArrayType.parse_parameters(parser))
+
+
+def parse_llvm_type(parser: AttrParser):
+    if (l := _parse_llvm_type(parser)) is not None:
+        return l
+    return parser.parse_attribute()
+
+
+def parse_optional_llvm_type(parser: AttrParser):
+    if (l := _parse_llvm_type(parser)) is not None:
+        return l
+    return parser.parse_optional_attribute()
 
 
 @irdl_attr_definition
@@ -106,7 +126,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
             parser.parse_characters(",", " after type")
 
         params = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_type
+            parser.Delimiter.PAREN, lambda: parse_llvm_type(parser)
         )
         parser.parse_characters(">", " to close LLVM struct parameters")
         return [StringAttr(struct_name), ArrayAttr(params)]
@@ -137,7 +157,7 @@ class LLVMPointerType(
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         if parser.parse_optional_characters("<") is None:
             return [NoneAttr(), NoneAttr()]
-        type = parser.parse_optional_type()
+        type = parse_optional_llvm_type(parser)
         if type is None:
             parser.raise_error("Expected first parameter of llvm.ptr to be a type!")
         if parser.parse_optional_characters(",") is None:
@@ -185,7 +205,7 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         if parser.parse_optional_characters(">") is not None:
             return [size, NoneAttr()]
         parser.parse_shape_delimiter()
-        type = parser.parse_optional_type()
+        type = parse_optional_llvm_type(parser)
         if type is None:
             parser.raise_error("Expected second parameter of llvm.array to be a type!")
         parser.parse_characters(">", " to end llvm.array parameters")
@@ -253,23 +273,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_characters("<", " in llvm.func parameters")
-        if parser.parse_optional_characters("void"):
-            output = LLVMVoidType()
-        elif parser.parse_optional_characters("ptr"):
-            ptr_type = NoneAttr()
-            if parser.parse_optional_punctuation("<"):
-                ptr_type = parser.parse_optional_type()
-                if ptr_type is None:
-                    ptr_type = NoneAttr()
-                else:
-                    parser.parse_punctuation(",")
-                adress_space = IntAttr(parser.parse_integer())
-                parser.parse_punctuation(">")
-            else:
-                adress_space = NoneAttr()
-            output = LLVMPointerType([ptr_type, adress_space])
-        else:
-            output = parser.parse_attribute()
+        output = parse_llvm_type(parser)
 
         # save pos before args for error message printing
         pos = parser.pos
@@ -279,22 +283,9 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
             This returns either an attribute, or Ellipsis if a
             varargs specifier (`...`) was parsed.
             """
-            if parser.parse_optional_characters("ptr"):
-                ptr_type = NoneAttr()
-                if parser.parse_optional_punctuation("<"):
-                    ptr_type = parser.parse_optional_type()
-                    if ptr_type is None:
-                        ptr_type = NoneAttr()
-                    else:
-                        parser.parse_punctuation(",")
-                    adress_space = IntAttr(parser.parse_integer())
-                    parser.parse_punctuation(">")
-                else:
-                    adress_space = NoneAttr()
-                return LLVMPointerType([ptr_type, adress_space])
             if parser.parse_optional_characters("...") is not None:
                 return ...
-            return parser.parse_attribute()
+            return parse_llvm_type(parser)
 
         inputs = parser.parse_comma_separated_list(
             Parser.Delimiter.PAREN, _parse_attr_or_variadic
@@ -817,7 +808,7 @@ class ExtractValueOp(IRDLOperation):
 
     name = "llvm.extractvalue"
 
-    position: DenseArrayBase = attr_def(DenseArrayBase)
+    position: DenseArrayBase = prop_def(DenseArrayBase)
     container: Operand = operand_def(Attribute)
 
     res: OpResult = result_def(Attribute)
@@ -845,7 +836,7 @@ class InsertValueOp(IRDLOperation):
 
     name = "llvm.insertvalue"
 
-    position: DenseArrayBase = attr_def(DenseArrayBase)
+    position: DenseArrayBase = prop_def(DenseArrayBase)
     container: Operand = operand_def(Attribute)
     value: Operand = operand_def(Attribute)
 

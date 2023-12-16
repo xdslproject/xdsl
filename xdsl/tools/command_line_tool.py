@@ -57,8 +57,10 @@ from xdsl.passes import ModulePass
 from xdsl.transforms import (
     canonicalize,
     canonicalize_dmp,
+    constant_fold_interp,
     convert_scf_to_openmp,
     dead_code_elimination,
+    gpu_map_parallel_loops,
     lower_affine,
     lower_mpi,
     lower_riscv_func,
@@ -69,7 +71,9 @@ from xdsl.transforms import (
     reconcile_unrealized_casts,
     riscv_register_allocation,
     riscv_scf_loop_range_folding,
+    scf_parallel_loop_tiling,
     snitch_register_allocation,
+    stencil_unroll,
 )
 from xdsl.transforms.experimental import (
     convert_stencil_to_ll_mlir,
@@ -133,9 +137,11 @@ def get_all_passes() -> list[type[ModulePass]]:
         canonicalize_dmp.CanonicalizeDmpPass,
         convert_scf_to_openmp.ConvertScfToOpenMPPass,
         convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch,
+        constant_fold_interp.ConstantFoldInterpPass,
         convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
         dead_code_elimination.DeadCodeElimination,
         DesymrefyPass,
+        gpu_map_parallel_loops.GpuMapParallelLoopsPass,
         stencil_global_to_local.DistributeStencilPass,
         stencil_global_to_local.LowerHaloToMPI,
         lower_affine.LowerAffinePass,
@@ -148,6 +154,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         reduce_register_pressure.RiscvReduceRegisterPressurePass,
         riscv_register_allocation.RISCVRegisterAllocation,
         riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass,
+        scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
         snitch_register_allocation.SnitchRegisterAllocation,
         convert_arith_to_riscv.ConvertArithToRiscvPass,
         convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
@@ -160,6 +167,7 @@ def get_all_passes() -> list[type[ModulePass]]:
         hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
         lower_hls.LowerHLSPass,
         replace_incompatible_fpga.ReplaceIncompatibleFPGA,
+        stencil_unroll.StencilUnrollPass,
     ]
 
 

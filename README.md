@@ -25,7 +25,7 @@ Additionally, xDSL can leverage MLIR's code generation and low-level
 optimization capabilities.
 
 - [Installation](#installation)
-- [Using xDSL](#using-xdsl)
+- [Getting Started](#getting-started)
 - [xDSL Developer Setup](#xdsl-developer-setup)
   - [Developer Installation](#developer-installation)
   - [Testing](#testing)
