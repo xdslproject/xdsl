@@ -135,9 +135,9 @@ class InputApp(App[None]):
     passes_list_view: ListView
     """ListView displaying the passes available to apply."""
 
-    input_operation_count_tuple: tuple[tuple[str, int], ...] = tuple()
+    input_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
     """Saves the operation name and count of the input text area in a dictionary."""
-    output_operation_count_tuple: tuple[tuple[str, int], ...] = tuple()
+    output_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
     """Saves the operation name and count of the output text area in a dictionary."""
 
     input_operation_count_datatable: DataTable[str | int]
@@ -337,7 +337,7 @@ class InputApp(App[None]):
         if (input_text) == "":
             self.current_module = None
             self.current_condensed_pass_list = ()
-            self.update_input_operation_count_tuple(input_text)
+            self.update_input_operation_count_tuple(ModuleOp([], None))
             return
         try:
             ctx = MLContext(True)
@@ -345,6 +345,7 @@ class InputApp(App[None]):
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
+            self.update_input_operation_count_tuple(module)
             pipeline = PipelinePass(
                 passes=[
                     module_pass.from_pass_spec(pipeline_pass_spec)
@@ -353,10 +354,9 @@ class InputApp(App[None]):
             )
             pipeline.apply(ctx, module)
             self.current_module = module
-            self.update_input_operation_count_tuple(input_text)
         except Exception as e:
             self.current_module = e
-            self.update_input_operation_count_tuple("")
+            self.update_input_operation_count_tuple(ModuleOp([], None))
 
     def watch_current_module(self):
         """
@@ -389,27 +389,25 @@ class InputApp(App[None]):
         )
         return f"xdsl-opt -p {query}"
 
-    def update_input_operation_count_tuple(self, input_text: str) -> None:
+    def update_input_operation_count_tuple(self, input_module: ModuleOp) -> None:
         """
         Function that updates the input_operation_datatable to display the operation
         names and counts in the input text area.
         """
-        if input_text == "":
-            self.input_operation_count_tuple = tuple()
-        else:
-            ctx = MLContext(True)
-            for dialect in get_all_dialects():
-                ctx.load_dialect(dialect)
-            module = Parser(ctx, input_text).parse_module()
-            self.input_operation_count_tuple = tuple(
-                count_number_of_operations(module).items()
-            )
+        self.input_operation_count_tuple = tuple(
+            count_number_of_operations(input_module).items()
+        )
 
-            self.input_operation_count_datatable.clear()
-            for k, v in self.input_operation_count_tuple:
-                self.input_operation_count_datatable.add_row(k, v)
+    def watch_input_operation_count_tuple(self) -> None:
+        """
+        Function called when the reactive variable input_operation_count_tuple changes - updates the
+        Input DataTable.
+        """
+        self.input_operation_count_datatable.clear()
+        for k, v in self.input_operation_count_tuple:
+            self.input_operation_count_datatable.add_row(k, v)
 
-            self.update_output_operation_count_tuple()
+        self.update_output_operation_count_tuple()
 
     def update_output_operation_count_tuple(self) -> None:
         """
@@ -419,14 +417,19 @@ class InputApp(App[None]):
         """
         match self.current_module:
             case None:
-                self.output_operation_count_tuple = tuple()
+                self.output_operation_count_tuple = ()
             case Exception():
-                self.output_operation_count_tuple = tuple()
+                self.output_operation_count_tuple = ()
             case ModuleOp():
                 self.output_operation_count_tuple = tuple(
                     count_number_of_operations(self.current_module).items()
                 )
 
+    def watch_output_operation_count_tuple(self) -> None:
+        """
+        Function called when the reactive variable output_operation_count_tuple changes
+        - updates the Output DataTable.
+        """
         self.output_operation_count_datatable.clear()
         for k, v in self.output_operation_count_tuple:
             # calculate diff of output and  input if there is one
