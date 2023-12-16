@@ -432,7 +432,6 @@ class InputApp(App[None]):
         """
         self.output_operation_count_datatable.clear()
         for k, v in self.output_operation_count_tuple:
-            # calculate diff of output and  input if there is one
             self.output_operation_count_datatable.add_row(k, v)
 
     def action_toggle_dark(self) -> None:
