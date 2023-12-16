@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.app import InputApp
 from xdsl.ir import Block, Region
-from xdsl.passes import ModulePass
 from xdsl.transforms import (
     mlir_opt,
     printf_to_llvm,
