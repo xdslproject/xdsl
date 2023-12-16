@@ -218,6 +218,20 @@ class Generic(IRDLOperation):
             printer.print_list((o.type for o in self.outputs), printer.print_attribute)
             printer.print_string(")")
 
+        extra_attrs = self.attributes.copy()
+        if "indexing_maps" in extra_attrs:
+            del extra_attrs["indexing_maps"]
+        if "iterator_types" in extra_attrs:
+            del extra_attrs["iterator_types"]
+        if "doc" in extra_attrs:
+            del extra_attrs["doc"]
+        if "library_call" in extra_attrs:
+            del extra_attrs["library_call"]
+
+        if extra_attrs:
+            printer.print(" attrs = ")
+            printer.print_op_attributes(extra_attrs)
+
         printer.print_string(" ")
         printer.print_region(self.body)
 
@@ -300,10 +314,19 @@ class Generic(IRDLOperation):
         else:
             outs = ()
 
+        if parser.parse_optional_keyword("attrs"):
+            parser.parse_punctuation("=")
+            extra_attrs = parser.expect(
+                parser.parse_optional_attr_dict, "expect extra attributes"
+            )
+        else:
+            extra_attrs = {}
+
         body = parser.parse_region()
 
         generic = cls(ins, outs, body, indexing_maps, iterator_types)
         generic.attributes |= attrs
+        generic.attributes |= extra_attrs
 
         return generic
 
