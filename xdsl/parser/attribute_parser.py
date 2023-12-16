@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BoolAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -574,6 +575,7 @@ class AttrParser(BaseParser):
             return StringAttr(str_lit)
 
         attrs = (
+            self.try_parse_builtin_boolean_attr,
             self.parse_optional_builtin_int_or_float_attr,
             self._parse_optional_array_attr,
             self._parse_optional_symref_attr,
@@ -961,10 +963,6 @@ class AttrParser(BaseParser):
     def parse_optional_builtin_int_or_float_attr(
         self,
     ) -> AnyIntegerAttr | AnyFloatAttr | None:
-        bool = self.try_parse_builtin_boolean_attr()
-        if bool is not None:
-            return bool
-
         # Parse the value
         if (value := self.parse_optional_number()) is None:
             return None
@@ -990,9 +988,9 @@ class AttrParser(BaseParser):
 
     def try_parse_builtin_boolean_attr(
         self,
-    ) -> IntegerAttr[IntegerType | IndexType] | None:
+    ) -> BoolAttr | None:
         if (value := self.parse_optional_boolean()) is not None:
-            return IntegerAttr(1 if value else 0, IntegerType(1))
+            return BoolAttr(value)
         return None
 
     def _parse_optional_string_attr(self) -> StringAttr | None:

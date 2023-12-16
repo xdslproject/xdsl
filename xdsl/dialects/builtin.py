@@ -280,6 +280,22 @@ class IntAttr(Data[int]):
             printer.print_string(f"{self.data}")
 
 
+class BoolAttr(Data[bool]):
+    name = "builtin.bool"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> bool:
+        with parser.in_angle_brackets():
+            if parser.parse_optional_keyword("true"):
+                return True
+            parser.parse_keyword("false", "Expected true or false.")
+            return False
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print(str(self.data).lower())
+
+
 class Signedness(Enum):
     "Signedness semantics for integer"
 
