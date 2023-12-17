@@ -81,6 +81,7 @@ class ConstantFoldInterpPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         interpreter = Interpreter(op)
-        register_implementations(interpreter, ctx)
+        # Do not call wgpu interpreter functions for this pass
+        register_implementations(interpreter, ctx, include_wgpu=False)
         pattern = ConstantFoldInterpPattern(interpreter)
         PatternRewriteWalker(pattern).rewrite_module(op)
