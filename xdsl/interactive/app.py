@@ -154,7 +154,10 @@ class InputApp(App[None]):
     input_operation_count_datatable: DataTable[str | int]
     """DataTable displaying the operation names and counts of the input text area."""
     output_operation_count_datatable: DataTable[str | int]
-    """DataTable displaying the operation names and counts of the output text area."""
+    """
+    DataTable displaying the operation names, counts of the output text area and the
+    diff of the input and output operation names + counts.
+    """
 
     def __init__(self):
         self.input_text_area = TextArea(id="input")
