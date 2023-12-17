@@ -3,7 +3,7 @@
 "builtin.module"() ({
   %lhsi1 = "test.op"() : () -> (i1)
   %lhsi32, %rhsi32 = "test.op"() : () -> (i32, i32)
-  %lhsi64 = "test.op"() : () -> (i64)
+  %lhsi64, %rhsi64 = "test.op"() : () -> (i64, i64)
   %lhsf32, %rhsf32 = "test.op"() : () -> (f32, f32)
   %lhsf64 = "test.op"() : () -> (f64)
   %lhsvec, %rhsvec = "test.op"() : () -> (vector<4xf32>, vector<4xf32>)
@@ -114,4 +114,10 @@
 
   // CHECK-NEXT: {{%.*}} = arith.select {{%.*}}, {{%.*}}#0, {{%.*}}#1 : i32
   // CHECK-NEXT: {{%.*}} = arith.select {{%.*}}, {{%.*}}#0, {{%.*}}#1 : f32
+
+  %sum, %carry = arith.addui_extended %lhsi32, %rhsi32 : i32, i1
+  %sum_index, %carry_index = arith.addui_extended %lhsi64, %rhsi64 : i64, i1
+
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.addui_extended %{{.*}}, %{{.*}} : i32, i1
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.addui_extended %{{.*}}, %{{.*}} : i64, i1
 }) : () -> ()

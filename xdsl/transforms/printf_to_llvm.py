@@ -95,7 +95,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
         """
         data = val.encode() + b"\x00"
 
-        t_type = builtin.TensorType.from_type_and_list(i8, [len(data)])
+        t_type = builtin.TensorType(i8, [len(data)])
 
         return llvm.GlobalOp(
             llvm.LLVMArrayType.from_size_and_type(len(data), i8),

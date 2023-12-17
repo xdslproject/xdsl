@@ -525,9 +525,7 @@ class Printer:
             self.print("tensor<")
             self.print_list(
                 attribute.shape.data,
-                lambda x: self.print(x.value.data)
-                if x.value.data != -1
-                else self.print("?"),
+                lambda x: self.print(x.data) if x.data != -1 else self.print("?"),
                 "x",
             )
             if len(attribute.shape.data) != 0:
@@ -595,9 +593,7 @@ class Printer:
             if attribute.shape.data:
                 self.print_list(
                     attribute.shape.data,
-                    lambda x: self.print(x.value.data)
-                    if x.value.data != -1
-                    else self.print("?"),
+                    lambda x: self.print(x.data) if x.data != -1 else self.print("?"),
                     "x",
                 )
                 self.print("x")

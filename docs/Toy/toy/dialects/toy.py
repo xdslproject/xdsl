@@ -409,7 +409,7 @@ class ReshapeOp(IRDLOperation):
                 " {AnyTensorTypeF64}"
             )
         element_type = arg.type.element_type
-        t = TensorTypeF64.from_type_and_list(element_type, shape)
+        t = TensorTypeF64(element_type, shape)
         return super().__init__(result_types=[t], operands=[arg])
 
     @staticmethod
@@ -443,7 +443,7 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert res_shape == op_res_type.get_shape()
         else:
-            op.res.type = TensorType.from_type_and_list(f64, res_shape)
+            op.res.type = TensorType(f64, res_shape)
 
 
 class TransposeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
@@ -472,9 +472,7 @@ class TransposeOp(IRDLOperation):
         output_type: TensorTypeF64 | UnrankedTensorTypeF64
         if isa(arg.type, TensorTypeF64):
             element_type = arg.type.element_type
-            output_type = TensorType.from_type_and_list(
-                element_type, list(reversed(arg.type.get_shape()))
-            )
+            output_type = TensorType(element_type, list(reversed(arg.type.get_shape())))
         else:
             if not isa(arg.type, UnrankedTensorTypeF64):
                 raise ValueError(
@@ -500,7 +498,7 @@ class InferCastOpShapeTrait(ToyShapeInferenceTrait):
         if isinstance(op_res_type := op.res.type, TensorType):
             assert shape == op_res_type.get_shape()
         else:
-            op.res.type = TensorType.from_type_and_list(f64, shape)
+            op.res.type = TensorType(f64, shape)
 
 
 @irdl_op_definition
@@ -513,7 +511,7 @@ class CastOp(IRDLOperation):
 
     def __init__(self, arg: SSAValue, res: AnyTensorTypeF64 | None = None):
         if res is None:
-            res = UnrankedTensorType.from_type(f64)
+            res = UnrankedTensorType(f64)
 
         return super().__init__(
             operands=[arg],
