@@ -81,7 +81,7 @@ class OpDefTestOp(IRDLOperation):
 
 def test_get_definition():
     """Test retrieval of an IRDL definition from an operation"""
-    assert OpDefTestOp.irdl_definition == OpDef(
+    assert OpDefTestOp.get_irdl_definition() == OpDef(
         "test.op_def_test",
         operands=[("operand", OperandDef(AnyAttr()))],
         results=[("result", ResultDef(AnyAttr()))],
@@ -105,7 +105,7 @@ class PropOptionOp(IRDLOperation):
 
 def test_property_option():
     """Test retrieval of an IRDL definition from an operation"""
-    assert PropOptionOp.irdl_definition == OpDef(
+    assert PropOptionOp.get_irdl_definition() == OpDef(
         "test.prop_option_test",
         properties={"operandSegmentSizes": PropertyDef(BaseAttr(DenseArrayBase))},
         options=[AttrSizedOperandSegments(as_property=True)],

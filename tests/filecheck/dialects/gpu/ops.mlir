@@ -3,8 +3,8 @@
 builtin.module attributes {"gpu.container_module"} {
     "gpu.module"() ({
         func.func @kernel() {
-            %n = arith.constant 13 : index
-            %one = arith.constant 1 : index
+            %n = arith.constant {"proc" = #gpu<processor thread_x>} 13 : index
+            %one = arith.constant {"loopdim" = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} 1 : index
 
             %memref = "memref.alloc"() {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<10x10xi32>
             %unranked = "memref.cast"(%memref) : (memref<10x10xi32>) -> memref<*xi32>
@@ -81,8 +81,8 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK:      builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:     "gpu.module"() ({
 // CHECK-NEXT:         func.func @kernel() {
-// CHECK-NEXT:             %{{.*}} = arith.constant 13 : index
-// CHECK-NEXT:             %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:             %{{.*}} = arith.constant {"proc" = #gpu<processor thread_x>} 13 : index
+// CHECK-NEXT:             %{{.*}} = arith.constant {"loopdim" = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} 1 : index
 
 // CHECK-NEXT:             %{{.*}} = "memref.alloc"() <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<10x10xi32>
 // CHECK-NEXT:             %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x10xi32>) -> memref<*xi32>

@@ -751,3 +751,10 @@ def test_get_attr_or_prop():
     assert a.get_attr_or_prop("prop") == StringAttr("prop")
     assert a.get_attr_or_prop("attr_and_prop") == StringAttr("prop")
     assert a.get_attr_or_prop("none") is None
+
+
+def test_dialect_name():
+    class MyOperation(Operation):
+        name = "dialect.op"
+
+    assert MyOperation.dialect_name() == "dialect"

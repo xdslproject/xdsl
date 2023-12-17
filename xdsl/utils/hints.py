@@ -1,6 +1,6 @@
+import types
 from collections.abc import Iterable
 from inspect import isclass
-from types import UnionType
 from typing import (
     Annotated,
     Any,
@@ -71,7 +71,7 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
             for key, value in arg_dict.items()
         )
 
-    if origin in [Union, UnionType]:
+    if origin in [Union, types.UnionType]:
         return any(isa(arg, union_arg) for union_arg in get_args(hint))
 
     if origin is Literal:
@@ -171,3 +171,23 @@ def get_type_var_mapping(
 
     type_var_mapping = dict(zip(generic_args, specialized_args))
     return generic_parent, type_var_mapping
+
+
+def type_repr(obj: Any) -> str:
+    """Return the repr() of an object, special-casing types."""
+    if isinstance(obj, types.GenericAlias):
+        origin = get_origin(obj)
+        args = get_args(obj)
+        return f"{type_repr(origin)}[{', '.join(type_repr(arg) for arg in args)}]"
+    if isinstance(obj, types.UnionType):
+        args = get_args(obj)
+        return f"{'|'.join(type_repr(arg) for arg in args)}"
+    if obj is type(None):
+        return "None"
+    if obj is ...:
+        return "..."
+    if isinstance(obj, types.FunctionType):
+        return obj.__name__
+    if isinstance(obj, type):
+        return f"{obj.__qualname__}"
+    return repr(obj)

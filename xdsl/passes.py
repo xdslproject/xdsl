@@ -7,7 +7,7 @@ from typing import Any, ClassVar, TypeVar, Union, get_args, get_origin
 
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
-from xdsl.utils.hints import isa
+from xdsl.utils.hints import isa, type_repr
 from xdsl.utils.parse_pipeline import (
     PassArgElementType,
     PassArgListType,
@@ -64,7 +64,9 @@ class ModulePass(ABC):
             )
 
         # normalize spec arg names:
-        spec.normalize_arg_names()
+        spec_arguments_dict: dict[
+            str, PassArgListType
+        ] = spec.normalize_arg_names().args
 
         # get all dataclass fields
         fields: tuple[Field[Any], ...] = dataclasses.fields(cls)
@@ -78,7 +80,7 @@ class ModulePass(ABC):
             if op_field.name == "name" or not op_field.init:
                 continue
             # check that non-optional fields are present
-            if op_field.name not in spec.args:
+            if op_field.name not in spec_arguments_dict:
                 if _is_optional(op_field):
                     arg_dict[op_field.name] = _get_default(op_field)
                     continue
@@ -86,14 +88,14 @@ class ModulePass(ABC):
 
             # convert pass arg to the correct type:
             arg_dict[op_field.name] = _convert_pass_arg_to_type(
-                spec.args.pop(op_field.name),
+                spec_arguments_dict.pop(op_field.name),
                 op_field.type,
             )
             # we use .pop here to also remove the arg from the dict
 
         # if not all args were removed we raise an error
-        if len(spec.args) != 0:
-            arguments_str = ", ".join(f'"{arg}"' for arg in spec.args)
+        if len(spec_arguments_dict) != 0:
+            arguments_str = ", ".join(f'"{arg}"' for arg in spec_arguments_dict)
             fields_str = ", ".join(f'"{field.name}"' for field in fields)
             raise ValueError(
                 f"Provided arguments [{arguments_str}] not found in expected pass "
@@ -102,6 +104,51 @@ class ModulePass(ABC):
 
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
+
+    def pipeline_pass_spec(self) -> PipelinePassSpec:
+        """
+        This function takes a ModulePass and returns a PipelinePassSpec.
+        """
+        # get all dataclass fields
+        fields: tuple[Field[Any], ...] = dataclasses.fields(self)
+        arg_dict: dict[str, PassArgListType] = {}
+
+        # iterate over all fields of the dataclass
+        for op_field in fields:
+            # ignore the name field and everything that's not used by __init__
+            if op_field.name == "name" or not op_field.init:
+                continue
+
+            if _is_optional(op_field):
+                arg_dict[op_field.name] = _get_default(op_field)
+
+            val = getattr(self, op_field.name)
+            if val is None:
+                arg_dict.update({op_field.name: []})
+            elif isinstance(val, PassArgElementType):
+                arg_dict.update({op_field.name: [getattr(self, op_field.name)]})
+            else:
+                arg_dict.update({op_field.name: getattr(self, op_field.name)})
+
+        return PipelinePassSpec(self.name, arg_dict)
+
+
+# Git Issue: https://github.com/xdslproject/xdsl/issues/1845
+def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
+    """
+    This method takes a type[ModulePassT] and outputs a string containing the names of the
+    pass arguments and their types. If an argument has a default value, it is not
+    added to the string.
+    """
+
+    return " ".join(
+        [
+            f"{field.name}={type_repr(field.type)}"
+            if not hasattr(arg, field.name)
+            else f"{field.name}={str(getattr(arg, field.name)).lower()}"
+            for field in dataclasses.fields(arg)
+        ]
+    )
 
 
 def _empty_callback(
