@@ -324,7 +324,7 @@ class Alloc(IRDLOperation):
     @staticmethod
     def get(
         return_type: Attribute,
-        alignment: int | None = None,
+        alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         layout: Attribute = NoneAttr(),
@@ -345,11 +345,6 @@ class Alloc(IRDLOperation):
             properties={
                 "alignment": alignment,
             },
-            attributes={
-                "alignment": IntegerAttr.from_int_and_width(alignment, 64)
-                if alignment is not None
-                else None
-            },
         )
 
     def verify_(self) -> None:
@@ -358,7 +353,7 @@ class Alloc(IRDLOperation):
             raise VerifyException("expected result to be a memref")
         memref_type = cast(MemRefType[Attribute], memref_type)
 
-        dyn_dims = [x for x in memref_type.shape.data if x.value.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
@@ -436,7 +431,7 @@ class Alloca(IRDLOperation):
             raise VerifyException("expected result to be a memref")
         memref_type = cast(MemRefType[Attribute], memref_type)
 
-        dyn_dims = [x for x in memref_type.shape.data if x.value.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
