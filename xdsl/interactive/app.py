@@ -145,7 +145,7 @@ class InputApp(App[None]):
     Saves the operation name and count of the output text area in a reactive tuple of
     tuples.
     """
-    operation_count_diff_tuple = reactive(tuple[tuple[str, int, int], ...])
+    diff_operation_count_tuple = reactive(tuple[tuple[str, int, int], ...])
     """
     Saves the diff of the input_operation_count_tuple and the output_operation_count_tuple
     in a reactive tuple of tuples.
@@ -153,10 +153,10 @@ class InputApp(App[None]):
 
     input_operation_count_datatable: DataTable[str | int]
     """DataTable displaying the operation names and counts of the input text area."""
-    output_operation_count_datatable: DataTable[str | int]
+    diff_operation_count_datatable: DataTable[str | int]
     """
-    DataTable displaying the operation names, counts of the output text area and the
-    diff of the input and output operation names + counts.
+    DataTable displaying the diff of operation names and counts of the input and output
+    text areas.
     """
 
     def __init__(self):
@@ -167,8 +167,8 @@ class InputApp(App[None]):
         self.input_operation_count_datatable = DataTable(
             id="input_operation_count_datatable"
         )
-        self.output_operation_count_datatable = DataTable(
-            id="output_operation_count_datatable"
+        self.diff_operation_count_datatable = DataTable(
+            id="diff_operation_count_datatable"
         )
 
         super().__init__()
@@ -210,7 +210,7 @@ class InputApp(App[None]):
                     yield self.output_text_area
                     yield Button("Copy Output", id="copy_output_button")
                 with ScrollableContainer(id="output_ops_container"):
-                    yield self.output_operation_count_datatable
+                    yield self.diff_operation_count_datatable
         yield Footer()
 
     def on_mount(self) -> None:
@@ -238,8 +238,8 @@ class InputApp(App[None]):
         self.input_operation_count_datatable.add_columns("Operation", "Count")
         self.input_operation_count_datatable.zebra_stripes = True
 
-        self.output_operation_count_datatable.add_columns("Operation", "Count", "Diff")
-        self.output_operation_count_datatable.zebra_stripes = True
+        self.diff_operation_count_datatable.add_columns("Operation", "Count", "Diff")
+        self.diff_operation_count_datatable.zebra_stripes = True
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -482,22 +482,22 @@ class InputApp(App[None]):
 
     def update_operation_count_diff_tuple(self) -> None:
         """
-        Function that updates the operation_count_diff_tuple to calculate the diff
+        Function that updates the diff_operation_count_tuple to calculate the diff
         of the input and output operation counts.
         """
-        self.operation_count_diff_tuple = self.get_operation_count_diff()
+        self.diff_operation_count_tuple = self.get_operation_count_diff()
 
     def watch_operation_count_diff_tuple(self) -> None:
         """
-        Function called when the reactive variable operation_count_diff_tuple changes
+        Function called when the reactive variable diff_operation_count_tuple changes
         - updates the Output DataTable.
         """
-        self.output_operation_count_datatable.clear()
+        self.diff_operation_count_datatable.clear()
         # sort tupled in descending order of diff
         sorted_tuple = sorted(
-            self.operation_count_diff_tuple, key=lambda x: x[2], reverse=True
+            self.diff_operation_count_tuple, key=lambda x: x[2], reverse=True
         )
-        self.output_operation_count_datatable.add_rows(sorted_tuple)
+        self.diff_operation_count_datatable.add_rows(sorted_tuple)
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
