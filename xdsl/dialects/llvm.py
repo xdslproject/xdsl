@@ -1034,6 +1034,7 @@ class FuncOp(IRDLOperation):
     function_type: LLVMFunctionType = prop_def(LLVMFunctionType)
     CConv: CallingConventionAttr = prop_def(CallingConventionAttr)
     linkage: LinkageAttr = prop_def(LinkageAttr)
+    sym_visibility = opt_prop_def(StringAttr)
     visibility_: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
 
     def __init__(
@@ -1043,6 +1044,7 @@ class FuncOp(IRDLOperation):
         linkage: LinkageAttr = LinkageAttr("internal"),
         cconv: CallingConventionAttr = CallingConventionAttr("ccc"),
         visibility: int | IntegerAttr[IntegerType] = 0,
+        sym_visibility: str | StringAttr | None = None,
         body: Region | None = None,
     ):
         if isinstance(sym_name, str):
@@ -1051,6 +1053,8 @@ class FuncOp(IRDLOperation):
             visibility = IntegerAttr.from_int_and_width(visibility, 64)
         if body is None:
             body = Region([])
+        if isinstance(sym_visibility, str):
+            sym_visibility = StringAttr(sym_visibility)
         super().__init__(
             operands=[],
             regions=[body],
@@ -1060,6 +1064,7 @@ class FuncOp(IRDLOperation):
                 "CConv": cconv,
                 "linkage": linkage,
                 "visibility_": visibility,
+                "sym_visibility": sym_visibility,
             },
         )
 
@@ -1202,9 +1207,10 @@ class CallOp(IRDLOperation):
     args: VarOperand = var_operand_def()
 
     callee: SymbolRefAttr = prop_def(SymbolRefAttr)
-    callee_type: LLVMFunctionType = prop_def(LLVMFunctionType)
+    callee_type: LLVMFunctionType | None = opt_prop_def(LLVMFunctionType)
     fastmathFlags: FastMathAttr = prop_def(FastMathAttr)
     CConv: CallingConventionAttr = prop_def(CallingConventionAttr)
+    returned = opt_result_def()
 
     def __init__(
         self,
@@ -1217,6 +1223,7 @@ class CallOp(IRDLOperation):
     ):
         if isinstance(callee, str):
             callee = SymbolRefAttr(callee)
+        op_result_type = [return_type]
         if return_type is None:
             return_type = LLVMVoidType()
         input_types = [
@@ -1231,6 +1238,7 @@ class CallOp(IRDLOperation):
                 "fastmathFlags": fastmath,
                 "CConv": calling_convention,
             },
+            result_types=op_result_type,
         )
 
 
