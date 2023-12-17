@@ -437,15 +437,17 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
         return min_value, max_value
 
     def verify(self) -> None:
-        if isinstance(int_type := self.type, IntegerType):
-            min_value, max_value = self._get_value_range(int_type)
+        if isinstance(int_type := self.type, IndexType):
+            return
 
-            if not (min_value <= self.value.data <= max_value):
-                raise VerifyException(
-                    f"Integer value {self.value.data} is out of range for "
-                    f"type {self.type} which supports values in the "
-                    f"range [{min_value}, {max_value}]"
-                )
+        min_value, max_value = self._get_value_range(int_type)
+
+        if not (min_value <= self.value.data <= max_value):
+            raise VerifyException(
+                f"Integer value {self.value.data} is out of range for "
+                f"type {self.type} which supports values in the "
+                f"range [{min_value}, {max_value}]"
+            )
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
