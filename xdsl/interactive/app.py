@@ -136,9 +136,20 @@ class InputApp(App[None]):
     """ListView displaying the passes available to apply."""
 
     input_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
-    """Saves the operation name and count of the input text area in a dictionary."""
+    """
+    Saves the operation name and count of the input text area in a reactive tuple of
+    tuples.
+    """
     output_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
-    """Saves the operation name and count of the output text area in a dictionary."""
+    """
+    Saves the operation name and count of the output text area in a reactive tuple of
+    tuples.
+    """
+    operation_count_diff_tuple = reactive(tuple[int, ...])
+    """
+    Saves the diff of the input_operation_count_tuple and the output_operation_count_tuple
+    in a reactive tuple of tuples.
+    """
 
     input_operation_count_datatable: DataTable[str | int]
     """DataTable displaying the operation names and counts of the input text area."""
@@ -441,12 +452,11 @@ class InputApp(App[None]):
             else:
                 self.output_operation_count_datatable.add_row(k, v, "-")
 
-            # for k_input, v_input in self.input_operation_count_tuple:
-            #     if k == k_input:
-            #         diff = v - v_input
-            #         self.output_operation_count_datatable.add_row(k, v, diff)
-            #     else:
-            #         self.output_operation_count_datatable.add_row(k, v, "-")
+    def update_operation_count_diff_tuple(self) -> None:
+        """
+        Function that updates the operation_count_diff_tuple to calculate the diff
+        of the input and output operation counts.
+        """
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
