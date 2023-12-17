@@ -165,7 +165,7 @@ class CbrtOp(IRDLOperation):
         attributes = {"fastmath": fastmath}
 
         operand = SSAValue.get(operand)
-        return super().__init__(
+        return CbrtOp.build(
             attributes=attributes, operands=[operand], result_types=[operand.type]
         )
 
