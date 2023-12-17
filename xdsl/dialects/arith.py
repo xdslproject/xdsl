@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Annotated, Generic, TypeVar, cast, overload
 
@@ -15,6 +16,9 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    TensorType,
+    UnrankedTensorType,
+    VectorType,
 )
 from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
@@ -36,6 +40,7 @@ from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
+boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
@@ -261,6 +266,89 @@ class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
 
     traits = frozenset([Pure()])
+
+
+@irdl_op_definition
+class AddUIExtended(IRDLOperation):
+    """
+    An add operation on an unsigned representation of integers that returns a flag
+    indicating if the result overflowed.
+    """
+
+    name = "arith.addui_extended"
+
+    traits = frozenset([Pure()])
+
+    T = Annotated[Attribute, signlessIntegerLike, ConstraintVar("T")]
+
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+
+    sum: OpResult = result_def(T)
+    overflow: OpResult = result_def(Annotated[Attribute, boolLike])
+
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        attributes: Mapping[str, Attribute] | None = None,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        overflow_type = AddUIExtended.infer_overflow_type(result_type)
+        super().__init__(
+            operands=[operand1, operand2],
+            result_types=[result_type, overflow_type],
+            attributes=attributes,
+        )
+
+    def verify_(self):
+        expected_overflow_type = AddUIExtended.infer_overflow_type(self.lhs.type)
+        if self.overflow.type != expected_overflow_type:
+            raise VerifyException(
+                f"overflow type {self.overflow.type} does not "
+                f"match input types {self.lhs.type}. Expected {expected_overflow_type}"
+            )
+
+    def print(self, printer: Printer):
+        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ", self.lhs.type, ", ", self.overflow.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> AddUIExtended:
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        sum_type = parser.parse_type()
+        parser.parse_punctuation(",")
+        overflow_type = parser.parse_type()
+        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [sum_type], parser.pos)
+
+        return AddUIExtended.create(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[sum_type, overflow_type],
+        )
+
+    @staticmethod
+    def infer_overflow_type(input_type: Attribute) -> Attribute:
+        if isinstance(input_type, IntegerType):
+            return IntegerType(1)
+        if isinstance(input_type, VectorType):
+            return VectorType(
+                IntegerType(1), input_type.shape, input_type.num_scalable_dims
+            )
+        if isinstance(input_type, UnrankedTensorType):
+            return UnrankedTensorType(IntegerType(1))
+        if isinstance(input_type, TensorType):
+            return TensorType(IntegerType(1), input_type.shape, input_type.encoding)
+        raise ValueError(
+            f"Unsupported input type for {AddUIExtended.name}: {input_type}"
+        )
 
 
 @irdl_op_definition
@@ -901,6 +989,7 @@ Arith = Dialect(
         Constant,
         # Integer-like
         Addi,
+        AddUIExtended,
         Subi,
         Muli,
         DivUI,
