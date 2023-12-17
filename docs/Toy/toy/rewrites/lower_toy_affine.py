@@ -40,7 +40,7 @@ def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF64:
     """
     Convert the given RankedTensorType into the corresponding MemRefType.
     """
-    return memref.MemRefType.from_element_type_and_shape(f64, type.shape)
+    return memref.MemRefType(f64, type.shape)
 
 
 def insert_alloc_and_dealloc(

@@ -159,7 +159,7 @@ def test_arith_mulf():
 def test_memref_load():
     file = StringIO("")
 
-    memref_type = memref.MemRefType.from_element_type_and_shape(i32, [10, 10])
+    memref_type = memref.MemRefType(i32, [10, 10])
 
     memref_val = TestSSAValue(memref_type)
 
@@ -174,7 +174,7 @@ def test_memref_load():
 def test_memref_store():
     file = StringIO("")
 
-    memref_type = memref.MemRefType.from_element_type_and_shape(i32, [10, 10])
+    memref_type = memref.MemRefType(i32, [10, 10])
 
     memref_val = TestSSAValue(memref_type)
 
