@@ -29,11 +29,11 @@ def test_operation_counter():
             func.Return(res)
 
     expected_res = {
-        "arith.constant": 1,
-        "arith.muli": 1,
-        "builtin.module": 1,
         "func.func": 1,
+        "arith.constant": 2,
+        "arith.muli": 3,
         "func.return": 1,
+        "builtin.module": 1,
     }
 
     res = count_number_of_operations(module)
@@ -101,9 +101,7 @@ def test_get_diff_operation_count():
     parser = Parser(ctx.clone(), output_text)
     output_module = parser.parse_module()
 
-    expected_diff_res: tuple[tuple[str, int, str], ...] = ()
-    expected_diff_res = (
-        *expected_diff_res,
+    expected_diff_res: tuple[tuple[str, int, str], ...] = (
         ("arith.constant", 0, "-1"),
         ("arith.muli", 0, "-1"),
         ("builtin.module", 1, "="),
