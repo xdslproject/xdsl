@@ -143,11 +143,6 @@ class InputApp(App[None]):
     Saves the operation name and count of the input text area in a reactive tuple of
     tuples.
     """
-    output_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
-    """
-    Saves the operation name and count of the output text area in a reactive tuple of
-    tuples.
-    """
     diff_operation_count_tuple = reactive(tuple[tuple[str, int, str], ...])
     """
     Saves the diff of the input_operation_count_tuple and the output_operation_count_tuple
@@ -393,7 +388,7 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
-        self.update_output_operation_count_tuple()
+        self.update_operation_count_diff_tuple()
 
     def get_query_string(self) -> str:
         """
@@ -425,28 +420,6 @@ class InputApp(App[None]):
         # clear datatable and add input_operation_count_tuple to DataTable
         self.input_operation_count_datatable.clear()
         self.input_operation_count_datatable.add_rows(self.input_operation_count_tuple)
-        self.update_output_operation_count_tuple()
-
-    def update_output_operation_count_tuple(self) -> None:
-        """
-        Function that updates the output_operation_datatable to display the operation
-        names and counts in the output text area. It also displays the diff of the input
-        and output datatable.
-        """
-        match self.current_module:
-            case None:
-                self.output_operation_count_tuple = ()
-            case Exception():
-                self.output_operation_count_tuple = ()
-            case ModuleOp():
-                # sort tuples alphabetically by operation name
-                self.output_operation_count_tuple = tuple(
-                    (k, v)
-                    for (k, v) in sorted(
-                        count_number_of_operations(self.current_module).items()
-                    )
-                )
-
         self.update_operation_count_diff_tuple()
 
     def update_operation_count_diff_tuple(self) -> None:
@@ -454,9 +427,26 @@ class InputApp(App[None]):
         Function that updates the diff_operation_count_tuple to calculate the diff
         of the input and output operation counts.
         """
-        self.diff_operation_count_tuple = get_diff_operation_count(
-            self.input_operation_count_tuple, self.output_operation_count_tuple
-        )
+        match self.current_module:
+            case None:
+                self.diff_operation_count_tuple = get_diff_operation_count(
+                    self.input_operation_count_tuple, ()
+                )
+            case Exception():
+                self.diff_operation_count_tuple = get_diff_operation_count(
+                    self.input_operation_count_tuple, ()
+                )
+            case ModuleOp():
+                # sort tuples alphabetically by operation name
+                output_operation_count_tuple = tuple(
+                    (k, v)
+                    for (k, v) in sorted(
+                        count_number_of_operations(self.current_module).items()
+                    )
+                )
+                self.diff_operation_count_tuple = get_diff_operation_count(
+                    self.input_operation_count_tuple, output_operation_count_tuple
+                )
 
     def watch_diff_operation_count_tuple(self) -> None:
         """
