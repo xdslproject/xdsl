@@ -57,7 +57,7 @@
 }
 
 # DataTable
-#output_operation_count_datatable{
+#diff_operation_count_datatable{
     width: auto;
     height: auto;
 }

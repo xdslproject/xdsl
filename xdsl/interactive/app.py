@@ -32,7 +32,10 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
-from xdsl.interactive.pass_metrics import count_number_of_operations
+from xdsl.interactive.pass_metrics import (
+    count_number_of_operations,
+    get_diff_operation_count,
+)
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
@@ -145,7 +148,7 @@ class InputApp(App[None]):
     Saves the operation name and count of the output text area in a reactive tuple of
     tuples.
     """
-    diff_operation_count_tuple = reactive(tuple[tuple[str, int, int], ...])
+    diff_operation_count_tuple = reactive(tuple[tuple[str, int, str], ...])
     """
     Saves the diff of the input_operation_count_tuple and the output_operation_count_tuple
     in a reactive tuple of tuples.
@@ -403,50 +406,15 @@ class InputApp(App[None]):
         )
         return f"xdsl-opt -p {query}"
 
-    def get_operation_count_diff(self) -> tuple[tuple[str, int, int], ...]:
-        """
-        Function returning a tuple of tuples containing the diff of the input and output
-        operation name and count.
-        """
-        input_op_count_dict = dict(self.input_operation_count_tuple)
-        output_op_count_dict = dict(self.output_operation_count_tuple)
-        res = ()
-        # iterate through output_operation_count_tuple
-        for k, v in self.output_operation_count_tuple:
-            if k in input_op_count_dict:
-                diff = v - input_op_count_dict[k]
-                res = (
-                    *res,
-                    (k, v, diff),
-                )
-            else:
-                diff = v
-                res = (
-                    *res,
-                    (k, v, diff),
-                )
-
-        # iterate through input_operation_count_tuple
-        for k, v in input_op_count_dict.items():
-            if k not in output_op_count_dict:
-                diff = -input_op_count_dict[k]
-                res = (
-                    *res,
-                    (k, 0, diff),
-                )
-
-        return res
-
     def update_input_operation_count_tuple(self, input_module: ModuleOp) -> None:
         """
         Function that updates the input_operation_datatable to display the operation
         names and counts in the input text area.
         """
-        # sort tuples by count in ascending order
-        self.input_operation_count_tuple = sorted(
-            tuple(count_number_of_operations(input_module).items()),
-            key=lambda x: x[1],
-            reverse=True,
+        # sort tuples alphabetically by operation name
+        self.input_operation_count_tuple = tuple(
+            (k, v)
+            for (k, v) in sorted(count_number_of_operations(input_module).items())
         )
 
     def watch_input_operation_count_tuple(self) -> None:
@@ -471,11 +439,12 @@ class InputApp(App[None]):
             case Exception():
                 self.output_operation_count_tuple = ()
             case ModuleOp():
-                # sort tuples by count in ascending order
-                self.output_operation_count_tuple = sorted(
-                    tuple(count_number_of_operations(self.current_module).items()),
-                    key=lambda x: x[1],
-                    reverse=True,
+                # sort tuples alphabetically by operation name
+                self.output_operation_count_tuple = tuple(
+                    (k, v)
+                    for (k, v) in sorted(
+                        count_number_of_operations(self.current_module).items()
+                    )
                 )
 
         self.update_operation_count_diff_tuple()
@@ -485,19 +454,17 @@ class InputApp(App[None]):
         Function that updates the diff_operation_count_tuple to calculate the diff
         of the input and output operation counts.
         """
-        self.diff_operation_count_tuple = self.get_operation_count_diff()
+        self.diff_operation_count_tuple = get_diff_operation_count(
+            self.input_operation_count_tuple, self.output_operation_count_tuple
+        )
 
-    def watch_operation_count_diff_tuple(self) -> None:
+    def watch_diff_operation_count_tuple(self) -> None:
         """
         Function called when the reactive variable diff_operation_count_tuple changes
         - updates the Output DataTable.
         """
         self.diff_operation_count_datatable.clear()
-        # sort tupled in descending order of diff
-        sorted_tuple = sorted(
-            self.diff_operation_count_tuple, key=lambda x: x[2], reverse=True
-        )
-        self.diff_operation_count_datatable.add_rows(sorted_tuple)
+        self.diff_operation_count_datatable.add_rows(self.diff_operation_count_tuple)
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
