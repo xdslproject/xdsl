@@ -5,7 +5,10 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     ModuleOp,
 )
-from xdsl.interactive.pass_metrics import count_number_of_operations
+from xdsl.interactive.pass_metrics import (
+    count_number_of_operations,
+    get_diff_operation_count,
+)
 from xdsl.ir import Block, MLContext, Region
 from xdsl.parser import Parser
 from xdsl.tools.command_line_tool import get_all_dialects
@@ -26,11 +29,11 @@ def test_operation_counter():
             func.Return(res)
 
     expected_res = {
-        "func.func": 1,
-        "arith.constant": 2,
-        "arith.muli": 3,
-        "func.return": 1,
+        "arith.constant": 1,
+        "arith.muli": 1,
         "builtin.module": 1,
+        "func.func": 1,
+        "func.return": 1,
     }
 
     res = count_number_of_operations(module)
@@ -54,12 +57,64 @@ def test_operation_counter_with_parsing_text():
     module = parser.parse_module()
 
     expected_res = {
-        "func.func": 1,
         "arith.constant": 1,
         "arith.muli": 1,
-        "func.return": 1,
         "builtin.module": 1,
+        "func.func": 1,
+        "func.return": 1,
     }
 
     res = count_number_of_operations(module)
     assert res == expected_res
+
+
+def test_get_diff_operation_count():
+    # get input module
+    input_text = """builtin.module {
+  func.func @hello(%n : index) -> index {
+    %two = arith.constant 2 : index
+    %res = arith.muli %n, %two : index
+    func.return %res : index
+  }
+}
+"""
+
+    ctx = MLContext(True)
+    for dialect in get_all_dialects():
+        ctx.load_dialect(dialect)
+    parser = Parser(ctx, input_text)
+    input_module = parser.parse_module()
+
+    # get output module
+    output_text = """builtin.module {
+  func.func @hello(%n : index) -> index {
+    %two = riscv.li 2 : () -> !riscv.reg<>
+    %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg<> to index
+    %res = builtin.unrealized_conversion_cast %n : index to !riscv.reg<>
+    %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg<>
+    %res_2 = riscv.mul %res, %res_1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+    %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg<> to index
+    func.return %res_3 : index
+  }
+}
+"""
+    parser = Parser(ctx.clone(), output_text)
+    output_module = parser.parse_module()
+
+    expected_diff_res: tuple[tuple[str, int, str], ...] = ()
+    expected_diff_res = (
+        *expected_diff_res,
+        ("arith.constant", 0, "-1"),
+        ("arith.muli", 0, "-1"),
+        ("builtin.module", 1, "="),
+        ("builtin.unrealized_conversion_cast", 4, "+4"),
+        ("func.func", 1, "="),
+        ("func.return", 1, "="),
+        ("riscv.li", 1, "+1"),
+        ("riscv.mul", 1, "+1"),
+    )
+
+    assert expected_diff_res == get_diff_operation_count(
+        tuple(count_number_of_operations(input_module).items()),
+        tuple(count_number_of_operations(output_module).items()),
+    )
