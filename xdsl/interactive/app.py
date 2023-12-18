@@ -408,8 +408,7 @@ class InputApp(App[None]):
         """
         # sort tuples alphabetically by operation name
         self.input_operation_count_tuple = tuple(
-            (k, v)
-            for (k, v) in sorted(count_number_of_operations(input_module).items())
+            sorted(count_number_of_operations(input_module).items())
         )
 
     def watch_input_operation_count_tuple(self) -> None:
@@ -429,13 +428,9 @@ class InputApp(App[None]):
         """
         match self.current_module:
             case None:
-                self.diff_operation_count_tuple = get_diff_operation_count(
-                    self.input_operation_count_tuple, ()
-                )
+                output_operation_count_tuple = ()
             case Exception():
-                self.diff_operation_count_tuple = get_diff_operation_count(
-                    self.input_operation_count_tuple, ()
-                )
+                output_operation_count_tuple = ()
             case ModuleOp():
                 # sort tuples alphabetically by operation name
                 output_operation_count_tuple = tuple(
@@ -444,9 +439,9 @@ class InputApp(App[None]):
                         count_number_of_operations(self.current_module).items()
                     )
                 )
-                self.diff_operation_count_tuple = get_diff_operation_count(
-                    self.input_operation_count_tuple, output_operation_count_tuple
-                )
+        self.diff_operation_count_tuple = get_diff_operation_count(
+            self.input_operation_count_tuple, output_operation_count_tuple
+        )
 
     def watch_diff_operation_count_tuple(self) -> None:
         """
