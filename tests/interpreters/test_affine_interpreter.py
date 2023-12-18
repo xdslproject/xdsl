@@ -22,8 +22,8 @@ def module_op():
             (
                 (),
                 (
-                    memref.MemRefType.from_element_type_and_shape(index, (2, 3)),
-                    memref.MemRefType.from_element_type_and_shape(index, (3, 2)),
+                    memref.MemRefType(index, (2, 3)),
+                    memref.MemRefType(index, (3, 2)),
                 ),
             ),
         ).body

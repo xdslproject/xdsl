@@ -203,10 +203,10 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
 
         # Note: we only allow MemRef, not UnrankedMemref!
         # TODO: handle -1 in sizes
-        if not all(dim.value.data >= 0 for dim in ssa_val_type.shape.data):
+        if not all(dim >= 0 for dim in ssa_val_type.get_shape()):
             raise RuntimeError("MPI lowering does not support unknown-size memrefs!")
 
-        size = prod(dim.value.data for dim in ssa_val_type.shape.data)
+        size = prod(ssa_val_type.get_shape())
 
         literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result

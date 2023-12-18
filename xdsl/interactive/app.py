@@ -20,6 +20,7 @@ from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import (
     Button,
+    DataTable,
     Footer,
     Label,
     ListItem,
@@ -31,6 +32,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
+from xdsl.interactive.pass_metrics import count_number_of_operations
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
@@ -133,11 +135,27 @@ class InputApp(App[None]):
     passes_list_view: ListView
     """ListView displaying the passes available to apply."""
 
+    input_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
+    """Saves the operation name and count of the input text area in a dictionary."""
+    output_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
+    """Saves the operation name and count of the output text area in a dictionary."""
+
+    input_operation_count_datatable: DataTable[str | int]
+    """DataTable displaying the operation names and counts of the input text area."""
+    output_operation_count_datatable: DataTable[str | int]
+    """DataTable displaying the operation names and counts of the output text area."""
+
     def __init__(self):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
         self.selected_query_label = Label("", id="selected_passes_label")
+        self.input_operation_count_datatable = DataTable(
+            id="input_operation_count_datatable"
+        )
+        self.output_operation_count_datatable = DataTable(
+            id="output_operation_count_datatable"
+        )
 
         super().__init__()
 
@@ -149,23 +167,36 @@ class InputApp(App[None]):
         with Horizontal(id="top_container"):
             yield self.passes_list_view
             with Horizontal(id="button_and_selected_horziontal"):
-                with Vertical(id="buttons"):
+                with ScrollableContainer(id="buttons"):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
                     yield Button("Condense", id="condense_button")
                     yield Button("Uncondense", id="uncondense_button")
                     yield Button("Remove Last Pass", id="remove_last_pass_button")
+                    yield Button(
+                        "Show Operation Count", id="show_operation_count_button"
+                    )
+                    yield Button(
+                        "Remove Operation Count", id="remove_operation_count_button"
+                    )
                 with ScrollableContainer(id="selected_passes"):
                     yield self.selected_query_label
         with Horizontal(id="bottom_container"):
-            with Vertical(id="input_container"):
-                yield self.input_text_area
-                with Horizontal(id="input_horizontal"):
-                    yield Button("Clear Input", id="clear_input_button")
-                    yield Button("Load File", id="load_file_button")
-            with Vertical(id="output_container"):
-                yield self.output_text_area
-                yield Button("Copy Output", id="copy_output_button")
+            with Horizontal(id="input_horizontal_container"):
+                with Vertical(id="input_container"):
+                    yield self.input_text_area
+                    with Horizontal(id="input_horizontal"):
+                        yield Button("Clear Input", id="clear_input_button")
+                        yield Button("Load File", id="load_file_button")
+                with ScrollableContainer(id="input_ops_container"):
+                    yield self.input_operation_count_datatable
+
+            with Horizontal(id="output_horizontal_container"):
+                with Vertical(id="output_container"):
+                    yield self.output_text_area
+                    yield Button("Copy Output", id="copy_output_button")
+                with ScrollableContainer(id="output_ops_container"):
+                    yield self.output_operation_count_datatable
         yield Footer()
 
     def on_mount(self) -> None:
@@ -188,6 +219,13 @@ class InputApp(App[None]):
 
         # initialize GUI with an interesting input IR and pass application
         self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
+
+        # initialize DataTable with column names
+        self.input_operation_count_datatable.add_columns("Operation", "Count")
+        self.input_operation_count_datatable.zebra_stripes = True
+
+        self.output_operation_count_datatable.add_columns("Operation", "Count")
+        self.output_operation_count_datatable.zebra_stripes = True
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -299,6 +337,7 @@ class InputApp(App[None]):
         if (input_text) == "":
             self.current_module = None
             self.current_condensed_pass_list = ()
+            self.update_input_operation_count_tuple(ModuleOp([], None))
             return
         try:
             ctx = MLContext(True)
@@ -306,6 +345,7 @@ class InputApp(App[None]):
                 ctx.load_dialect(dialect)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
+            self.update_input_operation_count_tuple(module)
             pipeline = PipelinePass(
                 passes=[
                     module_pass.from_pass_spec(pipeline_pass_spec)
@@ -316,6 +356,7 @@ class InputApp(App[None]):
             self.current_module = module
         except Exception as e:
             self.current_module = e
+            self.update_input_operation_count_tuple(ModuleOp([], None))
 
     def watch_current_module(self):
         """
@@ -335,6 +376,7 @@ class InputApp(App[None]):
                 output_text = output_stream.getvalue()
 
         self.output_text_area.load_text(output_text)
+        self.update_output_operation_count_tuple()
 
     def get_query_string(self) -> str:
         """
@@ -346,6 +388,51 @@ class InputApp(App[None]):
             str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
         )
         return f"xdsl-opt -p {query}"
+
+    def update_input_operation_count_tuple(self, input_module: ModuleOp) -> None:
+        """
+        Function that updates the input_operation_datatable to display the operation
+        names and counts in the input text area.
+        """
+        self.input_operation_count_tuple = tuple(
+            count_number_of_operations(input_module).items()
+        )
+
+    def watch_input_operation_count_tuple(self) -> None:
+        """
+        Function called when the reactive variable input_operation_count_tuple changes - updates the
+        Input DataTable.
+        """
+        self.input_operation_count_datatable.clear()
+        for k, v in self.input_operation_count_tuple:
+            self.input_operation_count_datatable.add_row(k, v)
+
+        self.update_output_operation_count_tuple()
+
+    def update_output_operation_count_tuple(self) -> None:
+        """
+        Function that updates the output_operation_datatable to display the operation
+        names and counts in the output text area. It also displays the diff of the input
+        and output datatable.
+        """
+        match self.current_module:
+            case None:
+                self.output_operation_count_tuple = ()
+            case Exception():
+                self.output_operation_count_tuple = ()
+            case ModuleOp():
+                self.output_operation_count_tuple = tuple(
+                    count_number_of_operations(self.current_module).items()
+                )
+
+    def watch_output_operation_count_tuple(self) -> None:
+        """
+        Function called when the reactive variable output_operation_count_tuple changes
+        - updates the Output DataTable.
+        """
+        self.output_operation_count_datatable.clear()
+        for k, v in self.output_operation_count_tuple:
+            self.output_operation_count_datatable.add_row(k, v)
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
@@ -392,6 +479,16 @@ class InputApp(App[None]):
         """
         self.condense_mode = False
         self.remove_class("condensed")
+
+    @on(Button.Pressed, "#show_operation_count_button")
+    def show_operation_count_button(self, event: Button.Pressed) -> None:
+        """Operation Count is displayed when "Show Operation Count" button is pressed."""
+        self.add_class("operation_count_shown")
+
+    @on(Button.Pressed, "#remove_operation_count_button")
+    def remove_operation_count_button(self, event: Button.Pressed) -> None:
+        """Operation Count is removed when "Remove Operation Count" button is pressed."""
+        self.remove_class("operation_count_shown")
 
     @on(Button.Pressed, "#remove_last_pass_button")
     def remove_last_pass(self, event: Button.Pressed) -> None:

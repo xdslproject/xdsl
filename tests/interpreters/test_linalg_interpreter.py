@@ -54,10 +54,10 @@ def test_linalg_generic():
 
     op = linalg.Generic(
         (
-            TestSSAValue(MemRefType.from_element_type_and_shape(i32, [2, 3])),
-            TestSSAValue(MemRefType.from_element_type_and_shape(i32, [3, 2])),
+            TestSSAValue(MemRefType(i32, [2, 3])),
+            TestSSAValue(MemRefType(i32, [3, 2])),
         ),
-        (TestSSAValue(MemRefType.from_element_type_and_shape(i32, [1, 6])),),
+        (TestSSAValue(MemRefType(i32, [1, 6])),),
         Region(Block(arg_types=(i32, i32))),
         (
             AffineMapAttr(AffineMap.identity(2)),

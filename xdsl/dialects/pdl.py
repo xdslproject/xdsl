@@ -15,6 +15,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    Operation,
     OpResult,
     ParametrizedAttribute,
     Region,
@@ -83,6 +84,33 @@ def print_operands_with_types(printer: Printer, operands: Iterable[SSAValue]) ->
     printer.print_list([operand.type for operand in operands], printer.print)
 
 
+def has_binding_use(op: Operation) -> bool:
+    """
+    Returns true if the given operation is used by a "binding" pdl operation.
+    """
+    for result in op.results:
+        for use in result.uses:
+            if not isinstance(use.operation, ResultOp | ResultsOp) or has_binding_use(
+                use.operation
+            ):
+                return True
+    return False
+
+
+def verify_has_binding_use(op: Operation) -> None:
+    """
+    Raise an exception if the operation is in the main matcher body and is
+    not used by a "binding" pdl operation.
+    """
+    if not isinstance(op.parent_op(), PatternOp):
+        return
+    if not has_binding_use(op):
+        raise VerifyException(
+            "expected a bindable user when defined in the matcher body of a "
+            "`pdl.pattern`"
+        )
+
+
 @irdl_attr_definition
 class AttributeType(ParametrizedAttribute, TypeAttribute):
     name = "pdl.attribute"
@@ -145,6 +173,7 @@ class ApplyNativeConstraintOp(IRDLOperation):
         return ApplyNativeConstraintOp(name, operands)
 
     def print(self, printer: Printer) -> None:
+        printer.print(" ")
         printer.print_string_literal(self.constraint_name.data)
         printer.print("(")
         print_operands_with_types(printer, self.operands)
@@ -197,7 +226,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
         printer.print(")")
         if len(self.results) != 0:
             printer.print(" : ")
-            printer.print_list(self.results, printer.print)
+            printer.print_list([res.type for res in self.results], printer.print)
 
 
 @irdl_op_definition
@@ -217,6 +246,11 @@ class AttributeOp(IRDLOperation):
                 f"{self.name} cannot both specify an expected attribute "
                 "via a constant value and an expected type."
             )
+        if self.value is None and isinstance(self.parent_op(), RewriteOp):
+            raise VerifyException(
+                "expected constant value when specified within a `pdl.rewrite`"
+            )
+        verify_has_binding_use(self)
 
     def __init__(self, value: Attribute | SSAValue | None = None) -> None:
         """
@@ -285,6 +319,9 @@ class OperandOp(IRDLOperation):
     def __init__(self, value_type: SSAValue | None = None) -> None:
         super().__init__(operands=[value_type], result_types=[ValueType()])
 
+    def verify_(self):
+        verify_has_binding_use(self)
+
     @classmethod
     def parse(cls, parser: Parser) -> OperandOp:
         value = None
@@ -310,6 +347,9 @@ class OperandsOp(IRDLOperation):
 
     def __init__(self, value_type: SSAValue | None) -> None:
         super().__init__(operands=[value_type], result_types=[RangeType(ValueType())])
+
+    def verify_(self):
+        verify_has_binding_use(self)
 
     @classmethod
     def parse(cls, parser: Parser) -> OperandsOp:
@@ -371,6 +411,20 @@ class OperationOp(IRDLOperation):
                 "opName": op_name,
             },
         )
+
+    def verify_(self):
+        is_within_rewrite: bool = isinstance(self.parent_op(), RewriteOp)
+        if is_within_rewrite and self.opName is None:
+            raise VerifyException(
+                "must have an operation name when nested within a `pdl.rewrite`"
+            )
+        if len(self.attributeValueNames) != len(self.attribute_values):
+            raise VerifyException(
+                "expected the same number of attribute values and attribute "
+                f"names, got {len(self.attributeValueNames)} names and "
+                f"{len(self.attribute_values)} values"
+            )
+        verify_has_binding_use(self)
 
     @classmethod
     def parse(cls, parser: Parser) -> OperationOp:
@@ -541,7 +595,7 @@ class RangeOp(IRDLOperation):
         if len(self.arguments) == 0:
             printer.print(" : ", self.result.type)
             return
-
+        printer.print(" ")
         print_operands_with_types(printer, self.arguments)
 
 
@@ -795,6 +849,9 @@ class TypeOp(IRDLOperation):
             attributes={"constantType": constant_type}, result_types=[TypeType()]
         )
 
+    def verify_(self):
+        verify_has_binding_use(self)
+
     @classmethod
     def parse(cls, parser: Parser) -> TypeOp:
         if parser.parse_optional_punctuation(":") is None:
@@ -826,6 +883,9 @@ class TypesOp(IRDLOperation):
             attributes=attributes,
             result_types=[RangeType(TypeType())],
         )
+
+    def verify_(self):
+        verify_has_binding_use(self)
 
     @classmethod
     def parse(cls, parser: Parser) -> TypesOp:
