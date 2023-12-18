@@ -57,6 +57,7 @@ from xdsl.traits import (
     IsTerminator,
     SymbolOpInterface,
 )
+from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -78,20 +79,40 @@ class MemRefType(
 ):
     name = "memref"
 
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[StridedLayoutAttr | NoneAttr]
+    layout: ParameterDef[Attribute]
     memory_space: ParameterDef[Attribute]
+
+    def __init__(
+        self: MemRefType[_MemRefTypeElement],
+        element_type: _MemRefTypeElement,
+        shape: Iterable[int | IntAttr],
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr(),
+    ):
+        shape = ArrayAttr(
+            [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
+        )
+        super().__init__(
+            [
+                shape,
+                element_type,
+                layout,
+                memory_space,
+            ]
+        )
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
     def get_shape(self) -> tuple[int, ...]:
-        return tuple(i.value.data for i in self.shape.data)
+        return tuple(i.data for i in self.shape.data)
 
     def get_element_type(self) -> _MemRefTypeElement:
         return self.element_type
 
+    @deprecated_constructor
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: _MemRefTypeElement,
@@ -99,22 +120,10 @@ class MemRefType(
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> MemRefType[_MemRefTypeElement]:
-        return MemRefType(
-            [
-                ArrayAttr[AnyIntegerAttr](
-                    [
-                        d
-                        if isinstance(d, IntegerAttr)
-                        else IntegerAttr.from_index_int_value(d)
-                        for d in shape
-                    ]
-                ),
-                referenced_type,
-                layout,
-                memory_space,
-            ]
-        )
+        shape_int = [i if isinstance(i, int) else i.value.data for i in shape]
+        return MemRefType(referenced_type, shape_int, layout, memory_space)
 
+    @deprecated_constructor
     @staticmethod
     def from_params(
         referenced_type: _MemRefTypeElement,
@@ -124,7 +133,8 @@ class MemRefType(
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> MemRefType[_MemRefTypeElement]:
-        return MemRefType([shape, referenced_type, layout, memory_space])
+        shape_int = [i.value.data for i in shape.data]
+        return MemRefType(referenced_type, shape_int, layout, memory_space)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -315,7 +325,7 @@ class Alloc(IRDLOperation):
     def get(
         return_type: Attribute,
         alignment: int | AnyIntegerAttr | None = None,
-        shape: Iterable[int | AnyIntegerAttr] | None = None,
+        shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
@@ -331,11 +341,7 @@ class Alloc(IRDLOperation):
 
         return Alloc.build(
             operands=[dynamic_sizes, []],
-            result_types=[
-                MemRefType.from_element_type_and_shape(
-                    return_type, shape, layout, memory_space
-                )
-            ],
+            result_types=[MemRefType(return_type, shape, layout, memory_space)],
             properties={
                 "alignment": alignment,
             },
@@ -347,7 +353,7 @@ class Alloc(IRDLOperation):
             raise VerifyException("expected result to be a memref")
         memref_type = cast(MemRefType[Attribute], memref_type)
 
-        dyn_dims = [x for x in memref_type.shape.data if x.value.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
@@ -397,7 +403,7 @@ class Alloca(IRDLOperation):
     def get(
         return_type: Attribute,
         alignment: int | AnyIntegerAttr | None = None,
-        shape: Iterable[int | AnyIntegerAttr] | None = None,
+        shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
@@ -413,11 +419,7 @@ class Alloca(IRDLOperation):
 
         return Alloca.build(
             operands=[dynamic_sizes, []],
-            result_types=[
-                MemRefType.from_element_type_and_shape(
-                    return_type, shape, layout, memory_space
-                )
-            ],
+            result_types=[MemRefType(return_type, shape, layout, memory_space)],
             properties={
                 "alignment": alignment,
             },
@@ -429,7 +431,7 @@ class Alloca(IRDLOperation):
             raise VerifyException("expected result to be a memref")
         memref_type = cast(MemRefType[Attribute], memref_type)
 
-        dyn_dims = [x for x in memref_type.shape.data if x.value.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
@@ -582,7 +584,7 @@ class Subview(IRDLOperation):
     ) -> Subview:
         source = SSAValue.get(source)
 
-        source_shape = [e.value.data for e in source_type.shape.data]
+        source_shape = source_type.get_shape()
         source_offset = 0
         source_strides = [1]
         for input_size in reversed(source_shape[1:]):
@@ -616,7 +618,7 @@ class Subview(IRDLOperation):
 
         layout = StridedLayoutAttr(layout_strides, layout_offset)
 
-        return_type = MemRefType.from_element_type_and_shape(
+        return_type = MemRefType(
             source_type.element_type,
             result_sizes,
             layout,
@@ -669,7 +671,7 @@ class MemorySpaceCast(IRDLOperation):
         type: MemRefType[Attribute],
         dest_memory_space: Attribute,
     ) -> MemorySpaceCast:
-        dest = MemRefType.from_element_type_and_shape(
+        dest = MemRefType(
             type.get_element_type(),
             shape=type.get_shape(),
             layout=type.layout,

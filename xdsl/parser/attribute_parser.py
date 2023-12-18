@@ -480,7 +480,7 @@ class AttrParser(BaseParser):
             return UnrankedMemrefType.from_type(type, memory_space)
 
         if self.parse_optional_punctuation(",") is None:
-            return MemRefType.from_element_type_and_shape(type, shape)
+            return MemRefType(type, shape)
 
         memory_or_layout = self.parse_attribute()
 
@@ -488,9 +488,7 @@ class AttrParser(BaseParser):
         # layout is the second one
         if self.parse_optional_punctuation(",") is not None:
             memory_space = self.parse_attribute()
-            return MemRefType.from_element_type_and_shape(
-                type, shape, memory_or_layout, memory_space
-            )
+            return MemRefType(type, shape, memory_or_layout, memory_space)
 
         # Otherwise, there is a single argument, so we check based on the
         # attribute type. If we don't know, we return an error.
@@ -499,18 +497,14 @@ class AttrParser(BaseParser):
 
         # If the argument is an integer, it is a memory space
         if isa(memory_or_layout, AnyIntegerAttr):
-            return MemRefType.from_element_type_and_shape(
-                type, shape, memory_space=memory_or_layout
-            )
+            return MemRefType(type, shape, memory_space=memory_or_layout)
 
         # We only accept strided layouts and affine_maps
         if isa(memory_or_layout, StridedLayoutAttr) or (
             isinstance(memory_or_layout, UnregisteredAttr)
             and memory_or_layout.attr_name.data == "affine_map"
         ):
-            return MemRefType.from_element_type_and_shape(
-                type, shape, layout=memory_or_layout
-            )
+            return MemRefType(type, shape, layout=memory_or_layout)
         self.raise_error(
             "Cannot decide if the given attribute " "is a layout or a memory space!"
         )
@@ -541,7 +535,7 @@ class AttrParser(BaseParser):
         if type is None:
             self.raise_error("Expected the vector element types!")
 
-        return VectorType.from_element_type_and_shape(type, dims, num_scalable_dims)
+        return VectorType(type, dims, num_scalable_dims)
 
     def _parse_tensor_attrs(self) -> AnyTensorType | AnyUnrankedTensorType:
         shape, type = self.parse_shape()
@@ -549,13 +543,13 @@ class AttrParser(BaseParser):
         if shape is None:
             if self.parse_optional_punctuation(",") is not None:
                 self.raise_error("Unranked tensors don't have an encoding!")
-            return UnrankedTensorType.from_type(type)
+            return UnrankedTensorType(type)
 
         if self.parse_optional_punctuation(",") is not None:
             encoding = self.parse_attribute()
-            return TensorType.from_type_and_list(type, shape, encoding)
+            return TensorType(type, shape, encoding)
 
-        return TensorType.from_type_and_list(type, shape)
+        return TensorType(type, shape)
 
     def _parse_attribute_type(self) -> Attribute:
         """
@@ -681,7 +675,7 @@ class AttrParser(BaseParser):
             )
 
         # Check that the shape matches the data when given a shaped data.
-        type_shape = [dim.value.data for dim in type.shape.data]
+        type_shape = list(type.get_shape())
         num_values = math.prod(type_shape)
 
         if shape is None and num_values != 0:

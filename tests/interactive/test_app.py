@@ -204,6 +204,7 @@ async def test_buttons():
         # press "Remove Last Pass" button
         await pilot.click("#remove_last_pass_button")
         await pilot.pause()
+
         assert app.pass_pipeline == current_pipeline[:-1]
 
         assert (

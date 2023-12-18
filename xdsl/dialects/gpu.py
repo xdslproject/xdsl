@@ -166,7 +166,7 @@ class AllocOp(IRDLOperation):
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
         assert isinstance(res_type := self.result.type, memref.MemRefType)
-        ndyn_type = len([i for i in res_type.shape.data if i.value.data == -1])
+        ndyn_type = len([i for i in res_type.get_shape() if i == -1])
         if ndyn != ndyn_type:
             raise VerifyException(
                 f"Expected {ndyn_type} dynamic sizes, got {ndyn}. All "
