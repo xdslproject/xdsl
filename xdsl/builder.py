@@ -30,29 +30,29 @@ class InsertPoint:
     """
 
     @overload
-    def __init__(self, point: Operation) -> None:
+    def __init__(self, op_before_or_block: Operation) -> None:
         ...
 
     @overload
-    def __init__(self, point: Block) -> None:
+    def __init__(self, op_before_or_block: Block) -> None:
         ...
 
     @overload
-    def __init__(self, point: Block, point2: Operation | None) -> None:
+    def __init__(self, op_before_or_block: Block, op_before: Operation | None) -> None:
         ...
 
     def __init__(
-        self, point: Block | Operation, point2: Operation | None = None
+        self, op_before_or_block: Block | Operation, op_before: Operation | None = None
     ) -> None:
-        if isinstance(point, Operation):
-            block = point.parent_block()
+        if isinstance(op_before_or_block, Operation):
+            block = op_before_or_block.parent_block()
             if block is None:
                 raise ValueError("Operation insertion point must have a parent block")
             self.block = block
-            self.op_before = point
+            self.op_before = op_before_or_block
         else:
-            self.block = point
-            self.op_before = point2
+            self.block = op_before_or_block
+            self.op_before = op_before
 
     def verify(self) -> None:
         """
