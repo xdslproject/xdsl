@@ -80,6 +80,33 @@ def test_builder_insertion_point():
     assert target.is_structurally_equivalent(block)
 
 
+def test_builder_create_block():
+    block1 = Block()
+    block2 = Block()
+    target = Region([block1, block2])
+    builder = Builder.at_start(block1)
+
+    new_block1 = builder.create_block_at_start(target)
+    assert len(target.blocks) == 3
+    assert target.blocks[0] == new_block1
+    assert builder.insertion_point == InsertPoint.at_start(new_block1)
+
+    new_block2 = builder.create_block_at_end(target)
+    assert len(target.blocks) == 4
+    assert target.blocks[3] == new_block2
+    assert builder.insertion_point == InsertPoint.at_start(new_block2)
+
+    new_block3 = builder.create_block_before(block2)
+    assert len(target.blocks) == 5
+    assert target.blocks[2] == new_block3
+    assert builder.insertion_point == InsertPoint.at_start(new_block3)
+
+    new_block4 = builder.create_block_after(block2)
+    assert len(target.blocks) == 6
+    assert target.blocks[4] == new_block4
+    assert builder.insertion_point == InsertPoint.at_start(new_block4)
+
+
 def test_build_region():
     one = IntAttr(1)
     two = IntAttr(2)
