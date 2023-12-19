@@ -186,8 +186,18 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         for operand in loop.operands:
             self.allocate(operand)
 
+        # Reserve the loop carried variables for allocation within the body
+        for iter_arg in loop.iter_args:
+            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
+            self.available_registers.reserve_register(iter_arg.type)
+
         for op in loop.body.block.ops_reverse:
             self.process_operation(op)
+
+        # Unreserve the loop carried variables for allocation outside of the body
+        for iter_arg in loop.iter_args:
+            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
+            self.available_registers.unreserve_register(iter_arg.type)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         if not func.body.blocks:
