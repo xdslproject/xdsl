@@ -671,7 +671,7 @@ class AllocaOp(IRDLOperation):
 
     size: Operand = operand_def(IntegerType)
 
-    alignment: AnyIntegerAttr = prop_def(AnyIntegerAttr)
+    alignment = opt_prop_def(AnyIntegerAttr)
     elem_type = opt_prop_def(Attribute)
 
     res: OpResult = result_def()
