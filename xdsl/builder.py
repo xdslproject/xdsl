@@ -12,47 +12,92 @@ from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, R
 
 
 @dataclass
+class InsertPoint:
+    """
+    An insert point.
+    It is either a point before an operation, or at the end of a block.
+
+    https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder_1_1InsertPoint.html
+    """
+
+    block: Block
+    """The block where the insertion point is in."""
+
+    op_before: Operation | None = field(default=None)
+    """
+    The operation right before the insertion point.
+    None if the insertion point is at the end of the block.
+    """
+
+    @overload
+    def __init__(self, op_before_or_block: Operation) -> None:
+        ...
+
+    @overload
+    def __init__(self, op_before_or_block: Block) -> None:
+        ...
+
+    @overload
+    def __init__(self, op_before_or_block: Block, op_before: Operation | None) -> None:
+        ...
+
+    def __init__(
+        self, op_before_or_block: Block | Operation, op_before: Operation | None = None
+    ) -> None:
+        if isinstance(op_before_or_block, Operation):
+            block = op_before_or_block.parent_block()
+            if block is None:
+                raise ValueError("Operation insertion point must have a parent block")
+            self.block = block
+            self.op_before = op_before_or_block
+        else:
+            self.block = op_before_or_block
+            self.op_before = op_before
+
+    def verify(self) -> None:
+        """
+        Check that the insertion point is valid.
+        An insertion point can only be invalid if `op_before` is an `Operation`, and its
+        parent is not `block`.
+        """
+        if self.op_before is not None:
+            if self.op_before.parent is not self.block:
+                raise ValueError("Insertion point must be in the builder's `block`")
+
+
+@dataclass
 class Builder:
     """
     A helper class to construct IRs, by keeping track of where to insert an
-    operation. Currently the insertion point is always at the end of the block.
-    In the future will closely follow the API of `OpBuilder` in MLIR, inserting
-    at arbitrary locations.
+    operation. It mimics the OpBuilder class from MLIR.
 
     https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html
     """
 
-    block: Block
-    """
-    Operations will be inserted in this block.
-    """
-
-    _insertion_point: Operation | None = field(default=None)
+    _insertion_point: InsertPoint
     """
     Operations will be inserted before this operation, or at the end of the block if None.
     """
 
-    def __post_init__(self):
-        self._verify_insertion_point()
+    def __init__(self, insert_point: InsertPoint | Block | Operation) -> None:
+        if isinstance(insert_point, Block | Operation):
+            insert_point = InsertPoint(insert_point)
+        self.insertion_point = insert_point
 
-    def _verify_insertion_point(self):
-        if self.insertion_point is not None:
-            if self.insertion_point.parent is not self.block:
-                raise ValueError("Insertion point must be in the builder's `block`")
+    def __post_init__(self):
+        self._insertion_point.verify()
 
     @property
-    def insertion_point(self) -> Operation | None:
+    def insertion_point(self) -> InsertPoint:
         return self._insertion_point
 
     @insertion_point.setter
-    def insertion_point(self, insertion_point: Operation | None):
+    def insertion_point(self, insertion_point: InsertPoint):
         self._insertion_point = insertion_point
-        self._verify_insertion_point()
+        self._insertion_point.verify()
 
     def insert(self, op: OperationInvT) -> OperationInvT:
-        """
-        Inserts `op` in `self.block` at the end of the block.
-        """
+        """Inserts `op` at the current insertion point."""
 
         implicit_builder = ImplicitBuilder.get()
 
@@ -61,10 +106,13 @@ class Builder:
                 "Cannot insert operation explicitly when an implicit " "builder exists."
             )
 
-        if self.insertion_point is not None:
-            self.block.insert_op_before(op, self.insertion_point)
+        block = self.insertion_point.block
+        op_before = self.insertion_point.op_before
+        if op_before is not None:
+            block.insert_op_before(op, op_before)
         else:
-            self.block.add_op(op)
+            block.add_op(op)
+
         return op
 
     @staticmethod
@@ -73,7 +121,7 @@ class Builder:
         Generates a single-block region.
         """
         block = Block()
-        builder = Builder(block)
+        builder = Builder(InsertPoint(block))
         func(builder)
         return Region(block)
 
@@ -291,7 +339,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
 
     def __enter__(self) -> tuple[BlockArgument, ...]:
         type(self)._stack.push(self._builder)
-        return self._builder.block.args
+        return self._builder.insertion_point.block.args
 
     def __exit__(
         self,
