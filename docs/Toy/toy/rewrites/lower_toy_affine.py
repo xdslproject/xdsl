@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 from itertools import product
 from typing import TypeAlias, TypeVar, cast
 
-from xdsl.builder import Builder
+from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects import affine, arith, func, memref
 from xdsl.dialects.builtin import (
     Float64Type,
@@ -193,7 +193,7 @@ def build_affine_loop_nest_impl(
         # between constant- and variable-bound loops.
 
         loop = loop_creator_fn(builder, lbs[i], ubs[i], steps[i], body)
-        builder = Builder(loop.body.block, loop.body.block.first_op)
+        builder = Builder(InsertPoint(loop.body.block, loop.body.block.first_op))
 
 
 def build_affine_loop_from_constants(
@@ -298,9 +298,7 @@ def lower_op_to_loops(
         store_op = affine.Store(value_to_store, alloc.memref, ivs)
         nested_builder.insert(store_op)
 
-    parent_block = op.parent
-    assert parent_block is not None
-    builder = Builder(parent_block, op)
+    builder = Builder(op)
     build_affine_loop_nest_const(
         builder, lower_bounds, tensor_type.get_shape(), steps, impl_loop
     )

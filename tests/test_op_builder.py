@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.builder import Builder
+from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import IntAttr, i32
 from xdsl.dialects.scf import If
@@ -46,21 +46,11 @@ def test_builder_insertion_point():
     b.insert(x)
     b.insert(z)
 
-    b.insertion_point = z
+    b.insertion_point = InsertPoint(z)
 
     b.insert(y)
 
     assert target.is_structurally_equivalent(block)
-
-    with pytest.raises(ValueError) as e:
-        b.insertion_point = Constant.from_int_and_width(4, 8)
-
-    assert e.value.args[0] == "Insertion point must be in the builder's `block`"
-
-    with pytest.raises(ValueError) as e:
-        Builder(block, Constant.from_int_and_width(4, 8))
-
-    assert e.value.args[0] == "Insertion point must be in the builder's `block`"
 
 
 def test_build_region():

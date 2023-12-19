@@ -23,11 +23,36 @@ class InsertPoint:
     block: Block
     """The block where the insertion point is in."""
 
-    op_before: Operation | None
+    op_before: Operation | None = field(default=None)
     """
     The operation right before the insertion point.
     None if the insertion point is at the end of the block.
     """
+
+    @overload
+    def __init__(self, point: Operation) -> None:
+        ...
+
+    @overload
+    def __init__(self, point: Block) -> None:
+        ...
+
+    @overload
+    def __init__(self, point: Block, point2: Operation | None) -> None:
+        ...
+
+    def __init__(
+        self, point: Block | Operation, point2: Operation | None = None
+    ) -> None:
+        if isinstance(point, Operation):
+            block = point.parent_block()
+            if block is None:
+                raise ValueError("Operation insertion point must have a parent block")
+            self.block = block
+            self.op_before = point
+        else:
+            self.block = point
+            self.op_before = point2
 
     def verify(self) -> None:
         """
@@ -54,9 +79,9 @@ class Builder:
     Operations will be inserted before this operation, or at the end of the block if None.
     """
 
-    def __init__(self, insert_point: InsertPoint | Block) -> None:
-        if isinstance(insert_point, Block):
-            insert_point = InsertPoint(insert_point, None)
+    def __init__(self, insert_point: InsertPoint | Block | Operation) -> None:
+        if isinstance(insert_point, Block | Operation):
+            insert_point = InsertPoint(insert_point)
         self.insertion_point = insert_point
 
     def __post_init__(self):
@@ -96,7 +121,7 @@ class Builder:
         Generates a single-block region.
         """
         block = Block()
-        builder = Builder(block)
+        builder = Builder(InsertPoint(block))
         func(builder)
         return Region(block)
 
