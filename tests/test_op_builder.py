@@ -7,6 +7,33 @@ from xdsl.dialects.scf import If
 from xdsl.ir import Block, BlockArgument, Region
 
 
+def test_insertion_point_constructors():
+    target = Block(
+        [
+            (op1 := Constant.from_int_and_width(1, 1)),
+            (op2 := Constant.from_int_and_width(2, 1)),
+        ]
+    )
+
+    assert InsertPoint.at_start(target) == InsertPoint(target, op1)
+    assert Builder.at_start(target).insertion_point == InsertPoint(target, op1)
+
+    assert InsertPoint.at_end(target) == InsertPoint(target, None)
+    assert Builder.at_end(target).insertion_point == InsertPoint(target, None)
+
+    assert InsertPoint.before(op1) == InsertPoint(target, op1)
+    assert Builder.before(op1).insertion_point == InsertPoint(target, op1)
+
+    assert InsertPoint.after(op1) == InsertPoint(target, op2)
+    assert Builder.after(op1).insertion_point == InsertPoint(target, op2)
+
+    assert InsertPoint.before(op2) == InsertPoint(target, op2)
+    assert Builder.before(op2).insertion_point == InsertPoint(target, op2)
+
+    assert InsertPoint.after(op2) == InsertPoint(target, None)
+    assert Builder.after(op2).insertion_point == InsertPoint(target, None)
+
+
 def test_builder():
     target = Block(
         [
@@ -16,7 +43,7 @@ def test_builder():
     )
 
     block = Block()
-    b = Builder(block)
+    b = Builder.at_end(block)
 
     x = Constant.from_int_and_width(1, 1)
     y = Constant.from_int_and_width(2, 1)
@@ -37,7 +64,7 @@ def test_builder_insertion_point():
     )
 
     block = Block()
-    b = Builder(block)
+    b = Builder.at_end(block)
 
     x = Constant.from_int_and_width(1, 8)
     y = Constant.from_int_and_width(2, 8)
@@ -46,7 +73,7 @@ def test_builder_insertion_point():
     b.insert(x)
     b.insert(z)
 
-    b.insertion_point = InsertPoint(z)
+    b.insertion_point = InsertPoint.before(z)
 
     b.insert(y)
 
