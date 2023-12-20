@@ -65,13 +65,27 @@ def test_punctuation_fail(text: str):
 
 
 @pytest.mark.parametrize(
-    "text", ['""', '"@"', '"foo"', '"\\""', '"\\n"', '"\\\\"', '"\\t"']
+    "text",
+    [
+        '""',
+        '"@"',
+        '"foo"',
+        '"\\""',
+        '"\\n"',
+        '"\\\\"',
+        '"\\t"',
+        '"\\00"',
+        '"\\F4"',
+        '"\\f4"',
+    ],
 )
 def test_str_literal(text: str):
     assert_single_token(text, Token.Kind.STRING_LIT)
 
 
-@pytest.mark.parametrize("text", ['"', '"\\"', '"\\a"', '"\n"', '"\v"', '"\f"'])
+@pytest.mark.parametrize(
+    "text", ['"', '"\\"', '"\\a"', '"\n"', '"\v"', '"\f"', "\\FG", "\\GA", "\\F"]
+)
 def test_str_literal_fail(text: str):
     assert_token_fail(text)
 
