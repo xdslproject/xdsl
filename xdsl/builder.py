@@ -11,7 +11,7 @@ from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
 
 
-@dataclass
+@dataclass(frozen=True)
 class InsertPoint:
     """
     An insert point.
@@ -28,6 +28,14 @@ class InsertPoint:
     The insertion point is right before this operation.
     If the operation is None, the insertion point is at the end of the block.
     """
+
+    def __post_init__(self) -> None:
+        # Check that the insertion point is valid.
+        # An insertion point can only be invalid if `insert_before` is an `Operation`,
+        # and its parent is not `block`.
+        if self.insert_before is not None:
+            if self.insert_before.parent is not self.block:
+                raise ValueError("Insertion point must be in the builder's `block`")
 
     @staticmethod
     def before(op: Operation) -> InsertPoint:
@@ -54,16 +62,6 @@ class InsertPoint:
         """Gets the insertion point at the end of a block."""
         return InsertPoint(block)
 
-    def verify(self) -> None:
-        """
-        Check that the insertion point is valid.
-        An insertion point can only be invalid if `op_before` is an `Operation`, and its
-        parent is not `block`.
-        """
-        if self.insert_before is not None:
-            if self.insert_before.parent is not self.block:
-                raise ValueError("Insertion point must be in the builder's `block`")
-
 
 @dataclass
 class Builder:
@@ -74,7 +72,7 @@ class Builder:
     https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html
     """
 
-    _insertion_point: InsertPoint
+    insertion_point: InsertPoint
     """Operations will be inserted at this location."""
 
     def __init__(self, insert_point: InsertPoint) -> None:
@@ -99,15 +97,6 @@ class Builder:
     def at_end(block: Block) -> Builder:
         """Creates a builder with the insertion point at the end of a block."""
         return Builder(InsertPoint.at_end(block))
-
-    @property
-    def insertion_point(self) -> InsertPoint:
-        return self._insertion_point
-
-    @insertion_point.setter
-    def insertion_point(self, insertion_point: InsertPoint):
-        self._insertion_point = insertion_point
-        self._insertion_point.verify()
 
     def insert(self, op: OperationInvT) -> OperationInvT:
         """Inserts `op` at the current insertion point."""
