@@ -76,6 +76,12 @@ class Builder:
     insertion_point: InsertPoint
     """Operations will be inserted at this location."""
 
+    notify_operation_inserted: Callable[[Operation], None] | None = field(default=None)
+    """A callback that is called when an operation is inserted by the builder."""
+
+    notify_block_created: Callable[[Block], None] | None = field(default=None)
+    """A callback that is called when a block is created by the builder."""
+
     def __init__(self, insert_point: InsertPoint) -> None:
         self.insertion_point = insert_point
 
@@ -115,6 +121,8 @@ class Builder:
             block.insert_op_before(op, insert_before)
         else:
             block.add_op(op)
+        if self.notify_operation_inserted is not None:
+            self.notify_operation_inserted(op)
 
         return op
 
@@ -128,6 +136,10 @@ class Builder:
         block = Block(arg_types=arg_types)
         Rewriter.insert_block_before(block, insert_before)
         self.insertion_point = InsertPoint.at_end(block)
+
+        if self.notify_block_created is not None:
+            self.notify_block_created(block)
+
         return block
 
     def create_block_after(
@@ -141,6 +153,10 @@ class Builder:
         block = Block(arg_types=arg_types)
         Rewriter.insert_block_after(block, insert_after)
         self.insertion_point = InsertPoint.at_end(block)
+
+        if self.notify_block_created is not None:
+            self.notify_block_created(block)
+
         return block
 
     def create_block_at_start(
@@ -153,6 +169,10 @@ class Builder:
         block = Block(arg_types=arg_types)
         region.insert_block(block, 0)
         self.insertion_point = InsertPoint.at_end(block)
+
+        if self.notify_block_created is not None:
+            self.notify_block_created(block)
+
         return block
 
     def create_block_at_end(
@@ -165,6 +185,10 @@ class Builder:
         block = Block(arg_types=arg_types)
         region.add_block(block)
         self.insertion_point = InsertPoint.at_end(block)
+
+        if self.notify_block_created is not None:
+            self.notify_block_created(block)
+
         return block
 
     @staticmethod
