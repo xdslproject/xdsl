@@ -595,14 +595,26 @@ class Lexer:
                 )
 
             # escape character
-            # TODO: handle unicode escape
             if current_char == "\\":
+                escape_pos = self.pos
                 escaped_char = self._get_chars()
-                if escaped_char not in ['"', "\\", "n", "t"]:
-                    raise ParseError(
-                        StringLiteral(self.pos - 1, self.pos, self.input),
-                        "Unknown escape in string literal.",
-                    )
+                # End of file before escaped character
+                if escaped_char is None:
+                    break
+                # Allowed escape characters
+                if escaped_char in ['"', "\\", "n", "t"]:
+                    continue
+                # Hexadecimal escape
+                if escaped_char in hexdigits:
+                    second_hexdigit = self._get_chars()
+                    if second_hexdigit is None:
+                        break
+                    if second_hexdigit in hexdigits:
+                        continue
+                raise ParseError(
+                    Span(escape_pos, self.pos, self.input),
+                    "Unknown escape in string literal.",
+                )
 
         raise ParseError(
             Span(start_pos, self.pos, self.input),
