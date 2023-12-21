@@ -609,6 +609,51 @@ class GreedyRewritePatternApplier(RewritePattern):
         return
 
 
+@dataclass(eq=False)
+class Worklist:
+    _lifo: list[Operation | None] = field(default_factory=list, init=False)
+    """
+    The list of operations to iterate over, used as a lifo stack.
+    Operations are added and removed at the end of the list.
+    Operation that are `None` are meant to be discarded, and are used to
+    keep removal of operations O(1).
+    """
+
+    _map: dict[Operation, int] = field(default_factory=dict, init=False)
+    """
+    The map of operations to their index in the lifo.
+    It is used to check if an operation is already in the lifo.
+    """
+
+    def is_empty(self) -> bool:
+        """Check if the worklist is empty."""
+        return bool(self._lifo)
+
+    def push(self, op: Operation):
+        """
+        Push an operation to the end of the worklist, if it is not already in it.
+        """
+        if op not in self._map:
+            self._map[op] = len(self._lifo)
+            self._lifo.append(op)
+
+    def pop(self) -> Operation | None:
+        """Pop the operation at the end of the worklist."""
+        while self._lifo:
+            op = self._lifo.pop()
+            if op is not None:
+                del self._map[op]
+                return op
+        return None
+
+    def remove(self, op: Operation):
+        """Remove an operation from the worklist."""
+        if op in self._map:
+            index = self._map[op]
+            self._lifo[index] = None
+            del self._map[op]
+
+
 @dataclass(eq=False, repr=False)
 class PatternRewriteWalker:
     """
