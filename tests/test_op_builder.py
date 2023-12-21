@@ -130,7 +130,7 @@ def test_builder_listener_op_insert():
     def add_op_on_insert(op: Operation):
         added_ops.append(op)
 
-    b.notify_operation_inserted = add_op_on_insert
+    b.operation_insertion_handler = [add_op_on_insert]
 
     b.insert(x)
     b.insert(z)
@@ -150,7 +150,7 @@ def test_builder_listener_block_created():
     def add_block_on_create(b: Block):
         created_blocks.append(b)
 
-    b.notify_block_created = add_block_on_create
+    b.block_creation_handler = [add_block_on_create]
 
     b1 = b.create_block_at_start(region)
     b2 = b.create_block_at_end(region)
