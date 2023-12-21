@@ -893,7 +893,10 @@ class Operation(IRNode):
         self, *, reverse: bool = False, region_first: bool = False
     ) -> Iterator[Operation]:
         """
-        Iterate all operations contained in the operation (including this one)
+        Iterate all operations contained in the operation (including this one).
+        If region_first is set, then the operation regions are iterated before the
+        operation. If reverse is set, then the region, block, and operation lists are
+        iterated in reverse order.
         """
         if not region_first:
             yield self
@@ -1529,7 +1532,12 @@ class Block(IRNode):
     def walk(
         self, *, reverse: bool = False, region_first: bool = False
     ) -> Iterable[Operation]:
-        """Call a function on all operations contained in the block."""
+        """
+        Call a function on all operations contained in the block.
+        If region_first is set, then the operation regions are iterated before the
+        operation. If reverse is set, then the region, block, and operation lists are
+        iterated in reverse order.
+        """
         for op in self.ops_reverse if reverse else self.ops:
             yield from op.walk(reverse=reverse, region_first=region_first)
 
@@ -1816,7 +1824,12 @@ class Region(IRNode):
     def walk(
         self, *, reverse: bool = False, region_first: bool = False
     ) -> Iterator[Operation]:
-        """Call a function on all operations contained in the region."""
+        """
+        Call a function on all operations contained in the region.
+        If region_first is set, then the operation regions are iterated before the
+        operation. If reverse is set, then the region, block, and operation lists are
+        iterated in reverse order.
+        """
         for block in self.blocks[::-1] if reverse else self.blocks:
             yield from block.walk(reverse=reverse, region_first=region_first)
 
