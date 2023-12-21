@@ -4,7 +4,7 @@ from xdsl.builder import Builder, InsertPoint
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import IntAttr, i32, i64
 from xdsl.dialects.scf import If
-from xdsl.ir import Block, BlockArgument, Region
+from xdsl.ir import Block, BlockArgument, Operation, Region
 
 
 def test_insertion_point_constructors():
@@ -115,6 +115,49 @@ def test_builder_create_block():
     assert len(target.blocks) == 6
     assert target.blocks[4] == new_block4
     assert builder.insertion_point == InsertPoint.at_start(new_block4)
+
+
+def test_builder_listener_op_insert():
+    block = Block()
+    b = Builder.at_end(block)
+
+    x = Constant.from_int_and_width(1, 32)
+    y = Constant.from_int_and_width(2, 32)
+    z = Constant.from_int_and_width(3, 32)
+
+    added_ops: list[Operation] = []
+
+    def add_op_on_insert(op: Operation):
+        added_ops.append(op)
+
+    b.operation_insertion_handler = [add_op_on_insert]
+
+    b.insert(x)
+    b.insert(z)
+    b.insertion_point = InsertPoint.before(z)
+    b.insert(y)
+
+    assert added_ops == [x, z, y]
+
+
+def test_builder_listener_block_created():
+    block = Block()
+    region = Region([block])
+    b = Builder.at_start(block)
+
+    created_blocks: list[Block] = []
+
+    def add_block_on_create(b: Block):
+        created_blocks.append(b)
+
+    b.block_creation_handler = [add_block_on_create]
+
+    b1 = b.create_block_at_start(region)
+    b2 = b.create_block_at_end(region)
+    b3 = b.create_block_before(block)
+    b4 = b.create_block_after(block)
+
+    assert created_blocks == [b1, b2, b3, b4]
 
 
 def test_build_region():

@@ -76,8 +76,13 @@ class Builder:
     insertion_point: InsertPoint
     """Operations will be inserted at this location."""
 
-    def __init__(self, insert_point: InsertPoint) -> None:
-        self.insertion_point = insert_point
+    operation_insertion_handler: list[Callable[[Operation], None]] = field(
+        default_factory=list
+    )
+    """Callbacks that are called when an operation is inserted by the builder."""
+
+    block_creation_handler: list[Callable[[Block], None]] = field(default_factory=list)
+    """Callback that are called when a block is created by the builder."""
 
     @staticmethod
     def before(op: Operation) -> Builder:
@@ -99,6 +104,16 @@ class Builder:
         """Creates a builder with the insertion point at the end of a block."""
         return Builder(InsertPoint.at_end(block))
 
+    def handle_operation_insertion(self, op: Operation) -> None:
+        """Pass the operation that was just inserted to callbacks."""
+        for callback in self.operation_insertion_handler:
+            callback(op)
+
+    def handle_block_creation(self, block: Block) -> None:
+        """Pass the block that was just created to callbacks."""
+        for callback in self.block_creation_handler:
+            callback(block)
+
     def insert(self, op: OperationInvT) -> OperationInvT:
         """Inserts `op` at the current insertion point."""
 
@@ -115,6 +130,7 @@ class Builder:
             block.insert_op_before(op, insert_before)
         else:
             block.add_op(op)
+        self.handle_operation_insertion(op)
 
         return op
 
@@ -128,6 +144,9 @@ class Builder:
         block = Block(arg_types=arg_types)
         Rewriter.insert_block_before(block, insert_before)
         self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+
         return block
 
     def create_block_after(
@@ -141,6 +160,9 @@ class Builder:
         block = Block(arg_types=arg_types)
         Rewriter.insert_block_after(block, insert_after)
         self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+
         return block
 
     def create_block_at_start(
@@ -153,6 +175,9 @@ class Builder:
         block = Block(arg_types=arg_types)
         region.insert_block(block, 0)
         self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+
         return block
 
     def create_block_at_end(
@@ -165,6 +190,9 @@ class Builder:
         block = Block(arg_types=arg_types)
         region.add_block(block)
         self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+
         return block
 
     @staticmethod
