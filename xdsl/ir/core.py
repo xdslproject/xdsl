@@ -25,6 +25,7 @@ from typing_extensions import Self
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils import lexer
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -888,14 +889,20 @@ class Operation(IRNode):
         for region in self.regions:
             region.drop_all_references()
 
-    def walk(self) -> Iterator[Operation]:
+    def walk(
+        self, *, reverse: bool = False, region_first: bool = False
+    ) -> Iterator[Operation]:
         """
         Iterate all operations contained in the operation (including this one)
         """
-        yield self
-        for region in self.regions:
-            yield from region.walk()
+        if not region_first:
+            yield self
+        for region in self.regions[::-1] if reverse else self.regions:
+            yield from region.walk(reverse=reverse, region_first=region_first)
+        if region_first:
+            yield self
 
+    @deprecated("Use walk(reverse=True, region_first=True) instead")
     def walk_reverse(self) -> Iterator[Operation]:
         """
         Iterate all operations contained in the operation (including this one) in reverse order.
@@ -1519,11 +1526,14 @@ class Block(IRNode):
         op = self.detach_op(op)
         op.erase(safe_erase=safe_erase)
 
-    def walk(self) -> Iterable[Operation]:
+    def walk(
+        self, *, reverse: bool = False, region_first: bool = False
+    ) -> Iterable[Operation]:
         """Call a function on all operations contained in the block."""
-        for op in self.ops:
-            yield from op.walk()
+        for op in self.ops_reverse if reverse else self.ops:
+            yield from op.walk(reverse=reverse, region_first=region_first)
 
+    @deprecated("Use walk(reverse=True) instead")
     def walk_reverse(self) -> Iterable[Operation]:
         """Call a function on all operations contained in the block in reverse order."""
         for op in self.ops_reverse:
@@ -1803,11 +1813,14 @@ class Region(IRNode):
             for op in block.ops:
                 new_block.add_op(op.clone(value_mapper, block_mapper))
 
-    def walk(self) -> Iterator[Operation]:
+    def walk(
+        self, *, reverse: bool = False, region_first: bool = False
+    ) -> Iterator[Operation]:
         """Call a function on all operations contained in the region."""
-        for block in self.blocks:
-            yield from block.walk()
+        for block in self.blocks[::-1] if reverse else self.blocks:
+            yield from block.walk(reverse=reverse, region_first=region_first)
 
+    @deprecated("Use walk(reverse=True) instead")
     def walk_reverse(self) -> Iterator[Operation]:
         """Call a function on all operations contained in the region in reverse order."""
         for block in reversed(self.blocks):
