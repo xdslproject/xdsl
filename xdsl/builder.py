@@ -76,11 +76,13 @@ class Builder:
     insertion_point: InsertPoint
     """Operations will be inserted at this location."""
 
-    notify_operation_inserted: Callable[[Operation], None] | None = field(default=None)
-    """A callback that is called when an operation is inserted by the builder."""
+    operation_insertion_handler: list[Callable[[Operation], None]] = field(
+        default_factory=list
+    )
+    """Callbacks that are called when an operation is inserted by the builder."""
 
-    notify_block_created: Callable[[Block], None] | None = field(default=None)
-    """A callback that is called when a block is created by the builder."""
+    block_creation_handler: list[Callable[[Block], None]] = field(default_factory=list)
+    """Callback that are called when a block is created by the builder."""
 
     def __init__(self, insert_point: InsertPoint) -> None:
         self.insertion_point = insert_point
@@ -105,6 +107,16 @@ class Builder:
         """Creates a builder with the insertion point at the end of a block."""
         return Builder(InsertPoint.at_end(block))
 
+    def handle_operation_insertion(self, op: Operation) -> None:
+        """Pass the operation that was just inserted to callbacks."""
+        for callback in self.operation_insertion_handler:
+            callback(op)
+
+    def handle_block_creation(self, block: Block) -> None:
+        """Pass the block that was just created to callbacks."""
+        for callback in self.block_creation_handler:
+            callback(block)
+
     def insert(self, op: OperationInvT) -> OperationInvT:
         """Inserts `op` at the current insertion point."""
 
@@ -121,8 +133,7 @@ class Builder:
             block.insert_op_before(op, insert_before)
         else:
             block.add_op(op)
-        if self.notify_operation_inserted is not None:
-            self.notify_operation_inserted(op)
+        self.handle_operation_insertion(op)
 
         return op
 
@@ -137,8 +148,7 @@ class Builder:
         Rewriter.insert_block_before(block, insert_before)
         self.insertion_point = InsertPoint.at_end(block)
 
-        if self.notify_block_created is not None:
-            self.notify_block_created(block)
+        self.handle_block_creation(block)
 
         return block
 
@@ -154,8 +164,7 @@ class Builder:
         Rewriter.insert_block_after(block, insert_after)
         self.insertion_point = InsertPoint.at_end(block)
 
-        if self.notify_block_created is not None:
-            self.notify_block_created(block)
+        self.handle_block_creation(block)
 
         return block
 
@@ -170,8 +179,7 @@ class Builder:
         region.insert_block(block, 0)
         self.insertion_point = InsertPoint.at_end(block)
 
-        if self.notify_block_created is not None:
-            self.notify_block_created(block)
+        self.handle_block_creation(block)
 
         return block
 
@@ -186,8 +194,7 @@ class Builder:
         region.add_block(block)
         self.insertion_point = InsertPoint.at_end(block)
 
-        if self.notify_block_created is not None:
-            self.notify_block_created(block)
+        self.handle_block_creation(block)
 
         return block
 
