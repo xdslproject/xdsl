@@ -243,7 +243,7 @@ class PatternRewriter:
         self.handle_operation_removal(op)
         Rewriter.erase_op(op, safe_erase=safe_erase)
 
-    def replace_all_uses_with(
+    def _replace_all_uses_with(
         self, from_: SSAValue, to: SSAValue | None, safe_erase: bool = True
     ):
         """Replace all uses of an SSA value with another SSA value."""
@@ -309,7 +309,7 @@ class PatternRewriter:
         # Then, replace the results with new ones
         self.handle_operation_replacement(op, new_results)
         for old_result, new_result in zip(op.results, new_results):
-            self.replace_all_uses_with(old_result, new_result)
+            self._replace_all_uses_with(old_result, new_result)
 
         if op.results:
             for new_op in new_ops:
@@ -360,7 +360,7 @@ class PatternRewriter:
                 "Cannot modify blocks that are not contained in the matched operation"
             )
         self.has_done_action = True
-        self.replace_all_uses_with(arg, None, safe_erase=safe_erase)
+        self._replace_all_uses_with(arg, None, safe_erase=safe_erase)
         arg.block.erase_arg(arg, safe_erase)
 
     def inline_block_at_end(self, block: Block, target_block: Block):
