@@ -613,7 +613,7 @@ class GreedyRewritePatternApplier(RewritePattern):
 class Worklist:
     _op_stack: list[Operation | None] = field(default_factory=list, init=False)
     """
-    The list of operations to iterate over, used as a lifo stack.
+    The list of operations to iterate over, used as a last-in-first-out stack.
     Operations are added and removed at the end of the list.
     Operation that are `None` are meant to be discarded, and are used to
     keep removal of operations O(1).
@@ -621,8 +621,9 @@ class Worklist:
 
     _map: dict[Operation, int] = field(default_factory=dict, init=False)
     """
-    The map of operations to their index in the lifo.
-    It is used to check if an operation is already in the lifo.
+    The map of operations to their index in the stack.
+    It is used to check if an operation is already in the stack, and to
+    remove it in O(1).
     """
 
     def is_empty(self) -> bool:
