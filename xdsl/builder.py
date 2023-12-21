@@ -84,9 +84,6 @@ class Builder:
     block_creation_handler: list[Callable[[Block], None]] = field(default_factory=list)
     """Callback that are called when a block is created by the builder."""
 
-    def __init__(self, insert_point: InsertPoint) -> None:
-        self.insertion_point = insert_point
-
     @staticmethod
     def before(op: Operation) -> Builder:
         """Creates a builder with the insertion point before an operation."""
