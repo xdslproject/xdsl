@@ -39,8 +39,7 @@ class PatternRewriterListener(BuilderListener):
     """Callbacks that are called when an operation is removed."""
 
     operation_modification_handler: list[Callable[[Operation], None]] = field(
-        default_factory=list,
-        kw_only=True,
+        default_factory=list, kw_only=True
     )
     """Callbacks that are called when an operation is modified."""
 
@@ -795,68 +794,128 @@ class PatternRewriteWalker:
     listener: PatternRewriterListener = field(default_factory=PatternRewriterListener)
     """The listener that will be called when an operation or block is modified."""
 
-    def rewrite_module(self, op: ModuleOp):
-        """Rewrite an entire module operation."""
-        self._rewrite_op(op)
+    _worklist: Worklist = field(default_factory=Worklist, init=False)
+    """The worklist of operations to walk over."""
 
-    def _rewrite_op(self, op: Operation) -> Operation | None:
+    def _add_operands_to_worklist(self, operands: Iterable[SSAValue]) -> None:
         """
-        Rewrite an operation, along with its regions.
-        Returns the next operation to iterate over.
+        Add defining operations of SSA values to the worklist, if they have only
+        one use. This is a heuristic based on the fact that single-use operations
+        have more canonicalization opportunities.
         """
-        # First, we rewrite the regions if needed
-        if self.walk_regions_first:
-            self._rewrite_op_regions(op)
+        for operand in operands:
+            if len(operand.uses) == 1 and isinstance((op := operand.owner), Operation):
+                self._worklist.push(op)
 
-        prev_op = op.prev_op
-        next_op = op.next_op
+    def _handle_operation_insertion(self, op: Operation) -> None:
+        """Handle insertion of an operation."""
+        if self.apply_recursively:
+            self._worklist.push(op)
 
-        # We then match for a pattern in the current operation
+    def _handle_operation_removal(self, op: Operation) -> None:
+        """Handle removal of an operation."""
+        if self.apply_recursively:
+            self._add_operands_to_worklist(op.operands)
+        self._worklist.remove(op)
+
+    def _handle_operation_modification(self, op: Operation) -> None:
+        """Handle modification of an operation."""
+        if self.apply_recursively:
+            self._worklist.push(op)
+
+    def _handle_operation_replacement(
+        self, op: Operation, new_results: Sequence[SSAValue | None]
+    ) -> None:
+        """Handle replacement of an operation."""
+        if self.apply_recursively:
+            for result in op.results:
+                for user in result.uses:
+                    self._worklist.push(user.operation)
+
+    def _get_rewriter_listener(self) -> PatternRewriterListener:
+        """
+        Get the listener that will be passed to the rewriter.
+        It will take care of adding operations to the worklist, and calling the
+        listener passed as configuration to the walker.
+        """
+        return PatternRewriterListener(
+            operation_insertion_handler=(
+                self.listener.operation_insertion_handler
+                + [self._handle_operation_insertion]
+            ),
+            operation_removal_handler=(
+                self.listener.operation_removal_handler
+                + [self._handle_operation_removal]
+            ),
+            operation_modification_handler=(
+                self.listener.operation_modification_handler
+                + [self._handle_operation_modification]
+            ),
+            operation_replacement_handler=(
+                self.listener.operation_replacement_handler
+                + [self._handle_operation_replacement]
+            ),
+            block_creation_handler=(self.listener.block_creation_handler),
+        )
+
+    def rewrite_module(self, module: ModuleOp) -> None:
+        """
+        Rewrite operations nested in the given operation by repeatedly applying the
+        pattern.
+        """
+        self.rewrite_op(module)
+
+    def rewrite_op(self, op: Operation) -> None:
+        """
+        Rewrite operations nested in the given operation by repeatedly applying the
+        pattern.
+        """
+        pattern_listener = self._get_rewriter_listener()
+
+        while True:
+            self._populate_worklist(op)
+            should_continue = self._process_worklist(pattern_listener)
+
+            # Only continue if we made a change and we are supposed to apply recursively
+            # on new operations.
+            if should_continue and self.apply_recursively:
+                continue
+            break
+
+    def _populate_worklist(self, op: Operation) -> None:
+        """Populate the worklist with all nested operations."""
+        # We walk in reverse order since we use a stack for our worklist.
+        for sub_op in op.walk(
+            reverse=not self.walk_reverse, region_first=not self.walk_regions_first
+        ):
+            self._worklist.push(sub_op)
+
+    def _process_worklist(self, listener: PatternRewriterListener) -> bool:
+        """
+        Process the worklist until it is empty.
+        Returns true if any modification was done.
+        """
+        rewriter_has_done_action = False
+
+        # Handle empty worklist
+        op = self._worklist.pop()
+        if op is None:
+            return rewriter_has_done_action
+
+        # Create a rewriter on the first operation
         rewriter = PatternRewriter(op)
         rewriter.extend_from_listener(self.listener)
-        self.pattern.match_and_rewrite(op, rewriter)
 
-        if rewriter.has_done_action:
-            # If we produce new operations, we rewrite them recursively if requested
-            if self.apply_recursively:
-                if self.walk_reverse:
-                    for op in rewriter.iter_affected_ops_reversed():
-                        # return last affected op
-                        return op
-                    else:
-                        return prev_op
-                else:
-                    for op in rewriter.iter_affected_ops():
-                        # return first affected op
-                        return op
-                    else:
-                        return next_op
+        while True:
+            # Apply the pattern on the operation
+            self.pattern.match_and_rewrite(op, rewriter)
+            rewriter_has_done_action |= rewriter.has_done_action
 
-            # Else, we rewrite only their regions if they are supposed to be
-            # rewritten after
-            else:
-                if not self.walk_regions_first:
-                    for new_op in rewriter.added_operations_before:
-                        self._rewrite_op_regions(new_op)
-                    if not rewriter.has_erased_matched_operation:
-                        self._rewrite_op_regions(op)
-                    for new_op in rewriter.added_operations_after:
-                        self._rewrite_op_regions(new_op)
-                return prev_op if self.walk_reverse else next_op
+            # If the worklist is empty, we are done
+            op = self._worklist.pop()
+            if op is None:
+                return rewriter_has_done_action
 
-        # Otherwise, we only rewrite the regions of the operation if needed
-        if not self.walk_regions_first:
-            self._rewrite_op_regions(op)
-        return prev_op if self.walk_reverse else next_op
-
-    def _rewrite_op_regions(self, op: Operation):
-        """
-        Rewrite the regions of an operation, and update the operation with the
-        new regions.
-        """
-        for region in op.regions:
-            blocks = reversed(region.blocks) if self.walk_reverse else region.blocks
-            for block in blocks:
-                iter_op = block.last_op if self.walk_reverse else block.first_op
-                while iter_op is not None:
-                    iter_op = self._rewrite_op(iter_op)
+            # Otherwise, reset the rewriter
+            rewriter.has_done_action = False
+            rewriter.current_operation = op
