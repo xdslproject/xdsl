@@ -31,6 +31,8 @@ from xdsl.utils.hints import isa
 
 @dataclass(eq=False)
 class PatternRewriterListener(BuilderListener):
+    """A listener for pattern rewriter events."""
+
     operation_removal_handler: list[Callable[[Operation], None]] = field(
         default_factory=list, kw_only=True
     )
