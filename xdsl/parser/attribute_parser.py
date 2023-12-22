@@ -132,7 +132,7 @@ class AttrParser(BaseParser):
         Parse an xDSL attribute.
         An attribute is either a builtin attribute, which can have various format,
         or a dialect attribute, with the following format:
-            dialect-attr  ::= `!` attr-name (`<` dialect-attr-contents+ `>`)?
+            dialect-attr  ::= `#` attr-name (`<` dialect-attr-contents+ `>`)?
             attr-name     ::= bare-id
             dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
                             | `(` dialect-attribute-contents+ `)`
