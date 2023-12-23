@@ -10,8 +10,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Annotated, Generic
 
-from typing_extensions import Self
-
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AnyAttr,
@@ -29,15 +27,16 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     i32,
-    i64,
 )
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
     Data,
     Dialect,
+    Operation,
     OpResult,
     ParametrizedAttribute,
+    SSAValue,
 )
 from xdsl.irdl import (
     IRDLOperation,
@@ -56,6 +55,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, SymbolOpInterface, SymbolTable
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 i8 = IntegerType(8)
 
@@ -109,16 +109,17 @@ class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class ObjectFIFOSubview(ParametrizedAttribute):
+class ObjectFIFOSubview(Generic[AttributeInvT], ParametrizedAttribute):
     name = "AIE.objectFifoSubview"
 
-    buffer: ParameterDef[memref.MemRefType]
+    buffer: ParameterDef[AttributeInvT]
 
     @staticmethod
     def from_element_type_and_shape(
-        object_fifo: ObjectFIFO,
+        object_fifo: ObjectFIFO[AttributeInvT],
         shape: Iterable[int | AnyIntegerAttr],
     ) -> ObjectFIFOSubview[AttributeInvT]:
+        assert isa(object_fifo.buffer, memref.MemRefType[Attribute])
         return ObjectFIFOSubview(
             [
                 memref.MemRefType.from_element_type_and_shape(
@@ -138,7 +139,9 @@ class AMSelOp(IRDLOperation):
     msel = attr_def(AnyIntegerAttr)
     result = result_def(IndexType())
 
-    def __init__(self, arbiterID: IntegerAttr[i32], msel: IntegerAttr[i32]):
+    def __init__(
+        self, arbiterID: IntegerAttr[IntegerType], msel: IntegerAttr[IntegerType]
+    ):
         super().__init__(
             attributes={"arbiterID": arbiterID, "msel": msel},
             result_types=[IndexType()],
@@ -159,16 +162,16 @@ class AMSelOp(IRDLOperation):
 class BufferOp(IRDLOperation):
     name = "AIE.buffer"
     tile = operand_def(IndexType())
-    shape = attr_def(ArrayAttr[i32])
-    element_type = attr_def(AnyAttr())
+    shape = attr_def(ArrayAttr[IntegerType])
+    element_type = attr_def(Attribute)
     buffer = result_def(memref.MemRefType)
     sym_name = attr_def(StringAttr)
 
     def __init__(
         self,
-        tile: IndexType(),
-        element_type: AnyAttr,
-        shape: ArrayAttr[i32],
+        tile: Operation | SSAValue,
+        element_type: Attribute,
+        shape: ArrayAttr[AnyIntegerAttr],
         sym_name: StringAttr,
     ):
         buffer_type = memref.MemRefType.from_element_type_and_shape(element_type, shape)
@@ -182,11 +185,11 @@ class BufferOp(IRDLOperation):
 @irdl_op_definition
 class TileOp(IRDLOperation):
     name = "AIE.tile"
-    col = attr_def(IntegerAttr[i32])
-    row = attr_def(IntegerAttr[i32])
+    col = attr_def(IntegerAttr[IntegerType])
+    row = attr_def(IntegerAttr[IntegerType])
     result = result_def(IndexType())
 
-    def __init__(self, col: IntegerAttr[i32], row: IntegerAttr[i32]):
+    def __init__(self, col: IntegerAttr[IntegerType], row: IntegerAttr[IntegerType]):
         super().__init__(
             attributes={"col": col, "row": row}, result_types=[IndexType()]
         )
@@ -248,7 +251,7 @@ class ConnectOp(IRDLOperation):
 @irdl_op_definition
 class CoreOp(IRDLOperation):
     name = "AIE.core"
-    stackSize = attr_def(IntegerAttr)
+    stackSize = attr_def(IntegerType)
     tile = operand_def(IndexType())
     region = region_def()
     link_with = opt_attr_def(StringAttr)
@@ -256,8 +259,8 @@ class CoreOp(IRDLOperation):
 
     def __init__(
         self,
-        stackSize: IntegerAttr[i32],
-        tile: IndexType(),
+        stackSize: IntegerAttr[IntegerType],
+        tile: Operation | SSAValue,
         region: Region,
         link_with: StringAttr | None = None,
     ):
@@ -277,34 +280,34 @@ class CoreOp(IRDLOperation):
             printer.print(' { link_with="', self.link_with, '" }')
 
     @classmethod
-    def parse(cls, parser: Parser) -> Self:
+    def parse(cls, parser: Parser) -> CoreOp:
         parser.parse_characters("(")
         tile = parser.parse_operand()
         parser.parse_characters(")")
         region = parser.parse_region()
 
-        stackSize = IntegerAttr.from_int_and_width(256, i32)
+        stackSize = IntegerAttr.from_int_and_width(256, 32)
         return CoreOp(stackSize, tile, region)
 
 
 @irdl_op_definition
 class DMABDOp(IRDLOperation):
     name = "AIE.dmaBd"
-    offset = attr_def(IntegerAttr[i32])
-    length = attr_def(IntegerAttr[i32])
-    ab = attr_def(IntegerAttr[i32], attr_name="AB")
+    offset = attr_def(IntegerAttr[IntegerType])
+    length = attr_def(IntegerAttr[IntegerType])
+    ab = attr_def(IntegerAttr[IntegerType], attr_name="AB")
     buffer = operand_def(memref.MemRefType)
     dimensions = opt_attr_def(
-        IntegerAttr[i32]
+        IntegerAttr[IntegerType]
     )  # TODO: this should be implemented as a DimTupleArrayAttr: check https://xilinx.github.io/mlir-aie/AIEDialect.html
 
     def __init__(
         self,
-        offset: IntegerAttr[i32],
-        length: IntegerAttr[i32],
-        AB: IntegerAttr[i32],
-        dimensions: None | IntegerAttr[i32],
-        buffer: memref.MemRefType,
+        offset: IntegerAttr[IntegerType],
+        length: IntegerAttr[IntegerType],
+        AB: IntegerAttr[IntegerType],
+        dimensions: None | IntegerAttr[IntegerType],
+        buffer: Operation | SSAValue,
     ):
         if dimensions is None:
             super().__init__(
@@ -341,10 +344,12 @@ class DMABDOp(IRDLOperation):
 @irdl_op_definition
 class DMABDPACKETOp(IRDLOperation):
     name = "AIE.dmaBdPacket"
-    packet_type = attr_def(IntegerAttr[i32])
-    packet_id = attr_def(IntegerAttr[i32])
+    packet_type = attr_def(IntegerAttr[IntegerType])
+    packet_id = attr_def(IntegerAttr[IntegerType])
 
-    def __init__(self, packet_type: IntegerAttr[i32], packet_id: IntegerAttr[i32]):
+    def __init__(
+        self, packet_type: IntegerAttr[IntegerType], packet_id: IntegerAttr[IntegerType]
+    ):
         super().__init__(
             attributes={"packet_type": packet_type, "packet_id": packet_id}
         )
@@ -364,7 +369,7 @@ class DMABDPACKETOp(IRDLOperation):
 class DMAStartOp(IRDLOperation):
     name = "AIE.dmaStart"
     channelDir = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
-    channelIndex = attr_def(IntegerAttr[i32])
+    channelIndex = attr_def(IntegerAttr[IntegerType])
     dest = successor_def()
     chain = successor_def()
 
@@ -372,8 +377,8 @@ class DMAStartOp(IRDLOperation):
 
     def __init__(
         self,
-        channelDir: IntegerAttr[i32],
-        channelIndex: IntegerAttr[i32],
+        channelDir: IntegerAttr[IntegerType],
+        channelIndex: IntegerAttr[IntegerType],
         dest: Block,
         chain: Block,
     ):
@@ -396,7 +401,7 @@ class DebugOp(IRDLOperation):
     name = "AIE.debug"
     arg = operand_def(AnyAttr())
 
-    def __init__(self, arg: AnyAttr()):
+    def __init__(self, arg: Operation | SSAValue):
         super().__init__(operands=[arg])
 
 
@@ -409,7 +414,7 @@ class DeviceOp(IRDLOperation):
     device = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
     traits = frozenset([SymbolTable()])
 
-    def __init__(self, device: IntegerAttr[i32], region: Region):
+    def __init__(self, device: IntegerAttr[IntegerType], region: Region):
         super().__init__(attributes={"device": device}, regions=[region])
 
     def print(self, printer: Printer):
@@ -431,7 +436,7 @@ class ExternalBufferOp(IRDLOperation):
         self,
         sym_name: str,
         shape: ArrayAttr[AnyIntegerAttr],
-        element_type: AttributeInvT,
+        element_type: Attribute,
     ):
         super().__init__(
             attributes={"sym_name": StringAttr(sym_name)},
@@ -446,20 +451,20 @@ class FlowOp(IRDLOperation):
     name = "AIE.flow"
 
     sourceBundle = attr_def(WireBundleAttr)
-    sourceChannel = attr_def(IntegerAttr[i32])
+    sourceChannel = attr_def(IntegerAttr[IntegerType])
     destBundle = attr_def(WireBundleAttr)
-    destChannel = attr_def(IntegerAttr[i32])
+    destChannel = attr_def(IntegerAttr[IntegerType])
     source = operand_def(IndexType())
     dest = operand_def(IndexType())
 
     def __init__(
         self,
         sourceBundle: WireBundleAttr,
-        sourceChannel: IntegerAttr[i32],
+        sourceChannel: IntegerAttr[IntegerType],
         destBundle: WireBundleAttr,
-        destChannel: IntegerAttr[i32],
-        source: IndexType(),
-        dest: IndexType(),
+        destChannel: IntegerAttr[IntegerType],
+        source: Operation | SSAValue,
+        dest: Operation | SSAValue,
     ):
         super().__init__(
             attributes={
@@ -502,15 +507,12 @@ class GetStreamOp(IRDLOperation):
     name = "AIE.getStream"
 
     channel = operand_def(i32)
+    result = result_def(IntegerType)
 
-    def __init__(self, channel: i32):
+    def __init__(self, channel: Operation | SSAValue):
         super().__init__(
             operands=[channel],
-            result_types=[
-                IntegerType(32, Signedness.SIGNLESS)
-                | Float32Type
-                | IntegerType(128, Signedness.SIGNLESS)
-            ],
+            result_types=[i32],  # TODO: the result can be of several types.
         )
 
 
@@ -518,17 +520,17 @@ class GetStreamOp(IRDLOperation):
 class LockOp(IRDLOperation):
     name = "AIE.lock"
 
-    lockID = attr_def(IntegerAttr[i32])
-    init = attr_def(IntegerAttr[i32])
+    lockID = attr_def(IntegerAttr[IntegerType])
+    init = attr_def(IntegerAttr[IntegerType])
     tile = operand_def(IndexType())
     result = result_def(IndexType())
     sym_name = attr_def(StringAttr)
 
     def __init__(
         self,
-        lockID: IntegerAttr[i32],
-        init: IntegerAttr[i32],
-        tile: IndexType(),
+        lockID: IntegerAttr[IntegerType],
+        init: IntegerAttr[IntegerType],
+        tile: Operation | SSAValue,
         sym_name: StringAttr,
     ):
         super().__init__(
@@ -543,14 +545,14 @@ class MasterSetOp(IRDLOperation):
     name = "AIE.masterset"
 
     destBundle = attr_def(WireBundleAttr)
-    destChannel = attr_def(IntegerAttr[i32])
+    destChannel = attr_def(IntegerAttr[IntegerType])
     amsels = operand_def(IndexType())
 
     def __init__(
         self,
         destBundle: WireBundleAttr,
-        destChannel: IntegerAttr[i32],
-        amsels: IndexType(),
+        destChannel: IntegerAttr[IntegerType],
+        amsels: Operation | SSAValue,
     ):
         super().__init__(
             attributes={"destBundle": destBundle, "destChannel": destChannel},
@@ -567,7 +569,7 @@ class MemOp(IRDLOperation):
     region = region_def()
     result = result_def(IndexType())
 
-    def __init__(self, tile: IndexType(), region: Region):
+    def __init__(self, tile: Operation | SSAValue, region: Region):
         super().__init__(operands=[tile], result_types=[IndexType()], regions=[region])
 
 
@@ -577,7 +579,7 @@ class MemTileDMAOp(IRDLOperation):
 
     tile = operand_def(IndexType())
 
-    def __init__(self, tile: IndexType()):
+    def __init__(self, tile: Operation | SSAValue):
         super().__init__(operands=[tile], result_types=[IndexType()])
 
 
@@ -596,15 +598,15 @@ class ObjectFifoAcquireOp(IRDLOperation):
     name = "AIE.objectFifo.acquire"
 
     port = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
-    size = attr_def(IntegerAttr[i32])
+    size = attr_def(IntegerAttr[IntegerType])
     object_fifo = attr_def(FlatSymbolRefAttr)
 
     result: OpResult = result_def(ObjectFIFOSubview)
 
     def __init__(
         self,
-        port: IntegerAttr[i32],
-        size: IntegerAttr[i32],
+        port: IntegerAttr[IntegerType],
+        size: IntegerAttr[IntegerType],
         object_fifo: str | SymbolRefAttr,
         device: DeviceOp,
     ):
@@ -612,6 +614,8 @@ class ObjectFifoAcquireOp(IRDLOperation):
             object_fifo = SymbolRefAttr(object_fifo)
 
         lookup = SymbolTable.lookup_symbol(device, object_fifo)
+        assert isinstance(lookup, createObjectFifo)
+        assert isa(lookup.object_fifo, ObjectFIFO[memref.MemRefType[Attribute]])
         result_subview = ObjectFIFOSubview.from_element_type_and_shape(
             lookup.object_fifo, lookup.object_fifo.buffer.shape
         )
@@ -624,12 +628,16 @@ class ObjectFifoAcquireOp(IRDLOperation):
         port = "Produce" if self.port.value.data == PRODUCE_PORT else "Consume"
         op = self.parent_op()
         while not isinstance(op, DeviceOp):
+            assert isinstance(op, Operation)
             op = op.parent_op()
 
+        assert isinstance(self.object_fifo, StringAttr)
         printer.print(
             f" @{self.object_fifo.data} (", port, ", ", self.size.value.data, ") : "
         )
         lookup = SymbolTable.lookup_symbol(op, self.object_fifo)
+        assert isinstance(lookup, createObjectFifo)
+        assert isa(lookup.object_fifo, ObjectFIFO[memref.MemRefType[Attribute]])
         printer.print("!AIE.objectFifoSubview<", lookup.object_fifo.buffer, ">")
 
 
@@ -643,8 +651,8 @@ class ObjectFifoRegisterExternalBuffersOp(IRDLOperation):
 
     def __init__(
         self,
-        tile: IndexType(),
-        externalBuffers: memref.MemrefType,
+        tile: Operation | SSAValue,
+        externalBuffers: Operation | SSAValue,
         object_fifo: str | SymbolRefAttr,
     ):
         if isinstance(object_fifo, str):
@@ -655,6 +663,7 @@ class ObjectFifoRegisterExternalBuffersOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
+        assert isinstance(self.object_fifo, StringAttr)
         printer.print(
             f" @{self.object_fifo.data} (",
             self.tile,
@@ -670,11 +679,14 @@ class ObjectFifoRegisterExternalBuffersOp(IRDLOperation):
 class ObjectFIFOSubviewAccessOp(IRDLOperation):
     name = "AIE.objectFifo.subview.access"
 
-    index = attr_def(IntegerAttr[i32])
-    subview = operand_def(ObjectFIFOSubview)
+    index = attr_def(IntegerAttr[IntegerType])
+    subview = operand_def(ObjectFIFOSubview[memref.MemRefType[Attribute]])
     output = result_def(memref.MemRefType)
 
-    def __init__(self, index: IntegerAttr[i32], subview: ObjectFIFOSubview):
+    def __init__(self, index: IntegerAttr[IntegerType], subview: Operation | SSAValue):
+        assert isinstance(subview, ObjectFifoAcquireOp)
+        assert isa(subview.result.type, ObjectFIFOSubview[memref.MemRefType[Attribute]])
+        subview.result.type.buffer
         result_type = memref.MemRefType.from_element_type_and_shape(
             subview.result.type.buffer.element_type, subview.result.type.buffer.shape
         )
@@ -683,6 +695,7 @@ class ObjectFIFOSubviewAccessOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
+        assert isa(self.subview.type, ObjectFIFOSubview[memref.MemRefType[Attribute]])
         printer.print(" ")
         printer.print_operand(self.subview)
         printer.print("[", self.index.value.data, "] : ")
@@ -698,20 +711,20 @@ class ObjectFIFOSubviewAccessOp(IRDLOperation):
 class createObjectFifo(IRDLOperation):
     name = "AIE.objectFifo"
 
-    elemNumber = attr_def(IntegerAttr[i32])
+    elemNumber = attr_def(IntegerAttr[IntegerType])
     producerTile = operand_def(IndexType())
     consumerTile = var_operand_def(IndexType())
     sym_name = attr_def(StringAttr)
-    object_fifo = attr_def(ObjectFIFO)
+    object_fifo = attr_def(ObjectFIFO[Attribute])
 
     traits = frozenset([SymbolOpInterface()])
 
     def __init__(
         self,
-        elemNumber: IntegerAttr[i32],
-        producerTile: IndexType(),
-        consumerTile: IndexType(),
-        referenced_type: AttributeInvT,
+        elemNumber: IntegerAttr[IntegerType],
+        producerTile: Operation | SSAValue,
+        consumerTile: Operation | SSAValue,
+        referenced_type: Attribute,
         shape: Iterable[int | AnyIntegerAttr],
         name: str,
     ):
@@ -744,14 +757,14 @@ class createObjectFifo(IRDLOperation):
 class ObjectFIFOReleaseOp(IRDLOperation):
     name = "AIE.objectFifo.release"
 
-    port = attr_def(IntegerAttr[i32])
-    size = attr_def(IntegerAttr[i32])
+    port = attr_def(IntegerAttr[IntegerType])
+    size = attr_def(IntegerAttr[IntegerType])
     object_fifo = attr_def(FlatSymbolRefAttr)
 
     def __init__(
         self,
-        port: IntegerAttr[i32],
-        size: IntegerAttr[i32],
+        port: IntegerAttr[IntegerType],
+        size: IntegerAttr[IntegerType],
         object_fifo: str | SymbolRefAttr,
     ):
         if isinstance(object_fifo, str):
@@ -762,9 +775,15 @@ class ObjectFIFOReleaseOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
+        assert isinstance(self.object_fifo, StringAttr)
+        if isinstance(self.object_fifo, str):
+            ref_objectfifo = self.object_fifo
+        else:
+            ref_objectfifo = self.object_fifo.data
+
         printer.print(
             " @",
-            self.object_fifo.data,
+            ref_objectfifo,
             " (",
             "Produce" if self.port.value.data == PRODUCE_PORT else "Consume",
             ", ",
@@ -777,9 +796,9 @@ class ObjectFIFOReleaseOp(IRDLOperation):
 class PLIOOp(IRDLOperation):
     name = "AIE.plio"
 
-    col = attr_def(IntegerAttr[i32])
+    col = attr_def(IntegerAttr[IntegerType])
 
-    def __init__(self, col: IntegerAttr[i32]):
+    def __init__(self, col: IntegerAttr[IntegerType]):
         super().__init__(attributes={"col": col}, result_types=[IndexType()])
 
 
@@ -788,12 +807,15 @@ class PacketDestOp(IRDLOperation):
     name = "AIE.packet_dest"
 
     bundle = attr_def(WireBundleAttr)
-    channel = attr_def(IntegerAttr[i32])
+    channel = attr_def(IntegerAttr[IntegerType])
 
     tile = operand_def(IndexType())
 
     def __init__(
-        self, bundle: WireBundleAttr, channel: IntegerAttr[i32], tile: IndexType()
+        self,
+        bundle: WireBundleAttr,
+        channel: IntegerAttr[IntegerType],
+        tile: Operation | SSAValue,
     ):
         super().__init__(
             attributes={"bundle": bundle, "channel": channel}, operands=[tile]
@@ -809,10 +831,10 @@ class PacketDestOp(IRDLOperation):
 class PacketFlowOp(IRDLOperation):
     name = "AIE.packet_flow"
 
-    ID = attr_def(IntegerAttr[i8])
+    ID = attr_def(IntegerAttr[IntegerType])
     region = region_def()
 
-    def __init__(self, ID: IntegerAttr[i8], region: Region):
+    def __init__(self, ID: IntegerAttr[IntegerType], region: Region):
         super().__init__(attributes={"ID": ID}, regions=[region])
 
     def print(self, printer: Printer):
@@ -824,13 +846,16 @@ class PacketFlowOp(IRDLOperation):
 class PacketRuleOp(IRDLOperation):
     name = "AIE.rule"
 
-    mask = attr_def(IntegerAttr[i8])
-    value = attr_def(IntegerAttr[i8])
+    mask = attr_def(IntegerAttr[IntegerType])
+    value = attr_def(IntegerAttr[IntegerType])
 
     amsel = operand_def(IndexType())
 
     def __init__(
-        self, mask: IntegerAttr[i8], value: IntegerAttr[i8], amsel: IndexType()
+        self,
+        mask: IntegerAttr[IntegerType],
+        value: IntegerAttr[IntegerType],
+        amsel: Operation | SSAValue,
     ):
         super().__init__(attributes={"mask": mask, "value": value}, operands=[amsel])
 
@@ -840,9 +865,11 @@ class PacketRulesOp(IRDLOperation):
     name = "AIE.packetrules"
 
     sourceBundle = attr_def(WireBundleAttr)
-    sourceChannel = attr_def(IntegerAttr[i32])
+    sourceChannel = attr_def(IntegerAttr[IntegerType])
 
-    def __init__(self, sourceBundle: WireBundleAttr, sourceChannel: IntegerAttr[i32]):
+    def __init__(
+        self, sourceBundle: WireBundleAttr, sourceChannel: IntegerAttr[IntegerType]
+    ):
         super().__init__(
             attributes={"sourceBundle": sourceBundle, "sourceChannel": sourceChannel}
         )
@@ -853,11 +880,14 @@ class PacketSourceOp(IRDLOperation):
     name = "AIE.packet_source"
 
     bundle = attr_def(WireBundleAttr)
-    channel = attr_def(IntegerAttr[i32])
+    channel = attr_def(IntegerAttr[IntegerType])
     tile = operand_def(IndexType())
 
     def __init__(
-        self, bundle: WireBundleAttr, channel: IntegerAttr[i32], tile: IndexType()
+        self,
+        bundle: WireBundleAttr,
+        channel: IntegerAttr[IntegerType],
+        tile: Operation | SSAValue,
     ):
         super().__init__(
             attributes={"bundle": bundle, "channel": channel}, operands=[tile]
@@ -875,7 +905,7 @@ class putCascade(IRDLOperation):
 
     cascadeValue = operand_def(IntegerType(CASCADE_SIZE))
 
-    def __init__(self, cascadeValue: IntegerType(CASCADE_SIZE)):
+    def __init__(self, cascadeValue: Operation | SSAValue):
         super().__init__(operands=[cascadeValue])
 
 
@@ -891,11 +921,7 @@ class putStream(IRDLOperation):
     )
 
     def __init__(
-        self,
-        channel: i32,
-        streamValue: IntegerType(32, Signedness.SIGNLESS)
-        | Float32Type
-        | IntegerType(128, Signedness.SIGNLESS),
+        self, channel: Operation | SSAValue, streamValue: Operation | SSAValue
     ):
         super().__init__(operands=[channel, streamValue])
 
@@ -906,15 +932,15 @@ class ShimDMAAllocationOp(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
     channelDir = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
-    channelIndex = attr_def(IntegerAttr[i64])
-    col = attr_def(IntegerAttr[i64])
+    channelIndex = attr_def(IntegerAttr[IntegerType])
+    col = attr_def(IntegerAttr[IntegerType])
 
     def __init__(
         self,
         sym_name: StringAttr,
-        channelDir: IntegerAttr[i32],
-        channelIndex: IntegerAttr[i32],
-        col: IntegerAttr[i32],
+        channelDir: IntegerAttr[IntegerType],
+        channelIndex: IntegerAttr[IntegerType],
+        col: IntegerAttr[IntegerType],
     ):
         super().__init__(
             attributes={
@@ -932,7 +958,7 @@ class ShimDMAOp(IRDLOperation):
 
     tile = operand_def(IndexType())
 
-    def __init__(self, tile: IndexType()):
+    def __init__(self, tile: Operation | SSAValue):
         super().__init__(operands=[tile], result_types=[IndexType()])
 
 
@@ -942,7 +968,7 @@ class ShimMuxOp(IRDLOperation):
 
     tile = operand_def(IndexType())
 
-    def __init__(self, tile: IndexType()):
+    def __init__(self, tile: Operation | SSAValue):
         super().__init__(operands=[tile], result_types=[IndexType()])
 
 
@@ -950,9 +976,9 @@ class ShimMuxOp(IRDLOperation):
 class ShimSwitchBoxOp(IRDLOperation):
     name = "AIE.shimswitchbox"
 
-    col = attr_def(IntegerAttr[i32])
+    col = attr_def(IntegerAttr[IntegerType])
 
-    def __init__(self, col: IntegerAttr[i32]):
+    def __init__(self, col: IntegerAttr[IntegerType]):
         super().__init__(attributes={"col": col}, result_types=[IndexType()])
 
 
@@ -964,7 +990,7 @@ class SwitchboxOp(IRDLOperation):
     region = region_def()
     result = result_def(IndexType())
 
-    def __init__(self, tile: IndexType(), region: Region):
+    def __init__(self, tile: Operation | SSAValue, region: Region):
         super().__init__(operands=[tile], regions=[region], result_types=[IndexType()])
 
     def print(self, printer: Printer):
@@ -978,17 +1004,17 @@ class SwitchboxOp(IRDLOperation):
 class UseLockOp(IRDLOperation):
     name = "AIE.useLock"
 
-    value = attr_def(IntegerAttr[i32])
+    value = attr_def(IntegerAttr[IntegerType])
     action = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
     blocking = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
     lock = operand_def(IndexType())
 
     def __init__(
         self,
-        value: IntegerAttr[i32],
-        action: IntegerAttr[i32],
-        blocking: IntegerAttr[i32],
-        lock: IndexType(),
+        value: IntegerAttr[IntegerType],
+        action: IntegerAttr[IntegerType],
+        blocking: IntegerAttr[IntegerType],
+        lock: Operation | SSAValue,
     ):
         super().__init__(
             attributes={"value": value, "action": action, "blocking": blocking},
@@ -1008,22 +1034,22 @@ class UseLockOp(IRDLOperation):
         printer.print(")")
 
     @classmethod
-    def parse(cls, parser: Parser) -> Self:
+    def parse(cls, parser: Parser) -> UseLockOp:
         parser.parse_characters("(")
         lock = parser.parse_operand()
         parser.parse_characters(",")
         action = parser.parse_str_literal()
         print(action, ", ", action == "Acquire")
         action = (
-            IntegerAttr.from_int_and_width(LOCK_ACQUIRE, i32)
+            IntegerAttr.from_int_and_width(LOCK_ACQUIRE, 32)
             if action == "Acquire"
-            else IntegerAttr.from_int_and_width(LOCK_RELEASE, i32)
+            else IntegerAttr.from_int_and_width(LOCK_RELEASE, 32)
         )
         parser.parse_characters(",")
-        value = IntegerAttr.from_int_and_width(parser.parse_integer(), i32)
+        value = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
         parser.parse_characters(")")
 
-        blocking = IntegerAttr.from_int_and_width(BLOCKING, i32)
+        blocking = IntegerAttr.from_int_and_width(BLOCKING, 32)
 
         return UseLockOp(value, action, blocking, lock)
 
@@ -1041,8 +1067,8 @@ class WireOp(IRDLOperation):
         self,
         sourceBundle: WireBundleAttr,
         destBundle: WireBundleAttr,
-        source: IndexType(),
-        dest: IndexType(),
+        source: Operation | SSAValue,
+        dest: Operation | SSAValue,
     ):
         super().__init__(
             attributes={"sourceBundle": sourceBundle, "destBundle": destBundle},
@@ -1061,7 +1087,6 @@ class EndOp(IRDLOperation):
 AIE = Dialect(
     "aie",
     [
-        ObjectFIFOSubview,
         AMSelOp,
         BufferOp,
         TileOp,
