@@ -872,15 +872,15 @@ class PatternRewriteWalker:
         """
         pattern_listener = self._get_rewriter_listener()
 
-        while True:
-            self._populate_worklist(op)
-            should_continue = self._process_worklist(pattern_listener)
+        self._populate_worklist(op)
+        op_was_modified = self._process_worklist(pattern_listener)
 
-            # Only continue if we made a change and we are supposed to apply recursively
-            # on new operations.
-            if should_continue and self.apply_recursively:
-                continue
-            break
+        if not self.apply_recursively:
+            return
+
+        while op_was_modified:
+            self._populate_worklist(op)
+            op_was_modified = self._process_worklist(pattern_listener)
 
     def _populate_worklist(self, op: Operation) -> None:
         """Populate the worklist with all nested operations."""
@@ -904,9 +904,14 @@ class PatternRewriteWalker:
 
         # Create a rewriter on the first operation
         rewriter = PatternRewriter(op)
-        rewriter.extend_from_listener(self.listener)
+        rewriter.extend_from_listener(listener)
 
+        # do/while loop
         while True:
+            # Reset the rewriter on `op`
+            rewriter.has_done_action = False
+            rewriter.current_operation = op
+
             # Apply the pattern on the operation
             self.pattern.match_and_rewrite(op, rewriter)
             rewriter_has_done_action |= rewriter.has_done_action
@@ -915,7 +920,3 @@ class PatternRewriteWalker:
             op = self._worklist.pop()
             if op is None:
                 return rewriter_has_done_action
-
-            # Otherwise, reset the rewriter
-            rewriter.has_done_action = False
-            rewriter.current_operation = op
