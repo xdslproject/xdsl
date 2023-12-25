@@ -900,7 +900,7 @@ class Operation(IRNode):
         """
         if not region_first:
             yield self
-        for region in self.regions[::-1] if reverse else self.regions:
+        for region in reversed(self.regions) if reverse else self.regions:
             yield from region.walk(reverse=reverse, region_first=region_first)
         if region_first:
             yield self
@@ -1830,7 +1830,7 @@ class Region(IRNode):
         operation. If reverse is set, then the region, block, and operation lists are
         iterated in reverse order.
         """
-        for block in self.blocks[::-1] if reverse else self.blocks:
+        for block in reversed(self.blocks) if reverse else self.blocks:
             yield from block.walk(reverse=reverse, region_first=region_first)
 
     @deprecated("Use walk(reverse=True) instead")
