@@ -2,7 +2,7 @@ from xdsl.dialects import test
 from xdsl.pattern_rewriter import Worklist
 
 
-def test_worklist_posh_pop():
+def test_worklist_push_pop():
     """Test push/pop operations on the worklist."""
     op1 = test.TestOp()
     op2 = test.TestOp()
