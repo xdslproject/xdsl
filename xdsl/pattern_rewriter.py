@@ -628,6 +628,8 @@ class Worklist:
 
     def is_empty(self) -> bool:
         """Check if the worklist is empty."""
+        while self._op_stack and self._op_stack[-1] is None:
+            self._op_stack.pop()
         return not bool(self._op_stack)
 
     def push(self, op: Operation):
