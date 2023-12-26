@@ -642,6 +642,10 @@ class Worklist:
 
     def pop(self) -> Operation | None:
         """Pop the operation at the end of the worklist."""
+        # All `None` operations at the end of the stack are distarded,
+        # as they were removed previously.
+        # We either return `None` if the stack is empty, or the last operation
+        # that is not `None`.
         while self._op_stack:
             op = self._op_stack.pop()
             if op is not None:
