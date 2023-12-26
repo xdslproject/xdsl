@@ -482,6 +482,44 @@ class OperationOp(IRDLOperation):
             printer.print(")")
 
 
+def _visit_pdl_ops(op: Operation, visited: set[Operation]):
+    """
+    Visit all pdl.operands, pdl.results, and pdl.operations connected to the
+    given operation in a pdl.pattern.
+    """
+    # We only look at operations within a `pdl.pattern`.
+    if not isinstance(op.parent_op(), PatternOp):
+        return
+
+    if op in visited:
+        return
+
+    visited.add(op)
+
+    # Traverse the operands
+    if isinstance(op, OperationOp):
+        for value in op.operand_values:
+            assert isinstance(owner := value.owner, Operation)
+            _visit_pdl_ops(owner, visited)
+    elif isinstance(op, ResultOp | ResultsOp):
+        assert isinstance(owner := op.parent_.owner, Operation)
+        _visit_pdl_ops(owner, visited)
+
+    # Traverse the users
+    for result in op.results:
+        for user in result.uses:
+            _visit_pdl_ops(user.operation, visited)
+
+
+def _has_user_in_rewrite(op: Operation) -> bool:
+    """Check if an operation has a user in a pdl.rewrite"""
+    for result in op.results:
+        for use in result.uses:
+            if isinstance(use.operation.parent_op(), RewriteOp):
+                return True
+    return False
+
+
 @irdl_op_definition
 class PatternOp(IRDLOperation):
     """
@@ -493,7 +531,7 @@ class PatternOp(IRDLOperation):
         IntegerAttr[Annotated[IntegerType, IntegerType(16)]]
     )
     sym_name: StringAttr | None = opt_attr_def(StringAttr)
-    body: Region = region_def()
+    body: Region = region_def("single_block")
 
     traits = frozenset([OptionalSymbolOpInterface()])
 
@@ -517,6 +555,39 @@ class PatternOp(IRDLOperation):
             regions=[body],
             result_types=[],
         )
+
+    def verify_(self):
+        # Check for the correct terminator.
+        if not isinstance(self.body.block.last_op, RewriteOp):
+            raise VerifyException("expected body to terminate with a `pdl.rewrite`")
+
+        # Check that there is at least one `pdl.operation`.
+        if not any(isinstance(op, OperationOp) for op in self.body.block.ops):
+            raise VerifyException(
+                "the pattern must contain at least one `pdl.operation`"
+            )
+
+        # Get the connected component by traversing the graph in the first
+        # PDL operation, operand, or result used in a `pdl.rewrite`. The other
+        # operations will be detected via other means with a better error handling
+        # (expected bindable user).
+        first = True
+        visited: set[Operation] = set()
+        for op in self.body.block.ops:
+            if not isinstance(
+                op, OperandOp | OperandsOp | ResultOp | ResultsOp | OperationOp
+            ):
+                continue
+            if not _has_user_in_rewrite(op):
+                continue
+
+            if first:
+                first = False
+                _visit_pdl_ops(op, visited)
+            if op not in visited:
+                raise VerifyException(
+                    "Operations in a `pdl.pattern` must form a connected component"
+                )
 
     @classmethod
     def parse(cls, parser: Parser) -> PatternOp:
