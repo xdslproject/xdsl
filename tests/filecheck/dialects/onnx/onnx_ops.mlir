@@ -1,10 +1,18 @@
 // RUN: XDSL_ROUNDTRIP
 
-func.func @add(%arg0: tensor<1x2x6xf32>, %arg1: tensor<1x2x6xf32>) ->  tensor<1x2x6xf32> {
-  %0 = "onnx.Add"(%arg0, %arg1) {onnx_node_name = "/model.1/Add"} : (tensor<1x2x6xf32>, tensor<1x2x6xf32>) -> tensor<1x2x6xf32>
-  return %0 : tensor<1x2x6xf32>
-}
+%t0, %t1 = "test.op"(): () -> (tensor<1x2x6xf32>, tensor<1x2x6xf32>)
+%t2, %t3 = "test.op"(): () -> (tensor<3x2xf32>, tensor<1x2xf32>)
+%t4, %t5 = "test.op"(): () -> (tensor<3x1x2xf32>, tensor<3x4x1xf32>)
+%t6, %t7 = "test.op"(): () -> (tensor<1x5x1x3xf32>, tensor<2x1x6x3xf32>)
 
-// CHECK-LABEL: func.func @add
-// CHECK-SAME:      (%arg0 : tensor<1x2x6xf32>, %arg1 : tensor<1x2x6xf32>) -> tensor<1x2x6xf32>       
-// CHECK:   %0 = onnx.Add(%arg0, %arg1) {"onnx_node_name" = "/model.1/Add"} : (tensor<1x2x6xf32>, tensor<1x2x6xf32>) -> tensor<1x2x6xf32>
+%res_add = "onnx.Add"(%t0, %t1) {onnx_node_name = "/Add"} : (tensor<1x2x6xf32>, tensor<1x2x6xf32>) -> tensor<1x2x6xf32>
+// CHECK: %res_add = onnx.Add(%t0, %t1) {"onnx_node_name" = "/Add"}: (tensor<1x2x6xf32>, tensor<1x2x6xf32>) -> tensor<1x2x6xf32>
+
+%res_sub = "onnx.Sub"(%t2, %t3) {onnx_node_name = "/Sub"}: (tensor<3x2xf32>, tensor<1x2xf32>) -> tensor<3x2xf32>
+// CHECK: %res_sub = onnx.Sub(%t2, %t3) {"onnx_node_name" = "/Sub"}: (tensor<3x2xf32>, tensor<1x2xf32>) -> tensor<3x2xf32>
+
+%res_mul = "onnx.Mul"(%t4, %t5) {onnx_node_name = "/Mul"}: (tensor<3x1x2xf32>, tensor<3x4x1xf32>) -> tensor<3x4x2xf32>
+// CHECK: %res_mul = onnx.Mul(%t4, %t5) {"onnx_node_name" = "/Mul"}: (tensor<3x1x2xf32>, tensor<3x4x1xf32>) -> tensor<3x4x2xf32>
+
+%res_div = "onnx.Div"(%t6, %t7) {onnx_node_name = "/Div"}: (tensor<1x5x1x3xf32>, tensor<2x1x6x3xf32>) -> tensor<2x5x6x3xf32>
+// CHECK: %res_div = onnx.Div(%t6, %t7) {"onnx_node_name" = "/Div"}: (tensor<1x5x1x3xf32>, tensor<2x1x6x3xf32>) -> tensor<2x5x6x3xf32>
