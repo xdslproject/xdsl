@@ -64,8 +64,38 @@ class InsertPoint:
         return InsertPoint(block)
 
 
+@dataclass(eq=False)
+class BuilderListener:
+    """A listener for builder events."""
+
+    operation_insertion_handler: list[Callable[[Operation], None]] = field(
+        default_factory=list, kw_only=True
+    )
+    """Callbacks that are called when an operation is inserted by the builder."""
+
+    block_creation_handler: list[Callable[[Block], None]] = field(
+        default_factory=list, kw_only=True
+    )
+    """Callback that are called when a block is created by the builder."""
+
+    def handle_operation_insertion(self, op: Operation) -> None:
+        """Pass the operation that was just inserted to callbacks."""
+        for callback in self.operation_insertion_handler:
+            callback(op)
+
+    def handle_block_creation(self, block: Block) -> None:
+        """Pass the block that was just created to callbacks."""
+        for callback in self.block_creation_handler:
+            callback(block)
+
+    def extend_from_listener(self, listener: BuilderListener) -> None:
+        """Forward all callbacks from `listener` to this listener."""
+        self.operation_insertion_handler.extend(listener.operation_insertion_handler)
+        self.block_creation_handler.extend(listener.block_creation_handler)
+
+
 @dataclass
-class Builder:
+class Builder(BuilderListener):
     """
     A helper class to construct IRs, by keeping track of where to insert an
     operation. It mimics the OpBuilder class from MLIR.
@@ -75,14 +105,6 @@ class Builder:
 
     insertion_point: InsertPoint
     """Operations will be inserted at this location."""
-
-    operation_insertion_handler: list[Callable[[Operation], None]] = field(
-        default_factory=list
-    )
-    """Callbacks that are called when an operation is inserted by the builder."""
-
-    block_creation_handler: list[Callable[[Block], None]] = field(default_factory=list)
-    """Callback that are called when a block is created by the builder."""
 
     @staticmethod
     def before(op: Operation) -> Builder:
@@ -103,16 +125,6 @@ class Builder:
     def at_end(block: Block) -> Builder:
         """Creates a builder with the insertion point at the end of a block."""
         return Builder(InsertPoint.at_end(block))
-
-    def handle_operation_insertion(self, op: Operation) -> None:
-        """Pass the operation that was just inserted to callbacks."""
-        for callback in self.operation_insertion_handler:
-            callback(op)
-
-    def handle_block_creation(self, block: Block) -> None:
-        """Pass the block that was just created to callbacks."""
-        for callback in self.block_creation_handler:
-            callback(block)
 
     def insert(self, op: OperationInvT) -> OperationInvT:
         """Inserts `op` at the current insertion point."""
