@@ -56,8 +56,8 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
 
     ctx = MLContext(True)
 
-    for dialect in get_all_dialects():
-        ctx.load_dialect(dialect)
+    for dialect_name, dialect_factory in get_all_dialects():
+        ctx.register_dialect(dialect_name, dialect_factory)
 
     selections: list[type[ModulePass]] = []
     for _, value in ALL_PASSES:
@@ -353,8 +353,8 @@ class InputApp(App[None]):
             return
         try:
             ctx = MLContext(True)
-            for dialect in get_all_dialects():
-                ctx.load_dialect(dialect)
+            for dialect_name, dialect_factory in get_all_dialects():
+                ctx.register_dialect(dialect_name, dialect_factory)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
