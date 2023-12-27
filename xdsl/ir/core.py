@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -73,6 +73,11 @@ class MLContext:
     _loaded_dialects: dict[str, Dialect] = field(default_factory=dict)
     _loaded_ops: dict[str, type[Operation]] = field(default_factory=dict)
     _loaded_attrs: dict[str, type[Attribute]] = field(default_factory=dict)
+    _registered_dialects: dict[str, Callable[[], Dialect]] = field(default_factory=dict)
+    """
+    A dictionary of all registered dialects that are not yet loaded. This is used to
+    only load the respective Python files when the dialect is actually used.
+    """
 
     def clone(self) -> MLContext:
         return MLContext(
@@ -80,6 +85,7 @@ class MLContext:
             self._loaded_dialects.copy(),
             self._loaded_ops.copy(),
             self._loaded_attrs.copy(),
+            self._registered_dialects.copy(),
         )
 
     @property
@@ -103,8 +109,48 @@ class MLContext:
         """
         return self._loaded_dialects.values()
 
+    @property
+    def registered_dialects(self) -> Iterable[str]:
+        """
+        Returns the names of all registered dialects. Not valid across mutations of this object.
+        """
+        return self._registered_dialects.keys()
+
+    def register_dialect(
+        self, name: str, dialect_factory: Callable[[], Dialect]
+    ) -> None:
+        """
+        Register a dialect without loading it. The dialect is only loaded in the context
+        when an operation or attribute of that dialect is parsed, or when explicitely
+        requested with `load_registered_dialect`.
+        """
+        if name in self._registered_dialects:
+            raise ValueError(f"'{name}' dialect is already registered")
+        if name in self._loaded_dialects:
+            raise ValueError(f"'{name}' dialect is already loaded")
+        self._registered_dialects[name] = dialect_factory
+
+    def load_registered_dialect(self, name: str) -> None:
+        """Load a dialect that is already registered in the context."""
+        if name not in self._registered_dialects:
+            raise ValueError(f"'{name}' dialect is not registered")
+        dialect = self._registered_dialects[name]()
+        self._registered_dialects.pop(name)
+        self.load_dialect(dialect)
+
     def load_dialect(self, dialect: Dialect):
-        """Load a dialect. Operation and Attribute names should be unique"""
+        """
+        Load a dialect. Operation and Attribute names should be unique.
+        If the dialect is already registered in the context, use
+        `load_registered_dialect` instead.
+        """
+        if dialect.name in self._loaded_dialects:
+            raise ValueError(f"'{dialect.name}' dialect is already loaded")
+        if dialect.name in self._registered_dialects:
+            raise ValueError(
+                f"'{dialect.name}' dialect is already registered, use "
+                "`load_registered_dialect` instead"
+            )
         self._loaded_dialects[dialect.name] = dialect
 
         for op in dialect.operations:
@@ -131,8 +177,19 @@ class MLContext:
         If the operation is not registered, return None unless unregistered operations
         are allowed in the context, in which case return an UnregisteredOp.
         """
+        # If the operation is already loaded, returns it.
         if name in self._loaded_ops:
             return self._loaded_ops[name]
+
+        # Otherwise, check if the operation dialect is registered.
+        if "." in name:
+            dialect_name, _ = name.split(".", 1)
+            if dialect_name in self._registered_dialects:
+                self.load_registered_dialect(dialect_name)
+                return self.get_optional_op(name)
+
+        # If the dialect is unregistered, but the context allows unregistered
+        # operations, return an UnregisteredOp.
         if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredOp
 
@@ -164,8 +221,18 @@ class MLContext:
         additional flag is required to create an UnregisterAttr that is
         also a type.
         """
+        # If the attribute is already loaded, returns it.
         if name in self._loaded_attrs:
             return self._loaded_attrs[name]
+
+        # Otherwise, check if the attribute dialect is registered.
+        dialect_name, _ = name.split(".", 1)
+        if dialect_name in self._registered_dialects:
+            self.load_registered_dialect(dialect_name)
+            return self.get_optional_attr(name)
+
+        # If the dialect is unregistered, but the context allows unregistered
+        # attributes, return an UnregisteredOp.
         if self.allow_unregistered:
             from xdsl.dialects.builtin import UnregisteredAttr
 
