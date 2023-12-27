@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import Literal
 
 from xdsl.ir import Attribute
 from xdsl.irdl import IRDLOperation, IRDLOperationInvT, OpDef, VariadicDef
@@ -276,6 +277,28 @@ class ResultTypeDirective(FormatDirective):
         printer.print_attribute(op.results[self.index].type)
         state.last_was_punctuation = False
         state.should_emit_space = True
+
+
+@dataclass(frozen=True)
+class WhitespaceDirective(FormatDirective):
+    """
+    A whitespace directive, with the following format:
+      whitespace-directive ::= `\n` | ` `
+    This directive is only applied during printing, and has no effect during
+    parsing.
+    The directive will not request any space to be printed after.
+    """
+
+    whitespace: Literal[" ", "\n"]
+    """The whitespace that should be printed."""
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        pass
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        printer.print(self.whitespace)
+        state.last_was_punctuation = False
+        state.should_emit_space = False
 
 
 @dataclass(frozen=True)
