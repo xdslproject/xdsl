@@ -47,7 +47,7 @@ from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 from ._pasteboard import pyclip_copy
 
-ALL_PASSES = tuple(sorted((p.name, p) for p in get_all_passes()))
+ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes()))
 """Contains the list of xDSL passes."""
 
 
