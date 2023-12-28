@@ -25,8 +25,8 @@ class DummyAttr2(ParametrizedAttribute):
     name = "test.dummy_attr2"
 
 
-TestDialect = Dialect("test", [DummyOp], [DummyAttr])
-TestDialect2 = Dialect("test", [DummyOp2], [DummyAttr2])
+testDialect = Dialect("test", [DummyOp], [DummyAttr])
+testDialect2 = Dialect("test", [DummyOp2], [DummyAttr2])
 
 
 def test_get_op():
@@ -123,36 +123,36 @@ def test_clone_function():
 
 def test_register_dialect_get_op_attr():
     ctx = MLContext()
-    ctx.register_dialect("test", lambda: TestDialect)
+    ctx.register_dialect("test", lambda: testDialect)
     op = ctx.get_op("test.dummy")
     assert op == DummyOp
     attr = ctx.get_attr("test.dummy_attr")
     assert attr == DummyAttr
     assert not ctx.registered_dialects
-    assert list(ctx.loaded_dialects) == [TestDialect]
+    assert list(ctx.loaded_dialects) == [testDialect]
 
 
 def test_register_dialect_already_registered():
     ctx = MLContext()
-    ctx.register_dialect("test", lambda: TestDialect)
+    ctx.register_dialect("test", lambda: testDialect)
     with pytest.raises(ValueError, match="'test' dialect is already registered"):
-        ctx.register_dialect("test", lambda: TestDialect2)
+        ctx.register_dialect("test", lambda: testDialect2)
 
 
 def test_register_dialect_already_loaded():
     ctx = MLContext()
-    ctx.load_dialect(TestDialect)
+    ctx.load_dialect(testDialect)
     with pytest.raises(ValueError, match="'test' dialect is already loaded"):
-        ctx.register_dialect("test", lambda: TestDialect2)
+        ctx.register_dialect("test", lambda: testDialect2)
 
 
 def test_load_registered_dialect():
     ctx = MLContext()
-    ctx.register_dialect("test", lambda: TestDialect)
+    ctx.register_dialect("test", lambda: testDialect)
     assert list(ctx.loaded_dialects) == []
     assert list(ctx.registered_dialects) == ["test"]
     ctx.load_registered_dialect("test")
-    assert list(ctx.loaded_dialects) == [TestDialect]
+    assert list(ctx.loaded_dialects) == [testDialect]
     assert not ctx.registered_dialects
 
 
@@ -164,42 +164,42 @@ def test_load_registered_dialect_not_registered():
 
 def test_load_dialect():
     ctx = MLContext()
-    ctx.load_dialect(TestDialect)
-    assert list(ctx.loaded_dialects) == [TestDialect]
+    ctx.load_dialect(testDialect)
+    assert list(ctx.loaded_dialects) == [testDialect]
     assert not ctx.registered_dialects
 
 
 def test_load_dialect_already_loaded():
     ctx = MLContext()
-    ctx.load_dialect(TestDialect)
+    ctx.load_dialect(testDialect)
     with pytest.raises(ValueError, match="'test' dialect is already loaded"):
-        ctx.load_dialect(TestDialect)
+        ctx.load_dialect(testDialect)
 
 
 def test_load_dialect_already_registered():
     ctx = MLContext()
-    ctx.register_dialect("test", lambda: TestDialect)
+    ctx.register_dialect("test", lambda: testDialect)
     with pytest.raises(
         ValueError,
         match="'test' dialect is already registered, use "
         "`load_registered_dialect` instead",
     ):
-        ctx.load_dialect(TestDialect)
+        ctx.load_dialect(testDialect)
 
 
 def test_get_optional_op_registered():
     ctx = MLContext()
-    ctx.register_dialect("test", lambda: TestDialect)
+    ctx.register_dialect("test", lambda: testDialect)
     assert ctx.get_optional_op("test.dummy") == DummyOp
     assert ctx.get_optional_op("test.dummy2") is None
-    assert list(ctx.loaded_dialects) == [TestDialect]
+    assert list(ctx.loaded_dialects) == [testDialect]
     assert not ctx.registered_dialects
 
 
 def test_get_optional_attr_registered():
     ctx = MLContext()
-    ctx.register_dialect("test", lambda: TestDialect)
+    ctx.register_dialect("test", lambda: testDialect)
     assert ctx.get_optional_attr("test.dummy_attr") == DummyAttr
     assert ctx.get_optional_attr("test.dummy_attr2") is None
-    assert list(ctx.loaded_dialects) == [TestDialect]
+    assert list(ctx.loaded_dialects) == [testDialect]
     assert not ctx.registered_dialects
