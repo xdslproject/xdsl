@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from abc import ABC
+from typing import Annotated, TypeVar
 
-from xdsl.dialects.builtin import AnyTensorType, SSAValue
+from xdsl.dialects.builtin import (
+    SSAValue,
+    TensorType,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
-    OpResult,
 )
 from xdsl.irdl import (
+    ConstraintVar,
     IRDLOperation,
     irdl_op_definition,
     operand_def,
@@ -16,38 +19,48 @@ from xdsl.irdl import (
 )
 from xdsl.utils.exceptions import VerifyException
 
+_T = TypeVar("_T", bound=Attribute)
 
-class ElementwiseBinOpBase(IRDLOperation, ABC):
+
+class ElementwiseBinOpBase(IRDLOperation):
     """Base class for element-wise binary operations on tensors with Numpy-style broadcasting."""
 
-    lhs = operand_def()
-    rhs = operand_def()
-    res: OpResult = result_def(AnyTensorType)
+    T = Annotated[Attribute, ConstraintVar("T"), _T]
+    lhs = operand_def(TensorType[T])
+    rhs = operand_def(TensorType[T])
+    res = result_def(TensorType[T])
     assembly_format = "`(` $lhs `,` $rhs `)` attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($res)"
 
     def __init__(
         self,
         lhs: SSAValue,
         rhs: SSAValue,
-        attributes: dict[str, Attribute] = {},
     ):
         super().__init__(
             operands=[lhs, rhs],
-            attributes=attributes,
             result_types=[[]],
         )
 
     def verify_(self) -> None:
         # Check that the arguments are broadcastable (using Numpy semantics) and that the result type is correct.
         res_shape: list[int] = []
+
         # Iterate over the shapes in reverse order and compute the result shape.
-        lhs_shape: list[int] = [x.data for x in self.lhs.type.shape]
-        rhs_shape: list[int] = [x.data for x in self.rhs.type.shape]
+        if (
+            not isinstance(lhs_type := self.lhs.type, TensorType)
+            or not isinstance(rhs_type := self.rhs.type, TensorType)
+            or not isinstance(res_type := self.res.type, TensorType)
+        ):
+            raise ValueError(
+                "onnx elementwise binary operation operands and result must be of type TensorType"
+            )
+        lhs_shape = lhs_type.get_shape()
+        rhs_shape = rhs_type.get_shape()
         i = max(len(lhs_shape), len(rhs_shape))
         while i > 0:
             i -= 1
-            d1 = lhs_shape[i] if i >= 0 else 1
-            d2 = rhs_shape[i] if i >= 0 else 1
+            d1: int = lhs_shape[i] if i >= 0 else 1
+            d2: int = rhs_shape[i] if i >= 0 else 1
             if d1 == d2:
                 res_shape.append(d1)
                 continue
@@ -61,10 +74,9 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
                 f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
             )
         # Reverse the result shape and check that it matches the result type.
+        res_type_shape = list(res_type.get_shape())
         res_shape.reverse()
-        if not all(
-            x == y for x, y in zip(res_shape, [v.data for v in self.res.type.shape])
-        ):
+        if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
             raise VerifyException(
                 f"result shape {res_shape} does not match result type {self.res.type}"
             )
