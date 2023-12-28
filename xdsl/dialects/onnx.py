@@ -4,6 +4,8 @@ from abc import ABC
 from typing import Annotated
 
 from xdsl.dialects.builtin import (
+    AnyFloat,
+    IntegerType,
     SSAValue,
     TensorType,
 )
@@ -24,7 +26,7 @@ from xdsl.utils.exceptions import VerifyException
 class ElementwiseBinOpBase(IRDLOperation, ABC):
     """Base class for element-wise binary operations on tensors with Numpy-style broadcasting."""
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     lhs = operand_def(TensorType[T])
     rhs = operand_def(TensorType[T])
     res = result_def(TensorType[T])
