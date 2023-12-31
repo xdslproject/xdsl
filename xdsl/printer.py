@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from itertools import chain
 from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
@@ -729,25 +730,38 @@ class Printer:
         self.print(" : ")
         self.print_operation_type(op)
 
-    def print_operation_type(self, op: Operation) -> None:
+    def print_function_type(
+        self, input_types: Iterable[Attribute], output_types: Iterable[Attribute]
+    ):
         self.print("(")
-        self.print_list(op.operands, lambda operand: self.print_attribute(operand.type))
+        self.print_list(input_types, self.print_attribute)
         self.print(") -> ")
-        if len(op.results) == 0:
+
+        oi = iter(output_types)
+        try:
+            first_type = next(oi)
+        except StopIteration:
             self.print("()")
-        elif len(op.results) == 1:
-            res_type = op.results[0].type
+            return
+
+        try:
+            second_type = next(oi)
+        except StopIteration:
             # Handle ambiguous case
-            if isinstance(res_type, FunctionType):
-                self.print("(", res_type, ")")
+            if isinstance(first_type, FunctionType):
+                self.print("(", first_type, ")")
             else:
-                self.print(res_type)
-        else:
-            self.print("(")
-            self.print_list(
-                op.results, lambda result: self.print_attribute(result.type)
-            )
-            self.print(")")
+                self.print(first_type)
+            return
+
+        self.print("(")
+        self.print_list(chain((first_type, second_type), oi), self.print_attribute)
+        self.print(")")
+
+    def print_operation_type(self, op: Operation) -> None:
+        self.print_function_type(
+            (o.type for o in op.operands), (r.type for r in op.results)
+        )
         if self.print_debuginfo:
             self.print(" loc(unknown)")
 
