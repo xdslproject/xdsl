@@ -43,16 +43,14 @@ def sum_to_for_op():
         func.Return(result)
 
 
-def sum_to_while_fn(n: int) -> int:
-    """
-    Python implementation of sum_to_while_op
-    """
-    result = 0
-    i = 0
-    while i < n:
-        result += 1
-        i += 1
-    return result
+# Python implementation of `sum_to_while_op`
+# def sum_to_while_fn(n: int) -> int:
+#     result = 0
+#     i = 0
+#     while i < n:
+#         result += 1
+#         i += 1
+#     return result
 
 
 @ModuleOp
