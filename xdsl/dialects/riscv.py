@@ -3576,6 +3576,32 @@ class FSdOp(RsRsImmFloatOperation):
         )
 
 
+class FMvDHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMvD
+
+        return (RemoveRedundantFMvD(),)
+
+
+@irdl_op_definition
+class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+    """
+    A pseudo instruction to copy 64 bits of one float register to another.
+
+    Equivalent to `fsgnj.d rd, rs, rs`.
+    """
+
+    name = "riscv.fmv.d"
+
+    traits = frozenset(
+        (
+            Pure(),
+            FMVHasCanonicalizationPatternsTrait(),
+        )
+    )
+
+
 # endregion
 
 # region 17 "V" Standard Extension for Vector Operations
@@ -3762,6 +3788,7 @@ RISCV = Dialect(
         FCvtDWuOp,
         FLdOp,
         FSdOp,
+        FMvDOp,
         VFAddSOp,
         VFMulSOp,
     ],
