@@ -111,7 +111,7 @@ builtin.module {
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<fa1>) -> !riscv.freg<fa2>
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
-// CHECK-NEXT:   "test.op"(%f0, %fo1, %fo2, %f3, %fo4, %fo5) : (!riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>, !riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>) -> ()
+// CHECK-NEXT:   "test.op"(%f0, %fo1, %fo2, %f0, %fo4, %fo5) : (!riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>, !riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>) -> ()
 
 // CHECK-NEXT:   %0 = riscv.li 0 : () -> !riscv.reg<>
 // CHECK-NEXT:   %1 = riscv.li 1 : () -> !riscv.reg<>
