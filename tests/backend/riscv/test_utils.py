@@ -18,15 +18,11 @@ REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 def test_register_type_for_type():
     assert register_type_for_type(builtin.i32) == riscv.IntRegisterType
     assert (
-        register_type_for_type(
-            memref.MemRefType.from_element_type_and_shape(builtin.f32, [1, 2, 3])
-        )
+        register_type_for_type(memref.MemRefType(builtin.f32, [1, 2, 3]))
         == riscv.IntRegisterType
     )
     assert (
-        register_type_for_type(
-            memref.MemRefType.from_element_type_and_shape(builtin.i32, [1, 2, 3])
-        )
+        register_type_for_type(memref.MemRefType(builtin.i32, [1, 2, 3]))
         == riscv.IntRegisterType
     )
 

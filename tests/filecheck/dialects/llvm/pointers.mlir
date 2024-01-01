@@ -7,6 +7,7 @@ builtin.module {
   %4 = "llvm.alloca"(%0) {"alignment" = 32 : i64} : (i64) -> !llvm.ptr
   %5 = "llvm.load"(%4) : (!llvm.ptr) -> index
   %6 = "llvm.getelementptr"(%4, %0){elem_type = i32, rawConstantIndices = array<i32:-2147483648>} : (!llvm.ptr, i64) -> !llvm.ptr
+  %7 = "llvm.alloca"(%0) : (i64) -> !llvm.ptr
 }
 
 // CHECK: builtin.module {
@@ -17,4 +18,5 @@ builtin.module {
 // CHECK-NEXT:   %4 = "llvm.alloca"(%0) <{"alignment" = 32 : i64}> : (i64) -> !llvm.ptr
 // CHECK-NEXT:   %5 = "llvm.load"(%4) : (!llvm.ptr) -> index
 // CHECK-NEXT:   %6 = "llvm.getelementptr"(%4, %0) <{"elem_type" = i32, "rawConstantIndices" = array<i32: -2147483648>}> : (!llvm.ptr, i64) -> !llvm.ptr
+// CHECK-NEXT:   %7 = "llvm.alloca"(%0) : (i64) -> !llvm.ptr
 // CHECK-NEXT: }

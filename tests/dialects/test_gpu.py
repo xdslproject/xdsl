@@ -42,9 +42,7 @@ def test_dimension():
 
 
 def test_alloc():
-    memref_type = memref.MemRefType.from_element_type_and_shape(
-        builtin.Float32Type(), [10, 10, 10]
-    )
+    memref_type = memref.MemRefType(builtin.Float32Type(), [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert isinstance(alloc, AllocOp)
@@ -55,9 +53,7 @@ def test_alloc():
     assert isinstance(alloc.asyncToken.type, AsyncTokenType)
     assert alloc.hostShared is None
 
-    dyn_type = memref.MemRefType.from_element_type_and_shape(
-        builtin.Float32Type(), [-1, -1, -1]
-    )
+    dyn_type = memref.MemRefType(builtin.Float32Type(), [-1, -1, -1])
     ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
     dynamic_sizes = [ten, ten, ten]
     token = alloc.asyncToken
@@ -140,9 +136,7 @@ def test_block_id():
 
 
 def test_dealloc():
-    memref_type = memref.MemRefType.from_element_type_and_shape(
-        builtin.Float32Type(), [10, 10, 10]
-    )
+    memref_type = memref.MemRefType(builtin.Float32Type(), [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert alloc.asyncToken is not None  # For pyright
@@ -201,7 +195,7 @@ def test_grid_dim():
 
 
 def test_host_register():
-    memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [-1])
+    memref_type = memref.MemRefType(builtin.i32, [-1])
     unranked = memref.Alloca.get(memref_type, 0)
 
     register = HostRegisterOp(unranked)
@@ -211,7 +205,7 @@ def test_host_register():
 
 
 def test_host_unregister():
-    memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [-1])
+    memref_type = memref.MemRefType(builtin.i32, [-1])
     unranked = memref.Alloca.get(memref_type, 0)
 
     unregister = HostUnregisterOp(unranked)
@@ -338,9 +332,7 @@ def test_launchfunc():
 
 
 def test_memcpy():
-    memref_type = memref.MemRefType.from_element_type_and_shape(
-        builtin.Float32Type(), [10, 10, 10]
-    )
+    memref_type = memref.MemRefType(builtin.Float32Type(), [10, 10, 10])
     host_alloc = memref.Alloc.get(builtin.Float32Type(), 0, [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 

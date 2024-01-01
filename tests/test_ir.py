@@ -702,7 +702,7 @@ def test_block_walk():
     block = Block(ops)
 
     assert list(block.walk()) == [a, b, c]
-    assert list(block.walk_reverse()) == [c, b, a]
+    assert list(block.walk(reverse=True)) == [c, b, a]
 
 
 def test_region_walk():
@@ -715,7 +715,7 @@ def test_region_walk():
     region = Region([block_a, block_b])
 
     assert list(region.walk()) == [a, b]
-    assert list(region.walk_reverse()) == [b, a]
+    assert list(region.walk(reverse=True)) == [b, a]
 
 
 def test_op_walk():
@@ -731,7 +731,13 @@ def test_op_walk():
     op_multi_region = test.TestOp.create(regions=[region_a, region_b])
 
     assert list(op_multi_region.walk()) == [op_multi_region, a, b]
-    assert list(op_multi_region.walk_reverse()) == [b, a, op_multi_region]
+    assert list(op_multi_region.walk(reverse=True)) == [op_multi_region, b, a]
+    assert list(op_multi_region.walk(region_first=True)) == [a, b, op_multi_region]
+    assert list(op_multi_region.walk(region_first=True, reverse=True)) == [
+        b,
+        a,
+        op_multi_region,
+    ]
 
 
 def test_region_clone():

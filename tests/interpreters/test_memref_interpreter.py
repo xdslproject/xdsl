@@ -59,8 +59,8 @@ def test_functions():
 
 
 def test_memref_get_global():
-    memref_type = memref.MemRefType.from_element_type_and_shape(i32, (2, 2))
-    tensor_type = TensorType.from_type_and_list(i32, (2, 2))
+    memref_type = memref.MemRefType(i32, (2, 2))
+    tensor_type = TensorType(i32, (2, 2))
     module = ModuleOp([])
     with ImplicitBuilder(module.body):
         memref.Global.get(

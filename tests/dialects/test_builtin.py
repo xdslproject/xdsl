@@ -78,7 +78,7 @@ def test_DenseIntOrFPElementsAttr_from_list():
     attr = DenseIntOrFPElementsAttr.tensor_from_list([5.5], f32, [])
 
     assert attr.data == ArrayAttr([FloatAttr(5.5, f32)])
-    assert attr.type == AnyTensorType.from_type_and_list(f32, [])
+    assert attr.type == AnyTensorType(f32, [])
 
 
 def test_DenseArrayBase_verifier_failure():
@@ -130,7 +130,7 @@ def test_array_len_and_iter_attr():
     ),
 )
 def test_vector_constructor(attr: Attribute, dims: list[int], num_scalable_dims: int):
-    vec = VectorType.from_element_type_and_shape(attr, dims, num_scalable_dims)
+    vec = VectorType(attr, dims, num_scalable_dims)
 
     assert vec.get_num_dims() == len(dims)
     assert vec.get_num_scalable_dims() == num_scalable_dims
@@ -147,21 +147,21 @@ def test_vector_constructor(attr: Attribute, dims: list[int], num_scalable_dims:
 )
 def test_vector_verifier_fail(dims: list[int], num_scalable_dims: int):
     with pytest.raises(VerifyException):
-        VectorType.from_element_type_and_shape(i32, dims, num_scalable_dims)
+        VectorType(i32, dims, num_scalable_dims)
 
     with pytest.raises(VerifyException):
-        VectorType.from_element_type_and_shape(i32, dims, -1)
+        VectorType(i32, dims, -1)
 
 
 def test_vector_rank_constraint_verify():
-    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    vector_type = VectorType(i32, [1, 2])
     constraint = VectorRankConstraint(2)
 
     constraint.verify(vector_type, {})
 
 
 def test_vector_rank_constraint_rank_mismatch():
-    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    vector_type = VectorType(i32, [1, 2])
     constraint = VectorRankConstraint(3)
 
     with pytest.raises(VerifyException) as e:
@@ -170,7 +170,7 @@ def test_vector_rank_constraint_rank_mismatch():
 
 
 def test_vector_rank_constraint_attr_mismatch():
-    memref_type = MemRefType.from_element_type_and_shape(i32, [1, 2])
+    memref_type = MemRefType(i32, [1, 2])
     constraint = VectorRankConstraint(3)
 
     with pytest.raises(VerifyException) as e:
@@ -179,14 +179,14 @@ def test_vector_rank_constraint_attr_mismatch():
 
 
 def test_vector_base_type_constraint_verify():
-    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeConstraint(i32)
 
     constraint.verify(vector_type, {})
 
 
 def test_vector_base_type_constraint_type_mismatch():
-    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeConstraint(i64)
 
     with pytest.raises(VerifyException) as e:
@@ -195,7 +195,7 @@ def test_vector_base_type_constraint_type_mismatch():
 
 
 def test_vector_base_type_constraint_attr_mismatch():
-    memref_type = MemRefType.from_element_type_and_shape(i32, [1, 2])
+    memref_type = MemRefType(i32, [1, 2])
     constraint = VectorBaseTypeConstraint(i32)
 
     with pytest.raises(VerifyException) as e:
@@ -204,14 +204,14 @@ def test_vector_base_type_constraint_attr_mismatch():
 
 
 def test_vector_base_type_and_rank_constraint_verify():
-    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 2)
 
     constraint.verify(vector_type, {})
 
 
 def test_vector_base_type_and_rank_constraint_base_type_mismatch():
-    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i64, 2)
 
     with pytest.raises(VerifyException) as e:
@@ -220,7 +220,7 @@ def test_vector_base_type_and_rank_constraint_base_type_mismatch():
 
 
 def test_vector_base_type_and_rank_constraint_rank_mismatch():
-    vector_type = VectorType.from_element_type_and_shape(i32, [1, 2])
+    vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 3)
 
     with pytest.raises(VerifyException) as e:
@@ -229,7 +229,7 @@ def test_vector_base_type_and_rank_constraint_rank_mismatch():
 
 
 def test_vector_base_type_and_rank_constraint_attr_mismatch():
-    memref_type = MemRefType.from_element_type_and_shape(i32, [1, 2])
+    memref_type = MemRefType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 2)
 
     error_msg = """The following constraints were not satisfied:

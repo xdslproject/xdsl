@@ -8,9 +8,9 @@ from xdsl.utils.test_value import TestSSAValue
 
 from ..rewrites.lower_memref_riscv import LowerMemrefToRiscv
 
-MEMREF_TYPE_2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2]))
-MEMREF_TYPE_2X2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2, 2]))
-MEMREF_TYPE_2X2X2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2, 2, 2]))
+MEMREF_TYPE_2XF32 = memref.MemRefType(f32, ([2]))
+MEMREF_TYPE_2X2XF32 = memref.MemRefType(f32, ([2, 2]))
+MEMREF_TYPE_2X2X2XF32 = memref.MemRefType(f32, ([2, 2, 2]))
 
 INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()

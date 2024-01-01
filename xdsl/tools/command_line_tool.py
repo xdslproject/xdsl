@@ -4,16 +4,6 @@ import sys
 from collections.abc import Callable
 from typing import IO
 
-from xdsl.backend.riscv import riscv_scf_to_asm
-from xdsl.backend.riscv.lowering import (
-    convert_arith_to_riscv,
-    convert_func_to_riscv_func,
-    convert_memref_to_riscv,
-    convert_scf_to_riscv_scf,
-    convert_snitch_stream_to_snitch,
-    convert_stream_to_snitch_stream,
-    reduce_register_pressure,
-)
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
 from xdsl.dialects.builtin import Builtin, ModuleOp
@@ -35,6 +25,7 @@ from xdsl.dialects.ltl import LTL
 from xdsl.dialects.memref import MemRef
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.omp import OMP
+from xdsl.dialects.onnx import ONNX
 from xdsl.dialects.pdl import PDL
 from xdsl.dialects.printf import Printf
 from xdsl.dialects.riscv import RISCV
@@ -50,42 +41,10 @@ from xdsl.dialects.stencil import Stencil
 from xdsl.dialects.stream import Stream
 from xdsl.dialects.test import Test
 from xdsl.dialects.vector import Vector
-from xdsl.frontend.passes.desymref import DesymrefyPass
 from xdsl.frontend.symref import Symref
 from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
-from xdsl.transforms import (
-    canonicalize,
-    canonicalize_dmp,
-    constant_fold_interp,
-    convert_linalg_to_stream,
-    convert_scf_to_openmp,
-    dead_code_elimination,
-    gpu_map_parallel_loops,
-    lower_affine,
-    lower_mpi,
-    lower_riscv_func,
-    lower_snitch,
-    mlir_opt,
-    printf_to_llvm,
-    printf_to_putchar,
-    reconcile_unrealized_casts,
-    riscv_register_allocation,
-    riscv_scf_loop_range_folding,
-    scf_parallel_loop_tiling,
-    snitch_register_allocation,
-    stencil_unroll,
-)
-from xdsl.transforms.experimental import (
-    convert_stencil_to_ll_mlir,
-    hls_convert_stencil_to_ll_mlir,
-    lower_hls,
-    replace_incompatible_fpga,
-    stencil_shape_inference,
-    stencil_storage_materialization,
-)
-from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 
 
@@ -113,6 +72,7 @@ def get_all_dialects() -> list[Dialect]:
         MemRef,
         MPI,
         OMP,
+        ONNX,
         PDL,
         Printf,
         RISCV,
@@ -132,46 +92,232 @@ def get_all_dialects() -> list[Dialect]:
     ]
 
 
-def get_all_passes() -> list[type[ModulePass]]:
+def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
     """Return the list of all available passes."""
+
+    def get_canonicalize():
+        from xdsl.transforms import canonicalize
+
+        return canonicalize.CanonicalizePass
+
+    def get_canonicalize_dmp():
+        from xdsl.transforms import canonicalize_dmp
+
+        return canonicalize_dmp.CanonicalizeDmpPass
+
+    def get_convert_linalg_to_stream():
+        from xdsl.transforms import convert_linalg_to_stream
+
+        return convert_linalg_to_stream.ConvertLinalgToStreamPass
+
+    def get_convert_scf_to_openmp():
+        from xdsl.transforms import convert_scf_to_openmp
+
+        return convert_scf_to_openmp.ConvertScfToOpenMPPass
+
+    def get_convert_snitch_stream_to_snitch():
+        from xdsl.backend.riscv.lowering import convert_snitch_stream_to_snitch
+
+        return convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch
+
+    def get_convert_stream_to_snitch_stream():
+        from xdsl.backend.riscv.lowering import convert_stream_to_snitch_stream
+
+        return convert_stream_to_snitch_stream.ConvertStreamToSnitchStreamPass
+
+    def get_constant_fold_interp():
+        from xdsl.transforms import constant_fold_interp
+
+        return constant_fold_interp.ConstantFoldInterpPass
+
+    def get_convert_stencil_to_ll_mlir():
+        from xdsl.transforms.experimental import convert_stencil_to_ll_mlir
+
+        return convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass
+
+    def get_dce():
+        from xdsl.transforms import dead_code_elimination
+
+        return dead_code_elimination.DeadCodeElimination
+
+    def get_desymrefy():
+        from xdsl.frontend.passes.desymref import DesymrefyPass
+
+        return DesymrefyPass
+
+    def get_gpu_map_parallel_loops():
+        from xdsl.transforms import gpu_map_parallel_loops
+
+        return gpu_map_parallel_loops.GpuMapParallelLoopsPass
+
+    def get_distribute_stencil():
+        from xdsl.transforms.experimental.dmp import stencil_global_to_local
+
+        return stencil_global_to_local.DistributeStencilPass
+
+    def get_lower_halo_to_mpi():
+        from xdsl.transforms.experimental.dmp import stencil_global_to_local
+
+        return stencil_global_to_local.LowerHaloToMPI
+
+    def get_lower_affine():
+        from xdsl.transforms import lower_affine
+
+        return lower_affine.LowerAffinePass
+
+    def get_lower_mpi():
+        from xdsl.transforms import lower_mpi
+
+        return lower_mpi.LowerMPIPass
+
+    def get_lower_riscv_func():
+        from xdsl.transforms import lower_riscv_func
+
+        return lower_riscv_func.LowerRISCVFunc
+
+    def get_lower_snitch():
+        from xdsl.transforms import lower_snitch
+
+        return lower_snitch.LowerSnitchPass
+
+    def get_mlir_opt():
+        from xdsl.transforms import mlir_opt
+
+        return mlir_opt.MLIROptPass
+
+    def get_printf_to_llvm():
+        from xdsl.transforms import printf_to_llvm
+
+        return printf_to_llvm.PrintfToLLVM
+
+    def get_printf_to_putchar():
+        from xdsl.transforms import printf_to_putchar
+
+        return printf_to_putchar.PrintfToPutcharPass
+
+    def get_reduce_register_pressure():
+        from xdsl.backend.riscv.lowering import reduce_register_pressure
+
+        return reduce_register_pressure.RiscvReduceRegisterPressurePass
+
+    def get_riscv_register_allocation():
+        from xdsl.transforms import riscv_register_allocation
+
+        return riscv_register_allocation.RISCVRegisterAllocation
+
+    def get_riscv_scf_loop_range_folding():
+        from xdsl.transforms import riscv_scf_loop_range_folding
+
+        return riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass
+
+    def get_snitch_register_allocation():
+        from xdsl.transforms import snitch_register_allocation
+
+        return snitch_register_allocation.SnitchRegisterAllocation
+
+    def get_convert_arith_to_riscv():
+        from xdsl.backend.riscv.lowering import convert_arith_to_riscv
+
+        return convert_arith_to_riscv.ConvertArithToRiscvPass
+
+    def get_convert_func_to_riscv_func():
+        from xdsl.backend.riscv.lowering import convert_func_to_riscv_func
+
+        return convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass
+
+    def get_convert_memref_to_riscv():
+        from xdsl.backend.riscv.lowering import convert_memref_to_riscv
+
+        return convert_memref_to_riscv.ConvertMemrefToRiscvPass
+
+    def get_scf_parallel_loop_tiling():
+        from xdsl.transforms import scf_parallel_loop_tiling
+
+        return scf_parallel_loop_tiling.ScfParallelLoopTilingPass
+
+    def get_convert_scf_to_riscv_scf():
+        from xdsl.backend.riscv.lowering import convert_scf_to_riscv_scf
+
+        return convert_scf_to_riscv_scf.ConvertScfToRiscvPass
+
+    def get_lower_scf_for_to_labels():
+        from xdsl.backend.riscv import riscv_scf_to_asm
+
+        return riscv_scf_to_asm.LowerScfForToLabels
+
+    def get_stencil_shape_inference():
+        from xdsl.transforms.experimental import stencil_shape_inference
+
+        return stencil_shape_inference.StencilShapeInferencePass
+
+    def get_stencil_storage_materialization():
+        from xdsl.transforms.experimental import stencil_storage_materialization
+
+        return stencil_storage_materialization.StencilStorageMaterializationPass
+
+    def get_reconcile_unrealized_casts():
+        from xdsl.transforms import reconcile_unrealized_casts
+
+        return reconcile_unrealized_casts.ReconcileUnrealizedCastsPass
+
+    def get_hls_convert_stencil_to_ll_mlir():
+        from xdsl.transforms.experimental import hls_convert_stencil_to_ll_mlir
+
+        return hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass
+
+    def get_lower_hls():
+        from xdsl.transforms.experimental import lower_hls
+
+        return lower_hls.LowerHLSPass
+
+    def get_replace_incompatible_fpga():
+        from xdsl.transforms.experimental import replace_incompatible_fpga
+
+        return replace_incompatible_fpga.ReplaceIncompatibleFPGA
+
+    def get_stencil_unroll():
+        from xdsl.transforms import stencil_unroll
+
+        return stencil_unroll.StencilUnrollPass
+
     return [
-        canonicalize.CanonicalizePass,
-        canonicalize_dmp.CanonicalizeDmpPass,
-        convert_linalg_to_stream.ConvertLinalgToStreamPass,
-        convert_scf_to_openmp.ConvertScfToOpenMPPass,
-        convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch,
-        constant_fold_interp.ConstantFoldInterpPass,
-        convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass,
-        convert_stream_to_snitch_stream.ConvertStreamToSnitchStreamPass,
-        dead_code_elimination.DeadCodeElimination,
-        DesymrefyPass,
-        gpu_map_parallel_loops.GpuMapParallelLoopsPass,
-        stencil_global_to_local.DistributeStencilPass,
-        stencil_global_to_local.LowerHaloToMPI,
-        lower_affine.LowerAffinePass,
-        lower_mpi.LowerMPIPass,
-        lower_riscv_func.LowerRISCVFunc,
-        lower_snitch.LowerSnitchPass,
-        mlir_opt.MLIROptPass,
-        printf_to_llvm.PrintfToLLVM,
-        printf_to_putchar.PrintfToPutcharPass,
-        reduce_register_pressure.RiscvReduceRegisterPressurePass,
-        riscv_register_allocation.RISCVRegisterAllocation,
-        riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass,
-        scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
-        snitch_register_allocation.SnitchRegisterAllocation,
-        convert_arith_to_riscv.ConvertArithToRiscvPass,
-        convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-        convert_memref_to_riscv.ConvertMemrefToRiscvPass,
-        convert_scf_to_riscv_scf.ConvertScfToRiscvPass,
-        riscv_scf_to_asm.LowerScfForToLabels,
-        stencil_shape_inference.StencilShapeInferencePass,
-        stencil_storage_materialization.StencilStorageMaterializationPass,
-        reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
-        hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
-        lower_hls.LowerHLSPass,
-        replace_incompatible_fpga.ReplaceIncompatibleFPGA,
-        stencil_unroll.StencilUnrollPass,
+        ("canonicalize", get_canonicalize),
+        ("canonicalize-dmp", get_canonicalize_dmp),
+        ("convert-linalg-to-stream", get_convert_linalg_to_stream),
+        ("convert-scf-to-openmp", get_convert_scf_to_openmp),
+        ("convert-snitch-stream-to-snitch", get_convert_snitch_stream_to_snitch),
+        ("constant-fold-interp", get_constant_fold_interp),
+        ("convert-stencil-to-ll-mlir", get_convert_stencil_to_ll_mlir),
+        ("convert-stream-to-snitch-stream", get_convert_stream_to_snitch_stream),
+        ("dce", get_dce),
+        ("frontend-desymrefy", get_desymrefy),
+        ("gpu-map-parallel-loops", get_gpu_map_parallel_loops),
+        ("distribute-stencil", get_distribute_stencil),
+        ("dmp-to-mpi", get_lower_halo_to_mpi),
+        ("lower-affine", get_lower_affine),
+        ("lower-mpi", get_lower_mpi),
+        ("lower-riscv-func", get_lower_riscv_func),
+        ("lower-snitch", get_lower_snitch),
+        ("mlir-opt", get_mlir_opt),
+        ("printf-to-llvm", get_printf_to_llvm),
+        ("printf-to-putchar", get_printf_to_putchar),
+        ("riscv-reduce-register-pressure", get_reduce_register_pressure),
+        ("riscv-allocate-registers", get_riscv_register_allocation),
+        ("riscv-scf-loop-range-folding", get_riscv_scf_loop_range_folding),
+        ("snitch-allocate-registers", get_snitch_register_allocation),
+        ("convert-arith-to-riscv", get_convert_arith_to_riscv),
+        ("convert-func-to-riscv-func", get_convert_func_to_riscv_func),
+        ("convert-memref-to-riscv", get_convert_memref_to_riscv),
+        ("scf-parallel-loop-tiling", get_scf_parallel_loop_tiling),
+        ("convert-scf-to-riscv-scf", get_convert_scf_to_riscv_scf),
+        ("lower-riscv-scf-to-labels", get_lower_scf_for_to_labels),
+        ("stencil-shape-inference", get_stencil_shape_inference),
+        ("stencil-storage-materialization", get_stencil_storage_materialization),
+        ("reconcile-unrealized-casts", get_reconcile_unrealized_casts),
+        ("hls-convert-stencil-to-ll-mlir", get_hls_convert_stencil_to_ll_mlir),
+        ("lower-hls", get_lower_hls),
+        ("replace-incompatible-fpga", get_replace_incompatible_fpga),
+        ("stencil-unroll", get_stencil_unroll),
     ]
 
 
