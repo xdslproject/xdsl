@@ -4,10 +4,16 @@ import itertools
 import struct
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeAlias, TypeVar
+from typing import Any, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, riscv
-from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+)
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -369,6 +375,18 @@ class RiscvFunctions(InterpreterFunctions):
         results = (args[0] + args[1],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.AddiOp)
+    def run_addi(
+        self,
+        interpreter: Interpreter,
+        op: riscv.AddiOp,
+        args: tuple[Any, ...],
+    ):
+        immediate = cast(IntegerAttr[IntegerType | IndexType], op.immediate).value.data
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] + immediate,)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.SlliOp)
     def run_shift_left(
         self,
@@ -555,6 +573,17 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (max(args[0], args[1]),)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.FCvtDWOp)
+    def run_fcvt_d_w(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FCvtDWOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (float(args[0]),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.FSdOp)
