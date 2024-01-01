@@ -50,7 +50,6 @@ from xdsl.irdl import (
     irdl_to_attr_constraint,
     opt_attr_def,
     region_def,
-    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -58,7 +57,6 @@ from xdsl.traits import (
     IsolatedFromAbove,
     NoTerminator,
     OptionalSymbolOpInterface,
-    Pure,
     SymbolTable,
 )
 from xdsl.utils.deprecation import deprecated_constructor
@@ -1235,8 +1233,6 @@ class UnrealizedConversionCastOp(IRDLOperation):
 
     inputs: VarOperand = var_operand_def()
     outputs: VarOpResult = var_result_def()
-
-    traits = traits_def(lambda: frozenset((Pure(),)))
 
     @staticmethod
     def get(inputs: Sequence[SSAValue | Operation], result_type: Sequence[Attribute]):
