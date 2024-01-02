@@ -537,11 +537,11 @@ class Condition(IRDLOperation):
         return Condition(cond, *output_ops)
 
     def print(self, printer: Printer):
-        printer.print("(", self.cond, ") ")
+        printer.print("(", self.cond, ")")
         if self.attributes:
             printer.print_op_attributes(self.attributes)
-            printer.print(" ")
         if self.arguments:
+            printer.print(" ")
             printer.print_list(self.arguments, printer.print_ssa_value)
             printer.print_string(" : ")
             printer.print_list(
