@@ -1480,11 +1480,11 @@ class Block(IRNode):
 
     def split_before(self, b_first: Operation) -> Block:
         """
-        Split the block into two blocks before the specified operation or iterator.
+        Split the block into two blocks before the specified operation.
 
-        Note that all operations before the specified iterator stay as part of the
-        original basic block, and the rest of the operations in the original block are
-        moved to the new block, including the old terminator.
+        Note that all operations before the one given stay as part of the original basic
+        block, and the rest of the operations in the original block are moved to the new
+        block, including the old terminator.
         The original block is left without a terminator.
         The newly formed Block is inserted into the parent region immediately after `self`
         and returned.
