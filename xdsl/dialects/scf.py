@@ -556,14 +556,14 @@ class Condition(IRDLOperation):
         cond = parser.resolve_operand(unresolved_cond, IntegerType(1))
         attrs = parser.parse_optional_attr_dict()
 
-        # The optional list of ssa values can be confused with the list of results of the
-        # next operation. We save the position to backtrack in case we can't parse the
-        # types.
+        # scf.condition is a terminator, so the list of arguments cannot be confused with
+        # the results of a hypothetical operation on the next line.
         pos = parser.pos
         unresolved_arguments = parser.parse_optional_undelimited_comma_separated_list(
             parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
         )
-        if unresolved_arguments is not None and parser.parse_optional_punctuation(":"):
+        if unresolved_arguments is not None:
+            parser.parse_punctuation(":")
             types = parser.parse_comma_separated_list(
                 parser.Delimiter.NONE, parser.parse_type
             )
