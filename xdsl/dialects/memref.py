@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    AnyFloat,
+    AnyFloatAttr,
     AnyIntegerAttr,
     ArrayAttr,
     ContainerType,
@@ -521,9 +523,23 @@ class Global(IRDLOperation):
         )
         sym_name = parser.parse_symbol_name()
         parser.parse_punctuation(":")
+        pos = parser.pos
         sym_type = parser.parse_attribute()
+        if not isinstance(sym_type, MemRefType):
+            parser.raise_error("Expected memref type", pos, parser.pos)
+
+        sym_type = cast(MemRefType[IntegerType | IndexType | AnyFloat], sym_type)
+
         if parser.parse_optional_punctuation("="):
-            initial_value = parser.parse_attribute()
+            if parser.parse_optional_characters("uninitialized"):
+                initial_value = UnitAttr()
+            else:
+                parser.parse_characters("dense")
+                # AnyFloatAttr to make pyright happy, but it may be another type
+                array = ArrayAttr[AnyFloatAttr].parse_parameter(parser)
+                initial_value = DenseIntOrFPElementsAttr.tensor_from_list(
+                    array, sym_type.element_type, sym_type.get_shape()
+                )
         else:
             initial_value = None
         attributes = parser.parse_optional_attr_dict_with_reserved_attr_names(
