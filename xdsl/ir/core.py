@@ -1478,6 +1478,65 @@ class Block(IRNode):
 
             existing_op = op
 
+    def split_before(self, b_first: Operation) -> Block:
+        """
+        Split the block into two blocks before the specified operation or iterator.
+
+        Note that all operations before the specified iterator stay as part of the
+        original basic block, and the rest of the operations in the original block are
+        moved to the new block, including the old terminator.
+        The original block is left without a terminator.
+        The newly formed Block is inserted into the parent region immediately after `self`
+        and returned.
+        """
+        # Use `a` for new contents of `self`, and `b` for new block.
+        if b_first.parent is not self:
+            raise ValueError("Cannot split block on operation outside of the block.")
+
+        parent = self.parent
+        if parent is None:
+            raise ValueError("Cannot split block with no parent.")
+
+        first_of_self = self._first_op
+        assert first_of_self is not None
+
+        last_of_self = self._last_op
+        assert last_of_self is not None
+
+        a_last = b_first.prev_op
+        b_last = last_of_self
+        if a_last is None:
+            # `before` is the first op in the Block, so all the ops move to the new block
+            a_first = None
+        else:
+            a_first = first_of_self
+
+        # Update first and last ops of self
+        self._first_op = a_first
+        self._last_op = a_last
+
+        b = Block()
+        a_index = parent.get_block_index(self)
+        parent.insert_block(b, a_index + 1)
+
+        b._first_op = b_first
+        b._last_op = b_last
+
+        # Update parent for moved ops
+        b_iter: Operation | None = b_first
+        while b_iter is not None:
+            b_iter.parent = b
+            b_iter = b_iter.next_op
+
+        # Update next op for self.last
+        if a_last is not None:
+            a_last._next_op = None  # pyright: ignore[reportPrivateUsage]
+
+        # Update previous op for b.first
+        b_first._prev_op = None  # pyright: ignore[reportPrivateUsage]
+
+        return b
+
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
         if op.parent is not self:
