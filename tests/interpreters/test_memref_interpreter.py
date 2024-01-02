@@ -63,7 +63,7 @@ def test_memref_get_global():
     tensor_type = TensorType(i32, (2, 2))
     module = ModuleOp([])
     with ImplicitBuilder(module.body):
-        memref.Global.get(
+        memref.Global(
             StringAttr("my_global"),
             memref_type,
             DenseIntOrFPElementsAttr.from_list(tensor_type, [1, 2, 3, 4]),

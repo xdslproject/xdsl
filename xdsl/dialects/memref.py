@@ -471,9 +471,25 @@ class Global(IRDLOperation):
     sym_name = prop_def(StringAttr)
     sym_visibility = opt_prop_def(StringAttr)
     type = prop_def(Attribute)
-    initial_value = prop_def(Attribute)
+    initial_value = opt_prop_def(Attribute)
 
     traits = frozenset([SymbolOpInterface()])
+
+    def __init__(
+        self,
+        sym_name: StringAttr,
+        sym_type: Attribute,
+        initial_value: Attribute | None,
+        sym_visibility: StringAttr = StringAttr("private"),
+    ):
+        super().__init__(
+            properties={
+                "sym_name": sym_name,
+                "type": sym_type,
+                "initial_value": initial_value,
+                "sym_visibility": sym_visibility,
+            }
+        )
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):
@@ -485,6 +501,7 @@ class Global(IRDLOperation):
                 "dense type or an unit attribute"
             )
 
+    @deprecated_constructor
     @staticmethod
     def get(
         sym_name: StringAttr,
@@ -492,14 +509,7 @@ class Global(IRDLOperation):
         initial_value: Attribute | None,
         sym_visibility: StringAttr = StringAttr("private"),
     ) -> Global:
-        return Global.build(
-            attributes={
-                "sym_name": sym_name,
-                "type": sym_type,
-                "initial_value": initial_value,
-                "sym_visibility": sym_visibility,
-            }
-        )
+        return Global(sym_name, sym_type, initial_value, sym_visibility)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -519,7 +529,7 @@ class Global(IRDLOperation):
         attributes = parser.parse_optional_attr_dict_with_reserved_attr_names(
             ("sym_name", "type", "initial_value", "sym_visibility")
         )
-        res = cls.get(sym_name, sym_type, initial_value, visibility)
+        res = cls(sym_name, sym_type, initial_value, visibility)
         if attributes is not None:
             res.attributes.update(attributes.data)
         return res
