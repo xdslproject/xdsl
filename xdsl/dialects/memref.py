@@ -535,18 +535,19 @@ class Global(IRDLOperation):
         return res
 
     def print(self, printer: Printer):
-        printer.print_string(" ")
         if self.sym_visibility is not None:
-            assert False
-        printer.print(self.value)
-        printer.print_string(", ")
-        printer.print(self.memref)
-        printer.print_string("[")
-        printer.print_list(self.indices, printer.print_operand)
-        printer.print_string("]")
-        printer.print_op_attributes(self.attributes)
+            printer.print_string(" ")
+            printer.print_string_literal(self.sym_visibility.data)
+        printer.print_string(" @")
+        printer.print_attribute(self.sym_name)
         printer.print_string(" : ")
-        printer.print_attribute(self.memref.type)
+        printer.print_attribute(self.type)
+        if self.initial_value is not None:
+            printer.print_string(" = ")
+            if isinstance(self.initial_value, UnitAttr):
+                printer.print_string("uninitialized")
+            else:
+                printer.print_attribute(self.initial_value)
 
 
 @irdl_op_definition
