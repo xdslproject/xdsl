@@ -11,7 +11,7 @@
     %i_last, %ub_last, %step_last = "riscv_scf.while"(%lb, %ub, %step) ({
         ^1(%i0 : !riscv.reg<>, %ub_arg0 : !riscv.reg<>, %step_arg0 : !riscv.reg<>):
             %cond = riscv.slt %i0, %ub_arg0 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-            "riscv_scf.condition"(%cond, %i0, %ub_arg0, %step_arg0) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+            riscv_scf.condition(%cond : !riscv.reg<>) %i0, %ub_arg0, %step_arg0 : !riscv.reg<>, !riscv.reg<>, !riscv.reg<>
     }, {
         ^2(%i1 : !riscv.reg<>, %ub_arg1 : !riscv.reg<>, %step_arg1 : !riscv.reg<>):
             "riscv.addi"(%acc) {"immediate" = 1 : i12} : (!riscv.reg<t0>) -> !riscv.reg<t0>
@@ -32,7 +32,7 @@
 // CHECK-NEXT:     %i_last, %ub_last, %step_last = "riscv_scf.while"(%lb, %ub, %step) ({
 // CHECK-NEXT:         ^0(%i0 : !riscv.reg<>, %ub_arg0 : !riscv.reg<>, %step_arg0 : !riscv.reg<>):
 // CHECK-NEXT:             %cond = riscv.slt %i0, %ub_arg0 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:             "riscv_scf.condition"(%cond, %i0, %ub_arg0, %step_arg0) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:             riscv_scf.condition(%cond : !riscv.reg<>) %i0, %ub_arg0, %step_arg0 : !riscv.reg<>, !riscv.reg<>, !riscv.reg<>
 // CHECK-NEXT:     }, {
 // CHECK-NEXT:         ^1(%i1 : !riscv.reg<>, %ub_arg1 : !riscv.reg<>, %step_arg1 : !riscv.reg<>):
 // CHECK-NEXT:             riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
