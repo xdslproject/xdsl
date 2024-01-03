@@ -733,29 +733,50 @@ class Printer:
     def print_function_type(
         self, input_types: Iterable[Attribute], output_types: Iterable[Attribute]
     ):
+        """
+        Prints a function type like `(i32, i64) -> (f32, f64)` with the following
+        format:
+
+        The inputs are always a comma-separated list in parentheses.
+        If the output has a single element, the parentheses are dropped, except when the
+        only return type is a function type, in which case they are kept.
+
+        ```
+        () -> ()                 # no inputs, no outputs
+        (i32) -> ()              # one input, no outputs
+        (i32) -> i32             # one input, one output
+        (i32) -> (i32, i32)      # one input, two outputs
+        (i32) -> ((i32) -> i32)  # one input, one function type output
+        ```
+        """
         self.print("(")
         self.print_list(input_types, self.print_attribute)
         self.print(") -> ")
 
-        oi = iter(output_types)
+        remaining_outputs_iterator = iter(output_types)
         try:
-            first_type = next(oi)
+            first_type = next(remaining_outputs_iterator)
         except StopIteration:
+            # No outputs
             self.print("()")
             return
 
         try:
-            second_type = next(oi)
+            second_type = next(remaining_outputs_iterator)
         except StopIteration:
-            # Handle ambiguous case
+            # One output, drop parentheses unless it's a FunctionType
             if isinstance(first_type, FunctionType):
                 self.print("(", first_type, ")")
             else:
                 self.print(first_type)
             return
 
+        # Two or more outputs, comma-separated list
         self.print("(")
-        self.print_list(chain((first_type, second_type), oi), self.print_attribute)
+        self.print_list(
+            chain((first_type, second_type), remaining_outputs_iterator),
+            self.print_attribute,
+        )
         self.print(")")
 
     def print_operation_type(self, op: Operation) -> None:
