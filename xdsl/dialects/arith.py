@@ -219,6 +219,8 @@ SignlessIntegerBinaryOp = BinaryOperation[Annotated[Attribute, signlessIntegerLi
 class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
     fastmath = opt_prop_def(FastMathFlagsAttr)
 
+    traits = frozenset((Pure(),))
+
     def __init__(
         self,
         operand1: Operation | SSAValue,
