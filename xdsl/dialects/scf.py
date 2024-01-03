@@ -81,6 +81,75 @@ class While(IRDLOperation):
                     f"got {self.after_region.block.args[idx].type}"
                 )
 
+    def print(self, printer: Printer):
+        printer.print_string(" (")
+        block_args = self.before_region.block.args
+        printer.print_list(
+            zip(block_args, self.arguments, strict=True),
+            lambda pair: printer.print(pair[0], " = ", pair[1]),
+        )
+        printer.print_string(") : ")
+        printer.print_operation_type(self)
+        printer.print_string(" ")
+        printer.print_region(self.before_region, print_entry_block_args=False)
+        printer.print(" do ")
+        printer.print_region(self.after_region)
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        def parse_assignment():
+            arg = parser.parse_argument(expect_type=False)
+            parser.parse_punctuation("=")
+            operand = parser.parse_unresolved_operand()
+            return arg, operand
+
+        tuples = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN,
+            parse_assignment,
+        )
+
+        parser.parse_punctuation(":")
+        type_pos = parser.pos
+        function_type = parser.parse_function_type()
+
+        def resolve_argument(arg: parser.Argument, type: Attribute):
+            arg.type = type
+            return arg
+
+        if len(tuples) != len(function_type.inputs.data):
+            parser.raise_error(
+                f"Mismatch between block argument count ({len(tuples)}) and operand count ({len(function_type.inputs.data)})",
+                type_pos,
+                parser.pos,
+            )
+
+        block_args = tuple(
+            resolve_argument(block_arg, t)
+            for ((block_arg, _), t) in zip(
+                tuples, function_type.inputs.data, strict=True
+            )
+        )
+
+        arguments = tuple(
+            parser.resolve_operand(operand, t)
+            for ((_, operand), t) in zip(tuples, function_type.inputs.data, strict=True)
+        )
+
+        before_region = parser.parse_region(block_args)
+        parser.parse_characters("do")
+        after_region = parser.parse_region()
+
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+
+        op = cls(arguments, function_type.outputs.data, before_region, after_region)
+
+        if attrs is not None:
+            op.attributes = attrs.data
+
+        return op
+
 
 @irdl_op_definition
 class Yield(AbstractYieldOperation[Attribute]):
