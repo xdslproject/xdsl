@@ -253,7 +253,7 @@ class ConditionOp(IRDLOperation):
         super().__init__(operands=[cond, output_ops])
 
     def print(self, printer: Printer):
-        printer.print("(", self.cond, ")")
+        printer.print("(", self.cond, " : ", self.cond.type, ") ")
         if self.attributes:
             printer.print_op_attributes(self.attributes)
         if self.arguments:
